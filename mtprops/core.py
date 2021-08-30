@@ -306,6 +306,9 @@ class MTPath:
         return None
     
     def xshift_correction(self):
+        xlen0 = int(self.radius_pre[2]/self.scale)
+        xlen = int(xlen0*0.8)
+        sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             iref = self.npoints//2
             imgref = self._sub_images[iref].proj("z")
@@ -314,7 +317,7 @@ class MTPath:
             bg = np.median(imgref)
             for i in range(self.npoints):
                 if i != iref:
-                    corr = imgref.ncc_filter(self._sub_images[i].proj("z"), bg=bg) # ncc or pcc??
+                    corr = imgref.ncc_filter(self._sub_images[i][sl].proj("z"), bg=bg) # ncc or pcc??
                     shift = np.unravel_index(np.argmax(corr), shape) - shape/2
                 else:
                     shift = np.array([0, 0])
@@ -326,6 +329,9 @@ class MTPath:
         return None
     
     def zshift_correction(self):
+        xlen0 = int(self.radius_pre[2]/self.scale)
+        xlen = int(xlen0*0.8)
+        sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             iref = self.npoints//2
             imgref = self._sub_images[iref].proj("y")
@@ -334,7 +340,7 @@ class MTPath:
             bg = np.median(imgref)
             for i in range(self.npoints):
                 if i != iref:
-                    corr = imgref.ncc_filter(self._sub_images[i].proj("y"), bg=bg) # ncc or pcc??
+                    corr = imgref.ncc_filter(self._sub_images[i][sl].proj("y"), bg=bg) # ncc or pcc??
                     shift = np.unravel_index(np.argmax(corr), shape) - shape/2
                 else:
                     shift = np.array([0, 0])
