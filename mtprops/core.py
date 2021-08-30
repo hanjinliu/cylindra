@@ -146,17 +146,6 @@ def _calc_pitch_length(img3d, rmin, rmax):
     return pitch
 
 
-def pitch2color(pitch:float):
-    valid = (4.08, 4.36)
-    saturate = (4.13, 4.3)
-    expand = (pitch - saturate[0])/(saturate[1] - saturate[0])
-    expand = min(max(expand, 0), 1)
-    if valid[0] < pitch < valid[1]:
-        color = np.array([1,0,0,1])*expand + np.array([0,0,1,1])*(1-expand)
-    else:
-        color = np.array([0,0,0,1])
-    return color
-
 def rotational_average(img, fold:int=13):
     angles = np.arange(fold)*360/fold
     average_img = img.copy()
@@ -184,7 +173,7 @@ def _calc_pf_number(img2d, rmin, rmax):
 
 class MTPath:
     inner = 0.7
-    outer = 1.5
+    outer = 1.6
     def __init__(self, scale:float, interval_nm:float=17, radius_pre_nm=(22, 32, 32), radius_nm=(16.7, 16.7, 16.7),
                  light_background:bool=True):
         self.scale = scale
@@ -193,17 +182,39 @@ class MTPath:
         self.radius = np.array(radius_nm)
         self.light_background = light_background
         
-        self._original_points = None
         self._even_interval_points = None
         
         self._sub_images = []
         
         self.grad_angles_yx = None
         self.grad_angles_zy = None
+        
+        self._pf_numbers = None
+        self._average_images = None
     
     @property
     def npoints(self):
         return self._even_interval_points.shape[0]
+    
+    @property
+    def pf_numbers(self):
+        if self._pf_numbers is None:
+            self.calc_pf_number()
+        return self._pf_numbers
+    
+    @pf_numbers.setter
+    def pf_numbers(self, value:list):
+        self._pf_numbers = value
+        
+    @property
+    def average_images(self):
+        if self._average_images is None:
+            self.rotational_averages()
+        return self._average_images
+    
+    @average_images.setter
+    def average_images(self, value):
+        self._average_images = value
     
     @property
     def curvature(self):
@@ -239,8 +250,8 @@ class MTPath:
         self.rotational_averages()
         
     def set_path(self, coordinates):
-        self._original_points = np.asarray(coordinates)
-        self._even_interval_points = get_coordinates(self._original_points, self.interval/self.scale)
+        original_points = np.asarray(coordinates)
+        self._even_interval_points = get_coordinates(original_points, self.interval/self.scale)
         return None
     
     def load_images(self, img):
@@ -411,7 +422,7 @@ class MTPath:
         return None
 
     def calc_pf_number(self):
-        self.pf_numbers = []
+        pf_numbers = []
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
@@ -421,11 +432,12 @@ class MTPath:
                 npf = _calc_pf_number(img[sl].proj("y"), 
                                       int(r*self.__class__.inner),
                                       int(r*self.__class__.outer))
-                self.pf_numbers.append(npf)
+                pf_numbers.append(npf)
+        self.pf_numbers = pf_numbers
         return None
     
     def rotational_averages(self):
-        self._average_images = []
+        average_images = []
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
@@ -434,18 +446,17 @@ class MTPath:
                 npf = self.pf_numbers[i]
                 img = self._sub_images[i]
                 av = rotational_average(img[sl].proj("y"), npf)
-                self._average_images.append(av)
-        return None
-    
-    def calc_color(self):
-        self.color = [pitch2color(l) for l in self.pitch_lengths]
+                average_images.append(av)
+        self.average_images = average_images
         return None
     
     def to_dataframe(self, label=0):
-        data = {"label": [str(label)]*self.npoints,
+        data = {"label": np.array([label]*self.npoints, dtype=np.uint16),
+                "number": np.arange(self.npoints, dtype=np.uint16),
                 "z": self._even_interval_points[:,0],
                 "y": self._even_interval_points[:,1],
                 "x": self._even_interval_points[:,2],
+                "MTradius": [self.radius_peak]*self.npoints,
                 "curvature": self.curvature,
                 "pitch": self.pitch_lengths,
                 "nPF": self.pf_numbers,
@@ -457,7 +468,8 @@ class MTPath:
         if ax is None:
             ax = plt.gca()
         lz, ly, lx = self._sub_images[index].shape
-        ax.imshow(self._sub_images[index].proj("y"), cmap="gray")
+        with ip.SetConst("SHOW_PROGRESS", False):
+            ax.imshow(self._sub_images[index].proj("y"), cmap="gray")
         theta = np.deg2rad(np.arange(360))
         r = self.radius_peak/self.scale*self.__class__.inner
         ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
@@ -468,6 +480,7 @@ class MTPath:
     def imshow_zy_ave(self, index:int, ax=None):
         if ax is None:
             ax = plt.gca()
-        ax.imshow(self._average_images[index].proj("y"), cmap="gray")
+        with ip.SetConst("SHOW_PROGRESS", False):
+            ax.imshow(self.average_images[index], cmap="gray")
         return None
         
