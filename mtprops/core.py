@@ -8,6 +8,7 @@ import impy as ip
 from impy.arrays.utils import _transform
 import pandas as pd
 
+
 def make_slice_and_pad(center, radius, size):
     z0 = center - radius
     z1 = center + radius + 1
@@ -470,6 +471,22 @@ class MTPath:
         df = pd.DataFrame(data)
         return df
     
+    def imshow_yx_raw(self, index:int, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        
+        lz, ly, lx = self._sub_images[index].shape
+        with ip.SetConst("SHOW_PROGRESS", False):
+            ax.imshow(self._sub_images[index].proj("z"), cmap="gray")
+        
+        ylen = int(self.radius[1]/self.scale)
+        ymin, ymax = ly/2 - ylen, ly/2 + ylen
+        r = self.radius_peak/self.scale*self.__class__.outer
+        xmin, xmax = -r + lx/2, r + lx/2
+        ax.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="r")
+        ax.text(1, 1, index, color="red", font="Consolas", size=36)
+        return None
+    
     def imshow_zy_raw(self, index:int, ax=None):
         if ax is None:
             ax = plt.gca()
@@ -481,6 +498,7 @@ class MTPath:
         ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
         r = self.radius_peak/self.scale*self.__class__.outer
         ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
+        ax.text(1, 1, index, color="red", font="Consolas", size=36)
         return None
     
     def imshow_zy_ave(self, index:int, ax=None):
@@ -488,5 +506,6 @@ class MTPath:
             ax = plt.gca()
         with ip.SetConst("SHOW_PROGRESS", False):
             ax.imshow(self.average_images[index], cmap="gray")
+        ax.text(1, 1, index, color="red", font="Consolas", size=36)
         return None
         

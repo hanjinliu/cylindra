@@ -16,15 +16,26 @@ BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 
 def start(viewer:"napari.Viewer"):
     scale = [r[2] for r in viewer.dims.range]
-    layer_prof = viewer.add_points(ndim=3, n_dimensional=True, scale=scale, size=4/np.mean(scale), name="MT Profiles",
-                                   opacity=0.4, edge_color="black", face_color="black",
-                                   text={"text": "{label}-{number}", "color":"black", "size":4, "visible": False})
-    layer_work = viewer.add_points(ndim=3, n_dimensional=True, scale=scale, size=4/np.mean(scale), name="Working Layer",
-                                   face_color="yellow")
+    common_properties = dict(ndim=3, n_dimensional=True, scale=scale, size=4/np.mean(scale))
+    layer_prof = viewer.add_points(**common_properties,
+                                   name="MT Profiles",
+                                   opacity=0.4, 
+                                   edge_color="black",
+                                   face_color="black",
+                                   text={"text": "{label}-{number}", "color":"black", "size":4, "visible": False},
+                                   )
+    layer_work = viewer.add_points(**common_properties,
+                                   name="Working Layer",
+                                   face_color="yellow"
+                                   )
+    
     layer_prof.editable = False
+    layer_prof.properties = {"pitch": np.array([], dtype=np.float64)}
+    layer_prof.current_properties = {"pitch": np.array([0.0], dtype=np.float64)}
+    
     for layer in viewer.layers:
         if isinstance(layer, napari.layers.Image) and layer.visible:
-            mtprof = MTProfiler(layer.data, layer_work, layer_prof)
+            mtprof = MTProfiler(layer.data, layer_work, layer_prof, parent=viewer.window._qt_window)
             break
     else:
         raise ValueError("No visible image layer was found")
@@ -32,17 +43,18 @@ def start(viewer:"napari.Viewer"):
     dock = viewer.window.add_dock_widget(mtprof, area="right", name="MT Profiler")
     dock.setFloating(True)
     # TODO: viewer.window._status_bar._toggle_activity_dock(True)
+    layer_work.mode = "add"
     return mtprof
     
 
 class MTProfiler(QMainWindow):
-    def __init__(self, image, layer_work, layer_prof):
-        super().__init__()
+    def __init__(self, image, layer_work, layer_prof, parent=None):
+        super().__init__(parent=parent)
         self.image = image
         self.layer_work = layer_work
         self.layer_prof = layer_prof
         self.figure_widget = None
-        self.paths = []
+        self.mt_paths = []
         self.dataframe = None
         
         self._add_central_widget()
@@ -51,7 +63,7 @@ class MTProfiler(QMainWindow):
     
     def register_path(self):
         self.layer_prof.add(self.layer_work.data)
-        self.paths.append(self.layer_work.data)
+        self.mt_paths.append(self.layer_work.data)
         self.layer_work.data = []
         return None
         
@@ -60,7 +72,7 @@ class MTProfiler(QMainWindow):
             raise ValueError("Data Frame list is not empty")
         
         df_list = []
-        with progress(self.paths) as pbr:
+        with progress(self.mt_paths) as pbr:
             for i, path in enumerate(pbr):
                 subpbr = progress(total=10, nest_under=pbr)
                 mtp = MTPath(self.image.scale.x)
@@ -75,7 +87,7 @@ class MTProfiler(QMainWindow):
                 subpbr.set_description("XY-rotation")
                 mtp.rot_correction()
                 subpbr.update(1)
-                subpbr.set_description("Correcting X/Z-shift")
+                subpbr.set_description("X/Z-shift")
                 mtp.xshift_correction()
                 mtp.zshift_correction()
                 subpbr.update(1)
@@ -87,7 +99,7 @@ class MTProfiler(QMainWindow):
                 mtp.load_images(self.image)
                 mtp.grad_path()
                 subpbr.update(1)
-                subpbr.set_description("3D rotation")
+                subpbr.set_description("XYZ-rotation")
                 mtp.rotate3d()
                 subpbr.update(1)
                 subpbr.set_description("Determining MT radius")
@@ -96,7 +108,7 @@ class MTProfiler(QMainWindow):
                 subpbr.set_description("Calculating pitch lengths")
                 mtp.calc_pitch_length()
                 subpbr.update(1)
-                subpbr.set_description("Calculating protofilament numbers")
+                subpbr.set_description("Calculating PF numbers")
                 mtp.calc_pf_number()
                 
                 df = mtp.to_dataframe(i)
@@ -105,15 +117,18 @@ class MTProfiler(QMainWindow):
         self.dataframe = pd.concat(df_list, axis=0)
         
         self.layer_prof.data = self.dataframe[["z", "y", "x"]].values
-        self.layer_prof.current_properties = {k:[None] for k in self.dataframe.columns}
         self.layer_prof.properties = self.dataframe
+        # self.layer_prof.current_properties = self.dataframe.iloc[-1,:].to_dict()
         self.layer_prof.face_color = "pitch"
         self.layer_prof.face_contrast_limits = [4.08, 4.36]
         self.layer_prof.face_colormap = BlueToRed
         self.layer_prof.text.visible = True
         self.layer_prof.size = mtp.radius[1]/mtp.scale
         
-        self.layer_prof.mode = "pan_zoom"
+        self.layer_work.mode = "pan_zoom"
+        self.layer_prof.mode = "select"
+        
+        return None
     
     def get_selected_points(self):
         selected = list(self.layer_prof.selected_data)
@@ -137,6 +152,7 @@ class MTProfiler(QMainWindow):
         mtp._pf_numbers = self.dataframe["nPF"].values[selected]
         self.mtp_cache = mtp
         self._add_figure()
+        self.canvas.imshow_yx_raw()
         return None
         
     def _add_central_widget(self):
@@ -166,14 +182,14 @@ class MTProfiler(QMainWindow):
     def _add_figure(self):
         if self.figure_widget is not None:
             self.removeDockWidget(self.figure_widget)
-        canvas = SlidableFigureCanvas(self, self.mtp_cache)
+        self.canvas = SlidableFigureCanvas(self, self.mtp_cache)
     
-        dock = QtViewerDockWidget(self, canvas, name="Figure",
+        dock = QtViewerDockWidget(self, self.canvas, name="Figure",
                                   area="bottom", allowed_areas=["right", "bottom"])
         dock.setMinimumHeight(200)
         self.resize(self.width(), max(self.height(), 250))
-        self.figure_widget = self.addDockWidget(dock.qt_area, dock)
-        
+        self.addDockWidget(dock.qt_area, dock)
+        self.figure_widget = dock
         return None
     
 
@@ -194,15 +210,21 @@ class SlidableFigureCanvas(QWidget):
         buttons = QFrame(self)
         buttons.setLayout(QHBoxLayout())
         
-        self.imshow1 = QPushButton("ZY raw", buttons)
-        self.imshow1.setToolTip("Call imshow_zy_raw")
-        self.imshow1.clicked.connect(self.imshow_zy_raw)
-        buttons.layout().addWidget(self.imshow1)
         
-        self.imshow2 = QPushButton("ZY ave", buttons)
-        self.imshow2.setToolTip("Call imshow_zy_ave")
-        self.imshow2.clicked.connect(self.imshow_zy_ave)
-        buttons.layout().addWidget(self.imshow2)
+        imshow0 = QPushButton("XY raw", buttons)
+        imshow0.setToolTip("Call imshow_yx_raw")
+        imshow0.clicked.connect(self.imshow_yx_raw)
+        buttons.layout().addWidget(imshow0)
+        
+        imshow1 = QPushButton("YZ raw", buttons)
+        imshow1.setToolTip("Call imshow_zy_raw")
+        imshow1.clicked.connect(self.imshow_zy_raw)
+        buttons.layout().addWidget(imshow1)
+        
+        imshow2 = QPushButton("YZ ave", buttons)
+        imshow2.setToolTip("Call imshow_zy_ave")
+        imshow2.clicked.connect(self.imshow_zy_ave)
+        buttons.layout().addWidget(imshow2)
         
         self.layout().addWidget(canvas)
         self.layout().addWidget(buttons)
@@ -210,7 +232,17 @@ class SlidableFigureCanvas(QWidget):
         
         self.last_called = self.imshow_zy_raw
     
+    def imshow_yx_raw(self):
+        self.ax.cla()
+        i = self.slider.value()
+        self.mtpath.imshow_yx_raw(i, ax=self.ax)
+        self.fig.tight_layout()
+        self.fig.canvas.draw()
+        self.last_called = self.imshow_yx_raw
+        return None
+    
     def imshow_zy_raw(self):
+        self.ax.cla()
         i = self.slider.value()
         self.mtpath.imshow_zy_raw(i, ax=self.ax)
         self.fig.tight_layout()
@@ -219,6 +251,7 @@ class SlidableFigureCanvas(QWidget):
         return None
     
     def imshow_zy_ave(self):
+        self.ax.cla()
         i = self.slider.value()
         self.mtpath.imshow_zy_ave(i, ax=self.ax)
         self.fig.tight_layout()
