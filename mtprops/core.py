@@ -358,10 +358,13 @@ class MTPath:
         return None
 
     def calc_center_shift(self):
+        xlen0 = int(self.radius_pre[2]/self.scale)
+        xlen = int(xlen0*0.8)
+        sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             imgs = []
             for i in range(self.npoints):
-                img = self._sub_images[i].proj("y")
+                img = self._sub_images[i][sl].proj("y")
                 shift = self.shifts[i]
                 imgs.append(img.affine(translation=-shift))
             imgs = np.stack(imgs, axis="y")
