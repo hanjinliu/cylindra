@@ -135,7 +135,7 @@ def _calc_pitch_length(img3d, rmin, rmax):
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
     
-    polar3d = warp_polar_3d(img3d, radius=rmax)[:, rmin:]
+    polar3d = warp_polar_3d(img3d, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
     power_spectra = polar3d.local_power_spectra(key=f"y={y0}:{y1}", upsample_factor=[1, 1, up], dims="<ry")
     
     proj_along_y = power_spectra.proj("<r")
@@ -487,8 +487,8 @@ class MTPath:
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
         r = self.radius_peak/self.scale*self.__class__.outer
         xmin, xmax = -r + lx/2, r + lx/2
-        ax.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="r")
-        ax.text(1, 1, f"{self.label}-{index}", color="red", font="Consolas", size=28, va="top")
+        ax.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
+        ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
         ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
     
@@ -500,10 +500,10 @@ class MTPath:
             ax.imshow(self._sub_images[index].proj("y"), cmap="gray")
         theta = np.deg2rad(np.arange(360))
         r = self.radius_peak/self.scale*self.__class__.inner
-        ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
+        ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
         r = self.radius_peak/self.scale*self.__class__.outer
-        ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
-        ax.text(1, 1, f"{self.label}-{index}", color="red", font="Consolas", size=28, va="top")
+        ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
         ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
     
@@ -512,7 +512,7 @@ class MTPath:
             ax = plt.gca()
         with ip.SetConst("SHOW_PROGRESS", False):
             ax.imshow(self.average_images[index], cmap="gray")
-        ax.text(1, 1, f"{self.label}-{index}", color="red", font="Consolas", size=28, va="top")
+        ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
         ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
         

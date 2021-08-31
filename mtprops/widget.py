@@ -1,14 +1,13 @@
 from __future__ import annotations
 import pandas as pd
 import napari
-from napari._qt.widgets.qt_viewer_dock_widget import QtViewerDockWidget
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 import numpy as np
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress
-from qtpy.QtWidgets import (QWidget, QMainWindow, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
+from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
                             QSpinBox, QLabel)
 from qtpy.QtCore import Qt
 
@@ -31,8 +30,9 @@ def start(viewer:"napari.Viewer", path:str=None, binsize=4):
         )
         if filenames != [] and filenames is not None:
             path = filenames[0]
-            
             napari.utils.history.update_open_history(filenames[0])
+        else:
+            return None
             
     img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
     if img.axes != "zyx":
@@ -72,7 +72,7 @@ def start(viewer:"napari.Viewer", path:str=None, binsize=4):
     return mtprof
     
 
-class MTProfiler(QMainWindow):
+class MTProfiler(QWidget):
     def __init__(self, image:"ip.arrays.LazyImgArray", layer_image, layer_work, layer_prof, viewer:"napari.Viewer"):
         super().__init__(parent=viewer.window._qt_window)
         self.viewer = viewer
@@ -80,14 +80,11 @@ class MTProfiler(QMainWindow):
         self.layer_image = layer_image
         self.layer_work = layer_work
         self.layer_prof = layer_prof
-        self.figure_dock_widget = None
         self.mt_paths = []
         self.dataframe = None
         
-        self._add_central_widget()
-        self.setUnifiedTitleAndToolBarOnMac(True)
+        self._add_widgets()
         self.setWindowTitle("MT Profiler")
-        self._add_figure()
     
     def register_path(self):
         self.layer_prof.add(self.layer_work.data)
@@ -157,7 +154,6 @@ class MTProfiler(QMainWindow):
         self.layer_prof.size = mtp.radius[1]/mtp.scale
         
         self.layer_work.mode = "pan_zoom"
-        self.layer_prof.mode = "select"
         
         self.viewer.layers.selection = {self.layer_prof}
         self.canvas.label_choice.setMaximum(len(self.mt_paths)-1)
@@ -182,6 +178,27 @@ class MTProfiler(QMainWindow):
         mtp._pf_numbers = df["nPF"].values
         return mtp
     
+    def save_results(self, path:str=None):
+        # open file dialog if path is not specified.
+        if not isinstance(path, str):
+            dlg = QFileDialog()
+            hist = napari.utils.history.get_save_history()
+            dlg.setHistory(hist)
+            filename, _ = dlg.getSaveFileName(
+                parent=self,
+                caption="Save results ...",
+                directory=hist[0],
+            )
+            if filename:
+                path = filename
+                napari.utils.history.update_save_history(filename)
+            else:
+                return None
+                
+        self.dataframe.to_csv(path)
+        return None
+        
+    
     def paint_mt(self):
         # TODO: paint using labels layer
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
@@ -194,7 +211,9 @@ class MTProfiler(QMainWindow):
         self.viewer.add_labels(lbl, color=color, scale=self.layer_image.scale,
                                translate=self.layer_image.translate)
         
-    def _add_central_widget(self):
+    def _add_widgets(self):
+        self.setLayout(QVBoxLayout())
+        
         central_widget = QWidget(self)
         central_widget.setLayout(QHBoxLayout())
         
@@ -206,24 +225,19 @@ class MTProfiler(QMainWindow):
         self.run_button.setToolTip("Run profiler for all the paths.")
         self.run_button.clicked.connect(self.run_for_all_path)
         
+        self.save_button = QPushButton("Save", central_widget)
+        self.save_button.setToolTip("Save results.")
+        self.save_button.clicked.connect(self.save_results)
+        
         central_widget.layout().addWidget(self.register_button)
         central_widget.layout().addWidget(self.run_button)
+        central_widget.layout().addWidget(self.save_button)
         
-        self.setCentralWidget(central_widget)
+        self.layout().addWidget(central_widget)
         
-        return None
-        
-    def _add_figure(self):
-        if self.figure_dock_widget is not None:
-            self.removeDockWidget(self.figure_dock_widget)
         self.canvas = SlidableFigureCanvas(self)
-    
-        dock = QtViewerDockWidget(self, self.canvas, name="Figure",
-                                  area="bottom", allowed_areas=["right", "bottom"])
-        dock.setMinimumHeight(200)
-        self.resize(self.width(), max(self.height(), 250))
-        self.addDockWidget(dock.qt_area, dock)
-        self.figure_dock_widget = dock
+        
+        self.layout().addWidget(self.canvas)
         return None
     
 
@@ -252,16 +266,13 @@ class SlidableFigureCanvas(QWidget):
         figindex.layout().addWidget(label)
         
         self.label_choice = QSpinBox(self)
+        self.label_choice.resize(self.label_choice.width()//2, self.label_choice.height())
         self.label_choice.setToolTip("MT label")
         self.label_choice.setValue(0)
         self.label_choice.setRange(0, 0)
         self.label_choice.valueChanged.connect(self.update_mtpath)
         figindex.layout().addWidget(self.label_choice)
-        
-        line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        figindex.layout().addWidget(line)
-        
+                
         figindex.layout().addWidget(self.slider)
         
         buttons = QFrame(self)
@@ -293,6 +304,8 @@ class SlidableFigureCanvas(QWidget):
         self.layout().addWidget(figindex)
         self.layout().addWidget(canvas)
         self.layout().addWidget(buttons)
+        
+        return None
     
     @property
     def mtpath(self):
