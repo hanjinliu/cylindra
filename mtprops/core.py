@@ -317,20 +317,20 @@ class MTPath:
         sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             iref = self.npoints//2
-            imgref = self._sub_images[iref].proj("z")
+            imgref = self._sub_images[iref].proj("z").gaussian_filter(2)
             shape = np.array(imgref.shape)
             shifts = [] # yx-shift
             bg = np.median(imgref)
             for i in range(self.npoints):
                 if i != iref:
-                    corr = imgref.ncc_filter(self._sub_images[i][sl].proj("z"), bg=bg) # ncc or pcc??
+                    template = self._sub_images[i][sl].proj("z").gaussian_filter(2)
+                    corr = imgref.ncc_filter(template, bg=bg) # ncc or pcc??
                     shift = np.unravel_index(np.argmax(corr), shape) - shape/2
                 else:
                     shift = np.array([0, 0])
                 shifts.append(list(shift))
         
         shifts = np.array(shifts)
-        shifts[:, 0] = 0
         self.shifts = shifts
         return None
     
@@ -359,15 +359,15 @@ class MTPath:
     def calc_center_shift(self):
         xlen0 = int(self.radius_pre[2]/self.scale)
         xlen = int(xlen0*0.8)
-        sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
+        sl = (slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             imgs = []
             for i in range(self.npoints):
-                img = self._sub_images[i][sl].proj("y")
+                img = self._sub_images[i].proj("y")
                 shift = self.shifts[i]
-                imgs.append(img.affine(translation=-shift))
+                imgs.append(img.affine(translation=-shift)[sl])
             imgs = np.stack(imgs, axis="y")
-            imgcory = imgs.proj("y", method="max")
+            imgcory = imgs.proj("y")
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])
             self.shifts = self.shifts - center_shift/2
         
@@ -379,7 +379,7 @@ class MTPath:
             shiftz, shiftx = -self.shifts[i]
             shift = np.array([shiftz, 0, shiftx])
             deg = self.grad_angles_yx[i]
-            rad = np.deg2rad(deg)
+            rad = -np.deg2rad(deg)
             cos = np.cos(rad)
             sin = np.sin(rad)
             shift = shift @ [[1.,   0.,  0.],
