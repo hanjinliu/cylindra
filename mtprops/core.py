@@ -80,8 +80,10 @@ def get_coordinates(path, interval):
     npoints, ndim = path.shape
     each_length = np.sqrt(np.sum(np.diff(path, axis=0)**2, axis=1))
     total_length = np.sum(each_length)
-    coords = np.zeros((ndim, int(total_length/interval)+1))
+    coords = np.zeros((ndim, int(total_length/interval)+1)) - 1
     _get_coordinate(path.copy(), coords, interval)
+    while coords[0, -1]<0:
+        coords = coords[:,:-1]
     return coords.T
 
 def angle_corr(img, ang_center):
