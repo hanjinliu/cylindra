@@ -154,7 +154,7 @@ def rotational_average(img, fold:int=13):
     average_img = img.copy()
     with ip.SetConst("SHOW_PROGRESS", False):
         for angle in angles[1:]:
-            average_img.value[:] += img.rotate(angle)
+            average_img.value[:] += img.rotate(angle, dims="zx")
     average_img /= fold
     return average_img
 
@@ -163,15 +163,14 @@ def wave_power(wave):
     pw = ft.real**2 + ft.imag**2
     return np.mean(pw)
 
-def _calc_pf_number(img2d, rmin, rmax):
-    powers = []
+def _calc_pf_number(img2d):
+    corrs = []
     for pf in [12, 13, 14, 15, 16]:
         av = rotational_average(img2d, pf)
-        polar_img = warp_polar(av, radius=rmax)[:, rmin:]
-        power = wave_power(np.mean(polar_img, axis=1))
-        powers.append(power)
+        av.gaussian_filter([4,1],update=True)
+        corrs.append(ip.zncc(img2d, av))
     
-    return np.argmax(powers) + 12
+    return np.argmax(corrs) + 12
 
 
 class MTPath:
@@ -445,10 +444,7 @@ class MTPath:
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             for img in self._sub_images:
-                r = self.radius_peak/self.scale
-                npf = _calc_pf_number(img[sl].proj("y"), 
-                                      int(r*self.__class__.inner),
-                                      int(r*self.__class__.outer))
+                npf = _calc_pf_number(img[sl].proj("y"))
                 pf_numbers.append(npf)
         self.pf_numbers = pf_numbers
         return None

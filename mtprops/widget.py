@@ -219,7 +219,7 @@ class MTProfiler(QWidget):
         self.viewer.layers.selection = {self.layer_prof}
         self.canvas.label_choice.setMaximum(len(self.mt_paths)-1)
         self.canvas.slider.setRange(0, first_mtp.npoints-1)
-        self.canvas.imshow_yx_raw()
+        self.canvas.call()
         self.canvas.add_note_edit()
         return None
     
@@ -309,10 +309,7 @@ class SlidableFigureCanvas(QWidget):
         self.slider.setMinimumWidth(50)
         self.slider.setRange(0, 0)
         self.slider.setToolTip("Slide along a MT")
-        @self.slider.valueChanged.connect
-        def _(*args):
-            
-            self.call()
+        self.slider.valueChanged.connect(self.call)
         
         self.fig = self.fig = plt.figure()
         canvas = FigureCanvas(self.fig)        
@@ -336,7 +333,6 @@ class SlidableFigureCanvas(QWidget):
             self.label_choice.setEnabled(False)
             self.update_mtpath()
             self.update_note()
-            self.update_info()
             self.label_choice.setEnabled(True)
         
         figindex.layout().addWidget(self.label_choice)
@@ -484,11 +480,9 @@ class SlidableFigureCanvas(QWidget):
         return None
     
     def call(self):
+        i = self.slider.value()
+        pitch = self.mtpath.pitch_lengths[i]
+        npf = self.mtpath.pf_numbers[i]
+        self.info.setText(f"{pitch:.2f} nm / {npf} pf")
         return self.last_called()
     
-    def update_info(self):
-        i = self.slider.value()
-        pitch = self._mtpath.pitch_lengths[i]
-        npf = self._mtpath.pf_numbers[i]
-        self.info.setText(f"{pitch:2f} nm / {npf} pf")
-        return None
