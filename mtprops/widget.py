@@ -253,7 +253,7 @@ class MTProfiler(QWidget):
             path += ".csv"
         self.dataframe.to_csv(path)
         return None
-        
+    
     
     def paint_mt(self):
         # TODO: paint using labels layer
@@ -273,15 +273,15 @@ class MTProfiler(QWidget):
         central_widget = QWidget(self)
         central_widget.setLayout(QHBoxLayout())
         
-        self.register_button = QPushButton("Register", central_widget)
+        self.register_button = QPushButton("Register 📝", central_widget)
         self.register_button.setToolTip("Register current points in 'Working Layer' as a MT path.")
         self.register_button.clicked.connect(self.register_path)
         
-        self.run_button = QPushButton("Run", central_widget)
+        self.run_button = QPushButton("Run 👉", central_widget)
         self.run_button.setToolTip("Run profiler for all the paths.")
         self.run_button.clicked.connect(self.run_for_all_path)
         
-        self.save_button = QPushButton("Save", central_widget)
+        self.save_button = QPushButton("Save 💾", central_widget)
         self.save_button.setToolTip("Save results.")
         self.save_button.clicked.connect(self.save_results)
         
@@ -309,7 +309,10 @@ class SlidableFigureCanvas(QWidget):
         self.slider.setMinimumWidth(50)
         self.slider.setRange(0, 0)
         self.slider.setToolTip("Slide along a MT")
-        self.slider.valueChanged.connect(self.call)
+        @self.slider.valueChanged.connect
+        def _(*args):
+            
+            self.call()
         
         self.fig = self.fig = plt.figure()
         canvas = FigureCanvas(self.fig)        
@@ -333,41 +336,55 @@ class SlidableFigureCanvas(QWidget):
             self.label_choice.setEnabled(False)
             self.update_mtpath()
             self.update_note()
+            self.update_info()
             self.label_choice.setEnabled(True)
         
         figindex.layout().addWidget(self.label_choice)
                 
         figindex.layout().addWidget(self.slider)
         
-        buttons = QFrame(self)
-        buttons.setLayout(QHBoxLayout())
+        frame1 = QFrame(self)
+        frame1.setLayout(QHBoxLayout())
         
         self.imshow_buttons:list[QPushButton] = []
         
-        imshow0 = QPushButton("XY raw", buttons)
+        imshow0 = QPushButton("XY raw 📈", frame1)
         imshow0.setCheckable(True)
         imshow0.setToolTip("Call imshow_yx_raw")
         imshow0.clicked.connect(self.imshow_yx_raw)
-        buttons.layout().addWidget(imshow0)
+        frame1.layout().addWidget(imshow0)
         self.imshow_buttons.append(imshow0)
         
-        imshow1 = QPushButton("XZ raw", buttons)
+        imshow1 = QPushButton("XZ raw 📈", frame1)
         imshow1.setCheckable(True)
         imshow1.setToolTip("Call imshow_zx_raw")
         imshow1.clicked.connect(self.imshow_zx_raw)
-        buttons.layout().addWidget(imshow1)
+        frame1.layout().addWidget(imshow1)
         self.imshow_buttons.append(imshow1)
         
-        imshow2 = QPushButton("XZ avg", buttons)
+        imshow2 = QPushButton("XZ avg 📈", frame1)
         imshow2.setCheckable(True)
         imshow2.setToolTip("Call imshow_zx_ave")
         imshow2.clicked.connect(self.imshow_zx_ave)
-        buttons.layout().addWidget(imshow2)
+        frame1.layout().addWidget(imshow2)
         self.imshow_buttons.append(imshow2)
+        
+        frame2 = QFrame()
+        frame2.setLayout(QHBoxLayout())
+        
+        send = QPushButton("View 👁", frame2)
+        send.setToolTip("Send current MT fragment to viewer.")
+        send.clicked.connect(self.send_to_napari)
+        frame2.layout().addWidget(send)
+        
+        self.info = QLabel()
+        self.info.setText("X.XX nm / XX pf")
+        frame2.layout().addWidget(self.info)
         
         self.layout().addWidget(figindex)
         self.layout().addWidget(canvas)
-        self.layout().addWidget(buttons)
+        self.layout().addWidget(frame1)
+        self.layout().addWidget(frame2)
         
         return None
     
@@ -415,6 +432,15 @@ class SlidableFigureCanvas(QWidget):
         self.line_edit.setText(note)
         return self.call()
     
+    def send_to_napari(self):
+        if self.mtprofiler.dataframe is None:
+            return None
+        i = self.slider.value()
+        img = self._mtpath._sub_images[i]
+        self.mtprofiler.viewer.add_image(img, scale=img.scale, name=img.name)
+        return None
+    
+    
     def imshow_yx_raw(self):
         if self.mtprofiler.dataframe is None:
             return None
@@ -460,3 +486,9 @@ class SlidableFigureCanvas(QWidget):
     def call(self):
         return self.last_called()
     
+    def update_info(self):
+        i = self.slider.value()
+        pitch = self._mtpath.pitch_lengths[i]
+        npf = self._mtpath.pf_numbers[i]
+        self.info.setText(f"{pitch:2f} nm / {npf} pf")
+        return None

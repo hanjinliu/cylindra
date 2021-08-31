@@ -1,4 +1,4 @@
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 from .widget import start
 
@@ -6,4 +6,3 @@ from .widget import start
 # TODO
 # - consider very short path
 # - check box for light background etc.
-# - "send sub image to viewer" button
