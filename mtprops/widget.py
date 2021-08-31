@@ -2,21 +2,50 @@ from __future__ import annotations
 import pandas as pd
 import napari
 from napari._qt.widgets.qt_viewer_dock_widget import QtViewerDockWidget
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 import numpy as np
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress
-from qtpy.QtWidgets import (QWidget, QMainWindow, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider)
+from qtpy.QtWidgets import (QWidget, QMainWindow, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
+                            QSpinBox, QLabel)
 from qtpy.QtCore import Qt
+
+import impy as ip
 
 from .core import MTPath
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 
-def start(viewer:"napari.Viewer"):
-    scale = [r[2] for r in viewer.dims.range]
-    common_properties = dict(ndim=3, n_dimensional=True, scale=scale, size=4/np.mean(scale))
+def start(viewer:"napari.Viewer", path:str=None, binsize=4):
+    # open file dialog if path is not specified.
+    if path is None:
+        dlg = QFileDialog()
+        hist = napari.utils.history.get_open_history()
+        dlg.setHistory(hist)
+        filenames, _ = dlg.getOpenFileNames(
+            parent=viewer.window.qt_viewer,
+            caption="Select image ...",
+            directory=hist[0],
+        )
+        if filenames != [] and filenames is not None:
+            path = filenames[0]
+            
+            napari.utils.history.update_open_history(filenames[0])
+            
+    img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+    if img.axes != "zyx":
+        raise ValueError(f"Axes must be zyx, got {img.axes}.")
+    elif (img.scale.x-img.scale.y)/img.scale.x > 1e-3:
+        raise ValueError("Scale is not unique.")
+    
+    imgb = img.binning(binsize, check_edges=False).data
+    tr = (binsize-1)/2*img.scale.x
+    layer_image = viewer.add_image(imgb, scale=imgb.scale, name=imgb.name, translate=[tr, tr, tr])
+    viewer.scale_bar.unit = img.scale_unit
+    
+    common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
     layer_prof = viewer.add_points(**common_properties,
                                    name="MT Profiles",
                                    opacity=0.4, 
@@ -33,14 +62,10 @@ def start(viewer:"napari.Viewer"):
     layer_prof.properties = {"pitch": np.array([], dtype=np.float64)}
     layer_prof.current_properties = {"pitch": np.array([0.0], dtype=np.float64)}
     
-    for layer in viewer.layers:
-        if isinstance(layer, napari.layers.Image) and layer.visible:
-            mtprof = MTProfiler(layer.data, layer_work, layer_prof, parent=viewer.window._qt_window)
-            break
-    else:
-        raise ValueError("No visible image layer was found")
     
-    dock = viewer.window.add_dock_widget(mtprof, area="right", name="MT Profiler")
+    mtprof = MTProfiler(img, layer_image, layer_work, layer_prof, viewer=viewer)
+    dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
+                                         name="MT Profiler")
     dock.setFloating(True)
     # TODO: viewer.window._status_bar._toggle_activity_dock(True)
     layer_work.mode = "add"
@@ -48,18 +73,21 @@ def start(viewer:"napari.Viewer"):
     
 
 class MTProfiler(QMainWindow):
-    def __init__(self, image, layer_work, layer_prof, parent=None):
-        super().__init__(parent=parent)
+    def __init__(self, image:"ip.arrays.LazyImgArray", layer_image, layer_work, layer_prof, viewer:"napari.Viewer"):
+        super().__init__(parent=viewer.window._qt_window)
+        self.viewer = viewer
         self.image = image
+        self.layer_image = layer_image
         self.layer_work = layer_work
         self.layer_prof = layer_prof
-        self.figure_widget = None
+        self.figure_dock_widget = None
         self.mt_paths = []
         self.dataframe = None
         
         self._add_central_widget()
         self.setUnifiedTitleAndToolBarOnMac(True)
         self.setWindowTitle("MT Profiler")
+        self._add_figure()
     
     def register_path(self):
         self.layer_prof.add(self.layer_work.data)
@@ -72,10 +100,11 @@ class MTProfiler(QMainWindow):
             raise ValueError("Data Frame list is not empty")
         
         df_list = []
+        first_mtp = None
         with progress(self.mt_paths) as pbr:
             for i, path in enumerate(pbr):
                 subpbr = progress(total=10, nest_under=pbr)
-                mtp = MTPath(self.image.scale.x)
+                mtp = MTPath(self.image.scale.x, label=i)
                 subpbr.set_description("Loading images")
                 mtp.set_path(path)
                 mtp.load_images(self.image)
@@ -111,14 +140,16 @@ class MTProfiler(QMainWindow):
                 subpbr.set_description("Calculating PF numbers")
                 mtp.calc_pf_number()
                 
-                df = mtp.to_dataframe(i)
+                df = mtp.to_dataframe()
                 df_list.append(df)
+                
+                if i == 0:
+                    first_mtp = mtp
                 
         self.dataframe = pd.concat(df_list, axis=0)
         
         self.layer_prof.data = self.dataframe[["z", "y", "x"]].values
         self.layer_prof.properties = self.dataframe
-        # self.layer_prof.current_properties = self.dataframe.iloc[-1,:].to_dict()
         self.layer_prof.face_color = "pitch"
         self.layer_prof.face_contrast_limits = [4.08, 4.36]
         self.layer_prof.face_colormap = BlueToRed
@@ -128,38 +159,46 @@ class MTProfiler(QMainWindow):
         self.layer_work.mode = "pan_zoom"
         self.layer_prof.mode = "select"
         
+        self.viewer.layers.selection = {self.layer_prof}
+        self.canvas.label_choice.setMaximum(len(self.mt_paths)-1)
+        self.canvas.slider.setRange(0, first_mtp.npoints-1)
+        self.canvas.imshow_yx_raw()
         return None
     
-    def get_selected_points(self):
-        selected = list(self.layer_prof.selected_data)
-        label = np.unique([self.dataframe.iloc[i]["label"] for i in selected])
-        if len(label) != 1:
-            raise ValueError(f"{len(label)} MTs were selected.")
-        label = label[0]
+    def get_one_mt(self, label:int=0):
         df = self.dataframe[self.dataframe["label"]==label]
-        mtp = MTPath(self.image.scale.x)
+        mtp = MTPath(self.image.scale.x, label=label)
         mtp._even_interval_points = df[["z","y","x"]].values
         mtp.grad_path()
-        indices = self.dataframe["number"].values[selected]
+        indices = df["number"].values
         mtp._even_interval_points = mtp._even_interval_points[indices]
         mtp.grad_angles_yx = mtp.grad_angles_yx[indices]
         mtp.grad_angles_zy = mtp.grad_angles_zy[indices]
         
         mtp.load_images(self.image)
         mtp.rotate3d()
-        mtp.radius_peak = float(self.dataframe["MTradius"].values[0])
-        mtp.pitch_lengths = self.dataframe["pitch"].values[selected]
-        mtp._pf_numbers = self.dataframe["nPF"].values[selected]
-        self.mtp_cache = mtp
-        self._add_figure()
-        self.canvas.imshow_yx_raw()
-        return None
+        mtp.radius_peak = float(df["MTradius"].values[0])
+        mtp.pitch_lengths = df["pitch"].values
+        mtp._pf_numbers = df["nPF"].values
+        return mtp
+    
+    def paint_mt(self):
+        # TODO: paint using labels layer
+        lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
+        color = dict()
+        for i, row in self.dataframe.iterrows():
+            crds = row[["z","y","x"]]
+            color[i] = BlueToRed.map(row["pitch"] - 4.08)/(4.36 - 4.08)
+            # update lbl
+            
+        self.viewer.add_labels(lbl, color=color, scale=self.layer_image.scale,
+                               translate=self.layer_image.translate)
         
     def _add_central_widget(self):
         central_widget = QWidget(self)
-        central_widget.setLayout(QVBoxLayout())
+        central_widget.setLayout(QHBoxLayout())
         
-        self.register_button = QPushButton("Register Path", central_widget)
+        self.register_button = QPushButton("Register", central_widget)
         self.register_button.setToolTip("Register current points in 'Working Layer' as a MT path.")
         self.register_button.clicked.connect(self.register_path)
         
@@ -167,70 +206,112 @@ class MTProfiler(QMainWindow):
         self.run_button.setToolTip("Run profiler for all the paths.")
         self.run_button.clicked.connect(self.run_for_all_path)
         
-        self.load_button = QPushButton("Load", central_widget)
-        self.load_button.setToolTip("Load path from the selected point.")
-        self.load_button.clicked.connect(self.get_selected_points)
-        
         central_widget.layout().addWidget(self.register_button)
         central_widget.layout().addWidget(self.run_button)
-        central_widget.layout().addWidget(self.load_button)
         
         self.setCentralWidget(central_widget)
         
         return None
         
     def _add_figure(self):
-        if self.figure_widget is not None:
-            self.removeDockWidget(self.figure_widget)
-        self.canvas = SlidableFigureCanvas(self, self.mtp_cache)
+        if self.figure_dock_widget is not None:
+            self.removeDockWidget(self.figure_dock_widget)
+        self.canvas = SlidableFigureCanvas(self)
     
         dock = QtViewerDockWidget(self, self.canvas, name="Figure",
                                   area="bottom", allowed_areas=["right", "bottom"])
         dock.setMinimumHeight(200)
         self.resize(self.width(), max(self.height(), 250))
         self.addDockWidget(dock.qt_area, dock)
-        self.figure_widget = dock
+        self.figure_dock_widget = dock
         return None
     
 
 class SlidableFigureCanvas(QWidget):
-    def __init__(self, parent=None, mtpath:MTPath=None):
-        super().__init__(parent)
-        self.mtpath = mtpath
+    def __init__(self, mtprofiler:MTProfiler=None):
+        super().__init__(mtprofiler)
+        self.mtprofiler = mtprofiler
+        self._mtpath = None
         self.setLayout(QVBoxLayout())
+        self.last_called = self.imshow_zx_raw
         
         self.slider = QSlider(Qt.Horizontal, self)
-        self.slider.setRange(0, mtpath.npoints-1)
+        self.slider.setRange(0, 0)
+        self.slider.setToolTip("Slide along a MT")
         self.slider.valueChanged.connect(self.call)
         
         self.fig = self.fig = plt.figure()
-        canvas = FigureCanvas(self.fig)
-        self.ax = self.fig.add_subplot(111)
+        canvas = FigureCanvas(self.fig)        
+        self._ax = None
+        
+        figindex = QFrame(self)
+        figindex.setLayout(QHBoxLayout())
+        
+        label = QLabel()
+        label.setText("MT No.")
+        figindex.layout().addWidget(label)
+        
+        self.label_choice = QSpinBox(self)
+        self.label_choice.setToolTip("MT label")
+        self.label_choice.setValue(0)
+        self.label_choice.setRange(0, 0)
+        self.label_choice.valueChanged.connect(self.update_mtpath)
+        figindex.layout().addWidget(self.label_choice)
+        
+        line = QFrame()
+        line.setFrameShape(QFrame.VLine)
+        figindex.layout().addWidget(line)
+        
+        figindex.layout().addWidget(self.slider)
         
         buttons = QFrame(self)
         buttons.setLayout(QHBoxLayout())
         
+        self.imshow_buttons:list[QPushButton] = []
         
         imshow0 = QPushButton("XY raw", buttons)
+        imshow0.setCheckable(True)
         imshow0.setToolTip("Call imshow_yx_raw")
         imshow0.clicked.connect(self.imshow_yx_raw)
         buttons.layout().addWidget(imshow0)
+        self.imshow_buttons.append(imshow0)
         
-        imshow1 = QPushButton("YZ raw", buttons)
-        imshow1.setToolTip("Call imshow_zy_raw")
-        imshow1.clicked.connect(self.imshow_zy_raw)
+        imshow1 = QPushButton("XZ raw", buttons)
+        imshow1.setCheckable(True)
+        imshow1.setToolTip("Call imshow_zx_raw")
+        imshow1.clicked.connect(self.imshow_zx_raw)
         buttons.layout().addWidget(imshow1)
+        self.imshow_buttons.append(imshow1)
         
-        imshow2 = QPushButton("YZ ave", buttons)
-        imshow2.setToolTip("Call imshow_zy_ave")
-        imshow2.clicked.connect(self.imshow_zy_ave)
+        imshow2 = QPushButton("XZ avg", buttons)
+        imshow2.setCheckable(True)
+        imshow2.setToolTip("Call imshow_zx_ave")
+        imshow2.clicked.connect(self.imshow_zx_ave)
         buttons.layout().addWidget(imshow2)
+        self.imshow_buttons.append(imshow2)
         
+        self.layout().addWidget(figindex)
         self.layout().addWidget(canvas)
         self.layout().addWidget(buttons)
-        self.layout().addWidget(self.slider)
+    
+    @property
+    def mtpath(self):
+        if self._mtpath is None:
+            self._mtpath = self.mtprofiler.get_one_mt(0)
+        return self._mtpath
+    
+    @property
+    def ax(self):
+        if self._ax is None:
+            self._ax = self.fig.add_subplot(111)
+        return self._ax
+    
+    def update_mtpath(self):
+        label = self.label_choice.value()
+        self._mtpath = self.mtprofiler.get_one_mt(label)
+        self.slider.setRange(0, self._mtpath.npoints-1)
         
-        self.last_called = self.imshow_zy_raw
+        return self.call()
     
     def imshow_yx_raw(self):
         self.ax.cla()
@@ -239,25 +320,35 @@ class SlidableFigureCanvas(QWidget):
         self.fig.tight_layout()
         self.fig.canvas.draw()
         self.last_called = self.imshow_yx_raw
+        for b in self.imshow_buttons:
+            b.setDown(False)
+        self.imshow_buttons[0].setDown(True)
         return None
     
-    def imshow_zy_raw(self):
+    def imshow_zx_raw(self):
         self.ax.cla()
         i = self.slider.value()
-        self.mtpath.imshow_zy_raw(i, ax=self.ax)
+        self.mtpath.imshow_zx_raw(i, ax=self.ax)
         self.fig.tight_layout()
         self.fig.canvas.draw()
-        self.last_called = self.imshow_zy_raw
+        self.last_called = self.imshow_zx_raw
+        for b in self.imshow_buttons:
+            b.setDown(False)
+        self.imshow_buttons[1].setDown(True)
         return None
     
-    def imshow_zy_ave(self):
+    def imshow_zx_ave(self):
         self.ax.cla()
         i = self.slider.value()
-        self.mtpath.imshow_zy_ave(i, ax=self.ax)
+        self.mtpath.imshow_zx_ave(i, ax=self.ax)
         self.fig.tight_layout()
         self.fig.canvas.draw()
-        self.last_called = self.imshow_zy_ave
+        self.last_called = self.imshow_zx_ave
+        for b in self.imshow_buttons:
+            b.setDown(False)
+        self.imshow_buttons[2].setDown(True)
         return None
     
     def call(self):
         return self.last_called()
+    

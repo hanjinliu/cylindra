@@ -176,7 +176,7 @@ class MTPath:
     inner = 0.7
     outer = 1.6
     def __init__(self, scale:float, interval_nm:float=17, radius_pre_nm=(22, 32, 32), radius_nm=(16.7, 16.7, 16.7),
-                 light_background:bool=True):
+                 light_background:bool=True, label:int=-1):
         self.scale = scale
         self.interval = interval_nm
         self.radius_pre = np.array(radius_pre_nm)
@@ -192,6 +192,8 @@ class MTPath:
         
         self._pf_numbers = None
         self._average_images = None
+        
+        self.label = int(label)
     
     @property
     def npoints(self):
@@ -260,9 +262,11 @@ class MTPath:
         From a large image crop out sub-images around each point of the path.
         """        
         self._sub_images.clear()
-        for i in range(self.npoints):
-            subimg = load_subimage(img, self._even_interval_points[i], self.radius_pre)
-            self._sub_images.append(subimg)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            for i in range(self.npoints):
+                subimg = load_subimage(img, self._even_interval_points[i], self.radius_pre)
+                self._sub_images.append(subimg)
+
         return None
     
     def grad_path(self):
@@ -457,8 +461,8 @@ class MTPath:
         self.average_images = average_images
         return None
     
-    def to_dataframe(self, label=0):
-        data = {"label": np.array([label]*self.npoints, dtype=np.uint16),
+    def to_dataframe(self):
+        data = {"label": np.array([self.label]*self.npoints, dtype=np.uint16),
                 "number": np.arange(self.npoints, dtype=np.uint16),
                 "z": self._even_interval_points[:,0],
                 "y": self._even_interval_points[:,1],
@@ -484,10 +488,11 @@ class MTPath:
         r = self.radius_peak/self.scale*self.__class__.outer
         xmin, xmax = -r + lx/2, r + lx/2
         ax.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="r")
-        ax.text(1, 1, index, color="red", font="Consolas", size=36)
+        ax.text(1, 1, f"{self.label}-{index}", color="red", font="Consolas", size=28, va="top")
+        ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
     
-    def imshow_zy_raw(self, index:int, ax=None):
+    def imshow_zx_raw(self, index:int, ax=None):
         if ax is None:
             ax = plt.gca()
         lz, ly, lx = self._sub_images[index].shape
@@ -498,14 +503,16 @@ class MTPath:
         ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
         r = self.radius_peak/self.scale*self.__class__.outer
         ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="r")
-        ax.text(1, 1, index, color="red", font="Consolas", size=36)
+        ax.text(1, 1, f"{self.label}-{index}", color="red", font="Consolas", size=28, va="top")
+        ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
     
-    def imshow_zy_ave(self, index:int, ax=None):
+    def imshow_zx_ave(self, index:int, ax=None):
         if ax is None:
             ax = plt.gca()
         with ip.SetConst("SHOW_PROGRESS", False):
             ax.imshow(self.average_images[index], cmap="gray")
-        ax.text(1, 1, index, color="red", font="Consolas", size=36)
+        ax.text(1, 1, f"{self.label}-{index}", color="red", font="Consolas", size=28, va="top")
+        ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
         
