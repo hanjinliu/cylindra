@@ -1,5 +1,6 @@
 from __future__ import annotations
 import pandas as pd
+import sys
 import napari
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ import numpy as np
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress
 from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
-                            QSpinBox, QLabel)
+                            QSpinBox, QLabel, QLineEdit)
 from qtpy.QtCore import Qt
 
 import impy as ip
@@ -35,9 +36,12 @@ def start(viewer:"napari.Viewer", path:str=None, binsize=4):
             return None
             
     img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+    
     if img.axes != "zyx":
         raise ValueError(f"Axes must be zyx, got {img.axes}.")
-    elif (img.scale.x-img.scale.y)/img.scale.x > 1e-3:
+    
+    elif (np.abs(img.scale.x-img.scale.y)/img.scale.x > 1e-3 or
+          np.abs(img.scale.z-img.scale.y)/img.scale.z > 1e-3):
         raise ValueError("Scale is not unique.")
     
     imgb = img.binning(binsize, check_edges=False).data
@@ -66,12 +70,60 @@ def start(viewer:"napari.Viewer", path:str=None, binsize=4):
     mtprof = MTProfiler(img, layer_image, layer_work, layer_prof, viewer=viewer)
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
                                          name="MT Profiler")
-    dock.setFloating(True)
+    dock.setMinimumHeight(300)
     # TODO: viewer.window._status_bar._toggle_activity_dock(True)
     layer_work.mode = "add"
     return mtprof
-    
 
+
+class CacheMap:
+    def __init__(self, maxgb:float=2.0):
+        self.maxgb = maxgb
+        self.cache = {}
+        self.key_order = []
+        self.gb = 0.0
+    
+    def __getitem__(self, key):
+        real_key, identifier = key
+        idf, value = self.cache[real_key]
+        if idf == identifier:
+            return value
+        else:
+            raise KeyError("Wrong identifier")
+    
+    def __setitem__(self, key, value):
+        real_key, identifier = key
+        self.cache[real_key] = (identifier, value)
+        self.key_order.append(real_key)
+        size = sys.getsizeof(value)/1e9
+        self.gb += size
+        while self.gb > self.maxgb:
+            self.pop()
+    
+    def pop(self):
+        key = self.key_order.pop(0)
+        item = self.cache.pop(key)
+        self.gb -= sys.getsizeof(item)/1e9
+        return None
+
+    def keys(self):
+        return self.cache.keys()
+
+cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
+
+def cached_rotate(mtp:MTPath, image):
+    try:
+        mtp._sub_images = cachemap[f"{image.name}-{mtp.label}", 
+                                   hash(str(mtp._even_interval_points))]
+    except KeyError:
+        mtp.load_images(image)
+        mtp.grad_path()
+        mtp.rotate3d()
+        cachemap[f"{image.name}-{mtp.label}",
+                 hash(str(mtp._even_interval_points))] = mtp._sub_images
+    return None
+    
+    
 class MTProfiler(QWidget):
     def __init__(self, image:"ip.arrays.LazyImgArray", layer_image, layer_work, layer_prof, viewer:"napari.Viewer"):
         super().__init__(parent=viewer.window._qt_window)
@@ -89,6 +141,12 @@ class MTProfiler(QWidget):
     def register_path(self):
         self.layer_prof.add(self.layer_work.data)
         self.mt_paths.append(self.layer_work.data)
+        self.canvas.ax.plot(self.layer_work.data[:,2], self.layer_work.data[:,1], color="gray", lw=2.5)
+        self.canvas.ax.set_xlim(0, self.image.sizeof("x"))
+        self.canvas.ax.set_ylim(self.image.sizeof("y"), 0)
+        self.canvas.ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
+        self.canvas.fig.tight_layout()
+        self.canvas.fig.canvas.draw()
         self.layer_work.data = []
         return None
         
@@ -123,10 +181,12 @@ class MTProfiler(QWidget):
                 subpbr.update(1)
                 subpbr.set_description("Reloading images")
                 mtp.load_images(self.image)
-                mtp.grad_path()
                 subpbr.update(1)
                 subpbr.set_description("XYZ-rotation")
+                mtp.grad_path()
                 mtp.rotate3d()
+                cachemap[f"{self.image.name}-{mtp.label}",
+                         hash(str(mtp._even_interval_points))] = mtp._sub_images
                 subpbr.update(1)
                 subpbr.set_description("Determining MT radius")
                 mtp.determine_radius()
@@ -144,6 +204,7 @@ class MTProfiler(QWidget):
                     first_mtp = mtp
                 
         self.dataframe = pd.concat(df_list, axis=0)
+        self.dataframe["Note"] = np.array([""]*self.dataframe.shape[0], dtype="<U32")
         
         self.layer_prof.data = self.dataframe[["z", "y", "x"]].values
         self.layer_prof.properties = self.dataframe
@@ -159,20 +220,14 @@ class MTProfiler(QWidget):
         self.canvas.label_choice.setMaximum(len(self.mt_paths)-1)
         self.canvas.slider.setRange(0, first_mtp.npoints-1)
         self.canvas.imshow_yx_raw()
+        self.canvas.add_note_edit()
         return None
     
     def get_one_mt(self, label:int=0):
         df = self.dataframe[self.dataframe["label"]==label]
         mtp = MTPath(self.image.scale.x, label=label)
         mtp._even_interval_points = df[["z","y","x"]].values
-        mtp.grad_path()
-        indices = df["number"].values
-        mtp._even_interval_points = mtp._even_interval_points[indices]
-        mtp.grad_angles_yx = mtp.grad_angles_yx[indices]
-        mtp.grad_angles_zy = mtp.grad_angles_zy[indices]
-        
-        mtp.load_images(self.image)
-        mtp.rotate3d()
+        cached_rotate(mtp, self.image)
         mtp.radius_peak = float(df["MTradius"].values[0])
         mtp.pitch_lengths = df["pitch"].values
         mtp._pf_numbers = df["nPF"].values
@@ -194,7 +249,8 @@ class MTProfiler(QWidget):
                 napari.utils.history.update_save_history(filename)
             else:
                 return None
-                
+        if not path.endswith(".csv"):
+            path += ".csv"
         self.dataframe.to_csv(path)
         return None
         
@@ -250,6 +306,7 @@ class SlidableFigureCanvas(QWidget):
         self.last_called = self.imshow_zx_raw
         
         self.slider = QSlider(Qt.Horizontal, self)
+        self.slider.setMinimumWidth(50)
         self.slider.setRange(0, 0)
         self.slider.setToolTip("Slide along a MT")
         self.slider.valueChanged.connect(self.call)
@@ -266,11 +323,18 @@ class SlidableFigureCanvas(QWidget):
         figindex.layout().addWidget(label)
         
         self.label_choice = QSpinBox(self)
-        self.label_choice.resize(self.label_choice.width()//2, self.label_choice.height())
+        self.label_choice.setMinimumWidth(25)
         self.label_choice.setToolTip("MT label")
         self.label_choice.setValue(0)
         self.label_choice.setRange(0, 0)
-        self.label_choice.valueChanged.connect(self.update_mtpath)
+        @self.label_choice.valueChanged.connect
+        def _(*args):
+            # We have to block value changed event here, otherwise event will be emitted twice.
+            self.label_choice.setEnabled(False)
+            self.update_mtpath()
+            self.update_note()
+            self.label_choice.setEnabled(True)
+        
         figindex.layout().addWidget(self.label_choice)
                 
         figindex.layout().addWidget(self.slider)
@@ -317,16 +381,43 @@ class SlidableFigureCanvas(QWidget):
     def ax(self):
         if self._ax is None:
             self._ax = self.fig.add_subplot(111)
+            self._ax.set_aspect("equal")
         return self._ax
     
+    def add_note_edit(self):
+        note_frame = QFrame(self)
+        note_frame.setLayout(QHBoxLayout())
+        
+        label = QLabel()
+        label.setText("Note:")
+        note_frame.layout().addWidget(label)
+        
+        self.line_edit = QLineEdit()
+        self.line_edit.setToolTip("Add note to the current MT.")
+        self.line_edit.editingFinished.connect(self.update_note)
+            
+        note_frame.layout().addWidget(self.line_edit)
+        
+        self.layout().addWidget(note_frame)
+    
+    def update_note(self):
+        df = self.mtprofiler.dataframe
+        l = self.label_choice.value()
+        df.loc[df["label"]==l, "Note"] = self.line_edit.text()
+        return None
+        
     def update_mtpath(self):
         label = self.label_choice.value()
         self._mtpath = self.mtprofiler.get_one_mt(label)
         self.slider.setRange(0, self._mtpath.npoints-1)
-        
+        sl = self.mtprofiler.dataframe["label"] == label
+        note = self.mtprofiler.dataframe[sl]["Note"].values[0]
+        self.line_edit.setText(note)
         return self.call()
     
     def imshow_yx_raw(self):
+        if self.mtprofiler.dataframe is None:
+            return None
         self.ax.cla()
         i = self.slider.value()
         self.mtpath.imshow_yx_raw(i, ax=self.ax)
@@ -339,6 +430,8 @@ class SlidableFigureCanvas(QWidget):
         return None
     
     def imshow_zx_raw(self):
+        if self.mtprofiler.dataframe is None:
+            return None
         self.ax.cla()
         i = self.slider.value()
         self.mtpath.imshow_zx_raw(i, ax=self.ax)
@@ -351,6 +444,8 @@ class SlidableFigureCanvas(QWidget):
         return None
     
     def imshow_zx_ave(self):
+        if self.mtprofiler.dataframe is None:
+            return None
         self.ax.cla()
         i = self.slider.value()
         self.mtpath.imshow_zx_ave(i, ax=self.ax)

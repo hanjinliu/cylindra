@@ -387,11 +387,12 @@ class MTPath:
     
     def rotate3d(self):        
         with ip.SetConst("SHOW_PROGRESS", False):
+            imgs = []
             for i in range(self.npoints):
                 mat = make_rotate_mat(self.grad_angles_yx[i], self.grad_angles_zy[i], 
                                       self._sub_images[i].shape)
-                self._sub_images[i] = self._sub_images[i].affine(matrix=mat)
-        
+                imgs.append(self._sub_images[i].affine(matrix=mat))
+        self._sub_images = imgs
         return None
     
     def determine_radius(self):
@@ -515,4 +516,3 @@ class MTPath:
         ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
         ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
-        
