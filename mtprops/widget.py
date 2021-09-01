@@ -1,6 +1,5 @@
 from __future__ import annotations
 import pandas as pd
-import sys
 import napari
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -12,69 +11,10 @@ from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayo
                             QSpinBox, QLabel, QLineEdit)
 from qtpy.QtCore import Qt
 
-import impy as ip
-
-from .core import MTPath
+from ._impy import impy as ip
+from .mtpath import MTPath
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
-
-def start(viewer:"napari.Viewer", path:str=None, binsize=4):
-    # open file dialog if path is not specified.
-    if path is None:
-        dlg = QFileDialog()
-        hist = napari.utils.history.get_open_history()
-        dlg.setHistory(hist)
-        filenames, _ = dlg.getOpenFileNames(
-            parent=viewer.window.qt_viewer,
-            caption="Select image ...",
-            directory=hist[0],
-        )
-        if filenames != [] and filenames is not None:
-            path = filenames[0]
-            napari.utils.history.update_open_history(filenames[0])
-        else:
-            return None
-            
-    img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
-    
-    if img.axes != "zyx":
-        raise ValueError(f"Axes must be zyx, got {img.axes}.")
-    
-    elif (np.abs(img.scale.x-img.scale.y)/img.scale.x > 1e-3 or
-          np.abs(img.scale.z-img.scale.y)/img.scale.z > 1e-3):
-        raise ValueError("Scale is not unique.")
-    
-    imgb = img.binning(binsize, check_edges=False).data
-    tr = (binsize-1)/2*img.scale.x
-    layer_image = viewer.add_image(imgb, scale=imgb.scale, name=imgb.name, translate=[tr, tr, tr])
-    viewer.scale_bar.unit = img.scale_unit
-    
-    common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
-    layer_prof = viewer.add_points(**common_properties,
-                                   name="MT Profiles",
-                                   opacity=0.4, 
-                                   edge_color="black",
-                                   face_color="black",
-                                   text={"text": "{label}-{number}", "color":"black", "size":4, "visible": False},
-                                   )
-    layer_work = viewer.add_points(**common_properties,
-                                   name="Working Layer",
-                                   face_color="yellow"
-                                   )
-    
-    layer_prof.editable = False
-    layer_prof.properties = {"pitch": np.array([], dtype=np.float64)}
-    layer_prof.current_properties = {"pitch": np.array([0.0], dtype=np.float64)}
-    
-    
-    mtprof = MTProfiler(img, layer_image, layer_work, layer_prof, viewer=viewer)
-    dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
-                                         name="MT Profiler")
-    dock.setMinimumHeight(300)
-    # TODO: viewer.window._status_bar._toggle_activity_dock(True)
-    layer_work.mode = "add"
-    return mtprof
-
 
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
@@ -91,11 +31,11 @@ class CacheMap:
         else:
             raise KeyError("Wrong identifier")
     
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value:list[np.ndarray]):
         real_key, identifier = key
         self.cache[real_key] = (identifier, value)
         self.key_order.append(real_key)
-        size = sys.getsizeof(value)/1e9
+        size = sum(a.nbytes for a in value)/1e9
         self.gb += size
         while self.gb > self.maxgb:
             self.pop()
@@ -103,7 +43,7 @@ class CacheMap:
     def pop(self):
         key = self.key_order.pop(0)
         item = self.cache.pop(key)
-        self.gb -= sys.getsizeof(item)/1e9
+        self.gb -= sum(a.nbytes for a in item)/1e9
         return None
 
     def keys(self):
@@ -125,18 +65,58 @@ def cached_rotate(mtp:MTPath, image):
     
     
 class MTProfiler(QWidget):
-    def __init__(self, image:"ip.arrays.LazyImgArray", layer_image, layer_work, layer_prof, viewer:"napari.Viewer"):
+    def __init__(self, img:"ip.arrays.LazyImgArray", viewer:"napari.Viewer", binsize:int=4):
+        if img.axes != "zyx":
+            raise ValueError(f"Axes must be zyx, got {img.axes}.")
+        
+        elif (np.abs(img.scale.x-img.scale.y)/img.scale.x > 1e-3 or
+            np.abs(img.scale.z-img.scale.y)/img.scale.z > 1e-3):
+            raise ValueError("Scale is not unique.")
+        
+        imgb = img.binning(binsize, check_edges=False).data
+        tr = (binsize-1)/2*img.scale.x
+        layer_image = viewer.add_image(imgb, scale=imgb.scale, name=imgb.name, translate=[tr, tr, tr])
+        viewer.scale_bar.unit = img.scale_unit
+        
         super().__init__(parent=viewer.window._qt_window)
         self.viewer = viewer
-        self.image = image
+        self.image = img
         self.layer_image = layer_image
-        self.layer_work = layer_work
-        self.layer_prof = layer_prof
+        
+        self._init_layers()
+        
         self.mt_paths = []
         self.dataframe = None
         
         self._add_widgets()
         self.setWindowTitle("MT Profiler")
+        
+    def _init_layers(self):
+        viewer = self.viewer
+        img = self.image
+        common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
+        layer_prof = viewer.add_points(**common_properties,
+                                    name="MT Profiles",
+                                    opacity=0.4, 
+                                    edge_color="black",
+                                    face_color="black",
+                                    text={"text": "{label}-{number}", "color":"black", "size":4, "visible": False},
+                                    )
+        layer_work = viewer.add_points(**common_properties,
+                                    name="Working Layer",
+                                    face_color="yellow"
+                                    )
+        
+        layer_prof.editable = False
+        layer_prof.properties = {"pitch": np.array([], dtype=np.float64)}
+        layer_prof.current_properties = {"pitch": np.array([0.0], dtype=np.float64)}
+        
+        layer_work.mode = "add"
+        
+        self.layer_work = layer_work
+        self.layer_prof = layer_prof
+        
+        return None
     
     def register_path(self):
         self.layer_prof.add(self.layer_work.data)
@@ -203,7 +183,33 @@ class MTProfiler(QWidget):
                 if i == 0:
                     first_mtp = mtp
                 
-        self.dataframe = pd.concat(df_list, axis=0)
+        self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
+        return None
+    
+    def from_path(self):
+        dlg = QFileDialog()
+        hist = napari.utils.history.get_open_history()
+        dlg.setHistory(hist)
+        filenames, _ = dlg.getOpenFileNames(
+            parent=self.viewer.window.qt_viewer,
+            caption="Select image ...",
+            directory=hist[0],
+        )
+        if filenames != [] and filenames is not None:
+            path = filenames[0]
+            napari.utils.history.update_open_history(filenames[0])
+        else:
+            return None
+        
+        df = pd.read_csv(path)
+        self.from_dataframe(df)
+        return None
+    
+    def from_dataframe(self, df, mtp:MTPath=None):
+        self.dataframe = df
+        if mtp is None:
+            mtp = self.get_one_mt(0)
+        
         self.dataframe["Note"] = np.array([""]*self.dataframe.shape[0], dtype="<U32")
         
         self.layer_prof.data = self.dataframe[["z", "y", "x"]].values
@@ -218,7 +224,7 @@ class MTProfiler(QWidget):
         
         self.viewer.layers.selection = {self.layer_prof}
         self.canvas.label_choice.setMaximum(len(self.mt_paths)-1)
-        self.canvas.slider.setRange(0, first_mtp.npoints-1)
+        self.canvas.slider.setRange(0, mtp.npoints-1)
         self.canvas.call()
         self.canvas.add_note_edit()
         return None
@@ -281,12 +287,17 @@ class MTProfiler(QWidget):
         self.run_button.setToolTip("Run profiler for all the paths.")
         self.run_button.clicked.connect(self.run_for_all_path)
         
+        self.load_button = QPushButton("Load 📂", central_widget)
+        self.load_button.setToolTip("Load results from csv.")
+        self.load_button.clicked.connect(self.from_path)
+        
         self.save_button = QPushButton("Save 💾", central_widget)
         self.save_button.setToolTip("Save results.")
         self.save_button.clicked.connect(self.save_results)
         
         central_widget.layout().addWidget(self.register_button)
         central_widget.layout().addWidget(self.run_button)
+        central_widget.layout().addWidget(self.load_button)
         central_widget.layout().addWidget(self.save_button)
         
         self.layout().addWidget(central_widget)
