@@ -12,7 +12,7 @@ from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayo
 from qtpy.QtCore import Qt
 
 from ._impy import impy as ip
-from .mtpath import MTPath
+from .mtpath import MTPath, calc_total_length
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 
@@ -120,6 +120,11 @@ class MTProfiler(QWidget):
         return None
     
     def register_path(self):
+        # check length
+        total_length = calc_total_length(self.layer_work.data)
+        if total_length < 40/self.image.scale.x:
+            raise ValueError("Too short")
+        
         self.layer_prof.add(self.layer_work.data)
         self.mt_paths.append(self.layer_work.data)
         self.canvas.ax.plot(self.layer_work.data[:,2], self.layer_work.data[:,1], color="gray", lw=2.5)
@@ -153,8 +158,7 @@ class MTProfiler(QWidget):
                 mtp.rot_correction()
                 subpbr.update(1)
                 subpbr.set_description("X/Z-shift")
-                mtp.xshift_correction()
-                mtp.zshift_correction()
+                mtp.zxshift_correction()
                 subpbr.update(1)
                 subpbr.set_description("Updating path edges")
                 mtp.calc_center_shift()
@@ -188,6 +192,9 @@ class MTProfiler(QWidget):
         return None
     
     def from_path(self):
+        """
+        Open a file dialog, choose a csv file and load it.
+        """        
         dlg = QFileDialog()
         hist = napari.utils.history.get_open_history()
         dlg.setHistory(hist)
@@ -206,7 +213,11 @@ class MTProfiler(QWidget):
         self.from_dataframe(df)
         return None
     
-    def from_dataframe(self, df, mtp:MTPath=None):
+    def from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
+        """
+        Convert data frame information into points layer and update widgets. If the first MTPath object
+        is available, use mtp argument.
+        """        
         self.dataframe = df
         if mtp is None:
             mtp = self.get_one_mt(0)
@@ -238,6 +249,9 @@ class MTProfiler(QWidget):
         return None
     
     def get_one_mt(self, label:int=0):
+        """
+        Prepare current MTPath object from data frame.
+        """        
         df = self.dataframe[self.dataframe["label"]==label]
         mtp = MTPath(self.image.scale.x, label=label)
         mtp._even_interval_points = df[["z","y","x"]].values

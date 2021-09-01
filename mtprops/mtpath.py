@@ -20,6 +20,11 @@ def make_slice_and_pad(center, radius, size):
 
     return slice(z0, z1), (z0_pad, z1_pad)
 
+def calc_total_length(path):
+    each_length = np.sqrt(np.sum(np.diff(path, axis=0)**2, axis=1))
+    total_length = np.sum(each_length)
+    return total_length
+
 def load_subimage(img, pos, radius:tuple[int, int, int]):
     """
     From large image ``img``, crop out small region centered at ``pos``.
@@ -64,6 +69,8 @@ def _get_coordinate(path:np.ndarray, coords:np.ndarray, interval:float=1.0):
         distance = np.sqrt(np.sum(dr**2))
         r_inc = dr * inc / distance
         n2 = int(distance/inc)
+        if npoints == 2:
+            n2 += 1
         while n2 >= 0:
             dr[:] = r - r_last
             distance = np.sqrt(np.sum(dr**2))
@@ -76,8 +83,7 @@ def _get_coordinate(path:np.ndarray, coords:np.ndarray, interval:float=1.0):
 
 def get_coordinates(path, interval):
     npoints, ndim = path.shape
-    each_length = np.sqrt(np.sum(np.diff(path, axis=0)**2, axis=1))
-    total_length = np.sum(each_length)
+    total_length = calc_total_length(path)
     coords = np.zeros((ndim, int(total_length/interval)+1)) - 1
     _get_coordinate(path.copy(), coords, interval)
     while coords[0, -1]<0:
@@ -110,7 +116,7 @@ def make_rotate_mat(deg_yx, deg_zy, shape):
     compose_affine_matrix = ip.arrays.utils._transform.compose_affine_matrix
     center = np.array(shape)/2. - 0.5 # 3d array
     translation_0 = compose_affine_matrix(translation=center, ndim=3)
-    rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx)], ndim=3)
+    rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx+180)], ndim=3)
     rotation_zy = compose_affine_matrix(rotation=[-np.deg2rad(deg_zy), 0, 0], ndim=3)
     translation_1 = compose_affine_matrix(translation=-center, ndim=3)
     
@@ -233,24 +239,6 @@ class MTPath:
         ddx = np.gradient(dx)
         a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
         return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.interval
-    
-    def run_all(self, img, path):
-        self.set_path(path)
-        self.load_images(img)
-        self.grad_path()
-        self.smooth_path()
-        self.rot_correction()
-        self.xshift_correction()
-        self.zshift_correction()
-        self.calc_center_shift()
-        self.update_points()
-        self.load_images(img)
-        self.grad_path()
-        self.rotate3d()
-        self.determine_radius()
-        self.calc_pitch_length()
-        self.calc_pf_number()
-        self.rotational_averages()
         
     def set_path(self, coordinates):
         original_points = np.asarray(coordinates)
@@ -310,32 +298,7 @@ class MTPath:
         self._sub_images = imgs
         return None
     
-    def xshift_correction(self):
-        xlen0 = int(self.radius_pre[2]/self.scale)
-        xlen = int(xlen0*0.8)
-        sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
-        with ip.SetConst("SHOW_PROGRESS", False):
-            iref = self.npoints//2
-            imgref = self._sub_images[iref].proj("z")
-            # imgref = self._sub_images[iref].proj("z").gaussian_filter(2)
-            shape = np.array(imgref.shape)
-            shifts = [] # yx-shift
-            bg = np.median(imgref)
-            for i in range(self.npoints):
-                if i != iref:
-                    template = self._sub_images[i][sl].proj("z")
-                    # template = self._sub_images[i][sl].proj("z").gaussian_filter(2)
-                    corr = imgref.ncc_filter(template, bg=bg) # ncc or pcc??
-                    shift = np.unravel_index(np.argmax(corr), shape) - shape/2
-                else:
-                    shift = np.array([0, 0])
-                shifts.append(list(shift))
-        
-        shifts = np.array(shifts)
-        self.shifts = shifts
-        return None
-    
-    def zshift_correction(self):
+    def zxshift_correction(self):
         xlen0 = int(self.radius_pre[2]/self.scale)
         xlen = int(xlen0*0.8)
         sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
@@ -353,8 +316,7 @@ class MTPath:
                     shift = np.array([0, 0])
                 shifts.append(list(shift))
             
-        shifts = np.array(shifts)
-        self.shifts[:, 0] = shifts[:, 0]
+        self.shifts = np.array(shifts)
         return None
 
     def calc_center_shift(self):
@@ -387,7 +349,7 @@ class MTPath:
                              [0.,  cos, sin],
                              [0., -sin, cos]]
             coords[i] += shift
-        self._even_interval_points = get_coordinates(coords, self.interval/self.scale)
+        self._even_interval_points = coords
         return None
     
     def rotate3d(self):        
@@ -415,7 +377,7 @@ class MTPath:
         return r_peak
             
     
-    def calc_pitch(self):
+    def calc_pitch_xyz(self):
         self.pitch_lengths = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for img in self._sub_images:
@@ -518,3 +480,22 @@ class MTPath:
         ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
         ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
+
+    
+    def run_all(self, img, path):
+        self.set_path(path)
+        self.load_images(img)
+        self.grad_path()
+        self.smooth_path()
+        self.rot_correction()
+        self.zxshift_correction()
+        self.calc_center_shift()
+        self.update_points()
+        self.load_images(img)
+        self.grad_path()
+        self.rotate3d()
+        self.determine_radius()
+        self.calc_pitch_length()
+        self.calc_pf_number()
+        self.rotational_averages()
+        return self
