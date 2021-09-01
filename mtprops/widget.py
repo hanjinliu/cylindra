@@ -116,6 +116,7 @@ class MTProfiler(QWidget):
         self.layer_work = layer_work
         self.layer_prof = layer_prof
         
+        self.mt_paths = []
         return None
     
     def register_path(self):
@@ -209,11 +210,18 @@ class MTProfiler(QWidget):
         self.dataframe = df
         if mtp is None:
             mtp = self.get_one_mt(0)
+            mtp._even_interval_points = self.dataframe[["z", "y", "x"]].values
         
-        self.dataframe["Note"] = np.array([""]*self.dataframe.shape[0], dtype="<U32")
+        if self.layer_prof in self.viewer.layers:
+            self.viewer.layers.remove(self.layer_prof)
+        if self.layer_work in self.viewer.layers:
+            self.viewer.layers.remove(self.layer_work)
+        self._init_layers()
         
-        self.layer_prof.data = self.dataframe[["z", "y", "x"]].values
-        self.layer_prof.properties = self.dataframe
+        df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
+        
+        self.layer_prof.data = df[["z", "y", "x"]].values
+        self.layer_prof.properties = df
         self.layer_prof.face_color = "pitch"
         self.layer_prof.face_contrast_limits = [4.08, 4.36]
         self.layer_prof.face_colormap = BlueToRed
@@ -223,7 +231,7 @@ class MTProfiler(QWidget):
         self.layer_work.mode = "pan_zoom"
         
         self.viewer.layers.selection = {self.layer_prof}
-        self.canvas.label_choice.setMaximum(len(self.mt_paths)-1)
+        self.canvas.label_choice.setMaximum(len(df["label"].unique())-1)
         self.canvas.slider.setRange(0, mtp.npoints-1)
         self.canvas.call()
         self.canvas.add_note_edit()
