@@ -1,14 +1,14 @@
 from __future__ import annotations
 import pandas as pd
-import napari
 import traceback
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 import numpy as np
+import napari
 from napari.utils.colormaps.colormap import Colormap
-from napari.qt import progress
+from napari.qt import progress, thread_worker
 from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
                             QSpinBox, QLabel, QLineEdit, QMessageBox)
 from qtpy.QtCore import Qt
@@ -18,8 +18,10 @@ from .mtpath import MTPath, calc_total_length
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 
-# TODO: use minip if light background, initialize parameters upon loading image, 
-# set default save path to the loaded path, delete image layer before opening new one.
+# TODO: 
+# - initialize some parameters upon loading image, 
+# - set default save path to the loaded path
+# - layer.properties = {"pitch":[]} does not work in napari v0.4.11
 
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
@@ -73,6 +75,13 @@ def cached_rotate(mtp:MTPath, image):
 def raise_error_message(parent, msg:str):
     return QMessageBox.critical(parent, "Error", msg,QMessageBox.Ok)
 
+@thread_worker(progress={'total': 0, 'desc':'Reading Image'})
+def imread_thread(img, binsize):
+    with ip.SetConst("SHOW_PROGRESS", False):
+        imgb = img.binning(binsize, check_edges=False).data
+    
+    return imgb
+
 class MTProfiler(QWidget):
     def __init__(self, viewer:"napari.Viewer", interval_nm=24, light_background:bool=True):
         if interval_nm <= 0:
@@ -90,24 +99,29 @@ class MTProfiler(QWidget):
         
         self._add_widgets()
         self.setWindowTitle("MT Profiler")
-    
+        
     def load_image(self, img=None, binsize=4):
-        if img.axes != "zyx":
-            raise ValueError(f"Axes must be zyx, got {img.axes}.")
-        
-        elif (np.abs(img.scale.x-img.scale.y)/img.scale.x > 1e-3 or
-            np.abs(img.scale.z-img.scale.y)/img.scale.z > 1e-3):
-            raise ValueError("Scale is not unique.")
-        
-        imgb = img.binning(binsize, check_edges=False).data
-        tr = (binsize-1)/2*img.scale.x
-        layer_image = self.viewer.add_image(imgb, scale=imgb.scale, name=imgb.name, translate=[tr, tr, tr])
-        self.viewer.scale_bar.unit = img.scale_unit
+        worker = imread_thread(img, binsize)
+        @worker.returned.connect
+        def _(imgb):
+            tr = (binsize-1)/2*img.scale.x
+            layer_image = self.viewer.add_image(imgb, 
+                                                scale=imgb.scale, 
+                                                name=imgb.name, 
+                                                translate=[tr, tr, tr],
+                                                rendering="minip" if self.light_background else "mip"
+                                                )
+            self.viewer.scale_bar.unit = img.scale_unit
+            self.viewer.dims.axis_labels = ("z", "y", "x")
 
-        self.image = img
-        self.layer_image = layer_image
+            self.image = img
+            if self.layer_image in self.viewer.layers:
+                self.viewer.layers.remove(self.layer_image)
+            self.layer_image = layer_image
 
-        self.clear()
+            self.clear()
+            return None
+        worker.start()
         return None
     
     def open_image_file(self):
@@ -188,7 +202,7 @@ class MTProfiler(QWidget):
         self.canvas.fig.canvas.draw()
         self.layer_work.data = []
         return None
-        
+            
     def run_for_all_path(self):
         if self.dataframe is not None:
             raise ValueError("Data Frame list is not empty")
@@ -358,7 +372,7 @@ class MTProfiler(QWidget):
         color = dict()
         for i, row in self.dataframe.iterrows():
             crds = row[["z","y","x"]]
-            color[i] = BlueToRed.map(row["pitch"] - 4.08)/(4.36 - 4.08)
+            color[i] = BlueToRed.map((row["pitch"] - 4.08)/(4.36 - 4.08))
             # update lbl
             
         self.viewer.add_labels(lbl, color=color, scale=self.layer_image.scale,
@@ -562,7 +576,8 @@ class SlidableFigureCanvas(QWidget):
             return None
         i = self.slider.value()
         img = self._mtpath._sub_images[i]
-        self.mtprofiler.viewer.add_image(img, scale=img.scale, name=img.name)
+        self.mtprofiler.viewer.add_image(img, scale=img.scale, name=img.name,
+                                         rendering="minip" if self.light_background else "mip")
         return None
     
     

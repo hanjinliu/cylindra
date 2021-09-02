@@ -90,7 +90,7 @@ def angle_corr(img, ang_center):
     img_z = img.proj("z")
     mask = ip.circular_mask(img_z.sizeof("y")/2+2, img_z.shape)
     img_mirror = img_z["x=::-1"]
-    angs = np.linspace(ang_center-3, ang_center+3, 13, endpoint=True)
+    angs = np.linspace(ang_center-7, ang_center+7, 29, endpoint=True)
     corrs = []
     with ip.SetConst("SHOW_PROGRESS", False):
         for ang in angs:

@@ -8,6 +8,5 @@ Calculate local pitch lengths, protofilament numbers using tomograms.
 from mtprops import start
 import impy as ip
 
-path = ".../XXX.mrc"
-mtprof = start(ip.gui.viewer, path)
+mtprof = start(ip.gui.viewer)
 ```
