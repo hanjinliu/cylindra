@@ -1,6 +1,7 @@
 from __future__ import annotations
 import pandas as pd
 import napari
+import traceback
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
@@ -16,6 +17,9 @@ from ._impy import impy as ip
 from .mtpath import MTPath, calc_total_length
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
+
+# TODO: use minip if light background, initialize parameters upon loading image, 
+# set default save path to the loaded path, delete image layer before opening new one.
 
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
@@ -65,10 +69,29 @@ def cached_rotate(mtp:MTPath, image):
         cachemap[f"{image.name}-{mtp.label}",
                  hash(str(mtp._even_interval_points))] = mtp._sub_images
     return None
-    
+
+def raise_error_message(parent, msg:str):
+    return QMessageBox.critical(parent, "Error", msg,QMessageBox.Ok)
+
 class MTProfiler(QWidget):
-    def __init__(self, img:"ip.arrays.LazyImgArray", viewer:"napari.Viewer", binsize:int=4, interval_nm=24,
-                 light_background:bool=True):
+    def __init__(self, viewer:"napari.Viewer", interval_nm=24, light_background:bool=True):
+        if interval_nm <= 0:
+            raise ValueError("interval_nm must be a positive float.")
+
+        self.interval = interval_nm
+        self.light_background = light_background
+        
+        super().__init__(parent=viewer.window._qt_window)
+        self.viewer = viewer
+        self.image = None
+        self.layer_image = None
+        self.layer_prof = None
+        self.layer_work = None
+        
+        self._add_widgets()
+        self.setWindowTitle("MT Profiler")
+    
+    def load_image(self, img=None, binsize=4):
         if img.axes != "zyx":
             raise ValueError(f"Axes must be zyx, got {img.axes}.")
         
@@ -76,27 +99,36 @@ class MTProfiler(QWidget):
             np.abs(img.scale.z-img.scale.y)/img.scale.z > 1e-3):
             raise ValueError("Scale is not unique.")
         
-        if interval_nm <= 0:
-            raise ValueError("interval_nm must be a positive float.")
-        self.interval = interval_nm
-        self.light_background = light_background
-        
         imgb = img.binning(binsize, check_edges=False).data
         tr = (binsize-1)/2*img.scale.x
-        layer_image = viewer.add_image(imgb, scale=imgb.scale, name=imgb.name, translate=[tr, tr, tr])
-        viewer.scale_bar.unit = img.scale_unit
-        
-        super().__init__(parent=viewer.window._qt_window)
-        self.viewer = viewer
+        layer_image = self.viewer.add_image(imgb, scale=imgb.scale, name=imgb.name, translate=[tr, tr, tr])
+        self.viewer.scale_bar.unit = img.scale_unit
+
         self.image = img
         self.layer_image = layer_image
-        self.layer_prof = None
-        self.layer_work = None
-        
-        self._init_layers()
-        
-        self._add_widgets()
-        self.setWindowTitle("MT Profiler")
+
+        self.clear()
+        return None
+    
+    def open_image_file(self):
+        dlg = QFileDialog()
+        hist = napari.utils.history.get_open_history()
+        dlg.setHistory(hist)
+        filenames, _ = dlg.getOpenFileNames(
+            parent=self.viewer.window.qt_viewer,
+            caption="Select image ...",
+            directory=hist[0],
+        )
+        if filenames != [] and filenames is not None:
+            path = filenames[0]
+            napari.utils.history.update_open_history(filenames[0])
+        else:
+            return None
+            
+        img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+
+        self.load_image(img)
+        return None
         
     def _init_layers(self):
         viewer = self.viewer
@@ -113,7 +145,10 @@ class MTProfiler(QWidget):
                                     opacity=0.4, 
                                     edge_color="black",
                                     face_color="black",
-                                    text={"text": "{label}-{number}", "color":"black", "size":4, "visible": False},
+                                    text={"text": "{label}-{number}", 
+                                          "color":"black", 
+                                          "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
+                                          "visible": False},
                                     )
         layer_work = viewer.add_points(**common_properties,
                                     name="Working Layer",
@@ -138,11 +173,9 @@ class MTProfiler(QWidget):
         # check length
         total_length = calc_total_length(self.layer_work.data)*self.image.scale.x
         if total_length < self.interval*3:
-            QMessageBox.critical(self, "Error", 
-                                 f"Path is too short: {total_length:.2f} nm\n"
-                                 f"Must be longer than {self.interval*3} nm.", 
-                                 QMessageBox.Ok
-                                 )
+            raise_error_message(self,
+                                f"Path is too short: {total_length:.2f} nm\n"
+                                f"Must be longer than {self.interval*3} nm.")
             return None
         
         self.layer_prof.add(self.layer_work.data)
@@ -172,49 +205,59 @@ class MTProfiler(QWidget):
                              interval_nm=self.interval, 
                              light_background=self.light_background
                              )
-                subpbr.set_description("Loading images")
-                mtp.set_path(path)
-                mtp.load_images(self.image)
-                subpbr.update(1)
-                subpbr.set_description("Calculating MT path")
-                mtp.grad_path()
-                mtp.smooth_path()
-                subpbr.update(1)
-                subpbr.set_description("XY-rotation")
-                mtp.rot_correction()
-                subpbr.update(1)
-                subpbr.set_description("X/Z-shift")
-                mtp.zxshift_correction()
-                subpbr.update(1)
-                subpbr.set_description("Updating path edges")
-                mtp.calc_center_shift()
-                mtp.update_points()
-                subpbr.update(1)
-                subpbr.set_description("Reloading images")
-                mtp.load_images(self.image)
-                subpbr.update(1)
-                subpbr.set_description("XYZ-rotation")
-                mtp.grad_path()
-                mtp.rotate3d()
-                cachemap[f"{self.image.name}-{mtp.label}",
-                         hash(str(mtp._even_interval_points))] = mtp._sub_images
-                subpbr.update(1)
-                subpbr.set_description("Determining MT radius")
-                mtp.determine_radius()
-                subpbr.update(1)
-                subpbr.set_description("Calculating pitch lengths")
-                mtp.calc_pitch_length()
-                subpbr.update(1)
-                subpbr.set_description("Calculating PF numbers")
-                mtp.calc_pf_number()
-                
-                df = mtp.to_dataframe()
-                df_list.append(df)
-                
-                if i == 0:
-                    first_mtp = mtp
-                
-        self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
+                             
+                try:
+                    subpbr.set_description("Loading images")
+                    mtp.set_path(path)
+                    mtp.load_images(self.image)
+                    subpbr.update(1)
+                    subpbr.set_description("Calculating MT path")
+                    mtp.grad_path()
+                    mtp.smooth_path()
+                    subpbr.update(1)
+                    subpbr.set_description("XY-rotation")
+                    mtp.rot_correction()
+                    subpbr.update(1)
+                    subpbr.set_description("X/Z-shift")
+                    mtp.zxshift_correction()
+                    subpbr.update(1)
+                    subpbr.set_description("Updating path edges")
+                    mtp.calc_center_shift()
+                    mtp.update_points()
+                    subpbr.update(1)
+                    subpbr.set_description("Reloading images")
+                    mtp.load_images(self.image)
+                    subpbr.update(1)
+                    subpbr.set_description("XYZ-rotation")
+                    mtp.grad_path()
+                    mtp.rotate3d()
+                    cachemap[f"{self.image.name}-{mtp.label}",
+                            hash(str(mtp._even_interval_points))] = mtp._sub_images
+                    subpbr.update(1)
+                    subpbr.set_description("Determining MT radius")
+                    mtp.determine_radius()
+                    subpbr.update(1)
+                    subpbr.set_description("Calculating pitch lengths")
+                    mtp.calc_pitch_length()
+                    subpbr.update(1)
+                    subpbr.set_description("Calculating PF numbers")
+                    mtp.calc_pf_number()
+                    subpbr.update(1)
+                    
+                    df = mtp.to_dataframe()
+                    df_list.append(df)
+                    
+                    if i == 0:
+                        first_mtp = mtp
+                        
+                except Exception as e:
+                    # TODO: show full traceback. Before that add QScrollBar into QMessageBox
+                    # raise_error_message(self, f"Error in iteration {i}.\n\n{traceback.format_exc()}")
+                    raise_error_message(self, f"Error in iteration {i}.\n\n{e.__class__.__name__}: {e}")
+                    break
+            else:        
+                self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
+
         return None
     
     def from_path(self):
@@ -332,36 +375,47 @@ class MTProfiler(QWidget):
     def _add_widgets(self):
         self.setLayout(QVBoxLayout())
         
-        central_widget = QWidget(self)
-        central_widget.setLayout(QHBoxLayout())
+        main_buttons = QFrame(self)
+        main_buttons.setLayout(QHBoxLayout())
         
-        self.register_button = QPushButton("Mark 📝", central_widget)
-        self.register_button.setToolTip("Register current points in 'Working Layer' as a MT path.")
-        self.register_button.clicked.connect(self.register_path)
+        register_button = QPushButton("Mark 📝", main_buttons)
+        register_button.setToolTip("Register current points in 'Working Layer' as a MT path.")
+        register_button.clicked.connect(self.register_path)
         
-        self.run_button = QPushButton("Run 👉", central_widget)
-        self.run_button.setToolTip("Run profiler for all the paths.")
-        self.run_button.clicked.connect(self.run_for_all_path)
+        run_button = QPushButton("Run 👉", main_buttons)
+        run_button.setToolTip("Run profiler for all the paths.")
+        run_button.clicked.connect(self.run_for_all_path)
         
-        self.load_button = QPushButton("Load 📂", central_widget)
-        self.load_button.setToolTip("Load results from csv.")
-        self.load_button.clicked.connect(self.from_path)
+        main_buttons.layout().addWidget(register_button)
+        main_buttons.layout().addWidget(run_button)
+
+        other_buttons = QFrame(self)
+        other_buttons.setLayout(QHBoxLayout())
+
+        load_img_button = QPushButton("Open image 🔬", other_buttons)
+        load_img_button.setToolTip("Open an image and start analysis.")
+        load_img_button.clicked.connect(self.open_image_file)
+                
+        load_csv_button = QPushButton("Load csv 📂", other_buttons)
+        load_csv_button.setToolTip("Load results from csv.")
+        load_csv_button.clicked.connect(self.from_path)
         
-        self.save_button = QPushButton("Save 💾", central_widget)
-        self.save_button.setToolTip("Save results.")
-        self.save_button.clicked.connect(self.save_results)
+        save_button = QPushButton("Save 💾", other_buttons)
+        save_button.setToolTip("Save results.")
+        save_button.clicked.connect(self.save_results)
         
-        self.clear_button = QPushButton("Clear ✘", central_widget)
-        self.clear_button.setToolTip("Clear all.")
-        self.clear_button.clicked.connect(self.clear)
+        clear_button = QPushButton("Clear ✘", other_buttons)
+        clear_button.setToolTip("Clear all.")
+        clear_button.clicked.connect(self.clear)
         
-        central_widget.layout().addWidget(self.register_button)
-        central_widget.layout().addWidget(self.run_button)
-        central_widget.layout().addWidget(self.load_button)
-        central_widget.layout().addWidget(self.save_button)
-        central_widget.layout().addWidget(self.clear_button)
+
+        other_buttons.layout().addWidget(load_img_button)
+        other_buttons.layout().addWidget(load_csv_button)
+        other_buttons.layout().addWidget(save_button)
+        other_buttons.layout().addWidget(clear_button)
         
-        self.layout().addWidget(central_widget)
+        self.layout().addWidget(main_buttons)
+        self.layout().addWidget(other_buttons)
         
         self.canvas = SlidableFigureCanvas(self)
         

@@ -37,16 +37,11 @@ def load_subimage(img, pos, radius:tuple[int, int, int]):
     sl_z, pad_z = make_slice_and_pad(z, rz, sizez)
     sl_y, pad_y = make_slice_and_pad(y, ry, sizey)
     sl_x, pad_x = make_slice_and_pad(x, rx, sizex)
-    reg = img[sl_z, sl_y, sl_x]
-
-    if reg.__class__.__name__ == "LazyImgArray":
-        reg = reg.data
-    
+    reg = img[sl_z, sl_y, sl_x].data
     with ip.SetConst("SHOW_PROGRESS", False):
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
             reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
-
     return reg
 
 @jit(nopython=True)
