@@ -172,7 +172,6 @@ def _calc_pf_number(img2d):
     corrs = []
     for pf in [12, 13, 14, 15, 16]:
         av = rotational_average(img2d, pf)
-        # av.gaussian_filter([4,1],update=True)
         corrs.append(ip.zncc(img2d, av))
     
     return np.argmax(corrs) + 12
@@ -181,7 +180,7 @@ def _calc_pf_number(img2d):
 class MTPath:
     inner = 0.7
     outer = 1.6
-    def __init__(self, scale:float, interval_nm:float=17, radius_pre_nm=(22, 32, 32), radius_nm=(16.7, 16.7, 16.7),
+    def __init__(self, scale:float, interval_nm:float=24, radius_pre_nm=(22, 32, 32), radius_nm=(16.7, 16.7, 16.7),
                  light_background:bool=True, label:int=-1):
         self.scale = scale
         self.interval = interval_nm

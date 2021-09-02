@@ -3,12 +3,13 @@ import pandas as pd
 import napari
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 import numpy as np
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress
 from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
-                            QSpinBox, QLabel, QLineEdit)
+                            QSpinBox, QLabel, QLineEdit, QMessageBox)
 from qtpy.QtCore import Qt
 
 from ._impy import impy as ip
@@ -19,8 +20,7 @@ BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
         self.maxgb = maxgb
-        self.cache = {}
-        self.key_order = []
+        self.cache = OrderedDict()
         self.gb = 0.0
     
     def __getitem__(self, key):
@@ -34,20 +34,23 @@ class CacheMap:
     def __setitem__(self, key, value:list[np.ndarray]):
         real_key, identifier = key
         self.cache[real_key] = (identifier, value)
-        self.key_order.append(real_key)
         size = sum(a.nbytes for a in value)/1e9
         self.gb += size
         while self.gb > self.maxgb:
             self.pop()
     
     def pop(self):
-        key = self.key_order.pop(0)
-        item = self.cache.pop(key)
+        _, item = self.cache.popitem(last=False)
         self.gb -= sum(a.nbytes for a in item)/1e9
         return None
 
     def keys(self):
         return self.cache.keys()
+    
+    def clear(self):
+        self.cache.clear()
+        self.gb = 0
+        return None
 
 cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
 
@@ -63,15 +66,20 @@ def cached_rotate(mtp:MTPath, image):
                  hash(str(mtp._even_interval_points))] = mtp._sub_images
     return None
     
-    
 class MTProfiler(QWidget):
-    def __init__(self, img:"ip.arrays.LazyImgArray", viewer:"napari.Viewer", binsize:int=4):
+    def __init__(self, img:"ip.arrays.LazyImgArray", viewer:"napari.Viewer", binsize:int=4, interval_nm=24,
+                 light_background:bool=True):
         if img.axes != "zyx":
             raise ValueError(f"Axes must be zyx, got {img.axes}.")
         
         elif (np.abs(img.scale.x-img.scale.y)/img.scale.x > 1e-3 or
             np.abs(img.scale.z-img.scale.y)/img.scale.z > 1e-3):
             raise ValueError("Scale is not unique.")
+        
+        if interval_nm <= 0:
+            raise ValueError("interval_nm must be a positive float.")
+        self.interval = interval_nm
+        self.light_background = light_background
         
         imgb = img.binning(binsize, check_edges=False).data
         tr = (binsize-1)/2*img.scale.x
@@ -82,11 +90,10 @@ class MTProfiler(QWidget):
         self.viewer = viewer
         self.image = img
         self.layer_image = layer_image
+        self.layer_prof = None
+        self.layer_work = None
         
         self._init_layers()
-        
-        self.mt_paths = []
-        self.dataframe = None
         
         self._add_widgets()
         self.setWindowTitle("MT Profiler")
@@ -94,6 +101,12 @@ class MTProfiler(QWidget):
     def _init_layers(self):
         viewer = self.viewer
         img = self.image
+        
+        if self.layer_prof in self.viewer.layers:
+            viewer.layers.remove(self.layer_prof)
+        if self.layer_work in self.viewer.layers:
+            viewer.layers.remove(self.layer_work)
+        
         common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
         layer_prof = viewer.add_points(**common_properties,
                                     name="MT Profiles",
@@ -117,13 +130,20 @@ class MTProfiler(QWidget):
         self.layer_prof = layer_prof
         
         self.mt_paths = []
+        self.dataframe = None
+
         return None
     
     def register_path(self):
         # check length
-        total_length = calc_total_length(self.layer_work.data)
-        if total_length < 40/self.image.scale.x:
-            raise ValueError("Too short")
+        total_length = calc_total_length(self.layer_work.data)*self.image.scale.x
+        if total_length < self.interval*3:
+            QMessageBox.critical(self, "Error", 
+                                 f"Path is too short: {total_length:.2f} nm\n"
+                                 f"Must be longer than {self.interval*3} nm.", 
+                                 QMessageBox.Ok
+                                 )
+            return None
         
         self.layer_prof.add(self.layer_work.data)
         self.mt_paths.append(self.layer_work.data)
@@ -142,10 +162,16 @@ class MTProfiler(QWidget):
         
         df_list = []
         first_mtp = None
+        # TODO: viewer.window._status_bar._toggle_activity_dock(True)
+        # viewer.window.qt_viewer.window()._activity_dialog.
         with progress(self.mt_paths) as pbr:
             for i, path in enumerate(pbr):
                 subpbr = progress(total=10, nest_under=pbr)
-                mtp = MTPath(self.image.scale.x, label=i)
+                mtp = MTPath(self.image.scale.x, 
+                             label=i, 
+                             interval_nm=self.interval, 
+                             light_background=self.light_background
+                             )
                 subpbr.set_description("Loading images")
                 mtp.set_path(path)
                 mtp.load_images(self.image)
@@ -218,16 +244,12 @@ class MTProfiler(QWidget):
         Convert data frame information into points layer and update widgets. If the first MTPath object
         is available, use mtp argument.
         """        
+        self._init_layers()
+        
         self.dataframe = df
         if mtp is None:
             mtp = self.get_one_mt(0)
             mtp._even_interval_points = self.dataframe[["z", "y", "x"]].values
-        
-        if self.layer_prof in self.viewer.layers:
-            self.viewer.layers.remove(self.layer_prof)
-        if self.layer_work in self.viewer.layers:
-            self.viewer.layers.remove(self.layer_work)
-        self._init_layers()
         
         df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
         
@@ -253,7 +275,11 @@ class MTProfiler(QWidget):
         Prepare current MTPath object from data frame.
         """        
         df = self.dataframe[self.dataframe["label"]==label]
-        mtp = MTPath(self.image.scale.x, label=label)
+        mtp = MTPath(self.image.scale.x, 
+                     label=label, 
+                     interval_nm=self.interval,
+                     light_background=self.light_background
+                     )
         mtp._even_interval_points = df[["z","y","x"]].values
         cached_rotate(mtp, self.image)
         mtp.radius_peak = float(df["MTradius"].values[0])
@@ -294,6 +320,14 @@ class MTProfiler(QWidget):
             
         self.viewer.add_labels(lbl, color=color, scale=self.layer_image.scale,
                                translate=self.layer_image.translate)
+    
+    def clear(self):
+        self._init_layers()
+        if hasattr(self, "canvas"):
+            self.canvas.ax.cla()
+            self.canvas.fig.canvas.draw()
+        cachemap.clear()
+        return None
         
     def _add_widgets(self):
         self.setLayout(QVBoxLayout())
@@ -301,7 +335,7 @@ class MTProfiler(QWidget):
         central_widget = QWidget(self)
         central_widget.setLayout(QHBoxLayout())
         
-        self.register_button = QPushButton("Register 📝", central_widget)
+        self.register_button = QPushButton("Mark 📝", central_widget)
         self.register_button.setToolTip("Register current points in 'Working Layer' as a MT path.")
         self.register_button.clicked.connect(self.register_path)
         
@@ -317,10 +351,15 @@ class MTProfiler(QWidget):
         self.save_button.setToolTip("Save results.")
         self.save_button.clicked.connect(self.save_results)
         
+        self.clear_button = QPushButton("Clear ✘", central_widget)
+        self.clear_button.setToolTip("Clear all.")
+        self.clear_button.clicked.connect(self.clear)
+        
         central_widget.layout().addWidget(self.register_button)
         central_widget.layout().addWidget(self.run_button)
         central_widget.layout().addWidget(self.load_button)
         central_widget.layout().addWidget(self.save_button)
+        central_widget.layout().addWidget(self.clear_button)
         
         self.layout().addWidget(central_widget)
         
@@ -431,6 +470,8 @@ class SlidableFigureCanvas(QWidget):
         return self._ax
     
     def add_note_edit(self):
+        if hasattr(self, "line_edit"):
+            return None
         note_frame = QFrame(self)
         note_frame.setLayout(QHBoxLayout())
         
@@ -445,6 +486,7 @@ class SlidableFigureCanvas(QWidget):
         note_frame.layout().addWidget(self.line_edit)
         
         self.layout().addWidget(note_frame)
+        return None
     
     def update_note(self):
         df = self.mtprofiler.dataframe
@@ -518,4 +560,3 @@ class SlidableFigureCanvas(QWidget):
         npf = self.mtpath.pf_numbers[i]
         self.info.setText(f"{pitch:.2f} nm / {npf} pf")
         return self.last_called()
-    
