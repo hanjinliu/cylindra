@@ -19,11 +19,6 @@ from .mtpath import MTPath, calc_total_length
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 
-# TODO: 
-# - initialize some parameters upon loading image
-# - set default save path to the loaded path
-# - layer.properties = {"pitch":[]} does not work in napari v0.4.11
-
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
         self.maxgb = maxgb
@@ -77,7 +72,7 @@ def raise_error_message(parent, msg:str):
     return QMessageBox.critical(parent, "Error", msg,QMessageBox.Ok)
 
 @thread_worker(progress={'total': 0, 'desc':'Reading Image'})
-def imread_thread(img, binsize):
+def imread(img, binsize):
     with ip.SetConst("SHOW_PROGRESS", False):
         imgb = img.binning(binsize, check_edges=False).data
     
@@ -103,23 +98,30 @@ class MTProfiler(QWidget):
         
     def load_image(self, img=None, binsize=4):
         self.viewer.window._status_bar._toggle_activity_dock(True)
-        worker = imread_thread(img, binsize)
+        worker = imread(img, binsize)
         @worker.returned.connect
         def _(imgb):
+            self.canvas._init_widget_params()
             tr = (binsize-1)/2*img.scale.x
-            layer_image = self.viewer.add_image(imgb, 
-                                                scale=imgb.scale, 
-                                                name=imgb.name, 
-                                                translate=[tr, tr, tr],
-                                                rendering="minip" if self.light_background else "mip"
-                                                )
+            if self.layer_image not in self.viewer.layers:
+                self.layer_image = self.viewer.add_image(
+                    imgb, 
+                    scale=imgb.scale, 
+                    name=imgb.name, 
+                    translate=[tr, tr, tr],
+                    rendering="minip" if self.light_background else "mip"
+                    )
+            else:
+                self.layer_image.data = imgb
+                self.layer_image.scale = imgb.scale
+                self.layer_image.name = imgb.name
+                self.layer_image.translate = [tr, tr, tr]
+                self.layer_image.rendering = "minip" if self.light_background else "mip"
+                
             self.viewer.scale_bar.unit = img.scale_unit
             self.viewer.dims.axis_labels = ("z", "y", "x")
 
             self.image = img
-            if self.layer_image in self.viewer.layers:
-                self.viewer.layers.remove(self.layer_image) # TODO: bug
-            self.layer_image = layer_image
 
             self.clear()
             self.viewer.window._status_bar._toggle_activity_dock(False)
@@ -153,32 +155,36 @@ class MTProfiler(QWidget):
         
         common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
         if self.layer_prof in self.viewer.layers:
-            self.layer_prof.data = np.array([], dtype=np.float64)
-        else:
-            self.layer_prof = viewer.add_points(**common_properties,
-                                       name="MT Profiles",
-                                       opacity=0.4, 
-                                       edge_color="black",
-                                       face_color="black",
-                                       properties = {"pitch": np.array([0.0], dtype=np.float64)},
-                                       text={"text": "{label}-{number}", 
-                                             "color":"black", 
-                                             "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
-                                             "visible": False},
-                                       )
-            self.layer_prof.editable = False
+            self.layer_prof.name = "MT Profiles-old"
+    
+        self.layer_prof = viewer.add_points(**common_properties,
+                                    name="MT Profiles",
+                                    opacity=0.4, 
+                                    edge_color="black",
+                                    face_color="black",
+                                    properties = {"pitch": np.array([0.0], dtype=np.float64)},
+                                    text={"text": "{label}-{number}", 
+                                            "color":"black", 
+                                            "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
+                                            "visible": False},
+                                    )
+        self.layer_prof.editable = False
             
         if self.layer_work in self.viewer.layers:
-            self.layer_work.data = np.array([], dtype=np.float64)
-        else:
-            self.layer_work = viewer.add_points(**common_properties,
-                                        name="Working Layer",
-                                        face_color="yellow"
-                                        )
+            self.layer_work.name = "Working Layer-old"
         
-            self.layer_work.mode = "add"
+        self.layer_work = viewer.add_points(**common_properties,
+                                    name="Working Layer",
+                                    face_color="yellow"
+                                    )
+    
+        self.layer_work.mode = "add"
         
-        
+        if "MT Profiles-old" in self.viewer.layers:
+            self.viewer.layers.remove("MT Profiles-old")
+        if "Working Layer-old" in self.viewer.layers:
+            self.viewer.layers.remove("Working Layer-old")
+            
         self.mt_paths = []
         self.dataframe = None
 
@@ -294,8 +300,10 @@ class MTProfiler(QWidget):
         else:
             return None
         
-        df = pd.read_csv(path)
-        self.from_dataframe(df)
+        with progress(total=0) as pbr:
+            pbr.set_description("Connecting csv to image")
+            df = pd.read_csv(path)
+            self.from_dataframe(df)
         return None
     
     def from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
@@ -309,7 +317,7 @@ class MTProfiler(QWidget):
         
         if mtp is None:
             mtp = self.get_one_mt(0)
-            mtp._even_interval_points = self.dataframe[["z", "y", "x"]].values
+            mtp._even_interval_points = df[df["label"]==0][["z", "y", "x"]].values
         
         df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
         
@@ -324,10 +332,13 @@ class MTProfiler(QWidget):
         self.layer_work.mode = "pan_zoom"
         
         self.viewer.layers.selection = {self.layer_prof}
+        self.canvas._init_widget_params()
         self.canvas.label_choice.setMaximum(len(df["label"].unique())-1)
         self.canvas.slider.setRange(0, mtp.npoints-1)
         self.canvas.call()
         self.canvas.add_note_edit()
+        
+        self.viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
         return None
     
     def get_one_mt(self, label:int=0):
@@ -387,9 +398,6 @@ class MTProfiler(QWidget):
             self.canvas.ax.cla()
             self.canvas.fig.canvas.draw()
         cachemap.clear()
-        self.canvas.label_choice.setValue(0)
-        self.canvas.slider.setValue(0)
-        self.canvas.info.setText("X.XX nm / XX pf")
         return None
         
     def _add_widgets(self):
@@ -453,7 +461,6 @@ class SlidableFigureCanvas(QWidget):
         
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setMinimumWidth(50)
-        self.slider.setRange(0, 0)
         self.slider.setToolTip("Slide along a MT")
         self.slider.valueChanged.connect(self.call)
         
@@ -471,8 +478,6 @@ class SlidableFigureCanvas(QWidget):
         self.label_choice = QSpinBox(self)
         self.label_choice.setMinimumWidth(25)
         self.label_choice.setToolTip("MT label")
-        self.label_choice.setValue(0)
-        self.label_choice.setRange(0, 0)
         @self.label_choice.valueChanged.connect
         def _(*args):
             # We have to block value changed event here, otherwise event will be emitted twice.
@@ -482,7 +487,6 @@ class SlidableFigureCanvas(QWidget):
             self.label_choice.setEnabled(True)
         
         figindex.layout().addWidget(self.label_choice)
-                
         figindex.layout().addWidget(self.slider)
         
         frame1 = QFrame(self)
@@ -520,13 +524,14 @@ class SlidableFigureCanvas(QWidget):
         frame2.layout().addWidget(send)
         
         self.info = QLabel()
-        self.info.setText("X.XX nm / XX pf")
         frame2.layout().addWidget(self.info)
         
         self.layout().addWidget(figindex)
         self.layout().addWidget(canvas)
         self.layout().addWidget(frame1)
         self.layout().addWidget(frame2)
+        
+        self._init_widget_params()
         
         return None
     
@@ -542,6 +547,15 @@ class SlidableFigureCanvas(QWidget):
             self._ax = self.fig.add_subplot(111)
             self._ax.set_aspect("equal")
         return self._ax
+    
+    def _init_widget_params(self):
+        self.label_choice.setValue(0)
+        self.label_choice.setRange(0, 0)
+        self.slider.setValue(0)
+        self.slider.setRange(0, 0)
+        self.info.setText("X.XX nm / XX pf")
+        return None
+        
     
     def add_note_edit(self):
         if hasattr(self, "line_edit"):
