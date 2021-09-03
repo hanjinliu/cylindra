@@ -1,6 +1,7 @@
 from __future__ import annotations
 import pandas as pd
 import traceback
+import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
@@ -19,7 +20,7 @@ from .mtpath import MTPath, calc_total_length
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 
 # TODO: 
-# - initialize some parameters upon loading image, 
+# - initialize some parameters upon loading image
 # - set default save path to the loaded path
 # - layer.properties = {"pitch":[]} does not work in napari v0.4.11
 
@@ -101,6 +102,7 @@ class MTProfiler(QWidget):
         self.setWindowTitle("MT Profiler")
         
     def load_image(self, img=None, binsize=4):
+        self.viewer.window._status_bar._toggle_activity_dock(True)
         worker = imread_thread(img, binsize)
         @worker.returned.connect
         def _(imgb):
@@ -116,10 +118,11 @@ class MTProfiler(QWidget):
 
             self.image = img
             if self.layer_image in self.viewer.layers:
-                self.viewer.layers.remove(self.layer_image)
+                self.viewer.layers.remove(self.layer_image) # TODO: bug
             self.layer_image = layer_image
 
             self.clear()
+            self.viewer.window._status_bar._toggle_activity_dock(False)
             return None
         worker.start()
         return None
@@ -143,40 +146,38 @@ class MTProfiler(QWidget):
 
         self.load_image(img)
         return None
-        
+    
     def _init_layers(self):
         viewer = self.viewer
         img = self.image
         
-        if self.layer_prof in self.viewer.layers:
-            viewer.layers.remove(self.layer_prof)
-        if self.layer_work in self.viewer.layers:
-            viewer.layers.remove(self.layer_work)
-        
         common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
-        layer_prof = viewer.add_points(**common_properties,
-                                    name="MT Profiles",
-                                    opacity=0.4, 
-                                    edge_color="black",
-                                    face_color="black",
-                                    text={"text": "{label}-{number}", 
-                                          "color":"black", 
-                                          "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
-                                          "visible": False},
-                                    )
-        layer_work = viewer.add_points(**common_properties,
-                                    name="Working Layer",
-                                    face_color="yellow"
-                                    )
+        if self.layer_prof in self.viewer.layers:
+            self.layer_prof.data = np.array([], dtype=np.float64)
+        else:
+            self.layer_prof = viewer.add_points(**common_properties,
+                                       name="MT Profiles",
+                                       opacity=0.4, 
+                                       edge_color="black",
+                                       face_color="black",
+                                       properties = {"pitch": np.array([0.0], dtype=np.float64)},
+                                       text={"text": "{label}-{number}", 
+                                             "color":"black", 
+                                             "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
+                                             "visible": False},
+                                       )
+            self.layer_prof.editable = False
+            
+        if self.layer_work in self.viewer.layers:
+            self.layer_work.data = np.array([], dtype=np.float64)
+        else:
+            self.layer_work = viewer.add_points(**common_properties,
+                                        name="Working Layer",
+                                        face_color="yellow"
+                                        )
         
-        layer_prof.editable = False
-        layer_prof.properties = {"pitch": np.array([], dtype=np.float64)}
-        layer_prof.current_properties = {"pitch": np.array([0.0], dtype=np.float64)}
+            self.layer_work.mode = "add"
         
-        layer_work.mode = "add"
-        
-        self.layer_work = layer_work
-        self.layer_prof = layer_prof
         
         self.mt_paths = []
         self.dataframe = None
@@ -209,8 +210,7 @@ class MTProfiler(QWidget):
         
         df_list = []
         first_mtp = None
-        # TODO: viewer.window._status_bar._toggle_activity_dock(True)
-        # viewer.window.qt_viewer.window()._activity_dialog.
+        self.viewer.window._status_bar._toggle_activity_dock(True)
         with progress(self.mt_paths) as pbr:
             for i, path in enumerate(pbr):
                 subpbr = progress(total=10, nest_under=pbr)
@@ -261,6 +261,8 @@ class MTProfiler(QWidget):
                     df = mtp.to_dataframe()
                     df_list.append(df)
                     
+                    subpbr.close()
+                    
                     if i == 0:
                         first_mtp = mtp
                         
@@ -269,9 +271,9 @@ class MTProfiler(QWidget):
                     # raise_error_message(self, f"Error in iteration {i}.\n\n{traceback.format_exc()}")
                     raise_error_message(self, f"Error in iteration {i}.\n\n{e.__class__.__name__}: {e}")
                     break
-            else:        
-                self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
-
+            
+        self.viewer.window._status_bar._toggle_activity_dock(False)
+        self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
         return None
     
     def from_path(self):
@@ -304,6 +306,7 @@ class MTProfiler(QWidget):
         self._init_layers()
         
         self.dataframe = df
+        
         if mtp is None:
             mtp = self.get_one_mt(0)
             mtp._even_interval_points = self.dataframe[["z", "y", "x"]].values
@@ -384,6 +387,9 @@ class MTProfiler(QWidget):
             self.canvas.ax.cla()
             self.canvas.fig.canvas.draw()
         cachemap.clear()
+        self.canvas.label_choice.setValue(0)
+        self.canvas.slider.setValue(0)
+        self.canvas.info.setText("X.XX nm / XX pf")
         return None
         
     def _add_widgets(self):
