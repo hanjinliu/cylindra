@@ -419,9 +419,9 @@ class MTPath:
     def to_dataframe(self):
         data = {"label": np.array([self.label]*self.npoints, dtype=np.uint16),
                 "number": np.arange(self.npoints, dtype=np.uint16),
-                "z": self._even_interval_points[:,0],
-                "y": self._even_interval_points[:,1],
-                "x": self._even_interval_points[:,2],
+                "z": self._even_interval_points[:, 0],
+                "y": self._even_interval_points[:, 1],
+                "x": self._even_interval_points[:, 2],
                 "MTradius": [self.radius_peak]*self.npoints,
                 "curvature": self.curvature,
                 "pitch": self.pitch_lengths,
