@@ -300,10 +300,12 @@ class MTProfiler(QWidget):
         else:
             return None
         
+        self.viewer.window._status_bar._toggle_activity_dock(True)
         with progress(total=0) as pbr:
             pbr.set_description("Connecting csv to image")
             df = pd.read_csv(path)
             self.from_dataframe(df)
+        self.viewer.window._status_bar._toggle_activity_dock(False)
         return None
     
     def from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
