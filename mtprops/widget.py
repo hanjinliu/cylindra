@@ -1,7 +1,6 @@
 from __future__ import annotations
 import pandas as pd
 import traceback
-import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
@@ -252,7 +251,7 @@ class MTProfiler(QWidget):
                     mtp.grad_path()
                     mtp.rotate3d()
                     cachemap[f"{self.image.name}-{mtp.label}",
-                            hash(str(mtp._even_interval_points))] = mtp._sub_images
+                             hash(str(mtp._even_interval_points))] = mtp._sub_images
                     subpbr.update(1)
                     subpbr.set_description("Determining MT radius")
                     mtp.determine_radius()

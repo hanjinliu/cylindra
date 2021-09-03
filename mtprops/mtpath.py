@@ -112,7 +112,7 @@ def make_rotate_mat(deg_yx, deg_zy, shape):
     center = np.array(shape)/2. - 0.5 # 3d array
     translation_0 = compose_affine_matrix(translation=center, ndim=3)
     rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx+180)], ndim=3)
-    rotation_zy = compose_affine_matrix(rotation=[-np.deg2rad(deg_zy), 0, 0], ndim=3)
+    rotation_zy = compose_affine_matrix(rotation=[np.deg2rad(deg_zy), 0, 0], ndim=3)
     translation_1 = compose_affine_matrix(translation=-center, ndim=3)
     
     mx = translation_0 @ rotation_yx @ rotation_zy @ translation_1
@@ -123,7 +123,7 @@ def _calc_pitch_length_xyz(img3d):
     peak_est = img3d.sizeof("y")/(4.16/img3d.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
-    projection = img3d.local_power_spectra(key=f"y={y0}:{y1}", upsample_factor=[1,up,1], dims="zyx").proj("zx")
+    projection = img3d.local_power_spectra(key=f"y={y0}:{y1}", upsample_factor=[1, up, 1], dims="zyx").proj("zx")
     imax = np.argmax(projection)
     imax_f = imax + y0*up
     freq = np.fft.fftfreq(img3d.sizeof("y")*up)
@@ -158,10 +158,6 @@ def rotational_average(img, fold:int=13):
     average_img /= fold
     return average_img
 
-def wave_power(wave):
-    ft = np.fft.fft(wave - wave.mean())
-    pw = ft.real**2 + ft.imag**2
-    return np.mean(pw)
 
 def _calc_pf_number(img2d):
     corrs = []
@@ -261,7 +257,7 @@ class MTPath:
         # are restricted in range of -pi:pi. Otherwise, MT polarity will be reversed more than once. This
         # causes a problem that MT polarity appears the same no matter in which direction you see.
         self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
-        self.grad_angles_zy = np.rad2deg(np.arctan(-dr[:,0]/dr[:,1]))
+        self.grad_angles_zy = np.rad2deg(np.arctan(-dr[:,0]/np.abs(dr[:,1])))
         return None
     
     def smooth_path(self):
