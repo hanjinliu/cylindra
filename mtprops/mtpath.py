@@ -1,4 +1,5 @@
 from __future__ import annotations
+import statistics
 import numpy as np
 from numba import jit
 import matplotlib.pyplot as plt
@@ -229,6 +230,16 @@ class MTPath:
         ddx = np.gradient(dx)
         a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
         return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.interval
+    
+    
+    def __add__(self, other:MTPath):
+        if not isinstance(other, MTPath):
+            raise TypeError("Only MTPath can be added to MTPath")
+        new = self.__class__(self, self.scale, interval_nm=self.interval, radius_pre_nm=self.radius_pre, 
+                             radius_nm=self.radius, light_background=self.light_background, label=-1)
+        for attr in ["_sub_images", "_even_interval_points", "grad_angles_yx", "grad_angles_zy", "_pf_numbers"]:
+            setattr(new, attr, getattr(self, attr) + getattr(other, attr))
+        return new
         
     def set_path(self, coordinates):
         original_points = np.asarray(coordinates)
@@ -279,13 +290,11 @@ class MTPath:
         return None
     
     def rot_correction(self):
-        imgs = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for i, img in enumerate(self._sub_images):
                 angle = self.grad_angles_yx[i]
-                imgs.append(img.rotate(-angle, cval=np.median(img)))
+                img.rotate(-angle, cval=np.median(img), update=True)
                 
-        self._sub_images = imgs
         return None
     
     def zxshift_correction(self):
@@ -344,12 +353,10 @@ class MTPath:
     
     def rotate3d(self):        
         with ip.SetConst("SHOW_PROGRESS", False):
-            imgs = []
             for i in range(self.npoints):
                 mat = make_rotate_mat(self.grad_angles_yx[i], self.grad_angles_zy[i], 
                                       self._sub_images[i].shape)
-                imgs.append(self._sub_images[i].affine(matrix=mat))
-        self._sub_images = imgs
+                self._sub_images[i].affine(matrix=mat, update=True)
         return None
     
     def determine_radius(self):
@@ -471,21 +478,119 @@ class MTPath:
         ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
         return None
 
-    
-    def run_all(self, img, path):
+    def iter_run(self, img, path):
         self.set_path(path)
+        yield self
         self.load_images(img)
+        yield self
         self.grad_path()
+        yield self
         self.smooth_path()
+        yield self
         self.rot_correction()
+        yield self
         self.zxshift_correction()
+        yield self
         self.calc_center_shift()
+        yield self
         self.update_points()
+        yield self
         self.load_images(img)
+        yield self
         self.grad_path()
+        yield self
         self.rotate3d()
+        yield self
         self.determine_radius()
+        yield self
         self.calc_pitch_length()
+        yield self
         self.calc_pf_number()
+        yield self
         self.rotational_averages()
-        return self
+        yield self
+    
+    def average_tomograms(self):
+        df = pd.DataFrame([])
+        
+        kernel_box = (self.radius/self.scale).astype(np.int32)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            input_imgs = [img.crop_kernel(kernel_box) for img in self._sub_images]
+        
+        # 1st iteration
+        ref = input_imgs[self.npoints//2]
+        shifts = np.linspace(-4.5/self.scale, 4.5/self.scale, 19)
+        rots = np.linspace(-1, 1, 5)
+        out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots)
+        
+        df["Yshift-1"] = yshifts
+        df["ZXrot-1"] = zxrots
+        
+        self.tomogram_averaged_image = sum(out)/len(out)
+        
+        # 2nd iteration
+        shifts = np.linspace(-0.5/self.scale, 0.5/self.scale, 19)
+        if zxrots[0] == zxrots[-1]:
+            rots = np.linspace(-0.2, 0.2, 5)
+        else:
+            theta_slope = (zxrots[-1] - zxrots[0])/len(out)
+            rots = np.array([np.linspace(theta_slope*i-0.2, theta_slope*i+0.2, 5).tolist() 
+                             for i in range(len(out))])
+        out, yshifts, zxrots = zncc_all(out, self.rot_average_tomogram(), shifts, rots)
+        
+        df["Yshift-2"] = yshifts
+        df["ZXrot-2"] = zxrots
+        
+        self.tomogram_averaged_image[:] = sum(out)/len(out)
+        
+        return df
+    
+    def rot_average_tomogram(self):
+        shifts = np.linspace(-4.2/self.scale, 4.2/self.scale, 20)
+        rotsumimg = self.tomogram_averaged_image.copy()
+        npf = statistics.mode(self.pf_numbers)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            for deg in (360/npf*np.arange(1, npf)):
+                rimg = self.tomogram_averaged_image.rotate(deg, dims="zx")
+                corrs = []
+                for i, dy in enumerate(shifts):
+                    corrs.append(ip.zncc(
+                        self.tomogram_averaged_image, 
+                        rimg.affine(translation=[0,dy,0])
+                        ))
+                imax = np.argmax(corrs)
+                shift = shifts[imax]
+                rotsumimg += rimg.affine(translation=[0,shift,0])
+                shifts = np.linspace(shift - 1/self.scale, shift + 1/self.scale, 7)
+        
+        return rotsumimg
+
+def zncc_all(imgs, ref, shifts, rots, mask=None):
+    yshifts = []
+    zxrots = []
+    out = []
+    if rots.ndim == 1:
+        rots = np.stack([rots]*len(shifts), axis=0)
+    corrs = np.zeros((len(shifts), len(rots[0])))
+    with ip.SetConst("SHOW_PROGRESS", False):
+        for img in imgs:
+            if img is ref:
+                yshifts.append(0.0)
+                zxrots.append(0.0)
+            else:
+                for i, dy in enumerate(shifts):
+                    for j, dtheta in enumerate(rots[i]):
+                        corrs[i,j] = ip.zncc(
+                            ref, 
+                            img.affine(translation=[0, dy, 0], 
+                                       rotation=[0, dtheta, 0]),
+                            mask=mask
+                        )
+                imax, jmax = np.unravel_index(np.argmax(corrs), corrs.shape)
+                shift = shifts[imax]
+                yshifts.append(shift)
+                deg = rots[i, jmax]
+                zxrots.append(deg)
+            out.append(img.affine(translation=[0,shift,0], rotation=[0,deg,0]))
+    return out, yshifts, zxrots
+
