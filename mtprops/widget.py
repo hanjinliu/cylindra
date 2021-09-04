@@ -94,6 +94,10 @@ class MTProfiler(QWidget):
         
         self._add_widgets()
         self.setWindowTitle("MT Profiler")
+    
+    @property
+    def current_mt(self):
+        return self.canvas._mtpath
         
     def load_image(self, img=None, binsize=4):
         self.viewer.window._status_bar._toggle_activity_dock(True)
@@ -524,6 +528,11 @@ class SlidableFigureCanvas(QWidget):
         send.clicked.connect(self.send_to_napari)
         frame2.layout().addWidget(send)
         
+        focus = QPushButton("Focus 📷", frame2)
+        focus.setToolTip("Focus on current MT fragment in viewer")
+        focus.clicked.connect(self.focus_on)
+        frame2.layout().addWidget(focus)
+        
         self.info = QLabel()
         frame2.layout().addWidget(self.info)
         
@@ -593,6 +602,9 @@ class SlidableFigureCanvas(QWidget):
         return self.call()
     
     def send_to_napari(self):
+        """
+        Send the current MT fragment 3D image (not binned) to napari viewer.
+        """        
         if self.mtprofiler.dataframe is None:
             return None
         i = self.slider.value()
@@ -601,6 +613,22 @@ class SlidableFigureCanvas(QWidget):
                                          rendering="minip" if self.light_background else "mip")
         return None
     
+    def focus_on(self):
+        """
+        Change camera focus to the position of current MT fragment.
+        """        
+        viewer = self.mtprofiler.viewer
+        i = self.slider.value()
+        scale = viewer.layers["MT Profiles"].scale
+        next_coords = self._mtpath._even_interval_points[i]
+        next_center = next_coords * scale
+        viewer.dims.current_step = list(next_coords.astype(np.int64))
+        
+        viewer.camera.center = next_center
+        zoom = viewer.camera.zoom
+        viewer.camera.events.zoom() # Here events are emitted and zoom changes automatically.
+        viewer.camera.zoom = zoom
+        return None
     
     def imshow_yx_raw(self):
         if self.mtprofiler.dataframe is None:
