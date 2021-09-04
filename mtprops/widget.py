@@ -1,7 +1,5 @@
 from __future__ import annotations
 import pandas as pd
-import traceback
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from matplotlib.backends.backend_qt5agg import FigureCanvas
@@ -276,16 +274,16 @@ class MTProfiler(QWidget):
                         first_mtp = mtp
                         
                 except Exception as e:
-                    # TODO: show full traceback. Before that add QScrollBar into QMessageBox
-                    # raise_error_message(self, f"Error in iteration {i}.\n\n{traceback.format_exc()}")
                     raise_error_message(self, f"Error in iteration {i}.\n\n{e.__class__.__name__}: {e}")
                     break
             
-        self.viewer.window._status_bar._toggle_activity_dock(False)
-        self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
+            else:
+                self.viewer.window._status_bar._toggle_activity_dock(False)
+                self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
+                
         return None
     
-    def from_path(self):
+    def from_csv_file(self):
         """
         Open a file dialog, choose a csv file and load it.
         """        
@@ -431,7 +429,7 @@ class MTProfiler(QWidget):
                 
         load_csv_button = QPushButton("Load csv 📂", other_buttons)
         load_csv_button.setToolTip("Load results from csv.")
-        load_csv_button.clicked.connect(self.from_path)
+        load_csv_button.clicked.connect(self.from_csv_file)
         
         save_button = QPushButton("Save 💾", other_buttons)
         save_button.setToolTip("Save results.")
