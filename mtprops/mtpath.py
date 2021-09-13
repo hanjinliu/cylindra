@@ -5,6 +5,7 @@ from numba import jit
 import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
 from scipy.signal import medfilt
+from scipy import ndimage as ndi
 from ._impy import impy as ip
 import pandas as pd
 
@@ -117,6 +118,7 @@ def make_rotate_mat(deg_yx, deg_zy, shape):
     translation_1 = compose_affine_matrix(translation=-center, ndim=3)
     
     mx = translation_0 @ rotation_yx @ rotation_zy @ translation_1
+    mx[-1, :] = [0, 0, 0, 1]
     return mx
 
 def _calc_pitch_length_xyz(img3d):
@@ -244,7 +246,7 @@ class MTPath:
     def set_path(self, coordinates):
         original_points = np.asarray(coordinates)
         self._even_interval_points = get_coordinates(original_points, self.interval/self.scale)
-        return None
+        return self
     
     def load_images(self, img):
         """
@@ -255,8 +257,7 @@ class MTPath:
             for i in range(self.npoints):
                 subimg = load_subimage(img, self._even_interval_points[i], self.radius_pre)
                 self._sub_images.append(subimg)
-
-        return None
+        return self
     
     def grad_path(self):
         """
@@ -269,7 +270,7 @@ class MTPath:
         # causes a problem that MT polarity appears the same no matter in which direction you see.
         self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
         self.grad_angles_zy = np.rad2deg(np.arctan(-dr[:,0]/np.abs(dr[:,1])))
-        return None
+        return self
     
     def smooth_path(self):
         """
@@ -282,20 +283,20 @@ class MTPath:
                 angle = angle_corr(self._sub_images[i], self.grad_angles_yx[i])
                 new_angles[i] = angle
         
-        # This is identical to mirror mode padding
-        new_angles = medfilt(new_angles)
-        new_angles[0] = new_angles[1]
-        new_angles[-1] = new_angles[-2]
+        size = 2*int(round(48/self.interval)) + 1
+        if size > 1:
+            new_angles = ndi.median_filter(new_angles, size=size, mode="mirror") # a b c d | c b a
+        
         self.grad_angles_yx = new_angles
-        return None
+        return self
     
     def rot_correction(self):
         with ip.SetConst("SHOW_PROGRESS", False):
             for i, img in enumerate(self._sub_images):
                 angle = self.grad_angles_yx[i]
                 img.rotate(-angle, cval=np.median(img), update=True)
-                
-        return None
+        
+        return self
     
     def zxshift_correction(self):
         xlen0 = int(self.radius_pre[2]/self.scale)
@@ -316,7 +317,7 @@ class MTPath:
                 shifts.append(list(shift))
             
         self.shifts = np.array(shifts)
-        return None
+        return self
 
     def calc_center_shift(self):
         xlen0 = int(self.radius_pre[2]/self.scale)
@@ -333,7 +334,7 @@ class MTPath:
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])
             self.shifts = self.shifts - center_shift/2
         
-        return None
+        return self
     
     def update_points(self):
         coords = self._even_interval_points.copy()
@@ -348,16 +349,23 @@ class MTPath:
                              [0.,  cos, sin],
                              [0., -sin, cos]]
             coords[i] += shift
+        
         self._even_interval_points = coords
-        return None
+        
+        size = 2*int(round(48/self.interval)) + 1
+        if size > 1:
+            self.grad_angles_yx = ndi.median_filter(self.grad_angles_yx, size=size, mode="mirror")
+            self.grad_angles_zy = ndi.median_filter(self.grad_angles_zy, size=size, mode="mirror")
+        
+        return self
     
-    def rotate3d(self):        
+    def rotate3d(self):
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
                 mat = make_rotate_mat(self.grad_angles_yx[i], self.grad_angles_zy[i], 
                                       self._sub_images[i].shape)
                 self._sub_images[i].affine(matrix=mat, update=True)
-        return None
+        return self
     
     def determine_radius(self):
         with ip.SetConst("SHOW_PROGRESS", False):
@@ -371,7 +379,7 @@ class MTPath:
             else:
                 r_peak = np.argmax(img2d.radial_profile(nbin=nbin, r_max=r_max))/nbin*r_max
             self.radius_peak = r_peak
-        return r_peak
+        return self
             
     
     def calc_pitch_xyz(self):
@@ -381,7 +389,7 @@ class MTPath:
                 img = img.crop_kernel((self.radius/self.scale).astype(np.int32))
                 pitch = _calc_pitch_length_xyz(img)
                 self.pitch_lengths.append(pitch)
-        return None
+        return self
     
     def calc_pitch_length(self):
         self.pitch_lengths = []
@@ -395,7 +403,7 @@ class MTPath:
                                            int(r*self.__class__.inner),
                                            int(r*self.__class__.outer))
                 self.pitch_lengths.append(pitch)
-        return None
+        return self
 
     def calc_pf_number(self):
         pf_numbers = []
@@ -407,7 +415,7 @@ class MTPath:
                 npf = _calc_pf_number(img[sl].proj("y"))
                 pf_numbers.append(npf)
         self.pf_numbers = pf_numbers
-        return None
+        return self
     
     def rotational_averages(self):
         average_images = []
@@ -421,7 +429,7 @@ class MTPath:
                 av = rotational_average(img[sl].proj("y"), npf)
                 average_images.append(av)
         self.average_images = average_images
-        return None
+        return self
     
     def to_dataframe(self):
         data = {"label": np.array([self.label]*self.npoints, dtype=np.uint16),
@@ -479,36 +487,21 @@ class MTPath:
         return None
 
     def iter_run(self, img, path):
-        self.set_path(path)
-        yield self
-        self.load_images(img)
-        yield self
-        self.grad_path()
-        yield self
-        self.smooth_path()
-        yield self
-        self.rot_correction()
-        yield self
-        self.zxshift_correction()
-        yield self
-        self.calc_center_shift()
-        yield self
-        self.update_points()
-        yield self
-        self.load_images(img)
-        yield self
-        self.grad_path()
-        yield self
-        self.rotate3d()
-        yield self
-        self.determine_radius()
-        yield self
-        self.calc_pitch_length()
-        yield self
-        self.calc_pf_number()
-        yield self
-        self.rotational_averages()
-        yield self
+        yield self.set_path(path)
+        yield self.load_images(img)
+        yield self.grad_path()
+        yield self.smooth_path()
+        yield self.rot_correction()
+        yield self.zxshift_correction()
+        yield self.calc_center_shift()
+        yield self.update_points()
+        yield self.load_images(img)
+        yield self.grad_path()
+        yield self.rotate3d()
+        yield self.determine_radius()
+        yield self.calc_pitch_length()
+        yield self.calc_pf_number()
+        yield self.rotational_averages()
     
     def average_tomograms(self):
         df = pd.DataFrame([])
