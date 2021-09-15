@@ -4,10 +4,23 @@ import numpy as np
 from numba import jit
 import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
-from scipy.signal import medfilt
+from scipy.interpolate import UnivariateSpline
 from scipy import ndimage as ndi
 from ._impy import impy as ip
 import pandas as pd
+from dask import delayed, array as da
+
+def dask_parallel(delayed_func, arrays:list[np.ndarray], shape=(), args=(), kwargs={}):
+    stack = [da.from_delayed(delayed_func(a, *args, **kwargs), 
+                             shape=shape, 
+                             dtype=a.dtype) 
+             for a in arrays]
+    return da.compute(stack)
+
+def spline_filter(data, s=None) -> np.ndarray:
+    x = np.arange(data.size)
+    spl = UnivariateSpline(x, data, s=s)
+    return spl(x)
 
 def make_slice_and_pad(center, radius, size):
     z0 = center - radius
@@ -27,6 +40,7 @@ def calc_total_length(path):
     total_length = np.sum(each_length)
     return total_length
 
+@delayed
 def load_subimage(img, pos, radius:tuple[int, int, int]):
     """
     From large image ``img``, crop out small region centered at ``pos``.
@@ -87,6 +101,7 @@ def get_coordinates(path, interval):
         coords = coords[:,:-1]
     return coords.T
 
+@delayed
 def angle_corr(img, ang_center):
     # img: 3D
     img_z = img.proj("z")
@@ -99,7 +114,6 @@ def angle_corr(img, ang_center):
             cor = ip.fourier_zncc(img_z, img_mirror.rotate(ang*2), mask)
             corrs.append(cor)
     angle = angs[np.argmax(corrs)]
-    
     return angle
     
 def warp_polar_3d(img3d, along="y", center=None, radius=None, angle_freq=360):
@@ -121,6 +135,11 @@ def make_rotate_mat(deg_yx, deg_zy, shape):
     mx[-1, :] = [0, 0, 0, 1]
     return mx
 
+@delayed
+def rot3d(img, yx, zy):
+    mat = make_rotate_mat(yx, zy, img.shape)
+    return img.affine(matrix=mat)
+
 def _calc_pitch_length_xyz(img3d):
     up = 20 # upsample factor along y-axis
     peak_est = img3d.sizeof("y")/(4.16/img3d.scale.y) # estimated peak
@@ -133,7 +152,7 @@ def _calc_pitch_length_xyz(img3d):
     pitch = 1/freq[imax_f]*img3d.scale.y
     return pitch
 
-
+@delayed
 def _calc_pitch_length(img3d, rmin, rmax):
     up = 20 # upsample factor along y-axis
     peak_est = img3d.sizeof("y")/(4.16/img3d.scale.y) # estimated peak
@@ -161,7 +180,7 @@ def rotational_average(img, fold:int=13):
     average_img /= fold
     return average_img
 
-
+@delayed
 def _calc_pf_number(img2d):
     corrs = []
     for pf in [12, 13, 14, 15, 16]:
@@ -184,7 +203,7 @@ class MTPath:
         
         self._even_interval_points = None
         
-        self._sub_images = []
+        self._sub_images: list[np.ndarray] = []
         
         self.grad_angles_yx = None
         self.grad_angles_zy = None
@@ -253,10 +272,16 @@ class MTPath:
         From a large image crop out sub-images around each point of the path.
         """        
         self._sub_images.clear()
+        tasks = []
+        rz, ry, rx = (np.array(self.radius_pre)/img.scale).astype(np.int32)
+        shape = (rz*2+1, ry*2+1, rx*2+1)
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                subimg = load_subimage(img, self._even_interval_points[i], self.radius_pre)
-                self._sub_images.append(subimg)
+                task = load_subimage(img, self._even_interval_points[i], self.radius_pre)
+                tasks.append(da.from_delayed(task, shape=shape, dtype=np.float32))
+            out = da.compute(tasks)[0]
+        for subimg in out:
+            self._sub_images.append(subimg)
         return self
     
     def grad_path(self):
@@ -269,7 +294,7 @@ class MTPath:
         # are restricted in range of -pi:pi. Otherwise, MT polarity will be reversed more than once. This
         # causes a problem that MT polarity appears the same no matter in which direction you see.
         self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
-        self.grad_angles_zy = np.rad2deg(np.arctan(-dr[:,0]/np.abs(dr[:,1])))
+        self.grad_angles_zy = np.rad2deg(np.arctan(dr[:,0]/np.abs(dr[:,1])))
         return self
     
     def smooth_path(self):
@@ -279,9 +304,11 @@ class MTPath:
         """        
         new_angles = np.zeros_like(self.grad_angles_yx)
         with ip.SetConst("SHOW_PROGRESS", False):
+            tasks = []
             for i in range(1, self.npoints-1):
-                angle = angle_corr(self._sub_images[i], self.grad_angles_yx[i])
-                new_angles[i] = angle
+                task = angle_corr(self._sub_images[i], self.grad_angles_yx[i])
+                tasks.append(da.from_delayed(task, shape=(), dtype=np.float64))
+            new_angles = np.array([0] + da.compute(tasks)[0] + [0])
         
         size = 2*int(round(48/self.interval)) + 1
         if size > 1:
@@ -289,7 +316,7 @@ class MTPath:
         
         self.grad_angles_yx = new_angles
         return self
-    
+
     def rot_correction(self):
         with ip.SetConst("SHOW_PROGRESS", False):
             for i, img in enumerate(self._sub_images):
@@ -350,21 +377,22 @@ class MTPath:
                              [0., -sin, cos]]
             coords[i] += shift
         
+        for i in range(3):
+            coords[:,i] = spline_filter(coords[:,i], s=(4/self.scale)**2)
+        
         self._even_interval_points = coords
-        
-        size = 2*int(round(48/self.interval)) + 1
-        if size > 1:
-            self.grad_angles_yx = ndi.median_filter(self.grad_angles_yx, size=size, mode="mirror")
-            self.grad_angles_zy = ndi.median_filter(self.grad_angles_zy, size=size, mode="mirror")
-        
         return self
     
     def rotate3d(self):
+        tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                mat = make_rotate_mat(self.grad_angles_yx[i], self.grad_angles_zy[i], 
-                                      self._sub_images[i].shape)
-                self._sub_images[i].affine(matrix=mat, update=True)
+                img = self._sub_images[i]
+                zy = self.grad_angles_zy[i]
+                yx = self.grad_angles_yx[i]
+                tasks.append(da.from_delayed(rot3d(img, yx, zy), shape=img.shape, dtype=np.float32))
+            out = da.compute(tasks)[0]
+        self._sub_images = out
         return self
     
     def determine_radius(self):
@@ -396,13 +424,17 @@ class MTPath:
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
+        tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for img in self._sub_images:
                 r = self.radius_peak/self.scale
                 pitch = _calc_pitch_length(img[sl], 
                                            int(r*self.__class__.inner),
                                            int(r*self.__class__.outer))
-                self.pitch_lengths.append(pitch)
+                tasks.append(da.from_delayed(pitch, shape=(), dtype=np.float64))
+            
+            self.pitch_lengths = da.compute(tasks)[0]
+
         return self
 
     def calc_pf_number(self):
@@ -410,11 +442,14 @@ class MTPath:
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
+        tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for img in self._sub_images:
                 npf = _calc_pf_number(img[sl].proj("y"))
-                pf_numbers.append(npf)
-        self.pf_numbers = pf_numbers
+                tasks.append(da.from_delayed(npf, shape=(), dtype=np.float64))
+            
+            self.pf_numbers = da.compute(tasks)[0]
+        
         return self
     
     def rotational_averages(self):
