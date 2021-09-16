@@ -676,3 +676,111 @@ class SlidableFigureCanvas(QWidget):
         npf = self.mtpath.pf_numbers[i]
         self.info.setText(f"{pitch:.2f} nm / {npf} pf")
         return self.last_called()
+    
+from magicclass import magicclass, field, button_design
+from magicclass.widgets import Figure
+from magicgui import magicgui
+
+@magicclass
+class _MTProfiler:
+    
+    @magicclass(layout="horizontal")
+    class MTselector:
+        def __init__(self, up):
+            self.up = up
+            
+        label: int = field(options={"max": 0})
+        pos: int = field(widget_type="Slider", options={"max":0})
+    
+    fig = field(Figure)
+    
+    @magicclass
+    class A:
+        def __init__(self, up):
+            self.up = up
+            
+        @button_design(text="XY raw 📈")
+        def imshow_yx_raw(self):
+            if self.mtprofiler.dataframe is None:
+                return None
+            self.ax.cla()
+            i = self.slider.value()
+            self.mtpath.imshow_yx_raw(i, ax=self.ax)
+            self.fig.tight_layout()
+            self.fig.canvas.draw()
+            self.last_called = self.imshow_yx_raw
+        
+        @button_design(text="XZ raw 📈")
+        def imshow_zy_raw(self):
+            if self.mtprofiler.dataframe is None:
+                return None
+            self.ax.cla()
+            i = self.slider.value()
+            self.mtpath.imshow_zx_raw(i, ax=self.ax)
+            self.fig.tight_layout()
+            self.fig.canvas.draw()
+            self.last_called = self.imshow_zx_raw
+        
+        @button_design(text="XZ avg 📈")
+        def imshow_zy_ave(self):
+            if self.mtprofiler.dataframe is None:
+                return None
+            self.ax.cla()
+            i = self.slider.value()
+            self.mtpath.imshow_zx_ave(i, ax=self.ax)
+            self.fig.tight_layout()
+            self.fig.canvas.draw()
+            self.last_called = self.imshow_zx_ave
+        
+    @magicclass
+    class B:
+        def __init__(self, up):
+            self.up = up
+            
+        @button_design(text="View 👁")    
+        def send_to_napari(self):
+            """
+            Send the current MT fragment 3D image (not binned) to napari viewer.
+            """        
+            if self.mtprofiler.dataframe is None:
+                return None
+            i = self.slider.value()
+            img = self._mtpath._sub_images[i]
+            self.mtprofiler.viewer.add_image(img, scale=img.scale, name=img.name,
+                                            rendering="minip" if self.light_background else "mip")
+            return None
+        
+        def focus_on(self):
+            """
+            Change camera focus to the position of current MT fragment.
+            """        
+            viewer = self.mtprofiler.viewer
+            i = self.slider.value()
+            scale = viewer.layers["MT Profiles"].scale
+            next_coords = self._mtpath._even_interval_points[i]
+            next_center = next_coords * scale
+            viewer.dims.current_step = list(next_coords.astype(np.int64))
+            
+            viewer.camera.center = next_center
+            zoom = viewer.camera.zoom
+            viewer.camera.events.zoom() # Here events are emitted and zoom changes automatically.
+            viewer.camera.zoom = zoom
+            return None
+        
+        txt = field("X.XX nm / XX pfs", options={"enabled": False})
+        
+        
+    def _update_note(self):
+        df = self.mtprofiler.dataframe
+        l = self.label_choice.value()
+        df.loc[df["label"]==l, "Note"] = self.line_edit.text()
+        return None
+        
+    def _update_mtpath(self):
+        label = self.label()
+        self._mtpath = self.mtprofiler.get_one_mt(label)
+        self.set_params.max = self._mtpath.npoints-1
+        sl = self.mtprofiler.dataframe["label"] == label
+        note = self.mtprofiler.dataframe[sl]["Note"].values[0]
+        self.line_edit.setText(note)
+        return self.call()
