@@ -17,7 +17,7 @@ setup(name="MTProps",
             "matplotlib",
             "pandas>=1",
             "dask>=2021.6.0",
-            "napari>=0.4.10",
+            "napari>=0.4.11",
       ],
       python_requires=">=3.7",
       )

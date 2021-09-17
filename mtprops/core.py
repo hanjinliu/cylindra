@@ -2,14 +2,13 @@ from __future__ import annotations
 import pandas as pd
 import napari
 from .widget import MTProfiler
-from ._impy import impy as ip
+from ._dependencies import impy as ip
 
 def start(viewer:"napari.Viewer", 
           interval_nm:float=24,
           light_background:bool=True
           ):
-    mtprof = MTProfiler(viewer=viewer,
-                        interval_nm=interval_nm,
+    mtprof = MTProfiler(interval_nm=interval_nm,
                         light_background=light_background
                         )
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
@@ -29,8 +28,7 @@ def load(viewer:"napari.Viewer",
     if isinstance(img, str):
         img = ip.lazy_imread(img, chunks=(64, 1024, 1024))
 
-    mtprof = MTProfiler(viewer=viewer,
-                        interval_nm=interval_nm,
+    mtprof = MTProfiler(interval_nm=interval_nm,
                         light_background=light_background
                         )
     mtprof.load_image(img, binsize=binsize)

@@ -6,16 +6,9 @@ import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
 from scipy.interpolate import UnivariateSpline
 from scipy import ndimage as ndi
-from ._impy import impy as ip
+from ._dependencies import impy as ip
 import pandas as pd
 from dask import delayed, array as da
-
-def dask_parallel(delayed_func, arrays:list[np.ndarray], shape=(), args=(), kwargs={}):
-    stack = [da.from_delayed(delayed_func(a, *args, **kwargs), 
-                             shape=shape, 
-                             dtype=a.dtype) 
-             for a in arrays]
-    return da.compute(stack)
 
 def spline_filter(data, s=None) -> np.ndarray:
     x = np.arange(data.size)
