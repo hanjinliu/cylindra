@@ -465,6 +465,8 @@ class MTPath:
                 "z": self.points[:, 0],
                 "y": self.points[:, 1],
                 "x": self.points[:, 2],
+                "angle_yx": self.grad_angles_yx,
+                "angle_zy": self.grad_angles_zy,
                 "MTradius": [self.radius_peak]*self.npoints,
                 "curvature": self.curvature,
                 "pitch": self.pitch_lengths,

@@ -6,6 +6,7 @@ except ImportError as e:
                       f"Original ImportError: {e}")
 
 try:
+    import magicclass as mcls
     from magicclass import magicclass, field, button_design, click, set_options
     from magicclass.widgets import Figure, TupleEdit
 except ImportError as e:
