@@ -2,7 +2,6 @@ from __future__ import annotations
 import statistics
 import numpy as np
 from numba import jit
-import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
 from scipy.interpolate import UnivariateSpline
 from scipy import ndimage as ndi

@@ -127,7 +127,7 @@ class MTProfiler:
         mtlabel = field(int, options={"max": 0}, name="MTLabel")
         pos = field(int, widget_type="Slider", options={"max":0}, name="Pos")
     
-    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.6)}) # TODO: show all at the same time
+    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8)})
         
     @magicclass(layout="horizontal", labels=False)
     class viewer_op:
@@ -447,7 +447,7 @@ class MTProfiler:
         paths = []
         for _, df in self.dataframe.groupby("label"):
             paths.append(df[["z", "y", "x"]].values/4)
-        self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=3,
+        self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
                                       scale=self.layer_image.scale, translate=self.layer_image.translate)
         return None
     
@@ -458,11 +458,11 @@ class MTProfiler:
         """
         Paint microtubule fragments by its pitch length.
         """        
-        from .mtpath import rot3d, da
+        from .mtpath import rot3d, da, make_slice_and_pad
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, float] = {0: [0, 0, 0, 0]}
         bin4scale = self.layer_image.scale[0]
-        lz, ly, lx = [int(r/bin4scale*1.2)*2 + 1 for r in self.radius_nm]
+        lz, ly, lx = [int(r/bin4scale*1.4)*2 + 1 for r in self.radius_nm]
 
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
@@ -484,12 +484,26 @@ class MTProfiler:
                 tasks.append(da.from_delayed(rot3d(domain, ang_yx, ang_zy), shape=domain.shape, 
                                              dtype=np.float32).astype(np.bool_))
             
-            out = da.compute(tasks)[0]
+            out: list[np.ndarray] = da.compute(tasks)[0]
 
         # paint roughly
         for i, row in self.dataframe.iterrows():
-            cz, cy, cx = row[["z","y","x"]].astype(np.int32)//4
-            lbl.value[cz-lz//2:cz+lz//2+1, cy-ly//2:cy+ly//2+1, cx-lx//2:cx+lx//2+1][out[i]] = i + 1
+            center = row[["z","y","x"]].astype(np.int16)//4
+            sl = []
+            outsl = []
+            for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
+                _sl, _pad = make_slice_and_pad(c, l//2, size)
+                sl.append(_sl)
+                if _pad[0] > 0:
+                    outsl.append(slice(_pad[0], None))
+                elif _pad[1] > 0:
+                    outsl.append(slice(None, -_pad[1]))
+                else:
+                    outsl.append(slice(None, None))
+
+            sl = tuple(sl)
+            outsl = tuple(outsl)
+            lbl.value[sl][out[i][outsl]] = i + 1
         
         # paint finely
         ref_filt = ndi.gaussian_filter(self.layer_image.data, sigma=2)
