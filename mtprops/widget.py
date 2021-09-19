@@ -1,28 +1,30 @@
 import pandas as pd
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 from collections import OrderedDict
 import numpy as np
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress, thread_worker
 from qtpy.QtWidgets import QMessageBox
 from pathlib import Path
+from magicgui.widgets import Table
 
 from ._dependencies import impy as ip
-from ._dependencies import magicclass, field, button_design, click, set_options, Figure
+from ._dependencies import magicclass, field, button_design, click, set_options, Figure, TupleEdit
 from .mtpath import MTPath, calc_total_length
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points
 
 BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
+_V = TypeVar("_V")
 
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
         self.maxgb = maxgb
-        self.cache = OrderedDict()
+        self.cache: OrderedDict[int, _V] = OrderedDict()
         self.gb = 0.0
     
-    def __getitem__(self, key):
+    def __getitem__(self, key: tuple[str, int]) -> _V:
         real_key, identifier = key
         idf, value = self.cache[real_key]
         if idf == identifier:
@@ -30,7 +32,7 @@ class CacheMap:
         else:
             raise KeyError("Wrong identifier")
     
-    def __setitem__(self, key, value:list[np.ndarray]):
+    def __setitem__(self, key: tuple[str, int], value:_V):
         real_key, identifier = key
         self.cache[real_key] = (identifier, value)
         size = sum(a.nbytes for a in value)/1e9
@@ -38,7 +40,7 @@ class CacheMap:
         while self.gb > self.maxgb:
             self.pop()
     
-    def pop(self):
+    def pop(self) -> None:
         _, item = self.cache.popitem(last=False)
         self.gb -= sum(a.nbytes for a in item)/1e9
         return None
@@ -56,13 +58,13 @@ cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
 def cached_rotate(mtp:MTPath, image):
     try:
         mtp._sub_images = cachemap[f"{image.name}-{mtp.label}", 
-                                   hash(str(mtp._even_interval_points))]
+                                   hash(str(mtp.points))]
     except KeyError:
         mtp.load_images(image)
         mtp.grad_path()
         mtp.rotate3d()
         cachemap[f"{image.name}-{mtp.label}",
-                 hash(str(mtp._even_interval_points))] = mtp._sub_images
+                 hash(str(mtp.points))] = mtp._sub_images
     return None
 
 def raise_error_message(parent, msg:str):
@@ -76,6 +78,27 @@ def imread(img, binsize):
     return imgb
 
 @magicclass
+class ImageLoader:
+    path = field(Path)
+    scale = field(str, options={"label": "scale (nm)"})
+    
+    @button_design(text="OK")
+    def call_button(self):
+        try:
+            scale = float(self.scale.value)
+        except Exception as e:
+            raise type(e)(f"Invalid input: {self.scale.value}")
+        
+        self.img.scale.x = self.img.scale.y = self.img.scale.z = scale
+        return self.img
+    
+    @path.connect
+    def _read_scale(self, event):
+        path = event.value
+        self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+        self.scale.value = f"{self.img.scale.x:.3f}"
+
+@magicclass
 class MTProfiler:
     
     ### Index ###########################################################################
@@ -85,6 +108,7 @@ class MTProfiler:
         def register_path(self): ...
         def run_for_all_path(self): ...
         def settings(self): ...
+        def clear_current(self): ...
         def clear_all(self): ...
     
     @magicclass(layout="horizontal", labels=False)
@@ -98,33 +122,23 @@ class MTProfiler:
         mtlabel = field(int, options={"max": 0}, name="MTLabel")
         pos = field(int, widget_type="Slider", options={"max":0}, name="Pos")
     
-    canvas = field(Figure, name="Figure")
-    
-    @magicclass(layout="horizontal", labels=False)
-    class imshow:
-        def imshow_yx_raw(self): ...
-        def imshow_zx_raw(self): ...
-        def imshow_zx_ave(self): ...
-    
+    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.6)}) # TODO: show all at the same time
+        
     @magicclass(layout="horizontal", labels=False)
     class viewer_op:
         def send_to_napari(self): ...
         def focus_on(self): ...
+        def show_table(self): ...
         txt = field("X.XX nm / XX pf", options={"enabled": False}, name="result")
     
     line_edit = field(str, name="Note: ")
     
     #####################################################################################
     
-    def __init__(self, interval_nm=24, light_background:bool=True):
-        if interval_nm <= 0:
-            raise ValueError("interval_nm must be a positive float.")
-
-        self.interval = interval_nm
-        self.light_background = light_background
+    def __init__(self):
+        self.settings()
         
         self._mtpath = None
-        self.last_called = self.imshow_zx_raw
         self.image = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
@@ -132,6 +146,8 @@ class MTProfiler:
     
     def __post_init__(self):
         self.mt.pos.min_width = 70
+        self.canvas.ax.set_aspect("equal")
+        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         
     @property
     def current_mt(self):
@@ -141,7 +157,7 @@ class MTProfiler:
     
     @operation.wraps
     @click(enabled=False, enables="operation.run_for_all_path")
-    @button_design(text="Mark 📝")
+    @button_design(text="📝")
     def register_path(self):
         """
         Register current selected points as a MT path.
@@ -149,7 +165,7 @@ class MTProfiler:
         # check length
         total_length = calc_total_length(self.layer_work.data)*self.image.scale.x
         if total_length < self.interval*3:
-            raise_error_message(self,
+            raise_error_message(self.native,
                                 f"Path is too short: {total_length:.2f} nm\n"
                                 f"Must be longer than {self.interval*3} nm.")
             return None
@@ -159,6 +175,7 @@ class MTProfiler:
         self.canvas.ax.plot(self.layer_work.data[:,2], self.layer_work.data[:,1], color="gray", lw=2.5)
         self.canvas.ax.set_xlim(0, self.image.sizeof("x"))
         self.canvas.ax.set_ylim(self.image.sizeof("y"), 0)
+        self.canvas.ax.set_aspect("equal")
         self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         self.canvas.figure.tight_layout()
         self.canvas.figure.canvas.draw()
@@ -166,9 +183,9 @@ class MTProfiler:
         return None
     
     @operation.wraps
-    @click(enabled=False, enables=["imshow.imshow_yx_raw", "imshow.imshow_zx_raw", "imshow.imshow_zx_ave", 
-                                   "io.save_results", "viewer_op.send_to_napari", "viewer_op.focus_on"])
-    @button_design(text="Run 👉")
+    @click(enabled=False, enables=["io.save_results", "viewer_op.send_to_napari", "viewer_op.focus_on",
+                                   "viewer_op.show_table"])
+    @button_design(text="👉")
     def run_for_all_path(self):
         """
         Run MTProps.
@@ -185,7 +202,9 @@ class MTProfiler:
                 mtp = MTPath(self.image.scale.x, 
                              label=i, 
                              interval_nm=self.interval, 
-                             light_background=self.light_background
+                             light_background=self.light_background,
+                             radius_pre_nm=self.radius_pre_nm,
+                             radius_nm=self.radius_nm
                              )
                              
                 try:
@@ -214,7 +233,7 @@ class MTProfiler:
                     mtp.grad_path()
                     mtp.rotate3d()
                     cachemap[f"{self.image.name}-{mtp.label}",
-                             hash(str(mtp._even_interval_points))] = mtp._sub_images
+                             hash(str(mtp.points))] = mtp._sub_images
                     subpbr.update(1)
                     subpbr.set_description("Determining MT radius")
                     mtp.determine_radius()
@@ -245,8 +264,10 @@ class MTProfiler:
         return None
     
     @operation.wraps
-    @button_design(text="⚙", width=50)
-    def settings(self, interval_nm:float=33.4, light_background:bool=True):
+    @set_options(radius_pre_nm={"widget_type": TupleEdit}, radius_nm={"widget_type": TupleEdit})
+    @button_design(text="⚙")
+    def settings(self, interval_nm:float=33.4, light_background:bool=True,
+                 radius_pre_nm=(22.0, 32.0, 32.0), radius_nm=(16.7, 16.7, 16.7)):
         """
         Change MTProps setting.
 
@@ -259,22 +280,53 @@ class MTProfiler:
         """        
         self.interval = interval_nm
         self.light_background = light_background
+        self.radius_pre_nm = radius_pre_nm
+        self.radius_nm = radius_nm
     
     @operation.wraps
-    @button_design(text="Clear ✘")
-    def clear_all(self):
+    @button_design(text="❌")
+    def clear_current(self):
+        """
+        Clear current selection.
+        """        
+        self.layer_work.data = []
+        return None
+    
+    @operation.wraps
+    @set_options(x={"widget_type":"Label", "name": "⚠️"})
+    @button_design(text="💥")
+    def clear_all(self, x="Are you sure to clear all?"):
+        """
+        Clear all.
+        """        
         self._init_layers()
         if hasattr(self, "canvas"):
-            self.canvas.ax.cla()
+            self.canvas.figure.clf()
+            self.canvas.figure.add_subplot(111)
             self.canvas.draw()
         cachemap.clear()
         return None
     
     @io.wraps
     @set_options(scale={"max": 4, "step": 0.1, "label": "scale (nm)"})
-    @click(enables=["io.from_csv_file", "operation.register_path"])
     @button_design(text="Open image 🔬")
-    def open_image_file(self, path: Path, scale:float=0):
+    def open_image_file(self):
+        """
+        Open an image and add to viewer.
+        """        
+        self.loader = ImageLoader()
+        call_button = self.loader["call_button"]
+        @call_button.changed.connect
+        def _(e):
+            self._load_image(self.loader.img)
+            self.loader.close()
+            self.io["from_csv_file"].enabled=True
+            self.operation["register_path"].enabled=True
+        self.loader.show()
+        return None
+    
+    
+    def _imread_dialog(self, path: Path, scale:float=0):
         img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
         if scale > 0:
             img.scale.x = img.scale.y = img.scale.z = scale
@@ -307,57 +359,47 @@ class MTProfiler:
         self.dataframe.to_csv(path)
         return None
             
-    @imshow.wraps
-    @click(enabled=False)
-    @button_design(text="XY raw 📈")
-    def imshow_yx_raw(self):
+    def _imshow_all(self):
         if self.dataframe is None:
             return None
-        self.canvas.ax.cla()
         i = self.mt.pos.value
-        self.current_mt.imshow_yx_raw(i, ax=self.canvas.ax)
-        self.canvas.figure.tight_layout()
-        self.canvas.draw()
-        self.last_called = self.imshow_yx_raw
-        self.imshow[0].font_color = (240, 241, 242, 255)
-        self.imshow[1].font_color = "gray"
-        self.imshow[2].font_color = "gray"
+        for j in range(3):
+            self.canvas.axes[j].cla()
+            self.canvas.axes[j].tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
+            
+        subimg = self.current_mt._sub_images[i]
+        lz, ly, lx = subimg.shape
+        with ip.SetConst("SHOW_PROGRESS", False):
+            self.canvas.axes[0].imshow(subimg.proj("z"), cmap="gray")
+            self.canvas.axes[0].set_xlabel("x")
+            self.canvas.axes[0].set_ylabel("y")
+            self.canvas.axes[1].imshow(subimg.proj("y"), cmap="gray")
+            self.canvas.axes[1].set_xlabel("x")
+            self.canvas.axes[1].set_ylabel("z")
+            self.canvas.axes[2].imshow(self.current_mt.average_images[i], cmap="gray")
+            self.canvas.axes[2].set_xlabel("x")
+            self.canvas.axes[2].set_ylabel("z")
+        
+        ylen = int(self.current_mt.radius[1]/self.current_mt.scale)
+        ymin, ymax = ly/2 - ylen, ly/2 + ylen
+        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.outer
+        xmin, xmax = -r + lx/2, r + lx/2
+        self.canvas.axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
+        self.canvas.axes[0].text(1, 1, f"{self.mt.mtlabel.value}-{i}", 
+                                 color="lime", font="Consolas", size=15, va="top")
     
-    @imshow.wraps
-    @click(enabled=False)
-    @button_design(text="XZ raw 📈")
-    def imshow_zx_raw(self):
-        if self.dataframe is None:
-            return None
-        self.canvas.ax.cla()
-        i = self.mt.pos.value
-        self.current_mt.imshow_zx_raw(i, ax=self.canvas.ax)
+        theta = np.deg2rad(np.arange(360))
+        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.inner
+        self.canvas.axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.outer
+        self.canvas.axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+                
         self.canvas.figure.tight_layout()
         self.canvas.draw()
-        self.last_called = self.imshow_zx_raw
-        self.imshow[0].font_color = "gray"
-        self.imshow[1].font_color = (240, 241, 242, 255)
-        self.imshow[2].font_color = "gray"
-    
-    @imshow.wraps
-    @click(enabled=False)
-    @button_design(text="XZ avg 📈")
-    def imshow_zx_ave(self):
-        if self.dataframe is None:
-            return None
-        self.canvas.ax.cla()
-        i = self.mt.pos.value
-        self.current_mt.imshow_zx_ave(i, ax=self.canvas.ax)
-        self.canvas.figure.tight_layout()
-        self.canvas.draw()
-        self.last_called = self.imshow_zx_ave
-        self.imshow[0].font_color = "gray"
-        self.imshow[1].font_color = "gray"
-        self.imshow[2].font_color = (240, 241, 242, 255)
     
     @viewer_op.wraps
     @click(enabled=False)
-    @button_design(text="View 👁")    
+    @button_design(text="👁️")    
     def send_to_napari(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
@@ -366,13 +408,13 @@ class MTProfiler:
             return None
         i = self.mt.pos.value
         img = self.current_mt._sub_images[i]
-        self.viewer.add_image(img, scale=img.scale, name=img.name,
-                                        rendering="minip" if self.light_background else "mip")
+        self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
+                                     rendering="minip" if self.light_background else "mip")
         return None
     
     @viewer_op.wraps
     @click(enabled=False)
-    @button_design(text="Focus 📷")
+    @button_design(text="📷")
     def focus_on(self):
         """
         Change camera focus to the position of current MT fragment.
@@ -380,7 +422,7 @@ class MTProfiler:
         viewer = self.parent_viewer
         i = self.mt.pos.value
         scale = viewer.layers["MT Profiles"].scale
-        next_coords = self.current_mt._even_interval_points[i]
+        next_coords = self.current_mt.points[i]
         next_center = next_coords * scale
         viewer.dims.current_step = list(next_coords.astype(np.int64))
         
@@ -389,6 +431,20 @@ class MTProfiler:
         viewer.camera.events.zoom() # Here events are emitted and zoom changes automatically.
         viewer.camera.zoom = zoom
         return None
+    
+    @viewer_op.wraps
+    @click(enabled=False)
+    @button_design(text="📜")
+    def show_table(self):
+        """
+        Show result table.
+        """        
+        table = Table(value=self.dataframe)
+        self.parent_viewer.window.add_dock_widget(table)
+        return None
+    
+    def show_3d_path(self):
+        ...
     
     def _get_one_mt(self, label:int=0):
         """
@@ -400,7 +456,7 @@ class MTProfiler:
                      interval_nm=self.interval,
                      light_background=self.light_background
                      )
-        mtp._even_interval_points = df[["z","y","x"]].values
+        mtp.points = df[["z","y","x"]].values
         cached_rotate(mtp, self.image)
         mtp.radius_peak = float(df["MTradius"].values[0])
         mtp.pitch_lengths = df["pitch"].values
@@ -451,7 +507,7 @@ class MTProfiler:
         
         if mtp is None:
             mtp = self._get_one_mt(0)
-            mtp._even_interval_points = df[df["label"]==0][["z", "y", "x"]].values
+            mtp.points = df[df["label"]==0][["z", "y", "x"]].values
         
         df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
         
@@ -470,6 +526,11 @@ class MTProfiler:
         self.mt.mtlabel.max = len(df["label"].unique())-1
         self.mt.pos.max = mtp.npoints-1
         self._mtpath = mtp
+        
+        self.canvas.figure.clf()
+        self.canvas.figure.add_subplot(131)
+        self.canvas.figure.add_subplot(132)
+        self.canvas.figure.add_subplot(133)
         self._call()
         
         self.parent_viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
@@ -500,9 +561,9 @@ class MTProfiler:
                                     face_color="black",
                                     properties = {"pitch": np.array([0.0], dtype=np.float64)},
                                     text={"text": "{label}-{number}", 
-                                            "color":"black", 
-                                            "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
-                                            "visible": False},
+                                          "color":"black", 
+                                          "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
+                                          "visible": False},
                                     )
         self.layer_prof.editable = False
             
@@ -540,9 +601,8 @@ class MTProfiler:
     
     @line_edit.connect
     def _update_note(self, event=None):
-        # TODO: chekc if correctly updated
         df = self.dataframe
-        df.loc[df["label"]==self.mt.mtlabel, "Note"] = self.line_edit.value
+        df.loc[df["label"]==self.mt.mtlabel.value, "Note"] = self.line_edit.value
         return None
     
     @mt.mtlabel.connect
@@ -560,4 +620,4 @@ class MTProfiler:
         pitch = self.current_mt.pitch_lengths[i]
         npf = self.current_mt.pf_numbers[i]
         self.viewer_op.txt.value = f"{pitch:.2f} nm / {npf} pf"
-        return self.last_called()
+        return self._imshow_all()

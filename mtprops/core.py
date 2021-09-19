@@ -4,13 +4,8 @@ import napari
 from .widget import MTProfiler
 from ._dependencies import impy as ip
 
-def start(viewer:"napari.Viewer", 
-          interval_nm:float=24,
-          light_background:bool=True
-          ):
-    mtprof = MTProfiler(interval_nm=interval_nm,
-                        light_background=light_background
-                        )
+def start(viewer:"napari.Viewer"):
+    mtprof = MTProfiler()
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
                                          name="MT Profiler")
     dock.setMinimumHeight(300)
@@ -19,18 +14,13 @@ def start(viewer:"napari.Viewer",
 def load(viewer:"napari.Viewer",
          df:str|pd.DataFrame, 
          img:str|"ip.arrays.LazyImgArray",
-         binsize:int=4,
-         interval_nm:float=33.4,
-         light_background:bool=True
-         ):
+         binsize:int=4):
     if isinstance(df, str):
         df = pd.read_csv(df)
     if isinstance(img, str):
         img = ip.lazy_imread(img, chunks=(64, 1024, 1024))
 
-    mtprof = MTProfiler(interval_nm=interval_nm,
-                        light_background=light_background
-                        )
+    mtprof = MTProfiler()
     mtprof.load_image(img, binsize=binsize)
     mtprof.from_dataframe(df)
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
