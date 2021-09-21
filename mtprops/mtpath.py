@@ -32,7 +32,6 @@ def calc_total_length(path):
     total_length = np.sum(each_length)
     return total_length
 
-@delayed
 def load_subimage(img, pos, radius:tuple[int, int, int]):
     """
     From large image ``img``, crop out small region centered at ``pos``.
@@ -264,16 +263,10 @@ class MTPath:
         From a large image crop out sub-images around each point of the path.
         """        
         self._sub_images.clear()
-        tasks = []
         rz, ry, rx = (np.array(self.radius_pre)/img.scale).astype(np.int32)
-        shape = (rz*2+1, ry*2+1, rx*2+1)
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                task = load_subimage(img, self.points[i], self.radius_pre)
-                tasks.append(da.from_delayed(task, shape=shape, dtype=np.float32))
-            out = da.compute(tasks)[0]
-        for subimg in out:
-            self._sub_images.append(subimg)
+                self._sub_images.append(load_subimage(img, self.points[i], self.radius_pre))
         return self
     
     def grad_path(self):

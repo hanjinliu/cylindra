@@ -15,9 +15,8 @@ from ._dependencies import mcls, magicclass, field, button_design, click, set_op
 from .mtpath import MTPath, calc_total_length
 
 if TYPE_CHECKING:
-    from napari.layers import Image, Points
+    from napari.layers import Image, Points, Labels
 
-BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
 _V = TypeVar("_V")
 
 class CacheMap:
@@ -101,11 +100,13 @@ class ImageLoader:
         self.scale.value = f"{self.img.scale.x:.3f}"
 
 POST_PROCESSING = ["io.save_results", "viewer_op.send_to_napari", "viewer_op.focus_on",
-                   "viewer_op.show_table", "viewer_op.show_3d_path", "viewer_op.paint_mt"]
+                   "viewer_op.show_table", "viewer_op.show_3d_path"]
 @magicclass
 class MTProfiler:
     
     ### Index ###########################################################################
+    
+    _loader = field(ImageLoader)
     
     @magicclass(layout="horizontal", labels=False)
     class operation:
@@ -135,21 +136,53 @@ class MTProfiler:
         def focus_on(self): ...
         def show_3d_path(self): ...
         def show_table(self): ...
-        def paint_mt(self): ...
         txt = field("X.XX nm / XX pf", options={"enabled": False}, name="result")
     
     line_edit = field(str, name="Note: ")
     
+    @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
+                 end={"widget_type": TupleEdit, "options": {"step": 0.1}},
+                 limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
+    def set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.08, 4.36)):
+        """
+        Set the color-map for painting microtubules.
+
+        Parameters
+        ----------
+        start : tuple, default is (0.0, 0.0, 1.0)
+            Color that corresponds to the most compacted microtubule.
+        end : tuple, default is (1.0, 0.0, 0.0)
+            Color that corresponds to the most expanded microtubule.
+        limit : tuple, default is (4.08, 4.36)
+            Color limit.
+        """        
+        self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
+        self.label_colorlimit = limit
+        self._update_colormap()
+        return None
+
+    def _update_colormap(self):
+        if self.layer_paint is None:
+            return None
+        color = self.layer_paint.color
+        lim0, lim1 = self.label_colorlimit
+        for i, (_, row) in enumerate(self.dataframe.iterrows()):
+            color[i+1] = self.label_colormap.map((row["pitch"] - lim0)/(lim1 - lim0))
+        self.layer_paint.color = color
+        return None
+    
     #####################################################################################
     
     def __init__(self):
-        self.settings()
-        
         self._mtpath = None
         self.image = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
+        self.layer_paint: Labels = None
+        
+        self.settings()
+        self.set_colormap()
     
     def __post_init__(self):
         self.mt.pos.min_width = 70
@@ -327,12 +360,15 @@ class MTProfiler:
         import napari
         import magicgui
         from .__init__ import __version__
+        import dask
+        
         value = f"""
         MTProps: {__version__}
         impy: {ip.__version__}
         magicgui: {magicgui.__version__}
         magicclass: {mcls.__version__}
         napari: {napari.__version__}
+        dask: {dask.__version__}
         """
         txt = TextEdit(value=value)
         self.read_only = True
@@ -346,15 +382,14 @@ class MTProfiler:
         """
         Open an image and add to viewer.
         """        
-        self.loader = ImageLoader()
-        call_button = self.loader["call_button"]
+        call_button = self._loader["call_button"]
         @call_button.changed.connect
         def _(e):
-            self._load_image(self.loader.img)
-            self.loader.close()
-            self.io["from_csv_file"].enabled=True
-            self.operation["register_path"].enabled=True
-        self.loader.show()
+            self._load_image(self._loader.img)
+            self._loader.close()
+            self.io["from_csv_file"].enabled = True
+            self.operation["register_path"].enabled = True
+        self._loader.show()
         return None
     
     
@@ -451,23 +486,25 @@ class MTProfiler:
                                       scale=self.layer_image.scale, translate=self.layer_image.translate)
         return None
     
-    @viewer_op.wraps
-    @click(enabled=False)
-    @button_design(text="🖌")
-    def paint_mt(self):
+    def _paint_mt(self):
         """
         Paint microtubule fragments by its pitch length.
+        
+        1. Prepare small boxes and make masks inside them.
+        2. Map the masks to the reference image.
+        3. Erase masks using reference image, based on intensity.
         """        
         from .mtpath import rot3d, da, make_slice_and_pad
+        
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, float] = {0: [0, 0, 0, 0]}
-        bin4scale = self.layer_image.scale[0]
+        bin4scale = self.layer_image.scale[0] # scale of binned reference image
         lz, ly, lx = [int(r/bin4scale*1.4)*2 + 1 for r in self.radius_nm]
 
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
-            for i, row in self.dataframe.iterrows():
-                color[i+1] = BlueToRed.map((row["pitch"] - 4.08)/(4.36 - 4.08))
+            for i, (_, row) in enumerate(self.dataframe.iterrows()):
+                color[i+1] = self.label_colormap.map((row["pitch"] - 4.08)/(4.36 - 4.08))
                 
                 z, y, x = np.indices((lz, ly, lx))
                 r0 = self.current_mt.radius_peak/self.current_mt.scale*0.9/4
@@ -482,15 +519,17 @@ class MTProfiler:
                 ang_zy = -row["angle_zy"]
                 ang_yx = -row["angle_yx"]
                 tasks.append(da.from_delayed(rot3d(domain, ang_yx, ang_zy), shape=domain.shape, 
-                                             dtype=np.float32).astype(np.bool_))
+                                             dtype=np.float32).astype(np.bool_)
+                             )
             
             out: list[np.ndarray] = da.compute(tasks)[0]
 
         # paint roughly
-        for i, row in self.dataframe.iterrows():
+        for i, (_, row) in enumerate(self.dataframe.iterrows()):
             center = row[["z","y","x"]].astype(np.int16)//4
             sl = []
             outsl = []
+            # We should deal with the borders of image.
             for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
                 _sl, _pad = make_slice_and_pad(c, l//2, size)
                 sl.append(_sl)
@@ -515,11 +554,22 @@ class MTProfiler:
             thr = np.percentile(ref_filt[lbl>0], 5)
             lbl[ref_filt<thr] = 0
         
-        # add layer
-        self.parent_viewer.add_labels(lbl.value, color=color, scale=self.layer_image.scale,
-                                      translate=self.layer_image.translate, opacity=0.33, name="Label")
-        if self.layer_prof.visible:
-            self.layer_prof.visible = False
+        # Labels layer properties
+        props = pd.DataFrame([])
+        props["ID"] = self.dataframe.apply(lambda x: "{}-{}".format(x["label"], x["number"]), axis=1)
+        props["pitch"] = self.dataframe["pitch"].map("{:.2f}".format)
+        props["nPF"] = self.dataframe["nPF"]
+        back = pd.DataFrame({"ID": [np.nan], "pitch": [np.nan], "nPF": [np.nan]})
+        props = pd.concat([back, props])
+        
+        # Add labels layer
+        self.layer_paint = self.parent_viewer.add_labels(
+            lbl.value, color=color, scale=self.layer_image.scale,
+            translate=self.layer_image.translate, opacity=0.33, name="Label",
+            properties=props
+            )
+        
+        return None
         
     def _get_one_mt(self, label:int=0):
         """
@@ -580,23 +630,29 @@ class MTProfiler:
         
         self.dataframe = df
         
+        # Set current MT to the first MT in the DataFrame
         if mtp is None:
             mtp = self._get_one_mt(0)
             mtp.points = df[df["label"]==0][["z", "y", "x"]].values
         
+        # Add a column for note
         df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
         
+        # Show text
         self.layer_prof.data = df[["z", "y", "x"]].values
         self.layer_prof.properties = df
-        self.layer_prof.face_color = "pitch"
-        self.layer_prof.face_contrast_limits = [4.08, 4.36]
-        self.layer_prof.face_colormap = BlueToRed
-        self.layer_prof.text.visible = True
-        self.layer_prof.size = mtp.radius[1]/mtp.scale
+        self.layer_prof.text.visible = False
+        self.layer_prof.face_color = [0, 0, 0, 0]
+        self.layer_prof.edge_color = [0, 0, 0, 0]
+        self.layer_prof.selected_data = {}
+        
+        # Paint MTs by its pitch length
+        self._paint_mt()
         
         self.layer_work.mode = "pan_zoom"
+        self.parent_viewer.layers.selection = {self.layer_paint}
         
-        self.parent_viewer.layers.selection = {self.layer_prof}
+        # initialize GUI
         self._init_widget_params()
         self.mt.mtlabel.max = len(df["label"].unique())-1
         self.mt.pos.max = mtp.npoints-1
@@ -634,7 +690,7 @@ class MTProfiler:
                                     opacity=0.4, 
                                     edge_color="black",
                                     face_color="black",
-                                    properties = {"pitch": np.array([0.0], dtype=np.float64)},
+                                    properties={"pitch": np.array([0.0], dtype=np.float64)},
                                     text={"text": "{label}-{number}", 
                                           "color":"black", 
                                           "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
