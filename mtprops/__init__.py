@@ -1,3 +1,4 @@
-__version__ = "0.1.5"
+__version__ = "0.2.1"
 
 from .core import start, load
+from .widget import MTProfiler

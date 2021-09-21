@@ -2,11 +2,10 @@ from __future__ import annotations
 import statistics
 import numpy as np
 from numba import jit
-import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
 from scipy.interpolate import UnivariateSpline
 from scipy import ndimage as ndi
-from ._impy import impy as ip
+from ._dependencies import impy as ip
 import pandas as pd
 from dask import delayed, array as da
 
@@ -33,7 +32,6 @@ def calc_total_length(path):
     total_length = np.sum(each_length)
     return total_length
 
-@delayed
 def load_subimage(img, pos, radius:tuple[int, int, int]):
     """
     From large image ``img``, crop out small region centered at ``pos``.
@@ -194,12 +192,12 @@ class MTPath:
         self.radius = np.array(radius_nm)
         self.light_background = light_background
         
-        self._even_interval_points = None
+        self.points: np.ndarray = None
         
         self._sub_images: list[np.ndarray] = []
         
-        self.grad_angles_yx = None
-        self.grad_angles_zy = None
+        self.grad_angles_yx: np.ndarray = None
+        self.grad_angles_zy: np.ndarray = None
         
         self._pf_numbers = None
         self._average_images = None
@@ -207,8 +205,8 @@ class MTPath:
         self.label = int(label)
     
     @property
-    def npoints(self):
-        return self._even_interval_points.shape[0]
+    def npoints(self) -> int:
+        return self.points.shape[0]
     
     @property
     def pf_numbers(self):
@@ -218,7 +216,7 @@ class MTPath:
     
     @pf_numbers.setter
     def pf_numbers(self, value:list):
-        self._pf_numbers = value
+        self._pf_numbers = np.array(value, dtype=np.uint8)
         
     @property
     def average_images(self):
@@ -233,9 +231,9 @@ class MTPath:
     @property
     def curvature(self):
         # https://en.wikipedia.org/wiki/Curvature#Space_curves
-        z = self._even_interval_points[:, 0]
-        y = self._even_interval_points[:, 1]
-        x = self._even_interval_points[:, 2]
+        z = self.points[:, 0]
+        y = self.points[:, 1]
+        x = self.points[:, 2]
         dz = np.gradient(z)
         dy = np.gradient(y)
         dx = np.gradient(x)
@@ -257,7 +255,7 @@ class MTPath:
         
     def set_path(self, coordinates):
         original_points = np.asarray(coordinates)
-        self._even_interval_points = get_coordinates(original_points, self.interval/self.scale)
+        self.points = get_coordinates(original_points, self.interval/self.scale)
         return self
     
     def load_images(self, img):
@@ -265,23 +263,17 @@ class MTPath:
         From a large image crop out sub-images around each point of the path.
         """        
         self._sub_images.clear()
-        tasks = []
         rz, ry, rx = (np.array(self.radius_pre)/img.scale).astype(np.int32)
-        shape = (rz*2+1, ry*2+1, rx*2+1)
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                task = load_subimage(img, self._even_interval_points[i], self.radius_pre)
-                tasks.append(da.from_delayed(task, shape=shape, dtype=np.float32))
-            out = da.compute(tasks)[0]
-        for subimg in out:
-            self._sub_images.append(subimg)
+                self._sub_images.append(load_subimage(img, self.points[i], self.radius_pre))
         return self
     
     def grad_path(self):
         """
         Calculate gradient at each point of the path.
         """        
-        dr  = np.gradient(self._even_interval_points, axis=0)
+        dr  = np.gradient(self.points, axis=0)
         
         # Here, it is important that gradients in yx-plane are in range of -2pi:2pi while those in zy-plane
         # are restricted in range of -pi:pi. Otherwise, MT polarity will be reversed more than once. This
@@ -357,7 +349,7 @@ class MTPath:
         return self
     
     def update_points(self):
-        coords = self._even_interval_points.copy()
+        coords = self.points.copy()
         for i in range(self.npoints):
             shiftz, shiftx = -self.shifts[i]
             shift = np.array([shiftz, 0, shiftx])
@@ -374,7 +366,7 @@ class MTPath:
         for i in range(3):
             coords[:,i] = spline_filter(coords[:,i], s=s[i])
         
-        self._even_interval_points = coords
+        self.points = coords
         return self
     
     def rotate3d(self):
@@ -432,7 +424,6 @@ class MTPath:
         return self
 
     def calc_pf_number(self):
-        pf_numbers = []
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
@@ -463,9 +454,11 @@ class MTPath:
     def to_dataframe(self):
         data = {"label": np.array([self.label]*self.npoints, dtype=np.uint16),
                 "number": np.arange(self.npoints, dtype=np.uint16),
-                "z": self._even_interval_points[:, 0],
-                "y": self._even_interval_points[:, 1],
-                "x": self._even_interval_points[:, 2],
+                "z": self.points[:, 0],
+                "y": self.points[:, 1],
+                "x": self.points[:, 2],
+                "angle_yx": self.grad_angles_yx,
+                "angle_zy": self.grad_angles_zy,
                 "MTradius": [self.radius_peak]*self.npoints,
                 "curvature": self.curvature,
                 "pitch": self.pitch_lengths,
@@ -474,47 +467,6 @@ class MTPath:
         df = pd.DataFrame(data)
         return df
     
-    def imshow_yx_raw(self, index:int, ax=None):
-        if ax is None:
-            ax = plt.gca()
-        
-        lz, ly, lx = self._sub_images[index].shape
-        with ip.SetConst("SHOW_PROGRESS", False):
-            ax.imshow(self._sub_images[index].proj("z"), cmap="gray")
-        
-        ylen = int(self.radius[1]/self.scale)
-        ymin, ymax = ly/2 - ylen, ly/2 + ylen
-        r = self.radius_peak/self.scale*self.__class__.outer
-        xmin, xmax = -r + lx/2, r + lx/2
-        ax.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
-        ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
-        ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
-        return None
-    
-    def imshow_zx_raw(self, index:int, ax=None):
-        if ax is None:
-            ax = plt.gca()
-        lz, ly, lx = self._sub_images[index].shape
-        with ip.SetConst("SHOW_PROGRESS", False):
-            ax.imshow(self._sub_images[index].proj("y"), cmap="gray")
-        theta = np.deg2rad(np.arange(360))
-        r = self.radius_peak/self.scale*self.__class__.inner
-        ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = self.radius_peak/self.scale*self.__class__.outer
-        ax.plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
-        ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
-        return None
-    
-    def imshow_zx_ave(self, index:int, ax=None):
-        if ax is None:
-            ax = plt.gca()
-        with ip.SetConst("SHOW_PROGRESS", False):
-            ax.imshow(self.average_images[index], cmap="gray")
-        ax.text(1, 1, f"{self.label}-{index}", color="lime", font="Consolas", size=28, va="top")
-        ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
-        return None
-
     def iter_run(self, img, path):
         yield self.set_path(path)
         yield self.load_images(img)

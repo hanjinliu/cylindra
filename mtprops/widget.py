@@ -1,28 +1,31 @@
-from __future__ import annotations
 import pandas as pd
-import matplotlib.pyplot as plt
+from typing import TYPE_CHECKING, TypeVar
 from collections import OrderedDict
-from matplotlib.backends.backend_qt5agg import FigureCanvas
 import numpy as np
-import napari
+from scipy import ndimage as ndi
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress, thread_worker
-from qtpy.QtWidgets import (QWidget, QPushButton, QFrame, QVBoxLayout, QHBoxLayout, QSlider, QFileDialog,
-                            QSpinBox, QLabel, QLineEdit, QMessageBox)
-from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QMessageBox
+from qtpy.QtGui import QFont
+from pathlib import Path
+from magicgui.widgets import Table, TextEdit
 
-from ._impy import impy as ip
+from ._dependencies import impy as ip
+from ._dependencies import mcls, magicclass, field, button_design, click, set_options, Figure, TupleEdit
 from .mtpath import MTPath, calc_total_length
 
-BlueToRed = Colormap([[0,0,1,1], [1,0,0,1]], name="BlueToRed")
+if TYPE_CHECKING:
+    from napari.layers import Image, Points, Labels
+
+_V = TypeVar("_V")
 
 class CacheMap:
     def __init__(self, maxgb:float=2.0):
         self.maxgb = maxgb
-        self.cache = OrderedDict()
+        self.cache: OrderedDict[int, _V] = OrderedDict()
         self.gb = 0.0
     
-    def __getitem__(self, key):
+    def __getitem__(self, key: tuple[str, int]) -> _V:
         real_key, identifier = key
         idf, value = self.cache[real_key]
         if idf == identifier:
@@ -30,7 +33,7 @@ class CacheMap:
         else:
             raise KeyError("Wrong identifier")
     
-    def __setitem__(self, key, value:list[np.ndarray]):
+    def __setitem__(self, key: tuple[str, int], value:_V):
         real_key, identifier = key
         self.cache[real_key] = (identifier, value)
         size = sum(a.nbytes for a in value)/1e9
@@ -38,7 +41,7 @@ class CacheMap:
         while self.gb > self.maxgb:
             self.pop()
     
-    def pop(self):
+    def pop(self) -> None:
         _, item = self.cache.popitem(last=False)
         self.gb -= sum(a.nbytes for a in item)/1e9
         return None
@@ -56,13 +59,13 @@ cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
 def cached_rotate(mtp:MTPath, image):
     try:
         mtp._sub_images = cachemap[f"{image.name}-{mtp.label}", 
-                                   hash(str(mtp._even_interval_points))]
+                                   hash(str(mtp.points))]
     except KeyError:
         mtp.load_images(image)
         mtp.grad_path()
         mtp.rotate3d()
         cachemap[f"{image.name}-{mtp.label}",
-                 hash(str(mtp._even_interval_points))] = mtp._sub_images
+                 hash(str(mtp.points))] = mtp._sub_images
     return None
 
 def raise_error_message(parent, msg:str):
@@ -75,129 +78,135 @@ def imread(img, binsize):
     
     return imgb
 
-class MTProfiler(QWidget):
-    def __init__(self, viewer:"napari.Viewer", interval_nm=24, light_background:bool=True):
-        if interval_nm <= 0:
-            raise ValueError("interval_nm must be a positive float.")
-
-        self.interval = interval_nm
-        self.light_background = light_background
-        
-        super().__init__(parent=viewer.window._qt_window)
-        self.viewer = viewer
-        self.image = None
-        self.layer_image = None
-        self.layer_prof = None
-        self.layer_work = None
-        
-        self._add_widgets()
-        self.setWindowTitle("MT Profiler")
+@magicclass
+class ImageLoader:
+    path = field(Path)
+    scale = field(str, options={"label": "scale (nm)"})
     
+    @button_design(text="OK")
+    def call_button(self):
+        try:
+            scale = float(self.scale.value)
+        except Exception as e:
+            raise type(e)(f"Invalid input: {self.scale.value}")
+        
+        self.img.scale.x = self.img.scale.y = self.img.scale.z = scale
+        return self.img
+    
+    @path.connect
+    def _read_scale(self, event):
+        path = event.value
+        self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+        self.scale.value = f"{self.img.scale.x:.3f}"
+
+POST_PROCESSING = ["io.save_results", "viewer_op.send_to_napari", "viewer_op.focus_on",
+                   "viewer_op.show_table", "viewer_op.show_3d_path"]
+@magicclass
+class MTProfiler:
+    
+    ### Index ###########################################################################
+    
+    _loader = field(ImageLoader)
+    
+    @magicclass(layout="horizontal", labels=False)
+    class operation:
+        def register_path(self): ...
+        def run_for_all_path(self): ...
+        def settings(self): ...
+        def clear_current(self): ...
+        def clear_all(self): ...
+        def info(self): ...
+    
+    @magicclass(layout="horizontal", labels=False)
+    class io:
+        def open_image_file(self, path: Path): ...
+        def from_csv_file(self, path: Path): ...
+        def save_results(self, path: Path): ...
+    
+    @magicclass(layout="horizontal")
+    class mt:
+        mtlabel = field(int, options={"max": 0}, name="MTLabel")
+        pos = field(int, widget_type="Slider", options={"max":0}, name="Pos")
+    
+    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8)})
+        
+    @magicclass(layout="horizontal", labels=False)
+    class viewer_op:
+        def send_to_napari(self): ...
+        def focus_on(self): ...
+        def show_3d_path(self): ...
+        def show_table(self): ...
+        txt = field("X.XX nm / XX pf", options={"enabled": False}, name="result")
+    
+    line_edit = field(str, name="Note: ")
+    
+    @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
+                 end={"widget_type": TupleEdit, "options": {"step": 0.1}},
+                 limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
+    def set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.08, 4.36)):
+        """
+        Set the color-map for painting microtubules.
+        Parameters
+        ----------
+        start : tuple, default is (0.0, 0.0, 1.0)
+            Color that corresponds to the most compacted microtubule.
+        end : tuple, default is (1.0, 0.0, 0.0)
+            Color that corresponds to the most expanded microtubule.
+        limit : tuple, default is (4.08, 4.36)
+            Color limit.
+        """        
+        self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
+        self.label_colorlimit = limit
+        self._update_colormap()
+        return None
+
+    def _update_colormap(self):
+        if self.layer_paint is None:
+            return None
+        color = self.layer_paint.color
+        lim0, lim1 = self.label_colorlimit
+        for i, (_, row) in enumerate(self.dataframe.iterrows()):
+            color[i+1] = self.label_colormap.map((row["pitch"] - lim0)/(lim1 - lim0))
+        self.layer_paint.color = color
+        return None
+    
+    #####################################################################################
+    
+    def __init__(self):
+        self._mtpath = None
+        self.image = None
+        self.layer_image: Image = None
+        self.layer_prof: Points = None
+        self.layer_work: Points = None
+        self.layer_paint: Labels = None
+        
+        self.settings()
+        self.set_colormap()
+    
+    def __post_init__(self):
+        self.mt.pos.min_width = 70
+        self.canvas.ax.set_aspect("equal")
+        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        
     @property
     def current_mt(self):
-        return self.canvas._mtpath
-        
-    def load_image(self, img=None, binsize=4):
-        self.viewer.window._status_bar._toggle_activity_dock(True)
-        worker = imread(img, binsize)
-        @worker.returned.connect
-        def _(imgb):
-            self.canvas._init_widget_params()
-            tr = (binsize-1)/2*img.scale.x
-            if self.layer_image not in self.viewer.layers:
-                self.layer_image = self.viewer.add_image(
-                    imgb, 
-                    scale=imgb.scale, 
-                    name=imgb.name, 
-                    translate=[tr, tr, tr],
-                    rendering="minip" if self.light_background else "mip"
-                    )
-            else:
-                self.layer_image.data = imgb
-                self.layer_image.scale = imgb.scale
-                self.layer_image.name = imgb.name
-                self.layer_image.translate = [tr, tr, tr]
-                self.layer_image.rendering = "minip" if self.light_background else "mip"
-                
-            self.viewer.scale_bar.unit = img.scale_unit
-            self.viewer.dims.axis_labels = ("z", "y", "x")
-
-            self.image = img
-
-            self.clear()
-            self.viewer.window._status_bar._toggle_activity_dock(False)
-            return None
-        worker.start()
-        return None
+        if self._mtpath is None:
+            self._mtpath = self._get_one_mt(0)
+        return self._mtpath
     
-    def open_image_file(self):
-        dlg = QFileDialog()
-        hist = napari.utils.history.get_open_history()
-        dlg.setHistory(hist)
-        filenames, _ = dlg.getOpenFileNames(
-            parent=self.viewer.window.qt_viewer,
-            caption="Select image ...",
-            directory=hist[0],
-        )
-        if filenames != [] and filenames is not None:
-            path = filenames[0]
-            napari.utils.history.update_open_history(filenames[0])
-        else:
-            return None
-            
-        img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
-
-        self.load_image(img)
-        return None
-    
-    def _init_layers(self):
-        viewer = self.viewer
-        img = self.image
-        
-        common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
-        if self.layer_prof in self.viewer.layers:
-            self.layer_prof.name = "MT Profiles-old"
-    
-        self.layer_prof = viewer.add_points(**common_properties,
-                                    name="MT Profiles",
-                                    opacity=0.4, 
-                                    edge_color="black",
-                                    face_color="black",
-                                    properties = {"pitch": np.array([0.0], dtype=np.float64)},
-                                    text={"text": "{label}-{number}", 
-                                            "color":"black", 
-                                            "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
-                                            "visible": False},
-                                    )
-        self.layer_prof.editable = False
-            
-        if self.layer_work in self.viewer.layers:
-            self.layer_work.name = "Working Layer-old"
-        
-        self.layer_work = viewer.add_points(**common_properties,
-                                    name="Working Layer",
-                                    face_color="yellow"
-                                    )
-    
-        self.layer_work.mode = "add"
-        
-        if "MT Profiles-old" in self.viewer.layers:
-            self.viewer.layers.remove("MT Profiles-old")
-        if "Working Layer-old" in self.viewer.layers:
-            self.viewer.layers.remove("Working Layer-old")
-            
-        self.mt_paths = []
-        self.dataframe = None
-
-        return None
-    
+    @operation.wraps
+    @click(enabled=False, enables="operation.run_for_all_path")
+    @button_design(text="📝")
     def register_path(self):
+        """
+        Register current selected points as a MT path.
+        """        
         # check length
         total_length = calc_total_length(self.layer_work.data)*self.image.scale.x
         if total_length < self.interval*3:
-            raise_error_message(self,
+            raise_error_message(self.native,
                                 f"Path is too short: {total_length:.2f} nm\n"
-                                f"Must be longer than {self.interval*3} nm.")
+                                f"Must be longer than {self.interval*3:.2f} nm.")
             return None
         
         self.layer_prof.add(self.layer_work.data)
@@ -205,26 +214,35 @@ class MTProfiler(QWidget):
         self.canvas.ax.plot(self.layer_work.data[:,2], self.layer_work.data[:,1], color="gray", lw=2.5)
         self.canvas.ax.set_xlim(0, self.image.sizeof("x"))
         self.canvas.ax.set_ylim(self.image.sizeof("y"), 0)
-        self.canvas.ax.tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
-        self.canvas.fig.tight_layout()
-        self.canvas.fig.canvas.draw()
+        self.canvas.ax.set_aspect("equal")
+        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.canvas.figure.tight_layout()
+        self.canvas.figure.canvas.draw()
         self.layer_work.data = []
         return None
-            
+    
+    @operation.wraps
+    @click(enabled=False, enables=POST_PROCESSING)
+    @button_design(text="👉")
     def run_for_all_path(self):
+        """
+        Run MTProps.
+        """        
         if self.dataframe is not None:
             raise ValueError("Data Frame list is not empty")
         
         df_list = []
         first_mtp = None
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        self.parent_viewer.window._status_bar._toggle_activity_dock(True)
         with progress(self.mt_paths) as pbr:
             for i, path in enumerate(pbr):
                 subpbr = progress(total=10, nest_under=pbr)
                 mtp = MTPath(self.image.scale.x, 
                              label=i, 
                              interval_nm=self.interval, 
-                             light_background=self.light_background
+                             light_background=self.light_background,
+                             radius_pre_nm=self.radius_pre_nm,
+                             radius_nm=self.radius_nm
                              )
                              
                 try:
@@ -253,7 +271,7 @@ class MTProfiler(QWidget):
                     mtp.grad_path()
                     mtp.rotate3d()
                     cachemap[f"{self.image.name}-{mtp.label}",
-                             hash(str(mtp._even_interval_points))] = mtp._sub_images
+                             hash(str(mtp.points))] = mtp._sub_images
                     subpbr.update(1)
                     subpbr.set_description("Determining MT radius")
                     mtp.determine_radius()
@@ -274,364 +292,164 @@ class MTProfiler(QWidget):
                         first_mtp = mtp
                         
                 except Exception as e:
-                    raise_error_message(self, f"Error in iteration {i}.\n\n{e.__class__.__name__}: {e}")
+                    raise_error_message(self.native, f"Error in iteration {i}.\n\n{e.__class__.__name__}: {e}")
                     break
             
             else:
-                self.viewer.window._status_bar._toggle_activity_dock(False)
-                self.from_dataframe(pd.concat(df_list, axis=0), first_mtp)
+                self.parent_viewer.window._status_bar._toggle_activity_dock(False)
+                self._from_dataframe(pd.concat(df_list, axis=0), first_mtp)
                 
         return None
     
-    def from_csv_file(self):
+    @operation.wraps
+    @set_options(radius_pre_nm={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
+                 radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"})
+    @button_design(text="⚙")
+    def settings(self, interval_nm:float=24, light_background:bool=True,
+                 radius_pre_nm=(22.0, 32.0, 32.0), radius_nm=(16.7, 16.7, 16.7)):
         """
-        Open a file dialog, choose a csv file and load it.
+        Change MTProps setting.
+        Parameters
+        ----------
+        interval_nm : float, optional
+            Interval between points to analyze.
+        light_background : bool, optional
+            Light background or not
+        radius_pre_nm : tuple[float, float, float]
+            Images in this range will be considered to determine MT tilt and shift.
+        radius_nm : tuple[float, float, float]
+            Images in this range will be considered to determine MT pitch length and PF number.
         """        
-        dlg = QFileDialog()
-        hist = napari.utils.history.get_open_history()
-        dlg.setHistory(hist)
-        filenames, _ = dlg.getOpenFileNames(
-            parent=self.viewer.window.qt_viewer,
-            caption="Select image ...",
-            directory=hist[0],
-        )
-        if filenames != [] and filenames is not None:
-            path = filenames[0]
-            napari.utils.history.update_open_history(filenames[0])
-        else:
-            return None
+        self.interval = interval_nm
+        self.light_background = light_background
+        self.radius_pre_nm = radius_pre_nm
+        self.radius_nm = radius_nm
+    
+    @operation.wraps
+    @button_design(text="❌")
+    def clear_current(self):
+        """
+        Clear current selection.
+        """        
+        self.layer_work.data = []
+        return None
+    
+    @operation.wraps
+    @set_options(_={"widget_type":"Label"})
+    @button_design(text="💥")
+    def clear_all(self, _="Are you sure to clear all?"):
+        """
+        Clear all.
+        """        
+        self._init_layers()
+        if hasattr(self, "canvas"):
+            self.canvas.figure.clf()
+            self.canvas.figure.add_subplot(111)
+            self.canvas.draw()
+        cachemap.clear()
+        return None
+    
+    @operation.wraps
+    @button_design(text="❓")
+    def info(self):
+        """
+        Show information of dependencies.
+        """        
+        import napari
+        import magicgui
+        from .__init__ import __version__
+        import dask
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        value = f"""
+        MTProps: {__version__}
+        impy: {ip.__version__}
+        magicgui: {magicgui.__version__}
+        magicclass: {mcls.__version__}
+        napari: {napari.__version__}
+        dask: {dask.__version__}
+        """
+        txt = TextEdit(value=value)
+        self.read_only = True
+        txt.native.setFont(QFont("Consolas"))
+        txt.show()
+    
+    @io.wraps
+    @set_options(scale={"max": 4, "step": 0.1, "label": "scale (nm)"})
+    @button_design(text="Open image 🔬")
+    def open_image_file(self):
+        """
+        Open an image and add to viewer.
+        """        
+        call_button = self._loader["call_button"]
+        @call_button.changed.connect
+        def _(e):
+            self._load_image(self._loader.img)
+            self._loader.close()
+            self.io["from_csv_file"].enabled = True
+            self.operation["register_path"].enabled = True
+        self._loader.show()
+        return None
+    
+    
+    def _imread_dialog(self, path: Path, scale:float=0):
+        img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+        if scale > 0:
+            img.scale.x = img.scale.y = img.scale.z = scale
+        self._load_image(img)
+        return None
+    
+    @io.wraps
+    @click(enabled=False, enables=POST_PROCESSING)
+    @button_design(text="Load csv 📂")
+    def from_csv_file(self, path: Path):
+        """
+        Choose a csv file and load it.
+        """        
+        self.parent_viewer.window._status_bar._toggle_activity_dock(True)
         with progress(total=0) as pbr:
             pbr.set_description("Connecting csv to image")
             df = pd.read_csv(path)
-            self.from_dataframe(df)
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+            self._from_dataframe(df)
+        self.parent_viewer.window._status_bar._toggle_activity_dock(False)
         return None
     
-    def from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
+    @io.wraps
+    @button_design(text="Save 💾")
+    @click(enabled=False)
+    @set_options(path={"mode": "w"})
+    def save_results(self, path:Path):
         """
-        Convert data frame information into points layer and update widgets. If the first MTPath object
-        is available, use mtp argument.
+        Save the results as csv.
         """        
-        self._init_layers()
-        
-        self.dataframe = df
-        
-        if mtp is None:
-            mtp = self.get_one_mt(0)
-            mtp._even_interval_points = df[df["label"]==0][["z", "y", "x"]].values
-        
-        df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
-        
-        self.layer_prof.data = df[["z", "y", "x"]].values
-        self.layer_prof.properties = df
-        self.layer_prof.face_color = "pitch"
-        self.layer_prof.face_contrast_limits = [4.08, 4.36]
-        self.layer_prof.face_colormap = BlueToRed
-        self.layer_prof.text.visible = True
-        self.layer_prof.size = mtp.radius[1]/mtp.scale
-        
-        self.layer_work.mode = "pan_zoom"
-        
-        self.viewer.layers.selection = {self.layer_prof}
-        self.canvas._init_widget_params()
-        self.canvas.label_choice.setMaximum(len(df["label"].unique())-1)
-        self.canvas.slider.setRange(0, mtp.npoints-1)
-        self.canvas.call()
-        self.canvas.add_note_edit()
-        
-        self.viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
-        return None
-    
-    def get_one_mt(self, label:int=0):
-        """
-        Prepare current MTPath object from data frame.
-        """        
-        df = self.dataframe[self.dataframe["label"]==label]
-        if df.size == 0:
-            raise IndexError(f"label={label} is out of bound")
-        mtp = MTPath(self.image.scale.x, 
-                     label=label, 
-                     interval_nm=self.interval,
-                     light_background=self.light_background
-                     )
-        mtp._even_interval_points = df[["z","y","x"]].values
-        cached_rotate(mtp, self.image)
-        mtp.radius_peak = float(df["MTradius"].values[0])
-        mtp.pitch_lengths = df["pitch"].values
-        mtp._pf_numbers = df["nPF"].values
-        return mtp
-    
-    def iter_mt(self):
-        i = 0
-        while True:
-            try:
-                yield self.get_one_mt(i)
-            except IndexError:
-                break
-            finally:
-                i += 1
-
-    
-    def save_results(self, path:str=None):
-        # open file dialog if path is not specified.
-        if not isinstance(path, str):
-            dlg = QFileDialog()
-            hist = napari.utils.history.get_save_history()
-            dlg.setHistory(hist)
-            filename, _ = dlg.getSaveFileName(
-                parent=self,
-                caption="Save results ...",
-                directory=hist[0],
-            )
-            if filename:
-                path = filename
-                napari.utils.history.update_save_history(filename)
-            else:
-                return None
-        if not path.endswith(".csv"):
-            path += ".csv"
         self.dataframe.to_csv(path)
-        return None
+        return None            
     
-    
-    def paint_mt(self):
-        # TODO: paint using labels layer
-        lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
-        color = dict()
-        for i, row in self.dataframe.iterrows():
-            crds = row[["z","y","x"]]
-            color[i] = BlueToRed.map((row["pitch"] - 4.08)/(4.36 - 4.08))
-            # update lbl
-            
-        self.viewer.add_labels(lbl, color=color, scale=self.layer_image.scale,
-                               translate=self.layer_image.translate)
-    
-    def clear(self):
-        self._init_layers()
-        if hasattr(self, "canvas"):
-            self.canvas.ax.cla()
-            self.canvas.fig.canvas.draw()
-        cachemap.clear()
-        return None
-        
-    def _add_widgets(self):
-        self.setLayout(QVBoxLayout())
-        
-        main_buttons = QFrame(self)
-        main_buttons.setLayout(QHBoxLayout())
-        
-        register_button = QPushButton("Mark 📝", main_buttons)
-        register_button.setToolTip("Register current points in 'Working Layer' as a MT path.")
-        register_button.clicked.connect(self.register_path)
-        
-        run_button = QPushButton("Run 👉", main_buttons)
-        run_button.setToolTip("Run profiler for all the paths.")
-        run_button.clicked.connect(self.run_for_all_path)
-        
-        main_buttons.layout().addWidget(register_button)
-        main_buttons.layout().addWidget(run_button)
-
-        other_buttons = QFrame(self)
-        other_buttons.setLayout(QHBoxLayout())
-
-        load_img_button = QPushButton("Open image 🔬", other_buttons)
-        load_img_button.setToolTip("Open an image and start analysis.")
-        load_img_button.clicked.connect(self.open_image_file)
-                
-        load_csv_button = QPushButton("Load csv 📂", other_buttons)
-        load_csv_button.setToolTip("Load results from csv.")
-        load_csv_button.clicked.connect(self.from_csv_file)
-        
-        save_button = QPushButton("Save 💾", other_buttons)
-        save_button.setToolTip("Save results.")
-        save_button.clicked.connect(self.save_results)
-        
-        clear_button = QPushButton("Clear ✘", other_buttons)
-        clear_button.setToolTip("Clear all.")
-        clear_button.clicked.connect(self.clear)
-        
-
-        other_buttons.layout().addWidget(load_img_button)
-        other_buttons.layout().addWidget(load_csv_button)
-        other_buttons.layout().addWidget(save_button)
-        other_buttons.layout().addWidget(clear_button)
-        
-        self.layout().addWidget(main_buttons)
-        self.layout().addWidget(other_buttons)
-        
-        self.canvas = SlidableFigureCanvas(self)
-        
-        self.layout().addWidget(self.canvas)
-        return None
-    
-
-class SlidableFigureCanvas(QWidget):
-    def __init__(self, mtprofiler:MTProfiler=None):
-        super().__init__(mtprofiler)
-        self.mtprofiler = mtprofiler
-        self._mtpath = None
-        self.setLayout(QVBoxLayout())
-        self.last_called = self.imshow_zx_raw
-        
-        self.slider = QSlider(Qt.Horizontal, self)
-        self.slider.setMinimumWidth(50)
-        self.slider.setToolTip("Slide along a MT")
-        self.slider.valueChanged.connect(self.call)
-        
-        self.fig = self.fig = plt.figure()
-        canvas = FigureCanvas(self.fig)        
-        self._ax = None
-        
-        figindex = QFrame(self)
-        figindex.setLayout(QHBoxLayout())
-        
-        label = QLabel()
-        label.setText("MT No.")
-        figindex.layout().addWidget(label)
-        
-        self.label_choice = QSpinBox(self)
-        self.label_choice.setMinimumWidth(25)
-        self.label_choice.setToolTip("MT label")
-        @self.label_choice.valueChanged.connect
-        def _(*args):
-            # We have to block value changed event here, otherwise event will be emitted twice.
-            self.label_choice.setEnabled(False)
-            self.update_mtpath()
-            self.update_note()
-            self.label_choice.setEnabled(True)
-        
-        figindex.layout().addWidget(self.label_choice)
-        figindex.layout().addWidget(self.slider)
-        
-        frame1 = QFrame(self)
-        frame1.setLayout(QHBoxLayout())
-        
-        self.imshow_buttons:list[QPushButton] = []
-        
-        imshow0 = QPushButton("XY raw 📈", frame1)
-        imshow0.setCheckable(True)
-        imshow0.setToolTip("Call imshow_yx_raw")
-        imshow0.clicked.connect(self.imshow_yx_raw)
-        frame1.layout().addWidget(imshow0)
-        self.imshow_buttons.append(imshow0)
-        
-        imshow1 = QPushButton("XZ raw 📈", frame1)
-        imshow1.setCheckable(True)
-        imshow1.setToolTip("Call imshow_zx_raw")
-        imshow1.clicked.connect(self.imshow_zx_raw)
-        frame1.layout().addWidget(imshow1)
-        self.imshow_buttons.append(imshow1)
-        
-        imshow2 = QPushButton("XZ avg 📈", frame1)
-        imshow2.setCheckable(True)
-        imshow2.setToolTip("Call imshow_zx_ave")
-        imshow2.clicked.connect(self.imshow_zx_ave)
-        frame1.layout().addWidget(imshow2)
-        self.imshow_buttons.append(imshow2)
-        
-        frame2 = QFrame()
-        frame2.setLayout(QHBoxLayout())
-        
-        send = QPushButton("View 👁", frame2)
-        send.setToolTip("Send current MT fragment to viewer.")
-        send.clicked.connect(self.send_to_napari)
-        frame2.layout().addWidget(send)
-        
-        focus = QPushButton("Focus 📷", frame2)
-        focus.setToolTip("Focus on current MT fragment in viewer")
-        focus.clicked.connect(self.focus_on)
-        frame2.layout().addWidget(focus)
-        
-        self.info = QLabel()
-        frame2.layout().addWidget(self.info)
-        
-        self.layout().addWidget(figindex)
-        self.layout().addWidget(canvas)
-        self.layout().addWidget(frame1)
-        self.layout().addWidget(frame2)
-        
-        self._init_widget_params()
-        
-        return None
-    
-    @property
-    def mtpath(self):
-        if self._mtpath is None:
-            self._mtpath = self.mtprofiler.get_one_mt(0)
-        return self._mtpath
-    
-    @property
-    def ax(self):
-        if self._ax is None:
-            self._ax = self.fig.add_subplot(111)
-            self._ax.set_aspect("equal")
-        return self._ax
-    
-    def _init_widget_params(self):
-        self.label_choice.setValue(0)
-        self.label_choice.setRange(0, 0)
-        self.slider.setValue(0)
-        self.slider.setRange(0, 0)
-        self.info.setText("X.XX nm / XX pf")
-        return None
-        
-    
-    def add_note_edit(self):
-        if hasattr(self, "line_edit"):
-            return None
-        note_frame = QFrame(self)
-        note_frame.setLayout(QHBoxLayout())
-        
-        label = QLabel()
-        label.setText("Note:")
-        note_frame.layout().addWidget(label)
-        
-        self.line_edit = QLineEdit()
-        self.line_edit.setToolTip("Add note to the current MT.")
-        self.line_edit.editingFinished.connect(self.update_note)
-            
-        note_frame.layout().addWidget(self.line_edit)
-        
-        self.layout().addWidget(note_frame)
-        return None
-    
-    def update_note(self):
-        df = self.mtprofiler.dataframe
-        l = self.label_choice.value()
-        df.loc[df["label"]==l, "Note"] = self.line_edit.text()
-        return None
-        
-    def update_mtpath(self):
-        label = self.label_choice.value()
-        self._mtpath = self.mtprofiler.get_one_mt(label)
-        self.slider.setRange(0, self._mtpath.npoints-1)
-        sl = self.mtprofiler.dataframe["label"] == label
-        note = self.mtprofiler.dataframe[sl]["Note"].values[0]
-        self.line_edit.setText(note)
-        return self.call()
-    
+    @viewer_op.wraps
+    @click(enabled=False)
+    @button_design(text="👁️")    
     def send_to_napari(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
         """        
-        if self.mtprofiler.dataframe is None:
+        if self.dataframe is None:
             return None
-        i = self.slider.value()
-        img = self._mtpath._sub_images[i]
-        self.mtprofiler.viewer.add_image(img, scale=img.scale, name=img.name,
-                                         rendering="minip" if self.light_background else "mip")
+        i = self.mt.pos.value
+        img = self.current_mt._sub_images[i]
+        self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
+                                     rendering="minip" if self.light_background else "mip")
         return None
     
+    @viewer_op.wraps
+    @click(enabled=False)
+    @button_design(text="🔍")
     def focus_on(self):
         """
         Change camera focus to the position of current MT fragment.
         """        
-        viewer = self.mtprofiler.viewer
-        i = self.slider.value()
+        viewer = self.parent_viewer
+        i = self.mt.pos.value
         scale = viewer.layers["MT Profiles"].scale
-        next_coords = self._mtpath._even_interval_points[i]
+        next_coords = self.current_mt.points[i]
         next_center = next_coords * scale
         viewer.dims.current_step = list(next_coords.astype(np.int64))
         
@@ -641,51 +459,330 @@ class SlidableFigureCanvas(QWidget):
         viewer.camera.zoom = zoom
         return None
     
-    def imshow_yx_raw(self):
-        if self.mtprofiler.dataframe is None:
-            return None
-        self.ax.cla()
-        i = self.slider.value()
-        self.mtpath.imshow_yx_raw(i, ax=self.ax)
-        self.fig.tight_layout()
-        self.fig.canvas.draw()
-        self.last_called = self.imshow_yx_raw
-        for b in self.imshow_buttons:
-            b.setDown(False)
-        self.imshow_buttons[0].setDown(True)
+    @viewer_op.wraps
+    @click(enabled=False)
+    @button_design(text="📜")
+    def show_table(self):
+        """
+        Show result table.
+        """        
+        table = Table(value=self.dataframe)
+        self.parent_viewer.window.add_dock_widget(table)
         return None
     
-    def imshow_zx_raw(self):
-        if self.mtprofiler.dataframe is None:
-            return None
-        self.ax.cla()
-        i = self.slider.value()
-        self.mtpath.imshow_zx_raw(i, ax=self.ax)
-        self.fig.tight_layout()
-        self.fig.canvas.draw()
-        self.last_called = self.imshow_zx_raw
-        for b in self.imshow_buttons:
-            b.setDown(False)
-        self.imshow_buttons[1].setDown(True)
+    @viewer_op.wraps
+    @click(enabled=False)
+    @button_design(text="📈")
+    def show_3d_path(self):
+        """
+        Show 3D paths of microtubule center axes.
+        """        
+        paths = []
+        for _, df in self.dataframe.groupby("label"):
+            paths.append(df[["z", "y", "x"]].values/4)
+        self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
+                                      scale=self.layer_image.scale, translate=self.layer_image.translate)
         return None
     
-    def imshow_zx_ave(self):
-        if self.mtprofiler.dataframe is None:
+    
+    def _iter_mt(self):
+        i = 0
+        while True:
+            try:
+                yield self.get_one_mt(i)
+            except IndexError:
+                break
+            finally:
+                i += 1
+
+    def _paint_mt(self):
+        """
+        Paint microtubule fragments by its pitch length.
+        
+        1. Prepare small boxes and make masks inside them.
+        2. Map the masks to the reference image.
+        3. Erase masks using reference image, based on intensity.
+        """        
+        from .mtpath import rot3d, da, make_slice_and_pad
+        
+        lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
+        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
+        bin4scale = self.layer_image.scale[0] # scale of binned reference image
+        lz, ly, lx = [int(r/bin4scale*1.4)*2 + 1 for r in self.radius_nm]
+
+        with ip.SetConst("SHOW_PROGRESS", False):
+            tasks = []
+            for i, (_, row) in enumerate(self.dataframe.iterrows()):                
+                z, y, x = np.indices((lz, ly, lx))
+                r0 = self.current_mt.radius_peak/self.current_mt.scale*0.9/4
+                r1 = self.current_mt.radius_peak/self.current_mt.scale*1.1/4
+                _sq = (z-lz//2)**2 + (x-lx//2)**2
+                domain = (r0**2 < _sq) & (_sq < r1**2)
+                domain = domain.astype(np.float32)
+                ry = int(self.interval/bin4scale/2)
+                domain[:, :ly//2-ry] = 0
+                domain[:, ly//2+ry+1:] = 0
+                domain = ip.array(domain, axes="zyx")
+                ang_zy = -row["angle_zy"]
+                ang_yx = -row["angle_yx"]
+                tasks.append(da.from_delayed(rot3d(domain, ang_yx, ang_zy), shape=domain.shape, 
+                                             dtype=np.float32).astype(np.bool_)
+                             )
+            
+            out: list[np.ndarray] = da.compute(tasks)[0]
+
+        # paint roughly
+        for i, (_, row) in enumerate(self.dataframe.iterrows()):
+            center = row[["z","y","x"]].astype(np.int16)//4
+            sl = []
+            outsl = []
+            # We should deal with the borders of image.
+            for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
+                _sl, _pad = make_slice_and_pad(c, l//2, size)
+                sl.append(_sl)
+                if _pad[0] > 0:
+                    outsl.append(slice(_pad[0], None))
+                elif _pad[1] > 0:
+                    outsl.append(slice(None, -_pad[1]))
+                else:
+                    outsl.append(slice(None, None))
+
+            sl = tuple(sl)
+            outsl = tuple(outsl)
+            lbl.value[sl][out[i][outsl]] = i + 1
+        
+        # paint finely
+        ref_filt = ndi.gaussian_filter(self.layer_image.data, sigma=2)
+        
+        if self.light_background:
+            thr = np.percentile(ref_filt[lbl>0], 95)
+            lbl[ref_filt>thr] = 0
+        else:
+            thr = np.percentile(ref_filt[lbl>0], 5)
+            lbl[ref_filt<thr] = 0
+        
+        # Labels layer properties
+        props = pd.DataFrame([])
+        props["ID"] = self.dataframe.apply(lambda x: "{}-{}".format(x["label"], x["number"]), axis=1)
+        props["pitch"] = self.dataframe["pitch"].map("{:.2f}".format)
+        props["nPF"] = self.dataframe["nPF"]
+        back = pd.DataFrame({"ID": [np.nan], "pitch": [np.nan], "nPF": [np.nan]})
+        props = pd.concat([back, props])
+        
+        # Add labels layer
+        self.layer_paint = self.parent_viewer.add_labels(
+            lbl.value, color=color, scale=self.layer_image.scale,
+            translate=self.layer_image.translate, opacity=0.33, name="Label",
+            properties=props
+            )
+        
+        self._update_colormap()
+        return None
+        
+    def _get_one_mt(self, label:int=0):
+        """
+        Prepare current MTPath object from data frame.
+        """        
+        df = self.dataframe[self.dataframe["label"]==label]
+        mtp = MTPath(self.image.scale.x, 
+                     label=label, 
+                     interval_nm=self.interval,
+                     light_background=self.light_background
+                     )
+        mtp.points = df[["z","y","x"]].values
+        cached_rotate(mtp, self.image)
+        mtp.radius_peak = float(df["MTradius"].values[0])
+        mtp.pitch_lengths = df["pitch"].values
+        mtp._pf_numbers = df["nPF"].values
+        return mtp
+    
+    def _load_image(self, img=None, binsize=4):
+        self.parent_viewer.window._status_bar._toggle_activity_dock(True)
+        worker = imread(img, binsize)
+        @worker.returned.connect
+        def _(imgb):
+            self._init_widget_params()
+            tr = (binsize-1)/2*img.scale.x
+            if self.layer_image not in self.parent_viewer.layers:
+                self.layer_image = self.parent_viewer.add_image(
+                    imgb, 
+                    scale=imgb.scale, 
+                    name=imgb.name, 
+                    translate=[tr, tr, tr],
+                    rendering="minip" if self.light_background else "mip"
+                    )
+            else:
+                self.layer_image.data = imgb
+                self.layer_image.scale = imgb.scale
+                self.layer_image.name = imgb.name
+                self.layer_image.translate = [tr, tr, tr]
+                self.layer_image.rendering = "minip" if self.light_background else "mip"
+                
+            self.parent_viewer.scale_bar.unit = img.scale_unit
+            self.parent_viewer.dims.axis_labels = ("z", "y", "x")
+
+            self.image = img
+
+            self.clear_all()
+            self.parent_viewer.window._status_bar._toggle_activity_dock(False)
             return None
-        self.ax.cla()
-        i = self.slider.value()
-        self.mtpath.imshow_zx_ave(i, ax=self.ax)
-        self.fig.tight_layout()
-        self.fig.canvas.draw()
-        self.last_called = self.imshow_zx_ave
-        for b in self.imshow_buttons:
-            b.setDown(False)
-        self.imshow_buttons[2].setDown(True)
+        worker.start()
         return None
     
-    def call(self):
-        i = self.slider.value()
-        pitch = self.mtpath.pitch_lengths[i]
-        npf = self.mtpath.pf_numbers[i]
-        self.info.setText(f"{pitch:.2f} nm / {npf} pf")
-        return self.last_called()
+    def _from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
+        """
+        Convert data frame information into points layer and update widgets. If the first MTPath object
+        is available, use mtp argument.
+        """        
+        self._init_layers()
+        
+        self.dataframe = df
+        
+        # Set current MT to the first MT in the DataFrame
+        if mtp is None:
+            mtp = self._get_one_mt(0)
+            mtp.points = df[df["label"]==0][["z", "y", "x"]].values
+        
+        # Add a column for note
+        df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
+        
+        # Show text
+        self.layer_prof.data = df[["z", "y", "x"]].values
+        self.layer_prof.properties = df
+        self.layer_prof.text.visible = False
+        self.layer_prof.face_color = [0, 0, 0, 0]
+        self.layer_prof.edge_color = [0, 0, 0, 0]
+        self.layer_prof.selected_data = {}
+        
+        # Paint MTs by its pitch length
+        self._paint_mt()
+        
+        self.layer_work.mode = "pan_zoom"
+        self.parent_viewer.layers.selection = {self.layer_paint}
+        
+        # initialize GUI
+        self._init_widget_params()
+        self.mt.mtlabel.max = len(df["label"].unique())-1
+        self.mt.pos.max = mtp.npoints-1
+        self._mtpath = mtp
+        
+        self.canvas.figure.clf()
+        self.canvas.figure.add_subplot(131)
+        self.canvas.figure.add_subplot(132)
+        self.canvas.figure.add_subplot(133)
+        self._call()
+        
+        self.parent_viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
+        return None
+    
+    def _init_widget_params(self):
+        self.mt.mtlabel.value = 0
+        self.mt.mtlabel.min = 0
+        self.mt.mtlabel.max = 0
+        self.mt.pos.value = 0
+        self.mt.pos.min = 0
+        self.mt.pos.max = 0
+        self.viewer_op.txt.value = "X.XX nm / XX pf"
+        return None
+    
+    def _init_layers(self):
+        viewer = self.parent_viewer
+        img = self.image
+        
+        common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
+        if self.layer_prof in self.parent_viewer.layers:
+            self.layer_prof.name = "MT Profiles-old"
+    
+        self.layer_prof = viewer.add_points(**common_properties,
+                                    name="MT Profiles",
+                                    opacity=0.4, 
+                                    edge_color="black",
+                                    face_color="black",
+                                    properties={"pitch": np.array([0.0], dtype=np.float64)},
+                                    text={"text": "{label}-{number}", 
+                                          "color":"black", 
+                                          "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
+                                          "visible": False},
+                                    )
+        self.layer_prof.editable = False
+            
+        if self.layer_work in self.parent_viewer.layers:
+            self.layer_work.name = "Working Layer-old"
+        
+        self.layer_work = viewer.add_points(**common_properties,
+                                    name="Working Layer",
+                                    face_color="yellow"
+                                    )
+    
+        self.layer_work.mode = "add"
+        
+        if "MT Profiles-old" in self.parent_viewer.layers:
+            self.parent_viewer.layers.remove("MT Profiles-old")
+        if "Working Layer-old" in self.parent_viewer.layers:
+            self.parent_viewer.layers.remove("Working Layer-old")
+            
+        self.mt_paths = []
+        self.dataframe = None
+
+        return None
+    
+    def _imshow_all(self):
+        if self.dataframe is None:
+            return None
+        i = self.mt.pos.value
+        for j in range(3):
+            self.canvas.axes[j].cla()
+            self.canvas.axes[j].tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
+            
+        subimg = self.current_mt._sub_images[i]
+        lz, ly, lx = subimg.shape
+        with ip.SetConst("SHOW_PROGRESS", False):
+            self.canvas.axes[0].imshow(subimg.proj("z"), cmap="gray")
+            self.canvas.axes[0].set_xlabel("x")
+            self.canvas.axes[0].set_ylabel("y")
+            self.canvas.axes[1].imshow(subimg.proj("y"), cmap="gray")
+            self.canvas.axes[1].set_xlabel("x")
+            self.canvas.axes[1].set_ylabel("z")
+            self.canvas.axes[2].imshow(self.current_mt.average_images[i], cmap="gray")
+            self.canvas.axes[2].set_xlabel("x")
+            self.canvas.axes[2].set_ylabel("z")
+        
+        ylen = int(self.current_mt.radius[1]/self.current_mt.scale)
+        ymin, ymax = ly/2 - ylen, ly/2 + ylen
+        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.outer
+        xmin, xmax = -r + lx/2, r + lx/2
+        self.canvas.axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
+        self.canvas.axes[0].text(1, 1, f"{self.mt.mtlabel.value}-{i}", 
+                                 color="lime", font="Consolas", size=15, va="top")
+    
+        theta = np.deg2rad(np.arange(360))
+        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.inner
+        self.canvas.axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.outer
+        self.canvas.axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+                
+        self.canvas.figure.tight_layout()
+        self.canvas.draw()
+    
+    @line_edit.connect
+    def _update_note(self, event=None):
+        df = self.dataframe
+        df.loc[df["label"]==self.mt.mtlabel.value, "Note"] = self.line_edit.value
+        return None
+    
+    @mt.mtlabel.connect
+    def _update_mtpath(self, event=None):
+        self._mtpath = self._get_one_mt(self.mt.mtlabel.value)
+        self.mt.pos.max = self._mtpath.npoints-1
+        sl = self.dataframe["label"] == self.mt.mtlabel.value
+        note = self.dataframe[sl]["Note"].values[0]
+        self.line_edit.value = note
+        return self._call()
+    
+    @mt.pos.connect
+    def _call(self, event=None):
+        i = self.mt.pos.value
+        pitch = self.current_mt.pitch_lengths[i]
+        npf = self.current_mt.pf_numbers[i]
+        self.viewer_op.txt.value = f"{pitch:.2f} nm / {npf} pf"
+        return self._imshow_all()
