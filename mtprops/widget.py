@@ -349,6 +349,8 @@ class MTProfiler(QWidget):
         Prepare current MTPath object from data frame.
         """        
         df = self.dataframe[self.dataframe["label"]==label]
+        if df.size == 0:
+            raise IndexError(f"label={label} is out of bound")
         mtp = MTPath(self.image.scale.x, 
                      label=label, 
                      interval_nm=self.interval,
@@ -360,6 +362,17 @@ class MTProfiler(QWidget):
         mtp.pitch_lengths = df["pitch"].values
         mtp._pf_numbers = df["nPF"].values
         return mtp
+    
+    def iter_mt(self):
+        i = 0
+        while True:
+            try:
+                yield self.get_one_mt(i)
+            except IndexError:
+                break
+            finally:
+                i += 1
+
     
     def save_results(self, path:str=None):
         # open file dialog if path is not specified.

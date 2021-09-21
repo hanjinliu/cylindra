@@ -10,13 +10,6 @@ from ._impy import impy as ip
 import pandas as pd
 from dask import delayed, array as da
 
-def dask_parallel(delayed_func, arrays:list[np.ndarray], shape=(), args=(), kwargs={}):
-    stack = [da.from_delayed(delayed_func(a, *args, **kwargs), 
-                             shape=shape, 
-                             dtype=a.dtype) 
-             for a in arrays]
-    return da.compute(stack)
-
 def spline_filter(data, s=None) -> np.ndarray:
     x = np.arange(data.size)
     spl = UnivariateSpline(x, data, s=s)
@@ -376,9 +369,10 @@ class MTPath:
                              [0.,  cos, sin],
                              [0., -sin, cos]]
             coords[i] += shift
-        
+
+        s = [(12/self.scale)**2, (4/self.scale)**2, (4/self.scale)**2] 
         for i in range(3):
-            coords[:,i] = spline_filter(coords[:,i], s=(4/self.scale)**2)
+            coords[:,i] = spline_filter(coords[:,i], s=s[i])
         
         self._even_interval_points = coords
         return self
