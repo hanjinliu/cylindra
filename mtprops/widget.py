@@ -497,15 +497,13 @@ class MTProfiler:
         from .mtpath import rot3d, da, make_slice_and_pad
         
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
-        color: dict[int, float] = {0: [0, 0, 0, 0]}
+        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin4scale = self.layer_image.scale[0] # scale of binned reference image
         lz, ly, lx = [int(r/bin4scale*1.4)*2 + 1 for r in self.radius_nm]
 
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
-            for i, (_, row) in enumerate(self.dataframe.iterrows()):
-                color[i+1] = self.label_colormap.map((row["pitch"] - 4.08)/(4.36 - 4.08))
-                
+            for i, (_, row) in enumerate(self.dataframe.iterrows()):                
                 z, y, x = np.indices((lz, ly, lx))
                 r0 = self.current_mt.radius_peak/self.current_mt.scale*0.9/4
                 r1 = self.current_mt.radius_peak/self.current_mt.scale*1.1/4
@@ -569,6 +567,7 @@ class MTProfiler:
             properties=props
             )
         
+        self._update_colormap()
         return None
         
     def _get_one_mt(self, label:int=0):
