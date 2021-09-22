@@ -101,6 +101,8 @@ class ImageLoader:
 
 POST_PROCESSING = ["io.save_results", "viewer_op.send_to_napari", "viewer_op.focus_on",
                    "viewer_op.show_table", "viewer_op.show_3d_path"]
+
+POST_IMREAD = ["io.from_csv_file", "operation.register_path"]
 @magicclass
 class MTProfiler:
     
@@ -140,6 +142,8 @@ class MTProfiler:
     
     line_edit = field(str, name="Note: ")
     
+    plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8)})
+    
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
                  limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
@@ -149,11 +153,11 @@ class MTProfiler:
         Parameters
         ----------
         start : tuple, default is (0.0, 0.0, 1.0)
-            Color that corresponds to the most compacted microtubule.
+            RGB color that corresponds to the most compacted microtubule.
         end : tuple, default is (1.0, 0.0, 0.0)
-            Color that corresponds to the most expanded microtubule.
+            RGB color that corresponds to the most expanded microtubule.
         limit : tuple, default is (4.08, 4.36)
-            Color limit.
+            Color limit (nm).
         """        
         self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
         self.label_colorlimit = limit
@@ -187,7 +191,9 @@ class MTProfiler:
         self.mt.pos.min_width = 70
         self.canvas.ax.set_aspect("equal")
         self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
-        
+        call_button = self._loader["call_button"]
+        call_button.changed.connect(self._load_image)
+                
     @property
     def current_mt(self):
         if self._mtpath is None:
@@ -374,30 +380,14 @@ class MTProfiler:
         txt.show()
     
     @io.wraps
-    @set_options(scale={"max": 4, "step": 0.1, "label": "scale (nm)"})
     @button_design(text="Open image 🔬")
     def open_image_file(self):
         """
         Open an image and add to viewer.
         """        
-        call_button = self._loader["call_button"]
-        @call_button.changed.connect
-        def _(e):
-            self._load_image(self._loader.img)
-            self._loader.close()
-            self.io["from_csv_file"].enabled = True
-            self.operation["register_path"].enabled = True
         self._loader.show()
         return None
-    
-    
-    def _imread_dialog(self, path: Path, scale:float=0):
-        img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
-        if scale > 0:
-            img.scale.x = img.scale.y = img.scale.z = scale
-        self._load_image(img)
-        return None
-    
+        
     @io.wraps
     @click(enabled=False, enables=POST_PROCESSING)
     @button_design(text="Load csv 📂")
@@ -484,12 +474,12 @@ class MTProfiler:
                                       scale=self.layer_image.scale, translate=self.layer_image.translate)
         return None
     
-    
-    def _iter_mt(self):
+    @click(visible=False)
+    def iter_mt(self):
         i = 0
         while True:
             try:
-                yield self.get_one_mt(i)
+                yield self._get_one_mt(i)
             except IndexError:
                 break
             finally:
@@ -526,7 +516,7 @@ class MTProfiler:
                 ang_zy = -row["angle_zy"]
                 ang_yx = -row["angle_yx"]
                 tasks.append(da.from_delayed(rot3d(domain, ang_yx, ang_zy), shape=domain.shape, 
-                                             dtype=np.float32).astype(np.bool_)
+                                             dtype=np.float32) > 0.3
                              )
             
             out: list[np.ndarray] = da.compute(tasks)[0]
@@ -596,6 +586,19 @@ class MTProfiler:
         mtp._pf_numbers = df["nPF"].values
         return mtp
     
+    def _plot_pitch(self, event=None):
+        x = np.arange(self.current_mt.npoints)*self.interval
+        self.plot.ax.cla()
+        self.plot.ax.plot(x, self.current_mt.pitch_lengths)
+        self.plot.ax.set_xlabel("position (nm)")
+        self.plot.ax.set_ylabel("pitch (nm)")
+        self.plot.ax.set_ylim(*self.label_colorlimit)
+        self.plot.figure.tight_layout()
+        self.plot.draw()
+        
+        return None
+    
+    @click(disables=POST_PROCESSING, enables=POST_IMREAD)
     def _load_image(self, img=None, binsize=4):
         self.parent_viewer.window._status_bar._toggle_activity_dock(True)
         worker = imread(img, binsize)
@@ -627,6 +630,7 @@ class MTProfiler:
             self.parent_viewer.window._status_bar._toggle_activity_dock(False)
             return None
         worker.start()
+        self._loader.close()
         return None
     
     def _from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
@@ -656,6 +660,7 @@ class MTProfiler:
         
         # Paint MTs by its pitch length
         self._paint_mt()
+        self._plot_pitch()
         
         self.layer_work.mode = "pan_zoom"
         self.parent_viewer.layers.selection = {self.layer_paint}
@@ -686,6 +691,7 @@ class MTProfiler:
         return None
     
     def _init_layers(self):
+        # TODO: simpler implementation after napari==0.4.12
         viewer = self.parent_viewer
         img = self.image
         
@@ -720,6 +726,10 @@ class MTProfiler:
             self.parent_viewer.layers.remove("MT Profiles-old")
         if "Working Layer-old" in self.parent_viewer.layers:
             self.parent_viewer.layers.remove("Working Layer-old")
+        
+        if self.layer_paint is not None:
+            self.parent_viewer.layers.remove(self.layer_paint.name)
+            self.layer_paint = None
             
         self.mt_paths = []
         self.dataframe = None
@@ -777,6 +787,7 @@ class MTProfiler:
         sl = self.dataframe["label"] == self.mt.mtlabel.value
         note = self.dataframe[sl]["Note"].values[0]
         self.line_edit.value = note
+        self._plot_pitch()
         return self._call()
     
     @mt.pos.connect
