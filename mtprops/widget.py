@@ -2,6 +2,7 @@ import pandas as pd
 from typing import TYPE_CHECKING, TypeVar
 from collections import OrderedDict
 import numpy as np
+import os
 from scipy import ndimage as ndi
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress, thread_worker
@@ -9,9 +10,10 @@ from qtpy.QtWidgets import QMessageBox
 from qtpy.QtGui import QFont
 from pathlib import Path
 from magicgui.widgets import Table, TextEdit
+import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
-from ._dependencies import mcls, magicclass, field, button_design, click, set_options, Figure, TupleEdit
+from ._dependencies import mcls, magicclass, field, button_design, click, set_options, Figure, TupleEdit, CheckButton
 from .mtpath import MTPath, calc_total_length
 
 if TYPE_CHECKING:
@@ -71,7 +73,7 @@ def cached_rotate(mtp:MTPath, image):
 def raise_error_message(parent, msg:str):
     return QMessageBox.critical(parent, "Error", msg,QMessageBox.Ok)
 
-@thread_worker(progress={'total': 0, 'desc':'Reading Image'})
+@thread_worker(progress={"total": 0, "desc": "Reading Image"})
 def imread(img, binsize):
     with ip.SetConst("SHOW_PROGRESS", False):
         imgb = img.binning(binsize, check_edges=False).data
@@ -82,6 +84,7 @@ def imread(img, binsize):
 class ImageLoader:
     path = field(Path)
     scale = field(str, options={"label": "scale (nm)"})
+    history: str
     
     @button_design(text="OK")
     def call_button(self):
@@ -98,11 +101,8 @@ class ImageLoader:
         path = event.value
         self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
         self.scale.value = f"{self.img.scale.x:.3f}"
+        self.history = os.path.dirname(path)
 
-POST_PROCESSING = ["io.save_results", "viewer_op.send_to_napari", "viewer_op.focus_on",
-                   "viewer_op.show_table", "viewer_op.show_3d_path"]
-
-POST_IMREAD = ["io.from_csv_file", "operation.register_path"]
 @magicclass
 class MTProfiler:
     
@@ -135,7 +135,7 @@ class MTProfiler:
     @magicclass(layout="horizontal", labels=False)
     class viewer_op:
         def send_to_napari(self): ...
-        def focus_on(self): ...
+        focus = field(CheckButton, options={"text": "🔍"})
         def show_3d_path(self): ...
         def show_table(self): ...
         txt = field("X.XX nm / XX pf", options={"enabled": False}, name="result")
@@ -144,10 +144,17 @@ class MTProfiler:
     
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8)})
     
+    #####################################################################################
+        
+    POST_PROCESSING = [io.save_results, viewer_op.send_to_napari,
+                   viewer_op.show_table, viewer_op.show_3d_path]
+
+    POST_IMREAD = [io.from_csv_file, operation.register_path]
+    
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
                  limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
-    def set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.08, 4.36)):
+    def set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.10, 4.36)):
         """
         Set the color-map for painting microtubules.
         Parameters
@@ -156,7 +163,7 @@ class MTProfiler:
             RGB color that corresponds to the most compacted microtubule.
         end : tuple, default is (1.0, 0.0, 0.0)
             RGB color that corresponds to the most expanded microtubule.
-        limit : tuple, default is (4.08, 4.36)
+        limit : tuple, default is (4.10, 4.36)
             Color limit (nm).
         """        
         self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
@@ -173,10 +180,8 @@ class MTProfiler:
             color[i+1] = self.label_colormap.map((row["pitch"] - lim0)/(lim1 - lim0))
         self.layer_paint.color = color
         return None
-    
-    #####################################################################################
-    
-    def __init__(self):
+        
+    def __post_init__(self):
         self._mtpath = None
         self.image = None
         self.layer_image: Image = None
@@ -186,8 +191,6 @@ class MTProfiler:
         
         self.settings()
         self.set_colormap()
-    
-    def __post_init__(self):
         self.mt.pos.min_width = 70
         self.canvas.ax.set_aspect("equal")
         self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
@@ -201,7 +204,7 @@ class MTProfiler:
         return self._mtpath
     
     @operation.wraps
-    @click(enabled=False, enables="operation.run_for_all_path")
+    @click(enabled=False, enables=operation.run_for_all_path)
     @button_design(text="📝")
     def register_path(self):
         """
@@ -397,7 +400,7 @@ class MTProfiler:
         """        
         self.parent_viewer.window._status_bar._toggle_activity_dock(True)
         with progress(total=0) as pbr:
-            pbr.set_description("Connecting csv to image")
+            pbr.set_description("Loading csv")
             df = pd.read_csv(path)
             self._from_dataframe(df)
         self.parent_viewer.window._status_bar._toggle_activity_dock(False)
@@ -429,13 +432,24 @@ class MTProfiler:
                                      rendering="minip" if self.light_background else "mip")
         return None
     
-    @viewer_op.wraps
-    @click(enabled=False)
-    @button_design(text="🔍")
-    def focus_on(self):
+    @viewer_op.focus.connect
+    def _set_down(self, event=None):
+        focused = self.viewer_op.focus.value
+        if focused:
+            self._focus_on()
+        elif self.layer_paint is not None:
+            self.layer_paint.show_selected_label = False
+        self.viewer_op.focus.native.setDown(focused)
+        
+    @mt.mtlabel.connect
+    @mt.pos.connect
+    def _focus_on(self):
         """
         Change camera focus to the position of current MT fragment.
         """        
+        if not self.viewer_op.focus.value or self.layer_paint is None:
+            return None
+        
         viewer = self.parent_viewer
         i = self.mt.pos.value
         scale = viewer.layers["MT Profiles"].scale
@@ -447,6 +461,12 @@ class MTProfiler:
         zoom = viewer.camera.zoom
         viewer.camera.events.zoom() # Here events are emitted and zoom changes automatically.
         viewer.camera.zoom = zoom
+        
+        self.layer_paint.show_selected_label = True
+        for k, (_, row) in enumerate(self.dataframe.iterrows()):
+            if row["label"] == self.current_mt.label and row["number"] == i:
+                self.layer_paint.selected_label = k+1
+                break
         return None
     
     @viewer_op.wraps
@@ -586,21 +606,24 @@ class MTProfiler:
         mtp._pf_numbers = df["nPF"].values
         return mtp
     
-    def _plot_pitch(self, event=None):
+    def _plot_pitch(self):
         x = np.arange(self.current_mt.npoints)*self.interval
-        self.plot.ax.cla()
-        self.plot.ax.plot(x, self.current_mt.pitch_lengths)
-        self.plot.ax.set_xlabel("position (nm)")
-        self.plot.ax.set_ylabel("pitch (nm)")
-        self.plot.ax.set_ylim(*self.label_colorlimit)
-        self.plot.figure.tight_layout()
-        self.plot.draw()
+        with plt.style.context("dark_background"):
+            self.plot.ax.cla()
+            self.plot.ax.plot(x, self.current_mt.pitch_lengths, color="white")
+            self.plot.ax.set_xlabel("position (nm)")
+            self.plot.ax.set_ylabel("pitch (nm)")
+            self.plot.ax.set_ylim(*self.label_colorlimit)
+            self.plot.figure.tight_layout()
+            self.plot.draw()
         
         return None
     
     @click(disables=POST_PROCESSING, enables=POST_IMREAD)
-    def _load_image(self, img=None, binsize=4):
+    def _load_image(self, event=None):
         self.parent_viewer.window._status_bar._toggle_activity_dock(True)
+        binsize = 4
+        img = self._loader.img
         worker = imread(img, binsize)
         @worker.returned.connect
         def _(imgb):
@@ -675,7 +698,7 @@ class MTProfiler:
         self.canvas.figure.add_subplot(131)
         self.canvas.figure.add_subplot(132)
         self.canvas.figure.add_subplot(133)
-        self._call()
+        self._imshow_all()
         
         self.parent_viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
         return None
@@ -736,10 +759,15 @@ class MTProfiler:
 
         return None
     
+    @mt.pos.connect
     def _imshow_all(self):
         if self.dataframe is None:
             return None
         i = self.mt.pos.value
+        pitch = self.current_mt.pitch_lengths[i]
+        npf = self.current_mt.pf_numbers[i]
+        self.viewer_op.txt.value = f"{pitch:.2f} nm / {npf} pf"
+        
         for j in range(3):
             self.canvas.axes[j].cla()
             self.canvas.axes[j].tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
@@ -788,12 +816,6 @@ class MTProfiler:
         note = self.dataframe[sl]["Note"].values[0]
         self.line_edit.value = note
         self._plot_pitch()
-        return self._call()
+        self._imshow_all()
+        return None
     
-    @mt.pos.connect
-    def _call(self, event=None):
-        i = self.mt.pos.value
-        pitch = self.current_mt.pitch_lengths[i]
-        npf = self.current_mt.pf_numbers[i]
-        self.viewer_op.txt.value = f"{pitch:.2f} nm / {npf} pf"
-        return self._imshow_all()

@@ -565,6 +565,6 @@ def zncc_all(imgs, ref, shifts, rots, mask=None):
                 yshifts.append(shift)
                 deg = rots[i, jmax]
                 zxrots.append(deg)
-            out.append(img.affine(translation=[0,shift,0], rotation=[0,deg,0]))
+            out.append(img.affine(translation=[0, shift, 0], rotation=[0, deg, 0]))
     return out, yshifts, zxrots
 
