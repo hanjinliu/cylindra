@@ -2,7 +2,6 @@ import pandas as pd
 from typing import TYPE_CHECKING, TypeVar
 from collections import OrderedDict
 import numpy as np
-import os
 from scipy import ndimage as ndi
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress, thread_worker
@@ -84,7 +83,6 @@ def imread(img, binsize):
 class ImageLoader:
     path = field(Path)
     scale = field(str, options={"label": "scale (nm)"})
-    history: str
     
     @button_design(text="OK")
     def call_button(self):
@@ -101,7 +99,6 @@ class ImageLoader:
         path = event.value
         self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
         self.scale.value = f"{self.img.scale.x:.3f}"
-        self.history = os.path.dirname(path)
 
 @magicclass
 class MTProfiler:
@@ -130,7 +127,7 @@ class MTProfiler:
         mtlabel = field(int, options={"max": 0}, name="MTLabel")
         pos = field(int, widget_type="Slider", options={"max":0}, name="Pos")
     
-    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8)})
+    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8), "tooltip": "Projections"})
         
     @magicclass(layout="horizontal", labels=False)
     class viewer_op:
@@ -142,7 +139,7 @@ class MTProfiler:
     
     line_edit = field(str, name="Note: ")
     
-    plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8)})
+    plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of pitch lengths"})
     
     #####################################################################################
         
@@ -169,6 +166,22 @@ class MTProfiler:
         self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
         self.label_colorlimit = limit
         self._update_colormap()
+        return None
+    
+    def subtomogram_averaging(self):
+        """
+        Average subtomograms along a MT.
+        """        
+        df = self.current_mt.average_tomograms()
+        avg_img = self.current_mt.rot_average_tomogram()
+        table = Table(value=df)
+        self.parent_viewer.window.add_dock_widget(table)
+        
+        if self.light_background:
+            avg_img = -avg_img
+            
+        self.parent_viewer.add_image(avg_img, scale=avg_img.scale, name="AVG",
+                                     rendering="iso", iso_threshold=0.8)
         return None
 
     def _update_colormap(self):
@@ -312,10 +325,12 @@ class MTProfiler:
     
     @operation.wraps
     @set_options(radius_pre_nm={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
-                 radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"})
+                 radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
+                 bin_size={"min": 1, "max": 8})
     @button_design(text="⚙")
     def settings(self, interval_nm:float=24, light_background:bool=True,
-                 radius_pre_nm=(22.0, 32.0, 32.0), radius_nm=(16.7, 16.7, 16.7)):
+                 radius_pre_nm=(22.0, 28.0, 28.0), radius_nm=(16.7, 16.7, 16.7),
+                 bin_size:int=4):
         """
         Change MTProps setting.
         Parameters
@@ -328,11 +343,17 @@ class MTProfiler:
             Images in this range will be considered to determine MT tilt and shift.
         radius_nm : tuple[float, float, float]
             Images in this range will be considered to determine MT pitch length and PF number.
+        bin_size : int
+            Binning (pixel) that will be applied to the image in the viewer. This parameter does
+            not affect the results of analysis.
         """        
         self.interval = interval_nm
         self.light_background = light_background
         self.radius_pre_nm = radius_pre_nm
         self.radius_nm = radius_nm
+        self.binsize = bin_size
+        if self.layer_image is not None:
+            self.layer_image.rendering = "minip" if self.light_background else "mip"
     
     @operation.wraps
     @button_design(text="❌")
@@ -369,14 +390,13 @@ class MTProfiler:
         from .__init__ import __version__
         import dask
         
-        value = f"""
-        MTProps: {__version__}
-        impy: {ip.__version__}
-        magicgui: {magicgui.__version__}
-        magicclass: {mcls.__version__}
-        napari: {napari.__version__}
-        dask: {dask.__version__}
-        """
+        value = f"MTProps: {__version__}"\
+                f"impy: {ip.__version__}"\
+                f"magicgui: {magicgui.__version__}"\
+                f"magicclass: {mcls.__version__}"\
+                f"napari: {napari.__version__}"\
+                f"dask: {dask.__version__}"
+        
         txt = TextEdit(value=value)
         self.read_only = True
         txt.native.setFont(QFont("Consolas"))
@@ -387,7 +407,7 @@ class MTProfiler:
     def open_image_file(self):
         """
         Open an image and add to viewer.
-        """        
+        """
         self._loader.show()
         return None
         
@@ -434,6 +454,7 @@ class MTProfiler:
     
     @viewer_op.focus.connect
     def _set_down(self, event=None):
+        # ensure button is down in napari
         focused = self.viewer_op.focus.value
         if focused:
             self._focus_on()
@@ -489,7 +510,7 @@ class MTProfiler:
         """        
         paths = []
         for _, df in self.dataframe.groupby("label"):
-            paths.append(df[["z", "y", "x"]].values/4)
+            paths.append(df[["z", "y", "x"]].values/self.binsize)
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
                                       scale=self.layer_image.scale, translate=self.layer_image.translate)
         return None
@@ -517,33 +538,32 @@ class MTProfiler:
         
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
-        bin4scale = self.layer_image.scale[0] # scale of binned reference image
-        lz, ly, lx = [int(r/bin4scale*1.4)*2 + 1 for r in self.radius_nm]
+        bin_scale = self.layer_image.scale[0] # scale of binned reference image
+        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in self.radius_nm]
 
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
             for i, (_, row) in enumerate(self.dataframe.iterrows()):                
                 z, y, x = np.indices((lz, ly, lx))
-                r0 = self.current_mt.radius_peak/self.current_mt.scale*0.9/4
-                r1 = self.current_mt.radius_peak/self.current_mt.scale*1.1/4
+                r0 = self.current_mt.radius_peak/self.current_mt.scale*0.9/self.binsize
+                r1 = self.current_mt.radius_peak/self.current_mt.scale*1.1/self.binsize
                 _sq = (z-lz//2)**2 + (x-lx//2)**2
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 domain = domain.astype(np.float32)
-                ry = int(self.interval/bin4scale/2)
+                ry = int(self.interval/bin_scale/2)
                 domain[:, :ly//2-ry] = 0
                 domain[:, ly//2+ry+1:] = 0
                 domain = ip.array(domain, axes="zyx")
                 ang_zy = -row["angle_zy"]
                 ang_yx = -row["angle_yx"]
                 tasks.append(da.from_delayed(rot3d(domain, ang_yx, ang_zy), shape=domain.shape, 
-                                             dtype=np.float32) > 0.3
-                             )
+                                             dtype=np.float32) > 0.3)
             
             out: list[np.ndarray] = da.compute(tasks)[0]
 
         # paint roughly
         for i, (_, row) in enumerate(self.dataframe.iterrows()):
-            center = row[["z","y","x"]].astype(np.int16)//4
+            center = row[["z","y","x"]].astype(np.int16)//self.binsize
             sl = []
             outsl = []
             # We should deal with the borders of image.
@@ -622,13 +642,12 @@ class MTProfiler:
     @click(disables=POST_PROCESSING, enables=POST_IMREAD)
     def _load_image(self, event=None):
         self.parent_viewer.window._status_bar._toggle_activity_dock(True)
-        binsize = 4
         img = self._loader.img
-        worker = imread(img, binsize)
+        worker = imread(img, self.binsize)
         @worker.returned.connect
         def _(imgb):
             self._init_widget_params()
-            tr = (binsize-1)/2*img.scale.x
+            tr = (self.binsize-1)/2*img.scale.x
             if self.layer_image not in self.parent_viewer.layers:
                 self.layer_image = self.parent_viewer.add_image(
                     imgb, 

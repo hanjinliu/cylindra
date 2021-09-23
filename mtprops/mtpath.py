@@ -119,7 +119,7 @@ def make_rotate_mat(deg_yx, deg_zy, shape):
     center = np.array(shape)/2. - 0.5 # 3d array
     translation_0 = compose_affine_matrix(translation=center, ndim=3)
     rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx+180)], ndim=3)
-    rotation_zy = compose_affine_matrix(rotation=[np.deg2rad(deg_zy), 0, 0], ndim=3)
+    rotation_zy = compose_affine_matrix(rotation=[-np.deg2rad(deg_zy), 0, 0], ndim=3)
     translation_1 = compose_affine_matrix(translation=-center, ndim=3)
     
     mx = translation_0 @ rotation_yx @ rotation_zy @ translation_1
@@ -184,7 +184,7 @@ def _calc_pf_number(img2d):
 class MTPath:
     inner = 0.7
     outer = 1.6
-    def __init__(self, scale:float, interval_nm:float=24, radius_pre_nm=(22, 32, 32), radius_nm=(16.7, 16.7, 16.7),
+    def __init__(self, scale:float, interval_nm:float=24, radius_pre_nm=(22, 28, 28), radius_nm=(16.7, 16.7, 16.7),
                  light_background:bool=True, label:int=-1):
         self.scale = scale
         self.interval = interval_nm
@@ -279,7 +279,7 @@ class MTPath:
         # are restricted in range of -pi:pi. Otherwise, MT polarity will be reversed more than once. This
         # causes a problem that MT polarity appears the same no matter in which direction you see.
         self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
-        self.grad_angles_zy = np.rad2deg(np.arctan(dr[:,0]/np.abs(dr[:,1])))
+        self.grad_angles_zy = np.rad2deg(np.arctan(np.sign(dr[:,1])*dr[:,0]/np.abs(dr[:,1])))
         return self
     
     def smooth_path(self):
@@ -362,7 +362,7 @@ class MTPath:
                              [0., -sin, cos]]
             coords[i] += shift
 
-        s = [(12/self.scale)**2, (4/self.scale)**2, (4/self.scale)**2] 
+        s = [(4/self.scale)**2, (4/self.scale)**2, (4/self.scale)**2] 
         for i in range(3):
             coords[:,i] = spline_filter(coords[:,i], s=s[i])
         
