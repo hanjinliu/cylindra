@@ -51,7 +51,7 @@ def load_subimage(img, pos, radius:tuple[int, int, int]):
             reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
     return reg
 
-@jit(nopython=True)
+@jit("(f4[:,:],f4[:,:],f4)", nopython=True, cache=True)
 def _get_coordinate(path:np.ndarray, coords:np.ndarray, interval:float=1.0):
     npoints, ndim = path.shape
     inc = 0.01*interval
@@ -86,9 +86,9 @@ def _get_coordinate(path:np.ndarray, coords:np.ndarray, interval:float=1.0):
 def get_coordinates(path, interval):
     npoints, ndim = path.shape
     total_length = calc_total_length(path)
-    coords = np.zeros((ndim, int(total_length/interval)+1)) - 1
+    coords = np.zeros((ndim, int(total_length/interval)+1), dtype=np.float32) - 1
     _get_coordinate(path.copy(), coords, interval)
-    while coords[0, -1]<0:
+    while coords[0, -1] < 0:
         coords = coords[:,:-1]
     return coords.T
 
@@ -100,35 +100,43 @@ def angle_corr(img, ang_center):
     img_mirror = img_z["x=::-1"]
     angs = np.linspace(ang_center-7, ang_center+7, 29, endpoint=True)
     corrs = []
-    with ip.SetConst("SHOW_PROGRESS", False):
-        for ang in angs:
-            cor = ip.fourier_zncc(img_z, img_mirror.rotate(ang*2), mask)
-            corrs.append(cor)
+    f0 = np.sqrt(img_z.power_spectra(dims="yx", zero_norm=True))
+    for ang in angs:
+        f1 = np.sqrt(img_mirror.rotate(ang*2).power_spectra(dims="yx", zero_norm=True))
+        corr = ip.zncc(f0, f1, mask)
+        corrs.append(corr)
+        
     angle = angs[np.argmax(corrs)]
     return angle
     
-def warp_polar_3d(img3d, along="y", center=None, radius=None, angle_freq=360):
+def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
     out = []
-    for sl, img in img3d.iter(along):
-        out.append(warp_polar(img, center=center, radius=radius, output_shape=(angle_freq, radius)))
-    out = ip.array(np.stack(out, axis=2), axes=f"<r{along}")
+    input_img = np.moveaxis(img3d.value, 1, 2)
+    out = warp_polar(input_img, center=center, radius=radius, 
+                     output_shape=(angle_freq, radius), multichannel=True)
+    out = ip.array(out, axes="<ry")
     return out
 
 def make_rotate_mat(deg_yx, deg_zy, shape):
     compose_affine_matrix = ip.arrays.utils._transform.compose_affine_matrix
-    center = np.array(shape)/2. - 0.5 # 3d array
+    center = np.array(shape)/2. - 0.5
     translation_0 = compose_affine_matrix(translation=center, ndim=3)
-    rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx+180)], ndim=3)
+    rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx + 180)], ndim=3)
     rotation_zy = compose_affine_matrix(rotation=[-np.deg2rad(deg_zy), 0, 0], ndim=3)
     translation_1 = compose_affine_matrix(translation=-center, ndim=3)
     
-    mx = translation_0 @ rotation_yx @ rotation_zy @ translation_1
+    mx = translation_0 @ rotation_zy @ rotation_yx @ translation_1
     mx[-1, :] = [0, 0, 0, 1]
     return mx
 
 @delayed
 def rot3d(img, yx, zy):
     mat = make_rotate_mat(yx, zy, img.shape)
+    return img.affine(matrix=mat)
+
+@delayed
+def rot3dinv(img, yx, zy):
+    mat = np.linalg.inv(make_rotate_mat(yx, zy, img.shape))
     return img.affine(matrix=mat)
 
 def _calc_pitch_length_xyz(img3d):
@@ -254,7 +262,7 @@ class MTPath:
         return new
         
     def set_path(self, coordinates):
-        original_points = np.asarray(coordinates)
+        original_points = np.asarray(coordinates, dtype=np.float32)
         self.points = get_coordinates(original_points, self.interval/self.scale)
         return self
     
@@ -263,7 +271,6 @@ class MTPath:
         From a large image crop out sub-images around each point of the path.
         """        
         self._sub_images.clear()
-        rz, ry, rx = (np.array(self.radius_pre)/img.scale).astype(np.int32)
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
                 self._sub_images.append(load_subimage(img, self.points[i], self.radius_pre))
@@ -288,6 +295,7 @@ class MTPath:
         Gradient at either tip is set to the same value as the adjacent one respectively.
         """        
         new_angles = np.zeros_like(self.grad_angles_yx)
+        
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
             for i in range(1, self.npoints-1):
@@ -298,7 +306,6 @@ class MTPath:
         size = 2*int(round(48/self.interval)) + 1
         if size > 1:
             new_angles = ndi.median_filter(new_angles, size=size, mode="mirror") # a b c d | c b a
-        
         self.grad_angles_yx = new_angles
         return self
 
@@ -362,9 +369,9 @@ class MTPath:
                              [0., -sin, cos]]
             coords[i] += shift
 
-        s = [(4/self.scale)**2, (4/self.scale)**2, (4/self.scale)**2] 
+        s = (1/self.scale)**2 * coords.shape[0]
         for i in range(3):
-            coords[:,i] = spline_filter(coords[:,i], s=s[i])
+            coords[:,i] = spline_filter(coords[:,i], s=s)
         
         self.points = coords
         return self
@@ -497,8 +504,8 @@ class MTPath:
         rots = np.linspace(-1, 1, 5)
         out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots)
         
-        df["Yshift-1"] = yshifts
-        df["ZXrot-1"] = zxrots
+        df["Yshift_1"] = yshifts
+        df["ZXrot_1"] = zxrots
         
         self.tomogram_averaged_image = sum(out)/len(out)
         
@@ -512,8 +519,8 @@ class MTPath:
                              for i in range(len(out))])
         out, yshifts, zxrots = zncc_all(out, self.rot_average_tomogram(), shifts, rots)
         
-        df["Yshift-2"] = yshifts
-        df["ZXrot-2"] = zxrots
+        df["Yshift_2"] = yshifts
+        df["ZXrot_2"] = zxrots
         
         self.tomogram_averaged_image[:] = sum(out)/len(out)
         
@@ -538,6 +545,11 @@ class MTPath:
                 shifts = np.linspace(shift - 1/self.scale, shift + 1/self.scale, 7)
         
         return rotsumimg
+    
+@delayed
+def _affine_zncc(ref, img, mask, translation, rotation):
+    img_transformed = img.affine(translation=translation, rotation=rotation)
+    return ip.zncc(ref, img_transformed, mask=mask)
 
 def zncc_all(imgs, ref, shifts, rots, mask=None):
     yshifts = []
@@ -545,26 +557,26 @@ def zncc_all(imgs, ref, shifts, rots, mask=None):
     out = []
     if rots.ndim == 1:
         rots = np.stack([rots]*len(shifts), axis=0)
-    corrs = np.zeros((len(shifts), len(rots[0])))
+    
     with ip.SetConst("SHOW_PROGRESS", False):
         for img in imgs:
             if img is ref:
                 yshifts.append(0.0)
                 zxrots.append(0.0)
             else:
+                ref = delayed(ref)
+                corrs = np.zeros((len(shifts), len(rots[0]))).tolist()                
                 for i, dy in enumerate(shifts):
                     for j, dtheta in enumerate(rots[i]):
-                        corrs[i,j] = ip.zncc(
-                            ref, 
-                            img.affine(translation=[0, dy, 0], 
-                                       rotation=[0, dtheta, 0]),
-                            mask=mask
-                        )
+                        task = _affine_zncc(ref, img, mask, [0, dy, 0], [0, dtheta, 0])
+                        corrs[i][j] = da.from_delayed(task, shape=(), dtype=np.float32)
+                corrs = np.array(da.compute(corrs)[0], dtype=np.float32)
                 imax, jmax = np.unravel_index(np.argmax(corrs), corrs.shape)
                 shift = shifts[imax]
                 yshifts.append(shift)
                 deg = rots[i, jmax]
                 zxrots.append(deg)
             out.append(img.affine(translation=[0, shift, 0], rotation=[0, deg, 0]))
+            
     return out, yshifts, zxrots
 

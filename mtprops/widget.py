@@ -534,7 +534,7 @@ class MTProfiler:
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """        
-        from .mtpath import rot3d, da, make_slice_and_pad
+        from .mtpath import rot3dinv, da, make_slice_and_pad
         
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
@@ -554,9 +554,9 @@ class MTProfiler:
                 domain[:, :ly//2-ry] = 0
                 domain[:, ly//2+ry+1:] = 0
                 domain = ip.array(domain, axes="zyx")
-                ang_zy = -row["angle_zy"]
-                ang_yx = -row["angle_yx"]
-                tasks.append(da.from_delayed(rot3d(domain, ang_yx, ang_zy), shape=domain.shape, 
+                ang_zy = row["angle_zy"]
+                ang_yx = row["angle_yx"]
+                tasks.append(da.from_delayed(rot3dinv(domain, ang_yx, ang_zy), shape=domain.shape, 
                                              dtype=np.float32) > 0.3)
             
             out: list[np.ndarray] = da.compute(tasks)[0]
@@ -624,6 +624,8 @@ class MTProfiler:
         mtp.radius_peak = float(df["MTradius"].values[0])
         mtp.pitch_lengths = df["pitch"].values
         mtp._pf_numbers = df["nPF"].values
+        mtp.grad_angles_yx = df["angle_yx"]
+        mtp.grad_angles_zy = df["angle_zy"]
         return mtp
     
     def _plot_pitch(self):
