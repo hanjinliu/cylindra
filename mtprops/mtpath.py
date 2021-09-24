@@ -180,11 +180,11 @@ def rotational_average(img, fold:int=13):
     return average_img
 
 @delayed
-def _calc_pf_number(img2d):
+def _calc_pf_number(img2d, mask):
     corrs = []
     for pf in [12, 13, 14, 15, 16]:
         av = rotational_average(img2d, pf)
-        corrs.append(ip.zncc(img2d, av))
+        corrs.append(ip.zncc(img2d, av, mask))
     
     return np.argmax(corrs) + 12
 
@@ -199,6 +199,7 @@ class MTPath:
         self.radius_pre = np.array(radius_pre_nm)
         self.radius = np.array(radius_nm)
         self.light_background = light_background
+        self.alpha = 0.0
         
         self.points: np.ndarray = None
         
@@ -434,10 +435,21 @@ class MTPath:
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
+        
+        # make mask
+        shape = self._sub_images[0].sizesof("zx")
+        mask = np.zeros(shape, dtype=np.bool_)
+        z, x = np.indices(shape)
+        cz, cx = np.array(shape)/2 - 0.5
+        _sq = (z-cz)**2 + (x-cx)**2
+        r = self.radius_peak/self.scale
+        mask[_sq < (r*self.__class__.inner)**2] = True
+        mask[_sq > (r*self.__class__.outer)**2] = True
+        
         tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for img in self._sub_images:
-                npf = _calc_pf_number(img[sl].proj("y"))
+                npf = _calc_pf_number(img[sl].proj("y"), mask)
                 tasks.append(da.from_delayed(npf, shape=(), dtype=np.float64))
             
             self.pf_numbers = da.compute(tasks)[0]
@@ -491,45 +503,45 @@ class MTPath:
         yield self.calc_pf_number()
         yield self.rotational_averages()
     
-    def average_tomograms(self):
+    def average_tomograms(self, niter:int=2, nshifts:int=19, nrots:int=9):
         df = pd.DataFrame([])
         
         kernel_box = (self.radius/self.scale).astype(np.int32)
         with ip.SetConst("SHOW_PROGRESS", False):
             input_imgs = [img.crop_kernel(kernel_box) for img in self._sub_images]
         
-        # 1st iteration
+        # initialize
+        dshift = 4.5/self.scale
+        drot = 1
+        yshifts = np.zeros(self.npoints)
+        zxrots = np.zeros(self.npoints)
         ref = input_imgs[self.npoints//2]
-        shifts = np.linspace(-4.5/self.scale, 4.5/self.scale, 19)
-        rots = np.linspace(-1, 1, 5)
-        out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots)
-        
-        df["Yshift_1"] = yshifts
-        df["ZXrot_1"] = zxrots
-        
-        self.tomogram_averaged_image = sum(out)/len(out)
-        
-        # 2nd iteration
-        shifts = np.linspace(-0.5/self.scale, 0.5/self.scale, 19)
-        if zxrots[0] == zxrots[-1]:
-            rots = np.linspace(-0.2, 0.2, 5)
-        else:
-            theta_slope = (zxrots[-1] - zxrots[0])/len(out)
-            rots = np.array([np.linspace(theta_slope*i-0.2, theta_slope*i+0.2, 5).tolist() 
-                             for i in range(len(out))])
-        out, yshifts, zxrots = zncc_all(out, self.rot_average_tomogram(), shifts, rots)
-        
-        df["Yshift_2"] = yshifts
-        df["ZXrot_2"] = zxrots
-        
-        self.tomogram_averaged_image[:] = sum(out)/len(out)
-        
-        return df
+                
+        for it in range(1, niter+1):
+            # parameter candidates
+            shifts: np.ndarray = np.linspace(-dshift, dshift, nshifts).reshape(1,-1) + yshifts.reshape(-1, 1)
+            rots: np.ndarray = np.linspace(-drot, drot, nrots).reshape(1,-1) + zxrots.reshape(-1, 1)
+            
+            # optimize parameters by correlation maximization
+            out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots)
+            
+            # update
+            dshift /= nshifts
+            drot /= nrots
+            df[f"Yshift_{it}"] = yshifts
+            df[f"ZXrot_{it}"] = zxrots
+            self.tomogram_averaged_image = sum(out)/len(out)
+            ref = self.rot_average_tomogram(dshift, nshifts)
+
+            yield df, ref
+        return df, ref
     
-    def rot_average_tomogram(self):
-        shifts = np.linspace(-4.2/self.scale, 4.2/self.scale, 20)
+    def rot_average_tomogram(self, dshift:float=1.4, nshifts:int=9):
+        ds = dshift/self.scale
+        shifts = np.linspace(self.alpha-ds, self.alpha+ds, nshifts)
         rotsumimg = self.tomogram_averaged_image.copy()
         npf = statistics.mode(self.pf_numbers)
+        best_shifts = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for deg in (360/npf*np.arange(1, npf)):
                 rimg = self.tomogram_averaged_image.rotate(deg, dims="zx")
@@ -537,13 +549,13 @@ class MTPath:
                 for i, dy in enumerate(shifts):
                     corrs.append(ip.zncc(
                         self.tomogram_averaged_image, 
-                        rimg.affine(translation=[0,dy,0])
+                        rimg.affine(translation=[0, dy, 0])
                         ))
                 imax = np.argmax(corrs)
                 shift = shifts[imax]
-                rotsumimg += rimg.affine(translation=[0,shift,0])
-                shifts = np.linspace(shift - 1/self.scale, shift + 1/self.scale, 7)
-        
+                best_shifts.append(shift)
+                rotsumimg += rimg.affine(translation=[0, shift, 0])
+        self.alpha = np.mean(best_shifts)
         return rotsumimg
     
 @delayed
@@ -555,28 +567,25 @@ def zncc_all(imgs, ref, shifts, rots, mask=None):
     yshifts = []
     zxrots = []
     out = []
-    if rots.ndim == 1:
-        rots = np.stack([rots]*len(shifts), axis=0)
-    
     with ip.SetConst("SHOW_PROGRESS", False):
-        for img in imgs:
+        for i, img in enumerate(imgs):
             if img is ref:
                 yshifts.append(0.0)
                 zxrots.append(0.0)
             else:
                 ref = delayed(ref)
-                corrs = np.zeros((len(shifts), len(rots[0]))).tolist()                
-                for i, dy in enumerate(shifts):
-                    for j, dtheta in enumerate(rots[i]):
+                corrs = np.zeros((len(shifts[0]), len(rots[0]))).tolist()                
+                for j, dy in enumerate(shifts[i]):
+                    for k, dtheta in enumerate(rots[i]):
                         task = _affine_zncc(ref, img, mask, [0, dy, 0], [0, dtheta, 0])
-                        corrs[i][j] = da.from_delayed(task, shape=(), dtype=np.float32)
+                        corrs[j][k] = da.from_delayed(task, shape=(), dtype=np.float32)
                 corrs = np.array(da.compute(corrs)[0], dtype=np.float32)
-                imax, jmax = np.unravel_index(np.argmax(corrs), corrs.shape)
-                shift = shifts[imax]
+                jmax, kmax = np.unravel_index(np.argmax(corrs), corrs.shape)
+                shift = shifts[i, jmax]
                 yshifts.append(shift)
-                deg = rots[i, jmax]
+                deg = rots[i, kmax]
                 zxrots.append(deg)
             out.append(img.affine(translation=[0, shift, 0], rotation=[0, deg, 0]))
             
-    return out, yshifts, zxrots
+    return out, np.array(yshifts), np.array(zxrots)
 

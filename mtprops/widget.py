@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING, TypeVar
 from collections import OrderedDict
 import numpy as np
 from scipy import ndimage as ndi
+import napari
 from napari.utils.colormaps.colormap import Colormap
-from napari.qt import progress, thread_worker
+from napari.qt import progress, thread_worker, create_worker
 from qtpy.QtWidgets import QMessageBox
 from qtpy.QtGui import QFont
 from pathlib import Path
@@ -17,6 +18,7 @@ from .mtpath import MTPath, calc_total_length
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
+    from napari._qt.qthreading import GeneratorWorker
 
 _V = TypeVar("_V")
 
@@ -79,6 +81,12 @@ def imread(img, binsize):
     
     return imgb
 
+def subtomogram_average(mtp: MTPath, niter, nshifts, nrots):
+    for x in mtp.average_tomograms(niter=niter, nshifts=nshifts, nrots=nrots):
+        yield x
+    
+    return x
+
 @magicclass
 class ImageLoader:
     path = field(Path)
@@ -100,12 +108,42 @@ class ImageLoader:
         self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
         self.scale.value = f"{self.img.scale.x:.3f}"
 
+
+
+@magicclass(layout="horizontal")
+class WorkerControl:
+    info = field(str)
+    
+    def __init__(self):
+        self.paused = False
+        self.worker: GeneratorWorker = None
+        self._last_info = ""
+    
+    def _set_worker(self, worker):
+        self.worker = worker
+        
+    def Pause(self):
+        if self.paused:
+            self.worker.resume()
+            self["Pause"].text = "Pause"
+            self.info.value = self._last_info
+        else:
+            self.worker.pause()
+            self["Pause"].text = "Resume"
+            self._last_info = self.info.value
+            self.info.value = "Pausing"
+        self.paused = not self.paused
+        
+    def Interrupt(self):
+        self.worker.quit()
+    
 @magicclass
 class MTProfiler:
     
     ### Index ###########################################################################
     
     _loader = field(ImageLoader)
+    _worker_control = field(WorkerControl)
     
     @magicclass(layout="horizontal", labels=False)
     class operation:
@@ -168,20 +206,68 @@ class MTProfiler:
         self._update_colormap()
         return None
     
-    def subtomogram_averaging(self):
+    @set_options(n_iter={"min": 1, "max": 2, "label": "Number of iterations"},
+                 n_shifts={"min": 3, "max": 31, "label": "Number of shifts"},
+                 n_rots={"min": 3, "max": 25, "label": "Number of rotations"})
+    def subtomogram_averaging(self, niter:int=2, nshifts:int=19, nrots:int=9):
         """
         Average subtomograms along a MT.
-        """        
-        df = self.current_mt.average_tomograms()
-        avg_img = self.current_mt.rot_average_tomogram()
-        table = Table(value=df)
-        self.parent_viewer.window.add_dock_widget(table)
+
+        Parameters
+        ----------
+        niter : int, default is 2
+            Number of iterations. MT template will be updated using the previous iteration.
+        nshifts : int, default is 19
+            Number of shifts along Y-axis to apply.
+        nrots : int, default is 5
+            Number of rotation angles in around Y-axis to apply.
+        """
+        worker = create_worker(self.current_mt.average_tomograms, 
+                               niter, nshifts, nrots,
+                               _progress={"total": niter, 
+                                          "desc": "Subtomogram averaging"}
+                               )
         
-        if self.light_background:
-            avg_img = -avg_img
+        viewer: napari.Viewer = self.parent_viewer
+        viewer.window._status_bar._toggle_activity_dock(True)
+        dialog = viewer.window._qt_window._activity_dialog
+        
+        self._worker_control._set_worker(worker)
+        self._worker_control.info.value = "iter 1"
+        dialog.layout().addWidget(self._worker_control.native)
+        
+        @worker.yielded.connect
+        def _on_yield(out):
+            df, avg_img = out
             
-        self.parent_viewer.add_image(avg_img, scale=avg_img.scale, name="AVG",
-                                     rendering="iso", iso_threshold=0.8)
+            if self.light_background:
+                avg_img = -avg_img
+            
+            avg_image_name = "AVG"
+            try:
+                viewer.layers[avg_image_name].data = avg_img
+            except KeyError:
+                layer = viewer.add_image(avg_img, scale=avg_img.scale, name=avg_image_name,
+                                         rendering="iso")
+                layer.iso_threshold = 0.8
+            
+            val = self._worker_control.info.value
+            _it = int(val.split(" ")[1])
+            self._worker_control.info.value = f"iter {_it+1}"
+            # TODO: change camera params
+        
+        @worker.returned.connect
+        def _on_return(out):
+            df, avg_img = out
+            table = Table(value=df)
+            viewer.window.add_dock_widget(table, name="Results")
+            
+        @worker.finished.connect
+        def _on_finish():
+            viewer.window._status_bar._toggle_activity_dock(False)
+            dialog.layout().removeWidget(self._worker_control.native)
+        
+        worker.start()
         return None
 
     def _update_colormap(self):
@@ -252,6 +338,9 @@ class MTProfiler:
         """        
         if self.dataframe is not None:
             raise ValueError("Data Frame list is not empty")
+        
+        if self.layer_work.data.size > 0:
+            self.register_path()
         
         df_list = []
         first_mtp = None
@@ -704,7 +793,6 @@ class MTProfiler:
         
         # Paint MTs by its pitch length
         self._paint_mt()
-        self._plot_pitch()
         
         self.layer_work.mode = "pan_zoom"
         self.parent_viewer.layers.selection = {self.layer_paint}
@@ -720,6 +808,8 @@ class MTProfiler:
         self.canvas.figure.add_subplot(132)
         self.canvas.figure.add_subplot(133)
         self._imshow_all()
+        
+        self._plot_pitch()
         
         self.parent_viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
         return None
@@ -839,4 +929,3 @@ class MTProfiler:
         self._plot_pitch()
         self._imshow_all()
         return None
-    
