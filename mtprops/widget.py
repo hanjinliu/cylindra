@@ -6,7 +6,6 @@ from scipy import ndimage as ndi
 import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import progress, thread_worker, create_worker
-from qtpy.QtWidgets import QMessageBox
 from qtpy.QtGui import QFont
 from pathlib import Path
 from magicgui.widgets import Table, TextEdit
@@ -15,6 +14,7 @@ import matplotlib.pyplot as plt
 from ._dependencies import impy as ip
 from ._dependencies import mcls, magicclass, field, button_design, click, set_options, Figure, TupleEdit, CheckButton
 from .mtpath import MTPath, calc_total_length
+from .const import Header
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
@@ -61,18 +61,15 @@ cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
 
 def cached_rotate(mtp:MTPath, image):
     try:
-        mtp._sub_images = cachemap[f"{image.name}-{mtp.label}", 
+        mtp.subtomograms = cachemap[f"{image.name}-{mtp.label}", 
                                    hash(str(mtp.points))]
     except KeyError:
-        mtp.load_images(image)
+        mtp.load_subtomograms(image)
         mtp.grad_path()
         mtp.rotate3d()
         cachemap[f"{image.name}-{mtp.label}",
-                 hash(str(mtp.points))] = mtp._sub_images
+                 hash(str(mtp.points))] = mtp.subtomograms
     return None
-
-def raise_error_message(parent, msg:str):
-    return QMessageBox.critical(parent, "Error", msg,QMessageBox.Ok)
 
 @thread_worker(progress={"total": 0, "desc": "Reading Image"})
 def imread(img, binsize):
@@ -80,12 +77,6 @@ def imread(img, binsize):
         imgb = img.binning(binsize, check_edges=False).data
     
     return imgb
-
-def subtomogram_average(mtp: MTPath, niter, nshifts, nrots):
-    for x in mtp.average_tomograms(niter=niter, nshifts=nshifts, nrots=nrots):
-        yield x
-    
-    return x
 
 @magicclass
 class ImageLoader:
@@ -105,24 +96,32 @@ class ImageLoader:
     @path.connect
     def _read_scale(self, event):
         path = event.value
+        self._imread(path)
+    
+    def _imread(self, path:str):
         self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
         self.scale.value = f"{self.img.scale.x:.3f}"
 
 
 
-@magicclass(layout="horizontal")
+@magicclass(layout="horizontal", labels=False)
 class WorkerControl:
     info = field(str)
     
-    def __init__(self):
+    def __post_init__(self):
         self.paused = False
         self.worker: GeneratorWorker = None
         self._last_info = ""
+        self.metadata: dict[str] = {}
+        self.info.enabled = False
     
     def _set_worker(self, worker):
         self.worker = worker
         
     def Pause(self):
+        """
+        Pause/Resume thread.
+        """        
         if self.paused:
             self.worker.resume()
             self["Pause"].text = "Pause"
@@ -135,6 +134,9 @@ class WorkerControl:
         self.paused = not self.paused
         
     def Interrupt(self):
+        """
+        Interrupt thread.
+        """        
         self.worker.quit()
     
 @magicclass
@@ -182,7 +184,7 @@ class MTProfiler:
     #####################################################################################
         
     POST_PROCESSING = [io.save_results, viewer_op.send_to_napari,
-                   viewer_op.show_table, viewer_op.show_3d_path]
+                       viewer_op.show_table, viewer_op.show_3d_path]
 
     POST_IMREAD = [io.from_csv_file, operation.register_path]
     
@@ -222,19 +224,17 @@ class MTProfiler:
         nrots : int, default is 5
             Number of rotation angles in around Y-axis to apply.
         """
-        worker = create_worker(self.current_mt.average_tomograms, 
+        viewer: napari.Viewer = self.parent_viewer
+        
+        worker = create_worker(self.current_mt.average_subtomograms, 
                                niter, nshifts, nrots,
                                _progress={"total": niter, 
                                           "desc": "Subtomogram averaging"}
                                )
         
-        viewer: napari.Viewer = self.parent_viewer
-        viewer.window._status_bar._toggle_activity_dock(True)
-        dialog = viewer.window._qt_window._activity_dialog
-        
-        self._worker_control._set_worker(worker)
-        self._worker_control.info.value = "iter 1"
-        dialog.layout().addWidget(self._worker_control.native)
+        self._connect_worker(worker)
+        self._worker_control.metadata["iter"] = 1
+        self._worker_control.info.value = "Iteration 1"
         
         @worker.yielded.connect
         def _on_yield(out):
@@ -251,22 +251,17 @@ class MTProfiler:
                                          rendering="iso")
                 layer.iso_threshold = 0.8
             
-            val = self._worker_control.info.value
-            _it = int(val.split(" ")[1])
-            self._worker_control.info.value = f"iter {_it+1}"
-            # TODO: change camera params
+            it = self._worker_control.metadata["iter"] + 1
+            self._worker_control.info.value = f"Iteration {it}"
+            self._worker_control.metadata["iter"] = it
+            viewer.camera.center = np.array(avg_img.shape)/2*avg_img.scale
         
         @worker.returned.connect
         def _on_return(out):
             df, avg_img = out
             table = Table(value=df)
             viewer.window.add_dock_widget(table, name="Results")
-            
-        @worker.finished.connect
-        def _on_finish():
-            viewer.window._status_bar._toggle_activity_dock(False)
-            dialog.layout().removeWidget(self._worker_control.native)
-        
+                
         worker.start()
         return None
 
@@ -291,8 +286,6 @@ class MTProfiler:
         self.settings()
         self.set_colormap()
         self.mt.pos.min_width = 70
-        self.canvas.ax.set_aspect("equal")
-        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         call_button = self._loader["call_button"]
         call_button.changed.connect(self._load_image)
                 
@@ -310,18 +303,16 @@ class MTProfiler:
         Register current selected points as a MT path.
         """        
         # check length
-        total_length = calc_total_length(self.layer_work.data)*self.image.scale.x
+        total_length = calc_total_length(self.layer_work.data)
         if total_length < self.interval*3:
-            raise_error_message(self.native,
-                                f"Path is too short: {total_length:.2f} nm\n"
-                                f"Must be longer than {self.interval*3:.2f} nm.")
-            return None
+            raise ValueError(f"Path is too short: {total_length:.2f} nm\n"
+                             f"Must be longer than {self.interval*3:.2f} nm.")
         
         self.layer_prof.add(self.layer_work.data)
         self.mt_paths.append(self.layer_work.data)
         self.canvas.ax.plot(self.layer_work.data[:,2], self.layer_work.data[:,1], color="gray", lw=2.5)
-        self.canvas.ax.set_xlim(0, self.image.sizeof("x"))
-        self.canvas.ax.set_ylim(self.image.sizeof("y"), 0)
+        self.canvas.ax.set_xlim(0, self.image.sizeof("x")*self.image.scale.x)
+        self.canvas.ax.set_ylim(self.image.sizeof("y")*self.image.scale.y, 0)
         self.canvas.ax.set_aspect("equal")
         self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         self.canvas.figure.tight_layout()
@@ -342,75 +333,72 @@ class MTProfiler:
         if self.layer_work.data.size > 0:
             self.register_path()
         
-        df_list = []
-        first_mtp = None
-        self.parent_viewer.window._status_bar._toggle_activity_dock(True)
-        with progress(self.mt_paths) as pbr:
-            for i, path in enumerate(pbr):
-                subpbr = progress(total=10, nest_under=pbr)
-                mtp = MTPath(self.image.scale.x, 
-                             label=i, 
-                             interval_nm=self.interval, 
-                             light_background=self.light_background,
-                             radius_pre_nm=self.radius_pre_nm,
-                             radius_nm=self.radius_nm
-                             )
-                             
-                try:
-                    subpbr.set_description("Loading images")
-                    mtp.set_path(path)
-                    mtp.load_images(self.image)
-                    subpbr.update(1)
-                    subpbr.set_description("Calculating MT path")
-                    mtp.grad_path()
-                    mtp.smooth_path()
-                    subpbr.update(1)
-                    subpbr.set_description("XY-rotation")
-                    mtp.rot_correction()
-                    subpbr.update(1)
-                    subpbr.set_description("X/Z-shift")
-                    mtp.zxshift_correction()
-                    subpbr.update(1)
-                    subpbr.set_description("Updating path edges")
-                    mtp.calc_center_shift()
-                    mtp.update_points()
-                    subpbr.update(1)
-                    subpbr.set_description("Reloading images")
-                    mtp.load_images(self.image)
-                    subpbr.update(1)
-                    subpbr.set_description("XYZ-rotation")
-                    mtp.grad_path()
-                    mtp.rotate3d()
-                    cachemap[f"{self.image.name}-{mtp.label}",
-                             hash(str(mtp.points))] = mtp._sub_images
-                    subpbr.update(1)
-                    subpbr.set_description("Determining MT radius")
-                    mtp.determine_radius()
-                    subpbr.update(1)
-                    subpbr.set_description("Calculating pitch lengths")
-                    mtp.calc_pitch_length()
-                    subpbr.update(1)
-                    subpbr.set_description("Calculating PF numbers")
-                    mtp.calc_pf_number()
-                    subpbr.update(1)
-                    
-                    df = mtp.to_dataframe()
-                    df_list.append(df)
-                    
-                    subpbr.close()
-                    
-                    if i == 0:
-                        first_mtp = mtp
-                        
-                except Exception as e:
-                    raise_error_message(self.native, f"Error in iteration {i}.\n\n{e.__class__.__name__}: {e}")
-                    break
-            
+        worker = create_worker(self._run_all, 
+                               _progress={"total": len(self.mt_paths)*14, 
+                                          "desc": "Running MTProps"}
+                               )
+        
+        self._connect_worker(worker)
+        @worker.yielded.connect
+        def _on_yield(out):
+            if isinstance(out, str):
+                self._worker_control.info.value = out
             else:
-                self.parent_viewer.window._status_bar._toggle_activity_dock(False)
-                self._from_dataframe(pd.concat(df_list, axis=0), first_mtp)
-                
+                pass
+            
+        @worker.returned.connect
+        def _on_return(out):
+            self._from_dataframe(pd.concat(out, axis=0))
+        
+        worker.start()
         return None
+    
+    def _run_all(self):
+        df_list = []
+        for i, path in enumerate(self.mt_paths):
+            mtp = MTPath(self.image.scale.x, 
+                        label=i, 
+                        interval_nm=self.interval, 
+                        light_background=self.light_background,
+                        radius_pre_nm=self.radius_pre_nm,
+                        radius_nm=self.radius_nm
+                        )
+                
+            yield "Calculating path coordinates ..."
+            mtp.set_path(path)
+            yield "Loading image patches ..."
+            mtp.load_subtomograms(self.image)
+            yield "Calculating path gradient ..."
+            mtp.grad_path()
+            yield "XY angular correlation ..."
+            mtp.smooth_path()
+            yield "XY rotation ..."
+            mtp.rot_correction()
+            yield "XZ cross correlation ..."
+            mtp.zxshift_correction()
+            yield "XZ shift correction ..."
+            mtp.calc_center_shift()
+            yield "Fitting MT with B-spline ..."
+            mtp.get_spline()
+            yield "Reloading image patches ..."
+            mtp.load_subtomograms(self.image)
+            yield "3D rotation ..."
+            mtp.rotate3d()
+            cachemap[f"{self.image.name}-{mtp.label}",
+                        hash(str(mtp.points))] = mtp.subtomograms
+            yield "Calculating MT Radius ..."
+            mtp.determine_radius()
+            yield "Calculating pitch lengths ..."
+            mtp.calc_pitch_lengths()
+            yield "Calculating PF numbers ..."
+            mtp.calc_pf_numbers()
+            
+            df = mtp.to_dataframe()
+            df_list.append(df)
+        
+            yield mtp
+        
+        return df_list
     
     @operation.wraps
     @set_options(radius_pre_nm={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
@@ -461,10 +449,15 @@ class MTProfiler:
         Clear all.
         """        
         self._init_layers()
-        if hasattr(self, "canvas"):
-            self.canvas.figure.clf()
-            self.canvas.figure.add_subplot(111)
-            self.canvas.draw()
+        self.canvas.figure.clf()
+        self.canvas.figure.add_subplot(111)
+        self.canvas.draw()
+        self.canvas.ax.set_aspect("equal")
+        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.plot.figure.clf()
+        self.plot.figure.add_subplot(111)
+        self.plot.draw()
+        
         cachemap.clear()
         return None
     
@@ -536,7 +529,7 @@ class MTProfiler:
         if self.dataframe is None:
             return None
         i = self.mt.pos.value
-        img = self.current_mt._sub_images[i]
+        img = self.current_mt.subtomograms[i]
         self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
                                      rendering="minip" if self.light_background else "mip")
         return None
@@ -563,9 +556,8 @@ class MTProfiler:
         viewer = self.parent_viewer
         i = self.mt.pos.value
         scale = viewer.layers["MT Profiles"].scale
-        next_coords = self.current_mt.points[i]
-        next_center = next_coords * scale
-        viewer.dims.current_step = list(next_coords.astype(np.int64))
+        next_center = self.current_mt.points[i]
+        viewer.dims.current_step = list(next_center.astype(np.int64))
         
         viewer.camera.center = next_center
         zoom = viewer.camera.zoom
@@ -574,7 +566,7 @@ class MTProfiler:
         
         self.layer_paint.show_selected_label = True
         for k, (_, row) in enumerate(self.dataframe.iterrows()):
-            if row["label"] == self.current_mt.label and row["number"] == i:
+            if row[Header.label] == self.current_mt.label and row[Header.number] == i:
                 self.layer_paint.selected_label = k+1
                 break
         return None
@@ -598,10 +590,10 @@ class MTProfiler:
         Show 3D paths of microtubule center axes.
         """        
         paths = []
-        for _, df in self.dataframe.groupby("label"):
-            paths.append(df[["z", "y", "x"]].values/self.binsize)
+        for _, df in self.dataframe.groupby(Header.label):
+            paths.append(df[Header.zyx()].values/self.binsize)
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
-                                      scale=self.layer_image.scale, translate=self.layer_image.translate)
+                                      translate=self.layer_image.translate)
         return None
     
     @click(visible=False)
@@ -652,7 +644,7 @@ class MTProfiler:
 
         # paint roughly
         for i, (_, row) in enumerate(self.dataframe.iterrows()):
-            center = row[["z","y","x"]].astype(np.int16)//self.binsize
+            center = (row[Header.zyx()]/self.image.scale.x).astype(np.int16)//self.binsize
             sl = []
             outsl = []
             # We should deal with the borders of image.
@@ -682,7 +674,7 @@ class MTProfiler:
         
         # Labels layer properties
         props = pd.DataFrame([])
-        props["ID"] = self.dataframe.apply(lambda x: "{}-{}".format(x["label"], x["number"]), axis=1)
+        props["ID"] = self.dataframe.apply(lambda x: "{}-{}".format(x[Header.label], x[Header.number]), axis=1)
         props["pitch"] = self.dataframe["pitch"].map("{:.2f}".format)
         props["nPF"] = self.dataframe["nPF"]
         back = pd.DataFrame({"ID": [np.nan], "pitch": [np.nan], "nPF": [np.nan]})
@@ -702,19 +694,14 @@ class MTProfiler:
         """
         Prepare current MTPath object from data frame.
         """        
-        df = self.dataframe[self.dataframe["label"]==label]
+        df = self.dataframe[self.dataframe[Header.label]==label]
         mtp = MTPath(self.image.scale.x, 
                      label=label, 
                      interval_nm=self.interval,
                      light_background=self.light_background
                      )
-        mtp.points = df[["z","y","x"]].values
+        mtp.from_dataframe(df)
         cached_rotate(mtp, self.image)
-        mtp.radius_peak = float(df["MTradius"].values[0])
-        mtp.pitch_lengths = df["pitch"].values
-        mtp._pf_numbers = df["nPF"].values
-        mtp.grad_angles_yx = df["angle_yx"]
-        mtp.grad_angles_zy = df["angle_zy"]
         return mtp
     
     def _plot_pitch(self):
@@ -732,11 +719,15 @@ class MTProfiler:
     
     @click(disables=POST_PROCESSING, enables=POST_IMREAD)
     def _load_image(self, event=None):
-        self.parent_viewer.window._status_bar._toggle_activity_dock(True)
         img = self._loader.img
         worker = imread(img, self.binsize)
+        self._connect_worker(worker)
+        self._worker_control.info.value = \
+            f"original image: {img.shape}, " \
+            f"binned image: {tuple(s//self.binsize for s in img.shape)}"
+        
         @worker.returned.connect
-        def _(imgb):
+        def _on_return(imgb):
             self._init_widget_params()
             tr = (self.binsize-1)/2*img.scale.x
             if self.layer_image not in self.parent_viewer.layers:
@@ -760,13 +751,13 @@ class MTProfiler:
             self.image = img
 
             self.clear_all()
-            self.parent_viewer.window._status_bar._toggle_activity_dock(False)
             return None
+        
         worker.start()
         self._loader.close()
         return None
     
-    def _from_dataframe(self, df:pd.DataFrame, mtp:MTPath=None):
+    def _from_dataframe(self, df:pd.DataFrame):
         """
         Convert data frame information into points layer and update widgets. If the first MTPath object
         is available, use mtp argument.
@@ -776,15 +767,13 @@ class MTProfiler:
         self.dataframe = df
         
         # Set current MT to the first MT in the DataFrame
-        if mtp is None:
-            mtp = self._get_one_mt(0)
-            mtp.points = df[df["label"]==0][["z", "y", "x"]].values
+        mtp = self._get_one_mt(0)
         
         # Add a column for note
         df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
         
         # Show text
-        self.layer_prof.data = df[["z", "y", "x"]].values
+        self.layer_prof.data = mtp.points
         self.layer_prof.properties = df
         self.layer_prof.text.visible = False
         self.layer_prof.face_color = [0, 0, 0, 0]
@@ -799,7 +788,7 @@ class MTProfiler:
         
         # initialize GUI
         self._init_widget_params()
-        self.mt.mtlabel.max = len(df["label"].unique())-1
+        self.mt.mtlabel.max = len(df[Header.label].unique())-1
         self.mt.pos.max = mtp.npoints-1
         self._mtpath = mtp
         
@@ -811,7 +800,7 @@ class MTProfiler:
         
         self._plot_pitch()
         
-        self.parent_viewer.dims.current_step = (int(df["z"].mean()), 0, 0)
+        self.parent_viewer.dims.current_step = (int(df[Header.z].mean()), 0, 0)
         return None
     
     def _init_widget_params(self):
@@ -829,7 +818,7 @@ class MTProfiler:
         viewer = self.parent_viewer
         img = self.image
         
-        common_properties = dict(ndim=3, n_dimensional=True, scale=img.scale, size=4/img.scale.x)
+        common_properties = dict(ndim=3, n_dimensional=True, size=4/img.scale.x)
         if self.layer_prof in self.parent_viewer.layers:
             self.layer_prof.name = "MT Profiles-old"
     
@@ -871,7 +860,7 @@ class MTProfiler:
         return None
     
     @mt.pos.connect
-    def _imshow_all(self):
+    def _imshow_all(self, event=None):
         if self.dataframe is None:
             return None
         i = self.mt.pos.value
@@ -881,15 +870,15 @@ class MTProfiler:
         
         for j in range(3):
             self.canvas.axes[j].cla()
-            self.canvas.axes[j].tick_params(labelbottom=False,labelleft=False, labelright=False, labeltop=False)
+            self.canvas.axes[j].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
             
-        subimg = self.current_mt._sub_images[i]
-        lz, ly, lx = subimg.shape
+        subtomo = self.current_mt.subtomograms[i]
+        lz, ly, lx = subtomo.shape
         with ip.SetConst("SHOW_PROGRESS", False):
-            self.canvas.axes[0].imshow(subimg.proj("z"), cmap="gray")
+            self.canvas.axes[0].imshow(subtomo.proj("z"), cmap="gray")
             self.canvas.axes[0].set_xlabel("x")
             self.canvas.axes[0].set_ylabel("y")
-            self.canvas.axes[1].imshow(subimg.proj("y"), cmap="gray")
+            self.canvas.axes[1].imshow(subtomo.proj("y"), cmap="gray")
             self.canvas.axes[1].set_xlabel("x")
             self.canvas.axes[1].set_ylabel("z")
             self.canvas.axes[2].imshow(self.current_mt.average_images[i], cmap="gray")
@@ -916,16 +905,32 @@ class MTProfiler:
     @line_edit.connect
     def _update_note(self, event=None):
         df = self.dataframe
-        df.loc[df["label"]==self.mt.mtlabel.value, "Note"] = self.line_edit.value
+        df.loc[df[Header.label]==self.mt.mtlabel.value, "Note"] = self.line_edit.value
         return None
     
     @mt.mtlabel.connect
     def _update_mtpath(self, event=None):
         self._mtpath = self._get_one_mt(self.mt.mtlabel.value)
         self.mt.pos.max = self._mtpath.npoints-1
-        sl = self.dataframe["label"] == self.mt.mtlabel.value
+        sl = self.dataframe[Header.label] == self.mt.mtlabel.value
         note = self.dataframe[sl]["Note"].values[0]
         self.line_edit.value = note
         self._plot_pitch()
         self._imshow_all()
         return None
+    
+    def _connect_worker(self, worker):
+        self._worker_control._set_worker(worker)
+        viewer: napari.Viewer = self.parent_viewer
+        viewer.window._status_bar._toggle_activity_dock(True)
+        dialog = viewer.window._qt_window._activity_dialog
+        
+        @worker.finished.connect
+        def _on_finish():
+            # BUG: not called after loading image
+            viewer.window._status_bar._toggle_activity_dock(False)
+            dialog.layout().removeWidget(self._worker_control.native)
+            
+        dialog.layout().addWidget(self._worker_control.native)
+        return None
+        

@@ -14,19 +14,18 @@ def start(viewer:"napari.Viewer"=None):
     return mtprof
 
 def load(df:str|pd.DataFrame, 
-         img:str|"ip.arrays.LazyImgArray",
-         viewer:"napari.Viewer"=None,
-         binsize:int=4):
+         img:str,
+         viewer:"napari.Viewer"=None
+         ):
     if isinstance(df, str):
         df = pd.read_csv(df)
-    if isinstance(img, str):
-        img = ip.lazy_imread(img, chunks=(64, 1024, 1024))
     if viewer is None:
         viewer = napari.Viewer()
     mtprof = MTProfiler()
-    mtprof._load_image(img, binsize=binsize)
-    mtprof._from_dataframe(df)
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
                                          name="MT Profiler")
     dock.setMinimumHeight(300)
+    mtprof._loader._imread(img)
+    mtprof._load_image()
+    mtprof._from_dataframe(df)
     return mtprof
