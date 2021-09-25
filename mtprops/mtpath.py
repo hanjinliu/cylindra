@@ -3,16 +3,13 @@ import statistics
 import numpy as np
 from numba import jit
 from skimage.transform import warp_polar
-from scipy.interpolate import UnivariateSpline
 from scipy import ndimage as ndi
 from ._dependencies import impy as ip
 import pandas as pd
 from dask import delayed, array as da
 
-def spline_filter(data, s=None) -> np.ndarray:
-    x = np.arange(data.size)
-    spl = UnivariateSpline(x, data, s=s)
-    return spl(x)
+from .const import Header
+from .spline import Spline3D
 
 def make_slice_and_pad(center, radius, size):
     z0 = center - radius
@@ -32,7 +29,7 @@ def calc_total_length(path):
     total_length = np.sum(each_length)
     return total_length
 
-def load_subimage(img, pos, radius:tuple[int, int, int]):
+def _load_subtomograms(img, pos, radius:tuple[int, int, int]):
     """
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
@@ -199,11 +196,11 @@ class MTPath:
         self.radius_pre = np.array(radius_pre_nm)
         self.radius = np.array(radius_nm)
         self.light_background = light_background
-        self.alpha = 0.0
         
         self.points: np.ndarray = None
+        self.spl: Spline3D = None
         
-        self._sub_images: list[np.ndarray] = []
+        self.subtomograms: list[np.ndarray] = []
         
         self.grad_angles_yx: np.ndarray = None
         self.grad_angles_zy: np.ndarray = None
@@ -220,7 +217,7 @@ class MTPath:
     @property
     def pf_numbers(self):
         if self._pf_numbers is None:
-            self.calc_pf_number()
+            self.calc_pf_numbers()
         return self._pf_numbers
     
     @pf_numbers.setter
@@ -230,7 +227,7 @@ class MTPath:
     @property
     def average_images(self):
         if self._average_images is None:
-            self.rotational_averages()
+            self.rot_ave_zx()
         return self._average_images
     
     @average_images.setter
@@ -240,15 +237,8 @@ class MTPath:
     @property
     def curvature(self):
         # https://en.wikipedia.org/wiki/Curvature#Space_curves
-        z = self.points[:, 0]
-        y = self.points[:, 1]
-        x = self.points[:, 2]
-        dz = np.gradient(z)
-        dy = np.gradient(y)
-        dx = np.gradient(x)
-        ddz = np.gradient(dz)
-        ddy = np.gradient(dy)
-        ddx = np.gradient(dx)
+        dz, dy, dx = self.spl.partition(self.npoints, 1).T
+        ddz, ddy, ddx = self.spl.partition(self.npoints, 2).T
         a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
         return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.interval
     
@@ -263,18 +253,19 @@ class MTPath:
         return new
         
     def set_path(self, coordinates):
+        # coordinates: nm
         original_points = np.asarray(coordinates, dtype=np.float32)
-        self.points = get_coordinates(original_points, self.interval/self.scale)
+        self.points = get_coordinates(original_points, self.interval)
         return self
     
-    def load_images(self, img):
+    def load_subtomograms(self, img):
         """
         From a large image crop out sub-images around each point of the path.
         """        
-        self._sub_images.clear()
+        self.subtomograms.clear()
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                self._sub_images.append(load_subimage(img, self.points[i], self.radius_pre))
+                self.subtomograms.append(_load_subtomograms(img, self.points[i]/self.scale, self.radius_pre))
         return self
     
     def grad_path(self):
@@ -300,8 +291,8 @@ class MTPath:
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
             for i in range(1, self.npoints-1):
-                task = angle_corr(self._sub_images[i], self.grad_angles_yx[i])
-                tasks.append(da.from_delayed(task, shape=(), dtype=np.float64))
+                task = angle_corr(self.subtomograms[i], self.grad_angles_yx[i])
+                tasks.append(da.from_delayed(task, shape=(), dtype=np.float32))
             new_angles = np.array([0] + da.compute(tasks)[0] + [0])
         
         size = 2*int(round(48/self.interval)) + 1
@@ -312,7 +303,7 @@ class MTPath:
 
     def rot_correction(self):
         with ip.SetConst("SHOW_PROGRESS", False):
-            for i, img in enumerate(self._sub_images):
+            for i, img in enumerate(self.subtomograms):
                 angle = self.grad_angles_yx[i]
                 img.rotate(-angle, cval=np.median(img), update=True)
         
@@ -324,13 +315,13 @@ class MTPath:
         sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             iref = self.npoints//2
-            imgref = self._sub_images[iref].proj("y")
+            imgref = self.subtomograms[iref].proj("y")
             shape = np.array(imgref.shape)
             shifts = [] # zx-shift
             bg = np.median(imgref)
             for i in range(self.npoints):
                 if i != iref:
-                    corr = imgref.ncc_filter(self._sub_images[i][sl].proj("y"), bg=bg) # ncc or pcc??
+                    corr = imgref.ncc_filter(self.subtomograms[i][sl].proj("y"), bg=bg) # ncc or pcc??
                     shift = np.unravel_index(np.argmax(corr), shape) - shape/2
                 else:
                     shift = np.array([0, 0])
@@ -346,7 +337,7 @@ class MTPath:
         with ip.SetConst("SHOW_PROGRESS", False):
             imgs = []
             for i in range(self.npoints):
-                img = self._sub_images[i].proj("y")
+                img = self.subtomograms[i].proj("y")
                 shift = self.shifts[i]
                 imgs.append(img.affine(translation=-shift)[sl])
             imgs = np.stack(imgs, axis="y")
@@ -356,8 +347,8 @@ class MTPath:
         
         return self
     
-    def update_points(self):
-        coords = self.points.copy()
+    def get_spline(self):
+        coords = self.points.copy() # unit: nm
         for i in range(self.npoints):
             shiftz, shiftx = -self.shifts[i]
             shift = np.array([shiftz, 0, shiftx])
@@ -368,30 +359,38 @@ class MTPath:
             shift = shift @ [[1.,   0.,  0.],
                              [0.,  cos, sin],
                              [0., -sin, cos]]
-            coords[i] += shift
+            coords[i] += shift * self.scale
 
-        s = (1/self.scale)**2 * coords.shape[0]
-        for i in range(3):
-            coords[:,i] = spline_filter(coords[:,i], s=s)
+        error_nm = 1.0
+        sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
+        self.spl = Spline3D(coords, s=sqsum)
+        self.points = self.spl(self.spl.u)
         
-        self.points = coords
+        # update gradients
+        self._spl2grad()
         return self
+    
+    def _spl2grad(self):
+        dr  = self.spl(self.spl.u, 1)
+        self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
+        self.grad_angles_zy = np.rad2deg(np.arctan(np.sign(dr[:,1])*dr[:,0]/np.abs(dr[:,1])))
+        return None
     
     def rotate3d(self):
         tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                img = self._sub_images[i]
+                img = self.subtomograms[i]
                 zy = self.grad_angles_zy[i]
                 yx = self.grad_angles_yx[i]
                 tasks.append(da.from_delayed(rot3d(img, yx, zy), shape=img.shape, dtype=np.float32))
             out = da.compute(tasks)[0]
-        self._sub_images = out
+        self.subtomograms = out
         return self
     
     def determine_radius(self):
         with ip.SetConst("SHOW_PROGRESS", False):
-            sum_img = sum(self._sub_images)
+            sum_img = sum(self.subtomograms)
             nbin = 17
             r_max = 17
             
@@ -400,27 +399,27 @@ class MTPath:
                 r_peak = np.argmin(img2d.radial_profile(nbin=nbin, r_max=r_max))/nbin*r_max
             else:
                 r_peak = np.argmax(img2d.radial_profile(nbin=nbin, r_max=r_max))/nbin*r_max
-            self.radius_peak = r_peak
+            self.radius_peak = r_peak # unit: nm
         return self
             
     
     def calc_pitch_xyz(self):
         self.pitch_lengths = []
         with ip.SetConst("SHOW_PROGRESS", False):
-            for img in self._sub_images:
+            for img in self.subtomograms:
                 img = img.crop_kernel((self.radius/self.scale).astype(np.int32))
                 pitch = _calc_pitch_length_xyz(img)
                 self.pitch_lengths.append(pitch)
         return self
     
-    def calc_pitch_length(self):
+    def calc_pitch_lengths(self):
         self.pitch_lengths = []
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
         tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
-            for img in self._sub_images:
+            for img in self.subtomograms:
                 r = self.radius_peak/self.scale
                 pitch = _calc_pitch_length(img[sl], 
                                            int(r*self.__class__.inner),
@@ -431,24 +430,17 @@ class MTPath:
 
         return self
 
-    def calc_pf_number(self):
+    def calc_pf_numbers(self):
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
         
         # make mask
-        shape = self._sub_images[0].sizesof("zx")
-        mask = np.zeros(shape, dtype=np.bool_)
-        z, x = np.indices(shape)
-        cz, cx = np.array(shape)/2 - 0.5
-        _sq = (z-cz)**2 + (x-cx)**2
-        r = self.radius_peak/self.scale
-        mask[_sq < (r*self.__class__.inner)**2] = True
-        mask[_sq > (r*self.__class__.outer)**2] = True
+        mask = self._mt_mask(self.subtomograms[0].sizesof("zx"))
         
         tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
-            for img in self._sub_images:
+            for img in self.subtomograms:
                 npf = _calc_pf_number(img[sl].proj("y"), mask)
                 tasks.append(da.from_delayed(npf, shape=(), dtype=np.float64))
             
@@ -456,7 +448,7 @@ class MTPath:
         
         return self
     
-    def rotational_averages(self):
+    def rot_ave_zx(self):
         average_images = []
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
@@ -464,51 +456,52 @@ class MTPath:
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
                 npf = self.pf_numbers[i]
-                img = self._sub_images[i]
+                img = self.subtomograms[i]
                 av = rotational_average(img[sl].proj("y"), npf)
                 average_images.append(av)
         self.average_images = average_images
         return self
     
     def to_dataframe(self):
-        data = {"label": np.array([self.label]*self.npoints, dtype=np.uint16),
-                "number": np.arange(self.npoints, dtype=np.uint16),
-                "z": self.points[:, 0],
-                "y": self.points[:, 1],
-                "x": self.points[:, 2],
-                "angle_yx": self.grad_angles_yx,
-                "angle_zy": self.grad_angles_zy,
-                "MTradius": [self.radius_peak]*self.npoints,
-                "curvature": self.curvature,
-                "pitch": self.pitch_lengths,
-                "nPF": self.pf_numbers,
+        t, c, k = self.spl.tck
+        data = {Header.label        : np.array([self.label]*self.npoints, dtype=np.uint16),
+                Header.number       : np.arange(self.npoints, dtype=np.uint16),
+                Header.z            : self.points[:, 0],
+                Header.y            : self.points[:, 1],
+                Header.x            : self.points[:, 2],
+                Header.MTradius     : [self.radius_peak]*self.npoints,
+                Header.pitch        : self.pitch_lengths,
+                Header.nPF          : self.pf_numbers,
+                Header.spl_knot_vec : t,
+                Header.spl_coeff_z  : c[0],
+                Header.spl_coeff_y  : c[1],
+                Header.spl_coeff_x  : c[2],
+                Header.spl_u        : self.spl.u
                 }
         df = pd.DataFrame(data)
         return df
     
-    def iter_run(self, img, path):
-        yield self.set_path(path)
-        yield self.load_images(img)
-        yield self.grad_path()
-        yield self.smooth_path()
-        yield self.rot_correction()
-        yield self.zxshift_correction()
-        yield self.calc_center_shift()
-        yield self.update_points()
-        yield self.load_images(img)
-        yield self.grad_path()
-        yield self.rotate3d()
-        yield self.determine_radius()
-        yield self.calc_pitch_length()
-        yield self.calc_pf_number()
-        yield self.rotational_averages()
+    def from_dataframe(self, df:pd.DataFrame):
+        self.points = df[Header.zyx()].values
+        self.radius_peak = df[Header.MTradius].values[0]
+        self.pitch_lengths = df[Header.pitch]
+        self.pf_numbers = df[Header.nPF]
+        self.spl = Spline3D.prep(t = df[Header.spl_knot_vec],
+                                 c = [df[Header.spl_coeff_z],
+                                      df[Header.spl_coeff_y],
+                                      df[Header.spl_coeff_x]],
+                                 u = df[Header.spl_u])
+        self._spl2grad()
+        return self
     
-    def average_tomograms(self, niter:int=2, nshifts:int=19, nrots:int=9):
+    def average_subtomograms(self, niter:int=2, nshifts:int=19, nrots:int=9):
         df = pd.DataFrame([])
         
         kernel_box = (self.radius/self.scale).astype(np.int32)
         with ip.SetConst("SHOW_PROGRESS", False):
-            input_imgs = [img.crop_kernel(kernel_box) for img in self._sub_images]
+            input_imgs = [img.crop_kernel(kernel_box) for img in self.subtomograms]
+        
+        mask = np.stack([self._mt_mask(input_imgs[0].sizesof("zx"))]*input_imgs[0].sizeof("y"), axis=1)
         
         # initialize
         dshift = 4.5/self.scale
@@ -516,47 +509,61 @@ class MTPath:
         yshifts = np.zeros(self.npoints)
         zxrots = np.zeros(self.npoints)
         ref = input_imgs[self.npoints//2]
+        offsets = None
                 
         for it in range(1, niter+1):
             # parameter candidates
-            shifts: np.ndarray = np.linspace(-dshift, dshift, nshifts).reshape(1,-1) + yshifts.reshape(-1, 1)
-            rots: np.ndarray = np.linspace(-drot, drot, nrots).reshape(1,-1) + zxrots.reshape(-1, 1)
+            shifts: np.ndarray = np.linspace(-dshift, dshift, nshifts).reshape(1, -1) + yshifts.reshape(-1, 1)
+            rots: np.ndarray = np.linspace(-drot, drot, nrots).reshape(1, -1) + zxrots.reshape(-1, 1)
             
             # optimize parameters by correlation maximization
-            out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots)
+            out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots, mask=mask)
             
             # update
-            dshift /= nshifts
-            drot /= nrots
             df[f"Yshift_{it}"] = yshifts
             df[f"ZXrot_{it}"] = zxrots
-            self.tomogram_averaged_image = sum(out)/len(out)
-            ref = self.rot_average_tomogram(dshift, nshifts)
+            self.tomogram_template = sum(out)/len(out)
+            
+            ref, offsets = self.rot_ave_subtomograms(dshift, nshifts, offsets=offsets)
+            dshift = dshift / nshifts * 1.5
+            drot = drot / nrots * 1.5
 
             yield df, ref
         return df, ref
     
-    def rot_average_tomogram(self, dshift:float=1.4, nshifts:int=9):
-        ds = dshift/self.scale
-        shifts = np.linspace(self.alpha-ds, self.alpha+ds, nshifts)
-        rotsumimg = self.tomogram_averaged_image.copy()
+    def rot_ave_subtomograms(self, dshift:float, nshifts:int=9, offsets=None):
+        rotsumimg = self.tomogram_template.copy()
         npf = statistics.mode(self.pf_numbers)
-        best_shifts = []
+        best_shifts = [] # unit: nm
+        offsets = offsets or np.zeros(npf) # unit: nm
+        
         with ip.SetConst("SHOW_PROGRESS", False):
-            for deg in (360/npf*np.arange(1, npf)):
-                rimg = self.tomogram_averaged_image.rotate(deg, dims="zx")
+            for n, deg in enumerate(360/npf*np.arange(npf)):
+                rimg = self.tomogram_template.rotate(deg, dims="zx")
                 corrs = []
-                for i, dy in enumerate(shifts):
+                offset = offsets[n]/self.scale # unit: nm -> pixel
+                shifts = np.linspace(offset-dshift, offset+dshift, nshifts)
+                for dy in shifts:
                     corrs.append(ip.zncc(
-                        self.tomogram_averaged_image, 
+                        self.tomogram_template, 
                         rimg.affine(translation=[0, dy, 0])
                         ))
                 imax = np.argmax(corrs)
                 shift = shifts[imax]
-                best_shifts.append(shift)
+                best_shifts.append(shift*self.scale)
                 rotsumimg += rimg.affine(translation=[0, shift, 0])
-        self.alpha = np.mean(best_shifts)
-        return rotsumimg
+
+        return rotsumimg, best_shifts
+
+    def _mt_mask(self, shape):
+        mask = np.zeros(shape, dtype=np.bool_)
+        z, x = np.indices(shape)
+        cz, cx = np.array(shape)/2 - 0.5
+        _sq = (z-cz)**2 + (x-cx)**2
+        r = self.radius_peak/self.scale
+        mask[_sq < (r*self.__class__.inner)**2] = True
+        mask[_sq > (r*self.__class__.outer)**2] = True
+        return mask
     
 @delayed
 def _affine_zncc(ref, img, mask, translation, rotation):
@@ -588,4 +595,4 @@ def zncc_all(imgs, ref, shifts, rots, mask=None):
             out.append(img.affine(translation=[0, shift, 0], rotation=[0, deg, 0]))
             
     return out, np.array(yshifts), np.array(zxrots)
-
+    
