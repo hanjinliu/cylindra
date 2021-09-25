@@ -160,8 +160,7 @@ def _calc_pitch_length_xyz(img3d):
     return pitch
 
 @delayed
-def _calc_pitch_length(img3d, rmin, rmax):
-    up = 20 # upsample factor along y-axis
+def _calc_pitch_length(img3d, rmin, rmax, up=20):
     peak_est = img3d.sizeof("y")/(4.16/img3d.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
@@ -414,7 +413,7 @@ class MTPath:
                 self.pitch_lengths.append(pitch)
         return self
     
-    def calc_pitch_lengths(self):
+    def calc_pitch_lengths(self, upsample_factor:int=20):
         self.pitch_lengths = []
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
@@ -425,7 +424,8 @@ class MTPath:
                 r = self.radius_peak/self.scale
                 pitch = _calc_pitch_length(img[sl], 
                                            int(r*self.__class__.inner),
-                                           int(r*self.__class__.outer))
+                                           int(r*self.__class__.outer),
+                                           up=upsample_factor)
                 tasks.append(da.from_delayed(pitch, shape=(), dtype=np.float64))
             
             self.pitch_lengths = da.compute(tasks)[0]

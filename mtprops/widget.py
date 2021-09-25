@@ -1,4 +1,3 @@
-from __future__ import annotations
 import pandas as pd
 from typing import TYPE_CHECKING, Callable, TypeVar
 from collections import OrderedDict
@@ -404,7 +403,7 @@ class MTProfiler:
             yield "Calculating MT Radius ..."
             mtp.determine_radius()
             yield "Calculating pitch lengths ..."
-            mtp.calc_pitch_lengths()
+            mtp.calc_pitch_lengths(self.upsample_factor)
             yield "Calculating PF numbers ..."
             mtp.calc_pf_numbers()
             
@@ -418,13 +417,15 @@ class MTProfiler:
     @operation.wraps
     @set_options(radius_pre_nm={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
                  radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
+                 upsample_factor={"min":12, "max":50},
                  bin_size={"min": 1, "max": 8})
     @button_design(text="⚙")
     def settings(self,
-                 interval_nm:float=24, 
+                 interval_nm:float=24.0, 
                  light_background:bool=True,
                  radius_pre_nm:tuple[float, float, float]=(22.0, 28.0, 28.0), 
                  radius_nm:tuple[float, float, float]=(16.7, 16.7, 16.7),
+                 upsample_factor:int=20,
                  bin_size:int=4):
         """
         Change MTProps setting.
@@ -438,6 +439,8 @@ class MTProfiler:
             Images in this range will be considered to determine MT tilt and shift.
         radius_nm : tuple[float, float, float]
             Images in this range will be considered to determine MT pitch length and PF number.
+        upsample_factor : int
+            Up-sampling factor for pitch length calculation.
         bin_size : int
             Binning (pixel) that will be applied to the image in the viewer. This parameter does
             not affect the results of analysis.
@@ -446,6 +449,7 @@ class MTProfiler:
         self.light_background = light_background
         self.radius_pre_nm = radius_pre_nm
         self.radius_nm = radius_nm
+        self.upsample_factor = upsample_factor
         self.binsize = bin_size
         if self.layer_image is not None:
             self.layer_image.rendering = "minip" if self.light_background else "mip"
@@ -649,7 +653,7 @@ class MTProfiler:
                 _sq = (z-lz//2)**2 + (x-lx//2)**2
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 domain = domain.astype(np.float32)
-                ry = int(self.interval/bin_scale/2)
+                ry = int(self.interval/bin_scale/2 + 0.5)
                 domain[:, :ly//2-ry] = 0
                 domain[:, ly//2+ry+1:] = 0
                 domain = ip.array(domain, axes="zyx")
