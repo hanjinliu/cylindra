@@ -1,4 +1,4 @@
-import warnings
+from __future__ import annotations
 import pandas as pd
 from typing import TYPE_CHECKING, Callable, TypeVar
 from collections import OrderedDict
@@ -48,7 +48,7 @@ class CacheMap:
     
     def pop(self) -> None:
         _, item = self.cache.popitem(last=False)
-        self.gb -= sum(a.nbytes for a in item)/1e9
+        self.gb -= sum(a.nbytes for a in item[1])/1e9
         return None
 
     def keys(self):
@@ -64,10 +64,9 @@ cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
 def cached_rotate(mtp:MTPath, image):
     try:
         mtp.subtomograms = cachemap[f"{image.name}-{mtp.label}", 
-                                   hash(str(mtp.points))]
+                                    hash(str(mtp.points))]
     except KeyError:
         mtp.load_subtomograms(image)
-        mtp.grad_path()
         mtp.rotate3d()
         cachemap[f"{image.name}-{mtp.label}",
                  hash(str(mtp.points))] = mtp.subtomograms
@@ -83,12 +82,7 @@ def imread(img, binsize):
 def repeat_command(command:Callable, max_iter:int=1000):
     count = 0
     while count < max_iter:
-        try:
-            out = command()
-        except Exception:
-            break
-        else:
-            yield out
+        yield command()
         count += 1
     return False
         
@@ -229,10 +223,10 @@ class MTProfiler:
         self._update_colormap()
         return None
     
-    @set_options(n_iter={"min": 1, "max": 2, "label": "Number of iterations"},
-                 n_shifts={"min": 3, "max": 31, "label": "Number of shifts"},
-                 n_rots={"min": 3, "max": 25, "label": "Number of rotations"})
-    def subtomogram_averaging(self, niter:int=2, nshifts:int=19, nrots:int=9):
+    @set_options(niter={"min": 1, "max": 5, "label": "Number of iterations"},
+                 nshifts={"min": 3, "max": 31, "label": "Number of shifts"},
+                 nrots={"min": 3, "max": 25, "label": "Number of rotations"})
+    def subtomogram_averaging(self, niter:int=3, nshifts:int=7, nrots:int=5):
         """
         Average subtomograms along a MT.
 
@@ -882,21 +876,22 @@ class MTProfiler:
         next_data = point * imgb.scale.x
         self.layer_work.add(next_data)
         msg = self._check_path()
+        if msg:
+            self.layer_work.data = self.layer_work.data[:-1]
+            raise ValueError(msg)
         viewer = self.parent_viewer
         viewer.camera.center = point
         zoom = viewer.camera.zoom
         viewer.camera.events.zoom()
         viewer.camera.zoom = zoom
         viewer.dims.current_step = list(next_data.astype(np.int64))
-        if msg:
-            self.layer_work.data = self.layer_work.data[:-1]
-            raise ValueError(msg)
         return None
     
     @auto_picker.wraps
     def auto_pick(self):
         for p in repeat_command(self._pick):
             self._add_point(p)
+        return None
                 
     def _check_path(self) -> str:
         imgshape_nm = np.array(self.image.shape) * self.image.scale.x

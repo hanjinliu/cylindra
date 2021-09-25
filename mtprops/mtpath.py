@@ -29,6 +29,14 @@ def calc_total_length(path):
     total_length = np.sum(each_length)
     return total_length
 
+def vector_to_grad(dr):
+    # Here, it is important that gradients in yx-plane are in range of -2pi:2pi while those in zy-plane
+    # are restricted in range of -pi:pi. Otherwise, MT polarity will be reversed more than once. This
+    # causes a problem that MT polarity appears the same no matter in which direction you see.
+    yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
+    zy = np.rad2deg(np.arctan(np.sign(dr[:,1])*dr[:,0]/np.abs(dr[:,1])))
+    return zy, yx
+
 def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
     """
     From large image ``img``, crop out small region centered at ``pos``.
@@ -276,12 +284,7 @@ class MTPath:
         Calculate gradient at each point of the path.
         """        
         dr  = np.gradient(self.points, axis=0)
-        
-        # Here, it is important that gradients in yx-plane are in range of -2pi:2pi while those in zy-plane
-        # are restricted in range of -pi:pi. Otherwise, MT polarity will be reversed more than once. This
-        # causes a problem that MT polarity appears the same no matter in which direction you see.
-        self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
-        self.grad_angles_zy = np.rad2deg(np.arctan(np.sign(dr[:,1])*dr[:,0]/np.abs(dr[:,1])))
+        self.grad_angles_zy, self.grad_angles_yx = vector_to_grad(dr)
         return self
     
     def smooth_path(self):
@@ -350,6 +353,7 @@ class MTPath:
         
         return self
     
+    
     def get_spline(self):
         coords = self.points.copy() # unit: nm
         for i in range(self.npoints):
@@ -371,8 +375,7 @@ class MTPath:
         
         # update gradients
         dr  = self.spl(self.spl.u, 1)
-        self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
-        self.grad_angles_zy = np.rad2deg(np.arctan(np.sign(dr[:,1])*dr[:,0]/np.abs(dr[:,1])))
+        self.grad_angles_zy, self.grad_angles_yx = vector_to_grad(dr)
         return self
     
     def rotate3d(self):
@@ -532,30 +535,32 @@ class MTPath:
             # update
             df[f"Yshift_{it}"] = yshifts
             df[f"ZXrot_{it}"] = zxrots
-            self.tomogram_template = sum(out)/len(out)
+            self.averaged_subtomogram = sum(out)/len(out)
             
             ref, offsets = self.rot_ave_subtomograms(dshift, nshifts, offsets=offsets)
             dshift = dshift / nshifts * 1.5
             drot = drot / nrots * 1.5
+            
+            self.tomogram_template = ref
 
             yield df, ref
         return df, ref
     
     def rot_ave_subtomograms(self, dshift:float, nshifts:int=9, offsets=None):
-        rotsumimg = self.tomogram_template.copy()
+        rotsumimg = self.averaged_subtomogram.copy()
         npf = statistics.mode(self.pf_numbers)
         best_shifts = [] # unit: nm
         offsets = offsets or np.zeros(npf) # unit: nm
         
         with ip.SetConst("SHOW_PROGRESS", False):
             for n, deg in enumerate(360/npf*np.arange(npf)):
-                rimg = self.tomogram_template.rotate(deg, dims="zx")
+                rimg = self.averaged_subtomogram.rotate(deg, dims="zx")
                 corrs = []
                 offset = offsets[n]/self.scale # unit: nm -> pixel
                 shifts = np.linspace(offset-dshift, offset+dshift, nshifts)
                 for dy in shifts:
                     corrs.append(ip.zncc(
-                        self.tomogram_template, 
+                        self.averaged_subtomogram, 
                         rimg.affine(translation=[0, dy, 0])
                         ))
                 imax = np.argmax(corrs)
@@ -564,6 +569,25 @@ class MTPath:
                 rotsumimg += rimg.affine(translation=[0, shift, 0])
 
         return rotsumimg, best_shifts
+    
+    def local_extrema(self):
+        """Find tubulin coordinates in averaged tomogram"""
+        if self.light_background:
+            ref = -self.tomogram_template
+        else:
+            ref = self.tomogram_template
+        
+        length = self.tomogram_template.sizeof("y")*self.scale
+        npf = int(statistics.mode(self.pf_numbers))
+        ntub = int((length/8-2)*npf)
+        
+        ref_gauss = ref.gaussian_filter(1.0/self.scale)
+        mask = np.stack([self._mt_mask(ref_gauss.sizesof("zx"))]*ref_gauss.sizeof("y"), axis=1)
+        ref_gauss.append_label(~mask)
+        peaks = ref_gauss.peak_local_max(min_distance=1.8/self.scale, topn_per_label=ntub)
+        
+        peaks = ref_gauss.centroid_sm(peaks, radius=int(1.8/self.scale))
+        return peaks.values*self.scale
 
     def _mt_mask(self, shape):
         mask = np.zeros(shape, dtype=np.bool_)
