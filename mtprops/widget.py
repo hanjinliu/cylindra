@@ -591,7 +591,7 @@ class MTProfiler:
         """        
         paths = []
         for _, df in self.dataframe.groupby(Header.label):
-            paths.append(df[Header.zyx()].values/self.binsize)
+            paths.append(df[Header.zyx()].values)
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
                                       translate=self.layer_image.translate)
         return None
@@ -635,8 +635,8 @@ class MTProfiler:
                 domain[:, :ly//2-ry] = 0
                 domain[:, ly//2+ry+1:] = 0
                 domain = ip.array(domain, axes="zyx")
-                ang_zy = row["angle_zy"]
-                ang_yx = row["angle_yx"]
+                ang_zy = row[Header.angle_zy]
+                ang_yx = row[Header.angle_yx]
                 tasks.append(da.from_delayed(rot3dinv(domain, ang_yx, ang_zy), shape=domain.shape, 
                                              dtype=np.float32) > 0.3)
             
@@ -675,8 +675,8 @@ class MTProfiler:
         # Labels layer properties
         props = pd.DataFrame([])
         props["ID"] = self.dataframe.apply(lambda x: "{}-{}".format(x[Header.label], x[Header.number]), axis=1)
-        props["pitch"] = self.dataframe["pitch"].map("{:.2f}".format)
-        props["nPF"] = self.dataframe["nPF"]
+        props["pitch"] = self.dataframe[Header.pitch].map("{:.2f} nm".format)
+        props["nPF"] = self.dataframe[Header.nPF]
         back = pd.DataFrame({"ID": [np.nan], "pitch": [np.nan], "nPF": [np.nan]})
         props = pd.concat([back, props])
         
@@ -772,14 +772,6 @@ class MTProfiler:
         # Add a column for note
         df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
         
-        # Show text
-        self.layer_prof.data = mtp.points
-        self.layer_prof.properties = df
-        self.layer_prof.text.visible = False
-        self.layer_prof.face_color = [0, 0, 0, 0]
-        self.layer_prof.edge_color = [0, 0, 0, 0]
-        self.layer_prof.selected_data = {}
-        
         # Paint MTs by its pitch length
         self._paint_mt()
         
@@ -818,7 +810,7 @@ class MTProfiler:
         viewer = self.parent_viewer
         img = self.image
         
-        common_properties = dict(ndim=3, n_dimensional=True, size=4/img.scale.x)
+        common_properties = dict(ndim=3, n_dimensional=True, size=1/img.scale.x)
         if self.layer_prof in self.parent_viewer.layers:
             self.layer_prof.name = "MT Profiles-old"
     

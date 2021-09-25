@@ -3,13 +3,18 @@ import numpy as np
 from scipy.interpolate import splprep, splev
 
 class Spline3D:
-    def __init__(self, coords:np.ndarray, k=3, s=None):
-        self.tck, self.u = splprep(coords.T, k=k, s=s)
+    tck: tuple[np.ndarray, list[np.ndarray], int]
+    u: np.ndarray
+    def __init__(self, coords:np.ndarray=None, k=3, s=None):
+        if coords is not None:
+            self.tck, self.u = splprep(coords.T, k=k, s=s)
         
     @classmethod
-    def prep(self, t, c, u):
+    def prep(cls, t, c, u):
+        self = cls()
         self.tck = (t, c, 3)
         self.u = u
+        return self
     
     def __call__(self, u:np.ndarray, der:int=0):
         coords = splev(u, self.tck, der=der)

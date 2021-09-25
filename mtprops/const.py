@@ -5,6 +5,8 @@ class Header:
     z = "z"
     y = "y"
     x = "x"
+    angle_zy = "angle_zy"
+    angle_yx = "angle_yx"
     MTradius = "MTradius"
     curvature = "curvature"
     pitch = "pitch"

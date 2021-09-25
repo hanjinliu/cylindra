@@ -464,33 +464,42 @@ class MTPath:
     
     def to_dataframe(self):
         t, c, k = self.spl.tck
+        n_nans = self.npoints - len(c[0])
+        nans = [np.nan] * n_nans
         data = {Header.label        : np.array([self.label]*self.npoints, dtype=np.uint16),
                 Header.number       : np.arange(self.npoints, dtype=np.uint16),
                 Header.z            : self.points[:, 0],
                 Header.y            : self.points[:, 1],
                 Header.x            : self.points[:, 2],
+                Header.angle_zy     : self.grad_angles_zy,
+                Header.angle_yx     : self.grad_angles_yx,
                 Header.MTradius     : [self.radius_peak]*self.npoints,
                 Header.pitch        : self.pitch_lengths,
                 Header.nPF          : self.pf_numbers,
-                Header.spl_knot_vec : t,
-                Header.spl_coeff_z  : c[0],
-                Header.spl_coeff_y  : c[1],
-                Header.spl_coeff_x  : c[2],
+                Header.spl_knot_vec : [str(t.tolist())[1:-1]] + [np.nan]*(self.npoints-1),
+                Header.spl_coeff_z  : c[0].tolist() + nans,
+                Header.spl_coeff_y  : c[1].tolist() + nans,
+                Header.spl_coeff_x  : c[2].tolist() + nans,
                 Header.spl_u        : self.spl.u
                 }
+        
         df = pd.DataFrame(data)
         return df
     
     def from_dataframe(self, df:pd.DataFrame):
         self.points = df[Header.zyx()].values
         self.radius_peak = df[Header.MTradius].values[0]
-        self.pitch_lengths = df[Header.pitch]
-        self.pf_numbers = df[Header.nPF]
-        self.spl = Spline3D.prep(t = df[Header.spl_knot_vec],
-                                 c = [df[Header.spl_coeff_z],
-                                      df[Header.spl_coeff_y],
-                                      df[Header.spl_coeff_x]],
-                                 u = df[Header.spl_u])
+        self.pitch_lengths = df[Header.pitch].values
+        self.pf_numbers = df[Header.nPF].values
+        
+        knot: str = df[Header.spl_knot_vec].values[0]
+        t = list(map(float, knot.split(",")))
+        self.spl = Spline3D.prep(t = np.array(t),
+                                 c = [df[Header.spl_coeff_z].dropna().values,
+                                      df[Header.spl_coeff_y].dropna().values,
+                                      df[Header.spl_coeff_x].dropna().values],
+                                 u = df[Header.spl_u].values
+                                 )
         self._spl2grad()
         return self
     
