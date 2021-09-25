@@ -1,4 +1,3 @@
-
 class Header:
     label = "label"
     number = "number"

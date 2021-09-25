@@ -1,5 +1,6 @@
+import warnings
 import pandas as pd
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 from collections import OrderedDict
 import numpy as np
 from scipy import ndimage as ndi
@@ -12,8 +13,9 @@ from magicgui.widgets import Table, TextEdit
 import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
-from ._dependencies import mcls, magicclass, field, button_design, click, set_options, Figure, TupleEdit, CheckButton
-from .mtpath import MTPath, calc_total_length
+from ._dependencies import (mcls, magicclass, field, button_design, click, set_options, 
+                            Figure, TupleEdit, CheckButton, Separator)
+from .mtpath import MTPath, angle_corr, calc_total_length, load_a_subtomogram
 from .const import Header
 
 if TYPE_CHECKING:
@@ -77,6 +79,19 @@ def imread(img, binsize):
         imgb = img.binning(binsize, check_edges=False).data
     
     return imgb
+
+def repeat_command(command:Callable, max_iter:int=1000):
+    count = 0
+    while count < max_iter:
+        try:
+            out = command()
+        except Exception:
+            break
+        else:
+            yield out
+        count += 1
+    return False
+        
 
 @magicclass
 class ImageLoader:
@@ -142,8 +157,6 @@ class WorkerControl:
 @magicclass
 class MTProfiler:
     
-    ### Index ###########################################################################
-    
     _loader = field(ImageLoader)
     _worker_control = field(WorkerControl)
     
@@ -162,6 +175,8 @@ class MTProfiler:
         def from_csv_file(self, path: Path): ...
         def save_results(self, path: Path): ...
     
+    sep0 = field(Separator)
+    
     @magicclass(layout="horizontal")
     class mt:
         mtlabel = field(int, options={"max": 0}, name="MTLabel")
@@ -176,18 +191,24 @@ class MTProfiler:
         def show_3d_path(self): ...
         def show_table(self): ...
         txt = field("X.XX nm / XX pf", options={"enabled": False}, name="result")
-    
+        
     line_edit = field(str, name="Note: ")
     
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of pitch lengths"})
-    
-    #####################################################################################
         
     POST_PROCESSING = [io.save_results, viewer_op.send_to_napari,
                        viewer_op.show_table, viewer_op.show_3d_path]
 
     POST_IMREAD = [io.from_csv_file, operation.register_path]
     
+    sep1 = field(Separator)
+    
+    @magicclass(layout="horizontal")
+    class auto_picker:
+        stride = field(50.0, options={"min": 10, "max": 100}, name="stride (nm)")
+        def pick(self): ...
+        def auto_pick(self): ...
+        
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
                  limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
@@ -366,7 +387,7 @@ class MTProfiler:
                 
             yield "Calculating path coordinates ..."
             mtp.set_path(path)
-            yield "Loading image patches ..."
+            yield "Loading subtomograms ..."
             mtp.load_subtomograms(self.image)
             yield "Calculating path gradient ..."
             mtp.grad_path()
@@ -380,7 +401,7 @@ class MTProfiler:
             mtp.calc_center_shift()
             yield "Fitting MT with B-spline ..."
             mtp.get_spline()
-            yield "Reloading image patches ..."
+            yield "Reloading subtomograms ..."
             mtp.load_subtomograms(self.image)
             yield "3D rotation ..."
             mtp.rotate3d()
@@ -405,8 +426,11 @@ class MTProfiler:
                  radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
                  bin_size={"min": 1, "max": 8})
     @button_design(text="⚙")
-    def settings(self, interval_nm:float=24, light_background:bool=True,
-                 radius_pre_nm=(22.0, 28.0, 28.0), radius_nm=(16.7, 16.7, 16.7),
+    def settings(self,
+                 interval_nm:float=24, 
+                 light_background:bool=True,
+                 radius_pre_nm:tuple[float, float, float]=(22.0, 28.0, 28.0), 
+                 radius_nm:tuple[float, float, float]=(16.7, 16.7, 16.7),
                  bin_size:int=4):
         """
         Change MTProps setting.
@@ -805,12 +829,105 @@ class MTProfiler:
         self.viewer_op.txt.value = "X.XX nm / XX pf"
         return None
     
+    @auto_picker.wraps
+    def pick(self):
+        """
+        Automatically pick MT center using previous two points.
+        """        
+        point = self._pick()
+        self._add_point(point)
+        return None
+    
+    def _pick(self):
+        stride_nm = self.auto_picker.stride.value
+        imgb = self.layer_image.data
+        try:
+            # orientation is point0 -> point1
+            point0: np.ndarray = self.layer_work.data[-2]/imgb.scale.x # unit: pixel
+            point1: np.ndarray = self.layer_work.data[-1]/imgb.scale.x
+        except IndexError:
+            raise IndexError("Auto pick needs at least two points in the working layer.")
+        
+        radius = [int(v/imgb.scale.x) for v in self.radius_pre_nm]
+        with ip.SetConst("SHOW_PROGRESS", False):
+            orientation = point1[1:] - point0[1:]
+            img = load_a_subtomogram(imgb, point1.astype(np.uint16), radius, dask=False)
+            center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
+            angle_deg = angle_corr(img, ang_center=center, drot=25, nrots=25)
+            angle_rad = np.deg2rad(angle_deg)
+            dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
+            if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
+                point2 = point1 + dr
+            else:
+                point2 = point1 - dr
+            
+            img_next = load_a_subtomogram(imgb, point2.astype(np.uint16), radius, dask=False)
+            
+            angle_deg2 = angle_corr(img_next, ang_center=angle_deg, drot=5, nrots=7)
+            
+            if np.deg2rad(angle_deg - angle_deg2)/stride_nm > 0.02:
+                raise ValueError("Angle changed too much.")
+            img_next_rot = img_next.rotate(-angle_deg2, cval=np.median(img_next))
+            proj = img_next_rot.proj("y")
+            proj_mirror = proj["z=::-1;x=::-1"]
+            shift = ip.pcc_maximum(proj, proj_mirror)
+            dz, dx = shift/2
+            
+        point2[0] += dz
+        point2[2] += dx
+        return point2
+        
+    def _add_point(self, point):
+        imgb = self.layer_image.data
+        next_data = point * imgb.scale.x
+        self.layer_work.add(next_data)
+        msg = self._check_path()
+        viewer = self.parent_viewer
+        viewer.camera.center = point
+        zoom = viewer.camera.zoom
+        viewer.camera.events.zoom()
+        viewer.camera.zoom = zoom
+        viewer.dims.current_step = list(next_data.astype(np.int64))
+        if msg:
+            self.layer_work.data = self.layer_work.data[:-1]
+            raise ValueError(msg)
+        return None
+    
+    @auto_picker.wraps
+    def auto_pick(self):
+        for p in repeat_command(self._pick):
+            self._add_point(p)
+                
+    def _check_path(self) -> str:
+        imgshape_nm = np.array(self.image.shape) * self.image.scale.x
+        if self.layer_work.data.shape[0] == 0:
+            return ""
+        else:
+            point0 = self.layer_work.data[-1]
+            if not np.all([r*0.7 <= p < s - r*0.7
+                           for p, s, r in zip(point0, imgshape_nm, self.radius_nm)]):
+                # outside image
+                return "Outside boundary."
+            elif self.layer_work.data.shape[0] >= 3:
+                point2, point1, point0 = self.layer_work.data[-3:]
+                vec2 = point2 - point1
+                vec0 = point0 - point1
+                len0 = np.sqrt(vec0.dot(vec0))
+                len2 = np.sqrt(vec2.dot(vec2))
+                cos1 = vec0.dot(vec2)/(len0*len2)
+                curvature = 2 * np.sqrt((1 - cos1**2) / sum((point2 - point0)**2))
+                if curvature > 0.02:
+                    # curvature is too large
+                    return f"Curvature {curvature} is too large for a MT."
+        
+        return ""
+    
     def _init_layers(self):
         # TODO: simpler implementation after napari==0.4.12
         viewer = self.parent_viewer
         img = self.image
         
-        common_properties = dict(ndim=3, n_dimensional=True, size=1/img.scale.x)
+        common_properties = dict(ndim=3, n_dimensional=True, size=16*img.scale.x)
         if self.layer_prof in self.parent_viewer.layers:
             self.layer_prof.name = "MT Profiles-old"
     

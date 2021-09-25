@@ -11,7 +11,7 @@ from dask import delayed, array as da
 from .const import Header
 from .spline import Spline3D
 
-def make_slice_and_pad(center, radius, size):
+def make_slice_and_pad(center:int, radius:int, size:int):
     z0 = center - radius
     z1 = center + radius + 1
     z0_pad = z1_pad = 0
@@ -29,7 +29,7 @@ def calc_total_length(path):
     total_length = np.sum(each_length)
     return total_length
 
-def _load_subtomograms(img, pos, radius:tuple[int, int, int]):
+def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
     """
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
@@ -41,7 +41,9 @@ def _load_subtomograms(img, pos, radius:tuple[int, int, int]):
     sl_z, pad_z = make_slice_and_pad(z, rz, sizez)
     sl_y, pad_y = make_slice_and_pad(y, ry, sizey)
     sl_x, pad_x = make_slice_and_pad(x, rx, sizex)
-    reg = img[sl_z, sl_y, sl_x].data
+    reg = img[sl_z, sl_y, sl_x]
+    if dask:
+        reg = reg.data
     with ip.SetConst("SHOW_PROGRESS", False):
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
@@ -89,13 +91,12 @@ def get_coordinates(path, interval):
         coords = coords[:,:-1]
     return coords.T
 
-@delayed
-def angle_corr(img, ang_center):
+def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     # img: 3D
     img_z = img.proj("z")
     mask = ip.circular_mask(img_z.sizeof("y")/2+2, img_z.shape)
     img_mirror = img_z["x=::-1"]
-    angs = np.linspace(ang_center-7, ang_center+7, 29, endpoint=True)
+    angs = np.linspace(ang_center-drot, ang_center+drot, nrots, endpoint=True)
     corrs = []
     f0 = np.sqrt(img_z.power_spectra(dims="yx", zero_norm=True))
     for ang in angs:
@@ -105,6 +106,8 @@ def angle_corr(img, ang_center):
         
     angle = angs[np.argmax(corrs)]
     return angle
+
+lazy_angle_corr = delayed(angle_corr)
     
 def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
     out = []
@@ -265,7 +268,7 @@ class MTPath:
         self.subtomograms.clear()
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in range(self.npoints):
-                self.subtomograms.append(_load_subtomograms(img, self.points[i]/self.scale, self.radius_pre))
+                self.subtomograms.append(load_a_subtomogram(img, self.points[i]/self.scale, self.radius_pre))
         return self
     
     def grad_path(self):
@@ -291,7 +294,7 @@ class MTPath:
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
             for i in range(1, self.npoints-1):
-                task = angle_corr(self.subtomograms[i], self.grad_angles_yx[i])
+                task = lazy_angle_corr(self.subtomograms[i], self.grad_angles_yx[i])
                 tasks.append(da.from_delayed(task, shape=(), dtype=np.float32))
             new_angles = np.array([0] + da.compute(tasks)[0] + [0])
         
@@ -367,14 +370,10 @@ class MTPath:
         self.points = self.spl(self.spl.u)
         
         # update gradients
-        self._spl2grad()
-        return self
-    
-    def _spl2grad(self):
         dr  = self.spl(self.spl.u, 1)
         self.grad_angles_yx = np.rad2deg(np.arctan2(-dr[:,2], dr[:,1]))
         self.grad_angles_zy = np.rad2deg(np.arctan(np.sign(dr[:,1])*dr[:,0]/np.abs(dr[:,1])))
-        return None
+        return self
     
     def rotate3d(self):
         tasks = []
@@ -491,6 +490,8 @@ class MTPath:
         self.radius_peak = df[Header.MTradius].values[0]
         self.pitch_lengths = df[Header.pitch].values
         self.pf_numbers = df[Header.nPF].values
+        self.grad_angles_zy = df[Header.angle_zy].values
+        self.grad_angles_yx = df[Header.angle_yx].values
         
         knot: str = df[Header.spl_knot_vec].values[0]
         t = list(map(float, knot.split(",")))
@@ -500,7 +501,7 @@ class MTPath:
                                       df[Header.spl_coeff_x].dropna().values],
                                  u = df[Header.spl_u].values
                                  )
-        self._spl2grad()
+        
         return self
     
     def average_subtomograms(self, niter:int=2, nshifts:int=19, nrots:int=9):
