@@ -1,13 +1,19 @@
 from __future__ import annotations
 import numpy as np
-from scipy.interpolate import splprep, splev
+from scipy.interpolate import splprep, splev, interp1d
 
 class Spline3D:
     tck: tuple[np.ndarray, list[np.ndarray], int]
     u: np.ndarray
     def __init__(self, coords:np.ndarray=None, k=3, s=None):
-        if coords is not None:
-            self.tck, self.u = splprep(coords.T, k=k, s=s)
+        if coords is None:
+            return None
+        
+        npoints = coords.shape[0]
+        if npoints < 4:
+            lin = interp1d(np.linspace(0, 1, npoints), coords.T)
+            coords = lin(np.linspace(0,1,4)).T
+        self.tck, self.u = splprep(coords.T, k=k, s=s)
         
     @classmethod
     def prep(cls, t, c, u):

@@ -11,6 +11,21 @@ from dask import delayed, array as da
 from .const import Header
 from .spline import Spline3D
 
+def _range(start:int, stop:int, step:int):
+    i = start
+    stop_ = stop - 1
+    while i < stop_:
+        yield i
+        i += step
+    yield stop_
+
+def _extend_with_nan(a, length):
+    a = list(a)
+    x = length - len(a)
+    if x < 0:
+        raise ValueError("Cannot extend. Input is longer than output.")
+    return a + [np.nan] * x
+
 def make_slice_and_pad(center:int, radius:int, size:int):
     z0 = center - radius
     z1 = center + radius + 1
@@ -207,6 +222,8 @@ class MTPath:
         self.radius = np.array(radius_nm)
         self.light_background = light_background
         
+        self._step: int = 1
+        
         self.points: np.ndarray = None
         self.spl: Spline3D = None
         
@@ -223,6 +240,10 @@ class MTPath:
     @property
     def npoints(self) -> int:
         return self.points.shape[0]
+    
+    @property
+    def ntomograms(self) -> int:
+        return len(self.subtomograms) # TODO: fix after using da.stack
     
     @property
     def pf_numbers(self):
@@ -254,6 +275,7 @@ class MTPath:
     
     
     def __add__(self, other:MTPath):
+        # TODO: test
         if not isinstance(other, MTPath):
             raise TypeError("Only MTPath can be added to MTPath")
         new = self.__class__(self, self.scale, interval_nm=self.interval, radius_pre_nm=self.radius_pre, 
@@ -262,10 +284,15 @@ class MTPath:
             setattr(new, attr, getattr(self, attr) + getattr(other, attr))
         return new
         
-    def set_path(self, coordinates):
+    def set_path(self, coordinates, step:int=None):
         # coordinates: nm
         original_points = np.asarray(coordinates, dtype=np.float32)
         self.points = get_coordinates(original_points, self.interval)
+        
+        # when interval is very short, we don't have to run angle/shift correction for all the subtomograms
+        self._step = step or max(int(30/self.interval), 1)
+        if np.ceil(self.npoints/self._step) < 4:
+            self._step = self.npoints//4
         return self
     
     def load_subtomograms(self, img):
@@ -274,8 +301,10 @@ class MTPath:
         """        
         self.subtomograms.clear()
         with ip.SetConst("SHOW_PROGRESS", False):
-            for i in range(self.npoints):
-                self.subtomograms.append(load_a_subtomogram(img, self.points[i]/self.scale, self.radius_pre))
+            for i in _range(0, self.npoints, self._step):
+                self.subtomograms.append(
+                    load_a_subtomogram(img, self.points[i]/self.scale, self.radius_pre)
+                    )
         return self
     
     def grad_path(self):
@@ -295,12 +324,12 @@ class MTPath:
         
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
-            for i in range(1, self.npoints-1):
+            for i in range(1, self.ntomograms-1):
                 task = lazy_angle_corr(self.subtomograms[i], self.grad_angles_yx[i])
                 tasks.append(da.from_delayed(task, shape=(), dtype=np.float32))
             new_angles = np.array([0] + da.compute(tasks)[0] + [0])
         
-        size = 2*int(round(48/self.interval)) + 1
+        size = 2*int(round(48/self.interval/self._step)) + 1
         if size > 1:
             new_angles = ndi.median_filter(new_angles, size=size, mode="mirror") # a b c d | c b a
         self.grad_angles_yx = new_angles
@@ -319,14 +348,15 @@ class MTPath:
         xlen = int(xlen0*0.8)
         sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
-            iref = self.npoints//2
+            iref = self.ntomograms//2
             imgref = self.subtomograms[iref].proj("y")
             shape = np.array(imgref.shape)
             shifts = [] # zx-shift
             bg = np.median(imgref)
-            for i in range(self.npoints):
+            for i in range(self.ntomograms):
+                # NCC based template matching is robust for lattice defect etc.
                 if i != iref:
-                    corr = imgref.ncc_filter(self.subtomograms[i][sl].proj("y"), bg=bg) # ncc or pcc??
+                    corr = imgref.ncc_filter(self.subtomograms[i][sl].proj("y"), bg=bg)
                     shift = np.unravel_index(np.argmax(corr), shape) - shape/2
                 else:
                     shift = np.array([0, 0])
@@ -341,7 +371,7 @@ class MTPath:
         sl = (slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
             imgs = []
-            for i in range(self.npoints):
+            for i in range(self.ntomograms):
                 img = self.subtomograms[i].proj("y")
                 shift = self.shifts[i]
                 imgs.append(img.affine(translation=-shift)[sl])
@@ -354,8 +384,8 @@ class MTPath:
     
     
     def get_spline(self):
-        coords = self.points.copy() # unit: nm
-        for i in range(self.npoints):
+        coords = np.array([self.points[i] for i in _range(0, self.npoints, self._step)], dtype=np.float32)
+        for i in range(self.ntomograms):
             shiftz, shiftx = -self.shifts[i]
             shift = np.array([shiftz, 0, shiftx])
             deg = self.grad_angles_yx[i]
@@ -370,11 +400,14 @@ class MTPath:
         error_nm = 1.0
         sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
         self.spl = Spline3D(coords, s=sqsum)
-        self.points = self.spl(self.spl.u)
         
         # update gradients
-        dr  = self.spl(self.spl.u, 1)
+        u = np.linspace(0, 1, self.npoints)
+        self.points = self.spl(u)
+        dr  = self.spl(u, der=1)
         self.grad_angles_zy, self.grad_angles_yx = vector_to_grad(dr)
+        del self.shifts
+        self._step = 1
         return self
     
     def rotate3d(self):
@@ -466,8 +499,7 @@ class MTPath:
     
     def to_dataframe(self):
         t, c, k = self.spl.tck
-        n_nans = self.npoints - len(c[0])
-        nans = [np.nan] * n_nans
+
         data = {Header.label        : np.array([self.label]*self.npoints, dtype=np.uint16),
                 Header.number       : np.arange(self.npoints, dtype=np.uint16),
                 Header.z            : self.points[:, 0],
@@ -478,11 +510,11 @@ class MTPath:
                 Header.MTradius     : [self.radius_peak]*self.npoints,
                 Header.pitch        : self.pitch_lengths,
                 Header.nPF          : self.pf_numbers,
-                Header.spl_knot_vec : [str(t.tolist())[1:-1]] + [np.nan]*(self.npoints-1),
-                Header.spl_coeff_z  : c[0].tolist() + nans,
-                Header.spl_coeff_y  : c[1].tolist() + nans,
-                Header.spl_coeff_x  : c[2].tolist() + nans,
-                Header.spl_u        : self.spl.u
+                Header.spl_knot_vec : _extend_with_nan([str(t.tolist())[1:-1]], self.npoints),
+                Header.spl_coeff_z  : _extend_with_nan(c[0], self.npoints),
+                Header.spl_coeff_y  : _extend_with_nan(c[1], self.npoints),
+                Header.spl_coeff_x  : _extend_with_nan(c[2], self.npoints),
+                Header.spl_u        : _extend_with_nan(self.spl.u, self.npoints)
                 }
         
         df = pd.DataFrame(data)

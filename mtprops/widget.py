@@ -638,7 +638,8 @@ class MTProfiler:
         3. Erase masks using reference image, based on intensity.
         """        
         from .mtpath import rot3dinv, da, make_slice_and_pad
-        
+        # TODO: if images with different scale are analyzed without restart,
+        # self.current_mt.radius_peak takes previous value
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
@@ -653,7 +654,7 @@ class MTProfiler:
                 _sq = (z-lz//2)**2 + (x-lx//2)**2
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 domain = domain.astype(np.float32)
-                ry = int(self.interval/bin_scale/2 + 0.5)
+                ry = max(int(self.interval/bin_scale/2 + 0.5), 1)
                 domain[:, :ly//2-ry] = 0
                 domain[:, ly//2+ry+1:] = 0
                 domain = ip.array(domain, axes="zyx")
