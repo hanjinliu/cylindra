@@ -2,6 +2,7 @@ import pandas as pd
 from typing import TYPE_CHECKING, Callable, TypeVar
 from collections import OrderedDict
 import numpy as np
+from dask import array as da
 from scipy import ndimage as ndi
 import napari
 from napari.utils.colormaps.colormap import Colormap
@@ -14,7 +15,8 @@ import matplotlib.pyplot as plt
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, field, button_design, click, set_options, 
                             Figure, TupleEdit, CheckButton, Separator)
-from .mtpath import MTPath, angle_corr, calc_total_length, load_a_subtomogram
+from .mtpath import (MTPath, angle_corr, calc_total_length, load_a_subtomogram, vector_to_grad, 
+                     rot3d, rot3dinv, make_slice_and_pad)
 from .const import Header
 
 if TYPE_CHECKING:
@@ -77,13 +79,6 @@ def imread(img, binsize):
         imgb = img.binning(binsize, check_edges=False).data
     
     return imgb
-
-def repeat_command(command:Callable, max_iter:int=1000):
-    count = 0
-    while count < max_iter:
-        yield command()
-        count += 1
-    return False
         
 
 @magicclass
@@ -200,7 +195,6 @@ class MTProfiler:
     class auto_picker:
         stride = field(50.0, options={"min": 10, "max": 100}, name="stride (nm)")
         def pick(self): ...
-        def auto_pick(self): ...
         
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
@@ -262,8 +256,7 @@ class MTProfiler:
                 viewer.layers[avg_image_name].data = avg_img
             except KeyError:
                 layer = viewer.add_image(avg_img, scale=avg_img.scale, name=avg_image_name,
-                                         rendering="iso")
-                layer.iso_threshold = 0.8
+                                         rendering="iso", iso_threshold = 0.6)
             
             it = self._worker_control.metadata["iter"] + 1
             self._worker_control.info.value = f"Iteration {it}"
@@ -277,6 +270,60 @@ class MTProfiler:
             viewer.window.add_dock_widget(table, name="Results")
                 
         worker.start()
+        return None
+    
+    @set_options(binsize={"min":1, "max":8, "label": "Binning for peak detection"},
+                 niter={"min":1, "max":5, "label": "Number of PCC iteration"},
+                 remap={"label": "Remap coordinates"})
+    def tubulin_averaging(self, binsize:int=2, niter:int=3, remap:bool=True):
+        """
+        Run tubulin averagin algorithm along current MT path.
+
+        Parameters
+        ----------
+        binsize : int, default is 2
+            Bin size applied to averaged subtomogram to speed up local peak detection.
+        niter : int, default is 3
+            Number of iteration of refining tubulin template.
+        remap : bool, default is True
+            If true, tubulin coordinates will remapped to world coordinate system.
+        """        
+        mtp = self.current_mt
+        viewer: napari.Viewer = self.parent_viewer
+
+        coords = mtp.find_tubulin(binsize)
+        viewer.add_points(coords, face_color="gold", size=2, edge_color="white", 
+                          name="Tubulin on template")
+        imgs = mtp.crop_out_tubulin(coords)
+        template = mtp.average_tubulin(imgs, niter=niter)
+        if self.light_background:
+            template = -template
+        viewer.add_image(template, scale=template.scale, name="Tubulin template",
+                         rendering="iso", iso_threshold=0.6)
+        
+        if remap:
+            coords_remapped = np.concatenate(
+                list(mtp.transform_coordinates()),
+                axis=0
+                )
+            viewer.add_points(coords_remapped, size=2, face_color="gold", edge_color="white", 
+                              name="Remapped tubulins")
+        return None
+    
+    @set_options(position={"min":0.0, "max":1.0, "step":0.05})
+    def pick_subtomogram(self, position:float=0.5):
+        scale = self.image.scale.x
+        with ip.SetConst("SHOW_PROGRESS", False):
+            mtp = self.current_mt
+            tomo = load_a_subtomogram(self.image, mtp.spl(position)/scale, self.radius_pre_nm)
+            dr = mtp.spl(position, der=1).reshape(1, -1)
+            zy, yx = vector_to_grad(dr)
+            tomo = rot3d(tomo, yx[0], zy[0])
+            self.parent_viewer.add_image(tomo, scale=scale)
+    
+    @button_design(text="Create Macro")
+    def create_macro_(self):
+        self.create_macro(show=True)
         return None
 
     def _update_colormap(self):
@@ -301,7 +348,7 @@ class MTProfiler:
         self.set_colormap()
         self.mt.pos.min_width = 70
         call_button = self._loader["call_button"]
-        call_button.changed.connect(self._load_image)
+        call_button.changed.connect(self.load_image)
                 
     @property
     def current_mt(self):
@@ -348,7 +395,7 @@ class MTProfiler:
             self.register_path()
         
         worker = create_worker(self._run_all, 
-                               _progress={"total": len(self.mt_paths)*14, 
+                               _progress={"total": len(self.mt_paths)*13, 
                                           "desc": "Running MTProps"}
                                )
         
@@ -388,13 +435,11 @@ class MTProfiler:
             mtp.smooth_path()
             yield "XY rotation ..."
             mtp.rot_correction()
-            yield "XZ cross correlation ..."
+            yield "XZ shift correlation ..."
             mtp.zxshift_correction()
-            yield "XZ shift correction ..."
-            mtp.calc_center_shift()
             yield "Fitting MT with B-spline ..."
             mtp.get_spline()
-            yield "Reloading subtomograms ..."
+            yield "Re-samping subtomograms ..."
             mtp.load_subtomograms(self.image)
             yield "3D rotation ..."
             mtp.rotate3d()
@@ -637,7 +682,6 @@ class MTProfiler:
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """        
-        from .mtpath import rot3dinv, da, make_slice_and_pad
         # TODO: if images with different scale are analyzed without restart,
         # self.current_mt.radius_peak takes previous value
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
@@ -740,8 +784,8 @@ class MTProfiler:
         
         return None
     
-    @click(disables=POST_PROCESSING, enables=POST_IMREAD)
-    def _load_image(self, event=None):
+    @click(disables=POST_PROCESSING, enables=POST_IMREAD, visible=False)
+    def load_image(self, event=None):
         img = self._loader.img
         worker = imread(img, self.binsize)
         self._connect_worker(worker)
@@ -891,13 +935,7 @@ class MTProfiler:
         viewer.camera.zoom = zoom
         viewer.dims.current_step = list(next_data.astype(np.int64))
         return None
-    
-    @auto_picker.wraps
-    def auto_pick(self):
-        for p in repeat_command(self._pick):
-            self._add_point(p)
-        return None
-                
+                    
     def _check_path(self) -> str:
         imgshape_nm = np.array(self.image.shape) * self.image.scale.x
         if self.layer_work.data.shape[0] == 0:

@@ -22,9 +22,13 @@ class Spline3D:
         self.u = u
         return self
     
-    def __call__(self, u:np.ndarray, der:int=0):
-        coords = splev(u, self.tck, der=der)
-        return np.stack(coords, axis=1)
+    def __call__(self, u:np.ndarray|float, der:int=0) -> np.ndarray:
+        if np.isscalar(u):
+            coord = splev([u], self.tck, der=der)
+            return np.concatenate(coord)
+        else:
+            coords = splev(u, self.tck, der=der)
+            return np.stack(coords, axis=1)
     
     def partition(self, n:int, der:int=0):
         u = np.linspace(0, 1, n)
