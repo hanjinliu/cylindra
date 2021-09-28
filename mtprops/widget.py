@@ -292,12 +292,11 @@ class MTProfiler:
         viewer: napari.Viewer = self.parent_viewer
 
         coords = mtp.find_tubulin(binsize)
-        viewer.add_points(coords, face_color="gold", size=2, edge_color="white", 
-                          name="Tubulin on template")
-        imgs = mtp.crop_out_tubulin(coords)
-        template = mtp.average_tubulin(imgs, niter=niter)
+        template = mtp.crop_out_tubulin(coords, niter=niter)
         if self.light_background:
             template = -template
+        viewer.add_points(coords, face_color="gold", size=2, edge_color="white", 
+                          name="Tubulin on template")
         viewer.add_image(template, scale=template.scale, name="Tubulin template",
                          rendering="iso", iso_threshold=0.6)
         
@@ -562,6 +561,7 @@ class MTProfiler:
         
     @io.wraps
     @click(enabled=False, enables=POST_PROCESSING)
+    @set_options(path={"filter": "*.tif;*.mrc;*.rec"})
     @button_design(text="Load csv 📂")
     def from_csv_file(self, path: Path):
         """

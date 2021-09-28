@@ -6,7 +6,8 @@ from ._dependencies import impy as ip
 
 def start(viewer:"napari.Viewer"=None):
     if viewer is None:
-        viewer = napari.Viewer()
+        ip.gui.start()
+        viewer = ip.gui.viewer
     mtprof = MTProfiler()
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
                                          name="MT Profiler")
@@ -20,12 +21,13 @@ def load(df:str|pd.DataFrame,
     if isinstance(df, str):
         df = pd.read_csv(df)
     if viewer is None:
-        viewer = napari.Viewer()
+        ip.gui.start()
+        viewer = ip.gui.viewer
     mtprof = MTProfiler()
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
                                          name="MT Profiler")
     dock.setMinimumHeight(300)
     mtprof._loader._imread(img)
-    mtprof._load_image()
+    mtprof.load_image()
     mtprof._from_dataframe(df)
     return mtprof

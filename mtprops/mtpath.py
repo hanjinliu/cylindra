@@ -1,5 +1,6 @@
 from __future__ import annotations
 import statistics
+from dask.array.chunk import astype
 import numpy as np
 from numba import jit
 from skimage.transform import warp_polar
@@ -137,7 +138,7 @@ def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
     input_img = np.moveaxis(img3d.value, 1, 2)
     out = warp_polar(input_img, center=center, radius=radius, 
                      output_shape=(angle_freq, radius), multichannel=True)
-    out = ip.array(out, axes="<ry")
+    out = ip.asarray(out, axes="<ry")
     return out
 
 def make_rotate_mat(deg_yx, deg_zy, shape):
@@ -152,10 +153,11 @@ def make_rotate_mat(deg_yx, deg_zy, shape):
     mx[-1, :] = [0, 0, 0, 1]
     return mx
 
-@delayed
 def rot3d(img, yx, zy):
     mat = make_rotate_mat(yx, zy, img.shape)
     return img.affine(matrix=mat)
+
+lazy_rot3d = delayed(rot3d)
 
 @delayed
 def rot3dinv(img, yx, zy):
@@ -299,14 +301,15 @@ class MTPath:
         """
         From a large image crop out sub-images around each point of the path.
         """        
-        self.subtomograms.clear()
+        subtomograms = []
         with ip.SetConst("SHOW_PROGRESS", False):
             for i in _range(0, self.npoints, self._step):
-                self.subtomograms.append(
+                subtomograms.append(
                     load_a_subtomogram(img, self.points[i]/self.scale, self.radius_pre)
                     )
+        self.subtomograms = np.stack(subtomograms, axis="p")
         return self
-    
+        
     def grad_path(self):
         """
         Calculate gradient at each point of the path.
@@ -344,44 +347,31 @@ class MTPath:
         return self
     
     def zxshift_correction(self):
-        xlen0 = int(self.radius_pre[2]/self.scale)
-        xlen = int(xlen0*0.8)
-        sl = (slice(None), slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
         with ip.SetConst("SHOW_PROGRESS", False):
+            subtomo_proj = self.subtomograms.proj("y")
             iref = self.ntomograms//2
-            imgref = self.subtomograms[iref].proj("y")
+            imgref = subtomo_proj[iref]
             shape = np.array(imgref.shape)
-            shifts = [] # zx-shift
+            shifts = np.zeros((self.ntomograms, 2)) # zx-shift
+            imgs = []
             bg = np.median(imgref)
             for i in range(self.ntomograms):
                 # NCC based template matching is robust for lattice defect etc.
                 if i != iref:
-                    corr = imgref.ncc_filter(self.subtomograms[i][sl].proj("y"), bg=bg)
-                    shift = np.unravel_index(np.argmax(corr), shape) - shape/2
+                    corr = imgref.ncc_filter(subtomo_proj[i], bg=bg)
+                    shifts[i] = np.unravel_index(np.argmax(corr), shape) - shape/2
                 else:
-                    shift = np.array([0, 0])
-                shifts.append(list(shift))
-            
-        self.shifts = np.array(shifts)
-        return self
-
-    def calc_center_shift(self):
-        xlen0 = int(self.radius_pre[2]/self.scale)
-        xlen = int(xlen0*0.8)
-        sl = (slice(None), slice(xlen0 - xlen, xlen0 + xlen + 1))
-        with ip.SetConst("SHOW_PROGRESS", False):
-            imgs = []
-            for i in range(self.ntomograms):
-                img = self.subtomograms[i].proj("y")
-                shift = self.shifts[i]
-                imgs.append(img.affine(translation=-shift)[sl])
+                    shifts[i] = np.array([0, 0])
+                    
+                img = subtomo_proj[i]
+                imgs.append(img.affine(translation=-shifts[i]))
+                
             imgs = np.stack(imgs, axis="y")
             imgcory = imgs.proj("y")
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])
-            self.shifts = self.shifts - center_shift/2
+            self.shifts = shifts - center_shift/2
         
         return self
-    
     
     def get_spline(self):
         coords = np.array([self.points[i] for i in _range(0, self.npoints, self._step)], dtype=np.float32)
@@ -417,14 +407,14 @@ class MTPath:
                 img = self.subtomograms[i]
                 zy = self.grad_angles_zy[i]
                 yx = self.grad_angles_yx[i]
-                tasks.append(da.from_delayed(rot3d(img, yx, zy), shape=img.shape, dtype=np.float32))
+                tasks.append(da.from_delayed(lazy_rot3d(img, yx, zy), shape=img.shape, dtype=np.float32))
             out = da.compute(tasks)[0]
-        self.subtomograms = out
+        self.subtomograms = np.stack(out, axis="p")
         return self
     
     def determine_radius(self):
         with ip.SetConst("SHOW_PROGRESS", False):
-            sum_img = sum(self.subtomograms)
+            sum_img = np.sum(self.subtomograms, axis="p")
             nbin = 17
             r_max = 17
             
@@ -434,16 +424,6 @@ class MTPath:
             else:
                 r_peak = np.argmax(img2d.radial_profile(nbin=nbin, r_max=r_max))/nbin*r_max
             self.radius_peak = r_peak # unit: nm
-        return self
-            
-    
-    def calc_pitch_xyz(self):
-        self.pitch_lengths = []
-        with ip.SetConst("SHOW_PROGRESS", False):
-            for img in self.subtomograms:
-                img = img.crop_kernel((self.radius/self.scale).astype(np.int32))
-                pitch = _calc_pitch_length_xyz(img)
-                self.pitch_lengths.append(pitch)
         return self
     
     def calc_pitch_lengths(self, upsample_factor:int=20):
@@ -471,7 +451,7 @@ class MTPath:
         sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
         
         # make mask
-        mask = self._mt_mask(self.subtomograms[0].sizesof("zx"))
+        mask = self._mt_mask(self.subtomograms.sizesof("zx"))
         
         tasks = []
         with ip.SetConst("SHOW_PROGRESS", False):
@@ -539,6 +519,21 @@ class MTPath:
         
         return self
     
+    def straighten(self, image, range: tuple[float, float] = (0, 1)):
+        rz, ry, rx = (self.radius/self.scale).astype(np.int32)
+        
+        coords = self.spl.get_cartesian_coords((2*rz+1, 2*rx+1), s_range=range, scale=self.scale)
+        transformed = ndi.map_coordinates(image, 
+                                          np.moveaxis(coords, -1, 0),
+                                          order=1,
+                                          prefilter=False
+                                          )
+        transformed = ip.asarray(transformed, axes="zyx")
+        transformed.set_scale(xyz=self.scale)
+        return transformed
+    
+    # TODO: rewrite subtomogram averaging
+    
     def average_subtomograms(self, niter:int=2, nshifts:int=19, nrots:int=9):
         df = pd.DataFrame([])
         
@@ -565,8 +560,11 @@ class MTPath:
             out, yshifts, zxrots = zncc_all(input_imgs, ref, shifts, rots, mask=mask)
             
             # update
-            df[f"Yshift_{it}"] = yshifts
-            df[f"ZXrot_{it}"] = zxrots
+            col_shift = f"Yshift_{it}"
+            col_rot = f"ZXrot_{it}"
+            df[col_shift] = yshifts
+            df[col_rot] = zxrots
+            self.averaging_results = df[[col_shift, col_rot]]
             self.averaged_subtomogram = sum(out)/len(out)
             
             ref, offsets = self.rot_ave_subtomograms(dshift, nshifts, offsets=offsets)
@@ -598,11 +596,11 @@ class MTPath:
                 imax = np.argmax(corrs)
                 shift = shifts[imax]
                 best_shifts.append(shift*self.scale)
-                rotsumimg += rimg.affine(translation=[0, shift, 0])
+                rotsumimg.value[:] += rimg.affine(translation=[0, shift, 0])
 
         return rotsumimg, best_shifts
     
-    def local_extrema(self):
+    def find_tubulin(self, bin_size:int=2):
         """Find tubulin coordinates in averaged tomogram"""
         if self.light_background:
             ref = -self.tomogram_template
@@ -611,25 +609,142 @@ class MTPath:
         
         length = self.tomogram_template.sizeof("y")*self.scale
         npf = int(statistics.mode(self.pf_numbers))
-        ntub = int((length/8-2)*npf)
+        ntub = int((length/4-2)*npf)
         
-        ref_gauss = ref.gaussian_filter(1.0/self.scale)
-        mask = np.stack([self._mt_mask(ref_gauss.sizesof("zx"))]*ref_gauss.sizeof("y"), axis=1)
-        ref_gauss.append_label(~mask)
-        peaks = ref_gauss.peak_local_max(min_distance=1.8/self.scale, topn_per_label=ntub)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            ref = ref.binning(bin_size, check_edges=False)
+            ref_gauss = ref.gaussian_filter(1.0/ref.scale.x)
+            mask2d = self._mt_mask(ref_gauss.sizesof("zx"), ref.scale.x)
+            mask = np.stack([mask2d]*ref_gauss.sizeof("y"), axis=1)
+            ref_gauss.append_label(~mask)
+            peaks = ref_gauss.peak_local_max(min_distance=1.8/ref.scale.x, topn_per_label=ntub)
+            peaks = ref_gauss.centroid_sm(peaks, radius=int(1.8/ref.scale.x))
+            
+        self.tubulin_local_coords = peaks.values*ref.scale
+        return self.tubulin_local_coords
+    
+    def crop_out_tubulin(self, coords=None, r_nm=6.4, niter:int=3):
+        if coords is None:
+            coords = self.find_tubulin()
         
-        peaks = ref_gauss.centroid_sm(peaks, radius=int(1.8/self.scale))
-        return peaks.values*self.scale
+        coords_valid = []
+        with ip.SetConst("SHOW_PROGRESS", False):
+            # r_nm = max(self.radius[1] - self.interval/2, r_nm)
+            edge = int(np.ceil(r_nm/self.scale))
+            dr = int(np.ceil(4.8/self.scale))
+            leny = self.averaged_subtomogram.sizeof("y")
+            imgs = []
+            for i, crd in enumerate(coords):
+                # If y-coordinate is near either edges, ignore that.
+                y = round(crd[1]/self.scale)
+                if y < edge or leny - edge - 1 < y:
+                    continue
+                coords_valid.append(i)
+                
+                # Crop 3x3 tubulin region out
+                imgs.append(
+                    crop_out(self.averaged_subtomogram, crd, rz=dr, ry=edge, rx=edge)
+                )
+                
+            imgs = np.stack(imgs, axis="p") # pzyx-image
+            template = imgs.proj("p")
+            
+            shifts = np.zeros((imgs.sizeof("p"), 3))
+            for _ in range(niter):
+                for i, img in enumerate(imgs):
+                    shift = ip.pcc_maximum(img, template)
+                    imgs.value[i] = img.affine(translation=shift)
+                    shifts[i] = shift
+                template = imgs.proj("p")
+        
+        # Update tubulin template and local coordinates
+        self.tubulin_template = template
+        self.tubulin_local_coords = self.tubulin_local_coords[coords_valid]
+        
+        # Refine tubulin coordinates
+        for i, coords in enumerate(self.tubulin_local_coords):
+            
+            angle = np.arctan2(coords[0], coords[2])
+            sin = np.sin(angle)
+            cos = np.cos(angle)
+            coords += shifts[i] @ np.array([[ cos, 0, sin],
+                                            [   0, 1,   0],
+                                            [-sin, 0, cos]],
+                                           dtype=np.float32)
 
-    def _mt_mask(self, shape):
+            return template
+    
+    def transform_coordinates(self, coords=None):
+        """
+        Move tubulin center coordinates from the local coordinate system (around averaged subtomogram)
+        to world coordinate system.
+
+        Parameters
+        ----------
+        coords : (N, 3) ndarray
+            Tubulin coordinates.
+            
+        Returns
+        -------
+        np.ndarray
+            Tubulin coordinates. Shape is (P, N, 3), where P is the number of subtomograms.
+        """        
+        compose_affine_matrix = ip.arrays.utils._transform.compose_affine_matrix
+        if coords is None:
+            coords = self.tubulin_local_coords
+        out = np.empty((self.npoints,) + coords.shape)
+        template_center = (np.array(self.tomogram_template.shape)/2 - 0.5)*self.scale
+        template_coords = np.concatenate([coords - template_center, 
+                                          np.ones((coords.shape[0],1))],
+                                         axis=1)
+
+        for i, series in self.averaging_results.iterrows():
+            yshift, zxrot = series
+            zy = self.grad_angles_zy[i]
+            yx = self.grad_angles_yx[i]
+            vec = self.points[i]
+            dy = yshift % self.pitch_lengths[i]
+            if dy > self.pitch_lengths[i]/2:
+                dy -= self.pitch_lengths[i]
+            if dy != 0:
+                dtheta = zxrot*(dy-yshift)/dy
+            # local shift/rotation
+            mtx0 = compose_affine_matrix(translation=[0, -dy, 0], rotation=[0, -dtheta, 0], ndim=3)
+            mtx_move = compose_affine_matrix(translation=vec, ndim=3)
+            mtx_rot_yx = compose_affine_matrix(rotation=[0,0,-np.deg2rad(yx+180)], ndim=3)
+            mtx_rot_zy = compose_affine_matrix(rotation=[-np.deg2rad(zy), 0, 0], ndim=3)
+            mtx = mtx_move @ mtx_rot_zy @ mtx_rot_yx @ mtx0
+
+            points = template_coords @ mtx.T 
+            out[i] = points[:,:3]
+
+        return out
+            
+
+    def _mt_mask(self, shape, scale=None):
+        scale = scale or self.scale
         mask = np.zeros(shape, dtype=np.bool_)
         z, x = np.indices(shape)
         cz, cx = np.array(shape)/2 - 0.5
         _sq = (z-cz)**2 + (x-cx)**2
-        r = self.radius_peak/self.scale
+        r = self.radius_peak/scale
         mask[_sq < (r*self.__class__.inner)**2] = True
         mask[_sq > (r*self.__class__.outer)**2] = True
         return mask
+    
+    def warp_spline_coordinate(self, image, start:int=0, stop:int=1):
+        # TODO: not compatible with dask
+        
+        r = self.radius_peak/self.scale
+        r_start = int(r*self.__class__.inner)
+        r_stop = int(r*self.__class__.outer)
+        coords_map = self.spl.get_cylindrical_coords((r_start, r_stop), (start, stop), self.scale)
+        flat_img = ndi.map_coordinates(image, np.moveaxis(coords_map, -1, 0), order=1, prefilter=False)
+        n_angle = int(round((r_start + r_stop) * np.pi))
+        n_radius = r_stop - r_start
+        img = flat_img.reshape(-1, n_angle, n_radius)
+        return ip.asarray(img, axes="y<r")
+
     
 @delayed
 def _affine_zncc(ref, img, mask, translation, rotation):
@@ -652,6 +767,7 @@ def zncc_all(imgs, ref, shifts, rots, mask=None):
                     for k, dtheta in enumerate(rots[i]):
                         task = _affine_zncc(ref, img, mask, [0, dy, 0], [0, dtheta, 0])
                         corrs[j][k] = da.from_delayed(task, shape=(), dtype=np.float32)
+                        
                 corrs = np.array(da.compute(corrs)[0], dtype=np.float32)
                 jmax, kmax = np.unravel_index(np.argmax(corrs), corrs.shape)
                 shift = shifts[i, jmax]
@@ -661,4 +777,18 @@ def zncc_all(imgs, ref, shifts, rots, mask=None):
             out.append(img.affine(translation=[0, shift, 0], rotation=[0, deg, 0]))
             
     return out, np.array(yshifts), np.array(zxrots)
-    
+
+def crop_out(img, p0, rz=18, ry=24, rx=24):
+    pz, py, px = p0/img.scale
+    img0 = img[:, int(round(py-ry)):int(round(py+ry+1))]
+    cz, cy, cx = np.array(img.shape)/2 + 0.5
+    vc = np.array([cz, cx])
+    vz, vx = np.array([pz, px]) - vc
+    length = np.sqrt(vz**2+vx**2)
+    e1 = np.array([-vx, vz]) / length
+    e2 = np.array([vz, vx]) / length
+    ori = np.array([vz, vx])- rx*e1 - rz*e2 + vc
+    d1 = ori + (2*rx+1)*e1
+    d2 = ori + (2*rz+1)*e2
+    out = img0.rotated_crop(ori, d2, d1, dims="zx")
+    return out
