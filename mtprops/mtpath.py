@@ -1,6 +1,5 @@
 from __future__ import annotations
 import statistics
-from dask.array.chunk import astype
 import numpy as np
 from numba import jit
 from skimage.transform import warp_polar
@@ -478,7 +477,7 @@ class MTPath:
         return self
     
     def to_dataframe(self):
-        t, c, k = self.spl.tck
+        t, c, k = self.spl._tck
 
         data = {Header.label        : np.array([self.label]*self.npoints, dtype=np.uint16),
                 Header.number       : np.arange(self.npoints, dtype=np.uint16),
@@ -494,7 +493,7 @@ class MTPath:
                 Header.spl_coeff_z  : _extend_with_nan(c[0], self.npoints),
                 Header.spl_coeff_y  : _extend_with_nan(c[1], self.npoints),
                 Header.spl_coeff_x  : _extend_with_nan(c[2], self.npoints),
-                Header.spl_u        : _extend_with_nan(self.spl.u, self.npoints)
+                Header.spl_u        : _extend_with_nan(self.spl._u, self.npoints)
                 }
         
         df = pd.DataFrame(data)
@@ -522,7 +521,7 @@ class MTPath:
     def straighten(self, image, range: tuple[float, float] = (0, 1)):
         rz, ry, rx = (self.radius/self.scale).astype(np.int32)
         
-        coords = self.spl.get_cartesian_coords((2*rz+1, 2*rx+1), s_range=range, scale=self.scale)
+        coords = self.spl.cartesian_coords((2*rz+1, 2*rx+1), s_range=range, scale=self.scale)
         transformed = ndi.map_coordinates(image, 
                                           np.moveaxis(coords, -1, 0),
                                           order=1,
@@ -738,7 +737,7 @@ class MTPath:
         r = self.radius_peak/self.scale
         r_start = int(r*self.__class__.inner)
         r_stop = int(r*self.__class__.outer)
-        coords_map = self.spl.get_cylindrical_coords((r_start, r_stop), (start, stop), self.scale)
+        coords_map = self.spl.cylindrical_coords((r_start, r_stop), (start, stop), self.scale)
         flat_img = ndi.map_coordinates(image, np.moveaxis(coords_map, -1, 0), order=1, prefilter=False)
         n_angle = int(round((r_start + r_stop) * np.pi))
         n_radius = r_stop - r_start
