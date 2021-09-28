@@ -1,4 +1,5 @@
 from __future__ import annotations
+from operator import sub
 import statistics
 from typing import Iterable
 import numpy as np
@@ -8,16 +9,28 @@ from ._dependencies import impy as ip
 import pandas as pd
 from dask import delayed, array as da
 
-from .const import Header, nm, MtOri
+from .const import nm, MtOri
 from .spline import Spline3D
-from .cache import CacheMap
+from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram
 
 
 _INNER = 0.7
 _OUTER = 1.6
-cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
 
+cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
+
+def _affine(img, matrix=None):
+    out = ndi.affine_transform(img[0], matrix[0], order=1, prefilter=False)
+    return out[np.newaxis]
+    
+def dask_affine(images, matrices):
+    imgs = da.from_array(images, chunks=(1,)+images.shape[1:])
+    mtxs = da.from_array(matrices, chunks=(1,)+matrices.shape[1:])
+    return imgs.map_blocks(_affine, 
+                           matrix=mtxs, 
+                           meta=np.array([], dtype=np.float32)
+                           ).compute()
 
 class MtTomogram:
     def __init__(self, 
@@ -35,6 +48,9 @@ class MtTomogram:
         self.pitch_lengths: dict[Spline3D, tuple[np.ndarray, np.ndarray]] = {}
         self.pf_numbers: dict[Spline3D, tuple[np.ndarray, np.ndarray]] = {}
         self.orientation: dict[Spline3D, MtOri] = {}
+    
+    def __hash__(self) -> int:
+        return id(self)
     
     @property
     def image(self) -> ip.arrays.LazyImgArray:
@@ -60,33 +76,45 @@ class MtTomogram:
         return None
     
     def nm2pixel(self, value: np.ndarray):
-        return (np.asarray(value)/self.scale).astype(np.uint16)
+        return (np.asarray(value)/self.scale).astype(np.int16)
     
     def sample_subtomograms(self, 
                             i: int,
-                            positions: Iterable[float],
+                            positions: tuple[float,...],
+                            rotate: bool = True):
+        if not (isinstance(positions, tuple) and rotate):
+            return self._sample_subtomograms(i, np.asarray(positions, dtype=np.float32), rotate)
+        try:
+            out = cachemap[(self, self.paths[i], positions)]
+        except KeyError:
+            out = self._sample_subtomograms(i, np.asarray(positions, dtype=np.float32), rotate)
+            cachemap[(self, self.paths[i], positions)] = out
+        return out
+        
+    def _sample_subtomograms(self, 
+                            i: int,
+                            positions: tuple[float,...],
                             rotate: bool = True):
         spl = self.paths[i]
-        positions = np.asarray(positions, dtype=np.float32)
         
+        positions = np.asarray(positions, dtype=np.float32)
         center_px = self.nm2pixel(spl(positions))
         radius_px = self.nm2pixel(self.radius_pre)
+        
         with ip.SetConst("SHOW_PROGRESS", False):
             if center_px.ndim == 2:
                 out = np.stack([load_a_subtomogram(self._image, c, radius_px, True) 
                                 for c in center_px],
-                            axis="p")
+                               axis="p")
                 if rotate:
-                    center = np.array(out.shape[1:])/2 - 0.5
-                    matrices = spl.rotation_matrix(positions, center=center)
-                    for img, mtx in zip(out, matrices):
-                        img.affine(np.linalg.inv(mtx), update=True) # TODO: dask
+                    matrices = spl.rotation_matrix(positions, center=radius_px, inverse=True)
+                    out.value[:] = dask_affine(out.value, matrices)
             else:
                 out = load_a_subtomogram(self._image, center_px, radius_px, True)
                 if rotate:
-                    center = np.array(out.shape)/2 - 0.5
-                    mtx = spl.rotation_matrix(positions, center=center)
-                    out.affine(np.linalg.inv(mtx), update=True)
+                    radius_px = np.array(out.shape)/2 - 0.5
+                    mtx = spl.rotation_matrix(positions, center=radius_px, inverse=True)
+                    out.value[:] = ndi.affine_transform(out.value, mtx, order=1, prefilter=False)
         
         return out
     
@@ -169,9 +197,7 @@ class MtTomogram:
             subtomograms = self.sample_subtomograms(i, positions, rotate=True)
             nbin = 17
             r_max: nm = 17.0
-            sum_img = np.sum(subtomograms, axis="p")
-            
-            img2d = sum_img.proj("y")
+            img2d = subtomograms.proj("py")
             arg_func = np.argmin if self.light_background else np.argmax
             r_peak = arg_func(img2d.radial_profile(nbin=nbin, r_max=r_max))/nbin*r_max
             spl = self.paths[i]
@@ -183,23 +209,25 @@ class MtTomogram:
                            positions:Iterable[float], 
                            *, 
                            upsample_factor: int = 20):
-        # TODO: do not use warp polar 3d. 
+
         subtomograms = self.sample_subtomograms(i, positions, rotate=True)
         ylen = int(self.radius[1]/self.scale)
         ylen0 = int(self.radius_pre[1]/self.scale)
-        sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
+        subtomograms = subtomograms[f"y={ylen0 - ylen}:{ylen0 + ylen + 1}"]
         tasks = []
         spl = self.paths[i]
+        r = self.mt_radius[spl]/self.scale
         with ip.SetConst("SHOW_PROGRESS", False):
-            for img in subtomograms:
-                r = self.mt_radius[spl]/self.scale
-                pitch = _calc_pitch_length(img[sl], 
+            
+            img = da.from_array(subtomograms, chunks=(1,)+subtomograms.shape[1:])
+            pitch_lengths = img.map_blocks(_calc_pitch_length, 
                                            int(r*_INNER),
                                            int(r*_OUTER),
-                                           up=upsample_factor)
-                tasks.append(da.from_delayed(pitch, shape=(), dtype=np.float32))
+                                           up=upsample_factor,
+                                           drop_axis=[1,2,3],
+                                           meta=np.array([], dtype=np.float32)
+                                           ).compute()
             
-            pitch_lengths = da.compute(tasks)[0]
 
         self.pitch_lengths[spl] = (spl.distances(positions), pitch_lengths)
         
@@ -251,7 +279,7 @@ class MtTomogram:
         else:
             if radius is None:
                 rz, ry, rx = self.nm2pixel(self.radius)
-            elif isinstance(radius, float):
+            elif np.isscalar(radius):
                 rz = rx = radius
             else:
                 rz, rx = radius
@@ -263,7 +291,7 @@ class MtTomogram:
             sl = []
             for i in range(3):
                 imin = int(np.min(coords[i]))
-                imax = int(np.max(coords[i])) + 1
+                imax = int(np.max(coords[i])) + 2
                 sl.append(slice(imin, imax))
                 coords[i] -= imin
             sl = tuple(sl)
@@ -315,57 +343,22 @@ def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
     out = ip.asarray(out, axes="<ry")
     return out
 
-def make_rotate_mat(deg_yx, deg_zy, shape):
-    compose_affine_matrix = ip.arrays.utils._transform.compose_affine_matrix
-    center = np.array(shape)/2. - 0.5
-    translation_0 = compose_affine_matrix(translation=center, ndim=3)
-    rotation_yx = compose_affine_matrix(rotation=[0, 0, -np.deg2rad(deg_yx + 180)], ndim=3)
-    rotation_zy = compose_affine_matrix(rotation=[-np.deg2rad(deg_zy), 0, 0], ndim=3)
-    translation_1 = compose_affine_matrix(translation=-center, ndim=3)
-    
-    mx = translation_0 @ rotation_zy @ rotation_yx @ translation_1
-    mx[-1, :] = [0, 0, 0, 1]
-    return mx
-
-def rot3d(img, yx, zy):
-    mat = make_rotate_mat(yx, zy, img.shape)
-    return img.affine(matrix=mat)
-
-lazy_rot3d = delayed(rot3d)
-
-@delayed
-def rot3dinv(img, yx, zy):
-    mat = np.linalg.inv(make_rotate_mat(yx, zy, img.shape))
-    return img.affine(matrix=mat)
-
-def _calc_pitch_length_xyz(img3d):
-    up = 20 # upsample factor along y-axis
-    peak_est = img3d.sizeof("y")/(4.16/img3d.scale.y) # estimated peak
-    y0 = int(peak_est*0.8)
-    y1 = int(peak_est*1.3)
-    projection = img3d.local_power_spectra(key=f"y={y0}:{y1}", upsample_factor=[1, up, 1], dims="zyx").proj("zx")
-    imax = np.argmax(projection)
-    imax_f = imax + y0*up
-    freq = np.fft.fftfreq(img3d.sizeof("y")*up)
-    pitch = 1/freq[imax_f]*img3d.scale.y
-    return pitch
-
-@delayed
-def _calc_pitch_length(img3d, rmin, rmax, up=20):
-    peak_est = img3d.sizeof("y")/(4.16/img3d.scale.y) # estimated peak
+def _calc_pitch_length(img, rmin, rmax, up=20):
+    img = img[0]
+    peak_est = img.sizeof("y")/(4.16/img.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
     
-    polar3d = warp_polar_3d(img3d, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
+    polar3d = warp_polar_3d(img, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
     power_spectra = polar3d.local_power_spectra(key=f"y={y0}:{y1}", upsample_factor=[1, 1, up], dims="<ry")
     
     proj_along_y = power_spectra.proj("<r")
     imax = np.argmax(proj_along_y)
     imax_f = imax + y0*up
-    freq = np.fft.fftfreq(img3d.sizeof("y")*up)
-    pitch = 1/freq[imax_f]*img3d.scale.y
+    freq = np.fft.fftfreq(img.sizeof("y")*up)
+    pitch = 1/freq[imax_f]*img.scale.y
     
-    return pitch
+    return np.array([pitch], dtype=np.float32)
 
 
 def rotational_average(img, fold:int=13):

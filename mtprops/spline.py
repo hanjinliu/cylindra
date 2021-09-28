@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Iterable
+from typing import Iterable
 import numpy as np
 import numba as nb
 from scipy.interpolate import splprep, splev, interp1d
@@ -77,34 +77,29 @@ class Spline3D:
         a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
         return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.scale # TODO: not /scale 
     
-    def rotation_matrix(self, u, center=None):
+    def rotation_matrix(self, u, center=None, inverse:bool=False):
         ds = self(u, 1)
-        single = np.isscalar(u)
-        if single:
-            out = _vector_to_rotation_matrix(ds)
+        matrix_func = _vector_to_inv_rotation_matrix if inverse else _vector_to_rotation_matrix
+        if np.isscalar(u):
+            out = matrix_func(ds)
         else:
-            out = np.stack([_vector_to_rotation_matrix(ds0) 
-                            for ds0 in ds],
-                           axis=0)
+            out = np.stack([matrix_func(ds0) for ds0 in ds], axis=0)
+
         if center is not None:
             dz, dy, dx = center
-            translation_0 = np.array([[1, 0, 0, dz],
-                                      [0, 1, 0, dy],
-                                      [0, 0, 1, dx],
-                                      [0, 0, 0,  1]],
+            translation_0 = np.array([[1., 0., 0., dz],
+                                      [0., 1., 0., dy],
+                                      [0., 0., 1., dx],
+                                      [0., 0., 0., 1.]],
                                      dtype=np.float32)
             
-            translation_1 = np.array([[1, 0, 0, -dz],
-                                      [0, 1, 0, -dy],
-                                      [0, 0, 1, -dx],
-                                      [0, 0, 0,  1]],
+            translation_1 = np.array([[1., 0., 0., -dz],
+                                      [0., 1., 0., -dy],
+                                      [0., 0., 1., -dx],
+                                      [0., 0., 0.,  1.]],
                                      dtype=np.float32)
             
-            if single:
-                out = translation_0 @ out @ translation_1
-            else:
-                out = np.einsum("ij,mjk,kl->mil", translation_0, out, translation_1)
-    
+            out = translation_0 @ out @ translation_1
         return out
     
     def local_cartesian_coords(self,
@@ -176,7 +171,7 @@ _S = slice(None) # longitudinal dimension along spline curve
 _H = slice(None) # horizontal dimension
 _D = slice(None, None, 1) # dimension of dimension (such as d=0: z, d=1: y,...)
 
-@nb.njit
+@nb.njit(cache=True)
 def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
     yx = np.arctan2(-ds[2], ds[1])
     zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
@@ -191,6 +186,29 @@ def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
     sin = np.sin(zy)
     rotation_zy = np.array([[cos, -sin, 0., 0.],
                             [sin,  cos, 0., 0.],
+                            [ 0.,   0., 1., 0.],
+                            [ 0.,   0., 0., 1.]],
+                            dtype=np.float32)
+
+    mx = rotation_zy.dot(rotation_yx)
+    mx[-1, :] = [0, 0, 0, 1]
+    return np.ascontiguousarray(mx)
+
+@nb.njit(cache=True)
+def _vector_to_inv_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
+    yx = np.arctan2(-ds[2], ds[1])
+    zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
+    cos = np.cos(yx)
+    sin = np.sin(yx)
+    rotation_yx = np.array([[1.,  0.,   0., 0.],
+                            [0., cos, sin, 0.],
+                            [0., -sin,  cos, 0.],
+                            [0.,  0.,   0., 1.]],
+                            dtype=np.float32)
+    cos = np.cos(zy)
+    sin = np.sin(zy)
+    rotation_zy = np.array([[cos, sin, 0., 0.],
+                            [-sin,  cos, 0., 0.],
                             [ 0.,   0., 1., 0.],
                             [ 0.,   0., 0., 1.]],
                             dtype=np.float32)
