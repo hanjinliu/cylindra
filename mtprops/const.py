@@ -22,9 +22,6 @@ class Header:
     def zyx(cls):
         return [cls.z, cls.y, cls.x]
 
-class MtOri:
-    plus_to_minus = "(+)to(-)"
-    minus_to_plus = "(-)to(+)"
     
 nm = NewType("nm", float)
 pixel = NewType("pixel", int)

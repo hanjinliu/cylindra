@@ -6,6 +6,14 @@ from scipy.interpolate import splprep, splev, interp1d
 from skimage.transform._warps import _linear_polar_mapping
 
 class Spline3D:
+    """
+    3D spline curve model with coordinate system.
+    
+    References
+    ----------
+    - Scipy document
+      https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
+    """    
     def __init__(self, scale:float=1, k=3):
         self._tck = None
         self._u = None
@@ -32,6 +40,16 @@ class Spline3D:
         return f"Spline<{hex(id(self))}> {self._nfit}-fit"
     
     def fit(self, coords:np.ndarray, s=None):
+        """
+        Fit spline model using a list of coordinates.
+
+        Parameters
+        ----------
+        coords : np.ndarray
+            Coordinates. Must be (N, 3).
+        s : float, optional
+            Total variation , by default None
+        """        
         npoints = coords.shape[0]
         if npoints < 4:
             lin = interp1d(np.linspace(0, 1, npoints), coords.T)
@@ -78,6 +96,21 @@ class Spline3D:
         return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.scale # TODO: not /scale 
     
     def rotation_matrix(self, u, center=None, inverse:bool=False):
+        """
+        Calculate list of Affine transformation matrix along spline, which correcpond to
+        the orientation of spline curve.
+
+        Parameters
+        ----------
+        u : array-like
+            Positions. Between 0 and 1.
+        center : array-like, optional
+            If not provided, rotation will be executed around the origin. If an array is provided,
+            it will be considered as the coordinates of rotation center. This is useful for 
+            rotating images.
+        inverse : bool, default is False
+            If True, rotation matrix will be inversed.
+        """        
         ds = self(u, 1)
         matrix_func = _vector_to_inv_rotation_matrix if inverse else _vector_to_rotation_matrix
         if np.isscalar(u):
@@ -103,10 +136,31 @@ class Spline3D:
         return out
     
     def local_cartesian_coords(self,
-                               shape,
+                               shape: tuple[int, int],
                                position,
-                               n_pixels,
-                               scale):
+                               n_pixels: int,
+                               scale: float):
+        """
+        Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
+        The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
+
+        Parameters
+        ----------
+        shape : [type]
+            [description]
+        position : [type]
+            [description]
+        n_pixels : [type]
+            [description]
+        scale : [type]
+            [description]
+
+        Returns
+        -------
+        np.ndarray
+            (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
+            dimensional axis.
+        """        
         return self._get_local_coords(_cartesian_coords_2d, shape, position, n_pixels, scale)
     
     def local_cylindrical_coords(self,
@@ -114,6 +168,7 @@ class Spline3D:
                                  position,
                                  n_pixels,
                                  scale):
+        
         return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels, scale)
         
     
@@ -138,6 +193,7 @@ class Spline3D:
                          s_range: tuple[float, float] = (0, 1), 
                          scale: float = 1
                          ) -> np.ndarray:
+        
         return self._get_coords(_cartesian_coords_2d, shape, s_range, scale)
 
     def cylindrical_coords(self, 
@@ -145,6 +201,7 @@ class Spline3D:
                            s_range: tuple[float, float] = (0, 1), 
                            scale: float = 1
                            ) -> np.ndarray:
+        
         return self._get_coords(_polar_coords_2d, r_range, s_range, scale)
 
     def _get_coords(self, map_func, map_params:tuple, s_range:tuple[float, float], scale:float):
@@ -163,7 +220,7 @@ class Spline3D:
                               zeros,
                               map_[..., 1],
                               ones
-                              ], axis=2) # V, H, D
+                              ], axis=2) # V, S, H, D
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
 _V = slice(None) # vertical dimension
@@ -241,7 +298,7 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
                       dtype=np.float32
                       )
     for i, (y, dr) in enumerate(zip(ax_coords, vectors)):
-        slice_out = _rot_point_with_vector(maps, dr)
+        slice_out = _rot_point_with_vector(maps, dr) # TODO: contiguous
         coords[:, i] = slice_out + y
     return coords
 

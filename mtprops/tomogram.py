@@ -1,15 +1,15 @@
 from __future__ import annotations
-from operator import sub
 import statistics
 from typing import Iterable
 import numpy as np
 from skimage.transform import warp_polar
 from scipy import ndimage as ndi
+from dataclasses import dataclass
 from ._dependencies import impy as ip
 import pandas as pd
 from dask import delayed, array as da
 
-from .const import nm, MtOri
+from .const import nm
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram
@@ -32,6 +32,23 @@ def dask_affine(images, matrices):
                            meta=np.array([], dtype=np.float32)
                            ).compute()
 
+def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
+    xmin = max(xmin, 0)
+    xmax = min(xmax, arr.size)
+    x = np.arange(xmin, xmax)
+    input_arr = arr[xmin:xmax] - np.min(arr[xmin:xmax])
+    return np.sum(input_arr*x)/np.sum(input_arr)
+
+@dataclass
+class MtPathProps:
+    spl: Spline3D
+    radius: nm = None
+    orientation: str = None
+    localprops: pd.DataFrame = None
+    
+    def __post_init__(self):
+        self.localprops = pd.DataFrame([])
+
 class MtTomogram:
     def __init__(self, 
                  name=None,
@@ -43,11 +60,8 @@ class MtTomogram:
         self.radius_pre = radius_pre
         self.radius = radius
         self.light_background = light_background
-        self.paths: list[Spline3D] = []
-        self.mt_radius: dict[Spline3D, nm] = {}
-        self.pitch_lengths: dict[Spline3D, tuple[np.ndarray, np.ndarray]] = {}
-        self.pf_numbers: dict[Spline3D, tuple[np.ndarray, np.ndarray]] = {}
-        self.orientation: dict[Spline3D, MtOri] = {}
+        
+        self.results: list[MtPathProps] = []
     
     def __hash__(self) -> int:
         return id(self)
@@ -72,11 +86,14 @@ class MtTomogram:
         error_nm = 1.0
         sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
-        self.paths.append(spl)
+        self.results.append(MtPathProps(spl))
         return None
     
-    def nm2pixel(self, value: np.ndarray):
-        return (np.asarray(value)/self.scale).astype(np.int16)
+    def nm2pixel(self, value: Iterable[nm]|nm):
+        pix = (np.asarray(value)/self.scale).astype(np.int16)
+        if np.isscalar(value):
+            pix = int(pix)
+        return pix
     
     def sample_subtomograms(self, 
                             i: int,
@@ -85,17 +102,17 @@ class MtTomogram:
         if not (isinstance(positions, tuple) and rotate):
             return self._sample_subtomograms(i, np.asarray(positions, dtype=np.float32), rotate)
         try:
-            out = cachemap[(self, self.paths[i], positions)]
+            out = cachemap[(self, self.results[i].spl, positions)]
         except KeyError:
             out = self._sample_subtomograms(i, np.asarray(positions, dtype=np.float32), rotate)
-            cachemap[(self, self.paths[i], positions)] = out
+            cachemap[(self, self.results[i].spl, positions)] = out
         return out
         
     def _sample_subtomograms(self, 
                             i: int,
                             positions: tuple[float,...],
                             rotate: bool = True):
-        spl = self.paths[i]
+        spl = self.results[i].spl
         
         positions = np.asarray(positions, dtype=np.float32)
         center_px = self.nm2pixel(spl(positions))
@@ -119,7 +136,7 @@ class MtTomogram:
         return out
     
     def fit(self, i: int = 0, max_interval: nm = 24.0):
-        spl = self.paths[i]
+        spl = self.results[i].spl
         length = spl.length()
         nseg = int(length/max_interval) + 1
         interval: nm = length/nseg
@@ -198,69 +215,53 @@ class MtTomogram:
             nbin = 17
             r_max: nm = 17.0
             img2d = subtomograms.proj("py")
-            arg_func = np.argmin if self.light_background else np.argmax
-            r_peak = arg_func(img2d.radial_profile(nbin=nbin, r_max=r_max))/nbin*r_max
-            spl = self.paths[i]
-            self.mt_radius[spl] = r_peak
+            prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
+            if self.light_background:
+                prof = -prof
+                
+            imax = np.argmax(prof)
+            r_peak_sub = centroid(prof, imax-5, imax+5)/nbin*r_max
+            self.results[i].radius = r_peak_sub
         return self
     
-    def calc_pitch_lengths(self,
-                           i: int, 
-                           positions:Iterable[float], 
-                           *, 
-                           upsample_factor: int = 20):
+    def calc_ft_params(self,
+                       i: int, 
+                       positions:Iterable[float], 
+                       *, 
+                       upsample_factor: int = 20):
 
         subtomograms = self.sample_subtomograms(i, positions, rotate=True)
-        ylen = int(self.radius[1]/self.scale)
-        ylen0 = int(self.radius_pre[1]/self.scale)
+        ylen = self.nm2pixel(self.radius[1])
+        ylen0 = self.nm2pixel(self.radius_pre[1])
         subtomograms = subtomograms[f"y={ylen0 - ylen}:{ylen0 + ylen + 1}"]
-        tasks = []
-        spl = self.paths[i]
-        r = self.mt_radius[spl]/self.scale
+        spl = self.results[i].spl
+        rmin = self.nm2pixel(self.results[i].radius*_INNER)
+        rmax = self.nm2pixel(self.results[i].radius*_OUTER)
         with ip.SetConst("SHOW_PROGRESS", False):
             
             img = da.from_array(subtomograms, chunks=(1,)+subtomograms.shape[1:])
-            pitch_lengths = img.map_blocks(_calc_pitch_length, 
-                                           int(r*_INNER),
-                                           int(r*_OUTER),
-                                           up=upsample_factor,
-                                           drop_axis=[1,2,3],
-                                           meta=np.array([], dtype=np.float32)
-                                           ).compute()
+            results: np.ndarray
+            results = img.map_blocks(_calc_ft_params, 
+                                     int(rmin),
+                                     int(rmax),
+                                     drop_axis=[1, 2, 3],
+                                     up=upsample_factor,
+                                     meta=np.array([], dtype=np.float32),
+                                     ).compute().reshape(-1, 3)
             
-
-        self.pitch_lengths[spl] = (spl.distances(positions), pitch_lengths)
+        self.results[i].localprops["splPosition"] = spl.distances(positions)
+        self.results[i].localprops["skew"] = results[:, 0]
+        self.results[i].localprops["y_pitch"] = results[:, 1]
+        self.results[i].localprops["nPF"] = results[:, 2].astype(np.uint8)
         
-        return pitch_lengths
-
-    def calc_pf_numbers(self,
-                        i: int, 
-                        positions:Iterable[float]
-                        ):
-        ylen = int(self.radius[1]/self.scale)
-        ylen0 = int(self.radius_pre[1]/self.scale)
-        sl = (slice(None), slice(ylen0 - ylen, ylen0 + ylen + 1))
-        subtomograms = self.sample_subtomograms(i, positions, rotate=True)
-        # make mask
-        mask = self._mt_mask(i, subtomograms.sizesof("zx"))
-        spl = self.paths[i]
-        tasks = []
-        with ip.SetConst("SHOW_PROGRESS", False):
-            for img in subtomograms:
-                npf = _calc_pf_number(img[sl].proj("y"), mask)
-                tasks.append(da.from_delayed(npf, shape=(), dtype=np.float64))
-            
-            pf_numbers = da.compute(tasks)[0]
-        
-        self.pf_numbers[spl] = (spl.distances(positions), pf_numbers)
-        
-        return self
+        return results
 
     def straighten(self, 
                    i:int, 
                    range_: tuple[float, float] = (0.0, 1.0), 
                    radius: nm = None,
-                   split: bool = True):
+                   split: bool = True,
+                   polar: bool = False):
         start, end = range_
         step = 0.1
         if split and end - start > step:
@@ -270,7 +271,8 @@ class MtTomogram:
                     break
                 sub_range = (start, min(start+step, end))
                 out.append(
-                    self.straighten(i, range_=sub_range, radius=radius, split=False)
+                    self.straighten(i, range_=sub_range, radius=radius, 
+                                    split=False, polar=polar)
                 )
                 start += step
                 
@@ -280,11 +282,16 @@ class MtTomogram:
             if radius is None:
                 rz, ry, rx = self.nm2pixel(self.radius)
             elif np.isscalar(radius):
-                rz = rx = radius
+                rz = rx = self.nm2pixel(radius)
             else:
-                rz, rx = radius
-            spl = self.paths[i]
-            coords = spl.cartesian_coords((2*rz+1, 2*rx+1), s_range=range_, scale=self.scale)
+                rz, rx = self.nm2pixel(radius)
+            spl = self.results[i].spl
+            if polar:
+                if rx <= rz:
+                    raise ValueError("For polar straightening, 'radius' must be (rmin, rmax)")
+                coords = spl.cylindrical_coords((rz, rx), s_range=range_, scale=self.scale)
+            else:
+                coords = spl.cartesian_coords((2*rz+1, 2*rx+1), s_range=range_, scale=self.scale)
             coords = np.moveaxis(coords, -1, 0)
             
             # crop image and shift coordinates
@@ -300,11 +307,23 @@ class MtTomogram:
                                             order=1,
                                             prefilter=False
                                             )
-            transformed = ip.asarray(transformed, axes="zyx")
-            transformed.set_scale(xyz=self.scale)
+            
+            axes = "rya" if polar else "zyx"
+            transformed = ip.asarray(transformed, axes=axes)
+            transformed.set_scale({k: self.scale for k in axes})
+            transformed.scale_unit = "nm"
         
         return transformed
     
+    def average(self, i: int, l0: nm = 24, r:nm=19):
+        spl = self.paths[i]
+        l = spl.length()
+        lmax = l//l0*l0
+        kernel_box = self.nm2pixel(self.radius/self.scale)
+        straight_image = self.straighten(i, radius=r)
+        mean_pitch = np.mean(self.pitch_lengths[spl[i]])
+        
+        
     
     def _mt_mask(self, i: int, shape, scale=None):
         scale = scale or self.scale
@@ -336,29 +355,43 @@ def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
 lazy_angle_corr = delayed(angle_corr)
     
 def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
-    out = []
     input_img = np.moveaxis(img3d.value, 1, 2)
     out = warp_polar(input_img, center=center, radius=radius, 
-                     output_shape=(angle_freq, radius), multichannel=True)
-    out = ip.asarray(out, axes="<ry")
+                     output_shape=(angle_freq, radius), multichannel=True, clip=False)
+    out = ip.asarray(out, axes="ary") # angle, radius, y
     return out
 
-def _calc_pitch_length(img, rmin, rmax, up=20):
+def _calc_ft_params(img, rmin, rmax, up=20):
     img = img[0]
     peak_est = img.sizeof("y")/(4.16/img.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
     
-    polar3d = warp_polar_3d(img, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
-    power_spectra = polar3d.local_power_spectra(key=f"y={y0}:{y1}", upsample_factor=[1, 1, up], dims="<ry")
+    polar = warp_polar_3d(img, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
+    da = 20
+    power_1 = polar.local_power_spectra(key=f"y={y0}:{y1};a={-da}:", 
+                                        upsample_factor=[up, 1, up], 
+                                        dims="ary"
+                                        ).proj("r")
+    power_2 = polar.local_power_spectra(key=f"y={y0}:{y1};a=:{da+1}", 
+                                        upsample_factor=[up, 1, up], 
+                                        dims="ary"
+                                        ).proj("r")
+    power = np.concatenate([power_1, power_2], axis="a")
+    amax, ymax = np.unravel_index(np.argmax(power), shape=power.shape)
+    amax_f = amax - da*up
+    ymax_f = ymax + y0*up
+    a_freq = np.fft.fftfreq(polar.sizeof("a")*up)
+    y_freq = np.fft.fftfreq(polar.sizeof("y")*up)
     
-    proj_along_y = power_spectra.proj("<r")
-    imax = np.argmax(proj_along_y)
-    imax_f = imax + y0*up
-    freq = np.fft.fftfreq(img.sizeof("y")*up)
-    pitch = 1/freq[imax_f]*img.scale.y
+    skew = a_freq[amax_f]*2*np.pi
+    y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
     
-    return np.array([pitch], dtype=np.float32)
+    power_a = polar.local_power_spectra(key="a=12:17;y=0:1", dims="ary")
+    proj_along_a = power_a.proj("ry")
+    npf = np.argmax(proj_along_a) + 12
+    
+    return np.array([skew, y_pitch, npf], dtype=np.float32)
 
 
 def rotational_average(img, fold:int=13):
@@ -370,11 +403,3 @@ def rotational_average(img, fold:int=13):
     average_img /= fold
     return average_img
 
-@delayed
-def _calc_pf_number(img2d, mask):
-    corrs = []
-    for pf in [12, 13, 14, 15, 16]:
-        av = rotational_average(img2d, pf)
-        corrs.append(ip.zncc(img2d, av, mask))
-    
-    return np.argmax(corrs) + 12
