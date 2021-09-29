@@ -1,9 +1,12 @@
 from __future__ import annotations
-from typing import Iterable
+from typing import Callable, Iterable
+import warnings
 import numpy as np
 import numba as nb
+import json
 from scipy.interpolate import splprep, splev, interp1d
 from skimage.transform._warps import _linear_polar_mapping
+from .const import nm
 
 class Spline3D:
     """
@@ -19,7 +22,8 @@ class Spline3D:
         self._u = None
         self.scale = scale
         self._k = k
-        self._nfit = 0
+        self._anchors = None
+        self._updates = 0
     
     @property
     def tck(self) -> tuple[np.ndarray, list[np.ndarray], int]:
@@ -32,12 +36,43 @@ class Spline3D:
     @property
     def k(self) -> int:
         return self._k
+        
+    @property
+    def anchors(self) -> np.ndarray:
+        if self._anchors is None:
+            raise ValueError("Anchor has not been set yet.")
+        return self._anchors
+    
+    @anchors.setter
+    def anchors(self, positions: float|Iterable[float]):
+        positions = np.atleast_1d(np.asarray(positions, dtype=np.float32))
+        if positions.ndim != 1:
+            raise TypeError(f"Could not convert positions into 1D array.")
+        elif positions.min() < 0 or positions.max() > 1:
+            msg = f"Anchor positions should be set between 0 and 1. Otherwise spline " \
+                  f"curve does not fit well."
+            warnings.warn(msg, UserWarning)
+        self._anchors = positions
+        self._updates += 1
+    
+    def make_anchors(self, interval: nm = None, n: int=None):
+        length = self.length()
+        if interval is not None:
+            n = int(length/interval) + 1
+            end = (n-1)*interval/length
+        elif n is not None:
+            end = 1
+        else:
+            raise ValueError("Either 'interval' or 'n' must be specified.")
+        
+        self.anchors = np.linspace(0, end, n)
+        return None
     
     def __hash__(self) -> int:
-        return hash(str(self))
+        return hash((id(self), self._updates))
     
     def __str__(self) -> str:
-        return f"Spline<{hex(id(self))}> {self._nfit}-fit"
+        return f"{self.__class__.__name__}<{hex(id(self))}>"
     
     def fit(self, coords:np.ndarray, s=None):
         """
@@ -55,19 +90,19 @@ class Spline3D:
             lin = interp1d(np.linspace(0, 1, npoints), coords.T)
             coords = lin(np.linspace(0,1,4)).T
         self._tck, self._u = splprep(coords.T, k=self._k, s=s)
+        self._updates += 1
+        self._anchors = None # Anchor should be deleted after spline is updated
+        return self
     
-    def distances(self, u: Iterable[float]) -> np.ndarray:
+    def distances(self, u: Iterable[float]=None) -> np.ndarray:
+        if u is None:
+            u = self.anchors
         length = self.length()
         return length * np.asarray(u)
 
-    @classmethod
-    def prep(cls, t, c, u):
-        self = cls()
-        self._tck = (t, c, self._k)
-        self._u = u
-        return self
-
-    def __call__(self, u:np.ndarray|float, der:int=0) -> np.ndarray:
+    def __call__(self, u:np.ndarray|float=None, der:int=0) -> np.ndarray:
+        if u is None:
+            u = self.anchors
         if np.isscalar(u):
             coord = splev([u], self._tck, der=der)
             return np.concatenate(coord).astype(np.float32)
@@ -79,7 +114,7 @@ class Spline3D:
         u = np.linspace(0, 1, n)
         return self(u, der)
 
-    def length(self, start:float=0, stop:float=1, nknots:int=100):
+    def length(self, start:float=0, stop:float=1, nknots:int=100) -> nm:
         """
         Approximate the length of B-spline between [start, stop] by partitioning
         the spline with 'nknots' knots.
@@ -88,14 +123,48 @@ class Spline3D:
         dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
     
-    def curvature(self, u):
+    def curvature(self, u=None):
+        if u is None:
+            u = self.anchors
         # https://en.wikipedia.org/wiki/Curvature#Space_curves
         dz, dy, dx = self(u, 1).T
         ddz, ddy, ddx = self(u, 2).T
         a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
         return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.scale # TODO: not /scale 
     
-    def rotation_matrix(self, u, center=None, inverse:bool=False):
+    def to_dict(self) -> dict:
+        t = self.tck[0]
+        c = self.tck[1]
+        k = self.tck[2]
+        u = self.u
+        scale = self.scale
+        return {"t": list(t), 
+                "c": {"z": c[0],
+                      "y": c[1],
+                      "x": c[2]},
+                "k": k,
+                "u": u,
+                "scale": scale}
+    
+    @classmethod
+    def from_dict(cls, d: dict):
+        self = cls(d["scale"], d["k"])
+        t = np.ndarray(d["t"])
+        c = [np.ndarray(d["c"][k]) for k in "zyx"]
+        k = int(d["k"])
+        self._tck = (t, c, k)
+        self._u = d["u"]
+        return self
+    
+    def to_json(self, path: str):
+        path = str(path)
+        
+        with open(path, mode="w") as f:
+            json.dump(self.to_dict(), f)
+        
+        return None
+    
+    def rotation_matrix(self, u=None, center=None, inverse:bool=False) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correcpond to
         the orientation of spline curve.
@@ -111,6 +180,8 @@ class Spline3D:
         inverse : bool, default is False
             If True, rotation matrix will be inversed.
         """        
+        if u is None:
+            u = self.anchors
         ds = self(u, 1)
         matrix_func = _vector_to_inv_rotation_matrix if inverse else _vector_to_rotation_matrix
         if np.isscalar(u):
@@ -137,9 +208,8 @@ class Spline3D:
     
     def local_cartesian_coords(self,
                                shape: tuple[int, int],
-                               position,
                                n_pixels: int,
-                               scale: float):
+                               u=None):
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -161,22 +231,27 @@ class Spline3D:
             (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
             dimensional axis.
         """        
-        return self._get_local_coords(_cartesian_coords_2d, shape, position, n_pixels, scale)
+        return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels, self.scale)
     
     def local_cylindrical_coords(self,
                                  r_range: tuple[int, int],
                                  position,
-                                 n_pixels,
-                                 scale):
+                                 n_pixels):
         
-        return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels, scale)
+        return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels, self.scale)
         
     
-    def _get_local_coords(self, map_func, map_params:tuple, position:float, n_pixels:int, scale:float):
-        ds = self(position, 1).astype(np.float32)
+    def _get_local_coords(self,
+                          map_func: Callable[[tuple], np.ndarray],
+                          map_params:tuple, 
+                          u:float, 
+                          n_pixels:int):
+        if u is None:
+            u = self.anchors
+        ds = self(u, 1).astype(np.float32)
         len_ds = np.sqrt(sum(ds**2))
         dy = ds.reshape(-1, 1)/len_ds * np.linspace(-n_pixels/2+0.5, n_pixels/2-0.5, n_pixels)
-        y_ax_coords = (self(position)/scale).reshape(1, -1) + dy.T
+        y_ax_coords = (self(u)/self.scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds]*n_pixels, axis=0)
         map_ = map_func(*map_params)
         zeros = np.zeros(map_.shape[:-1], dtype=np.float32)
@@ -190,28 +265,29 @@ class Spline3D:
 
     def cartesian_coords(self, 
                          shape: tuple[int, int], 
-                         s_range: tuple[float, float] = (0, 1), 
-                         scale: float = 1
+                         s_range: tuple[float, float] = (0, 1)
                          ) -> np.ndarray:
         
-        return self._get_coords(_cartesian_coords_2d, shape, s_range, scale)
+        return self._get_coords(_cartesian_coords_2d, shape, s_range)
 
     def cylindrical_coords(self, 
                            r_range: tuple[int, int],
-                           s_range: tuple[float, float] = (0, 1), 
-                           scale: float = 1
+                           s_range: tuple[float, float] = (0, 1)
                            ) -> np.ndarray:
         
-        return self._get_coords(_polar_coords_2d, r_range, s_range, scale)
+        return self._get_coords(_polar_coords_2d, r_range, s_range)
 
-    def _get_coords(self, map_func, map_params:tuple, s_range:tuple[float, float], scale:float):
+    def _get_coords(self,
+                    map_func: Callable[[tuple], np.ndarray],
+                    map_params:tuple,
+                    s_range:tuple[float, float]):
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
-        n_pixels = int(length/scale) + 1
+        n_pixels = int(length/self.scale) + 1
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
         u = np.linspace(s0, s1, n_pixels)
-        y_ax_coords = self(u)/scale # world coordinates of y-axis in spline coords system
+        y_ax_coords = self(u)/self.scale # world coordinates of y-axis in spline coords system
         dslist = self(u, 1).astype(np.float32)
         map_ = map_func(*map_params)
         zeros = np.zeros(map_.shape[:-1], dtype=np.float32)

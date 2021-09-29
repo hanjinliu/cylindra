@@ -1,12 +1,12 @@
 import pandas as pd
-from typing import TYPE_CHECKING, Callable, TypeVar
+from typing import TYPE_CHECKING, Iterable
 from collections import OrderedDict
 import numpy as np
 from dask import array as da
 from scipy import ndimage as ndi
 import napari
 from napari.utils.colormaps.colormap import Colormap
-from napari.qt import progress, thread_worker, create_worker
+from napari.qt import thread_worker, create_worker
 from qtpy.QtGui import QFont
 from pathlib import Path
 from magicgui.widgets import Table, TextEdit
@@ -15,63 +15,19 @@ import matplotlib.pyplot as plt
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, field, button_design, click, set_options, 
                             Figure, TupleEdit, CheckButton, Separator)
-from .mtpath import (MTPath, angle_corr, calc_total_length, load_a_subtomogram, vector_to_grad, 
-                     rot3d, rot3dinv, make_slice_and_pad)
-from .const import Header
+# from .mtpath import (MTPath, angle_corr, calc_total_length, load_a_subtomogram, vector_to_grad, 
+#                      rot3d, rot3dinv, make_slice_and_pad)
+from .tomogram import MtTomogram, cachemap, angle_corr
+from .utils import load_a_subtomogram, make_slice_and_pad
+from .const import nm, H, INNER, OUTER
+
+# TODO: QListView
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
     from napari._qt.qthreading import GeneratorWorker
+    from matplotlib.axes import Axes
 
-_V = TypeVar("_V")
-
-class CacheMap:
-    def __init__(self, maxgb:float=2.0):
-        self.maxgb = maxgb
-        self.cache: OrderedDict[int, _V] = OrderedDict()
-        self.gb = 0.0
-    
-    def __getitem__(self, key: tuple[str, int]) -> _V:
-        real_key, identifier = key
-        idf, value = self.cache[real_key]
-        if idf == identifier:
-            return value
-        else:
-            raise KeyError("Wrong identifier")
-    
-    def __setitem__(self, key: tuple[str, int], value:_V):
-        real_key, identifier = key
-        self.cache[real_key] = (identifier, value)
-        size = sum(a.nbytes for a in value)/1e9
-        self.gb += size
-        while self.gb > self.maxgb:
-            self.pop()
-    
-    def pop(self) -> None:
-        _, item = self.cache.popitem(last=False)
-        self.gb -= sum(a.nbytes for a in item[1])/1e9
-        return None
-
-    def keys(self):
-        return self.cache.keys()
-    
-    def clear(self):
-        self.cache.clear()
-        self.gb = 0
-        return None
-
-cachemap = CacheMap(maxgb=ip.Const["MAX_GB"])
-
-def cached_rotate(mtp:MTPath, image):
-    try:
-        mtp.subtomograms = cachemap[f"{image.name}-{mtp.label}", 
-                                    hash(str(mtp.points))]
-    except KeyError:
-        mtp.load_subtomograms(image)
-        mtp.rotate3d()
-        cachemap[f"{image.name}-{mtp.label}",
-                 hash(str(mtp.points))] = mtp.subtomograms
-    return None
 
 @thread_worker(progress={"total": 0, "desc": "Reading Image"})
 def imread(img, binsize):
@@ -85,6 +41,7 @@ def imread(img, binsize):
 class ImageLoader:
     path = field(Path)
     scale = field(str, options={"label": "scale (nm)"})
+    light_background = field(True)
     
     @button_design(text="OK")
     def call_button(self):
@@ -216,116 +173,116 @@ class MTProfiler:
         self._update_colormap()
         return None
     
-    @set_options(niter={"min": 1, "max": 5, "label": "Number of iterations"},
-                 nshifts={"min": 3, "max": 31, "label": "Number of shifts"},
-                 nrots={"min": 3, "max": 25, "label": "Number of rotations"})
-    def subtomogram_averaging(self, niter:int=3, nshifts:int=7, nrots:int=5):
-        """
-        Average subtomograms along a MT.
+    # @set_options(niter={"min": 1, "max": 5, "label": "Number of iterations"},
+    #              nshifts={"min": 3, "max": 31, "label": "Number of shifts"},
+    #              nrots={"min": 3, "max": 25, "label": "Number of rotations"})
+    # def subtomogram_averaging(self, niter:int=3, nshifts:int=7, nrots:int=5):
+    #     """
+    #     Average subtomograms along a MT.
 
-        Parameters
-        ----------
-        niter : int, default is 2
-            Number of iterations. MT template will be updated using the previous iteration.
-        nshifts : int, default is 19
-            Number of shifts along Y-axis to apply.
-        nrots : int, default is 5
-            Number of rotation angles in around Y-axis to apply.
-        """
-        viewer: napari.Viewer = self.parent_viewer
+    #     Parameters
+    #     ----------
+    #     niter : int, default is 2
+    #         Number of iterations. MT template will be updated using the previous iteration.
+    #     nshifts : int, default is 19
+    #         Number of shifts along Y-axis to apply.
+    #     nrots : int, default is 5
+    #         Number of rotation angles in around Y-axis to apply.
+    #     """
+    #     viewer: napari.Viewer = self.parent_viewer
         
-        worker = create_worker(self.current_mt.average_subtomograms, 
-                               niter, nshifts, nrots,
-                               _progress={"total": niter, 
-                                          "desc": "Subtomogram averaging"}
-                               )
+    #     worker = create_worker(self.current_mt.average_subtomograms, 
+    #                            niter, nshifts, nrots,
+    #                            _progress={"total": niter, 
+    #                                       "desc": "Subtomogram averaging"}
+    #                            )
         
-        self._connect_worker(worker)
-        self._worker_control.metadata["iter"] = 1
-        self._worker_control.info.value = "Iteration 1"
+    #     self._connect_worker(worker)
+    #     self._worker_control.metadata["iter"] = 1
+    #     self._worker_control.info.value = "Iteration 1"
         
-        @worker.yielded.connect
-        def _on_yield(out):
-            df, avg_img = out
+    #     @worker.yielded.connect
+    #     def _on_yield(out):
+    #         df, avg_img = out
             
-            if self.light_background:
-                avg_img = -avg_img
+    #         if self.light_background:
+    #             avg_img = -avg_img
             
-            avg_image_name = "AVG"
-            try:
-                viewer.layers[avg_image_name].data = avg_img
-            except KeyError:
-                layer = viewer.add_image(avg_img, scale=avg_img.scale, name=avg_image_name,
-                                         rendering="iso", iso_threshold = 0.6)
+    #         avg_image_name = "AVG"
+    #         try:
+    #             viewer.layers[avg_image_name].data = avg_img
+    #         except KeyError:
+    #             layer = viewer.add_image(avg_img, scale=avg_img.scale, name=avg_image_name,
+    #                                      rendering="iso", iso_threshold = 0.6)
             
-            it = self._worker_control.metadata["iter"] + 1
-            self._worker_control.info.value = f"Iteration {it}"
-            self._worker_control.metadata["iter"] = it
-            viewer.camera.center = np.array(avg_img.shape)/2*avg_img.scale
+    #         it = self._worker_control.metadata["iter"] + 1
+    #         self._worker_control.info.value = f"Iteration {it}"
+    #         self._worker_control.metadata["iter"] = it
+    #         viewer.camera.center = np.array(avg_img.shape)/2*avg_img.scale
         
-        @worker.returned.connect
-        def _on_return(out):
-            df, avg_img = out
-            table = Table(value=df)
-            viewer.window.add_dock_widget(table, name="Results")
+    #     @worker.returned.connect
+    #     def _on_return(out):
+    #         df, avg_img = out
+    #         table = Table(value=df)
+    #         viewer.window.add_dock_widget(table, name="Results")
                 
-        worker.start()
-        return None
+    #     worker.start()
+    #     return None
     
-    @set_options(binsize={"min":1, "max":8, "label": "Binning for peak detection"},
-                 niter={"min":1, "max":5, "label": "Number of PCC iteration"},
-                 remap={"label": "Remap coordinates"})
-    def tubulin_averaging(self, binsize:int=2, niter:int=3, remap:bool=True):
-        """
-        Run tubulin averagin algorithm along current MT path.
+    # @set_options(binsize={"min":1, "max":8, "label": "Binning for peak detection"},
+    #              niter={"min":1, "max":5, "label": "Number of PCC iteration"},
+    #              remap={"label": "Remap coordinates"})
+    # def tubulin_averaging(self, binsize:int=2, niter:int=3, remap:bool=True):
+    #     """
+    #     Run tubulin averagin algorithm along current MT path.
 
-        Parameters
-        ----------
-        binsize : int, default is 2
-            Bin size applied to averaged subtomogram to speed up local peak detection.
-        niter : int, default is 3
-            Number of iteration of refining tubulin template.
-        remap : bool, default is True
-            If true, tubulin coordinates will remapped to world coordinate system.
-        """        
-        mtp = self.current_mt
-        viewer: napari.Viewer = self.parent_viewer
+    #     Parameters
+    #     ----------
+    #     binsize : int, default is 2
+    #         Bin size applied to averaged subtomogram to speed up local peak detection.
+    #     niter : int, default is 3
+    #         Number of iteration of refining tubulin template.
+    #     remap : bool, default is True
+    #         If true, tubulin coordinates will remapped to world coordinate system.
+    #     """        
+    #     mtp = self.current_mt
+    #     viewer: napari.Viewer = self.parent_viewer
 
-        coords = mtp.find_tubulin(binsize)
-        template = mtp.crop_out_tubulin(coords, niter=niter)
-        if self.light_background:
-            template = -template
-        viewer.add_points(coords, face_color="gold", size=2, edge_color="white", 
-                          name="Tubulin on template")
-        viewer.add_image(template, scale=template.scale, name="Tubulin template",
-                         rendering="iso", iso_threshold=0.6)
+    #     coords = mtp.find_tubulin(binsize)
+    #     template = mtp.crop_out_tubulin(coords, niter=niter)
+    #     if self.light_background:
+    #         template = -template
+    #     viewer.add_points(coords, face_color="gold", size=2, edge_color="white", 
+    #                       name="Tubulin on template")
+    #     viewer.add_image(template, scale=template.scale, name="Tubulin template",
+    #                      rendering="iso", iso_threshold=0.6)
         
-        if remap:
-            coords_remapped = np.concatenate(
-                list(mtp.transform_coordinates()),
-                axis=0
-                )
-            viewer.add_points(coords_remapped, size=2, face_color="gold", edge_color="white", 
-                              name="Remapped tubulins")
-        return None
+    #     if remap:
+    #         coords_remapped = np.concatenate(
+    #             list(mtp.transform_coordinates()),
+    #             axis=0
+    #             )
+    #         viewer.add_points(coords_remapped, size=2, face_color="gold", edge_color="white", 
+    #                           name="Remapped tubulins")
+    #     return None
     
-    @set_options(position={"min":0.0, "max":1.0, "step":0.05})
-    def pick_subtomogram(self, position:float=0.5):
-        scale = self.image.scale.x
-        with ip.SetConst("SHOW_PROGRESS", False):
-            mtp = self.current_mt
-            tomo = load_a_subtomogram(self.image, mtp.spl(position)/scale, self.radius_pre_nm)
-            dr = mtp.spl(position, der=1).reshape(1, -1)
-            zy, yx = vector_to_grad(dr)
-            tomo = rot3d(tomo, yx[0], zy[0])
-            self.parent_viewer.add_image(tomo, scale=scale)
+    # @set_options(position={"min":0.0, "max":1.0, "step":0.05})
+    # def pick_subtomogram(self, position:float=0.5):
+    #     scale = self.image.scale.x
+    #     with ip.SetConst("SHOW_PROGRESS", False):
+    #         mtp = self.current_mt
+    #         tomo = load_a_subtomogram(self.image, mtp.spl(position)/scale, self.box_radius_pre)
+    #         dr = mtp.spl(position, der=1).reshape(1, -1)
+    #         zy, yx = vector_to_grad(dr)
+    #         tomo = rot3d(tomo, yx[0], zy[0])
+    #         self.parent_viewer.add_image(tomo, scale=scale)
     
     @button_design(text="Create Macro")
     def create_macro_(self):
         self.create_macro(show=True)
         return None
 
-    def _update_colormap(self):
+    def _update_colormap(self): # TODO
         if self.layer_paint is None:
             return None
         color = self.layer_paint.color
@@ -337,7 +294,8 @@ class MTProfiler:
         
     def __post_init__(self):
         self._mtpath = None
-        self.image = None
+        self.tomograms: list[MtTomogram] = []
+        self.active_tomogram: MtTomogram = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -348,13 +306,7 @@ class MTProfiler:
         self.mt.pos.min_width = 70
         call_button = self._loader["call_button"]
         call_button.changed.connect(self.load_image)
-                
-    @property
-    def current_mt(self):
-        if self._mtpath is None:
-            self._mtpath = self._get_one_mt(0)
-        return self._mtpath
-    
+             
     @operation.wraps
     @click(enabled=False, enables=operation.run_for_all_path)
     @button_design(text="📝")
@@ -362,17 +314,18 @@ class MTProfiler:
         """
         Register current selected points as a MT path.
         """        
-        # check length
-        total_length = calc_total_length(self.layer_work.data)
-        if total_length < self.interval*3:
-            raise ValueError(f"Path is too short: {total_length:.2f} nm\n"
-                             f"Must be longer than {self.interval*3:.2f} nm.")
+        coords = self.layer_work.data
+        tomo = self.active_tomogram
+        self.active_tomogram.add_path(coords)
+        spl = self.active_tomogram.paths[-1]
+        if spl.length() < 72.0:
+            raise ValueError(f"Path is too short: {spl.length():.2f} nm")
         
-        self.layer_prof.add(self.layer_work.data)
-        self.mt_paths.append(self.layer_work.data)
-        self.canvas.ax.plot(self.layer_work.data[:,2], self.layer_work.data[:,1], color="gray", lw=2.5)
-        self.canvas.ax.set_xlim(0, self.image.sizeof("x")*self.image.scale.x)
-        self.canvas.ax.set_ylim(self.image.sizeof("y")*self.image.scale.y, 0)
+        fit = spl.partition(100)
+        self.layer_prof.add(fit)
+        self.canvas.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
+        self.canvas.ax.set_xlim(0, tomo.image.sizeof("x")*tomo.image.scale.x)
+        self.canvas.ax.set_ylim(tomo.image.sizeof("y")*tomo.image.scale.y, 0)
         self.canvas.ax.set_aspect("equal")
         self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         self.canvas.figure.tight_layout()
@@ -383,13 +336,10 @@ class MTProfiler:
     @operation.wraps
     @click(enabled=False, enables=POST_PROCESSING)
     @button_design(text="👉")
-    def run_for_all_path(self):
+    def run_for_all_path(self): # TODO
         """
         Run MTProps.
         """        
-        if self.dataframe is not None:
-            raise ValueError("Data Frame list is not empty")
-        
         if self.layer_work.data.size > 0:
             self.register_path()
         
@@ -403,74 +353,44 @@ class MTProfiler:
         def _on_yield(out):
             if isinstance(out, str):
                 self._worker_control.info.value = out
-            else:
-                pass
             
         @worker.returned.connect
-        def _on_return(out):
+        def _on_return(out: MtTomogram):
             self._from_dataframe(pd.concat(out, axis=0))
         
         worker.start()
         return None
     
-    def _run_all(self):
-        df_list = []
-        for i, path in enumerate(self.mt_paths):
-            mtp = MTPath(self.image.scale.x, 
-                        label=i, 
-                        interval_nm=self.interval, 
-                        light_background=self.light_background,
-                        radius_pre_nm=self.radius_pre_nm,
-                        radius_nm=self.radius_nm
-                        )
-                
-            yield "Calculating path coordinates ..."
-            mtp.set_path(path)
-            yield "Loading subtomograms ..."
-            mtp.load_subtomograms(self.image)
-            yield "Calculating path gradient ..."
-            mtp.grad_path()
-            yield "XY angular correlation ..."
-            mtp.smooth_path()
-            yield "XY rotation ..."
-            mtp.rot_correction()
-            yield "XZ shift correlation ..."
-            mtp.zxshift_correction()
-            yield "Fitting MT with B-spline ..."
-            mtp.get_spline()
-            yield "Re-samping subtomograms ..."
-            mtp.load_subtomograms(self.image)
-            yield "3D rotation ..."
-            mtp.rotate3d()
-            cachemap[f"{self.image.name}-{mtp.label}",
-                        hash(str(mtp.points))] = mtp.subtomograms
-            yield "Calculating MT Radius ..."
-            mtp.determine_radius()
-            yield "Calculating pitch lengths ..."
-            mtp.calc_pitch_lengths(self.upsample_factor)
-            yield "Calculating PF numbers ..."
-            mtp.calc_pf_numbers()
+    def _run_all(self): # TODO
+        tomo = self.active_tomogram
+        for i in range(tomo.n_paths):
+            prog = f"{i}/{tomo.n_paths}"
+            yield f"{prog} Spline fitting ..."
+            tomo.fit(i)
+            length = tomo.paths[i].length()
+            nseg = int(length//self.interval)
+            position = tuple(np.linspace(0, nseg/length, nseg+1))
+            yield f"{prog} Reloading subtomograms ..."
+            tomo.get_subtomograms(i, position)
+            yield f"{prog} MT analysis ..."
+            tomo.calc_ft_params(i, position)
             
-            df = mtp.to_dataframe()
-            df_list.append(df)
+            yield
         
-            yield mtp
-        
-        return df_list
+        return tomo
     
     @operation.wraps
-    @set_options(radius_pre_nm={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
+    @set_options(box_radius_pre={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
                  radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
                  upsample_factor={"min":12, "max":50},
                  bin_size={"min": 1, "max": 8})
     @button_design(text="⚙")
     def settings(self,
-                 interval_nm:float=24.0, 
-                 light_background:bool=True,
-                 radius_pre_nm:tuple[float, float, float]=(22.0, 28.0, 28.0), 
-                 radius_nm:tuple[float, float, float]=(16.7, 16.7, 16.7),
-                 upsample_factor:int=20,
-                 bin_size:int=4):
+                 interval_nm: float = 24.0, 
+                 box_radius_pre: tuple[float, float, float] = (22.0, 28.0, 28.0), 
+                 box_radius: tuple[float, float, float] = (16.7, 16.7, 16.7),
+                 upsample_factor: int = 20,
+                 bin_size: int = 4):
         """
         Change MTProps setting.
         Parameters
@@ -479,7 +399,7 @@ class MTProfiler:
             Interval between points to analyze.
         light_background : bool, optional
             Light background or not
-        radius_pre_nm : tuple[float, float, float]
+        box_radius_pre : tuple[float, float, float]
             Images in this range will be considered to determine MT tilt and shift.
         radius_nm : tuple[float, float, float]
             Images in this range will be considered to determine MT pitch length and PF number.
@@ -490,13 +410,10 @@ class MTProfiler:
             not affect the results of analysis.
         """        
         self.interval = interval_nm
-        self.light_background = light_background
-        self.radius_pre_nm = radius_pre_nm
-        self.radius_nm = radius_nm
+        self.box_radius = box_radius
+        self.box_radius_pre = box_radius_pre
         self.upsample_factor = upsample_factor
         self.binsize = bin_size
-        if self.layer_image is not None:
-            self.layer_image.rendering = "minip" if self.light_background else "mip"
     
     @operation.wraps
     @button_design(text="❌")
@@ -525,6 +442,7 @@ class MTProfiler:
         self.plot.draw()
         
         cachemap.clear()
+        
         return None
     
     @operation.wraps
@@ -549,6 +467,7 @@ class MTProfiler:
         self.read_only = True
         txt.native.setFont(QFont("Consolas"))
         txt.show()
+        return None
     
     @io.wraps
     @button_design(text="Open image 🔬")
@@ -559,21 +478,21 @@ class MTProfiler:
         self._loader.show()
         return None
         
-    @io.wraps
-    @click(enabled=False, enables=POST_PROCESSING)
-    @set_options(path={"filter": "*.tif;*.mrc;*.rec"})
-    @button_design(text="Load csv 📂")
-    def from_csv_file(self, path: Path):
-        """
-        Choose a csv file and load it.
-        """        
-        self.parent_viewer.window._status_bar._toggle_activity_dock(True)
-        with progress(total=0) as pbr:
-            pbr.set_description("Loading csv")
-            df = pd.read_csv(path)
-            self._from_dataframe(df)
-        self.parent_viewer.window._status_bar._toggle_activity_dock(False)
-        return None
+    # @io.wraps
+    # @click(enabled=False, enables=POST_PROCESSING)
+    # @set_options(path={"filter": "*.tif;*.mrc;*.rec"})
+    # @button_design(text="Load csv 📂")
+    # def from_csv_file(self, path: Path):
+    #     """
+    #     Choose a csv file and load it.
+    #     """        
+    #     self.parent_viewer.window._status_bar._toggle_activity_dock(True)
+    #     with progress(total=0) as pbr:
+    #         pbr.set_description("Loading csv")
+    #         df = pd.read_csv(path)
+    #         self._from_dataframe(df)
+    #     self.parent_viewer.window._status_bar._toggle_activity_dock(False)
+    #     return None
     
     @io.wraps
     @button_design(text="Save 💾")
@@ -589,16 +508,15 @@ class MTProfiler:
     @viewer_op.wraps
     @click(enabled=False)
     @button_design(text="👁️")    
-    def send_to_napari(self):
+    def send_to_napari(self): # TODO
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
         """        
-        if self.dataframe is None:
-            return None
         i = self.mt.pos.value
-        img = self.current_mt.subtomograms[i]
+        tomo = self.active_tomogram
+        img = tomo._sample_subtomograms(i)
         self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
-                                     rendering="minip" if self.light_background else "mip")
+                                     rendering="minip" if tomo.light_background else "mip")
         return None
     
     @viewer_op.focus.connect
@@ -656,25 +574,13 @@ class MTProfiler:
         """
         Show 3D paths of microtubule center axes.
         """        
-        paths = []
-        for _, df in self.dataframe.groupby(Header.label):
-            paths.append(df[Header.zyx()].values)
+        paths = [r.partition(100) for r in self.active_tomogram.paths]
+        
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
                                       translate=self.layer_image.translate)
         return None
     
-    @click(visible=False)
-    def iter_mt(self):
-        i = 0
-        while True:
-            try:
-                yield self._get_one_mt(i)
-            except IndexError:
-                break
-            finally:
-                i += 1
-
-    def _paint_mt(self):
+    def _paint_mt(self): # TODO
         """
         Paint microtubule fragments by its pitch length.
         
@@ -682,14 +588,26 @@ class MTProfiler:
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """        
-        # TODO: if images with different scale are analyzed without restart,
-        # self.current_mt.radius_peak takes previous value
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
-        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in self.radius_nm]
-
+        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in self.box_radius_pre]
+        tomo = self.active_tomogram
         with ip.SetConst("SHOW_PROGRESS", False):
+            z, y, x = np.indices((lz, ly, lx))
+            domains = np.zeros((len(tomo.paths), lz, ly, lx), dtype=np.float32)
+            for i, r in enumerate(tomo.paths):
+                # Prepare template hollow image
+                r0 = r.radius/tomo.scale*0.9/self.binsize
+                r1 = r.radius/tomo.scale*1.1/self.binsize
+                _sq = (z - lz//2)**2 + (x - lx//2)**2
+                domains[i][(r0**2 < _sq) & (_sq < r1**2)] = 1.0
+                ry = max(int(self.interval/bin_scale/2 + 0.5), 1)
+                domains[i, :, :ly//2-ry] = 0
+                domains[i, :, ly//2+ry+1:] = 0
+                
+            domains = ip.asarray(domains, axes="pzyx")
+            
             tasks = []
             for i, (_, row) in enumerate(self.dataframe.iterrows()):                
                 z, y, x = np.indices((lz, ly, lx))
@@ -757,25 +675,14 @@ class MTProfiler:
         self._update_colormap()
         return None
         
-    def _get_one_mt(self, label:int=0):
-        """
-        Prepare current MTPath object from data frame.
-        """        
-        df = self.dataframe[self.dataframe[Header.label]==label]
-        mtp = MTPath(self.image.scale.x, 
-                     label=label, 
-                     interval_nm=self.interval,
-                     light_background=self.light_background
-                     )
-        mtp.from_dataframe(df)
-        cached_rotate(mtp, self.image)
-        return mtp
-    
+            
     def _plot_pitch(self):
-        x = np.arange(self.current_mt.npoints)*self.interval
+        i = self.mt.mtlabel.value
+        props = self.active_tomogram.paths[i].localprops
+        x = props[H.splDistance]
         with plt.style.context("dark_background"):
             self.plot.ax.cla()
-            self.plot.ax.plot(x, self.current_mt.pitch_lengths, color="white")
+            self.plot.ax.plot(x, props[H.yPitch], color="white")
             self.plot.ax.set_xlabel("position (nm)")
             self.plot.ax.set_ylabel("pitch (nm)")
             self.plot.ax.set_ylim(*self.label_colorlimit)
@@ -787,6 +694,7 @@ class MTProfiler:
     @click(disables=POST_PROCESSING, enables=POST_IMREAD, visible=False)
     def load_image(self, event=None):
         img = self._loader.img
+        viewer: napari.Viewer = self.parent_viewer
         worker = imread(img, self.binsize)
         self._connect_worker(worker)
         self._worker_control.info.value = \
@@ -797,8 +705,8 @@ class MTProfiler:
         def _on_return(imgb):
             self._init_widget_params()
             tr = (self.binsize-1)/2*img.scale.x
-            if self.layer_image not in self.parent_viewer.layers:
-                self.layer_image = self.parent_viewer.add_image(
+            if self.layer_image not in viewer.layers:
+                self.layer_image = viewer.add_image(
                     imgb, 
                     scale=imgb.scale, 
                     name=imgb.name, 
@@ -812,10 +720,15 @@ class MTProfiler:
                 self.layer_image.translate = [tr, tr, tr]
                 self.layer_image.rendering = "minip" if self.light_background else "mip"
                 
-            self.parent_viewer.scale_bar.unit = img.scale_unit
-            self.parent_viewer.dims.axis_labels = ("z", "y", "x")
-
-            self.image = img
+            viewer.scale_bar.unit = img.scale_unit
+            viewer.dims.axis_labels = ("z", "y", "x")
+            
+            tomo = MtTomogram(self.box_radius_pre, 
+                              self.box_radius,
+                              self.light_background,
+                              name=img.name)
+            
+            self.tomograms.append(tomo)
 
             self.clear_all()
             return None
@@ -824,21 +737,10 @@ class MTProfiler:
         self._loader.close()
         return None
     
-    def _from_dataframe(self, df:pd.DataFrame):
-        """
-        Convert data frame information into points layer and update widgets. If the first MTPath object
-        is available, use mtp argument.
-        """        
+    def _load_tomogram_results(self):
+        tomo = self.active_tomogram
         self._init_layers()
-        
-        self.dataframe = df
-        
-        # Set current MT to the first MT in the DataFrame
-        mtp = self._get_one_mt(0)
-        
-        # Add a column for note
-        df["Note"] = np.array([""]*df.shape[0], dtype="<U32")
-        
+                
         # Paint MTs by its pitch length
         self._paint_mt()
         
@@ -847,9 +749,8 @@ class MTProfiler:
         
         # initialize GUI
         self._init_widget_params()
-        self.mt.mtlabel.max = len(df[Header.label].unique())-1
-        self.mt.pos.max = mtp.npoints-1
-        self._mtpath = mtp
+        self.mt.mtlabel.max = tomo.n_paths
+        self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance])
         
         self.canvas.figure.clf()
         self.canvas.figure.add_subplot(131)
@@ -859,7 +760,6 @@ class MTProfiler:
         
         self._plot_pitch()
         
-        self.parent_viewer.dims.current_step = (int(df[Header.z].mean()), 0, 0)
         return None
     
     def _init_widget_params(self):
@@ -869,7 +769,7 @@ class MTProfiler:
         self.mt.pos.value = 0
         self.mt.pos.min = 0
         self.mt.pos.max = 0
-        self.viewer_op.txt.value = "X.XX nm / XX pf"
+        self.viewer_op.txt.value = "XX ° / X.XX nm / XX pf"
         return None
     
     @auto_picker.wraps
@@ -891,7 +791,7 @@ class MTProfiler:
         except IndexError:
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
-        radius = [int(v/imgb.scale.x) for v in self.radius_pre_nm]
+        radius = [int(v/imgb.scale.x) for v in self.box_radius_pre]
         with ip.SetConst("SHOW_PROGRESS", False):
             orientation = point1[1:] - point0[1:]
             img = load_a_subtomogram(imgb, point1.astype(np.uint16), radius, dask=False)
@@ -943,7 +843,7 @@ class MTProfiler:
         else:
             point0 = self.layer_work.data[-1]
             if not np.all([r*0.7 <= p < s - r*0.7
-                           for p, s, r in zip(point0, imgshape_nm, self.radius_nm)]):
+                           for p, s, r in zip(point0, imgshape_nm, self.box_radius_pre)]):
                 # outside image
                 return "Outside boundary."
             elif self.layer_work.data.shape[0] >= 3:
@@ -962,8 +862,8 @@ class MTProfiler:
     
     def _init_layers(self):
         # TODO: simpler implementation after napari==0.4.12
-        viewer = self.parent_viewer
-        img = self.image
+        viewer: napari.Viewer = self.parent_viewer
+        img = self.active_tomogram.image
         
         common_properties = dict(ndim=3, n_dimensional=True, size=16*img.scale.x)
         if self.layer_prof in self.parent_viewer.layers:
@@ -982,7 +882,7 @@ class MTProfiler:
                                     )
         self.layer_prof.editable = False
             
-        if self.layer_work in self.parent_viewer.layers:
+        if self.layer_work in viewer.layers:
             self.layer_work.name = "Working Layer-old"
         
         self.layer_work = viewer.add_points(**common_properties,
@@ -992,75 +892,75 @@ class MTProfiler:
     
         self.layer_work.mode = "add"
         
-        if "MT Profiles-old" in self.parent_viewer.layers:
-            self.parent_viewer.layers.remove("MT Profiles-old")
-        if "Working Layer-old" in self.parent_viewer.layers:
-            self.parent_viewer.layers.remove("Working Layer-old")
+        if "MT Profiles-old" in viewer.layers:
+            viewer.layers.remove("MT Profiles-old")
+        if "Working Layer-old" in viewer.layers:
+            viewer.layers.remove("Working Layer-old")
         
         if self.layer_paint is not None:
-            self.parent_viewer.layers.remove(self.layer_paint.name)
+            viewer.layers.remove(self.layer_paint.name)
             self.layer_paint = None
-            
-        self.mt_paths = []
-        self.dataframe = None
 
         return None
     
     @mt.pos.connect
     def _imshow_all(self, event=None):
-        if self.dataframe is None:
-            return None
-        i = self.mt.pos.value
-        pitch = self.current_mt.pitch_lengths[i]
-        npf = self.current_mt.pf_numbers[i]
-        self.viewer_op.txt.value = f"{pitch:.2f} nm / {npf} pf"
+        tomo = self.active_tomogram
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        results = tomo.paths[i]
+        positions, skew, pitch, npf = results.localprops[[H.splDistance, H.skew, H.yPitch, H.nPF]].iloc[j]
+        positions = tuple(positions)
+        self.viewer_op.txt.value = f"{skew}° / {pitch:.2f} nm / {npf} pf"
         
-        for j in range(3):
-            self.canvas.axes[j].cla()
-            self.canvas.axes[j].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        axes: Iterable[Axes] = self.canvas.axes
+        for k in range(3):
+            axes[k].cla()
+            axes[k].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
             
-        subtomo = self.current_mt.subtomograms[i]
+        subtomo = tomo._sample_subtomograms(i, positions)
         lz, ly, lx = subtomo.shape
         with ip.SetConst("SHOW_PROGRESS", False):
-            self.canvas.axes[0].imshow(subtomo.proj("z"), cmap="gray")
-            self.canvas.axes[0].set_xlabel("x")
-            self.canvas.axes[0].set_ylabel("y")
-            self.canvas.axes[1].imshow(subtomo.proj("y"), cmap="gray")
-            self.canvas.axes[1].set_xlabel("x")
-            self.canvas.axes[1].set_ylabel("z")
-            self.canvas.axes[2].imshow(self.current_mt.average_images[i], cmap="gray")
-            self.canvas.axes[2].set_xlabel("x")
-            self.canvas.axes[2].set_ylabel("z")
+            axes[0].imshow(subtomo.proj("z"), cmap="gray")
+            axes[0].set_xlabel("x")
+            axes[0].set_ylabel("y")
+            axes[1].imshow(subtomo.proj("y"), cmap="gray")
+            axes[1].set_xlabel("x")
+            axes[1].set_ylabel("z")
+            axes[2].imshow(self.current_mt.average_images[i], cmap="gray")
+            axes[2].set_xlabel("x")
+            axes[2].set_ylabel("z")
         
-        ylen = int(self.current_mt.radius[1]/self.current_mt.scale)
+        ylen = tomo.nm2pixel(tomo.box_radius[1])
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
-        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.outer
+        r = tomo.nm2pixel(results.radius)*OUTER
         xmin, xmax = -r + lx/2, r + lx/2
-        self.canvas.axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
-        self.canvas.axes[0].text(1, 1, f"{self.mt.mtlabel.value}-{i}", 
+        axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
+        axes[0].text(1, 1, f"{i}-{j}", 
                                  color="lime", font="Consolas", size=15, va="top")
     
-        theta = np.deg2rad(np.arange(360))
-        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.inner
-        self.canvas.axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = self.current_mt.radius_peak/self.current_mt.scale*self.current_mt.__class__.outer
-        self.canvas.axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        theta = np.linspace(0, np.pi, 360)
+        r = tomo.nm2pixel(results.radius)*INNER
+        axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        r = tomo.nm2pixel(results.radius)*OUTER
+        axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
         self.canvas.figure.tight_layout()
         self.canvas.draw()
     
     @line_edit.connect
     def _update_note(self, event=None):
-        df = self.dataframe
-        df.loc[df[Header.label]==self.mt.mtlabel.value, "Note"] = self.line_edit.value
+        i = self.mt.mtlabel.value
+        self.active_tomogram.paths[i].orientation = self.line_edit.value
         return None
     
     @mt.mtlabel.connect
     def _update_mtpath(self, event=None):
-        self._mtpath = self._get_one_mt(self.mt.mtlabel.value)
-        self.mt.pos.max = self._mtpath.npoints-1
-        sl = self.dataframe[Header.label] == self.mt.mtlabel.value
-        note = self.dataframe[sl]["Note"].values[0]
+        i = self.mt.mtlabel.value
+        tomo = self.active_tomogram
+        
+        self.mt.pos.max = len(tomo.paths[i].localprops) - 1
+        note = tomo.paths[i].orientation
         self.line_edit.value = note
         self._plot_pitch()
         self._imshow_all()
