@@ -15,8 +15,6 @@ import matplotlib.pyplot as plt
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, field, button_design, click, set_options, 
                             Figure, TupleEdit, CheckButton, Separator)
-# from .mtpath import (MTPath, angle_corr, calc_total_length, load_a_subtomogram, vector_to_grad, 
-#                      rot3d, rot3dinv, make_slice_and_pad)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad
 from .const import nm, H, INNER, OUTER
@@ -117,7 +115,7 @@ class MTProfiler:
     @magicclass(layout="horizontal", labels=False)
     class io:
         def open_image_file(self, path: Path): ...
-        def from_csv_file(self, path: Path): ...
+        def from_json(self, path: Path): ...
         def save_results(self, path: Path): ...
     
     sep0 = field(Separator)
@@ -144,7 +142,7 @@ class MTProfiler:
     POST_PROCESSING = [io.save_results, viewer_op.send_to_napari,
                        viewer_op.show_table, viewer_op.show_3d_path]
 
-    POST_IMREAD = [io.from_csv_file, operation.register_path]
+    POST_IMREAD = [io.from_json, operation.register_path]
     
     sep1 = field(Separator)
     
@@ -293,14 +291,14 @@ class MTProfiler:
         for i in range(tomo.n_paths):
             prog = f"{i}/{tomo.n_paths}"
             
-            yield f"{prog}: Spline fitting ..."
+            yield f"Spline fitting ({prog})"
             tomo.fit(i)
             tomo.make_anchors(interval=interval)
             
-            yield f"{prog}: Reloading subtomograms ..."
+            yield f"Reloading subtomograms  ({prog})"
             tomo.get_subtomograms(i)
             
-            yield f"{prog}: MT analysis ..."
+            yield f"MT analysis ({prog}) "
             tomo.measure_radius(i)
             tomo.calc_ft_params(i, upsample_factor=upsample_factor)
             
@@ -372,31 +370,36 @@ class MTProfiler:
         self._loader.show()
         return None
         
-    # @io.wraps
-    # @click(enabled=False, enables=POST_PROCESSING)
-    # @set_options(path={"filter": "*.tif;*.mrc;*.rec"})
-    # @button_design(text="Load csv 📂")
-    # def from_csv_file(self, path: Path):
-    #     """
-    #     Choose a csv file and load it.
-    #     """        
-    #     self.parent_viewer.window._status_bar._toggle_activity_dock(True)
-    #     with progress(total=0) as pbr:
-    #         pbr.set_description("Loading csv")
-    #         df = pd.read_csv(path)
-    #         self._from_dataframe(df)
-    #     self.parent_viewer.window._status_bar._toggle_activity_dock(False)
-    #     return None
+    @io.wraps
+    @click(enabled=False, enables=POST_PROCESSING)
+    @set_options(path={"filter": "*.json;*.txt"})
+    @button_design(text="Load json 📂")
+    def from_json(self, path: Path):
+        """
+        Choose a json file and load it.
+        """        
+        tomo = self.active_tomogram
+        tomo.load(path)
+        tomo.get_subtomograms()
+        self._load_tomogram_results()
+        return None
     
     @io.wraps
     @button_design(text="Save 💾")
     @click(enabled=False)
     @set_options(path={"mode": "w"})
-    def save_results(self, path:Path):
+    def save_results(self, file_path: Path, contain_results: bool = True):
         """
-        Save the results as csv.
+        Save the results as json.
+        
+        Parameters
+        ----------
+        file_path: Path
+            File path to save splines.
+        contain_results: bool
+            Check and local MT properties will also saved in the same json file.
         """        
-        self.dataframe.to_csv(path)
+        self.active_tomogram.save(file_path, contain_results=contain_results)
         return None            
     
     @viewer_op.wraps
@@ -460,7 +463,7 @@ class MTProfiler:
         """
         Show result table.
         """        
-        table = Table(value=self.dataframe)
+        table = Table(value=self.active_tomogram.collect_localprops())
         self.parent_viewer.window.add_dock_widget(table)
         return None
     
@@ -503,15 +506,14 @@ class MTProfiler:
                 r1 = spl.radius/tomo.scale*1.1/binsize
                 _sq = (z - lz//2)**2 + (x - lx//2)**2
                 domains = []
-                dist = [-np.inf] + list(tomo.nm2pixel(spl.distances())) + [np.inf]
-                yradius = tomo.nm2pixel(tomo.box_radius[1])
+                dist = [-np.inf] + list(spl.distances()) + [np.inf]
                 for j in range(spl.anchors.size):
                     domain = (r0**2 < _sq) & (_sq < r1**2)
-                    ry = min(dist[j+1] - dist[j], 
-                             dist[j+2] - dist[j+1], 
-                             yradius) / bin_scale + 0.5
+                    ry = min((dist[j+1] - dist[j]) / 2, 
+                             (dist[j+2] - dist[j+1]) / 2, 
+                              tomo.box_radius[1]) / bin_scale + 0.5 
                         
-                    ry = max(int(ry), 1)
+                    ry = max(int(np.ceil(ry)), 1)
                     domain[:, :ly//2-ry] = 0
                     domain[:, ly//2+ry+1:] = 0
                     domain = domain.astype(np.float32)
@@ -553,8 +555,9 @@ class MTProfiler:
             lbl[ref<thr] = 0
         
         # Labels layer properties
-        df = tomo.collect_localprops()[[H.skew, H.yPitch, H.nPF]].reset_index()
-        df["ID"] = df.apply(lambda x: "{}-{}".format(x["level_0"], x["level_1"]), axis=1)
+        df = tomo.collect_localprops()[[H.skew, H.yPitch, H.nPF]]
+        df_reset = df.reset_index()
+        df["ID"] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
         
         back = pd.DataFrame({"ID": [np.nan], H.skew: [np.nan], H.yPitch: [np.nan], H.nPF: [np.nan]})
         props = pd.concat([back, df])

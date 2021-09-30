@@ -138,19 +138,19 @@ class Spline3D:
         k = self.tck[2]
         u = self.u
         scale = self.scale
-        return {"t": list(t), 
-                "c": {"z": c[0],
-                      "y": c[1],
-                      "x": c[2]},
+        return {"t": t.tolist(), 
+                "c": {"z": c[0].tolist(),
+                      "y": c[1].tolist(),
+                      "x": c[2].tolist()},
                 "k": k,
-                "u": u,
+                "u": u.tolist(),
                 "scale": scale}
     
     @classmethod
     def from_dict(cls, d: dict):
         self = cls(d["scale"], d["k"])
-        t = np.ndarray(d["t"])
-        c = [np.ndarray(d["c"][k]) for k in "zyx"]
+        t = np.array(d["t"])
+        c = [np.array(d["c"][k]) for k in "zyx"]
         k = int(d["k"])
         self._tck = (t, c, k)
         self._u = d["u"]
@@ -318,7 +318,6 @@ _D = slice(None, None, 1) # dimension of dimension (such as d=0: z, d=1: y,...)
 @nb.njit(cache=True)
 def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
     yx = np.arctan2(-ds[2], ds[1])
-    # zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
     zy = np.arctan(ds[0]/np.abs(ds[1]))
     cos = np.cos(yx)
     sin = np.sin(yx)

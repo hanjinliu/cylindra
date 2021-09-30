@@ -1,6 +1,7 @@
 from __future__ import annotations
 import statistics
-from typing import Iterable, Iterator
+from typing import Iterable
+import matplotlib.pyplot as plt
 import numpy as np
 import json
 from functools import wraps
@@ -8,16 +9,12 @@ from skimage.transform import warp_polar
 from scipy import ndimage as ndi
 from ._dependencies import impy as ip
 import pandas as pd
-from dask import array as da
+from dask import array as da, delayed
 
-from .const import nm, H
+from .const import nm, H, INNER, OUTER
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram
-
-
-INNER = 0.7
-OUTER = 1.6
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 
@@ -61,13 +58,6 @@ class MtSpline(Spline3D):
         self.radius = d.get("radius", None)
         self.orientation = d.get("orientation", None)
         return self
-    
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["radius"] = self.radius
-        d["orientation"] = self.orientation
-        d["localprops"] = self.localprops
-        return d
         
 
 class MtTomogram:
@@ -147,11 +137,11 @@ class MtTomogram:
         for i, spl in enumerate(self._paths):
             spl_dict = spl.to_dict()
             if contain_results:
-                spl_dict.update({H.splPosition: spl.localprops[H.splPosition],
-                                 H.splDistance: spl.localprops[H.splDistance],
-                                 H.skew: spl.localprops[H.skew],
-                                 H.yPitch: spl.localprops[H.yPitch],
-                                 H.nPF: spl.localprops[H.nPF],
+                spl_dict.update({H.splPosition: spl.localprops[H.splPosition].to_list(),
+                                 H.splDistance: spl.localprops[H.splDistance].to_list(),
+                                 H.skew: spl.localprops[H.skew].to_list(),
+                                 H.yPitch: spl.localprops[H.yPitch].to_list(),
+                                 H.nPF: spl.localprops[H.nPF].to_list(),
                                  })
 
             all_results[i] = spl_dict
@@ -257,7 +247,8 @@ class MtTomogram:
         
         with ip.SetConst("SHOW_PROGRESS", False):
             # Angular correlation
-            out = dask_angle_corr(subtomograms[1:-1], yx_tilt)
+            # out = dask_angle_corr(subtomograms[1:-1], yx_tilt)
+            out = delayed_angle_corr(subtomograms[1:-1], yx_tilt)
             refined_tilt = np.array([0] + list(out) + [0])
             size = 2*int(round(48/interval)) + 1
             if size > 1:
@@ -370,6 +361,7 @@ class MtTomogram:
                    radius: nm = None,
                    chunkwise: bool = True,
                    polar: bool = False):
+        
         start, end = range_
         step = 0.1
         if chunkwise and end - start > step:
@@ -388,7 +380,7 @@ class MtTomogram:
             
         else:
             if radius is None:
-                rz, ry, rx = self.nm2pixel(self.box_radius)
+                rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
             elif np.isscalar(radius):
                 rz = rx = self.nm2pixel(radius)
             else:
@@ -467,21 +459,12 @@ def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     angle = angs[np.argmax(corrs)]
     return angle
 
-
-def dask_angle_corr(imgs, ang_centers):
-    img = da.from_array(imgs, chunks=(1,)+imgs.shape[1:])
-    ang_centers = da.from_array(ang_centers, chunks=(1,))
-    
-    def _angle_corr(imgs, angle_center):
-        return np.array([angle_corr(imgs[0], angle_center[0])], dtype=np.float32)
-
-    # Angular correlation
-    out = img.map_blocks(_angle_corr, 
-                         ang_centers, 
-                         drop_axis=range(1, imgs.ndim),
-                         meta=np.array([], dtype=np.float32)
-                         ).compute()
-    return out
+def delayed_angle_corr(imgs, ang_centers):
+    _angle_corr = delayed(angle_corr)
+    tasks = []
+    for img, ang in zip(imgs, ang_centers):
+        tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
+    return da.compute(tasks)[0]
     
 def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
     input_img = np.moveaxis(img3d.value, 1, 2)
@@ -513,9 +496,10 @@ def _calc_ft_params(img, rmin, rmax, up=20):
     a_freq = np.fft.fftfreq(polar.sizeof("a")*up)
     y_freq = np.fft.fftfreq(polar.sizeof("y")*up)
     
-    skew = a_freq[amax_f]*360
+    skew = a_freq[amax_f]*180
     y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
     
+    # determine PF number 
     power_a = polar.local_power_spectra(key="a=12:17;y=0:1", dims="ary")
     proj_along_a = power_a.proj("ry")
     npf = np.argmax(proj_along_a) + 12
