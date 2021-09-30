@@ -1,6 +1,9 @@
 from typing import NewType
 
 class H:
+    """
+    Header names for result table of local properties.
+    """
     splDistance = "splDistance"
     splPosition = "splPosition"
     skew = "skew"
@@ -8,7 +11,7 @@ class H:
     nPF = "nPF"  
 
     
-nm = NewType("nm", float)
+nm = float
 pixel = NewType("pixel", int)
 
 

@@ -521,7 +521,7 @@ class MTPath:
     def straighten(self, image, range: tuple[float, float] = (0, 1)):
         rz, ry, rx = (self.radius/self.scale).astype(np.int32)
         
-        coords = self.spl.cartesian_coords((2*rz+1, 2*rx+1), s_range=range, scale=self.scale)
+        coords = self.spl.cartesian((2*rz+1, 2*rx+1), s_range=range, scale=self.scale)
         transformed = ndi.map_coordinates(image, 
                                           np.moveaxis(coords, -1, 0),
                                           order=1,
@@ -737,7 +737,7 @@ class MTPath:
         r = self.radius_peak/self.scale
         r_start = int(r*self.__class__.inner)
         r_stop = int(r*self.__class__.outer)
-        coords_map = self.spl.cylindrical_coords((r_start, r_stop), (start, stop), self.scale)
+        coords_map = self.spl.cylindrical((r_start, r_stop), (start, stop), self.scale)
         flat_img = ndi.map_coordinates(image, np.moveaxis(coords_map, -1, 0), order=1, prefilter=False)
         n_angle = int(round((r_start + r_stop) * np.pi))
         n_radius = r_stop - r_start

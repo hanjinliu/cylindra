@@ -17,7 +17,7 @@ from ._dependencies import (mcls, magicclass, field, button_design, click, set_o
                             Figure, TupleEdit, CheckButton, Separator)
 # from .mtpath import (MTPath, angle_corr, calc_total_length, load_a_subtomogram, vector_to_grad, 
 #                      rot3d, rot3dinv, make_slice_and_pad)
-from .tomogram import MtTomogram, cachemap, angle_corr
+from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad
 from .const import nm, H, INNER, OUTER
 
@@ -41,7 +41,8 @@ def imread(img, binsize):
 class ImageLoader:
     path = field(Path)
     scale = field(str, options={"label": "scale (nm)"})
-    light_background = field(True)
+    bin_size = field(4, options={"label": "bin size"})
+    light_background = field(True, options={"label": "light background"})
     
     @button_design(text="OK")
     def call_button(self):
@@ -109,7 +110,6 @@ class MTProfiler:
     class operation:
         def register_path(self): ...
         def run_for_all_path(self): ...
-        def settings(self): ...
         def clear_current(self): ...
         def clear_all(self): ...
         def info(self): ...
@@ -150,7 +150,7 @@ class MTProfiler:
     
     @magicclass(layout="horizontal")
     class auto_picker:
-        stride = field(50.0, options={"min": 10, "max": 100}, name="stride (nm)")
+        stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100}, name="stride (nm)")
         def pick(self): ...
         
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
@@ -172,123 +172,28 @@ class MTProfiler:
         self.label_colorlimit = limit
         self._update_colormap()
         return None
-    
-    # @set_options(niter={"min": 1, "max": 5, "label": "Number of iterations"},
-    #              nshifts={"min": 3, "max": 31, "label": "Number of shifts"},
-    #              nrots={"min": 3, "max": 25, "label": "Number of rotations"})
-    # def subtomogram_averaging(self, niter:int=3, nshifts:int=7, nrots:int=5):
-    #     """
-    #     Average subtomograms along a MT.
-
-    #     Parameters
-    #     ----------
-    #     niter : int, default is 2
-    #         Number of iterations. MT template will be updated using the previous iteration.
-    #     nshifts : int, default is 19
-    #         Number of shifts along Y-axis to apply.
-    #     nrots : int, default is 5
-    #         Number of rotation angles in around Y-axis to apply.
-    #     """
-    #     viewer: napari.Viewer = self.parent_viewer
         
-    #     worker = create_worker(self.current_mt.average_subtomograms, 
-    #                            niter, nshifts, nrots,
-    #                            _progress={"total": niter, 
-    #                                       "desc": "Subtomogram averaging"}
-    #                            )
-        
-    #     self._connect_worker(worker)
-    #     self._worker_control.metadata["iter"] = 1
-    #     self._worker_control.info.value = "Iteration 1"
-        
-    #     @worker.yielded.connect
-    #     def _on_yield(out):
-    #         df, avg_img = out
-            
-    #         if self.light_background:
-    #             avg_img = -avg_img
-            
-    #         avg_image_name = "AVG"
-    #         try:
-    #             viewer.layers[avg_image_name].data = avg_img
-    #         except KeyError:
-    #             layer = viewer.add_image(avg_img, scale=avg_img.scale, name=avg_image_name,
-    #                                      rendering="iso", iso_threshold = 0.6)
-            
-    #         it = self._worker_control.metadata["iter"] + 1
-    #         self._worker_control.info.value = f"Iteration {it}"
-    #         self._worker_control.metadata["iter"] = it
-    #         viewer.camera.center = np.array(avg_img.shape)/2*avg_img.scale
-        
-    #     @worker.returned.connect
-    #     def _on_return(out):
-    #         df, avg_img = out
-    #         table = Table(value=df)
-    #         viewer.window.add_dock_widget(table, name="Results")
-                
-    #     worker.start()
-    #     return None
-    
-    # @set_options(binsize={"min":1, "max":8, "label": "Binning for peak detection"},
-    #              niter={"min":1, "max":5, "label": "Number of PCC iteration"},
-    #              remap={"label": "Remap coordinates"})
-    # def tubulin_averaging(self, binsize:int=2, niter:int=3, remap:bool=True):
-    #     """
-    #     Run tubulin averagin algorithm along current MT path.
-
-    #     Parameters
-    #     ----------
-    #     binsize : int, default is 2
-    #         Bin size applied to averaged subtomogram to speed up local peak detection.
-    #     niter : int, default is 3
-    #         Number of iteration of refining tubulin template.
-    #     remap : bool, default is True
-    #         If true, tubulin coordinates will remapped to world coordinate system.
-    #     """        
-    #     mtp = self.current_mt
-    #     viewer: napari.Viewer = self.parent_viewer
-
-    #     coords = mtp.find_tubulin(binsize)
-    #     template = mtp.crop_out_tubulin(coords, niter=niter)
-    #     if self.light_background:
-    #         template = -template
-    #     viewer.add_points(coords, face_color="gold", size=2, edge_color="white", 
-    #                       name="Tubulin on template")
-    #     viewer.add_image(template, scale=template.scale, name="Tubulin template",
-    #                      rendering="iso", iso_threshold=0.6)
-        
-    #     if remap:
-    #         coords_remapped = np.concatenate(
-    #             list(mtp.transform_coordinates()),
-    #             axis=0
-    #             )
-    #         viewer.add_points(coords_remapped, size=2, face_color="gold", edge_color="white", 
-    #                           name="Remapped tubulins")
-    #     return None
-    
-    # @set_options(position={"min":0.0, "max":1.0, "step":0.05})
-    # def pick_subtomogram(self, position:float=0.5):
-    #     scale = self.image.scale.x
-    #     with ip.SetConst("SHOW_PROGRESS", False):
-    #         mtp = self.current_mt
-    #         tomo = load_a_subtomogram(self.image, mtp.spl(position)/scale, self.box_radius_pre)
-    #         dr = mtp.spl(position, der=1).reshape(1, -1)
-    #         zy, yx = vector_to_grad(dr)
-    #         tomo = rot3d(tomo, yx[0], zy[0])
-    #         self.parent_viewer.add_image(tomo, scale=scale)
-    
     @button_design(text="Create Macro")
     def create_macro_(self):
         self.create_macro(show=True)
         return None
+    
+    @property
+    def active_binsize(self):
+        bin_scale = self.layer_image.scale[0] # scale of binned reference image
+        tomo = self.active_tomogram
+        binsize = int(bin_scale/tomo.scale)
+        return binsize
 
-    def _update_colormap(self): # TODO
+    def _update_colormap(self, prop: str = H.yPitch):
+        # TODO: color by other properties
         if self.layer_paint is None:
             return None
         color = self.layer_paint.color
         lim0, lim1 = self.label_colorlimit
-        for i, (_, row) in enumerate(self.dataframe.iterrows()):
-            color[i+1] = self.label_colormap.map((row["pitch"] - lim0)/(lim1 - lim0))
+        df = self.active_tomogram.collect_localprops()[prop]
+        for i, value in enumerate(df):
+            color[i+1] = self.label_colormap.map((value - lim0)/(lim1 - lim0))
         self.layer_paint.color = color
         return None
         
@@ -301,7 +206,6 @@ class MTProfiler:
         self.layer_work: Points = None
         self.layer_paint: Labels = None
         
-        self.settings()
         self.set_colormap()
         self.mt.pos.min_width = 70
         call_button = self._loader["call_button"]
@@ -318,10 +222,15 @@ class MTProfiler:
         tomo = self.active_tomogram
         self.active_tomogram.add_path(coords)
         spl = self.active_tomogram.paths[-1]
-        if spl.length() < 72.0:
-            raise ValueError(f"Path is too short: {spl.length():.2f} nm")
         
-        fit = spl.partition(100)
+        # check/draw path
+        interval = 30
+        length = spl.length()
+        if length < 72.0:
+            raise ValueError(f"Path is too short: {length:.2f} nm")
+        
+        n = int(length/interval) + 1
+        fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
         self.canvas.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
         self.canvas.ax.set_xlim(0, tomo.image.sizeof("x")*tomo.image.scale.x)
@@ -335,8 +244,16 @@ class MTProfiler:
     
     @operation.wraps
     @click(enabled=False, enables=POST_PROCESSING)
+    @set_options(interval={"min":1.0, "max": 100.0, "label": "interval (nm)"},
+                 box_radius_pre={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
+                 box_radius={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
+                 upsample_factor={"min":12, "max":50})
     @button_design(text="👉")
-    def run_for_all_path(self): # TODO
+    def run_for_all_path(self, 
+                         interval: nm = 24.0,
+                         box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0),
+                         box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
+                         upsample_factor: int = 20): # TODO
         """
         Run MTProps.
         """        
@@ -344,7 +261,11 @@ class MTProfiler:
             self.register_path()
         
         worker = create_worker(self._run_all, 
-                               _progress={"total": len(self.mt_paths)*13, 
+                               interval=interval,
+                               box_radius_pre=box_radius_pre,
+                               box_radius=box_radius,
+                               upsample_factor=upsample_factor,
+                               _progress={"total": self.active_tomogram.n_paths*4, 
                                           "desc": "Running MTProps"}
                                )
         
@@ -356,64 +277,36 @@ class MTProfiler:
             
         @worker.returned.connect
         def _on_return(out: MtTomogram):
-            self._from_dataframe(pd.concat(out, axis=0))
+            self._load_tomogram_results()
         
         worker.start()
         return None
     
-    def _run_all(self): # TODO
+    def _run_all(self, 
+                 interval: nm = 24.0,
+                 box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0),
+                 box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
+                 upsample_factor: int = 20):
         tomo = self.active_tomogram
+        tomo.box_radius_pre = box_radius_pre
+        tomo.box_radius = box_radius
         for i in range(tomo.n_paths):
             prog = f"{i}/{tomo.n_paths}"
-            yield f"{prog} Spline fitting ..."
+            
+            yield f"{prog}: Spline fitting ..."
             tomo.fit(i)
-            length = tomo.paths[i].length()
-            nseg = int(length//self.interval)
-            position = tuple(np.linspace(0, nseg/length, nseg+1))
-            yield f"{prog} Reloading subtomograms ..."
-            tomo.get_subtomograms(i, position)
-            yield f"{prog} MT analysis ..."
-            tomo.calc_ft_params(i, position)
+            tomo.make_anchors(interval=interval)
+            
+            yield f"{prog}: Reloading subtomograms ..."
+            tomo.get_subtomograms(i)
+            
+            yield f"{prog}: MT analysis ..."
+            tomo.measure_radius(i)
+            tomo.calc_ft_params(i, upsample_factor=upsample_factor)
             
             yield
         
         return tomo
-    
-    @operation.wraps
-    @set_options(box_radius_pre={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
-                 radius_nm={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
-                 upsample_factor={"min":12, "max":50},
-                 bin_size={"min": 1, "max": 8})
-    @button_design(text="⚙")
-    def settings(self,
-                 interval_nm: float = 24.0, 
-                 box_radius_pre: tuple[float, float, float] = (22.0, 28.0, 28.0), 
-                 box_radius: tuple[float, float, float] = (16.7, 16.7, 16.7),
-                 upsample_factor: int = 20,
-                 bin_size: int = 4):
-        """
-        Change MTProps setting.
-        Parameters
-        ----------
-        interval_nm : float, optional
-            Interval between points to analyze.
-        light_background : bool, optional
-            Light background or not
-        box_radius_pre : tuple[float, float, float]
-            Images in this range will be considered to determine MT tilt and shift.
-        radius_nm : tuple[float, float, float]
-            Images in this range will be considered to determine MT pitch length and PF number.
-        upsample_factor : int
-            Up-sampling factor for pitch length calculation.
-        bin_size : int
-            Binning (pixel) that will be applied to the image in the viewer. This parameter does
-            not affect the results of analysis.
-        """        
-        self.interval = interval_nm
-        self.box_radius = box_radius
-        self.box_radius_pre = box_radius_pre
-        self.upsample_factor = upsample_factor
-        self.binsize = bin_size
     
     @operation.wraps
     @button_design(text="❌")
@@ -429,7 +322,7 @@ class MTProfiler:
     @button_design(text="💥")
     def clear_all(self, _="Are you sure to clear all?"):
         """
-        Clear all.
+        Clear all the paths and heatmaps.
         """        
         self._init_layers()
         self.canvas.figure.clf()
@@ -442,6 +335,7 @@ class MTProfiler:
         self.plot.draw()
         
         cachemap.clear()
+        self.active_tomogram._paths.clear()
         
         return None
     
@@ -538,10 +432,14 @@ class MTProfiler:
         if not self.viewer_op.focus.value or self.layer_paint is None:
             return None
         
-        viewer = self.parent_viewer
-        i = self.mt.pos.value
-        scale = viewer.layers["MT Profiles"].scale
-        next_center = self.current_mt.points[i]
+        viewer: napari.Viewer = self.parent_viewer
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        
+        tomo = self.active_tomogram
+        spl = tomo.paths[i]
+        pos = spl.anchors[j]
+        next_center = spl(pos)
         viewer.dims.current_step = list(next_center.astype(np.int64))
         
         viewer.camera.center = next_center
@@ -550,10 +448,9 @@ class MTProfiler:
         viewer.camera.zoom = zoom
         
         self.layer_paint.show_selected_label = True
-        for k, (_, row) in enumerate(self.dataframe.iterrows()):
-            if row[Header.label] == self.current_mt.label and row[Header.number] == i:
-                self.layer_paint.selected_label = k+1
-                break
+        
+        j_offset = sum(spl.anchors.size for spl in tomo.path[:i])
+        self.layer_paint.selected_label = j_offset + j + 1
         return None
     
     @viewer_op.wraps
@@ -580,7 +477,7 @@ class MTProfiler:
                                       translate=self.layer_image.translate)
         return None
     
-    def _paint_mt(self): # TODO
+    def _paint_mt(self):
         """
         Paint microtubule fragments by its pitch length.
         
@@ -591,79 +488,76 @@ class MTProfiler:
         lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
-        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in self.box_radius_pre]
         tomo = self.active_tomogram
+        
+        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in tomo.box_radius]
+        binsize = self.active_binsize
         with ip.SetConst("SHOW_PROGRESS", False):
+            center = np.array([lz, ly, lx])/2 + 0.5
             z, y, x = np.indices((lz, ly, lx))
-            domains = np.zeros((len(tomo.paths), lz, ly, lx), dtype=np.float32)
-            for i, r in enumerate(tomo.paths):
+            cylinders = []
+            matrices = []
+            for i, spl in enumerate(tomo.paths):
                 # Prepare template hollow image
-                r0 = r.radius/tomo.scale*0.9/self.binsize
-                r1 = r.radius/tomo.scale*1.1/self.binsize
+                r0 = spl.radius/tomo.scale*0.9/binsize
+                r1 = spl.radius/tomo.scale*1.1/binsize
                 _sq = (z - lz//2)**2 + (x - lx//2)**2
-                domains[i][(r0**2 < _sq) & (_sq < r1**2)] = 1.0
-                ry = max(int(self.interval/bin_scale/2 + 0.5), 1)
-                domains[i, :, :ly//2-ry] = 0
-                domains[i, :, ly//2+ry+1:] = 0
-                
-            domains = ip.asarray(domains, axes="pzyx")
+                domains = []
+                dist = [-np.inf] + list(tomo.nm2pixel(spl.distances())) + [np.inf]
+                yradius = tomo.nm2pixel(tomo.box_radius[1])
+                for j in range(spl.anchors.size):
+                    domain = (r0**2 < _sq) & (_sq < r1**2)
+                    ry = min(dist[j+1] - dist[j], 
+                             dist[j+2] - dist[j+1], 
+                             yradius) / bin_scale + 0.5
+                        
+                    ry = max(int(ry), 1)
+                    domain[:, :ly//2-ry] = 0
+                    domain[:, ly//2+ry+1:] = 0
+                    domain = domain.astype(np.float32)
+                    domains.append(domain)
+                    
+                cylinders.append(domains)
+                matrices.append(spl.rotation_matrix(center=center))
             
-            tasks = []
-            for i, (_, row) in enumerate(self.dataframe.iterrows()):                
-                z, y, x = np.indices((lz, ly, lx))
-                r0 = self.current_mt.radius_peak/self.current_mt.scale*0.9/self.binsize
-                r1 = self.current_mt.radius_peak/self.current_mt.scale*1.1/self.binsize
-                _sq = (z-lz//2)**2 + (x-lx//2)**2
-                domain = (r0**2 < _sq) & (_sq < r1**2)
-                domain = domain.astype(np.float32)
-                ry = max(int(self.interval/bin_scale/2 + 0.5), 1)
-                domain[:, :ly//2-ry] = 0
-                domain[:, ly//2+ry+1:] = 0
-                domain = ip.array(domain, axes="zyx")
-                ang_zy = row[Header.angle_zy]
-                ang_yx = row[Header.angle_yx]
-                tasks.append(da.from_delayed(rot3dinv(domain, ang_yx, ang_zy), shape=domain.shape, 
-                                             dtype=np.float32) > 0.3)
+            cylinders = np.concatenate(cylinders, axis=0)
+            matrices = np.concatenate(matrices, axis=0)
+            out = dask_affine(cylinders, matrices) > 0.3
             
-            out: list[np.ndarray] = da.compute(tasks)[0]
-
         # paint roughly
-        for i, (_, row) in enumerate(self.dataframe.iterrows()):
-            center = (row[Header.zyx()]/self.image.scale.x).astype(np.int16)//self.binsize
+        for i, crd in enumerate(tomo.collect_anchor_coords()):
+            center = tomo.nm2pixel(crd)//binsize
             sl = []
             outsl = []
             # We should deal with the borders of image.
             for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
                 _sl, _pad = make_slice_and_pad(c, l//2, size)
                 sl.append(_sl)
-                if _pad[0] > 0:
-                    outsl.append(slice(_pad[0], None))
-                elif _pad[1] > 0:
-                    outsl.append(slice(None, -_pad[1]))
-                else:
-                    outsl.append(slice(None, None))
+                outsl.append(
+                    slice(_pad[0] if _pad[0] > 0 else None,
+                         -_pad[1] if _pad[1] > 0 else None)
+                )
 
             sl = tuple(sl)
             outsl = tuple(outsl)
             lbl.value[sl][out[i][outsl]] = i + 1
         
         # paint finely
-        ref_filt = ndi.gaussian_filter(self.layer_image.data, sigma=2)
+        ref = self.layer_image.data
         
-        if self.light_background:
-            thr = np.percentile(ref_filt[lbl>0], 95)
-            lbl[ref_filt>thr] = 0
+        if tomo.light_background:
+            thr = np.percentile(ref[lbl>0], 95)
+            lbl[ref>thr] = 0
         else:
-            thr = np.percentile(ref_filt[lbl>0], 5)
-            lbl[ref_filt<thr] = 0
+            thr = np.percentile(ref[lbl>0], 5)
+            lbl[ref<thr] = 0
         
         # Labels layer properties
-        props = pd.DataFrame([])
-        props["ID"] = self.dataframe.apply(lambda x: "{}-{}".format(x[Header.label], x[Header.number]), axis=1)
-        props["pitch"] = self.dataframe[Header.pitch].map("{:.2f} nm".format)
-        props["nPF"] = self.dataframe[Header.nPF]
-        back = pd.DataFrame({"ID": [np.nan], "pitch": [np.nan], "nPF": [np.nan]})
-        props = pd.concat([back, props])
+        df = tomo.collect_localprops()[[H.skew, H.yPitch, H.nPF]].reset_index()
+        df["ID"] = df.apply(lambda x: "{}-{}".format(x["level_0"], x["level_1"]), axis=1)
+        
+        back = pd.DataFrame({"ID": [np.nan], H.skew: [np.nan], H.yPitch: [np.nan], H.nPF: [np.nan]})
+        props = pd.concat([back, df])
         
         # Add labels layer
         self.layer_paint = self.parent_viewer.add_labels(
@@ -694,42 +588,44 @@ class MTProfiler:
     @click(disables=POST_PROCESSING, enables=POST_IMREAD, visible=False)
     def load_image(self, event=None):
         img = self._loader.img
+        light_bg = self._loader.light_background.value
+        bin_size = self._loader.bin_size.value
+        
         viewer: napari.Viewer = self.parent_viewer
-        worker = imread(img, self.binsize)
+        worker = imread(img, bin_size)
         self._connect_worker(worker)
         self._worker_control.info.value = \
             f"original image: {img.shape}, " \
-            f"binned image: {tuple(s//self.binsize for s in img.shape)}"
+            f"binned image: {tuple(s//bin_size for s in img.shape)}"
         
         @worker.returned.connect
         def _on_return(imgb):
             self._init_widget_params()
-            tr = (self.binsize-1)/2*img.scale.x
+            tr = (bin_size-1)/2*img.scale.x
+            rendering = "minip" if light_bg else "mip"
             if self.layer_image not in viewer.layers:
                 self.layer_image = viewer.add_image(
                     imgb, 
                     scale=imgb.scale, 
                     name=imgb.name, 
                     translate=[tr, tr, tr],
-                    rendering="minip" if self.light_background else "mip"
+                    rendering=rendering
                     )
             else:
                 self.layer_image.data = imgb
                 self.layer_image.scale = imgb.scale
                 self.layer_image.name = imgb.name
                 self.layer_image.translate = [tr, tr, tr]
-                self.layer_image.rendering = "minip" if self.light_background else "mip"
+                self.layer_image.rendering = rendering
                 
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
             
-            tomo = MtTomogram(self.box_radius_pre, 
-                              self.box_radius,
-                              self.light_background,
-                              name=img.name)
+            tomo = MtTomogram(light_background=light_bg, name=img.name)
             
             self.tomograms.append(tomo)
-
+            self.active_tomogram = tomo
+            tomo.image = img
             self.clear_all()
             return None
         
@@ -739,6 +635,7 @@ class MTProfiler:
     
     def _load_tomogram_results(self):
         tomo = self.active_tomogram
+        self._active_rot_ave = tomo.rotational_average()
         self._init_layers()
                 
         # Paint MTs by its pitch length
@@ -749,8 +646,8 @@ class MTProfiler:
         
         # initialize GUI
         self._init_widget_params()
-        self.mt.mtlabel.max = tomo.n_paths
-        self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance])
+        self.mt.mtlabel.max = tomo.n_paths - 1
+        self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance]) - 1
         
         self.canvas.figure.clf()
         self.canvas.figure.add_subplot(131)
@@ -790,8 +687,8 @@ class MTProfiler:
             point1: np.ndarray = self.layer_work.data[-1]/imgb.scale.x
         except IndexError:
             raise IndexError("Auto pick needs at least two points in the working layer.")
-        
-        radius = [int(v/imgb.scale.x) for v in self.box_radius_pre]
+        tomo = self.active_tomogram
+        radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/self.active_binsize)
         with ip.SetConst("SHOW_PROGRESS", False):
             orientation = point1[1:] - point0[1:]
             img = load_a_subtomogram(imgb, point1.astype(np.uint16), radius, dask=False)
@@ -837,13 +734,14 @@ class MTProfiler:
         return None
                     
     def _check_path(self) -> str:
-        imgshape_nm = np.array(self.image.shape) * self.image.scale.x
+        tomo = self.active_tomogram
+        imgshape_nm = np.array(tomo.image.shape) * tomo.image.scale.x
         if self.layer_work.data.shape[0] == 0:
             return ""
         else:
             point0 = self.layer_work.data[-1]
             if not np.all([r*0.7 <= p < s - r*0.7
-                           for p, s, r in zip(point0, imgshape_nm, self.box_radius_pre)]):
+                           for p, s, r in zip(point0, imgshape_nm, tomo.box_radius_pre)]):
                 # outside image
                 return "Outside boundary."
             elif self.layer_work.data.shape[0] >= 3:
@@ -909,16 +807,15 @@ class MTProfiler:
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         results = tomo.paths[i]
-        positions, skew, pitch, npf = results.localprops[[H.splDistance, H.skew, H.yPitch, H.nPF]].iloc[j]
-        positions = tuple(positions)
-        self.viewer_op.txt.value = f"{skew}° / {pitch:.2f} nm / {npf} pf"
+        skew, pitch, npf = results.localprops[[H.skew, H.yPitch, H.nPF]].iloc[j]
+        self.viewer_op.txt.value = f"{skew:.2f}° / {pitch:.2f} nm / {int(npf)} pf"
         
         axes: Iterable[Axes] = self.canvas.axes
         for k in range(3):
             axes[k].cla()
             axes[k].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
             
-        subtomo = tomo._sample_subtomograms(i, positions)
+        subtomo = tomo._sample_subtomograms(i)[j]
         lz, ly, lx = subtomo.shape
         with ip.SetConst("SHOW_PROGRESS", False):
             axes[0].imshow(subtomo.proj("z"), cmap="gray")
@@ -927,7 +824,7 @@ class MTProfiler:
             axes[1].imshow(subtomo.proj("y"), cmap="gray")
             axes[1].set_xlabel("x")
             axes[1].set_ylabel("z")
-            axes[2].imshow(self.current_mt.average_images[i], cmap="gray")
+            axes[2].imshow(self._active_rot_ave[i][j], cmap="gray")
             axes[2].set_xlabel("x")
             axes[2].set_ylabel("z")
         
@@ -939,10 +836,10 @@ class MTProfiler:
         axes[0].text(1, 1, f"{i}-{j}", 
                                  color="lime", font="Consolas", size=15, va="top")
     
-        theta = np.linspace(0, np.pi, 360)
-        r = tomo.nm2pixel(results.radius)*INNER
+        theta = np.linspace(0, 2*np.pi, 360)
+        r = tomo.nm2pixel(results.radius) * INNER
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = tomo.nm2pixel(results.radius)*OUTER
+        r = tomo.nm2pixel(results.radius) * OUTER
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
         self.canvas.figure.tight_layout()

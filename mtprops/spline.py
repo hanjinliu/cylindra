@@ -183,12 +183,16 @@ class Spline3D:
         if u is None:
             u = self.anchors
         ds = self(u, 1)
-        matrix_func = _vector_to_inv_rotation_matrix if inverse else _vector_to_rotation_matrix
+        # matrix_func = _vector_to_inv_rotation_matrix if inverse else _vector_to_rotation_matrix
+        matrix_func = _vector_to_rotation_matrix
         if np.isscalar(u):
             out = matrix_func(ds)
         else:
             out = np.stack([matrix_func(ds0) for ds0 in ds], axis=0)
-
+        
+        if inverse:
+            out = np.linalg.inv(out)
+            
         if center is not None:
             dz, dy, dx = center
             translation_0 = np.array([[1., 0., 0., dz],
@@ -204,12 +208,13 @@ class Spline3D:
                                      dtype=np.float32)
             
             out = translation_0 @ out @ translation_1
+        
         return out
     
-    def local_cartesian_coords(self,
-                               shape: tuple[int, int],
-                               n_pixels: int,
-                               u=None):
+    def local_cartesian(self,
+                        shape: tuple[int, int],
+                        n_pixels: int,
+                        u=None):
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -233,10 +238,10 @@ class Spline3D:
         """        
         return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels, self.scale)
     
-    def local_cylindrical_coords(self,
-                                 r_range: tuple[int, int],
-                                 position,
-                                 n_pixels):
+    def local_cylindrical(self,
+                          r_range: tuple[int, int],
+                          position,
+                          n_pixels):
         
         return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels, self.scale)
         
@@ -263,19 +268,25 @@ class Spline3D:
                               ], axis=2) # V, H, D
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
-    def cartesian_coords(self, 
-                         shape: tuple[int, int], 
-                         s_range: tuple[float, float] = (0, 1)
-                         ) -> np.ndarray:
+    def cartesian(self, 
+                  shape: tuple[int, int], 
+                  s_range: tuple[float, float] = (0, 1)
+                  ) -> np.ndarray:
         
         return self._get_coords(_cartesian_coords_2d, shape, s_range)
 
-    def cylindrical_coords(self, 
-                           r_range: tuple[int, int],
-                           s_range: tuple[float, float] = (0, 1)
-                           ) -> np.ndarray:
+    def cylindrical(self, 
+                    r_range: tuple[int, int],
+                    s_range: tuple[float, float] = (0, 1)
+                    ) -> np.ndarray:
         
         return self._get_coords(_polar_coords_2d, r_range, s_range)
+    
+    def inv_cartesian(self,
+                      points):
+        # TODO: (z,y,x) in straight image to world coordinate
+        pass
+    
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
@@ -307,7 +318,8 @@ _D = slice(None, None, 1) # dimension of dimension (such as d=0: z, d=1: y,...)
 @nb.njit(cache=True)
 def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
     yx = np.arctan2(-ds[2], ds[1])
-    zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
+    # zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
+    zy = np.arctan(ds[0]/np.abs(ds[1]))
     cos = np.cos(yx)
     sin = np.sin(yx)
     rotation_yx = np.array([[1.,  0.,   0., 0.],
@@ -333,20 +345,20 @@ def _vector_to_inv_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
     zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
     cos = np.cos(yx)
     sin = np.sin(yx)
-    rotation_yx = np.array([[1.,  0.,   0., 0.],
+    rotation_yx = np.array([[1.,  0.,  0., 0.],
                             [0., cos, sin, 0.],
-                            [0., -sin,  cos, 0.],
-                            [0.,  0.,   0., 1.]],
+                            [0.,-sin, cos, 0.],
+                            [0.,  0.,  0., 1.]],
                             dtype=np.float32)
     cos = np.cos(zy)
     sin = np.sin(zy)
     rotation_zy = np.array([[cos, sin, 0., 0.],
-                            [-sin,  cos, 0., 0.],
+                            [-sin, cos, 0., 0.],
                             [ 0.,   0., 1., 0.],
                             [ 0.,   0., 0., 1.]],
                             dtype=np.float32)
 
-    mx = rotation_zy.dot(rotation_yx)
+    mx = rotation_yx.dot(rotation_zy)
     mx[-1, :] = [0, 0, 0, 1]
     return np.ascontiguousarray(mx)
 

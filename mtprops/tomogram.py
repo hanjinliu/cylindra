@@ -1,6 +1,6 @@
 from __future__ import annotations
 import statistics
-from typing import Iterable
+from typing import Iterable, Iterator
 import numpy as np
 import json
 from functools import wraps
@@ -28,7 +28,7 @@ def batch_process(func):
             return func(self, i=i, **kwargs)
         
         if i is None:
-            i_list = list(range(self.n_paths))
+            i_list = range(self.n_paths)
         elif not hasattr(i, "__iter__"):
             raise TypeError("'i' must be int or iterable of int if specified")
         else:
@@ -44,8 +44,7 @@ def batch_process(func):
             if len(i_list) > len(set(i_list)):
                 raise ValueError("Indices cannot contain duplicated values.")
         out = [func(self, i=i_, **kwargs) for i_ in i_list]
-        if len(out) == 1:
-            out = out[0]
+        
         return out
     return _func            
 
@@ -72,7 +71,7 @@ class MtSpline(Spline3D):
         
 
 class MtTomogram:
-    def __init__(self, 
+    def __init__(self, *,
                  box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0), 
                  box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
                  light_background: bool = True,
@@ -89,17 +88,55 @@ class MtTomogram:
         return id(self)
     
     @property
-    def paths(self):
+    def paths(self) -> list[MtSpline]:
         return self._paths
     
     @property
-    def n_paths(self):
+    def box_radius_pre(self) -> tuple[nm, nm, nm]:
+        return self._box_radius_pre
+    
+    @box_radius_pre.setter
+    def box_radius_pre(self, value: nm|Iterable[nm]):
+        if np.isscalar(value):
+            value = (value,)*3
+        elif len(value) != 3:
+            raise ValueError("'box_radius_pre' must be composed of 1 or 3 scalars.")
+        self._box_radius_pre = tuple(value)
+    
+    @property
+    def box_radius(self) -> tuple[nm, nm, nm]:
+        return self._box_radius
+    
+    @box_radius.setter
+    def box_radius(self, value: nm|Iterable[nm]):
+        if np.isscalar(value):
+            value = (value,)*3
+        elif len(value) != 3:
+            raise ValueError("'box_radius' must be composed of 1 or 3 scalars.")
+        self._box_radius = tuple(value)
+        
+    
+    @property
+    def n_paths(self) -> int:
         return len(self._paths)
     
+    @property
+    def image(self) -> ip.arrays.LazyImgArray:
+        return self._image
+    
+    @image.setter
+    def image(self, image):
+        if not isinstance(image, ip.arrays.LazyImgArray):
+            raise TypeError(f"Type {type(image)} not supported.")
+        self._image = image
+        
+        if abs(image.scale.z - image.scale.x) > 1e-3 or abs(image.scale.z - image.scale.y) > 1e-3:
+            raise ValueError("Uneven scale.")
+        self.scale = image.scale.x
+        return None
+    
     def save_results(self, path: str, **kwargs):
-        df = pd.concat([spl.localprops for spl in self._paths], 
-                        keys=np.arange(len(self._paths))
-                       )
+        df = self.collect_localprops()
         df.to_csv(path, **kwargs)
         return None
     
@@ -136,21 +173,6 @@ class MtTomogram:
             
         return self
     
-    @property
-    def image(self) -> ip.arrays.LazyImgArray:
-        return self._image
-    
-    @image.setter
-    def image(self, image):
-        if not isinstance(image, ip.arrays.LazyImgArray):
-            raise TypeError(f"Type {type(image)} not supported.")
-        self._image = image
-        
-        if abs(image.scale.z - image.scale.x) > 1e-3 or abs(image.scale.z - image.scale.y) > 1e-3:
-            raise ValueError("Uneven scale.")
-        self.scale = image.scale.x
-        return None
-    
     def add_path(self, coords: np.ndarray):
         spl = MtSpline(self.scale)
         error_nm = 1.0
@@ -159,13 +181,14 @@ class MtTomogram:
         self._paths.append(spl)
         return None
     
-    def nm2pixel(self, value: Iterable[nm]|nm):
+    def nm2pixel(self, value: Iterable[nm]|nm) -> np.ndarray|int:
         pix = (np.asarray(value)/self.scale).astype(np.int16)
         if np.isscalar(value):
             pix = int(pix)
         return pix
     
-    def make_anchors(self, interval: nm):
+    @batch_process
+    def make_anchors(self, i: int = None, interval: nm = 24.0):
         """
         Make anchors on every MtSpline objects
 
@@ -174,19 +197,35 @@ class MtTomogram:
         interval : nm
             Anchor intervals.
         """        
-        for spl in self._paths:
-            spl.make_anchors(interval)
+        self._paths[i].make_anchors(interval)
         return None
+    
+    def collect_anchor_coords(self, i: int|Iterable[int] = None):
+        if i is None:
+            i = range(self.n_paths)
+        elif isinstance(i, int):
+            i = [i]
+        return np.concatenate([self._paths[i_]() for i_ in i], axis=0)
+    
+    def collect_localprops(self, i: int|Iterable[int] = None):
+        if i is None:
+            i = range(self.n_paths)
+        elif isinstance(i, int):
+            i = [i]
+        df = pd.concat([self._paths[i_].localprops for i_ in i], 
+                        keys=list(i)
+                       )
+        df.index.name = ("path", "position")
+        return df
     
     def _sample_subtomograms(self, 
                             i: int,
                             cache: bool = True,
                             rotate: bool = True):
+        spl = self._paths[i]
         try:
-            out = cachemap[(self, self._paths[i])]
+            out = cachemap[(self, spl)]
         except KeyError:
-            spl = self._paths[i]
-            
             anchors = spl.anchors
             center_px = self.nm2pixel(spl(anchors))
             radius_px = self.nm2pixel(self.box_radius_pre)
@@ -200,7 +239,7 @@ class MtTomogram:
                     matrices = spl.rotation_matrix(anchors, center=radius_px, inverse=True)
                     out.value[:] = dask_affine(out.value, matrices)
             if cache:
-                cachemap[(self, self._paths[i])] = out
+                cachemap[(self, spl)] = out
             
         return out
     
@@ -276,8 +315,13 @@ class MtTomogram:
     
     @batch_process
     def get_subtomograms(self, i: int = None):
+        subtomograms = self._sample_subtomograms(i)
+        return subtomograms
+    
+    @batch_process
+    def measure_radius(self, i: int = None):
         with ip.SetConst("SHOW_PROGRESS", False):
-            subtomograms = self._sample_subtomograms(i, rotate=True)
+            subtomograms = self._sample_subtomograms(i)
             nbin = 17
             r_max: nm = 17.0
             img2d = subtomograms.proj("py")
@@ -288,12 +332,11 @@ class MtTomogram:
             imax = np.argmax(prof)
             r_peak_sub = centroid(prof, imax-5, imax+5)/nbin*r_max
             self._paths[i].radius = r_peak_sub
-        return subtomograms
+        return r_peak_sub
     
     @batch_process
     def calc_ft_params(self, i: int = None, *, upsample_factor: int = 20):
-
-        subtomograms = self._sample_subtomograms(i, rotate=True)
+        subtomograms = self._sample_subtomograms(i)
         ylen = self.nm2pixel(self.box_radius[1])
         ylen0 = self.nm2pixel(self.box_radius_pre[1])
         subtomograms = subtomograms[f"y={ylen0 - ylen}:{ylen0 + ylen + 1}"]
@@ -325,11 +368,11 @@ class MtTomogram:
                    i: int = None, 
                    range_: tuple[float, float] = (0.0, 1.0), 
                    radius: nm = None,
-                   split: bool = True,
+                   chunkwise: bool = True,
                    polar: bool = False):
         start, end = range_
         step = 0.1
-        if split and end - start > step:
+        if chunkwise and end - start > step:
             out = []
             while start < end:
                 if end - start < 1e-3:
@@ -337,7 +380,7 @@ class MtTomogram:
                 sub_range = (start, min(start+step, end))
                 out.append(
                     self.straighten(i, range_=sub_range, radius=radius, 
-                                    split=False, polar=polar)
+                                    chunkwise=False, polar=polar)
                 )
                 start += step
                 
@@ -354,9 +397,9 @@ class MtTomogram:
             if polar:
                 if rx <= rz:
                     raise ValueError("For polar straightening, 'radius' must be (rmin, rmax)")
-                coords = spl.cylindrical_coords((rz, rx), s_range=range_, scale=self.scale)
+                coords = spl.cylindrical((rz, rx), s_range=range_)
             else:
-                coords = spl.cartesian_coords((2*rz+1, 2*rx+1), s_range=range_, scale=self.scale)
+                coords = spl.cartesian((2*rz+1, 2*rx+1), s_range=range_)
             coords = np.moveaxis(coords, -1, 0)
             
             # crop image and shift coordinates
@@ -379,6 +422,18 @@ class MtTomogram:
             transformed.scale_unit = "nm"
         
         return transformed
+    
+    @batch_process
+    def rotational_average(self, i: int = None):
+        subtomograms = self._sample_subtomograms(i)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            projs = subtomograms.proj("y") # pzx
+            spl = self._paths[i]
+            out = np.empty_like(projs)
+            for p, (img, npf) in enumerate(zip(projs, spl.localprops[H.nPF])):
+                out.value[p] = rotational_average(img, fold=npf)
+        
+        return out
     
     def average(self, i: int = None, l0: nm = 24, r:nm=19):
         # TODO
@@ -477,16 +532,17 @@ def rotational_average(img, fold:int=13):
     average_img /= fold
     return average_img
 
-def _affine(img, matrix=None):
-    out = ndi.affine_transform(img[0], matrix[0], order=1, prefilter=False)
+def _affine(img, matrix, order=1):
+    out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=False)
     return out[np.newaxis]
     
-def dask_affine(images, matrices):
+def dask_affine(images, matrices, order=1):
     imgs = da.from_array(images, chunks=(1,)+images.shape[1:])
-    mtxs = da.from_array(matrices, chunks=(1,)+matrices.shape[1:])
+    mtxs = da.from_array(matrices[..., np.newaxis], chunks=(1,)+matrices.shape[1:]+(1,))
     return imgs.map_blocks(_affine, 
-                           matrix=mtxs, 
-                           meta=np.array([], dtype=np.float32)
+                           mtxs,
+                           order=order,
+                           meta=np.array([], dtype=np.float32),
                            ).compute()
 
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
