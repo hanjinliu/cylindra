@@ -14,12 +14,10 @@ import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, field, button_design, click, set_options, 
-                            Figure, TupleEdit, CheckButton, Separator)
+                            Figure, TupleEdit, CheckButton, Separator, ListWidget)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad
 from .const import nm, H, INNER, OUTER
-
-# TODO: QListView
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
@@ -28,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @thread_worker(progress={"total": 0, "desc": "Reading Image"})
-def imread(img, binsize):
+def bin_image_worker(img, binsize):
     with ip.SetConst("SHOW_PROGRESS", False):
         imgb = img.binning(binsize, check_edges=False).data
     
@@ -118,7 +116,7 @@ class MTProfiler:
         def from_json(self, path: Path): ...
         def save_results(self, path: Path): ...
     
-    sep0 = field(Separator)
+    tomograms = field(ListWidget, options={"name": "Tomograms"})
     
     @magicclass(layout="horizontal")
     class mt:
@@ -197,7 +195,6 @@ class MTProfiler:
         
     def __post_init__(self):
         self._mtpath = None
-        self.tomograms: list[MtTomogram] = []
         self.active_tomogram: MtTomogram = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
@@ -208,6 +205,23 @@ class MTProfiler:
         self.mt.pos.min_width = 70
         call_button = self._loader["call_button"]
         call_button.changed.connect(self.load_image)
+        
+        @self.tomograms.register_callback(MtTomogram)
+        def _(tomo: MtTomogram, i: int):
+            if tomo is self.active_tomogram:
+                return None
+            self.active_tomogram = tomo
+            
+            self._bin_image(tomo.image, tomo.metadata["binsize"], 
+                            tomo.light_background, new=False)
+            if tomo.paths:
+                self._load_tomogram_results()
+            else:
+                self._init_layers()
+                self._init_widget_params()
+            
+        self.tomograms.height = 120
+        self.tomograms.max_height = 120
              
     @operation.wraps
     @click(enabled=False, enables=operation.run_for_all_path)
@@ -251,7 +265,7 @@ class MTProfiler:
                          interval: nm = 24.0,
                          box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0),
                          box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
-                         upsample_factor: int = 20): # TODO
+                         upsample_factor: int = 20):
         """
         Run MTProps.
         """        
@@ -405,7 +419,7 @@ class MTProfiler:
     @viewer_op.wraps
     @click(enabled=False)
     @button_design(text="👁️")    
-    def send_to_napari(self): # TODO
+    def send_to_napari(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
         """        
@@ -563,12 +577,14 @@ class MTProfiler:
         props = pd.concat([back, df])
         
         # Add labels layer
-        self.layer_paint = self.parent_viewer.add_labels(
-            lbl.value, color=color, scale=self.layer_image.scale,
-            translate=self.layer_image.translate, opacity=0.33, name="Label",
-            properties=props
-            )
-        
+        if self.layer_paint is None:
+            self.layer_paint = self.parent_viewer.add_labels(
+                lbl.value, color=color, scale=self.layer_image.scale,
+                translate=self.layer_image.translate, opacity=0.33, name="Label",
+                properties=props
+                )
+        else:
+            self.layer_paint.data = lbl.value
         self._update_colormap()
         return None
         
@@ -592,19 +608,23 @@ class MTProfiler:
     def load_image(self, event=None):
         img = self._loader.img
         light_bg = self._loader.light_background.value
-        bin_size = self._loader.bin_size.value
+        binsize = self._loader.bin_size.value
         
+        self._bin_image(img, binsize, light_bg)
+        self._loader.close()
+        return None
+    
+    def _bin_image(self, img, binsize:int, light_bg:bool, new:bool=True):
         viewer: napari.Viewer = self.parent_viewer
-        worker = imread(img, bin_size)
+        worker = bin_image_worker(img, binsize)
         self._connect_worker(worker)
         self._worker_control.info.value = \
             f"original image: {img.shape}, " \
-            f"binned image: {tuple(s//bin_size for s in img.shape)}"
+            f"binned image: {tuple(s//binsize for s in img.shape)}"
         
         @worker.returned.connect
         def _on_return(imgb):
-            self._init_widget_params()
-            tr = (bin_size-1)/2*img.scale.x
+            tr = (binsize - 1)/2*img.scale.x
             rendering = "minip" if light_bg else "mip"
             if self.layer_image not in viewer.layers:
                 self.layer_image = viewer.add_image(
@@ -612,6 +632,7 @@ class MTProfiler:
                     scale=imgb.scale, 
                     name=imgb.name, 
                     translate=[tr, tr, tr],
+                    contrast_limits=[np.min(imgb), np.max(imgb)],
                     rendering=rendering
                     )
             else:
@@ -619,21 +640,29 @@ class MTProfiler:
                 self.layer_image.scale = imgb.scale
                 self.layer_image.name = imgb.name
                 self.layer_image.translate = [tr, tr, tr]
+                self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
                 self.layer_image.rendering = rendering
                 
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
             
-            tomo = MtTomogram(light_background=light_bg, name=img.name)
+            if new:
+                self._init_widget_params()
+                
+                tomo = MtTomogram(light_background=light_bg, name=img.name)
+                
+                tomo.metadata["source"] = self._loader.path.value
+                tomo.metadata["binsize"] = binsize
+                
+                self.active_tomogram = tomo
+                tomo.image = img
+                self.tomograms.add_item(tomo)
+                
+                self.clear_all()
             
-            self.tomograms.append(tomo)
-            self.active_tomogram = tomo
-            tomo.image = img
-            self.clear_all()
             return None
         
         worker.start()
-        self._loader.close()
         return None
     
     def _load_tomogram_results(self):
@@ -690,8 +719,17 @@ class MTProfiler:
             point1: np.ndarray = self.layer_work.data[-1]/imgb.scale.x
         except IndexError:
             raise IndexError("Auto pick needs at least two points in the working layer.")
+        
         tomo = self.active_tomogram
-        radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/self.active_binsize)
+        # get bin size
+        try:
+            binsize = tomo.metadata["binsize"]
+        except KeyError:
+            bin_scale = self.layer_image.scale[0] # scale of binned reference image
+            tomo = self.active_tomogram
+            binsize = int(bin_scale/tomo.scale)
+        
+        radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/binsize)
         with ip.SetConst("SHOW_PROGRESS", False):
             orientation = point1[1:] - point0[1:]
             img = load_a_subtomogram(imgb, point1.astype(np.uint16), radius, dask=False)
@@ -743,7 +781,7 @@ class MTProfiler:
             return ""
         else:
             point0 = self.layer_work.data[-1]
-            if not np.all([r*0.7 <= p < s - r*0.7
+            if not np.all([r*0.5 <= p < s - r*0.5
                            for p, s, r in zip(point0, imgshape_nm, tomo.box_radius_pre)]):
                 # outside image
                 return "Outside boundary."
@@ -764,9 +802,8 @@ class MTProfiler:
     def _init_layers(self):
         # TODO: simpler implementation after napari==0.4.12
         viewer: napari.Viewer = self.parent_viewer
-        img = self.active_tomogram.image
         
-        common_properties = dict(ndim=3, n_dimensional=True, size=16*img.scale.x)
+        common_properties = dict(ndim=3, n_dimensional=True, size=8)
         if self.layer_prof in self.parent_viewer.layers:
             self.layer_prof.name = "MT Profiles-old"
     
@@ -775,11 +812,6 @@ class MTProfiler:
                                     opacity=0.4, 
                                     edge_color="black",
                                     face_color="black",
-                                    properties={"pitch": np.array([0.0], dtype=np.float64)},
-                                    text={"text": "{label}-{number}", 
-                                          "color":"black", 
-                                          "size": ip.Const["FONT_SIZE_FACTOR"]*4, 
-                                          "visible": False},
                                     )
         self.layer_prof.editable = False
             
@@ -799,9 +831,8 @@ class MTProfiler:
             viewer.layers.remove("Working Layer-old")
         
         if self.layer_paint is not None:
-            viewer.layers.remove(self.layer_paint.name)
-            self.layer_paint = None
-
+            self.layer_paint.data = np.zeros_like(self.layer_paint.data)
+            
         return None
     
     @mt.pos.connect
@@ -874,7 +905,6 @@ class MTProfiler:
         
         @worker.finished.connect
         def _on_finish():
-            # BUG: not called after loading image
             viewer.window._status_bar._toggle_activity_dock(False)
             dialog.layout().removeWidget(self._worker_control.native)
             

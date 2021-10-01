@@ -71,12 +71,19 @@ class MtTomogram:
         self.box_radius_pre = box_radius_pre
         self.box_radius = box_radius
         self.light_background = light_background
+        self.metadata = {}
         
         self._paths: list[MtSpline] = []
     
     def __hash__(self) -> int:
         return id(self)
     
+    def __repr__(self) -> str:
+        return str(self)
+    
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__} of '{self._image.name}'"
+            
     @property
     def paths(self) -> list[MtSpline]:
         return self._paths
@@ -146,6 +153,7 @@ class MtTomogram:
 
             all_results[i] = spl_dict
         
+        all_results["metadata"] = self.metadata
         with open(path, mode="w") as f:
             json.dump(all_results, f)
         return None

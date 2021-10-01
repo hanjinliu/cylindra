@@ -221,15 +221,12 @@ class Spline3D:
 
         Parameters
         ----------
-        shape : [type]
-            [description]
-        position : [type]
-            [description]
-        n_pixels : [type]
-            [description]
-        scale : [type]
-            [description]
-
+        shape : tuple of two int
+            Vertical and horizontal length of Cartesian coordinates. Corresponds to zx axes.
+        n_pixels : int
+            Length of y axis.
+        u : float
+            Position on the spline at which local Cartesian coordinates will be built.
         Returns
         -------
         np.ndarray
@@ -249,7 +246,7 @@ class Spline3D:
     def _get_local_coords(self,
                           map_func: Callable[[tuple], np.ndarray],
                           map_params:tuple, 
-                          u:float, 
+                          u: np.ndarray, 
                           n_pixels:int):
         if u is None:
             u = self.anchors
@@ -283,7 +280,7 @@ class Spline3D:
         return self._get_coords(_polar_coords_2d, r_range, s_range)
     
     def inv_cartesian(self,
-                      points):
+                      points: np.ndarray):
         # TODO: (z,y,x) in straight image to world coordinate
         pass
     
@@ -335,29 +332,6 @@ def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
                             dtype=np.float32)
 
     mx = rotation_zy.dot(rotation_yx)
-    mx[-1, :] = [0, 0, 0, 1]
-    return np.ascontiguousarray(mx)
-
-@nb.njit(cache=True)
-def _vector_to_inv_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
-    yx = np.arctan2(-ds[2], ds[1])
-    zy = np.arctan(np.sign(ds[1])*ds[0]/np.abs(ds[1]))
-    cos = np.cos(yx)
-    sin = np.sin(yx)
-    rotation_yx = np.array([[1.,  0.,  0., 0.],
-                            [0., cos, sin, 0.],
-                            [0.,-sin, cos, 0.],
-                            [0.,  0.,  0., 1.]],
-                            dtype=np.float32)
-    cos = np.cos(zy)
-    sin = np.sin(zy)
-    rotation_zy = np.array([[cos, sin, 0., 0.],
-                            [-sin, cos, 0., 0.],
-                            [ 0.,   0., 1., 0.],
-                            [ 0.,   0., 0., 1.]],
-                            dtype=np.float32)
-
-    mx = rotation_yx.dot(rotation_zy)
     mx[-1, :] = [0, 0, 0, 1]
     return np.ascontiguousarray(mx)
 
