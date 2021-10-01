@@ -6,14 +6,13 @@ class H:
     """
     splDistance = "splDistance"
     splPosition = "splPosition"
-    skew = "skew"
+    raiseAngle = "raiseAngle"
     yPitch = "yPitch"
+    skewAngle = "skewAngle"
     nPF = "nPF"  
 
     
 nm = float
-pixel = NewType("pixel", int)
-
 
 INNER = 0.7
 OUTER = 1.6

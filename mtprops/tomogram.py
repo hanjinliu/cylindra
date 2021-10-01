@@ -1,6 +1,6 @@
 from __future__ import annotations
 import statistics
-from typing import Iterable
+from typing import Iterable, overload
 import matplotlib.pyplot as plt
 import numpy as np
 import json
@@ -43,7 +43,7 @@ def batch_process(func):
         out = [func(self, i=i_, **kwargs) for i_ in i_list]
         
         return out
-    return _func            
+    return _func  
 
 class MtSpline(Spline3D):
     def __init__(self, scale:float=1, k=3):
@@ -58,7 +58,6 @@ class MtSpline(Spline3D):
         self.radius = d.get("radius", None)
         self.orientation = d.get("orientation", None)
         return self
-        
 
 class MtTomogram:
     def __init__(self, *,
@@ -146,7 +145,7 @@ class MtTomogram:
             if contain_results:
                 spl_dict.update({H.splPosition: spl.localprops[H.splPosition].to_list(),
                                  H.splDistance: spl.localprops[H.splDistance].to_list(),
-                                 H.skew: spl.localprops[H.skew].to_list(),
+                                 H.raiseAngle: spl.localprops[H.raiseAngle].to_list(),
                                  H.yPitch: spl.localprops[H.yPitch].to_list(),
                                  H.nPF: spl.localprops[H.nPF].to_list(),
                                  })
@@ -352,13 +351,14 @@ class MtTomogram:
                                      drop_axis=[1, 2, 3],
                                      up=upsample_factor,
                                      meta=np.array([], dtype=np.float32),
-                                     ).compute().reshape(-1, 3)
+                                     ).compute().reshape(-1, 4)
         
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
-        spl.localprops[H.skew] = results[:, 0]
+        spl.localprops[H.raiseAngle] = results[:, 0]
         spl.localprops[H.yPitch] = results[:, 1]
-        spl.localprops[H.nPF] = results[:, 2].astype(np.uint8)
+        spl.localprops[H.skewAngle] = results[:, 2]
+        spl.localprops[H.nPF] = results[:, 3].astype(np.uint8)
         
         return spl.localprops
 
@@ -366,7 +366,7 @@ class MtTomogram:
     def straighten(self, 
                    i: int = None, 
                    range_: tuple[float, float] = (0.0, 1.0), 
-                   radius: nm = None,
+                   radius: nm | tuple[nm, nm] = None,
                    chunkwise: bool = True,
                    polar: bool = False):
         
@@ -483,36 +483,62 @@ def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
 
 def _calc_ft_params(img, rmin, rmax, up=20):
     img = img[0]
+    
+    polar = warp_polar_3d(img, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
+    
+    # Fast upsampled Fourier transformation using Local DFT.
+    
+    # First, transform around 4 nm longitudinal periodicity.
+    # This analysis measures tubulin pitch length and raise angle.
+    da = 20
     peak_est = img.sizeof("y")/(4.16/img.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
-    
-    polar = warp_polar_3d(img, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
-    da = 20
+    up_a = 20
+    up_y = 20
     power_1 = polar.local_power_spectra(key=f"y={y0}:{y1};a={-da}:", 
-                                        upsample_factor=[up, 1, up], 
+                                        upsample_factor=[up_a, 1, up_y], 
                                         dims="ary"
                                         ).proj("r")
+    
     power_2 = polar.local_power_spectra(key=f"y={y0}:{y1};a=:{da+1}", 
-                                        upsample_factor=[up, 1, up], 
+                                        upsample_factor=[up_a, 1, up_y], 
                                         dims="ary"
                                         ).proj("r")
+    
     power = np.concatenate([power_1, power_2], axis="a")
     amax, ymax = np.unravel_index(np.argmax(power), shape=power.shape)
-    amax_f = amax - da*up
-    ymax_f = ymax + y0*up
-    a_freq = np.fft.fftfreq(polar.sizeof("a")*up)
-    y_freq = np.fft.fftfreq(polar.sizeof("y")*up)
+    amax_f = amax - da*up_a
+    ymax_f = ymax + y0*up_y
+    a_freq = np.fft.fftfreq(polar.sizeof("a")*up_a)
+    y_freq = np.fft.fftfreq(polar.sizeof("y")*up_y)
     
-    skew = a_freq[amax_f]*180
+    raise_angle = a_freq[amax_f]*180
     y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
     
-    # determine PF number 
-    power_a = polar.local_power_spectra(key="a=12:17;y=0:1", dims="ary")
-    proj_along_a = power_a.proj("ry")
-    npf = np.argmax(proj_along_a) + 12
+    # Second, transform around 13 pf lateral periodicity.
+    # This analysis measures skew angle and protofilament number.
+    dy = 1
+    npfmin = 12
+    up_a = 20
+    up_y = 50
+    power_1 = polar.local_power_spectra(key=f"y={-dy}:;a={npfmin}:17", 
+                                        upsample_factor=[up_a, 1, up_y], 
+                                        dims="ary"
+                                        ).proj("r")
     
-    return np.array([skew, y_pitch, npf], dtype=np.float32)
+    power_2 = polar.local_power_spectra(key=f"y=:{dy+1};a={npfmin}:17", 
+                                        upsample_factor=[up_a, 1, up_y], 
+                                        dims="ary"
+                                        ).proj("r")
+    
+    power = np.concatenate([power_1, power_2], axis="y")
+    amax, ymax = np.unravel_index(np.argmax(power), shape=power.shape)
+    
+    npf = amax/up_a + npfmin
+    skew = np.rad2deg(np.arctan(-(ymax-dy*up_y)/npf/up_y))
+    
+    return np.array([raise_angle, y_pitch, skew, int(round(npf))], dtype=np.float32)
 
 
 def rotational_average(img, fold:int=13):

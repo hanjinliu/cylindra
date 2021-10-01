@@ -131,7 +131,7 @@ class MTProfiler:
         focus = field(CheckButton, options={"text": "🔍"})
         def show_3d_path(self): ...
         def show_table(self): ...
-        txt = field("X.XX nm / XX pf", options={"enabled": False}, name="result")
+        txt = field(str, options={"enabled": False}, name="result")
         
     line_edit = field(str, name="Note: ")
     
@@ -207,7 +207,7 @@ class MTProfiler:
         call_button.changed.connect(self.load_image)
         
         @self.tomograms.register_callback(MtTomogram)
-        def _(tomo: MtTomogram, i: int):
+        def open_tomogram(tomo: MtTomogram, i: int):
             if tomo is self.active_tomogram:
                 return None
             self.active_tomogram = tomo
@@ -219,6 +219,14 @@ class MTProfiler:
             else:
                 self._init_layers()
                 self._init_widget_params()
+        
+        @self.tomograms.register_contextmenu(MtTomogram)
+        def Load_tomogram(tomo: MtTomogram, i: int):
+            open_tomogram(tomo, i)
+        
+        @self.tomograms.register_contextmenu(MtTomogram)
+        def Remove_tomogram_from_list(tomo: MtTomogram, i: int):
+            self.tomograms.pop_item(i)
             
         self.tomograms.height = 120
         self.tomograms.max_height = 120
@@ -231,6 +239,8 @@ class MTProfiler:
         Register current selected points as a MT path.
         """        
         coords = self.layer_work.data
+        if coords.size == 0:
+            return None
         tomo = self.active_tomogram
         self.active_tomogram.add_path(coords)
         spl = self.active_tomogram.paths[-1]
@@ -256,10 +266,10 @@ class MTProfiler:
     
     @operation.wraps
     @click(enabled=False, enables=POST_PROCESSING)
-    @set_options(interval={"min":1.0, "max": 100.0, "label": "interval (nm)"},
-                 box_radius_pre={"widget_type": TupleEdit, "label": "z/y/x-radius-pre (nm)"}, 
-                 box_radius={"widget_type": TupleEdit, "label": "z/y/x-radius (nm)"},
-                 upsample_factor={"min":12, "max":50})
+    @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
+                 box_radius_pre={"widget_type": TupleEdit, "label": "Initial box radius (nm)"}, 
+                 box_radius={"widget_type": TupleEdit, "label": "Final box radius (nm)"},
+                 upsample_factor={"min":12, "max":50, "label": "Up-sampling factor"})
     @button_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
@@ -268,6 +278,17 @@ class MTProfiler:
                          upsample_factor: int = 20):
         """
         Run MTProps.
+
+        Parameters
+        ----------
+        interval : nm, default is 24.0
+            Interval of sampling points of microtubule fragments.
+        box_radius_pre : tuple[nm, nm, nm], default is (22.0, 28.0, 28.0)
+            Box size of microtubule fragments used for angle correction and centering.
+        box_radius : tuple[nm, nm, nm], default is (16.7, 16.7, 16.7)
+            Box size of MT fragments used for final analysis.
+        upsample_factor : int, default is 20
+            Up-sampling factor of Fourier transformation.
         """        
         if self.layer_work.data.size > 0:
             self.register_path()
@@ -291,6 +312,7 @@ class MTProfiler:
         def _on_return(out: MtTomogram):
             self._load_tomogram_results()
         
+        self._worker_control.info.value = f"Spline fitting (0/{self.active_tomogram.n_paths})"
         worker.start()
         return None
     
@@ -303,20 +325,17 @@ class MTProfiler:
         tomo.box_radius_pre = box_radius_pre
         tomo.box_radius = box_radius
         for i in range(tomo.n_paths):
-            prog = f"{i}/{tomo.n_paths}"
-            
-            yield f"Spline fitting ({prog})"
             tomo.fit(i)
             tomo.make_anchors(interval=interval)
             
-            yield f"Reloading subtomograms  ({prog})"
+            yield f"Reloading subtomograms  ({i}/{tomo.n_paths})"
             tomo.get_subtomograms(i)
             
-            yield f"MT analysis ({prog}) "
+            yield f"MT analysis ({i}/{tomo.n_paths}) "
             tomo.measure_radius(i)
             tomo.calc_ft_params(i, upsample_factor=upsample_factor)
             
-            yield
+            yield f"Spline fitting ({i+1}/{tomo.n_paths})"
         
         return tomo
     
@@ -569,11 +588,11 @@ class MTProfiler:
             lbl[ref<thr] = 0
         
         # Labels layer properties
-        df = tomo.collect_localprops()[[H.skew, H.yPitch, H.nPF]]
+        df = tomo.collect_localprops()[[H.raiseAngle, H.yPitch, H.nPF]]
         df_reset = df.reset_index()
         df["ID"] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
         
-        back = pd.DataFrame({"ID": [np.nan], H.skew: [np.nan], H.yPitch: [np.nan], H.nPF: [np.nan]})
+        back = pd.DataFrame({"ID": [np.nan], H.raiseAngle: [np.nan], H.yPitch: [np.nan], H.nPF: [np.nan]})
         props = pd.concat([back, df])
         
         # Add labels layer
@@ -651,7 +670,7 @@ class MTProfiler:
                 
                 tomo = MtTomogram(light_background=light_bg, name=img.name)
                 
-                tomo.metadata["source"] = self._loader.path.value
+                tomo.metadata["source"] = str(self._loader.path.value)
                 tomo.metadata["binsize"] = binsize
                 
                 self.active_tomogram = tomo
@@ -698,7 +717,7 @@ class MTProfiler:
         self.mt.pos.value = 0
         self.mt.pos.min = 0
         self.mt.pos.max = 0
-        self.viewer_op.txt.value = "XX ° / X.XX nm / XX pf"
+        self.viewer_op.txt.value = "X.XX nm / XX °/ XX pf"
         return None
     
     @auto_picker.wraps
@@ -841,8 +860,8 @@ class MTProfiler:
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         results = tomo.paths[i]
-        skew, pitch, npf = results.localprops[[H.skew, H.yPitch, H.nPF]].iloc[j]
-        self.viewer_op.txt.value = f"{skew:.2f}° / {pitch:.2f} nm / {int(npf)} pf"
+        pitch, skew, npf = results.localprops[[H.yPitch, H.skewAngle, H.nPF]].iloc[j]
+        self.viewer_op.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)} pf"
         
         axes: Iterable[Axes] = self.canvas.axes
         for k in range(3):
