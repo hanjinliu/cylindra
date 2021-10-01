@@ -351,14 +351,15 @@ class MtTomogram:
                                      drop_axis=[1, 2, 3],
                                      up=upsample_factor,
                                      meta=np.array([], dtype=np.float32),
-                                     ).compute().reshape(-1, 4)
+                                     ).compute().reshape(-1, 5)
         
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
         spl.localprops[H.raiseAngle] = results[:, 0]
         spl.localprops[H.yPitch] = results[:, 1]
         spl.localprops[H.skewAngle] = results[:, 2]
-        spl.localprops[H.nPF] = results[:, 3].astype(np.uint8)
+        spl.localprops[H.nPF] = np.round(results[:, 3]).astype(np.uint8)
+        spl.localprops[H.start] = np.round(results[:, 4]).astype(np.uint8)
         
         return spl.localprops
 
@@ -483,8 +484,8 @@ def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
 
 def _calc_ft_params(img, rmin, rmax, up=20):
     img = img[0]
-    
-    polar = warp_polar_3d(img, radius=rmax, angle_freq=int((rmin+rmax)*np.pi))[:, rmin:]
+    l_circ = (rmin + rmax) * np.pi # pixel
+    polar = warp_polar_3d(img, radius=rmax, angle_freq=int(l_circ))[:, rmin:]
     
     # Fast upsampled Fourier transformation using Local DFT.
     
@@ -513,7 +514,7 @@ def _calc_ft_params(img, rmin, rmax, up=20):
     a_freq = np.fft.fftfreq(polar.sizeof("a")*up_a)
     y_freq = np.fft.fftfreq(polar.sizeof("y")*up_y)
     
-    raise_angle = a_freq[amax_f]*180
+    raise_angle = np.arctan(-a_freq[amax_f]/y_freq[ymax_f])
     y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
     
     # Second, transform around 13 pf lateral periodicity.
@@ -535,10 +536,21 @@ def _calc_ft_params(img, rmin, rmax, up=20):
     power = np.concatenate([power_1, power_2], axis="y")
     amax, ymax = np.unravel_index(np.argmax(power), shape=power.shape)
     
-    npf = amax/up_a + npfmin
-    skew = np.rad2deg(np.arctan(-(ymax-dy*up_y)/npf/up_y))
+    amax_f = amax + npfmin*up_a
+    ymax_f = ymax - dy*up_y
+    a_freq = np.fft.fftfreq(polar.sizeof("a")*up_a)
+    y_freq = np.fft.fftfreq(polar.sizeof("y")*up_y)
     
-    return np.array([raise_angle, y_pitch, skew, int(round(npf))], dtype=np.float32)
+    skew = np.arctan(-y_freq[ymax_f]/a_freq[amax_f])
+    
+    start = l_circ * img.scale.y/y_pitch/(-np.tan(skew) + 1/np.tan(raise_angle))
+    
+    return np.array([np.rad2deg(raise_angle), 
+                     y_pitch, 
+                     np.rad2deg(skew), 
+                     amax_f/up_a,
+                     start], 
+                    dtype=np.float32)
 
 
 def rotational_average(img, fold:int=13):

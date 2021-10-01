@@ -147,7 +147,8 @@ class MTProfiler:
     @magicclass(layout="horizontal")
     class auto_picker:
         stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100}, name="stride (nm)")
-        def pick(self): ...
+        def pick_next(self): ...
+        def auto_center(self): ...
         
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
@@ -248,7 +249,7 @@ class MTProfiler:
         # check/draw path
         interval = 30
         length = spl.length()
-        if length < 72.0:
+        if length < 50.0:
             raise ValueError(f"Path is too short: {length:.2f} nm")
         
         n = int(length/interval) + 1
@@ -298,7 +299,7 @@ class MTProfiler:
                                box_radius_pre=box_radius_pre,
                                box_radius=box_radius,
                                upsample_factor=upsample_factor,
-                               _progress={"total": self.active_tomogram.n_paths*4, 
+                               _progress={"total": self.active_tomogram.n_paths*3 + 1, 
                                           "desc": "Running MTProps"}
                                )
         
@@ -588,12 +589,16 @@ class MTProfiler:
             lbl[ref<thr] = 0
         
         # Labels layer properties
-        df = tomo.collect_localprops()[[H.raiseAngle, H.yPitch, H.nPF]]
+        _id = "ID"
+        _type = "type"
+        columns = [_id, H.raiseAngle, H.yPitch, H.skewAngle, _type]
+        df = tomo.collect_localprops()[[H.raiseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
-        df["ID"] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
+        df_reset[_id] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
+        df_reset[_type] = df_reset.apply(lambda x: "{}_{}".format(int(x[H.nPF]), int(x[H.start])), axis=1)
         
-        back = pd.DataFrame({"ID": [np.nan], H.raiseAngle: [np.nan], H.yPitch: [np.nan], H.nPF: [np.nan]})
-        props = pd.concat([back, df])
+        back = pd.DataFrame({c: [np.nan] for c in columns})
+        props = pd.concat([back, df_reset[columns]])
         
         # Add labels layer
         if self.layer_paint is None:
@@ -717,19 +722,14 @@ class MTProfiler:
         self.mt.pos.value = 0
         self.mt.pos.min = 0
         self.mt.pos.max = 0
-        self.viewer_op.txt.value = "X.XX nm / XX °/ XX pf"
+        self.viewer_op.txt.value = ""
         return None
     
     @auto_picker.wraps
-    def pick(self):
+    def pick_next(self):
         """
         Automatically pick MT center using previous two points.
         """        
-        point = self._pick()
-        self._add_point(point)
-        return None
-    
-    def _pick(self):
         stride_nm = self.auto_picker.stride.value
         imgb = self.layer_image.data
         try:
@@ -740,13 +740,7 @@ class MTProfiler:
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
         tomo = self.active_tomogram
-        # get bin size
-        try:
-            binsize = tomo.metadata["binsize"]
-        except KeyError:
-            bin_scale = self.layer_image.scale[0] # scale of binned reference image
-            tomo = self.active_tomogram
-            binsize = int(bin_scale/tomo.scale)
+        binsize = int(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         
         radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/binsize)
         with ip.SetConst("SHOW_PROGRESS", False):
@@ -761,38 +755,40 @@ class MTProfiler:
             else:
                 point2 = point1 - dr
             
-            img_next = load_a_subtomogram(imgb, point2.astype(np.uint16), radius, dask=False)
+            centering(imgb, point2, angle_deg, radius)
             
-            angle_deg2 = angle_corr(img_next, ang_center=angle_deg, drot=5, nrots=7)
-            
-            if np.deg2rad(angle_deg - angle_deg2)/stride_nm > 0.02:
-                raise ValueError("Angle changed too much.")
-            img_next_rot = img_next.rotate(-angle_deg2, cval=np.median(img_next))
-            proj = img_next_rot.proj("y")
-            proj_mirror = proj["z=::-1;x=::-1"]
-            shift = ip.pcc_maximum(proj, proj_mirror)
-            dz, dx = shift/2
-            
-        point2[0] += dz
-        point2[2] += dx
-        return point2
-        
-    def _add_point(self, point):
-        imgb = self.layer_image.data
-        next_data = point * imgb.scale.x
-        self.layer_work.add(next_data)
+        next_data = point2 * imgb.scale.x
         msg = self._check_path()
         if msg:
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
-        viewer = self.parent_viewer
-        viewer.camera.center = point
-        zoom = viewer.camera.zoom
-        viewer.camera.events.zoom()
-        viewer.camera.zoom = zoom
-        viewer.dims.current_step = list(next_data.astype(np.int64))
+        self.layer_work.add(next_data)
+        change_viewer_focus(self.parent_viewer, point2, next_data)
         return None
-                    
+    
+    @auto_picker.wraps
+    def auto_center(self):
+        imgb = self.layer_image.data
+        tomo = self.active_tomogram
+        binsize = int(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
+        selected = self.layer_work.selected_data
+        radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/binsize)
+        
+        points = self.layer_work.data / imgb.scale.x
+        last_i = -1
+        with ip.SetConst("SHOW_PROGRESS", False):
+            for i, point in enumerate(points):
+                if i not in selected:
+                    continue
+                angle_deg = angle_corr(imgb, ang_center=0, drot=90, nrots=17)
+                centering(imgb, point, angle_deg, radius)
+                last_i = i
+        
+        self.layer_work.data = points * imgb.scale.x
+        if len(selected) == 1:
+            change_viewer_focus(self.parent_viewer, points[last_i], self.layer_work.data[last_i])
+        return None
+    
     def _check_path(self) -> str:
         tomo = self.active_tomogram
         imgshape_nm = np.array(tomo.image.shape) * tomo.image.scale.x
@@ -860,8 +856,8 @@ class MTProfiler:
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         results = tomo.paths[i]
-        pitch, skew, npf = results.localprops[[H.yPitch, H.skewAngle, H.nPF]].iloc[j]
-        self.viewer_op.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)} pf"
+        pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
+        self.viewer_op.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{int(start)}"
         
         axes: Iterable[Axes] = self.canvas.axes
         for k in range(3):
@@ -929,4 +925,30 @@ class MTProfiler:
             
         dialog.layout().addWidget(self._worker_control.native)
         return None
-        
+
+def centering(imgb, point, angle, radius):
+    img_next = load_a_subtomogram(imgb, point.astype(np.uint16), radius, dask=False)
+            
+    angle_deg2 = angle_corr(img_next, ang_center=angle, drot=5, nrots=7)
+    
+    img_next_rot = img_next.rotate(-angle_deg2, cval=np.median(img_next))
+    proj = img_next_rot.proj("y")
+    proj_mirror = proj["z=::-1;x=::-1"]
+    shift = ip.pcc_maximum(proj, proj_mirror)
+    
+    shiftz, shiftx = shift/2
+    shift = np.array([shiftz, 0, shiftx])
+    rad = -np.deg2rad(angle_deg2)
+    cos = np.cos(rad)
+    sin = np.sin(rad)
+    shift = shift @ [[1.,   0.,  0.],
+                     [0.,  cos, sin],
+                     [0., -sin, cos]]
+    point += shift
+
+def change_viewer_focus(viewer, next_center, next_coord):
+    viewer.camera.center = next_center
+    zoom = viewer.camera.zoom
+    viewer.camera.events.zoom()
+    viewer.camera.zoom = zoom
+    viewer.dims.current_step = list(next_coord.astype(np.int64))

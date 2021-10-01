@@ -34,3 +34,4 @@ def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
         if np.any(np.array(pads) > 0):
             reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
     return reg
+
