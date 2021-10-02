@@ -187,7 +187,7 @@ class MtTomogram:
     @batch_process
     def make_anchors(self, i: int = None, interval: nm = 24.0):
         """
-        Make anchors on every MtSpline objects
+        Make anchors on MtSpline object(s).
 
         Parameters
         ----------
@@ -403,6 +403,7 @@ class MtTomogram:
             transformed = np.concatenate(out, axis="y")
             
         else:
+            # TODO: better way to unify Cartesian and cylindrical coords?
             if radius is None:
                 rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
             elif np.isscalar(radius):
@@ -451,9 +452,39 @@ class MtTomogram:
         
         return out
     
-    def average(self, i: int = None, l0: nm = 24, r:nm=19):
-        # TODO
-        ...
+    @batch_process
+    def reconstruct(self, i: int = None, y_length: nm = 100.0):
+        img_st = self.straighten(i, radius=self.box_radius_pre[0])
+        scale = img_st.scale.y
+        total_length: nm = img_st.shape.y*scale
+        props = self.calc_global_ft_params(i)
+        lp = props[H.yPitch] * 2
+        skew = props[H.skewAngle]
+        dl, resl = divmod(total_length, lp)
+        borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
+        rot_angles = np.arange(borders.size-1) * skew
+        imgs = []
+        ylen = 99999
+        with ip.SetConst("SHOW_PROGRESS", False):    
+            for start, stop, ang in zip(borders[:-1], borders[1:], rot_angles):
+                start = self.nm2pixel(start)
+                stop = self.nm2pixel(stop)
+                imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx"))
+                ylen = min(ylen, stop-start)
+        
+        out = sum(img[:, :ylen] for img in imgs)
+        # y-translate with warp-mode
+        dup = int(np.ceil(y_length/lp))
+        outlist = []
+        ang = 0
+        with ip.SetConst("SHOW_PROGRESS", False):
+            for i in range(dup):
+                outlist.append(out.rotate(ang, dims="zx"))
+                ang += skew
+        
+        return np.concatenate(outlist, axis="y")
+        
+        
         
     @batch_process
     def _mt_mask(self, i: int = None, shape=None, scale=None):
