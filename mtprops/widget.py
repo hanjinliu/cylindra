@@ -256,8 +256,8 @@ class MTProfiler:
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
         self.canvas.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
-        self.canvas.ax.set_xlim(0, tomo.image.sizeof("x")*tomo.image.scale.x)
-        self.canvas.ax.set_ylim(tomo.image.sizeof("y")*tomo.image.scale.y, 0)
+        self.canvas.ax.set_xlim(0, tomo.image.shape.x*tomo.image.scale.x)
+        self.canvas.ax.set_ylim(tomo.image.shape.y*tomo.image.scale.y, 0)
         self.canvas.ax.set_aspect("equal")
         self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         self.canvas.figure.tight_layout()
@@ -591,8 +591,8 @@ class MTProfiler:
         # Labels layer properties
         _id = "ID"
         _type = "type"
-        columns = [_id, H.raiseAngle, H.yPitch, H.skewAngle, _type]
-        df = tomo.collect_localprops()[[H.raiseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
+        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _type]
+        df = tomo.collect_localprops()[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
         df_reset[_id] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
         df_reset[_type] = df_reset.apply(lambda x: "{}_{}".format(int(x[H.nPF]), int(x[H.start])), axis=1)
@@ -609,6 +609,7 @@ class MTProfiler:
                 )
         else:
             self.layer_paint.data = lbl.value
+            self.layer_paint.properties = props
         self._update_colormap()
         return None
         
@@ -768,6 +769,9 @@ class MTProfiler:
     
     @auto_picker.wraps
     def auto_center(self):
+        """
+        Auto centering of selected points.
+        """        
         imgb = self.layer_image.data
         tomo = self.active_tomogram
         binsize = int(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image

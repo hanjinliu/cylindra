@@ -233,14 +233,14 @@ class Spline3D:
             (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
             dimensional axis.
         """        
-        return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels, self.scale)
+        return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels)
     
     def local_cylindrical(self,
                           r_range: tuple[int, int],
                           position,
                           n_pixels):
         
-        return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels, self.scale)
+        return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels)
         
     
     def _get_local_coords(self,
@@ -351,7 +351,9 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
                      ax_coords: nb.float32[_S,_D],
                      vectors: nb.float32[_S,_D],
                      ) -> nb.float32[_V,_S,_H,_D]:
-
+    maps = np.ascontiguousarray(maps)
+    vectors = np.ascontiguousarray(vectors)
+    
     coords = np.empty((maps.shape[0],
                        ax_coords.shape[0],
                        maps.shape[1],
@@ -359,7 +361,7 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
                       dtype=np.float32
                       )
     for i, (y, dr) in enumerate(zip(ax_coords, vectors)):
-        slice_out = _rot_point_with_vector(maps, dr) # TODO: contiguous
+        slice_out = _rot_point_with_vector(maps, dr)
         coords[:, i] = slice_out + y
     return coords
 
@@ -371,7 +373,8 @@ def _polar_coords_2d(r_start: int, r_stop: int) -> np.ndarray:
     output_coords = np.column_stack([r_.ravel(), ang_.ravel()])
     coords = _linear_polar_mapping(np.array(output_coords), n_angle/2/np.pi, 1, [0, 0]
                                    ).astype(np.float32)
-    return coords.reshape(n_radius, n_angle, 2) # V, H, 2
+    coords = coords.reshape(n_radius, n_angle, 2) # V, H, 2
+    return np.flip(coords, axis=1)
 
 def _cartesian_coords_2d(lenv, lenh):
     v, h = np.indices((lenv, lenh), dtype=np.float32)

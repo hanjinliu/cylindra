@@ -6,7 +6,7 @@ class H:
     """
     splDistance = "splDistance"
     splPosition = "splPosition"
-    raiseAngle = "raiseAngle"
+    riseAngle = "riseAngle"
     yPitch = "yPitch"
     skewAngle = "skewAngle"
     nPF = "nPF"  

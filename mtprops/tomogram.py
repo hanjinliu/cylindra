@@ -145,7 +145,7 @@ class MtTomogram:
             if contain_results:
                 spl_dict.update({H.splPosition: spl.localprops[H.splPosition].to_list(),
                                  H.splDistance: spl.localprops[H.splDistance].to_list(),
-                                 H.raiseAngle: spl.localprops[H.raiseAngle].to_list(),
+                                 H.riseAngle: spl.localprops[H.riseAngle].to_list(),
                                  H.yPitch: spl.localprops[H.yPitch].to_list(),
                                  H.nPF: spl.localprops[H.nPF].to_list(),
                                  })
@@ -154,7 +154,7 @@ class MtTomogram:
         
         all_results["metadata"] = self.metadata
         with open(path, mode="w") as f:
-            json.dump(all_results, f)
+            json.dump(all_results, f, indent=4, separators=(",", ": "))
         return None
     
     def load(self, path :str):
@@ -342,10 +342,10 @@ class MtTomogram:
         rmin = self.nm2pixel(spl.radius*INNER)
         rmax = self.nm2pixel(spl.radius*OUTER)
         with ip.SetConst("SHOW_PROGRESS", False):
-            
             img = da.from_array(subtomograms, chunks=(1,)+subtomograms.shape[1:])
             results: np.ndarray
-            results = img.map_blocks(_calc_ft_params, 
+            results = img.map_blocks(dask_ft_params, 
+                                     float(spl.radius),
                                      int(rmin),
                                      int(rmax),
                                      drop_axis=[1, 2, 3],
@@ -355,13 +355,28 @@ class MtTomogram:
         
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
-        spl.localprops[H.raiseAngle] = results[:, 0]
+        spl.localprops[H.riseAngle] = results[:, 0]
         spl.localprops[H.yPitch] = results[:, 1]
         spl.localprops[H.skewAngle] = results[:, 2]
         spl.localprops[H.nPF] = np.round(results[:, 3]).astype(np.uint8)
         spl.localprops[H.start] = np.round(results[:, 4]).astype(np.uint8)
         
         return spl.localprops
+    
+    @batch_process
+    def calc_global_ft_params(self, i: int = None):
+        spl = self._paths[i]
+        img_st = self.straighten(i, radius=(spl.radius*INNER, spl.radius*OUTER), polar=True)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            results = _local_dft_params(img_st, spl.radius)
+        series = pd.Series([], dtype=np.float32)
+        series[H.riseAngle] = results[0]
+        series[H.yPitch] = results[1]
+        series[H.skewAngle] = results[2]
+        series[H.nPF] = np.round(results[3])
+        series[H.start] = np.round(results[4])
+        
+        return series
 
     @batch_process
     def straighten(self, 
@@ -455,7 +470,7 @@ class MtTomogram:
 def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     # img: 3D
     img_z = img.proj("z")
-    mask = ip.circular_mask(img_z.sizeof("y")/2+2, img_z.shape)
+    mask = ip.circular_mask(img_z.shape.y/2+2, img_z.shape)
     img_mirror = img_z["x=::-1"]
     angs = np.linspace(ang_center-drot, ang_center+drot, nrots, endpoint=True)
     corrs = []
@@ -475,82 +490,85 @@ def delayed_angle_corr(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
     return da.compute(tasks)[0]
     
-def warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
+def _warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
     input_img = np.moveaxis(img3d.value, 1, 2)
     out = warp_polar(input_img, center=center, radius=radius, 
                      output_shape=(angle_freq, radius), multichannel=True, clip=False)
-    out = ip.asarray(out, axes="ary") # angle, radius, y
+    out = np.moveaxis(out, 0, -1)
+    out = ip.asarray(out, axes="rya") # radius, y, angle
+    out.set_scale(r=img3d.scale.x, y=img3d.scale.x, a=img3d.scale.x)
     return out
 
-def _calc_ft_params(img, rmin, rmax, up=20):
-    img = img[0]
-    l_circ = (rmin + rmax) * np.pi # pixel
-    polar = warp_polar_3d(img, radius=rmax, angle_freq=int(l_circ))[:, rmin:]
-    
-    # Fast upsampled Fourier transformation using Local DFT.
-    
-    # First, transform around 4 nm longitudinal periodicity.
-    # This analysis measures tubulin pitch length and raise angle.
+def _local_dft_params(img, radius: nm):
+    l_circ: nm = 2*np.pi*radius
     da = 20
-    peak_est = img.sizeof("y")/(4.16/img.scale.y) # estimated peak
+    peak_est = img.shape.y/(4.16/img.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
     up_a = 20
-    up_y = 20
-    power_1 = polar.local_power_spectra(key=f"y={y0}:{y1};a={-da}:", 
-                                        upsample_factor=[up_a, 1, up_y], 
-                                        dims="ary"
+    up_y = max(int(720/(img.shape.y*img.scale.y)), 1)
+    
+    power_1 = img.local_power_spectra(key=f"y={y0}:{y1};a={-da}:", 
+                                        upsample_factor=[1, up_y, up_a], 
+                                        dims="rya"
                                         ).proj("r")
     
-    power_2 = polar.local_power_spectra(key=f"y={y0}:{y1};a=:{da+1}", 
-                                        upsample_factor=[up_a, 1, up_y], 
-                                        dims="ary"
+    power_2 = img.local_power_spectra(key=f"y={y0}:{y1};a=:{da+1}", 
+                                        upsample_factor=[1, up_y, up_a], 
+                                        dims="rya"
                                         ).proj("r")
     
     power = np.concatenate([power_1, power_2], axis="a")
-    amax, ymax = np.unravel_index(np.argmax(power), shape=power.shape)
+    ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+    
     amax_f = amax - da*up_a
     ymax_f = ymax + y0*up_y
-    a_freq = np.fft.fftfreq(polar.sizeof("a")*up_a)
-    y_freq = np.fft.fftfreq(polar.sizeof("y")*up_y)
+    a_freq = np.fft.fftfreq(img.shape.a*up_a)
+    y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
-    raise_angle = np.arctan(-a_freq[amax_f]/y_freq[ymax_f])
+    rise = np.arctan(-a_freq[amax_f]/y_freq[ymax_f])
     y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
-    dy = 1
+    dy = 2
     npfmin = 12
     up_a = 20
-    up_y = 50
-    power_1 = polar.local_power_spectra(key=f"y={-dy}:;a={npfmin}:17", 
-                                        upsample_factor=[up_a, 1, up_y], 
-                                        dims="ary"
+    up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
+    
+    power_1 = img.local_power_spectra(key=f"y={-dy}:;a={npfmin}:17", 
+                                        upsample_factor=[1, up_y, up_a], 
+                                        dims="rya"
                                         ).proj("r")
     
-    power_2 = polar.local_power_spectra(key=f"y=:{dy+1};a={npfmin}:17", 
-                                        upsample_factor=[up_a, 1, up_y], 
-                                        dims="ary"
+    power_2 = img.local_power_spectra(key=f"y=:{dy+1};a={npfmin}:17", 
+                                        upsample_factor=[1, up_y, up_a], 
+                                        dims="rya"
                                         ).proj("r")
     
     power = np.concatenate([power_1, power_2], axis="y")
-    amax, ymax = np.unravel_index(np.argmax(power), shape=power.shape)
+    ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     
     amax_f = amax + npfmin*up_a
     ymax_f = ymax - dy*up_y
-    a_freq = np.fft.fftfreq(polar.sizeof("a")*up_a)
-    y_freq = np.fft.fftfreq(polar.sizeof("y")*up_y)
+    a_freq = np.fft.fftfreq(img.shape.a*up_a)
+    y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
-    skew = np.arctan(-y_freq[ymax_f]/a_freq[amax_f])
+    skew = np.arctan(-y_freq[ymax_f]/a_freq[amax_f]*2*y_pitch/radius)
+    start = l_circ/y_pitch/(-np.tan(skew) + 1/np.tan(rise))
     
-    start = l_circ * img.scale.y/y_pitch/(-np.tan(skew) + 1/np.tan(raise_angle))
-    
-    return np.array([np.rad2deg(raise_angle), 
+    return np.array([np.rad2deg(rise), 
                      y_pitch, 
                      np.rad2deg(skew), 
                      amax_f/up_a,
                      start], 
                     dtype=np.float32)
+    
+def dask_ft_params(img, radius: nm, rmin: int, rmax: int, up=20):
+    img = img[0]
+    l_circ = 2 * radius * np.pi / img.scale.y # pixel
+    polar = _warp_polar_3d(img, radius=rmax, angle_freq=int(l_circ))[rmin:]
+    return _local_dft_params(polar, radius)
 
 
 def rotational_average(img, fold:int=13):
@@ -565,7 +583,7 @@ def rotational_average(img, fold:int=13):
 def _affine(img, matrix, order=1):
     out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=False)
     return out[np.newaxis]
-    
+
 def dask_affine(images, matrices, order=1):
     imgs = da.from_array(images, chunks=(1,)+images.shape[1:])
     mtxs = da.from_array(matrices[..., np.newaxis], chunks=(1,)+matrices.shape[1:]+(1,))
