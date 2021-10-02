@@ -241,7 +241,7 @@ class MTProfiler:
         if coords.size == 0:
             return None
         tomo = self.active_tomogram
-        self.active_tomogram.add_path(coords)
+        self.active_tomogram.add_curve(coords)
         spl = self.active_tomogram.paths[-1]
         
         # check/draw path
@@ -267,14 +267,12 @@ class MTProfiler:
     @click(enabled=False, enables=POST_PROCESSING)
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
                  box_radius_pre={"widget_type": TupleEdit, "label": "Initial box radius (nm)"}, 
-                 box_radius={"widget_type": TupleEdit, "label": "Final box radius (nm)"},
-                 upsample_factor={"min":12, "max":50, "label": "Up-sampling factor"})
+                 box_radius={"widget_type": TupleEdit, "label": "Final box radius (nm)"})
     @button_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0),
-                         box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
-                         upsample_factor: int = 20):
+                         box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7)):
         """
         Run MTProps.
 
@@ -286,8 +284,6 @@ class MTProfiler:
             Box size of microtubule fragments used for angle correction and centering.
         box_radius : tuple[nm, nm, nm], default is (16.7, 16.7, 16.7)
             Box size of MT fragments used for final analysis.
-        upsample_factor : int, default is 20
-            Up-sampling factor of Fourier transformation.
         """        
         if self.layer_work.data.size > 0:
             self.register_path()
@@ -296,7 +292,6 @@ class MTProfiler:
                                interval=interval,
                                box_radius_pre=box_radius_pre,
                                box_radius=box_radius,
-                               upsample_factor=upsample_factor,
                                _progress={"total": self.active_tomogram.n_paths*3 + 1, 
                                           "desc": "Running MTProps"}
                                )
@@ -318,8 +313,7 @@ class MTProfiler:
     def _run_all(self, 
                  interval: nm = 24.0,
                  box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0),
-                 box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
-                 upsample_factor: int = 20):
+                 box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7)):
         tomo = self.active_tomogram
         tomo.box_radius_pre = box_radius_pre
         tomo.box_radius = box_radius
@@ -332,7 +326,7 @@ class MTProfiler:
             
             yield f"MT analysis ({i}/{tomo.n_paths}) "
             tomo.measure_radius(i)
-            tomo.calc_ft_params(i, upsample_factor=upsample_factor)
+            tomo.calc_ft_params(i)
             
             yield f"Spline fitting ({i+1}/{tomo.n_paths})"
         

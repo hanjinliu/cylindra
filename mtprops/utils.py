@@ -35,3 +35,20 @@ def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
             reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
     return reg
 
+
+def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
+    xmin = max(xmin, 0)
+    xmax = min(xmax, arr.size)
+    x = np.arange(xmin, xmax)
+    input_arr = arr[xmin:xmax] - np.min(arr[xmin:xmax])
+    return np.sum(input_arr*x)/np.sum(input_arr)
+
+
+def rotational_average(img, fold:int=13):
+    angles = np.arange(fold)*360/fold
+    average_img = img.copy()
+    with ip.SetConst("SHOW_PROGRESS", False):
+        for angle in angles[1:]:
+            average_img.value[:] += img.rotate(angle, dims="zx")
+    average_img /= fold
+    return average_img

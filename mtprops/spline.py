@@ -284,6 +284,9 @@ class Spline3D:
         # TODO: (z,y,x) in straight image to world coordinate
         pass
     
+    def inv_cylindrical(self, points: np.ndarray):
+        
+        pass
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],

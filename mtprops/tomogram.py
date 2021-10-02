@@ -14,7 +14,7 @@ from dask import array as da, delayed
 from .const import nm, H, INNER, OUTER
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import load_a_subtomogram
+from .utils import load_a_subtomogram, centroid, rotational_average
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -66,12 +66,19 @@ class MtSpline(Spline3D):
         self = super().from_dict(d)
         self.radius = d.get("radius", None)
         self.orientation = d.get("orientation", None)
-        self.localprops = pd.DataFrame(d["localprops"])
+        self.localprops = pd.DataFrame(d.get("localprops", None))
         if H.splPosition in self.localprops.columns:
             self.anchors = self.localprops[H.splPosition]
         return self
 
 class MtTomogram:
+    """
+    Tomogram object. It always connected to a 3D image but processed lazily. Thus
+    you can create a lot of MtTomogram objects without MemoryError. Subtomograms
+    are temporarily loaded into memory via cache map. Once memory usage exceed
+    certain amount, the subtomogram cache will automatically deleted from the old
+    ones.
+    """    
     def __init__(self, *,
                  box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0), 
                  box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
@@ -143,12 +150,28 @@ class MtTomogram:
         self.scale = image.scale.x
         return None
     
-    def export_results(self, path: str, **kwargs):
+    def export_results(self, file_path: str, **kwargs):
+        """
+        Export local properties as a csv file.
+
+        Parameters
+        ----------
+        file_path : str
+            File path to export.
+        """        
         df = self.collect_localprops()
-        df.to_csv(path, **kwargs)
+        df.to_csv(file_path, **kwargs)
         return None
     
     def save(self, path: str):
+        """
+        Save splines with its local properties as a json file.
+
+        Parameters
+        ----------
+        path : str
+            File path to save file.
+        """        
         path = str(path)
         
         all_results = {}
@@ -161,10 +184,23 @@ class MtTomogram:
             json.dump(all_results, f, indent=4, separators=(",", ": "))
         return None
     
-    def load(self, path :str):
-        path = str(path)
+    def load(self, file_path :str) -> MtTomogram:
+        """
+        Load splines from a json file.
+
+        Parameters
+        ----------
+        file_path : str
+            File path to the json file.
+
+        Returns
+        -------
+        MtTomogram
+            Same object with spline curves loaded.
+        """        
+        file_path = str(file_path)
         
-        with open(path, mode="r") as f:
+        with open(file_path, mode="r") as f:
             js: dict = json.load(f)
         
         for i, d in js.items():
@@ -179,7 +215,15 @@ class MtTomogram:
             
         return self
     
-    def add_path(self, coords: np.ndarray):
+    def add_curve(self, coords: np.ndarray):
+        """
+        Add MtSpline path to tomogram.
+
+        Parameters
+        ----------
+        coords : np.ndarray
+            (N, 3) array of coordinates. A spline curve that fit it well is added.
+        """        
         spl = MtSpline(self.scale)
         error_nm = 1.0
         sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
@@ -188,6 +232,15 @@ class MtTomogram:
         return None
     
     def nm2pixel(self, value: Iterable[nm]|nm) -> np.ndarray|int:
+        """
+        Convert nm float value into pixel value. Useful for conversion from 
+        coordinate to pixel position.
+
+        Returns
+        -------
+        np.ndarray or int
+            Pixel position.
+        """        
         pix = (np.asarray(value)/self.scale).astype(np.int16)
         if np.isscalar(value):
             pix = int(pix)
@@ -206,14 +259,40 @@ class MtTomogram:
         self._paths[i].make_anchors(interval)
         return None
     
-    def collect_anchor_coords(self, i: int|Iterable[int] = None):
+    def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
+        """
+        Collect all the anchor coordinates into a single np.ndarray.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to collect.
+
+        Returns
+        -------
+        np.ndarray
+            Coordinates in shape (N, 3).
+        """        
         if i is None:
             i = range(self.n_paths)
         elif isinstance(i, int):
             i = [i]
         return np.concatenate([self._paths[i_]() for i_ in i], axis=0)
     
-    def collect_localprops(self, i: int|Iterable[int] = None):
+    def collect_localprops(self, i: int|Iterable[int] = None) -> pd.DataFrame:
+        """
+        Collect all the local properties into a single pd.DataFrame.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to collect.
+
+        Returns
+        -------
+        pd.DataFrame
+            Concatenated data frame.
+        """        
         if i is None:
             i = range(self.n_paths)
         elif isinstance(i, int):
@@ -250,7 +329,22 @@ class MtTomogram:
         return out
     
     @batch_process
-    def fit(self, i: int = None, max_interval: nm = 24.0):
+    def fit(self, i: int = None, *, max_interval: nm = 24.0) -> MtTomogram:
+        """
+        Fit i-th path to MT.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to fit.
+        max_interval : nm, default is 24.0
+            Maximum interval of sampling points in nm unit.
+
+        Returns
+        -------
+        MtTomogram
+            Same object with updated MtSpline objects.
+        """        
         spl = self._paths[i]
         length = spl.length()
         npoints = int(np.ceil(length/max_interval)) + 1
@@ -263,7 +357,6 @@ class MtTomogram:
         
         with ip.SetConst("SHOW_PROGRESS", False):
             # Angular correlation
-            # out = dask_angle_corr(subtomograms[1:-1], yx_tilt)
             out = delayed_angle_corr(subtomograms[1:-1], yx_tilt)
             refined_tilt = np.array([0] + list(out) + [0])
             size = 2*int(round(48/interval)) + 1
@@ -300,6 +393,7 @@ class MtTomogram:
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])
             shifts -= center_shift/2
         
+        # Update spline coordinates to be fit.
         coords = spl()
         for i in range(npoints):
             shiftz, shiftx = -shifts[i]
@@ -313,7 +407,7 @@ class MtTomogram:
                              [0., -sin, cos]]
             coords[i] += shift * self.scale
         
-        # update spline
+        # Update spline parameters
         error_nm = 1.0
         sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
@@ -321,12 +415,39 @@ class MtTomogram:
         return self
     
     @batch_process
-    def get_subtomograms(self, i: int = None):
+    def get_subtomograms(self, i: int = None) -> ip.arrays.ImgArray:
+        """
+        Get subtomograms at anchors. All the subtomograms are rotated to oriented
+        to the spline.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to load samples.
+
+        Returns
+        -------
+        ip.arrays.ImgArray
+            Subtomograms stacked along "p" axis.
+        """        
         subtomograms = self._sample_subtomograms(i)
         return subtomograms
     
     @batch_process
-    def measure_radius(self, i: int = None):
+    def measure_radius(self, i: int = None) -> nm:
+        """
+        Measure MT radius using radial profile from the center.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to measure.
+
+        Returns
+        -------
+        float (nm)
+            MT radius.
+        """        
         with ip.SetConst("SHOW_PROGRESS", False):
             subtomograms = self._sample_subtomograms(i)
             nbin = 17
@@ -342,7 +463,20 @@ class MtTomogram:
         return r_peak_sub
     
     @batch_process
-    def calc_ft_params(self, i: int = None, *, upsample_factor: int = 20):
+    def calc_ft_params(self, i: int = None) -> pd.DataFrame:
+        """
+        Calculate MT local structural parameters from cylindrical Fourier space.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to analyze.
+
+        Returns
+        -------
+        pd.DataFrame
+            Local properties.
+        """        
         subtomograms = self._sample_subtomograms(i)
         ylen = self.nm2pixel(self.box_radius[1])
         ylen0 = self.nm2pixel(self.box_radius_pre[1])
@@ -358,7 +492,6 @@ class MtTomogram:
                                      int(rmin),
                                      int(rmax),
                                      drop_axis=[1, 2, 3],
-                                     up=upsample_factor,
                                      meta=np.array([], dtype=np.float32),
                                      ).compute().reshape(-1, 5)
         
@@ -374,8 +507,23 @@ class MtTomogram:
     
     @batch_process
     def calc_global_ft_params(self, i: int = None):
+        """
+        Calculate MT global structural parameters from cylindrical Fourier space along 
+        spline. This function calls ``straighten`` beforehand, so that Fourier space is 
+        distorted if MT is curved.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to analyze.
+
+        Returns
+        -------
+        pd.DataFrame
+            Global properties.
+        """        
         spl = self._paths[i]
-        img_st = self.straighten(i, radius=(spl.radius*INNER, spl.radius*OUTER), polar=True)
+        img_st = self.straighten(i, radius=(spl.radius*INNER, spl.radius*OUTER), cylindrical=True)
         with ip.SetConst("SHOW_PROGRESS", False):
             results = _local_dft_params(img_st, spl.radius)
         series = pd.Series([], dtype=np.float32)
@@ -393,8 +541,32 @@ class MtTomogram:
                    radius: nm | tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
                    chunkwise: bool = True,
-                   polar: bool = False):
-        
+                   cylindrical: bool = False):
+        """
+        MT straightening by building curved coordinate system around splines. Currently
+        Cartesian coordinate system and cylindrical coordinate system are supported.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to straighten.
+        radius : float (nm), optional
+            Parameter that specify the size of coordinate system. For Cartesian coordinate
+            system, this parameter is interpreted as box radius. For cylindrical coordinate
+            system, this parameter is interpreted as the range of radius.
+        range_ : tuple[float, float], default is (0.0, 1.0)
+            Range of spline domain.
+        chunkwise : bool, default is True
+            If True, spline is first split into chunks and all the straightened images are
+            concatenated afterward, in order to avoid loading entire image into memory.
+        cylindrical : bool, default is False
+            If True, cylindrical coordinate system will be used.
+
+        Returns
+        -------
+        ip.array.ImgArray
+            Straightened image. If Cartesian coordinate system is used, it will have "zyx".
+        """        
         start, end = range_
         step = 0.1
         if chunkwise and end - start > step:
@@ -405,16 +577,15 @@ class MtTomogram:
                 sub_range = (start, min(start+step, end))
                 out.append(
                     self.straighten(i, range_=sub_range, radius=radius, 
-                                    chunkwise=False, polar=polar)
+                                    chunkwise=False, cylindrical=cylindrical)
                 )
                 start += step
                 
             transformed = np.concatenate(out, axis="y")
             
         else:
-            # TODO: better way to unify Cartesian and cylindrical coords?
             if radius is None:
-                if polar:
+                if cylindrical:
                     rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
                 else:
                     rz, _, rx = self.nm2pixel(self.box_radius)
@@ -422,7 +593,7 @@ class MtTomogram:
             else:
                 rz, rx = self.nm2pixel(radius)
             spl = self._paths[i]
-            if polar:
+            if cylindrical:
                 if rx <= rz:
                     raise ValueError("For polar straightening, 'radius' must be (rmin, rmax)")
                 coords = spl.cylindrical((rz, rx), s_range=range_)
@@ -445,7 +616,7 @@ class MtTomogram:
                                               prefilter=False
                                               )
             
-            axes = "rya" if polar else "zyx"
+            axes = "rya" if cylindrical else "zyx"
             transformed = ip.asarray(transformed, axes=axes)
             transformed.set_scale({k: self.scale for k in axes})
             transformed.scale_unit = "nm"
@@ -453,7 +624,20 @@ class MtTomogram:
         return transformed
     
     @batch_process
-    def rotational_average(self, i: int = None):
+    def rotational_average(self, i: int = None) -> ip.arrays.ImgArray:
+        """
+        2D rotational averaging of MT at XZ-section.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to execute averaging.
+
+        Returns
+        -------
+        ip.arrays.ImgArray
+            Averaged images. They will have "pzx" axes.
+        """        
         subtomograms = self._sample_subtomograms(i)
         with ip.SetConst("SHOW_PROGRESS", False):
             projs = subtomograms.proj("y") # pzx
@@ -594,21 +778,12 @@ def _local_dft_params(img, radius: nm):
                      start], 
                     dtype=np.float32)
     
-def dask_ft_params(img, radius: nm, rmin: int, rmax: int, up=20):
+def dask_ft_params(img, radius: nm, rmin: int, rmax: int):
     img = img[0]
     l_circ = 2 * radius * np.pi / img.scale.y # pixel
     polar = _warp_polar_3d(img, radius=rmax, angle_freq=int(l_circ))[rmin:]
     return _local_dft_params(polar, radius)
 
-
-def rotational_average(img, fold:int=13):
-    angles = np.arange(fold)*360/fold
-    average_img = img.copy()
-    with ip.SetConst("SHOW_PROGRESS", False):
-        for angle in angles[1:]:
-            average_img.value[:] += img.rotate(angle, dims="zx")
-    average_img /= fold
-    return average_img
 
 def _affine(img, matrix, order=1):
     out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=False)
@@ -622,10 +797,3 @@ def dask_affine(images, matrices, order=1):
                            order=order,
                            meta=np.array([], dtype=np.float32),
                            ).compute()
-
-def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
-    xmin = max(xmin, 0)
-    xmax = min(xmax, arr.size)
-    x = np.arange(xmin, xmax)
-    input_arr = arr[xmin:xmax] - np.min(arr[xmin:xmax])
-    return np.sum(input_arr*x)/np.sum(input_arr)
