@@ -1,6 +1,6 @@
 from __future__ import annotations
 import statistics
-from typing import Iterable, overload
+from typing import Iterable
 import matplotlib.pyplot as plt
 import numpy as np
 import json
@@ -17,6 +17,7 @@ from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
+LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
 def batch_process(func):
     @wraps(func)
@@ -51,12 +52,23 @@ class MtSpline(Spline3D):
         self.radius: nm = 0.0
         self.orientation: str = None
         self.localprops: pd.DataFrame = pd.DataFrame([])
-    
+        
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d["radius"] = self.radius
+        d["orientation"] = self.orientation
+        d["localprops"] = {prop: self.localprops[prop].tolist()
+                           for prop in LOCALPROPS}
+        return d
+        
     @classmethod
     def from_dict(cls, d: dict):
         self = super().from_dict(d)
         self.radius = d.get("radius", None)
         self.orientation = d.get("orientation", None)
+        self.localprops = pd.DataFrame(d["localprops"])
+        if H.splPosition in self.localprops.columns:
+            self.anchors = self.localprops[H.splPosition]
         return self
 
 class MtTomogram:
@@ -131,25 +143,17 @@ class MtTomogram:
         self.scale = image.scale.x
         return None
     
-    def save_results(self, path: str, **kwargs):
+    def export_results(self, path: str, **kwargs):
         df = self.collect_localprops()
         df.to_csv(path, **kwargs)
         return None
     
-    def save(self, path: str, contain_results: bool=True):
+    def save(self, path: str):
         path = str(path)
         
         all_results = {}
         for i, spl in enumerate(self._paths):
             spl_dict = spl.to_dict()
-            if contain_results:
-                spl_dict.update({H.splPosition: spl.localprops[H.splPosition].to_list(),
-                                 H.splDistance: spl.localprops[H.splDistance].to_list(),
-                                 H.riseAngle: spl.localprops[H.riseAngle].to_list(),
-                                 H.yPitch: spl.localprops[H.yPitch].to_list(),
-                                 H.nPF: spl.localprops[H.nPF].to_list(),
-                                 })
-
             all_results[i] = spl_dict
         
         all_results["metadata"] = self.metadata
@@ -164,9 +168,14 @@ class MtTomogram:
             js: dict = json.load(f)
         
         for i, d in js.items():
-            self._paths.append(
-                MtSpline.from_dict(d)
-            )
+            try: 
+                int(i)
+            except:
+                setattr(self, i, d)
+            else:
+                self._paths.append(
+                    MtSpline.from_dict(d)
+                )
             
         return self
     
@@ -381,8 +390,8 @@ class MtTomogram:
     @batch_process
     def straighten(self, 
                    i: int = None, 
-                   range_: tuple[float, float] = (0.0, 1.0), 
                    radius: nm | tuple[nm, nm] = None,
+                   range_: tuple[float, float] = (0.0, 1.0), 
                    chunkwise: bool = True,
                    polar: bool = False):
         
@@ -405,9 +414,11 @@ class MtTomogram:
         else:
             # TODO: better way to unify Cartesian and cylindrical coords?
             if radius is None:
-                rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
-            elif np.isscalar(radius):
-                rz = rx = self.nm2pixel(radius)
+                if polar:
+                    rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
+                else:
+                    rz, _, rx = self.nm2pixel(self.box_radius)
+            
             else:
                 rz, rx = self.nm2pixel(radius)
             spl = self._paths[i]
@@ -417,6 +428,7 @@ class MtTomogram:
                 coords = spl.cylindrical((rz, rx), s_range=range_)
             else:
                 coords = spl.cartesian((2*rz+1, 2*rx+1), s_range=range_)
+                
             coords = np.moveaxis(coords, -1, 0)
             
             # crop image and shift coordinates
@@ -428,10 +440,10 @@ class MtTomogram:
                 coords[i] -= imin
             sl = tuple(sl)
             transformed = ndi.map_coordinates(self.image[sl], 
-                                            coords,
-                                            order=1,
-                                            prefilter=False
-                                            )
+                                              coords,
+                                              order=1,
+                                              prefilter=False
+                                              )
             
             axes = "rya" if polar else "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -473,7 +485,7 @@ class MtTomogram:
                 ylen = min(ylen, stop-start)
         
         out = sum(img[:, :ylen] for img in imgs)
-        # y-translate with warp-mode
+        # TODO: y-translate with warp-mode
         dup = int(np.ceil(y_length/lp))
         outlist = []
         ang = 0
@@ -484,19 +496,6 @@ class MtTomogram:
         
         return np.concatenate(outlist, axis="y")
         
-        
-        
-    @batch_process
-    def _mt_mask(self, i: int = None, shape=None, scale=None):
-        scale = scale or self.scale
-        mask = np.zeros(shape, dtype=np.bool_)
-        z, x = np.indices(shape)
-        cz, cx = np.array(shape)/2 - 0.5
-        _sq = (z-cz)**2 + (x-cx)**2
-        r = self._paths[i].radius/scale
-        mask[_sq < (r*INNER)**2] = True
-        mask[_sq > (r*OUTER)**2] = True
-        return mask
 
 def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     # img: 3D

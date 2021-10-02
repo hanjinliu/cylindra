@@ -160,7 +160,7 @@ class Spline3D:
         path = str(path)
         
         with open(path, mode="w") as f:
-            json.dump(self.to_dict(), f)
+            json.dump(self.to_dict(), f, indent=4, separators=(",", ": "))
         
         return None
     

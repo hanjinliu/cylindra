@@ -1,5 +1,3 @@
-from typing import NewType
-
 class H:
     """
     Header names for result table of local properties.

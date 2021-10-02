@@ -1,9 +1,6 @@
 import pandas as pd
 from typing import TYPE_CHECKING, Iterable
-from collections import OrderedDict
 import numpy as np
-from dask import array as da
-from scipy import ndimage as ndi
 import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import thread_worker, create_worker
@@ -35,7 +32,7 @@ def bin_image_worker(img, binsize):
 
 @magicclass
 class ImageLoader:
-    path = field(Path)
+    path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec"})
     scale = field(str, options={"label": "scale (nm)"})
     bin_size = field(4, options={"label": "bin size"})
     light_background = field(True, options={"label": "light background"})
@@ -98,6 +95,7 @@ class WorkerControl:
     
 @magicclass
 class MTProfiler:
+    # Main GUI class.
     
     _loader = field(ImageLoader)
     _worker_control = field(WorkerControl)
@@ -421,19 +419,16 @@ class MTProfiler:
     @io.wraps
     @button_design(text="Save 💾")
     @click(enabled=False)
-    @set_options(path={"mode": "w"})
-    def save_results(self, file_path: Path, contain_results: bool = True):
+    @set_options(file_path={"mode": "w", "filter": "*.json;*.txt"})
+    def save_results(self, file_path: Path):
         """
         Save the results as json.
         
         Parameters
         ----------
         file_path: Path
-            File path to save splines.
-        contain_results: bool
-            Check and local MT properties will also saved in the same json file.
         """        
-        self.active_tomogram.save(file_path, contain_results=contain_results)
+        self.active_tomogram.save(file_path)
         return None            
     
     @viewer_op.wraps
@@ -538,7 +533,7 @@ class MTProfiler:
                 # Prepare template hollow image
                 r0 = spl.radius/tomo.scale*0.9/binsize
                 r1 = spl.radius/tomo.scale*1.1/binsize
-                _sq = (z - lz//2)**2 + (x - lx//2)**2
+                _sq = (z - lz/2 - 0.5)**2 + (x - lx/2 - 0.5)**2
                 domains = []
                 dist = [-np.inf] + list(spl.distances()) + [np.inf]
                 for j in range(spl.anchors.size):
