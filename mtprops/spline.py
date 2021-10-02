@@ -10,7 +10,10 @@ from .const import nm
 
 class Spline3D:
     """
-    3D spline curve model with coordinate system.
+    3D spline curve model with coordinate system. Anchor points can be set via ``anchor``
+    property. Every time spline parameters or anchors are updated, hash value of Spline3D
+    object will be changed, thus it is safe to map Spline3D object to some result along
+    the corresponding curve.
     
     References
     ----------
@@ -56,6 +59,17 @@ class Spline3D:
         self._updates += 1
     
     def make_anchors(self, interval: nm = None, n: int=None):
+        """
+        Make anchor points at constant intervals. Either interval or the number of anchor
+        points can be specified.
+
+        Parameters
+        ----------
+        interval : nm, optional
+            Interval between anchor points.
+        n : int, optional
+            Number of anchor points, including both ends.
+        """        
         length = self.length()
         if interval is not None:
             n = int(length/interval) + 1
@@ -74,7 +88,7 @@ class Spline3D:
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
     
-    def fit(self, coords:np.ndarray, s=None):
+    def fit(self, coords:np.ndarray, s=None) -> Spline3D:
         """
         Fit spline model using a list of coordinates.
 
@@ -95,6 +109,19 @@ class Spline3D:
         return self
     
     def distances(self, u: Iterable[float]=None) -> np.ndarray:
+        """
+        Get the distances from u=0.
+
+        Parameters
+        ----------
+        u : Iterable[float], optional
+            Positions. Between 0 and 1. If not given, anchors are used instead.
+
+        Returns
+        -------
+        np.ndarray
+            Distances for each ``u``.
+        """        
         if u is None:
             u = self.anchors
         length = self.length()
@@ -123,14 +150,32 @@ class Spline3D:
         dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
     
-    def curvature(self, u=None):
+    def curvature(self, u: Iterable[float]=None) -> np.ndarray:
+        """
+        Calculate curvature of spline curve.
+
+        Parameters
+        ----------
+        u : Iterable[float], optional
+            Positions. Between 0 and 1. If not given, anchors are used instead.
+
+        Returns
+        -------
+        np.ndarray
+            Array of curvature.
+            
+        References
+        ----------
+        - https://en.wikipedia.org/wiki/Curvature#Space_curves
+        """        
+        
         if u is None:
             u = self.anchors
-        # https://en.wikipedia.org/wiki/Curvature#Space_curves
+        
         dz, dy, dx = self(u, 1).T
         ddz, ddy, ddx = self(u, 2).T
         a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
-        return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.scale # TODO: not /scale 
+        return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.scale
     
     def to_dict(self) -> dict:
         t = self.tck[0]
@@ -156,15 +201,15 @@ class Spline3D:
         self._u = d["u"]
         return self
     
-    def to_json(self, path: str):
-        path = str(path)
+    def to_json(self, file_path: str):
+        file_path = str(file_path)
         
-        with open(path, mode="w") as f:
+        with open(file_path, mode="w") as f:
             json.dump(self.to_dict(), f, indent=4, separators=(",", ": "))
         
         return None
     
-    def rotation_matrix(self, u=None, center=None, inverse:bool=False) -> np.ndarray:
+    def rotation_matrix(self, u: Iterable[float]=None, center=None, inverse:bool=False) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correcpond to
         the orientation of spline curve.
@@ -224,7 +269,7 @@ class Spline3D:
         shape : tuple of two int
             Vertical and horizontal length of Cartesian coordinates. Corresponds to zx axes.
         n_pixels : int
-            Length of y axis.
+            Length of y axis in pixels.
         u : float
             Position on the spline at which local Cartesian coordinates will be built.
         Returns
@@ -237,10 +282,28 @@ class Spline3D:
     
     def local_cylindrical(self,
                           r_range: tuple[int, int],
-                          position,
-                          n_pixels):
-        
-        return self._get_local_coords(_polar_coords_2d, r_range, position, n_pixels)
+                          n_pixels,
+                          u=None):
+        """
+        Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
+        The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
+
+        Parameters
+        ----------
+        r_range : tuple of two int
+            Lower and upper bound of radius.
+        n_pixels : int
+            Length of y axis in pixels.
+        u : float
+            Position on the spline at which local cylindrical coordinates will be built.
+            
+        Returns
+        -------
+        np.ndarray
+            (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and 
+            dimensional axis.
+        """        
+        return self._get_local_coords(_polar_coords_2d, r_range, u, n_pixels)
         
     
     def _get_local_coords(self,
@@ -269,24 +332,87 @@ class Spline3D:
                   shape: tuple[int, int], 
                   s_range: tuple[float, float] = (0, 1)
                   ) -> np.ndarray:
-        
+        """
+        Generate a Cartesian coordinate system along spline that can be used for
+        ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
+        does not reflect real geometry (such as distance and derivatives).
+
+        Parameters
+        ----------
+        shape : tuple[int, int]
+            The ZX-shape of output coordinate system. Center of the array will be
+            spline curve itself after coodinate transformation.
+        s_range : tuple[float, float], default is (0, 1)
+            Range of spline domain.
+
+        Returns
+        -------
+        np.ndarray
+            (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
+            dimensional axis.
+        """        
         return self._get_coords(_cartesian_coords_2d, shape, s_range)
 
     def cylindrical(self, 
                     r_range: tuple[int, int],
                     s_range: tuple[float, float] = (0, 1)
                     ) -> np.ndarray:
-        
+        """
+        Generate a cylindrical coordinate system along spline that can be used for
+        ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
+        does not reflect real geometry (such as distance and derivatives).
+
+        Parameters
+        ----------
+        r_range : tuple[int, int]
+            Range of radius in pixels. r=0 will be spline curve itself after coodinate 
+            transformation.
+        s_range : tuple[float, float], default is (0, 1)
+            Range of spline domain.
+
+        Returns
+        -------
+        np.ndarray
+            (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and 
+            dimensional axis.
+        """   
         return self._get_coords(_polar_coords_2d, r_range, s_range)
     
     def inv_cartesian(self,
-                      points: np.ndarray):
-        # TODO: (z,y,x) in straight image to world coordinate
-        pass
-    
-    def inv_cylindrical(self, points: np.ndarray):
+                      coords: np.ndarray,
+                      shape: tuple[int, int, int]):
         
-        pass
+        # TODO: implement for loop in numba
+        ncoords = coords.shape[0]
+        u = coords[:, 1]/self.scale/shape[1]
+        s = self(u)
+        ds = self(u, 1)
+        
+        coords_ext = np.stack([coords[:, 0] - shape[0] * self.scale / 2, 
+                               np.zeros(ncoords, dtype=np.float32),
+                               coords[:, 2] - shape[2] * self.scale / 2, 
+                               np.zeros(ncoords, dtype=np.float32)],
+                              axis=1)
+        s_ext = np.concatenate([s, np.zeros((ncoords, 1), dtype=np.float32)], axis=1)
+        for crd, s0, ds0 in zip(coords_ext, s_ext, ds):
+            mtx = np.linalg.inv(_vector_to_rotation_matrix(ds0))
+            crd[:] = mtx.dot(crd) + s0
+        
+        return coords_ext[:, :3]
+    
+    def inv_cylindrical(self, 
+                        coords: np.ndarray,
+                        shape: tuple[int, int, int],
+                        rmin: int):
+        radius = coords[:, 0] + rmin * self.scale
+        y = coords[:, 1]
+        theta = coords[:, 2]/shape[2]*np.pi
+        cart_coords = np.stack([radius*np.cos(theta), 
+                                y, 
+                                radius*np.sin(theta)],
+                               axis=1)
+        
+        return self.inv_cartesian(cart_coords, (0, shape[1], 0))
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
@@ -309,6 +435,8 @@ class Spline3D:
                               ones
                               ], axis=2) # V, S, H, D
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
+
+
 
 _V = slice(None) # vertical dimension
 _S = slice(None) # longitudinal dimension along spline curve
