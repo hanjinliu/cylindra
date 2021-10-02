@@ -517,7 +517,8 @@ class MTProfiler:
         tomo = self.active_tomogram
         
         lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in tomo.box_radius]
-        binsize = self.active_binsize
+        bin_scale = self.layer_image.scale[0] # scale of binned reference image
+        binsize = int(bin_scale/tomo.scale)
         with ip.SetConst("SHOW_PROGRESS", False):
             center = np.array([lz, ly, lx])/2 + 0.5
             z, y, x = np.indices((lz, ly, lx))
@@ -603,16 +604,23 @@ class MTProfiler:
         return None
         
             
-    def _plot_pitch(self):
+    def _plot_properties(self):
         i = self.mt.mtlabel.value
         props = self.active_tomogram.paths[i].localprops
         x = props[H.splDistance]
         with plt.style.context("dark_background"):
             self.plot.ax.cla()
-            self.plot.ax.plot(x, props[H.yPitch], color="white")
+            self.plot.ax.plot(x, props[H.yPitch], color="lime")
             self.plot.ax.set_xlabel("position (nm)")
             self.plot.ax.set_ylabel("pitch (nm)")
             self.plot.ax.set_ylim(*self.label_colorlimit)
+            
+            self.plot.ax2.cla()
+            self.plot.ax2 = self.plot.ax.twinx()
+            self.plot.ax2.plot(x, props[H.skewAngle], color="gold")
+            self.plot.ax2.set_ylabel("skew (deg)")
+            self.plot.ax2.set_ylim(-2.0, 2.0)
+            
             self.plot.figure.tight_layout()
             self.plot.draw()
         
@@ -633,8 +641,7 @@ class MTProfiler:
         worker = bin_image_worker(img, binsize)
         self._connect_worker(worker)
         self._worker_control.info.value = \
-            f"original image: {img.shape}, " \
-            f"binned image: {tuple(s//binsize for s in img.shape)}"
+            f"Loading with {binsize}x{binsize} binned size: {tuple(s//binsize for s in img.shape)}"
         
         @worker.returned.connect
         def _on_return(imgb):
@@ -701,7 +708,7 @@ class MTProfiler:
         self.canvas.figure.add_subplot(133)
         self._imshow_all()
         
-        self._plot_pitch()
+        self._plot_properties()
         
         return None
     
@@ -901,7 +908,7 @@ class MTProfiler:
         self.mt.pos.max = len(tomo.paths[i].localprops) - 1
         note = tomo.paths[i].orientation
         self.line_edit.value = note
-        self._plot_pitch()
+        self._plot_properties()
         self._imshow_all()
         return None
     
