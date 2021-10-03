@@ -14,7 +14,7 @@ from ._dependencies import (mcls, magicclass, field, button_design, click, set_o
                             Figure, TupleEdit, CheckButton, Separator, ListWidget)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad
-from .const import nm, H, INNER, OUTER
+from .const import nm, H, Ori, INNER, OUTER
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
@@ -55,8 +55,6 @@ class ImageLoader:
     def _imread(self, path:str):
         self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
         self.scale.value = f"{self.img.scale.x:.3f}"
-
-
 
 @magicclass(layout="horizontal", labels=False)
 class WorkerControl:
@@ -131,7 +129,7 @@ class MTProfiler:
         def show_table(self): ...
         txt = field(str, options={"enabled": False}, name="result")
         
-    line_edit = field(str, name="Note: ")
+    orientation_choice = field(Ori.none, name="Orientation: ")
     
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of pitch lengths"})
         
@@ -139,8 +137,6 @@ class MTProfiler:
                        viewer_op.show_table, viewer_op.show_3d_path]
 
     POST_IMREAD = [io.from_json, operation.register_path]
-    
-    sep1 = field(Separator)
     
     @magicclass(layout="horizontal")
     class auto_picker:
@@ -608,20 +604,26 @@ class MTProfiler:
         i = self.mt.mtlabel.value
         props = self.active_tomogram.paths[i].localprops
         x = props[H.splDistance]
+        pitch_color = "lime"
+        skew_color = "gold"
         with plt.style.context("dark_background"):
             self.plot.ax.cla()
-            self.plot.ax.plot(x, props[H.yPitch], color="lime")
+            if hasattr(self.plot, "ax2"):
+                self.plot.ax2.cla()
+            
+            self.plot.ax.plot(x, props[H.yPitch], color=pitch_color)
             self.plot.ax.set_xlabel("position (nm)")
             self.plot.ax.set_ylabel("pitch (nm)")
             self.plot.ax.set_ylim(*self.label_colorlimit)
             
-            if hasattr(self.plot, "ax2"):
-                self.plot.ax2.cla()
             self.plot.ax2 = self.plot.ax.twinx()
-            self.plot.ax2.plot(x, props[H.skewAngle], color="gold")
+            self.plot.ax2.plot(x, props[H.skewAngle], color=skew_color)
             self.plot.ax2.set_ylabel("skew (deg)")
             self.plot.ax2.set_ylim(-2.0, 2.0)
             
+            self.plot.ax2.spines["left"].set_color(pitch_color)
+            self.plot.ax2.spines["right"].set_color(skew_color)
+                        
             self.plot.figure.tight_layout()
             self.plot.draw()
         
@@ -895,22 +897,24 @@ class MTProfiler:
         self.canvas.figure.tight_layout()
         self.canvas.draw()
     
-    @line_edit.connect
+    @orientation_choice.connect
     def _update_note(self, event=None):
         i = self.mt.mtlabel.value
-        self.active_tomogram.paths[i].orientation = self.line_edit.value
+        self.active_tomogram.paths[i].orientation = self.orientation_choice.value
         return None
     
     @mt.mtlabel.connect
     def _update_mtpath(self, event=None):
+        self.mt.mtlabel.enabled = False
         i = self.mt.mtlabel.value
         tomo = self.active_tomogram
         
         self.mt.pos.max = len(tomo.paths[i].localprops) - 1
         note = tomo.paths[i].orientation
-        self.line_edit.value = note
+        self.orientation_choice.value = Ori(note)
         self._plot_properties()
         self._imshow_all()
+        self.mt.mtlabel.enabled = True
         return None
     
     def _connect_worker(self, worker):

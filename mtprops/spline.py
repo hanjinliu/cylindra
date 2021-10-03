@@ -194,11 +194,11 @@ class Spline3D:
     @classmethod
     def from_dict(cls, d: dict):
         self = cls(d["scale"], d["k"])
-        t = np.array(d["t"])
-        c = [np.array(d["c"][k]) for k in "zyx"]
+        t = np.asarray(d["t"])
+        c = [np.asarray(d["c"][k]) for k in "zyx"]
         k = int(d["k"])
         self._tck = (t, c, k)
-        self._u = d["u"]
+        self._u = np.asarray(d["u"])
         return self
     
     def to_json(self, file_path: str):

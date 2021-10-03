@@ -1,3 +1,10 @@
+from enum import Enum
+
+class Ori(Enum):
+    none = 0
+    PlusToMinus = 1
+    MinusToPlus = -1
+    
 class H:
     """
     Header names for result table of local properties.

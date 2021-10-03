@@ -11,7 +11,7 @@ from ._dependencies import impy as ip
 import pandas as pd
 from dask import array as da, delayed
 
-from .const import nm, H, INNER, OUTER
+from .const import nm, H, Ori, INNER, OUTER
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram, centroid, rotational_average
@@ -50,13 +50,25 @@ class MtSpline(Spline3D):
     def __init__(self, scale:float=1, k=3):
         super().__init__(scale=scale, k=k)
         self.radius: nm = None
-        self.orientation: str = None
+        self.orientation = Ori.none
         self.localprops: pd.DataFrame = pd.DataFrame([])
+    
+    @property
+    def orientation(self) -> Ori:
+        return self._orientation
+    
+    @orientation.setter
+    def orientation(self, value):
+        try:
+            self._orientation = Ori(value)
+        except ValueError:
+            self._orientation = Ori.none
+        
         
     def to_dict(self) -> dict:
         d = super().to_dict()
         d["radius"] = self.radius
-        d["orientation"] = self.orientation
+        d["orientation"] = self.orientation.name
         d["localprops"] = {prop: self.localprops[prop].tolist()
                            for prop in LOCALPROPS}
         return d
@@ -65,7 +77,7 @@ class MtSpline(Spline3D):
     def from_dict(cls, d: dict):
         self = super().from_dict(d)
         self.radius = d.get("radius", None)
-        self.orientation = d.get("orientation", None)
+        self.orientation = d.get("orientation", Ori.none)
         self.localprops = pd.DataFrame(d.get("localprops", None))
         if H.splPosition in self.localprops.columns:
             self.anchors = self.localprops[H.splPosition]
