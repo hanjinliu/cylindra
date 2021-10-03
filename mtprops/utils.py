@@ -1,7 +1,10 @@
+from __future__ import annotations
 import numpy as np
 from ._dependencies import impy as ip
 
 def make_slice_and_pad(center:int, radius:int, size:int):
+    if center < 0 or size <= center:
+        raise ValueError(f"center ({center}) is not in range [0, {size}).")
     z0 = center - radius
     z1 = center + radius + 1
     z0_pad = z1_pad = 0
@@ -52,3 +55,13 @@ def rotational_average(img, fold:int=13):
             average_img.value[:] += img.rotate(angle, dims="zx")
     average_img /= fold
     return average_img
+
+def interval_divmod(value: float, interval: float) -> tuple[float, int]:
+    """
+    Calculate stop and n_segs, where satisfy:
+    1. stop == interval * n_segs
+    2. stop <= value
+    3. stop is largest.
+    """    
+    n_segs, res = divmod(value + 1e-8, interval)
+    return value - res, int(n_segs)

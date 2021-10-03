@@ -6,6 +6,7 @@ import numba as nb
 import json
 from scipy.interpolate import splprep, splev, interp1d
 from skimage.transform._warps import _linear_polar_mapping
+from .utils import interval_divmod
 from .const import nm
 
 class Spline3D:
@@ -72,8 +73,9 @@ class Spline3D:
         """        
         length = self.length()
         if interval is not None:
-            n = int(length/interval) + 1
-            end = (n-1)*interval/length
+            stop, n_segs = interval_divmod(length, interval)
+            end = stop/length
+            n = n_segs + 1
         elif n is not None:
             end = 1
         else:
@@ -216,7 +218,7 @@ class Spline3D:
 
         Parameters
         ----------
-        u : array-like
+        u : array-like, (N, )
             Positions. Between 0 and 1.
         center : array-like, optional
             If not provided, rotation will be executed around the origin. If an array is provided,
@@ -224,6 +226,11 @@ class Spline3D:
             rotating images.
         inverse : bool, default is False
             If True, rotation matrix will be inversed.
+            
+        Returns
+        -------
+        np.ndarray (N, M, M)
+            3D array of matrices, where the first dimension corresponds to each point.
         """        
         if u is None:
             u = self.anchors
@@ -420,10 +427,12 @@ class Spline3D:
                     s_range:tuple[float, float]):
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
-        n_pixels = int(length/self.scale) + 1
+        stop_length, n_segs = interval_divmod(length, self.scale)
+        n_pixels = n_segs + 1
+        s2 = (s1 - s0) * stop_length/length + s0
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
-        u = np.linspace(s0, s1, n_pixels)
+        u = np.linspace(s0, s2, n_pixels)
         y_ax_coords = self(u)/self.scale # world coordinates of y-axis in spline coords system
         dslist = self(u, 1).astype(np.float32)
         map_ = map_func(*map_params)

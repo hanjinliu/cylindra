@@ -169,13 +169,6 @@ class MTProfiler:
         self.create_macro(show=True)
         return None
     
-    @property
-    def active_binsize(self):
-        bin_scale = self.layer_image.scale[0] # scale of binned reference image
-        tomo = self.active_tomogram
-        binsize = int(bin_scale/tomo.scale)
-        return binsize
-
     def _update_colormap(self, prop: str = H.yPitch):
         # TODO: color by other properties
         if self.layer_paint is None:
@@ -237,7 +230,7 @@ class MTProfiler:
         if coords.size == 0:
             return None
         tomo = self.active_tomogram
-        self.active_tomogram.add_curve(coords)
+        self.active_tomogram.add_spline(coords)
         spl = self.active_tomogram.paths[-1]
         
         # check/draw path
@@ -320,7 +313,7 @@ class MTProfiler:
             yield f"Reloading subtomograms  ({i}/{tomo.n_paths})"
             tomo.get_subtomograms(i)
             
-            yield f"MT analysis ({i}/{tomo.n_paths}) "
+            yield f"Local Fourier transform ({i}/{tomo.n_paths}) "
             tomo.measure_radius(i)
             tomo.calc_ft_params(i)
             
@@ -783,8 +776,8 @@ class MTProfiler:
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
-                angle_deg = angle_corr(imgb, ang_center=0, drot=90, nrots=17)
-                centering(imgb, point, angle_deg, radius)
+                angle_deg = angle_corr(imgb, ang_center=0, drot=89.5, nrots=9)
+                centering(imgb, point, angle_deg, radius, drot=9.5, nrots=9)
                 last_i = i
         
         self.layer_work.data = points * imgb.scale.x
@@ -931,10 +924,10 @@ class MTProfiler:
         dialog.layout().addWidget(self._worker_control.native)
         return None
 
-def centering(imgb, point, angle, radius):
+def centering(imgb, point, angle, radius, drot=5, nrots=7):
     img_next = load_a_subtomogram(imgb, point.astype(np.uint16), radius, dask=False)
             
-    angle_deg2 = angle_corr(img_next, ang_center=angle, drot=5, nrots=7)
+    angle_deg2 = angle_corr(img_next, ang_center=angle, drot=drot, nrots=nrots)
     
     img_next_rot = img_next.rotate(-angle_deg2, cval=np.median(img_next))
     proj = img_next_rot.proj("y")

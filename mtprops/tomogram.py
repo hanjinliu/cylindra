@@ -227,7 +227,7 @@ class MtTomogram:
             
         return self
     
-    def add_curve(self, coords: np.ndarray):
+    def add_spline(self, coords: np.ndarray):
         """
         Add MtSpline path to tomogram.
 
@@ -580,19 +580,28 @@ class MtTomogram:
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
         start, end = range_
-        step = 0.1
-        if chunkwise and end - start > step:
+        chunk_length: nm = 72.0
+        length = self._paths[i].length(nknots=512)
+        if chunkwise and length > chunk_length:
             out = []
-            while start < end:
+            current_distance: nm = 0.0
+            while current_distance < length:
+                start = current_distance/length
+                stop = start + chunk_length/length
                 if end - start < 1e-3:
+                    # Sometimes divmod of floating values generates very small residuals.
                     break
-                sub_range = (start, min(start+step, end))
-                out.append(
-                    self.straighten(i, range_=sub_range, radius=radius, 
-                                    chunkwise=False, cylindrical=cylindrical)
-                )
-                start += step
+                sub_range = (start, min(stop, end))
+                img_st = self.straighten(i, range_=sub_range, radius=radius, 
+                                         chunkwise=False, cylindrical=cylindrical)
                 
+                out.append(img_st)
+                
+                # We have to sum up real distance instead of start/end, to precisely deal
+                # with the borders of chunks
+                current_distance += img_st.shape.y * self.scale
+            
+            # concatenate all the chunks
             transformed = np.concatenate(out, axis="y")
             
         else:
