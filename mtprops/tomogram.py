@@ -49,7 +49,7 @@ def batch_process(func):
 class MtSpline(Spline3D):
     def __init__(self, scale:float=1, k=3):
         super().__init__(scale=scale, k=k)
-        self.radius: nm = 0.0
+        self.radius: nm = None
         self.orientation: str = None
         self.localprops: pd.DataFrame = pd.DataFrame([])
         
@@ -649,34 +649,95 @@ class MtTomogram:
         return out
     
     @batch_process
-    def reconstruct(self, i: int = None, y_length: nm = 100.0):
-        img_st = self.straighten(i, radius=self.box_radius_pre[0])
+    def reconstruct(self, 
+                    i: int = None,
+                    rot_ave: bool = False,
+                    y_length: nm = 100.0) -> ip.arrays.ImgArray:
+        """
+        3D reconstruction of MT.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to reconstruct.
+        rot_ave : bool, default is False
+            If true, rotational averaging is applied to the reconstruction to remove missing wedge.
+        y_length : nm, default is 100.0
+            Longitudinal length of reconstruction.
+
+        Returns
+        -------
+        ip.arrays.ImgArray
+            Reconstructed image.
+        """        
+        # Cartesian transformation along spline.
+        img_st = self.straighten(i, radius=(self.box_radius_pre[0], self.box_radius_pre[2]))
         scale = img_st.scale.y
         total_length: nm = img_st.shape.y*scale
+        
+        # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.calc_global_ft_params(i)
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
+        rise = props[H.riseAngle]
+        npf = int(props[H.nPF])
+        radius = self.paths[i].radius
+        
+        # Determine how to split image into tubulin dimer fragments
         dl, resl = divmod(total_length, lp)
         borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
-        rot_angles = np.arange(borders.size-1) * skew
+        skew_angles = np.arange(borders.size - 1) * skew
+        
+        # Rotate fragment with skew angle
         imgs = []
         ylen = 99999
-        with ip.SetConst("SHOW_PROGRESS", False):    
-            for start, stop, ang in zip(borders[:-1], borders[1:], rot_angles):
+        with ip.SetConst("SHOW_PROGRESS", False):
+            # Split image into dimers along y-direction
+            for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
                 start = self.nm2pixel(start)
                 stop = self.nm2pixel(stop)
-                imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx"))
+                imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode="reflect"))
                 ylen = min(ylen, stop-start)
-        
-        out = sum(img[:, :ylen] for img in imgs)
-        # TODO: y-translate with warp-mode
-        dup = int(np.ceil(y_length/lp))
-        outlist = []
-        ang = 0
-        with ip.SetConst("SHOW_PROGRESS", False):
-            for i in range(dup):
-                outlist.append(out.rotate(ang, dims="zx"))
-                ang += skew
+
+            # align each fragment
+            ref = imgs[0][:, :ylen]
+            for i in range(1, len(imgs)):
+                img = imgs[i][:, :ylen]
+                shift = ip.pcc_maximum(img, ref)
+                imgs[i] = img.affine(translation=shift, mode="grid-wrap")
+
+            out = np.stack(imgs, axis="p").proj("p")
+            
+            del imgs
+            
+            # rotational averaging
+            # TODO: don't Affine twice
+            if rot_ave:
+                input_ = out.copy()
+                center = np.array(out.shape)/2 - 0.5
+                trs0 = np.eye(4, dtype=np.float32)
+                trs1 = np.eye(4, dtype=np.float32)
+                trs0[:3, 3] = -center
+                trs1[:3, 3] = center
+                for i in range(1, npf):
+                    ang = -2*np.pi*i/npf
+                    slope = np.tan(np.deg2rad(rise))
+                    dy = 2*np.pi*i/npf*radius*slope/self.scale
+                    cos = np.cos(ang)
+                    sin = np.sin(ang)
+                    rot = np.array([[cos, 0.,-sin, 0.],
+                                    [ 0., 1.,  0., dy],
+                                    [sin, 0., cos, 0.],
+                                    [ 0., 0.,  0., 1.]],
+                                   dtype=np.float32)
+                    mtx = trs1 @ rot @ trs0
+                    out.value[:] += input_.affine(mtx, mode="grid-wrap")
+            
+            # stack images for better visualization
+            dup = int(np.ceil(y_length/lp))
+            outlist = [out]
+            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+                outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
         
         return np.concatenate(outlist, axis="y")
         

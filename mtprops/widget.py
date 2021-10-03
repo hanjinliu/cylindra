@@ -34,7 +34,7 @@ def bin_image_worker(img, binsize):
 class ImageLoader:
     path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec"})
     scale = field(str, options={"label": "scale (nm)"})
-    bin_size = field(4, options={"label": "bin size"})
+    bin_size = field(4, options={"label": "bin size", "min": 1, "max":8})
     light_background = field(True, options={"label": "light background"})
     
     @button_design(text="OK")
@@ -615,7 +615,8 @@ class MTProfiler:
             self.plot.ax.set_ylabel("pitch (nm)")
             self.plot.ax.set_ylim(*self.label_colorlimit)
             
-            self.plot.ax2.cla()
+            if hasattr(self.plot, "ax2"):
+                self.plot.ax2.cla()
             self.plot.ax2 = self.plot.ax.twinx()
             self.plot.ax2.plot(x, props[H.skewAngle], color="gold")
             self.plot.ax2.set_ylabel("skew (deg)")
