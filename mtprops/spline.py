@@ -4,9 +4,9 @@ import warnings
 import numpy as np
 import numba as nb
 import json
-from scipy.interpolate import splprep, splev, interp1d
+from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
-from .utils import interval_divmod
+from .utils import interval_divmod, roundint
 from .const import nm
 
 class Spline3D:
@@ -199,7 +199,7 @@ class Spline3D:
         self = cls(d["scale"], d["k"])
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]
-        k = int(d["k"])
+        k = roundint(d["k"])
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
         return self
@@ -507,7 +507,7 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
     return coords
 
 def _polar_coords_2d(r_start: int, r_stop: int) -> np.ndarray:
-    n_angle = int(round((r_start + r_stop) * np.pi))
+    n_angle = roundint((r_start + r_stop) * np.pi)
     n_radius = r_stop - r_start
     r_, ang_ = np.indices((n_radius, n_angle))
     r_ += r_start

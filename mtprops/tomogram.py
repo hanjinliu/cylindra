@@ -493,6 +493,7 @@ class MtTomogram:
         ylen0 = self.nm2pixel(self.box_radius_pre[1])
         subtomograms = subtomograms[f"y={ylen0 - ylen}:{ylen0 + ylen + 1}"]
         spl = self._paths[i]
+        spl.localprops = pd.DataFrame([])
         rmin = self.nm2pixel(spl.radius*INNER)
         rmax = self.nm2pixel(spl.radius*OUTER)
         with ip.SetConst("SHOW_PROGRESS", False):
