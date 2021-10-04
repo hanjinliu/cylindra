@@ -102,9 +102,10 @@ class Spline3D:
             Total variation , by default None
         """        
         npoints = coords.shape[0]
-        if npoints < 4:
-            lin = interp1d(np.linspace(0, 1, npoints), coords.T)
-            coords = lin(np.linspace(0,1,4)).T
+        if npoints  < 2:
+            raise ValueError("npoins must be > 1.")
+        elif npoints <= self._k:
+            self._k = npoints - 1
         self._tck, self._u = splprep(coords.T, k=self._k, s=s)
         self._updates += 1
         self._anchors = None # Anchor should be deleted after spline is updated
@@ -454,8 +455,8 @@ _D = slice(None, None, 1) # dimension of dimension (such as d=0: z, d=1: y,...)
 
 @nb.njit(cache=True)
 def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
-    yx = np.arctan2(-ds[2], ds[1])
-    zy = np.arctan(ds[0]/np.abs(ds[1]))
+    yx = np.arctan2(ds[2], -ds[1])
+    zy = np.arctan(-ds[0]/np.abs(ds[1]))
     cos = np.cos(yx)
     sin = np.sin(yx)
     rotation_yx = np.array([[1.,  0.,   0., 0.],
