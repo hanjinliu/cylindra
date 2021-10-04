@@ -14,9 +14,10 @@ from dask import array as da, delayed
 from .const import nm, H, Ori, INNER, OUTER
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import load_a_subtomogram, centroid, rotational_average
+from .utils import load_a_subtomogram, centroid, rotational_average, roundint, ceilint
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
+ERROR_NM = 1.0
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
 def batch_process(func):
@@ -237,8 +238,7 @@ class MtTomogram:
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """        
         spl = MtSpline(self.scale)
-        error_nm = 1.0
-        sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
+        sqsum = ERROR_NM**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
         self._paths.append(spl)
         return None
@@ -359,7 +359,7 @@ class MtTomogram:
         """        
         spl = self._paths[i]
         length = spl.length()
-        npoints = int(np.ceil(length/max_interval)) + 1
+        npoints = ceilint(length/max_interval) + 1
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i, rotate=False, cache=False)
@@ -371,7 +371,7 @@ class MtTomogram:
             # Angular correlation
             out = delayed_angle_corr(subtomograms[1:-1], yx_tilt)
             refined_tilt = np.array([0] + list(out) + [0])
-            size = 2*int(round(48/interval)) + 1
+            size = 2*roundint(48.0/interval) + 1
             if size > 1:
                 # Mirror-mode padding is "a b c d | c b a", thus edge values will be substituted
                 # with the adjucent values respectively.
@@ -420,8 +420,7 @@ class MtTomogram:
             coords[i] += shift * self.scale
         
         # Update spline parameters
-        error_nm = 1.0
-        sqsum = error_nm**2 * coords.shape[0] # unit: nm^2
+        sqsum = ERROR_NM**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
         
         return self
@@ -755,7 +754,7 @@ class MtTomogram:
                     out.value[:] += input_.affine(mtx, mode="grid-wrap")
             
             # stack images for better visualization
-            dup = int(np.ceil(y_length/lp))
+            dup = ceilint(y_length/lp)
             outlist = [out]
             for ang in skew_angles[:min(dup, len(skew_angles))-1]:
                 outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
@@ -857,7 +856,7 @@ def _local_dft_params(img, radius: nm):
                      y_pitch, 
                      np.rad2deg(skew), 
                      amax_f/up_a,
-                     start], 
+                     abs(start)], 
                     dtype=np.float32)
     
 def dask_ft_params(img, radius: nm, rmin: int, rmax: int):

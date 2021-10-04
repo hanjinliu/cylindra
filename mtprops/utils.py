@@ -2,6 +2,12 @@ from __future__ import annotations
 import numpy as np
 from ._dependencies import impy as ip
 
+def roundint(a: float):
+    return int(round(a))
+
+def ceilint(a: float):
+    return int(np.ceil(a))
+
 def make_slice_and_pad(center:int, radius:int, size:int):
     if center < 0 or size <= center:
         raise ValueError(f"center ({center}) is not in range [0, {size}).")

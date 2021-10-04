@@ -13,7 +13,7 @@ from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, field, button_design, click, set_options, 
                             Figure, TupleEdit, CheckButton, Separator, ListWidget)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
-from .utils import load_a_subtomogram, make_slice_and_pad
+from .utils import load_a_subtomogram, make_slice_and_pad, roundint, ceilint
 from .const import nm, H, Ori, INNER, OUTER
 
 if TYPE_CHECKING:
@@ -363,12 +363,12 @@ class MTProfiler:
         from .__init__ import __version__
         import dask
         
-        value = f"MTProps: {__version__}"\
-                f"impy: {ip.__version__}"\
-                f"magicgui: {magicgui.__version__}"\
-                f"magicclass: {mcls.__version__}"\
-                f"napari: {napari.__version__}"\
-                f"dask: {dask.__version__}"
+        value = f"MTProps: {__version__}\n"\
+                f"impy: {ip.__version__}\n"\
+                f"magicgui: {magicgui.__version__}\n"\
+                f"magicclass: {mcls.__version__}\n"\
+                f"napari: {napari.__version__}\n"\
+                f"dask: {dask.__version__}\n"
         
         txt = TextEdit(value=value)
         self.read_only = True
@@ -507,7 +507,7 @@ class MTProfiler:
         
         lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in tomo.box_radius]
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
-        binsize = int(bin_scale/tomo.scale)
+        binsize = roundint(bin_scale/tomo.scale)
         with ip.SetConst("SHOW_PROGRESS", False):
             center = np.array([lz, ly, lx])/2 + 0.5
             z, y, x = np.indices((lz, ly, lx))
@@ -526,7 +526,7 @@ class MTProfiler:
                              (dist[j+2] - dist[j+1]) / 2, 
                               tomo.box_radius[1]) / bin_scale + 0.5 
                         
-                    ry = max(int(np.ceil(ry)), 1)
+                    ry = max(ceilint(ry), 1)
                     domain[:, :ly//2-ry] = 0
                     domain[:, ly//2+ry+1:] = 0
                     domain = domain.astype(np.float32)
@@ -733,7 +733,7 @@ class MTProfiler:
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
         tomo = self.active_tomogram
-        binsize = int(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
+        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         
         radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/binsize)
         with ip.SetConst("SHOW_PROGRESS", False):
@@ -766,7 +766,7 @@ class MTProfiler:
         """        
         imgb = self.layer_image.data
         tomo = self.active_tomogram
-        binsize = int(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
+        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         selected = self.layer_work.selected_data
         radius = tomo.nm2pixel(np.array(tomo.box_radius_pre)/binsize)
         
