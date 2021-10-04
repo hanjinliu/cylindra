@@ -40,6 +40,9 @@ def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
 
 
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
+    """
+    Calculate the centroid of arr between xmin and xmax, for detection of subpixel maxima.
+    """    
     xmin = max(xmin, 0)
     xmax = min(xmax, arr.size)
     x = np.arange(xmin, xmax)

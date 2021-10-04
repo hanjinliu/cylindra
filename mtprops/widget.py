@@ -747,8 +747,8 @@ class MTProfiler:
                 point2 = point1 + dr
             else:
                 point2 = point1 - dr
-            
-            centering(imgb, point2, angle_deg, radius)
+            img_next = load_a_subtomogram(imgb, point2.astype(np.uint16), radius, dask=False)
+            centering(img_next, point2, angle_deg)
             
         next_data = point2 * imgb.scale.x
         msg = self._check_path()
@@ -776,8 +776,9 @@ class MTProfiler:
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
-                angle_deg = angle_corr(imgb, ang_center=0, drot=89.5, nrots=9)
-                centering(imgb, point, angle_deg, radius, drot=9.5, nrots=9)
+                img_input = load_a_subtomogram(imgb, point.astype(np.uint16), radius, dask=False)
+                angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=19)
+                centering(img_input, point, angle_deg, drot=5, nrots=7)
                 last_i = i
         
         self.layer_work.data = points * imgb.scale.x
@@ -924,12 +925,11 @@ class MTProfiler:
         dialog.layout().addWidget(self._worker_control.native)
         return None
 
-def centering(imgb, point, angle, radius, drot=5, nrots=7):
-    img_next = load_a_subtomogram(imgb, point.astype(np.uint16), radius, dask=False)
+def centering(imgb, point, angle, drot=5, nrots=7):
             
-    angle_deg2 = angle_corr(img_next, ang_center=angle, drot=drot, nrots=nrots)
+    angle_deg2 = angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
     
-    img_next_rot = img_next.rotate(-angle_deg2, cval=np.median(img_next))
+    img_next_rot = imgb.rotate(-angle_deg2, cval=np.median(imgb))
     proj = img_next_rot.proj("y")
     proj_mirror = proj["z=::-1;x=::-1"]
     shift = ip.pcc_maximum(proj, proj_mirror)
