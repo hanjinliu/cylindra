@@ -546,7 +546,7 @@ class MTProfiler:
             outsl = []
             # We should deal with the borders of image.
             for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
-                _sl, _pad = make_slice_and_pad(c, l//2, size)
+                _sl, _pad = make_slice_and_pad(c - l//2, c + l//2 + 1, size)
                 sl.append(_sl)
                 outsl.append(
                     slice(_pad[0] if _pad[0] > 0 else None,
@@ -683,6 +683,11 @@ class MTProfiler:
     
     def _load_tomogram_results(self):
         tomo = self.active_tomogram
+        # initialize GUI
+        self._init_widget_params()
+        self.mt.mtlabel.max = tomo.n_paths - 1
+        self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance]) - 1
+        
         self._active_rot_ave = tomo.rotational_average()
         self._init_layers()
                 
@@ -692,15 +697,6 @@ class MTProfiler:
         self.layer_work.mode = "pan_zoom"
         self.parent_viewer.layers.selection = {self.layer_paint}
         
-        # initialize GUI
-        self._init_widget_params()
-        self.mt.mtlabel.max = tomo.n_paths - 1
-        self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance]) - 1
-        
-        self.canvas.figure.clf()
-        self.canvas.figure.add_subplot(131)
-        self.canvas.figure.add_subplot(132)
-        self.canvas.figure.add_subplot(133)
         self._imshow_all()
         
         self._plot_properties()
@@ -854,6 +850,12 @@ class MTProfiler:
         results = tomo.paths[i]
         pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
         self.viewer_op.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{int(start)}"
+        
+        if len(self.canvas.axes) < 3:
+            self.canvas.figure.clf()
+            self.canvas.figure.add_subplot(131)
+            self.canvas.figure.add_subplot(132)
+            self.canvas.figure.add_subplot(133)
         
         axes: Iterable[Axes] = self.canvas.axes
         for k in range(3):

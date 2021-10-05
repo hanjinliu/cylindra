@@ -1,5 +1,4 @@
 from __future__ import annotations
-import statistics
 from typing import Iterable
 import matplotlib.pyplot as plt
 import numpy as np
@@ -621,11 +620,12 @@ class MtTomogram:
                 
             coords = np.moveaxis(coords, -1, 0)
             
-            transformed = map_coordinates(self.image, 
-                                          coords,
-                                          order=1,
-                                          prefilter=False
-                                          )
+            with ip.SetConst("SHOW_PROGRESS", False):
+                transformed = map_coordinates(self.image, 
+                                              coords,
+                                              order=1,
+                                              prefilter=False
+                                              )
             
             axes = "rya" if cylindrical else "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -785,17 +785,11 @@ def _local_dft_params(img, radius: nm):
     up_a = 20
     up_y = max(int(720/(img.shape.y*img.scale.y)), 1)
     
-    power_1 = img.local_power_spectra(key=f"y={y0}:{y1};a={-da}:", 
+    power = img.local_power_spectra(key=f"y={y0}:{y1};a={-da}:{da+1}", 
                                         upsample_factor=[1, up_y, up_a], 
                                         dims="rya"
                                         ).proj("r")
     
-    power_2 = img.local_power_spectra(key=f"y={y0}:{y1};a=:{da+1}", 
-                                        upsample_factor=[1, up_y, up_a], 
-                                        dims="rya"
-                                        ).proj("r")
-    
-    power = np.concatenate([power_1, power_2], axis="a")
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     
     amax_f = amax - da*up_a
@@ -808,22 +802,16 @@ def _local_dft_params(img, radius: nm):
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
-    dy = 2
-    npfmin = 12
+    dy = 1
+    npfmin = 11
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
-    power_1 = img.local_power_spectra(key=f"y={-dy}:;a={npfmin}:17", 
+    power = img.local_power_spectra(key=f"y={-dy}:{dy+1};a={npfmin}:17", 
                                         upsample_factor=[1, up_y, up_a], 
                                         dims="rya"
                                         ).proj("r")
     
-    power_2 = img.local_power_spectra(key=f"y=:{dy+1};a={npfmin}:17", 
-                                        upsample_factor=[1, up_y, up_a], 
-                                        dims="rya"
-                                        ).proj("r")
-    
-    power = np.concatenate([power_1, power_2], axis="y")
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     
     amax_f = amax + npfmin*up_a

@@ -9,11 +9,7 @@ def roundint(a: float):
 def ceilint(a: float):
     return int(np.ceil(a))
 
-def make_slice_and_pad(center:int, radius:int, size:int):
-    if center < 0 or size <= center:
-        raise ValueError(f"center ({center}) is not in range [0, {size}).")
-    z0 = center - radius
-    z1 = center + radius + 1
+def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
     z0_pad = z1_pad = 0
     if z0 < 0:
         z0_pad = -z0
@@ -33,9 +29,9 @@ def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
     rz, ry, rx = radius
     sizez, sizey, sizex = img.sizesof("zyx")
 
-    sl_z, pad_z = make_slice_and_pad(z, rz, sizez)
-    sl_y, pad_y = make_slice_and_pad(y, ry, sizey)
-    sl_x, pad_x = make_slice_and_pad(x, rx, sizex)
+    sl_z, pad_z = make_slice_and_pad(z - rz, z + rz + 1, sizez)
+    sl_y, pad_y = make_slice_and_pad(y - ry, y + ry + 1, sizey)
+    sl_x, pad_x = make_slice_and_pad(x - rx, x + rx + 1, sizex)
     reg = img[sl_z, sl_y, sl_x]
     if dask:
         reg = reg.data
@@ -82,12 +78,25 @@ def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefil
     loading entire array into memory.
     """    
     coordinates = coordinates.copy()
+    shape = input.shape
     sl = []
+    pad = []
     for i in range(3):
         imin = int(np.min(coordinates[i]))
         imax = int(np.max(coordinates[i])) + 2
-        sl.append(slice(imin, imax))
-        coordinates[i] -= imin
+        _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
+        sl.append(_sl)
+        pad.append(_pad)
+        coordinates[i] -= _sl.start
     sl = tuple(sl)
-    return ndi.map_coordinates(input[sl], coordinates, order=order, mode=mode, 
-                               cval=cval, prefilter=prefilter)
+    img = input[sl].data
+    if np.any(np.array(pad) > 0):
+        img = img.pad(pad, dims="zyx", constant_values=np.median(img))
+
+    return ndi.map_coordinates(img,
+                               coordinates,
+                               order=order,
+                               mode=mode, 
+                               cval=cval,
+                               prefilter=prefilter
+                               )
