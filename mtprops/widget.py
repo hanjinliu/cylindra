@@ -599,27 +599,26 @@ class MTProfiler:
         x = props[H.splDistance]
         pitch_color = "lime"
         skew_color = "gold"
-        with plt.style.context("dark_background"):
-            self.plot.ax.cla()
-            if hasattr(self.plot, "ax2"):
-                self.plot.ax2.cla()
-            
-            self.plot.ax.plot(x, props[H.yPitch], color=pitch_color)
-            self.plot.ax.set_xlabel("position (nm)")
-            self.plot.ax.set_ylabel("pitch (nm)")
-            self.plot.ax.set_ylim(*self.label_colorlimit)
-            
-            self.plot.ax2 = self.plot.ax.twinx()
-            self.plot.ax2.plot(x, props[H.skewAngle], color=skew_color)
-            self.plot.ax2.set_ylabel("skew (deg)")
-            self.plot.ax2.set_ylim(-2.0, 2.0)
-            
-            self.plot.ax2.spines["left"].set_color(pitch_color)
-            self.plot.ax2.spines["right"].set_color(skew_color)
-                        
-            self.plot.figure.tight_layout()
-            self.plot.draw()
+        self.plot.ax.cla()
+        if hasattr(self.plot, "ax2"):
+            self.plot.ax2.cla()
         
+        self.plot.ax.plot(x, props[H.yPitch], color=pitch_color)
+        self.plot.ax.set_xlabel("position (nm)")
+        self.plot.ax.set_ylabel("pitch (nm)")
+        self.plot.ax.set_ylim(*self.label_colorlimit)
+        
+        self.plot.ax2 = self.plot.ax.twinx()
+        self.plot.ax2.plot(x, props[H.skewAngle], color=skew_color)
+        self.plot.ax2.set_ylabel("skew (deg)")
+        self.plot.ax2.set_ylim(-2.0, 2.0)
+        
+        self.plot.ax2.spines["left"].set_color(pitch_color)
+        self.plot.ax2.spines["right"].set_color(skew_color)
+                    
+        self.plot.figure.tight_layout()
+        self.plot.draw()
+    
         return None
     
     @click(disables=POST_PROCESSING, enables=POST_IMREAD, visible=False)
@@ -844,7 +843,7 @@ class MTProfiler:
         
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
-            
+        self.orientation_choice.value = Ori.none
         return None
     
     @mt.pos.connect
@@ -918,10 +917,10 @@ class MTProfiler:
         dialog = viewer.window._qt_window._activity_dialog
         
         @worker.finished.connect
-        def _on_finish():
+        def _on_finish(*args):
             viewer.window._status_bar._toggle_activity_dock(False)
             dialog.layout().removeWidget(self._worker_control.native)
-            
+
         dialog.layout().addWidget(self._worker_control.native)
         return None
 

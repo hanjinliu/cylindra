@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+from scipy import ndimage as ndi
 from ._dependencies import impy as ip
 
 def roundint(a: float):
@@ -74,3 +75,19 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     """    
     n_segs, res = divmod(value + 1e-8, interval)
     return value - res, int(n_segs)
+
+def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefilter=True):
+    """
+    Crop image at the edges of coordinates before calling map_coordinates to avoid
+    loading entire array into memory.
+    """    
+    coordinates = coordinates.copy()
+    sl = []
+    for i in range(3):
+        imin = int(np.min(coordinates[i]))
+        imax = int(np.max(coordinates[i])) + 2
+        sl.append(slice(imin, imax))
+        coordinates[i] -= imin
+    sl = tuple(sl)
+    return ndi.map_coordinates(input[sl], coordinates, order=order, mode=mode, 
+                               cval=cval, prefilter=prefilter)

@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 from functools import wraps
-from skimage.transform import warp_polar
 from scipy import ndimage as ndi
 from ._dependencies import impy as ip
 import pandas as pd
@@ -14,7 +13,7 @@ from dask import array as da, delayed
 from .const import nm, H, Ori, INNER, OUTER
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import load_a_subtomogram, centroid, rotational_average, roundint, ceilint
+from .utils import load_a_subtomogram, centroid, rotational_average, map_coordinates, roundint, ceilint
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 ERROR_NM = 1.0
@@ -488,25 +487,24 @@ class MtTomogram:
         pd.DataFrame
             Local properties.
         """        
-        subtomograms = self._sample_subtomograms(i)
-        ylen = self.nm2pixel(self.box_radius[1])
-        ylen0 = self.nm2pixel(self.box_radius_pre[1])
-        subtomograms = subtomograms[f"y={ylen0 - ylen}:{ylen0 + ylen + 1}"]
+        ylen = self.nm2pixel(self.box_radius[1]) * 2 + 1
         spl = self._paths[i]
         spl.localprops = pd.DataFrame([])
         rmin = self.nm2pixel(spl.radius*INNER)
         rmax = self.nm2pixel(spl.radius*OUTER)
         with ip.SetConst("SHOW_PROGRESS", False):
-            img = da.from_array(subtomograms, chunks=(1,)+subtomograms.shape[1:])
-            results: np.ndarray
-            results = img.map_blocks(dask_ft_params, 
-                                     float(spl.radius),
-                                     int(rmin),
-                                     int(rmax),
-                                     drop_axis=[1, 2, 3],
-                                     meta=np.array([], dtype=np.float32),
-                                     ).compute().reshape(-1, 5)
-        
+            tasks = []
+            for anc in spl.anchors:
+                coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
+                coords = np.moveaxis(coords, -1, 0)
+                tasks.append(
+                    da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
+                                    shape=(5,), 
+                                    meta=np.array([], dtype=np.float32)
+                                    )
+                    )
+            results = np.stack(da.compute(tasks)[0], axis=0)
+                
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
         spl.localprops[H.riseAngle] = results[:, 0]
@@ -623,19 +621,11 @@ class MtTomogram:
                 
             coords = np.moveaxis(coords, -1, 0)
             
-            # crop image and shift coordinates
-            sl = []
-            for i in range(3):
-                imin = int(np.min(coords[i]))
-                imax = int(np.max(coords[i])) + 2
-                sl.append(slice(imin, imax))
-                coords[i] -= imin
-            sl = tuple(sl)
-            transformed = ndi.map_coordinates(self.image[sl], 
-                                              coords,
-                                              order=1,
-                                              prefilter=False
-                                              )
+            transformed = map_coordinates(self.image, 
+                                          coords,
+                                          order=1,
+                                          prefilter=False
+                                          )
             
             axes = "rya" if cylindrical else "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -786,15 +776,6 @@ def delayed_angle_corr(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
     return da.compute(tasks)[0]
     
-def _warp_polar_3d(img3d, center=None, radius=None, angle_freq=360):
-    input_img = np.moveaxis(img3d.value, 1, 2)
-    out = warp_polar(input_img, center=center, radius=radius, 
-                     output_shape=(angle_freq, radius), multichannel=True, clip=False)
-    out = np.moveaxis(out, 0, -1)
-    out = ip.asarray(out, axes="rya") # radius, y, angle
-    out.set_scale(r=img3d.scale.x, y=img3d.scale.x, a=img3d.scale.x)
-    return out
-
 def _local_dft_params(img, radius: nm):
     l_circ: nm = 2*np.pi*radius
     da = 20
@@ -860,12 +841,15 @@ def _local_dft_params(img, radius: nm):
                      abs(start)], 
                     dtype=np.float32)
     
-def dask_ft_params(img, radius: nm, rmin: int, rmax: int):
-    img = img[0]
-    l_circ = 2 * radius * np.pi / img.scale.y # pixel
-    polar = _warp_polar_3d(img, radius=rmax, angle_freq=int(l_circ))[rmin:]
+
+def ft_params(img, coords, radius):
+    polar = map_coordinates(img, coords, prefilter=False, order=1)
+    polar = ip.asarray(polar, axes="rya") # radius, y, angle
+    polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
+    polar.scale_unit = img.scale_unit
     return _local_dft_params(polar, radius)
 
+lazy_ft_params = delayed(ft_params)
 
 def _affine(img, matrix, order=1):
     out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=False)
