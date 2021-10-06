@@ -1,9 +1,13 @@
-from enum import Enum
+from enum import Enum, auto
 
 class Ori(Enum):
     none = 0
     PlusToMinus = 1
     MinusToPlus = -1
+
+class CacheKey(Enum):
+    subtomograms = auto()
+    straight = auto()
     
 class H:
     """

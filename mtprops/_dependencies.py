@@ -7,7 +7,7 @@ except ImportError as e:
 
 try:
     import magicclass as mcls
-    from magicclass import magicclass, field, button_design, click, set_options
+    from magicclass import magicclass, magicmenu, field, set_design, click, set_options
     from magicclass.widgets import Figure, TupleEdit, CheckButton, Separator, ListWidget
 except ImportError as e:
     raise ImportError(f"magicclass is not correctly imported, or in a wrong path. "

@@ -20,18 +20,18 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
 
     return slice(z0, z1), (z0_pad, z1_pad)
 
-def load_a_subtomogram(img, pos, radius:tuple[int, int, int], dask:bool=True):
+def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask:bool=True):
     """
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
     """
-    z, y, x = pos.astype(np.int32)
-    rz, ry, rx = radius
+    z, y, x = pos
+    rz, ry, rx = [(s-1)/2 for s in shape]
     sizez, sizey, sizex = img.sizesof("zyx")
 
-    sl_z, pad_z = make_slice_and_pad(z - rz, z + rz + 1, sizez)
-    sl_y, pad_y = make_slice_and_pad(y - ry, y + ry + 1, sizey)
-    sl_x, pad_x = make_slice_and_pad(x - rx, x + rx + 1, sizex)
+    sl_z, pad_z = make_slice_and_pad(roundint(z - rz), roundint(z + rz + 1), sizez)
+    sl_y, pad_y = make_slice_and_pad(roundint(y - ry), roundint(y + ry + 1), sizey)
+    sl_x, pad_x = make_slice_and_pad(roundint(x - rx), roundint(x + rx + 1), sizex)
     reg = img[sl_z, sl_y, sl_x]
     if dask:
         reg = reg.data

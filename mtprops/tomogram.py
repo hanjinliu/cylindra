@@ -9,7 +9,7 @@ from ._dependencies import impy as ip
 import pandas as pd
 from dask import array as da, delayed
 
-from .const import nm, H, Ori, INNER, OUTER
+from .const import nm, H, Ori, INNER, OUTER, CacheKey
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram, centroid, rotational_average, map_coordinates, roundint, ceilint
@@ -91,14 +91,13 @@ class MtTomogram:
     ones.
     """    
     def __init__(self, *,
-                 box_radius_pre: tuple[nm, nm, nm] = (22.0, 28.0, 28.0), 
-                 box_radius: tuple[nm, nm, nm] = (16.7, 16.7, 16.7),
+                 box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0), 
+                 ft_size: nm = 33.4,
                  light_background: bool = True,
-                 name: str = None,
                  ):
-        self.name = name
-        self.box_radius_pre = box_radius_pre
-        self.box_radius = box_radius
+        
+        self.box_size = box_size
+        self.ft_size = ft_size
         self.light_background = light_background
         self.metadata = {}
         
@@ -118,29 +117,26 @@ class MtTomogram:
         return self._paths
     
     @property
-    def box_radius_pre(self) -> tuple[nm, nm, nm]:
-        return self._box_radius_pre
-    
-    @box_radius_pre.setter
-    def box_radius_pre(self, value: nm|Iterable[nm]):
-        if np.isscalar(value):
-            value = (value,)*3
-        elif len(value) != 3:
-            raise ValueError("'box_radius_pre' must be composed of 1 or 3 scalars.")
-        self._box_radius_pre = tuple(value)
-    
-    @property
-    def box_radius(self) -> tuple[nm, nm, nm]:
+    def box_size(self) -> tuple[nm, nm, nm]:
         return self._box_radius
     
-    @box_radius.setter
-    def box_radius(self, value: nm|Iterable[nm]):
+    @box_size.setter
+    def box_size(self, value: nm|Iterable[nm]):
         if np.isscalar(value):
             value = (value,)*3
         elif len(value) != 3:
             raise ValueError("'box_radius' must be composed of 1 or 3 scalars.")
         self._box_radius = tuple(value)
-        
+    
+    @property
+    def ft_size(self) -> nm:
+        return self._ft_size
+    
+    @ft_size.setter
+    def ft_size(self, value: nm):
+        if not np.isscalar(value):
+            raise ValueError("'ft_size' must be a scalar.")
+        self._ft_size = value
     
     @property
     def n_paths(self) -> int:
@@ -190,7 +186,10 @@ class MtTomogram:
             spl_dict = spl.to_dict()
             all_results[i] = spl_dict
         
-        all_results["metadata"] = self.metadata
+        metadata = self.metadata.copy()
+        metadata["light_background"] = self.light_background
+        metadata["ft_size"] = self.ft_size
+        all_results["metadata"] = metadata
         with open(path, mode="w") as f:
             json.dump(all_results, f, indent=4, separators=(",", ": "))
         return None
@@ -238,6 +237,14 @@ class MtTomogram:
         spl = MtSpline(self.scale)
         sqsum = ERROR_NM**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
+        interval: nm = 30.0
+        length = spl.length()
+        
+        n = int(length/interval) + 1
+        fit = spl(np.linspace(0, 1, n))
+        if coords.shape[0] <= 4 and coords.shape[0] < fit.shape[0]:
+            return self.add_spline(fit)
+        
         self._paths.append(spl)
         return None
     
@@ -251,7 +258,7 @@ class MtTomogram:
         np.ndarray or int
             Pixel position.
         """        
-        pix = (np.asarray(value)/self.scale).astype(np.int16)
+        pix = np.round(np.asarray(value)/self.scale).astype(np.int16)
         if np.isscalar(value):
             pix = int(pix)
         return pix
@@ -319,22 +326,22 @@ class MtTomogram:
                             rotate: bool = True):
         spl = self._paths[i]
         try:
-            out = cachemap[(self, spl)]
+            out = cachemap[(self, spl, CacheKey.subtomograms)]
         except KeyError:
             anchors = spl.anchors
             center_px = self.nm2pixel(spl(anchors))
-            radius_px = self.nm2pixel(self.box_radius_pre)
+            size_px = self.nm2pixel(self.box_size)
             
             with ip.SetConst("SHOW_PROGRESS", False):
             
-                out = np.stack([load_a_subtomogram(self._image, c, radius_px, True) 
+                out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
                                 for c in center_px],
                                 axis="p")
                 if rotate:
-                    matrices = spl.rotation_matrix(anchors, center=radius_px, inverse=True)
+                    matrices = spl.rotation_matrix(anchors, center=size_px/2, inverse=True)
                     out.value[:] = dask_affine(out.value, matrices)
             if cache:
-                cachemap[(self, spl)] = out
+                cachemap[(self, spl, CacheKey.subtomograms)] = out
             
         return out
     
@@ -472,7 +479,7 @@ class MtTomogram:
         return r_peak_sub
     
     @batch_process
-    def calc_ft_params(self, i: int = None) -> pd.DataFrame:
+    def ft_params(self, i: int = None) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
 
@@ -486,7 +493,7 @@ class MtTomogram:
         pd.DataFrame
             Local properties.
         """        
-        ylen = self.nm2pixel(self.box_radius[1]) * 2 + 1
+        ylen = self.nm2pixel(self.ft_size)
         spl = self._paths[i]
         spl.localprops = pd.DataFrame([])
         rmin = self.nm2pixel(spl.radius*INNER)
@@ -515,7 +522,7 @@ class MtTomogram:
         return spl.localprops
     
     @batch_process
-    def calc_global_ft_params(self, i: int = None):
+    def global_ft_params(self, i: int = None):
         """
         Calculate MT global structural parameters from cylindrical Fourier space along 
         spline. This function calls ``straighten`` beforehand, so that Fourier space is 
@@ -561,7 +568,7 @@ class MtTomogram:
             Path ID that you want to straighten.
         radius : float (nm), optional
             Parameter that specify the size of coordinate system. For Cartesian coordinate
-            system, this parameter is interpreted as box radius. For cylindrical coordinate
+            system, this parameter is interpreted as box size. For cylindrical coordinate
             system, this parameter is interpreted as the range of radius.
         range_ : tuple[float, float], default is (0.0, 1.0)
             Range of spline domain.
@@ -576,6 +583,15 @@ class MtTomogram:
         ip.array.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
+        spl = self._paths[i]
+        if not cylindrical:
+            try:
+                transformed = cachemap[(self, spl, CacheKey.straight)]
+            except KeyError:
+                pass
+            else:
+                return transformed
+            
         start, end = range_
         chunk_length: nm = 72.0
         length = self._paths[i].length(nknots=512)
@@ -606,17 +622,17 @@ class MtTomogram:
                 if cylindrical:
                     rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
                 else:
-                    rz, _, rx = self.nm2pixel(self.box_radius)
+                    rz = rx = self.nm2pixel(self._paths[i].radius * OUTER) * 2 + 1
             
             else:
                 rz, rx = self.nm2pixel(radius)
-            spl = self._paths[i]
+
             if cylindrical:
                 if rx <= rz:
                     raise ValueError("For polar straightening, 'radius' must be (rmin, rmax)")
                 coords = spl.cylindrical((rz, rx), s_range=range_)
             else:
-                coords = spl.cartesian((2*rz+1, 2*rx+1), s_range=range_)
+                coords = spl.cartesian((rz, rx), s_range=range_)
                 
             coords = np.moveaxis(coords, -1, 0)
             
@@ -631,6 +647,8 @@ class MtTomogram:
             transformed = ip.asarray(transformed, axes=axes)
             transformed.set_scale({k: self.scale for k in axes})
             transformed.scale_unit = "nm"
+        
+        cachemap[(self, spl, CacheKey.straight)] = transformed
         
         return transformed
     
@@ -682,12 +700,12 @@ class MtTomogram:
             Reconstructed image.
         """        
         # Cartesian transformation along spline.
-        img_st = self.straighten(i, radius=(self.box_radius_pre[0], self.box_radius_pre[2]))
+        img_st = self.straighten(i, radius=(self.box_size[0], self.box_size[2]))
         scale = img_st.scale.y
         total_length: nm = img_st.shape.y*scale
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
-        props = self.calc_global_ft_params(i)
+        props = self.global_ft_params(i)
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
@@ -711,7 +729,8 @@ class MtTomogram:
                 ylen = min(ylen, stop-start)
 
             # align each fragment
-            ref = imgs[0][:, :ylen]
+            imgs[0] = imgs[0][:, :ylen]
+            ref = imgs[0]
             for i in range(1, len(imgs)):
                 img = imgs[i][:, :ylen]
                 shift = ip.pcc_maximum(img, ref)
