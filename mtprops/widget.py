@@ -503,6 +503,7 @@ class MTProfiler:
             self.parent_viewer.add_image(out, scale=out.scale)
         
         self._worker_control.info.value = f"Straightening spline No. {i}"
+        self._connect_worker(worker)
         worker.start()
         return None
     
@@ -561,6 +562,7 @@ class MTProfiler:
                 out = -out
             self.parent_viewer.add_image(out, scale=out.scale)
         
+        self._connect_worker(worker)
         self._worker_control.info.value = f"Reconstruction ..."
         worker.start()
         return None
