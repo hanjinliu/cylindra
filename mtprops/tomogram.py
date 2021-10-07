@@ -813,7 +813,7 @@ def _local_dft_params(img, radius: nm):
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
     up_a = 20
-    up_y = max(int(720/(img.shape.y*img.scale.y)), 1)
+    up_y = max(int(1500/(img.shape.y*img.scale.y)), 1)
     
     power = img.local_power_spectra(key=f"y={y0}:{y1};a={-da}:{da+1}", 
                                         upsample_factor=[1, up_y, up_a], 
@@ -861,7 +861,7 @@ def _local_dft_params(img, radius: nm):
     
 
 def ft_params(img, coords, radius):
-    polar = map_coordinates(img, coords, prefilter=False, order=1)
+    polar = map_coordinates(img, coords, prefilter=True, order=3, mode="grid-wrap")
     polar = ip.asarray(polar, axes="rya") # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit
