@@ -107,15 +107,17 @@ class MTProfiler:
     @magicmenu
     class View:
         def send_to_napari(self): ...
-        focus = field(False, options={"text": "Focus"})
+        def show_straightened_img(self): ...
+        def show_current_ft(self): ...
+        def show_r_proj(self): ...
         def show_3d_path(self): ...
         def show_table(self): ...
-        def show_straightened_img(self): ...
         def set_colormap(self): ...
+        focus = field(False, options={"text": "Focus"})
     
     @magicmenu
     class Analysis:
-        def show_current_ft(self): ...
+        def fit_spline(self): ...
         def global_ft_params(self): ...
         def reconstruction(self): ...
     
@@ -152,12 +154,7 @@ class MTProfiler:
     orientation_choice = field(Ori.none, name="Orientation: ")
     
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of pitch lengths"})
-        
-    POST_PROCESSING = [File.save_results, View.send_to_napari,
-                       View.show_table, View.show_3d_path]
 
-    POST_IMREAD = [File.from_json, operation.register_path]
-    
     
     @View.wraps
     @set_design(text="Set colormap")
@@ -239,7 +236,6 @@ class MTProfiler:
         self.tomograms.max_height = 120
              
     @operation.wraps
-    @click(enabled=False, enables=operation.run_for_all_path)
     @set_design(text="📝")
     def register_path(self):
         """
@@ -270,7 +266,6 @@ class MTProfiler:
         return None
     
     @operation.wraps
-    @click(enabled=False, enables=POST_PROCESSING)
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
                  box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"}, 
                  ft_size={"label": "Local DFT window size (nm)"})
@@ -405,7 +400,6 @@ class MTProfiler:
         return None
         
     @File.wraps
-    @click(enabled=False, enables=POST_PROCESSING)
     @set_options(path={"filter": "*.json;*.txt"})
     @set_design(text="Load json")
     def from_json(self, path: Path):
@@ -420,7 +414,6 @@ class MTProfiler:
     
     @File.wraps
     @set_design(text="Save results as json")
-    @click(enabled=False)
     @set_options(file_path={"mode": "w", "filter": "*.json;*.txt"})
     def save_results(self, file_path: Path):
         """
@@ -434,15 +427,15 @@ class MTProfiler:
         return None            
     
     @View.wraps
-    @click(enabled=False)
     @set_design(text="View current patch in napari")
     def send_to_napari(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
         """        
-        i = self.mt.pos.value
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
         tomo = self.active_tomogram
-        img = tomo._sample_subtomograms(i)
+        img = tomo._sample_subtomograms(i)[j]
         self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
                                      rendering="minip" if tomo.light_background else "mip")
         return None
@@ -478,7 +471,6 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @click(enabled=False)
     @set_design(text="Show results in a table widget")
     def show_table(self):
         """
@@ -510,7 +502,24 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @click(enabled=False)
+    @set_design(text="View radius projection")
+    def show_r_proj(self):
+        polar = self._current_cylindrical_img().proj("r")
+        self.parent_viewer.add_image(polar, scale=polar.scale)
+        return None
+    
+    @View.wraps
+    @set_design(text="Show 2D Fourier space")
+    def show_current_ft(self):
+        """
+        View Fourier space of local cylindrical coordinate system at current position.
+        """        
+        polar = self._current_cylindrical_img()
+        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
+        return None
+    
+    @View.wraps
     @set_design(text="Show spline")
     def show_3d_path(self):
         """
@@ -523,31 +532,20 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    @set_design(text="Show 2D Fourier space")
-    def show_current_ft(self):
-        """
-        View Fourier space of local cylindrical coordinate system at current position.
-        """        
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
+    @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"})
+    @set_design(text="Fit splines")
+    def fit_spline(self, 
+                   box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0)):
         tomo = self.active_tomogram
-        ylen = tomo.nm2pixel(tomo.ft_size)
-        spl = tomo._paths[i]
+        tomo.box_size = box_size
+        for i in range(tomo.n_paths):
+            tomo.fit(i)
+            tomo.make_anchors(n=3)
+            tomo.measure_radius(i)
         
-        rmin = tomo.nm2pixel(spl.radius*INNER)
-        rmax = tomo.nm2pixel(spl.radius*OUTER)
-        
-        coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
-        coords = np.moveaxis(coords, -1, 0)
-        img = tomo.image
-        polar = map_coordinates(img, coords, prefilter=False, order=1)
-        polar = ip.asarray(polar, axes="rya") # radius, y, angle
-        polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
-        polar.scale_unit = img.scale_unit
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
+        self._init_layers()
+        self.show_3d_path()
         return None
-    
         
     @Analysis.wraps
     @set_design(text="Quantify global structure")
@@ -594,6 +592,74 @@ class MTProfiler:
         self._connect_worker(worker)
         self._worker_control.info.value = f"Reconstruction ..."
         worker.start()
+        return None
+    
+    @auto_picker.wraps
+    def pick_next(self):
+        """
+        Automatically pick MT center using previous two points.
+        """        
+        stride_nm = self.auto_picker.stride.value
+        imgb = self.layer_image.data
+        try:
+            # orientation is point0 -> point1
+            point0: np.ndarray = self.layer_work.data[-2]/imgb.scale.x # unit: pixel
+            point1: np.ndarray = self.layer_work.data[-1]/imgb.scale.x
+        except IndexError:
+            raise IndexError("Auto pick needs at least two points in the working layer.")
+        
+        tomo = self.active_tomogram
+        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
+        
+        shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            orientation = point1[1:] - point0[1:]
+            img = load_a_subtomogram(imgb, point1, shape, dask=False)
+            center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
+            angle_deg = angle_corr(img, ang_center=center, drot=25, nrots=25)
+            angle_rad = np.deg2rad(angle_deg)
+            dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
+            if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
+                point2 = point1 + dr
+            else:
+                point2 = point1 - dr
+            img_next = load_a_subtomogram(imgb, point2, shape, dask=False)
+            centering(img_next, point2, angle_deg)
+            
+        next_data = point2 * imgb.scale.x
+        msg = self._check_path()
+        if msg:
+            self.layer_work.data = self.layer_work.data[:-1]
+            raise ValueError(msg)
+        self.layer_work.add(next_data)
+        change_viewer_focus(self.parent_viewer, point2, next_data)
+        return None
+    
+    @auto_picker.wraps
+    def auto_center(self):
+        """
+        Auto centering of selected points.
+        """        
+        imgb = self.layer_image.data
+        tomo = self.active_tomogram
+        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
+        selected = self.layer_work.selected_data
+        shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        
+        points = self.layer_work.data / imgb.scale.x
+        last_i = -1
+        with ip.SetConst("SHOW_PROGRESS", False):
+            for i, point in enumerate(points):
+                if i not in selected:
+                    continue
+                img_input = load_a_subtomogram(imgb, point, shape, dask=False)
+                angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=19)
+                centering(img_input, point, angle_deg, drot=5, nrots=7)
+                last_i = i
+        
+        self.layer_work.data = points * imgb.scale.x
+        if len(selected) == 1:
+            change_viewer_focus(self.parent_viewer, points[last_i], self.layer_work.data[last_i])
         return None
     
     def _paint_mt(self):
@@ -725,7 +791,6 @@ class MTProfiler:
     
         return None
     
-    @click(disables=POST_PROCESSING, enables=POST_IMREAD, visible=False)
     def load_image(self, event=None):
         img = self._loader.img
         light_bg = self._loader.light_background.value
@@ -815,74 +880,6 @@ class MTProfiler:
         self.txt.value = ""
         return None
     
-    @auto_picker.wraps
-    def pick_next(self):
-        """
-        Automatically pick MT center using previous two points.
-        """        
-        stride_nm = self.auto_picker.stride.value
-        imgb = self.layer_image.data
-        try:
-            # orientation is point0 -> point1
-            point0: np.ndarray = self.layer_work.data[-2]/imgb.scale.x # unit: pixel
-            point1: np.ndarray = self.layer_work.data[-1]/imgb.scale.x
-        except IndexError:
-            raise IndexError("Auto pick needs at least two points in the working layer.")
-        
-        tomo = self.active_tomogram
-        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
-        
-        shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
-        with ip.SetConst("SHOW_PROGRESS", False):
-            orientation = point1[1:] - point0[1:]
-            img = load_a_subtomogram(imgb, point1, shape, dask=False)
-            center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-            angle_deg = angle_corr(img, ang_center=center, drot=25, nrots=25)
-            angle_rad = np.deg2rad(angle_deg)
-            dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
-            if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
-                point2 = point1 + dr
-            else:
-                point2 = point1 - dr
-            img_next = load_a_subtomogram(imgb, point2, shape, dask=False)
-            centering(img_next, point2, angle_deg)
-            
-        next_data = point2 * imgb.scale.x
-        msg = self._check_path()
-        if msg:
-            self.layer_work.data = self.layer_work.data[:-1]
-            raise ValueError(msg)
-        self.layer_work.add(next_data)
-        change_viewer_focus(self.parent_viewer, point2, next_data)
-        return None
-    
-    @auto_picker.wraps
-    def auto_center(self):
-        """
-        Auto centering of selected points.
-        """        
-        imgb = self.layer_image.data
-        tomo = self.active_tomogram
-        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
-        selected = self.layer_work.selected_data
-        shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
-        
-        points = self.layer_work.data / imgb.scale.x
-        last_i = -1
-        with ip.SetConst("SHOW_PROGRESS", False):
-            for i, point in enumerate(points):
-                if i not in selected:
-                    continue
-                img_input = load_a_subtomogram(imgb, point, shape, dask=False)
-                angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=19)
-                centering(img_input, point, angle_deg, drot=5, nrots=7)
-                last_i = i
-        
-        self.layer_work.data = points * imgb.scale.x
-        if len(selected) == 1:
-            change_viewer_focus(self.parent_viewer, points[last_i], self.layer_work.data[last_i])
-        return None
-    
     def _check_path(self) -> str:
         tomo = self.active_tomogram
         imgshape_nm = np.array(tomo.image.shape) * tomo.image.scale.x
@@ -907,6 +904,26 @@ class MTProfiler:
                     return f"Curvature {curvature} is too large for a MT."
         
         return ""
+    
+    
+    def _current_cylindrical_img(self):
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        tomo = self.active_tomogram
+        ylen = tomo.nm2pixel(tomo.ft_size)
+        spl = tomo._paths[i]
+        
+        rmin = tomo.nm2pixel(spl.radius*INNER)
+        rmax = tomo.nm2pixel(spl.radius*OUTER)
+        
+        coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
+        coords = np.moveaxis(coords, -1, 0)
+        img = tomo.image
+        polar = map_coordinates(img, coords, prefilter=False, order=1)
+        polar = ip.asarray(polar, axes="rya") # radius, y, angle
+        polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
+        polar.scale_unit = img.scale_unit
+        return polar
     
     def _init_layers(self):
         # TODO: simpler implementation after napari==0.4.12

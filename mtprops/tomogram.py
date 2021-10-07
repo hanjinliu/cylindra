@@ -3,7 +3,7 @@ from typing import Iterable
 import matplotlib.pyplot as plt
 import numpy as np
 import json
-from functools import wraps
+from functools import partial, wraps
 from scipy import ndimage as ndi
 from ._dependencies import impy as ip
 import pandas as pd
@@ -275,7 +275,7 @@ class MtTomogram:
         return pix
     
     @batch_process
-    def make_anchors(self, i: int = None, interval: nm = 24.0):
+    def make_anchors(self, i: int = None, interval: nm = 24.0, n: int = None):
         """
         Make anchors on MtSpline object(s).
 
@@ -284,7 +284,7 @@ class MtTomogram:
         interval : nm
             Anchor intervals.
         """        
-        self._paths[i].make_anchors(interval)
+        self._paths[i].make_anchors(interval=interval, n=n)
         return None
     
     def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
@@ -332,9 +332,9 @@ class MtTomogram:
         return df
     
     def _sample_subtomograms(self, 
-                            i: int,
-                            cache: bool = True,
-                            rotate: bool = True):
+                             i: int,
+                             cache: bool = True,
+                             rotate: bool = True):
         spl = self._paths[i]
         try:
             out = cachemap[(self, spl, CacheKey.subtomograms)]
@@ -357,7 +357,11 @@ class MtTomogram:
         return out
     
     @batch_process
-    def fit(self, i: int = None, *, max_interval: nm = 24.0) -> MtTomogram:
+    def fit(self, 
+            i: int = None,
+            *, 
+            max_interval: nm = 24.0,
+            degree_precision: float = 0.2) -> MtTomogram:
         """
         Fit i-th path to MT.
 
@@ -382,10 +386,11 @@ class MtTomogram:
         img = da.from_array(subtomograms[1:-1], chunks=(1,)+subtomograms.shape[1:])
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
+        nrots = roundint(14/degree_precision) + 1
         
         with ip.SetConst("SHOW_PROGRESS", False):
             # Angular correlation
-            out = delayed_angle_corr(subtomograms[1:-1], yx_tilt)
+            out = delayed_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
             refined_tilt = np.array([0] + list(out) + [0])
             size = 2*roundint(48.0/interval) + 1
             if size > 1:
@@ -401,27 +406,28 @@ class MtTomogram:
             subtomo_proj = subtomograms.proj("y")
             iref = npoints//2
             imgref = subtomo_proj[iref]
-            shape = np.array(imgref.shape)
             shifts = np.zeros((npoints, 2)) # zx-shift
             imgs = []
-            bg = np.median(imgref)
             for i in range(npoints):
-                # NCC based template matching is robust for lattice defect etc.
+                img = subtomo_proj[i]
                 if i != iref:
-                    corr = imgref.ncc_filter(subtomo_proj[i], bg=bg)
-                    shifts[i] = np.unravel_index(np.argmax(corr), shape) - shape/2
+                    shifts[i] = ip.pcc_maximum(imgref, img)
                 else:
                     shifts[i] = np.array([0, 0])
                     
-                img = subtomo_proj[i]
                 imgs.append(img.affine(translation=-shifts[i]))
                 
             imgs = np.stack(imgs, axis="y")
             imgcory = imgs.proj("y")
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])
             shifts -= center_shift/2
+            
+            template = imgcory.affine(translation=center_shift/2)
+            for i in range(npoints):
+                img = subtomo_proj[i]
+                shifts[i] = ip.pcc_maximum(template, img)
         
-        # Update spline coordinates to be fit.
+        # Update spline coordinates.
         coords = spl()
         for i in range(npoints):
             shiftz, shiftx = -shifts[i]
@@ -799,8 +805,8 @@ def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     angle = angs[np.argmax(corrs)]
     return angle
 
-def delayed_angle_corr(imgs, ang_centers):
-    _angle_corr = delayed(angle_corr)
+def delayed_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
+    _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
     tasks = []
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
@@ -816,11 +822,12 @@ def _local_dft_params(img, radius: nm):
     up_y = max(int(1500/(img.shape.y*img.scale.y)), 1)
     
     power = img.local_power_spectra(key=f"y={y0}:{y1};a={-da}:{da+1}", 
-                                        upsample_factor=[1, up_y, up_a], 
-                                        dims="rya"
-                                        ).proj("r")
+                                    upsample_factor=[1, up_y, up_a], 
+                                    dims="rya"
+                                    ).proj("r")
     
-    ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+    _, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+    ymax = np.argmax(power.proj("a"))
     
     amax_f = amax - da*up_a
     ymax_f = ymax + y0*up_y
@@ -838,9 +845,9 @@ def _local_dft_params(img, radius: nm):
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
     power = img.local_power_spectra(key=f"y={-dy}:{dy+1};a={npfmin}:17", 
-                                        upsample_factor=[1, up_y, up_a], 
-                                        dims="rya"
-                                        ).proj("r")
+                                    upsample_factor=[1, up_y, up_a], 
+                                    dims="rya"
+                                    ).proj("r")
     
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     
