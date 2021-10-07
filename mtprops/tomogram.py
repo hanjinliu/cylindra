@@ -19,6 +19,7 @@ ERROR_NM = 1.0
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
 def batch_process(func):
+    # TODO: error handling
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
@@ -45,6 +46,14 @@ def batch_process(func):
         return out
     return _func  
 
+def json_encoder(obj):
+    if isinstance(obj, Ori):
+        return obj.name
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient="list")
+    else:
+        raise TypeError(f"{obj!r} is not JSON serializable")
+
 class MtSpline(Spline3D):
     def __init__(self, scale:float=1, k=3):
         super().__init__(scale=scale, k=k)
@@ -68,8 +77,9 @@ class MtSpline(Spline3D):
         d = super().to_dict()
         d["radius"] = self.radius
         d["orientation"] = self.orientation.name
-        d["localprops"] = {prop: self.localprops[prop].tolist()
-                           for prop in LOCALPROPS}
+        # d["localprops"] = {prop: self.localprops[prop].tolist()
+        #                    for prop in LOCALPROPS}
+        d["localprops"] = self.localprops[LOCALPROPS]
         return d
         
     @classmethod
@@ -186,12 +196,15 @@ class MtTomogram:
             spl_dict = spl.to_dict()
             all_results[i] = spl_dict
         
+        from .__init__ import __version__
         metadata = self.metadata.copy()
         metadata["light_background"] = self.light_background
         metadata["ft_size"] = self.ft_size
+        metadata["version"] = __version__
         all_results["metadata"] = metadata
+
         with open(path, mode="w") as f:
-            json.dump(all_results, f, indent=4, separators=(",", ": "))
+            json.dump(all_results, f, indent=4, separators=(",", ": "), default=json_encoder)
         return None
     
     def load(self, file_path :str) -> MtTomogram:
