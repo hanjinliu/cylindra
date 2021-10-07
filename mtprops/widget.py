@@ -13,7 +13,7 @@ from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, click, set_options, 
                             Figure, TupleEdit, CheckButton, Separator, ListWidget)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
-from .utils import load_a_subtomogram, make_slice_and_pad, roundint, ceilint
+from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
 from .const import nm, H, Ori, INNER, OUTER
 
 if TYPE_CHECKING:
@@ -115,6 +115,7 @@ class MTProfiler:
     
     @magicmenu
     class Analysis:
+        def show_current_ft(self): ...
         def global_ft_params(self): ...
         def reconstruction(self): ...
     
@@ -519,6 +520,33 @@ class MTProfiler:
                                       translate=self.layer_image.translate)
         return None
     
+    @Analysis.wraps
+    @set_design(text="Show 2D Fourier space")
+    def show_current_ft(self):
+        """
+        View Fourier space of local cylindrical coordinate system at current position.
+        """        
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        tomo = self.active_tomogram
+        ylen = tomo.nm2pixel(tomo.ft_size)
+        spl = tomo._paths[i]
+        
+        rmin = tomo.nm2pixel(spl.radius*INNER)
+        rmax = tomo.nm2pixel(spl.radius*OUTER)
+        
+        coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
+        coords = np.moveaxis(coords, -1, 0)
+        img = tomo.image
+        polar = map_coordinates(img, coords, prefilter=False, order=1)
+        polar = ip.asarray(polar, axes="rya") # radius, y, angle
+        polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
+        polar.scale_unit = img.scale_unit
+        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
+        return None
+    
+        
     @Analysis.wraps
     @set_design(text="Quantify global structure")
     def global_ft_params(self):
