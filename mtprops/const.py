@@ -1,9 +1,9 @@
 from enum import Enum, auto
 
 class Ori(Enum):
-    none = 0
-    PlusToMinus = 1
-    MinusToPlus = -1
+    none = "none"
+    PlusToMinus = "PlusToMinus"
+    MinusToPlus = "MinusToPlus"
 
 class CacheKey(Enum):
     subtomograms = auto()

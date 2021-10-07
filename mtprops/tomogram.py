@@ -77,8 +77,6 @@ class MtSpline(Spline3D):
         d = super().to_dict()
         d["radius"] = self.radius
         d["orientation"] = self.orientation.name
-        # d["localprops"] = {prop: self.localprops[prop].tolist()
-        #                    for prop in LOCALPROPS}
         d["localprops"] = self.localprops[LOCALPROPS]
         return d
         

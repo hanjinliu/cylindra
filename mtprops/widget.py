@@ -355,6 +355,7 @@ class MTProfiler:
         """
         Clear all the paths and heatmaps.
         """        
+        self._init_widget_params()
         self._init_layers()
         self.canvas.figure.clf()
         self.canvas.figure.add_subplot(111)
@@ -766,8 +767,6 @@ class MTProfiler:
             viewer.dims.axis_labels = ("z", "y", "x")
             
             if new:
-                self._init_widget_params()
-                
                 tomo = MtTomogram(light_background=light_bg)
                 
                 tomo.metadata["source"] = str(self._loader.path.value)

@@ -1,4 +1,4 @@
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 from .core import start, load
-from .widget import MTProfiler
+from .tomogram import MtTomogram
