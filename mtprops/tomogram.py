@@ -57,7 +57,7 @@ def json_encoder(obj):
 class MtSpline(Spline3D):
     def __init__(self, scale:float=1, k=3):
         super().__init__(scale=scale, k=k)
-        self.radius: nm = None
+        self._radius: nm = None
         self.orientation = Ori.none
         self.localprops: pd.DataFrame = pd.DataFrame([])
     
@@ -71,7 +71,19 @@ class MtSpline(Spline3D):
             self._orientation = Ori(value)
         except ValueError:
             self._orientation = Ori.none
-        
+    
+    @property
+    def radius(self) -> nm:
+        return self._radius
+    
+    @radius.setter
+    def radius(self, value: nm):
+        try:
+            self._radius = float(value)
+        except ValueError:
+            raise ValueError(f"Cannot set {type(value)} to radius.")
+        else:
+            self._updates += 1
         
     def to_dict(self) -> dict:
         d = super().to_dict()
@@ -677,8 +689,9 @@ class MtTomogram:
         ip.array.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
+        try_cache = radius is None and range_ == (0.0, 1.0) and not cylindrical
         spl = self._paths[i]
-        if not cylindrical:
+        if try_cache:
             try:
                 transformed = cachemap[(self, spl, CacheKey.straight)]
             except KeyError:
@@ -742,7 +755,8 @@ class MtTomogram:
             transformed.set_scale({k: self.scale for k in axes})
             transformed.scale_unit = "nm"
         
-        cachemap[(self, spl, CacheKey.straight)] = transformed
+        if try_cache:
+            cachemap[(self, spl, CacheKey.straight)] = transformed
         
         return transformed
     
@@ -860,11 +874,12 @@ class MtTomogram:
             # stack images for better visualization
             dup = ceilint(y_length/lp)
             outlist = [out]
-            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
+            if dup > 0:
+                for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+                    outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
         
         return np.concatenate(outlist, axis="y")
-        
+    
 
 def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     # img: 3D
