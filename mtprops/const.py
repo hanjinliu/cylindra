@@ -9,6 +9,8 @@ class CacheKey(Enum):
     subtomograms = auto()
     straight = auto()
     
+nm = float
+
 class H:
     """
     Header names for result table of local properties.
@@ -20,8 +22,15 @@ class H:
     skewAngle = "skewAngle"
     nPF = "nPF"  
     start = "start"
-    
-nm = float
 
-INNER = 0.7
-OUTER = 1.6
+class GVar:
+    """
+    Global variables
+    """    
+    nPFmin: int = 11
+    nPFmax: int = 17
+    yPitchAvg: nm = 4.16
+    splError: nm = 0.8
+    inner: float = 0.7
+    outer: float = 1.6
+    

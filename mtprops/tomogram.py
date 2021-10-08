@@ -9,7 +9,7 @@ from ._dependencies import impy as ip
 import pandas as pd
 from dask import array as da, delayed
 
-from .const import nm, H, Ori, INNER, OUTER, CacheKey
+from .const import nm, H, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import load_a_subtomogram, centroid, rotational_average, map_coordinates, roundint, ceilint
@@ -246,7 +246,7 @@ class MtTomogram:
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """        
         spl = MtSpline(self.scale)
-        sqsum = ERROR_NM**2 * coords.shape[0] # unit: nm^2
+        sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
         interval: nm = 30.0
         length = spl.length()
@@ -360,7 +360,7 @@ class MtTomogram:
     def fit(self, 
             i: int = None,
             *, 
-            max_interval: nm = 24.0,
+            max_interval: nm = 50.0,
             degree_precision: float = 0.2) -> MtTomogram:
         """
         Fit i-th path to MT.
@@ -379,11 +379,10 @@ class MtTomogram:
         """        
         spl = self._paths[i]
         length = spl.length()
-        npoints = ceilint(length/max_interval) + 1
+        npoints = max(ceilint(length/max_interval) + 1, 2)
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i, rotate=False, cache=False)
-        img = da.from_array(subtomograms[1:-1], chunks=(1,)+subtomograms.shape[1:])
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
         nrots = roundint(14/degree_precision) + 1
@@ -419,9 +418,7 @@ class MtTomogram:
                 
             imgs = np.stack(imgs, axis="y")
             imgcory = imgs.proj("y")
-            center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])
-            shifts -= center_shift/2
-            
+            center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])            
             template = imgcory.affine(translation=center_shift/2)
             for i in range(npoints):
                 img = subtomo_proj[i]
@@ -442,11 +439,91 @@ class MtTomogram:
             coords[i] += shift * self.scale
         
         # Update spline parameters
-        sqsum = ERROR_NM**2 * coords.shape[0] # unit: nm^2
+        sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
         
         return self
     
+    @batch_process
+    def refine_fit(self, 
+                   i: int = None,
+                   *, 
+                   max_interval: nm = 50.0) -> MtTomogram:
+                
+        spl = self._paths[i]
+        length = spl.length()
+        npoints = ceilint(length/max_interval) + 1
+        interval = length/(npoints-1)
+        spl.make_anchors(n=npoints)
+        subtomograms = self._sample_subtomograms(i)
+        
+        # Cartesian transformation along spline.
+        img_st = self.straighten(i, radius=(self.box_size[0], self.box_size[2]))
+        scale = img_st.scale.y
+        
+        # Calculate Fourier parameters by cylindrical transformation along spline.
+        props = self.global_ft_params(i)
+        lp = props[H.yPitch] * 2
+        skew = props[H.skewAngle]
+        npf = int(props[H.nPF])
+        skew_angles = np.arange(npoints) * interval/lp * skew
+        skew_angles %= (360/npf)
+        skew_angles[skew_angles > 360/npf/2] -= 360/npf
+            
+        with ip.SetConst("SHOW_PROGRESS", False):
+            subtomo_proj = subtomograms.proj("y")
+            imgs_rot = []
+            for i, ang in enumerate(skew_angles):                
+                rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
+                imgs_rot.append(rotimg)
+
+            iref = npoints//2
+            imgref = imgs_rot[iref]
+            shifts = np.zeros((npoints, 2)) # zx-shift
+            imgs_aligned = []
+            for i in range(npoints):
+                img = imgs_rot[i]
+                if i != iref:
+                    shifts[i] = ip.pcc_maximum(imgref, img)
+                else:
+                    shifts[i] = np.array([0, 0])
+                    
+                imgs_aligned.append(img.affine(translation=-shifts[i]))
+                
+            imgcory = np.stack(imgs_aligned, axis="y").proj("y")
+            center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
+            template = imgcory.affine(translation=center_shift/2)
+            self._results = []
+            for i in range(npoints):
+                img = imgs_rot[i]
+                shifts[i] = ip.pcc_maximum(template, img)
+
+        coords = spl()
+        for i in range(npoints):
+            shiftz, shiftx = -shifts[i]
+            shift = np.array([shiftz, 0, shiftx])
+            deg = skew_angles[i]
+            rad = -np.deg2rad(deg)
+            cos = np.cos(rad)
+            sin = np.sin(rad)
+            
+            mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
+            zxrot =  [[cos,  0., sin],
+                      [0.,   1.,  0.],
+                      [-sin, 0., cos]]
+
+            world_shift = shift @ zxrot @ mtx * self.scale
+            
+            coords[i] += world_shift
+        
+        self._coords = coords
+        # Update spline parameters
+        sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
+        spl.fit(coords, s=sqsum)
+        
+        return self
+                
+                
     @batch_process
     def get_subtomograms(self, i: int = None) -> ip.arrays.ImgArray:
         """
@@ -513,8 +590,8 @@ class MtTomogram:
         ylen = self.nm2pixel(self.ft_size)
         spl = self._paths[i]
         spl.localprops = pd.DataFrame([])
-        rmin = self.nm2pixel(spl.radius*INNER)
-        rmax = self.nm2pixel(spl.radius*OUTER)
+        rmin = self.nm2pixel(spl.radius*GVar.inner)
+        rmax = self.nm2pixel(spl.radius*GVar.outer)
         with ip.SetConst("SHOW_PROGRESS", False):
             tasks = []
             for anc in spl.anchors:
@@ -556,7 +633,7 @@ class MtTomogram:
             Global properties.
         """        
         spl = self._paths[i]
-        img_st = self.straighten(i, radius=(spl.radius*INNER, spl.radius*OUTER), cylindrical=True)
+        img_st = self.straighten(i, radius=(spl.radius*GVar.inner, spl.radius*GVar.outer), cylindrical=True)
         with ip.SetConst("SHOW_PROGRESS", False):
             results = _local_dft_params(img_st, spl.radius)
         series = pd.Series([], dtype=np.float32)
@@ -637,9 +714,9 @@ class MtTomogram:
         else:
             if radius is None:
                 if cylindrical:
-                    rz, rx = self.nm2pixel(self._paths[i].radius * np.array([INNER, OUTER]))
+                    rz, rx = self.nm2pixel(self._paths[i].radius * np.array([GVar.inner, GVar.outer]))
                 else:
-                    rz = rx = self.nm2pixel(self._paths[i].radius * OUTER) * 2 + 1
+                    rz = rx = self.nm2pixel(self._paths[i].radius * GVar.outer) * 2 + 1
             
             else:
                 rz, rx = self.nm2pixel(radius)
@@ -698,7 +775,7 @@ class MtTomogram:
     def reconstruct(self, 
                     i: int = None,
                     rot_ave: bool = False,
-                    y_length: nm = 100.0) -> ip.arrays.ImgArray:
+                    y_length: nm = 50.0) -> ip.arrays.ImgArray:
         """
         3D reconstruction of MT.
 
@@ -814,14 +891,15 @@ def delayed_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
     
 def _local_dft_params(img, radius: nm):
     l_circ: nm = 2*np.pi*radius
-    da = 20
-    peak_est = img.shape.y/(4.16/img.scale.y) # estimated peak
+    npfmin = GVar.nPFmin
+    npfmax = GVar.nPFmax
+    peak_est = img.shape.y/(GVar.yPitchAvg/img.scale.y) # estimated peak
     y0 = int(peak_est*0.8)
     y1 = int(peak_est*1.3)
     up_a = 20
     up_y = max(int(1500/(img.shape.y*img.scale.y)), 1)
     
-    power = img.local_power_spectra(key=f"y={y0}:{y1};a={-da}:{da+1}", 
+    power = img.local_power_spectra(key=f"y={y0}:{y1};a={-npfmax}:{npfmax+1}", 
                                     upsample_factor=[1, up_y, up_a], 
                                     dims="rya"
                                     ).proj("r")
@@ -829,7 +907,7 @@ def _local_dft_params(img, radius: nm):
     _, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     ymax = np.argmax(power.proj("a"))
     
-    amax_f = amax - da*up_a
+    amax_f = amax - npfmax*up_a
     ymax_f = ymax + y0*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
@@ -840,11 +918,10 @@ def _local_dft_params(img, radius: nm):
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     dy = 1
-    npfmin = 11
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
-    power = img.local_power_spectra(key=f"y={-dy}:{dy+1};a={npfmin}:17", 
+    power = img.local_power_spectra(key=f"y={-dy}:{dy+1};a={npfmin}:{npfmax}", 
                                     upsample_factor=[1, up_y, up_a], 
                                     dims="rya"
                                     ).proj("r")

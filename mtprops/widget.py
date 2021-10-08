@@ -14,7 +14,7 @@ from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, clic
                             Figure, TupleEdit, CheckButton, Separator, ListWidget)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
-from .const import nm, H, Ori, INNER, OUTER
+from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
@@ -108,8 +108,10 @@ class MTProfiler:
     class View:
         def send_to_napari(self): ...
         def show_straightened_img(self): ...
+        sep0 = field(Separator)
         def show_current_ft(self): ...
         def show_r_proj(self): ...
+        sep1 = field(Separator)
         def show_3d_path(self): ...
         def show_table(self): ...
         def set_colormap(self): ...
@@ -118,6 +120,9 @@ class MTProfiler:
     @magicmenu
     class Analysis:
         def fit_spline(self): ...
+        def refine_spline(self): ...
+        sep0 = field(Separator)
+        def local_ft_params(self): ...
         def global_ft_params(self): ...
         def reconstruction(self): ...
     
@@ -489,7 +494,7 @@ class MTProfiler:
         worker = create_worker(tomo.straighten, 
                                i=i, 
                                _progress={"total": 0, 
-                                          "desc": "Straightening"}
+                                          "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -546,6 +551,41 @@ class MTProfiler:
         self._init_layers()
         self.show_3d_path()
         return None
+    
+    @Analysis.wraps
+    @set_design(text="Refine splines")
+    def refine_spline(self):
+        tomo = self.active_tomogram
+        tomo.make_anchors()
+        
+        worker = create_worker(tomo.refine_fit,
+                               _progress={"total": 0, 
+                                          "desc": "Running"})
+        @worker.returned.connect
+        def _on_return(e):
+            tomo.make_anchors()
+
+        self._connect_worker(worker)
+        self._worker_control.info.value = f"Refining splines ..."
+        worker.start()
+        return None
+    
+    @Analysis.wraps
+    @set_design(text="Quantify local structure")
+    def local_ft_params(self):
+        tomo = self.active_tomogram
+        tomo.make_anchors()
+        worker = create_worker(tomo.ft_params,
+                               _progress={"total": 0, 
+                                          "desc": "Running"})
+        @worker.returned.connect
+        def _on_return(df):
+            self._load_tomogram_results()
+        
+        self._connect_worker(worker)
+        self._worker_control.info.value = f"Local Fourier transform ..."
+        worker.start()
+        return None
         
     @Analysis.wraps
     @set_design(text="Quantify global structure")
@@ -561,7 +601,7 @@ class MTProfiler:
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT")
-    def reconstruction(self, rot_ave: bool = False, y_length: nm = 100.0):
+    def reconstruction(self, rot_ave: bool = False, y_length: nm = 50.0):
         """
         Coarse reconstruction of MT.
 
@@ -569,7 +609,7 @@ class MTProfiler:
         ----------
         rot_ave : bool, default is False
             Check to run rotational averaging after reconstruction.
-        y_length : nm, default is 100.0
+        y_length : nm, default is 50.0
             Longitudinal length (nm) of reconstructed image.
         """        
         tomo = self.active_tomogram
@@ -580,7 +620,7 @@ class MTProfiler:
                                rot_ave=rot_ave, 
                                y_length=y_length,
                                _progress={"total": 0, 
-                                          "desc": "Reconstruction"}
+                                          "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -913,8 +953,8 @@ class MTProfiler:
         ylen = tomo.nm2pixel(tomo.ft_size)
         spl = tomo._paths[i]
         
-        rmin = tomo.nm2pixel(spl.radius*INNER)
-        rmax = tomo.nm2pixel(spl.radius*OUTER)
+        rmin = tomo.nm2pixel(spl.radius*GVar.inner)
+        rmax = tomo.nm2pixel(spl.radius*GVar.outer)
         
         coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
         coords = np.moveaxis(coords, -1, 0)
@@ -996,15 +1036,15 @@ class MTProfiler:
         
         ylen = tomo.nm2pixel(tomo.ft_size/2)
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
-        r = tomo.nm2pixel(results.radius)*OUTER
+        r = tomo.nm2pixel(results.radius)*GVar.outer
         xmin, xmax = -r + lx/2, r + lx/2
         axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
         axes[0].text(1, 1, f"{i}-{j}", color="lime", font="Consolas", size=15, va="top")
     
         theta = np.linspace(0, 2*np.pi, 360)
-        r = tomo.nm2pixel(results.radius) * INNER
+        r = tomo.nm2pixel(results.radius) * GVar.inner
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = tomo.nm2pixel(results.radius) * OUTER
+        r = tomo.nm2pixel(results.radius) * GVar.outer
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
         self.canvas.figure.tight_layout()
