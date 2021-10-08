@@ -904,15 +904,16 @@ def _local_dft_params(img, radius: nm):
                                     dims="rya"
                                     ).proj("r")
     
-    _, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+    ymax0, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     ymax = np.argmax(power.proj("a"))
     
     amax_f = amax - npfmax*up_a
     ymax_f = ymax + y0*up_y
+    ymax0_f = ymax0 + y0*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
-    rise = np.arctan(-a_freq[amax_f]/y_freq[ymax_f])
+    rise = np.arctan(-a_freq[amax_f]/y_freq[ymax0_f])
     y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
     
     # Second, transform around 13 pf lateral periodicity.
