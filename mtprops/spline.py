@@ -90,7 +90,7 @@ class Spline3D:
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
     
-    def fit(self, coords:np.ndarray, s=None) -> Spline3D:
+    def fit(self, coords:np.ndarray, w=None, s=None) -> Spline3D:
         """
         Fit spline model using a list of coordinates.
 
@@ -106,7 +106,7 @@ class Spline3D:
             raise ValueError("npoins must be > 1.")
         elif npoints <= self._k:
             self._k = npoints - 1
-        self._tck, self._u = splprep(coords.T, k=self._k, s=s)
+        self._tck, self._u = splprep(coords.T, k=self._k, w=w, s=s)
         self._updates += 1
         self._anchors = None # Anchor should be deleted after spline is updated
         return self
@@ -248,12 +248,13 @@ class Spline3D:
             
         if center is not None:
             dz, dy, dx = center
+            # center to corner
             translation_0 = np.array([[1., 0., 0., dz],
                                       [0., 1., 0., dy],
                                       [0., 0., 1., dx],
                                       [0., 0., 0., 1.]],
                                      dtype=np.float32)
-            
+            # corner to center
             translation_1 = np.array([[1., 0., 0., -dz],
                                       [0., 1., 0., -dy],
                                       [0., 0., 1., -dx],
@@ -388,7 +389,7 @@ class Spline3D:
     
     def inv_cartesian(self,
                       coords: np.ndarray,
-                      shape: tuple[int, int, int]):
+                      shape: tuple[int, int, int]) -> np.ndarray:
         
         # TODO: implement for loop in numba
         ncoords = coords.shape[0]
@@ -410,17 +411,41 @@ class Spline3D:
     
     def inv_cylindrical(self, 
                         coords: np.ndarray,
-                        shape: tuple[int, int, int],
-                        rmin: int):
-        radius = coords[:, 0] + rmin * self.scale
+                        shape: tuple[int, int, int]) -> np.ndarray:
+        """
+        Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
+
+        Parameters
+        ----------
+        coords : np.ndarray
+            Cylindrical coordinates. "r" and "y" must be in scale of "nm", while angle
+            must be in radian.
+        shape : tuple[int, int, int]
+            Shape of world coordinate image.
+
+        Returns
+        -------
+        np.ndarray
+            World coordinates.
+        """        
+        radius = coords[:, 0]
         y = coords[:, 1]
-        theta = coords[:, 2]/shape[2]*np.pi
+        theta = coords[:, 2]
         cart_coords = np.stack([radius*np.cos(theta), 
                                 y, 
                                 radius*np.sin(theta)],
                                axis=1)
         
         return self.inv_cartesian(cart_coords, (0, shape[1], 0))
+
+    def oblique_points(self, shape, radius: nm, dy: nm, rise: float, tilt: float):
+        # shape = (ny, nrot)
+        dtheta = 2*np.pi/shape[1]
+        mesh = _oblique_meshgrid(shape, np.deg2rad(rise), np.deg2rad(tilt)).reshape(-1, 2)
+        mesh = np.concatenate([np.full((mesh.shape[0], 1), radius, dtype=np.float32), mesh], axis=1)
+        mesh[:, 1] *= dy
+        mesh[:, 2] *= dtheta
+        return mesh
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
@@ -522,3 +547,17 @@ def _cartesian_coords_2d(lenv, lenh):
     v -= (lenv/2 - 0.5)
     h -= (lenh/2 - 0.5)
     return np.stack([v, h], axis=2) # V, H, 2
+
+
+@nb.njit
+def _oblique_meshgrid(shape: tuple[int, int], rise: float, tilt: float) -> nb.float32[_V,_H,_D]:
+    v0 = np.array([1, np.tan(tilt)], dtype=np.float32)
+    v1 = np.array([np.tan(rise), 1], dtype=np.float32)
+    n0, n1 = shape
+    out = np.empty((n0, n1, 2), dtype=np.float32)
+    border = np.array(shape, dtype=np.float32)
+    for i in range(n0):
+        for j in range(n1):
+            out[i, j, :] = (v0 * i + v1 * j) % border
+    
+    return out

@@ -29,8 +29,15 @@ class GVar:
     """    
     nPFmin: int = 11
     nPFmax: int = 17
+    splOrder: int = 3
     yPitchAvg: nm = 4.16
     splError: nm = 0.8
     inner: float = 0.7
     outer: float = 1.6
     
+    @classmethod
+    def set_value(cls, *args, **kwargs):
+        for k, v in kwargs.items():
+            if not hasattr(cls, k):
+                pass
+            setattr(cls, k, v)

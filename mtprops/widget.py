@@ -110,7 +110,9 @@ class MTProfiler:
         def show_straightened_img(self): ...
         sep0 = field(Separator)
         def show_current_ft(self): ...
+        def show_global_ft(self): ...
         def show_r_proj(self): ...
+        def show_global_r_proj(self): ...
         sep1 = field(Separator)
         def show_3d_path(self): ...
         def show_table(self): ...
@@ -129,6 +131,7 @@ class MTProfiler:
     @magicmenu
     class Others:
         def create_macro_(self): ...
+        def global_variables(self): ...
         def info(self): ...
         
     @magicclass(layout="horizontal", labels=False)
@@ -372,6 +375,19 @@ class MTProfiler:
         return None
     
     @Others.wraps
+    @set_design(text="Global variables")
+    def global_variables(self, 
+                         nPFmin: int = 11,
+                         nPFmax: int = 17,
+                         splOrder: int = 2,
+                         yPitchAvg: nm = 4.16,
+                         splError: nm = 0.2,
+                         inner: float = 0.7,
+                         outer: float = 1.6):
+        GVar.set_value(**locals())
+        
+    
+    @Others.wraps
     @set_design(text="MTProps info")
     def info(self):
         """
@@ -507,14 +523,25 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @set_design(text="View radius projection")
+    @set_design(text="R-projection")
     def show_r_proj(self):
+        """
+        Show radial projection of cylindrical image around the current MT fragment.
+        """        
         polar = self._current_cylindrical_img().proj("r")
         self.parent_viewer.add_image(polar, scale=polar.scale)
         return None
     
     @View.wraps
-    @set_design(text="Show 2D Fourier space")
+    @set_design(text="R-projection (Global)")
+    def show_global_r_proj(self):
+        i = self.mt.mtlabel.value
+        polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
+        self.parent_viewer.add_image(polar, scale=polar.scale)
+        return None
+    
+    @View.wraps
+    @set_design(text="2D-FT")
     def show_current_ft(self):
         """
         View Fourier space of local cylindrical coordinate system at current position.
@@ -525,7 +552,16 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @set_design(text="Show spline")
+    @set_design(text="2D-FT (Global)")
+    def show_global_ft(self):
+        i = self.mt.mtlabel.value
+        polar = self.active_tomogram.straighten(i, cylindrical=True)
+        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
+        return None
+    
+    @View.wraps
+    @set_design(text="Show splines")
     def show_3d_path(self):
         """
         Show 3D spline paths of microtubule center axes as a layer.
@@ -541,6 +577,14 @@ class MTProfiler:
     @set_design(text="Fit splines")
     def fit_spline(self, 
                    box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0)):
+        """
+        Fit MT with spline curve, using manually selected points.
+
+        Parameters
+        ----------
+        box_size : tuple[nm, nm, nm], default is (44.0, 56.0, 56.0)
+            Box size that will be cropped from the original image when calculate MT center.
+        """        
         tomo = self.active_tomogram
         tomo.box_size = box_size
         for i in range(tomo.n_paths):
@@ -555,6 +599,9 @@ class MTProfiler:
     @Analysis.wraps
     @set_design(text="Refine splines")
     def refine_spline(self):
+        """
+        Refine splines using the global MT structural parameters.
+        """        
         tomo = self.active_tomogram
         tomo.make_anchors()
         
@@ -571,7 +618,7 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    @set_design(text="Quantify local structure")
+    @set_design(text="Local FT analysis")
     def local_ft_params(self):
         tomo = self.active_tomogram
         tomo.make_anchors()
@@ -588,7 +635,7 @@ class MTProfiler:
         return None
         
     @Analysis.wraps
-    @set_design(text="Quantify global structure")
+    @set_design(text="Global FT analysis")
     def global_ft_params(self):
         tomo = self.active_tomogram
         out = tomo.global_ft_params()
@@ -831,6 +878,7 @@ class MTProfiler:
     
         return None
     
+    @click(visible=False)
     def load_image(self, event=None):
         img = self._loader.img
         light_bg = self._loader.light_background.value

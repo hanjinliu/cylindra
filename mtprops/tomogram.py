@@ -257,7 +257,7 @@ class MtTomogram:
         coords : np.ndarray
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """        
-        spl = MtSpline(self.scale)
+        spl = MtSpline(self.scale, k=GVar.splOrder)
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
         interval: nm = 30.0
@@ -265,7 +265,7 @@ class MtTomogram:
         
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
-        if coords.shape[0] <= 4 and coords.shape[0] < fit.shape[0]:
+        if coords.shape[0] <= GVar.splOrder and coords.shape[0] < fit.shape[0]:
             return self.add_spline(fit)
         
         self._paths.append(spl)
@@ -372,7 +372,7 @@ class MtTomogram:
     def fit(self, 
             i: int = None,
             *, 
-            max_interval: nm = 50.0,
+            max_interval: nm = 30.0,
             degree_precision: float = 0.2) -> MtTomogram:
         """
         Fit i-th path to MT.
@@ -460,18 +460,30 @@ class MtTomogram:
     def refine_fit(self, 
                    i: int = None,
                    *, 
-                   max_interval: nm = 50.0) -> MtTomogram:
-                
+                   max_interval: nm = 30.0) -> MtTomogram:
+        """
+        Refine spline using the result of previous fit and the global structural parameters.
+        During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
+        thus is much more precise than the coarse fitting.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to fit.
+        max_interval : nm, default is 24.0
+            Maximum interval of sampling points in nm unit.
+            
+        Returns
+        -------
+        MtTomogram
+            Same object with updated MtSpline objects.
+        """        
         spl = self._paths[i]
         length = spl.length()
         npoints = ceilint(length/max_interval) + 1
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i)
-        
-        # Cartesian transformation along spline.
-        img_st = self.straighten(i, radius=(self.box_size[0], self.box_size[2]))
-        scale = img_st.scale.y
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.global_ft_params(i)
@@ -505,7 +517,7 @@ class MtTomogram:
             imgcory = np.stack(imgs_aligned, axis="y").proj("y")
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
             template = imgcory.affine(translation=center_shift/2)
-            self._results = []
+
             for i in range(npoints):
                 img = imgs_rot[i]
                 shifts[i] = ip.pcc_maximum(template, img)
@@ -520,15 +532,14 @@ class MtTomogram:
             sin = np.sin(rad)
             
             mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
-            zxrot =  [[cos,  0., sin],
-                      [0.,   1.,  0.],
-                      [-sin, 0., cos]]
+            zxrot = np.array([[cos,  0., sin],
+                              [0.,   1.,  0.],
+                              [-sin, 0., cos]])
 
             world_shift = shift @ zxrot @ mtx * self.scale
             
             coords[i] += world_shift
-        
-        self._coords = coords
+            
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
@@ -919,17 +930,17 @@ def _local_dft_params(img, radius: nm):
                                     dims="rya"
                                     ).proj("r")
     
-    ymax0, amax = np.unravel_index(np.argmax(power), shape=power.shape)
-    ymax = np.argmax(power.proj("a"))
+    ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+    ymaxp = np.argmax(power.proj("a"))
     
     amax_f = amax - npfmax*up_a
+    ymaxp_f = ymaxp + y0*up_y
     ymax_f = ymax + y0*up_y
-    ymax0_f = ymax0 + y0*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
-    rise = np.arctan(-a_freq[amax_f]/y_freq[ymax0_f])
-    y_pitch = 1.0/y_freq[ymax_f]*img.scale.y
+    rise = np.arctan(-a_freq[amax_f]/y_freq[ymax_f])
+    y_pitch = 1.0/y_freq[ymaxp_f]*img.scale.y
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
@@ -943,8 +954,10 @@ def _local_dft_params(img, radius: nm):
                                     ).proj("r")
     
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+    amaxp = np.argmax(power.proj("y"))
     
     amax_f = amax + npfmin*up_a
+    amaxp_f = amaxp + npfmin*up_a
     ymax_f = ymax - dy*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
@@ -955,7 +968,7 @@ def _local_dft_params(img, radius: nm):
     return np.array([np.rad2deg(rise), 
                      y_pitch, 
                      np.rad2deg(skew), 
-                     amax_f/up_a,
+                     amaxp_f/up_a,
                      abs(start)], 
                     dtype=np.float32)
     
