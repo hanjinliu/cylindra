@@ -438,15 +438,6 @@ class Spline3D:
         
         return self.inv_cartesian(cart_coords, (0, shape[1], 0))
 
-    def oblique_points(self, shape, radius: nm, dy: nm, rise: float, tilt: float):
-        # shape = (ny, nrot)
-        dtheta = 2*np.pi/shape[1]
-        mesh = _oblique_meshgrid(shape, np.deg2rad(rise), np.deg2rad(tilt)).reshape(-1, 2)
-        mesh = np.concatenate([np.full((mesh.shape[0], 1), radius, dtype=np.float32), mesh], axis=1)
-        mesh[:, 1] *= dy
-        mesh[:, 2] *= dtheta
-        return mesh
-
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
                     map_params:tuple,
@@ -540,24 +531,12 @@ def _polar_coords_2d(r_start: int, r_stop: int) -> np.ndarray:
     coords = _linear_polar_mapping(np.array(output_coords), n_angle/2/np.pi, 1, [0, 0]
                                    ).astype(np.float32)
     coords = coords.reshape(n_radius, n_angle, 2) # V, H, 2
-    return np.flip(coords, axis=1)
+    coords[:] = np.flip(coords, axis=0)
+    coords[:] = np.flip(coords, axis=1)
+    return coords
 
 def _cartesian_coords_2d(lenv, lenh):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= (lenv/2 - 0.5)
     h -= (lenh/2 - 0.5)
     return np.stack([v, h], axis=2) # V, H, 2
-
-
-@nb.njit
-def _oblique_meshgrid(shape: tuple[int, int], rise: float, tilt: float) -> nb.float32[_V,_H,_D]:
-    v0 = np.array([1, np.tan(tilt)], dtype=np.float32)
-    v1 = np.array([np.tan(rise), 1], dtype=np.float32)
-    n0, n1 = shape
-    out = np.empty((n0, n1, 2), dtype=np.float32)
-    border = np.array(shape, dtype=np.float32)
-    for i in range(n0):
-        for j in range(n1):
-            out[i, j, :] = (v0 * i + v1 * j) % border
-    
-    return out

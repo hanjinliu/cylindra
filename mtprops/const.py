@@ -7,7 +7,8 @@ class Ori(Enum):
 
 class CacheKey(Enum):
     subtomograms = auto()
-    straight = auto()
+    cart_straight = auto()
+    cyl_straight = auto()
     
 nm = float
 

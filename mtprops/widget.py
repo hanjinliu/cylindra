@@ -126,7 +126,10 @@ class MTProfiler:
         sep0 = field(Separator)
         def local_ft_params(self): ...
         def global_ft_params(self): ...
+        sep1 = field(Separator)
         def reconstruction(self): ...
+        def cylindric_reconstruction(self): ...
+        def map_tubulin(self): ...
     
     @magicmenu
     class Others:
@@ -555,8 +558,9 @@ class MTProfiler:
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self):
         i = self.mt.mtlabel.value
-        polar = self.active_tomogram.straighten(i, cylindrical=True)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        with ip.SetConst("SHOW_PROGRESS", False):
+            polar = self.active_tomogram.straighten(i, cylindrical=True)
+            pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
         self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
         return None
     
@@ -681,6 +685,65 @@ class MTProfiler:
         worker.start()
         return None
     
+    @Analysis.wraps
+    @set_options(rot_ave={"label": "Rotational averaging"},
+                 y_length={"label": "Longitudinal length (nm)"})
+    @set_design(text="Reconstruct MT (cylindric)")
+    def cylindric_reconstruction(self, rot_ave: bool = False, y_length: nm = 50.0):
+        """
+        Coarse reconstruction of MT.
+
+        Parameters
+        ----------
+        rot_ave : bool, default is False
+            Check to run rotational averaging after reconstruction.
+        y_length : nm, default is 50.0
+            Longitudinal length (nm) of reconstructed image.
+        """        
+        tomo = self.active_tomogram
+        i = self.mt.mtlabel.value
+        
+        worker = create_worker(tomo.cylindric_reconstruct, 
+                               i=i,
+                               rot_ave=rot_ave, 
+                               y_length=y_length,
+                               _progress={"total": 0, 
+                                          "desc": "Running"}
+                               )
+        
+        @worker.returned.connect
+        def _on_return(out: ip.arrays.ImgArray):
+            if tomo.light_background:
+                out = -out
+            self.parent_viewer.add_image(out, scale=out.scale)
+        
+        self._connect_worker(worker)
+        self._worker_control.info.value = f"Cylindric reconstruction ..."
+        worker.start()
+        return None
+    
+    @Analysis.wraps
+    @set_design(text="Map tubulin")
+    def map_tubulin(self):
+        tomo = self.active_tomogram
+        i = self.mt.mtlabel.value
+        
+        worker = create_worker(tomo.map_monomer, 
+                               i=i,
+                               _progress={"total": 0, 
+                                          "desc": "Running"}
+                               )
+        
+        @worker.returned.connect
+        def _on_return(out: np.ndarray):
+            self.parent_viewer.add_points(out, size=2, face_color="lime", n_dimensional=True,
+                                          name="tubulin monomers")
+        
+        self._connect_worker(worker)
+        self._worker_control.info.value = f"Tubulin mapping ..."
+        worker.start()
+        return None
+        
     @auto_picker.wraps
     def pick_next(self):
         """

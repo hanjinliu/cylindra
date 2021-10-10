@@ -12,7 +12,8 @@ from dask import array as da, delayed
 from .const import nm, H, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import load_a_subtomogram, centroid, rotational_average, map_coordinates, roundint, ceilint
+from .utils import (load_a_subtomogram, centroid, rotational_average, map_coordinates, roundint, 
+                    ceilint, oblique_meshgrid)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 ERROR_NM = 1.0
@@ -700,11 +701,12 @@ class MtTomogram:
         ip.array.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
-        try_cache = radius is None and range_ == (0.0, 1.0) and not cylindrical
+        try_cache = radius is None and range_ == (0.0, 1.0)
+        cache_key = CacheKey.cyl_straight if cylindrical else CacheKey.cart_straight
         spl = self._paths[i]
         if try_cache:
             try:
-                transformed = cachemap[(self, spl, CacheKey.straight)]
+                transformed = cachemap[(self, spl, cache_key)]
             except KeyError:
                 pass
             else:
@@ -767,7 +769,7 @@ class MtTomogram:
             transformed.scale_unit = "nm"
         
         if try_cache:
-            cachemap[(self, spl, CacheKey.straight)] = transformed
+            cachemap[(self, spl, cache_key)] = transformed
         
         return transformed
     
@@ -818,8 +820,10 @@ class MtTomogram:
         ip.arrays.ImgArray
             Reconstructed image.
         """        
+        # TODO: dask parallelize
+        
         # Cartesian transformation along spline.
-        img_st = self.straighten(i, radius=(self.box_size[0], self.box_size[2]))
+        img_st = self.straighten(i)
         scale = img_st.scale.y
         total_length: nm = img_st.shape.y*scale
         
@@ -856,9 +860,7 @@ class MtTomogram:
                 imgs[i] = img.affine(translation=shift, mode="grid-wrap")
 
             out = np.stack(imgs, axis="p").proj("p")
-            
-            del imgs
-            
+                        
             # rotational averaging
             # TODO: don't Affine twice
             if rot_ave:
@@ -891,7 +893,128 @@ class MtTomogram:
         
         return np.concatenate(outlist, axis="y")
     
+    @batch_process
+    def cylindric_reconstruct(self, 
+                              i: int = None,
+                              rot_ave: bool = False, 
+                              y_length: nm = 50.0) -> ip.arrays.ImgArray:
+        """
+        3D reconstruction of MT in cylindric coordinate system.
 
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to reconstruct.
+        rot_ave : bool, default is False
+            If true, rotational averaging is applied to the reconstruction to remove missing wedge.
+        y_length : nm, default is 100.0
+            Longitudinal length of reconstruction.
+
+        Returns
+        -------
+        ip.arrays.ImgArray
+            Reconstructed image.
+        """        
+        # TODO: dask parallelize
+        
+        # Cartesian transformation along spline.
+        img_open = self.straighten(i, cylindrical=True)
+        scale = img_open.scale.y
+        total_length: nm = img_open.shape.y*scale
+        
+        # Calculate Fourier parameters by cylindrical transformation along spline.
+        props = self.global_ft_params(i)
+        lp = props[H.yPitch] * 2
+        skew = props[H.skewAngle]
+        rise = props[H.riseAngle]
+        npf = roundint(props[H.nPF])
+        radius = self.paths[i].radius
+        
+        # Determine how to split image into tubulin dimer fragments
+        dl, resl = divmod(total_length, lp)
+        borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
+        skew_angles = np.arange(borders.size - 1) * skew
+        
+        # Rotate fragment with skew angle
+        imgs = []
+        ylen = 99999
+        with ip.SetConst("SHOW_PROGRESS", False):
+            # Split image into dimers along y-direction
+            for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
+                start = self.nm2pixel(start)
+                stop = self.nm2pixel(stop)
+                shift = ang/360*img_open.shape.a
+                imgs.append(img_open[:, start:stop].affine(translation=[0, shift],
+                                                           dims="ya", mode="grid-wrap"))
+                ylen = min(ylen, stop-start)
+            
+            # align each fragment
+            imgs[0] = imgs[0][f"y=:{ylen}"]
+            ref = imgs[0]
+            for i in range(1, len(imgs)):
+                img = imgs[i][f"y=:{ylen}"]
+                shift = ip.pcc_maximum(img, ref)
+                imgs[i] = img.affine(translation=shift, 
+                                     dims="rya", mode="grid-wrap")
+
+            out = np.stack(imgs, axis="p").proj("p")
+            
+            # rotational averaging
+            # TODO: don't Affine twice
+            if rot_ave:
+                input_ = out.copy()
+                for i in range(1, npf):
+                    slope = np.tan(np.deg2rad(rise))
+                    dy = 2*np.pi*i/npf*radius*slope/self.scale
+                    shift_a = out.shape.a/npf*i
+                    shift = [dy, shift_a]
+                    out.value[:] += input_.affine(translation=shift, 
+                                                  dims="ya", mode="grid-wrap")
+            
+            # stack images for better visualization
+            dup = ceilint(y_length/lp)
+            outlist = [out]
+            if dup > 0:
+                for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+                    shift = ang/360*img_open.shape.a
+                    outlist.append(out.affine(translation=[0, -shift], 
+                                              dims="ya", mode="grid-wrap"))
+        
+        return np.concatenate(outlist, axis="y")
+    
+    def map_monomer(self, i):
+        spl = self._paths[i]
+        rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
+        r0 = self.nm2pixel(spl.radius)
+        rec2d = rec_cyl[f"r={r0}:"].proj("r")
+        if self.light_background:
+            ymax, amax = np.unravel_index(np.argmin(rec2d), rec2d.shape)
+        else:
+            ymax, amax = np.unravel_index(np.argmax(rec2d), rec2d.shape)
+        
+        # Calculate Fourier parameters by cylindrical transformation along spline.
+        props = self.global_ft_params(i)
+        pitch = props[H.yPitch]
+        skew = props[H.skewAngle]
+        rise = props[H.riseAngle]
+        npf = int(props[H.nPF])
+        radius = spl.radius
+        
+        ny = roundint(spl.length()/pitch)
+        tan_rise = np.tan(np.deg2rad(rise))
+        mesh = oblique_meshgrid((ny, npf), 
+                                rise = tan_rise*(2*np.pi/npf*radius)/pitch,
+                                tilt = np.tan(np.deg2rad(skew))/2*(2*np.pi/npf), 
+                                offset = (amax - ymax*tan_rise)/rec_cyl.shape.a*2*np.pi
+                                ).reshape(-1, 2)
+        
+        dtheta = 2*np.pi/npf
+        mesh = np.concatenate([np.full((mesh.shape[0], 1), radius, dtype=np.float32), mesh], axis=1)
+        mesh[:, 1] *= pitch
+        mesh[:, 2] *= dtheta
+        
+        return spl.inv_cylindrical(mesh, (1, self.nm2pixel(ny*pitch), 1))
+        
 def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     # img: 3D
     img_z = img.proj("z")

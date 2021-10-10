@@ -92,7 +92,7 @@ def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefil
     img = input[sl].data
     if np.any(np.array(pad) > 0):
         img = img.pad(pad, dims="zyx", constant_values=np.median(img))
-
+ 
     return ndi.map_coordinates(img,
                                coordinates,
                                order=order,
@@ -100,3 +100,18 @@ def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefil
                                cval=cval,
                                prefilter=prefilter
                                )
+
+def oblique_meshgrid(shape: tuple[int, int], 
+                     rise: float = 0,
+                     tilt: float = 0, 
+                     offset: float = 0) -> np.ndarray:
+    v0 = np.array([1, tilt], dtype=np.float32)
+    v1 = np.array([rise, 1], dtype=np.float32)
+    n0, n1 = shape
+    out = np.empty((n0, n1, 2), dtype=np.float32)
+    border = np.array(shape, dtype=np.float32)
+    for i in range(n0):
+        for j in range(n1):
+            out[i, j, :] = (v0 * i + v1 * j) % border
+    out[:, :, 1] += offset
+    return out
