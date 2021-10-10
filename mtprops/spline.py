@@ -236,12 +236,11 @@ class Spline3D:
         if u is None:
             u = self.anchors
         ds = self(u, 1)
-        # matrix_func = _vector_to_inv_rotation_matrix if inverse else _vector_to_rotation_matrix
-        matrix_func = _vector_to_rotation_matrix
+        
         if np.isscalar(u):
-            out = matrix_func(ds)
+            out = _vector_to_rotation_matrix(ds)
         else:
-            out = np.stack([matrix_func(ds0) for ds0 in ds], axis=0)
+            out = np.stack([_vector_to_rotation_matrix(ds0) for ds0 in ds], axis=0)
         
         if inverse:
             out = np.linalg.inv(out)
@@ -389,17 +388,17 @@ class Spline3D:
     
     def inv_cartesian(self,
                       coords: np.ndarray,
-                      shape: tuple[int, int, int]) -> np.ndarray:
+                      shape: tuple[nm, nm, nm]) -> np.ndarray:
         
         # TODO: implement for loop in numba
         ncoords = coords.shape[0]
-        u = coords[:, 1]/self.scale/shape[1]
+        u = coords[:, 1]/shape[1]
         s = self(u)
         ds = self(u, 1)
         
-        coords_ext = np.stack([coords[:, 0] - shape[0] * self.scale / 2, 
+        coords_ext = np.stack([coords[:, 0] - shape[0] / 2, 
                                np.zeros(ncoords, dtype=np.float32),
-                               coords[:, 2] - shape[2] * self.scale / 2, 
+                               coords[:, 2] - shape[2] / 2, 
                                np.zeros(ncoords, dtype=np.float32)],
                               axis=1)
         s_ext = np.concatenate([s, np.zeros((ncoords, 1), dtype=np.float32)], axis=1)
@@ -411,7 +410,7 @@ class Spline3D:
     
     def inv_cylindrical(self, 
                         coords: np.ndarray,
-                        shape: tuple[int, int, int]) -> np.ndarray:
+                        ylength: nm) -> np.ndarray:
         """
         Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
 
@@ -436,7 +435,7 @@ class Spline3D:
                                 radius*np.sin(theta)],
                                axis=1)
         
-        return self.inv_cartesian(cart_coords, (0, shape[1], 0))
+        return self.inv_cartesian(cart_coords, (0, ylength, 0))
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],

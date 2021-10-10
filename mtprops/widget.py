@@ -607,15 +607,17 @@ class MTProfiler:
         Refine splines using the global MT structural parameters.
         """        
         tomo = self.active_tomogram
-        tomo.make_anchors()
         
-        worker = create_worker(tomo.refine_fit,
+        def _run():
+            tomo.make_anchors()
+            tomo.refine_fit()
+            tomo.make_anchors()
+            tomo.measure_radius()
+        
+        worker = create_worker(_run,
                                _progress={"total": 0, 
                                           "desc": "Running"})
-        @worker.returned.connect
-        def _on_return(e):
-            tomo.make_anchors()
-
+        
         self._connect_worker(worker)
         self._worker_control.info.value = f"Refining splines ..."
         worker.start()
@@ -625,7 +627,6 @@ class MTProfiler:
     @set_design(text="Local FT analysis")
     def local_ft_params(self):
         tomo = self.active_tomogram
-        tomo.make_anchors()
         worker = create_worker(tomo.ft_params,
                                _progress={"total": 0, 
                                           "desc": "Running"})
@@ -642,10 +643,19 @@ class MTProfiler:
     @set_design(text="Global FT analysis")
     def global_ft_params(self):
         tomo = self.active_tomogram
-        out = tomo.global_ft_params()
-        df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
-        table = Table(value=df)
-        self.parent_viewer.window.add_dock_widget(table, name="Global structures")
+        worker = create_worker(tomo.global_ft_params,
+                               _progress={"total": 0, 
+                                          "desc": "Running"})
+        @worker.returned.connect
+        def _on_return(out):
+            df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
+            table = Table(value=df)
+            self.parent_viewer.window.add_dock_widget(table, name="Global structures")
+        
+        self._connect_worker(worker)
+        self._worker_control.info.value = f"Global Fourier transform ..."
+        worker.start()
+        
         return None
         
     @Analysis.wraps
@@ -678,7 +688,8 @@ class MTProfiler:
         def _on_return(out: ip.arrays.ImgArray):
             if tomo.light_background:
                 out = -out
-            self.parent_viewer.add_image(out, scale=out.scale)
+            self.parent_viewer.add_image(out, scale=out.scale, 
+                                         name=f"Reconstruction of MT-{i}")
         
         self._connect_worker(worker)
         self._worker_control.info.value = f"Reconstruction ..."
@@ -735,8 +746,9 @@ class MTProfiler:
                                )
         
         @worker.returned.connect
-        def _on_return(out: np.ndarray):
-            self.parent_viewer.add_points(out, size=2, face_color="lime", n_dimensional=True,
+        def _on_return(out):
+            self.parent_viewer.add_points(out.world, size=3, face_color="lime",
+                                          n_dimensional=True,
                                           name="tubulin monomers")
         
         self._connect_worker(worker)

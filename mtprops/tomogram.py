@@ -1,14 +1,16 @@
 from __future__ import annotations
+from os import name
 from typing import Iterable
-import matplotlib.pyplot as plt
-import numpy as np
 import json
+import matplotlib.pyplot as plt
+from collections import namedtuple
 from functools import partial, wraps
-from scipy import ndimage as ndi
-from ._dependencies import impy as ip
+import numpy as np
 import pandas as pd
+from scipy import ndimage as ndi
 from dask import array as da, delayed
 
+from ._dependencies import impy as ip
 from .const import nm, H, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
@@ -18,6 +20,7 @@ from .utils import (load_a_subtomogram, centroid, rotational_average, map_coordi
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 ERROR_NM = 1.0
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
+Coordinates = namedtuple("Coordinates", ["world", "spline"])
 
 def batch_process(func):
     # TODO: error handling
@@ -58,10 +61,13 @@ def json_encoder(obj):
 class MtSpline(Spline3D):
     def __init__(self, scale:float=1, k=3):
         super().__init__(scale=scale, k=k)
-        self._radius: nm = None
         self.orientation = Ori.none
-        self.localprops: pd.DataFrame = pd.DataFrame([])
+        self._init_properties()
     
+    def _init_properties(self):
+        self._radius: nm = None
+        self.localprops: pd.DataFrame = pd.DataFrame([])
+        
     @property
     def orientation(self) -> Ori:
         return self._orientation
@@ -85,7 +91,12 @@ class MtSpline(Spline3D):
             raise ValueError(f"Cannot set {type(value)} to radius.")
         else:
             self._updates += 1
-        
+    
+    def fit(self, coords:np.ndarray, w=None, s=None):
+        super().fit(coords, w=w, s=s)
+        self._init_properties()
+        return self
+    
     def to_dict(self) -> dict:
         d = super().to_dict()
         d["radius"] = self.radius
@@ -288,7 +299,7 @@ class MtTomogram:
         return pix
     
     @batch_process
-    def make_anchors(self, i: int = None, interval: nm = 24.0, n: int = None):
+    def make_anchors(self, i: int = None, interval: nm = None, n: int = None):
         """
         Make anchors on MtSpline object(s).
 
@@ -297,6 +308,8 @@ class MtTomogram:
         interval : nm
             Anchor intervals.
         """        
+        if interval is None and n is None:
+            interval = 24.0
         self._paths[i].make_anchors(interval=interval, n=n)
         return None
     
@@ -346,27 +359,34 @@ class MtTomogram:
     
     def _sample_subtomograms(self, 
                              i: int,
-                             cache: bool = True,
                              rotate: bool = True):
         spl = self._paths[i]
-        try:
-            out = cachemap[(self, spl, CacheKey.subtomograms)]
-        except KeyError:
+        if rotate:
+            try:
+                out = cachemap[(self, spl, CacheKey.subtomograms)]
+            except KeyError:
+                anchors = spl.anchors
+                center_px = self.nm2pixel(spl(anchors))
+                size_px = self.nm2pixel(self.box_size)
+                
+                with ip.SetConst("SHOW_PROGRESS", False):
+                    out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
+                                    for c in center_px],
+                                    axis="p")
+                    matrices = spl.rotation_matrix(anchors, center=size_px/2, inverse=True)
+                    out.value[:] = dask_affine(out.value, matrices)
+                
+                cachemap[(self, spl, CacheKey.subtomograms)] = out
+        else:
             anchors = spl.anchors
             center_px = self.nm2pixel(spl(anchors))
             size_px = self.nm2pixel(self.box_size)
             
             with ip.SetConst("SHOW_PROGRESS", False):
-            
                 out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
                                 for c in center_px],
                                 axis="p")
-                if rotate:
-                    matrices = spl.rotation_matrix(anchors, center=size_px/2, inverse=True)
-                    out.value[:] = dask_affine(out.value, matrices)
-            if cache:
-                cachemap[(self, spl, CacheKey.subtomograms)] = out
-            
+                
         return out
     
     @batch_process
@@ -395,11 +415,11 @@ class MtTomogram:
         npoints = max(ceilint(length/max_interval) + 1, 2)
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
-        subtomograms = self._sample_subtomograms(i, rotate=False, cache=False)
+        subtomograms = self._sample_subtomograms(i, rotate=False)
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
         nrots = roundint(14/degree_precision) + 1
-        
+
         with ip.SetConst("SHOW_PROGRESS", False):
             # Angular correlation
             out = delayed_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
@@ -442,10 +462,8 @@ class MtTomogram:
         for i in range(npoints):
             shiftz, shiftx = -shifts[i]
             shift = np.array([shiftz, 0, shiftx])
-            deg = refined_tilt[i]
-            rad = -np.deg2rad(deg)
-            cos = np.cos(rad)
-            sin = np.sin(rad)
+            rad = -np.deg2rad(refined_tilt[i])
+            cos, sin = np.cos(rad), np.sin(rad)
             shift = shift @ [[1.,   0.,  0.],
                              [0.,  cos, sin],
                              [0., -sin, cos]]
@@ -490,7 +508,7 @@ class MtTomogram:
         props = self.global_ft_params(i)
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
-        npf = int(props[H.nPF])
+        npf = roundint(props[H.nPF])
         skew_angles = np.arange(npoints) * interval/lp * skew
         skew_angles %= (360/npf)
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
@@ -498,10 +516,12 @@ class MtTomogram:
         with ip.SetConst("SHOW_PROGRESS", False):
             subtomo_proj = subtomograms.proj("y")
             imgs_rot = []
-            for i, ang in enumerate(skew_angles):                
+            for i, ang in enumerate(skew_angles):     
+                # rotate 'ang' counter-clockwise           
                 rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
                 imgs_rot.append(rotimg)
 
+            # Align skew-corrected images
             iref = npoints//2
             imgref = imgs_rot[iref]
             shifts = np.zeros((npoints, 2)) # zx-shift
@@ -514,11 +534,13 @@ class MtTomogram:
                     shifts[i] = np.array([0, 0])
                     
                 imgs_aligned.append(img.affine(translation=-shifts[i]))
-                
+            
+            # Make template
             imgcory = np.stack(imgs_aligned, axis="y").proj("y")
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
             template = imgcory.affine(translation=center_shift/2)
-
+            
+            # Align skew-corrected images to the template
             for i in range(npoints):
                 img = imgs_rot[i]
                 shifts[i] = ip.pcc_maximum(template, img)
@@ -527,24 +549,20 @@ class MtTomogram:
         for i in range(npoints):
             shiftz, shiftx = -shifts[i]
             shift = np.array([shiftz, 0, shiftx])
-            deg = skew_angles[i]
-            rad = -np.deg2rad(deg)
-            cos = np.cos(rad)
-            sin = np.sin(rad)
+            rad = np.deg2rad(skew_angles[i])
+            cos, sin = np.cos(rad), np.sin(rad)
             
-            mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
+            # rotate by 'rad' clockwise
             zxrot = np.array([[cos,  0., sin],
                               [0.,   1.,  0.],
                               [-sin, 0., cos]])
 
-            world_shift = shift @ zxrot @ mtx * self.scale
-            
-            coords[i] += world_shift
+            mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
+            coords[i] += shift @ zxrot @ mtx * self.scale
             
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
-        
         return self
                 
                 
@@ -944,8 +962,10 @@ class MtTomogram:
                 start = self.nm2pixel(start)
                 stop = self.nm2pixel(stop)
                 shift = ang/360*img_open.shape.a
-                imgs.append(img_open[:, start:stop].affine(translation=[0, shift],
-                                                           dims="ya", mode="grid-wrap"))
+                imgs.append(
+                    img_open[:, start:stop].affine(translation=[0, shift],
+                                                   dims="ya", mode="grid-wrap")
+                    )
                 ylen = min(ylen, stop-start)
             
             # align each fragment
@@ -982,7 +1002,8 @@ class MtTomogram:
         
         return np.concatenate(outlist, axis="y")
     
-    def map_monomer(self, i):
+    @batch_process
+    def map_monomer(self, i: int = None):
         spl = self._paths[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         r0 = self.nm2pixel(spl.radius)
@@ -1013,7 +1034,9 @@ class MtTomogram:
         mesh[:, 1] *= pitch
         mesh[:, 2] *= dtheta
         
-        return spl.inv_cylindrical(mesh, (1, self.nm2pixel(ny*pitch), 1))
+        crds = Coordinates(world = spl.inv_cylindrical(coords=mesh, ylength=ny*pitch),
+                           spline = mesh)
+        return crds
         
 def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
     # img: 3D
