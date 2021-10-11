@@ -386,11 +386,40 @@ class Spline3D:
         """   
         return self._get_coords(_polar_coords_2d, r_range, s_range)
     
+    def oblique_cylindrical(self,
+                            r_range: tuple[int, int],
+                            s_range: tuple[float, float] = (0, 1),
+                            rise_per_px: float = 0.0,
+                            skew_per_px: float = 0.0
+                            ) -> np.ndarray:
+        # TODO: test me
+        cyl_coords = self.cylindrical(r_range, s_range)
+        
+        mtx = np.array([[1.0,         0.0,         0.0, 0.0],
+                        [0.0,         1.0, skew_per_px, 0.0],
+                        [0.0, rise_per_px,         1.0, 0.0],
+                        [0.0,         0.0,         0.0, 1.0]])
+        
+        return cyl_coords.dot(mtx)
+    
     def inv_cartesian(self,
                       coords: np.ndarray,
                       shape: tuple[nm, nm, nm]) -> np.ndarray:
-        
-        # TODO: implement for loop in numba
+        """
+        Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
+
+        Parameters
+        ----------
+        coords : np.ndarray
+            Spline Cartesian coordinates. All the coordinates must be in nm unit.
+        shape : tuple[nm, nm, nm]
+            Shape of world coordinate image.
+
+        Returns
+        -------
+        np.ndarray
+            World coordinates.
+        """        
         ncoords = coords.shape[0]
         u = coords[:, 1]/shape[1]
         s = self(u)
@@ -419,8 +448,9 @@ class Spline3D:
         coords : np.ndarray
             Cylindrical coordinates. "r" and "y" must be in scale of "nm", while angle
             must be in radian.
-        shape : tuple[int, int, int]
-            Shape of world coordinate image.
+        ylength : nm
+            Length of y-axis of input coordinates. Position [0, ylength] corresponds to
+            [0, 1] of spline position.
 
         Returns
         -------
@@ -470,10 +500,10 @@ _D = slice(None, None, 1) # dimension of dimension (such as d=0: z, d=1: y,...)
 
 @nb.njit(cache=True)
 def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
-    yx = np.arctan2(ds[2], -ds[1])
+    xy = np.arctan2(ds[2], -ds[1])
     zy = np.arctan(-ds[0]/np.abs(ds[1]))
-    cos = np.cos(yx)
-    sin = np.sin(yx)
+    cos = np.cos(xy)
+    sin = np.sin(xy)
     rotation_yx = np.array([[1.,  0.,   0., 0.],
                             [0., cos, -sin, 0.],
                             [0., sin,  cos, 0.],
@@ -495,6 +525,9 @@ def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
 def _rot_point_with_vector(point: nb.float32[_V,_H,_D], 
                            dr: nb.float32[_D]
                            ) -> nb.float32[_V,_H,_D]:
+    """
+    Rotate 'point' with vector 'dr'.
+    """    
     mx = _vector_to_rotation_matrix(dr)
     
     out = np.empty(point.shape[:2] + (3,), dtype=np.float32)

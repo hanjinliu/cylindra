@@ -200,7 +200,8 @@ class MTProfiler:
         # TODO: color by other properties
         if self.layer_paint is None:
             return None
-        color = self.layer_paint.color
+        color = {0: np.array([0., 0., 0., 0.], dtype=np.float32),
+                 None: np.array([0., 0., 0., 1.], dtype=np.float32)}
         lim0, lim1 = self.label_colorlimit
         df = self.active_tomogram.collect_localprops()[prop]
         for i, value in enumerate(df):
@@ -319,7 +320,6 @@ class MTProfiler:
         def _on_return(out: MtTomogram):
             self._load_tomogram_results()
         
-        self._worker_control.info.value = f"Spline fitting (0/{self.active_tomogram.n_paths})"
         worker.start()
         return None
     
@@ -330,6 +330,7 @@ class MTProfiler:
         tomo = self.active_tomogram
         tomo.box_size = box_size
         tomo.ft_size = ft_size
+        yield f"Spline fitting (0/{self.active_tomogram.n_paths})"
         for i in range(tomo.n_paths):
             tomo.fit(i)
             tomo.make_anchors(interval=interval)
@@ -340,8 +341,8 @@ class MTProfiler:
             yield f"Local Fourier transform ({i}/{tomo.n_paths}) "
             tomo.measure_radius(i)
             tomo.ft_params(i)
-            
-            yield f"Spline fitting ({i+1}/{tomo.n_paths})"
+            if i < tomo.n_paths:
+                yield f"Spline fitting ({i+1}/{tomo.n_paths})"
         yield "Finishing ..."
         return tomo
     
@@ -382,11 +383,31 @@ class MTProfiler:
     def global_variables(self, 
                          nPFmin: int = 11,
                          nPFmax: int = 17,
-                         splOrder: int = 2,
+                         splOrder: int = 3,
                          yPitchAvg: nm = 4.16,
-                         splError: nm = 0.2,
+                         splError: nm = 0.8,
                          inner: float = 0.7,
                          outer: float = 1.6):
+        """
+        Set global variables.
+
+        Parameters
+        ----------
+        nPFmin : int, default is 11
+            Minimum protofilament numbers. 
+        nPFmax : int, default is 17
+            Maximum protofilament numbers.
+        splOrder : int, default is 3
+            Maximum order of spline curve.
+        yPitchAvg : nm, default is 4.16
+            Average pitch length estimation.
+        splError : nm, default is 0.8
+            Average error of spline fitting.
+        inner : float, default is 0.7
+            Radius x inner will be the inner surface of MT.
+        outer : float, default is 1.6
+            Radius x outer will be the outer surface of MT.
+        """        
         GVar.set_value(**locals())
         
     
@@ -507,6 +528,9 @@ class MTProfiler:
     @View.wraps
     @set_design(text="View straightened image")
     def show_straightened_img(self):
+        """
+        Send straightened image of the current MT to viewer.
+        """        
         i = self.mt.mtlabel.value
         tomo = self.active_tomogram
         
@@ -532,15 +556,19 @@ class MTProfiler:
         Show radial projection of cylindrical image around the current MT fragment.
         """        
         polar = self._current_cylindrical_img().proj("r")
-        self.parent_viewer.add_image(polar, scale=polar.scale)
+        self.parent_viewer.add_image(polar, scale=polar.scale, name="R-projection")
         return None
     
     @View.wraps
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
+        """
+        Show radial projection of cylindrical image along current MT.
+        """        
         i = self.mt.mtlabel.value
-        polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
-        self.parent_viewer.add_image(polar, scale=polar.scale)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
+        self.parent_viewer.add_image(polar, scale=polar.scale, name="R-projection (Global)")
         return None
     
     @View.wraps
@@ -549,19 +577,23 @@ class MTProfiler:
         """
         View Fourier space of local cylindrical coordinate system at current position.
         """        
-        polar = self._current_cylindrical_img()
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
+        with ip.SetConst("SHOW_PROGRESS", False):
+            polar = self._current_cylindrical_img()
+            pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno", name="FT")
         return None
     
     @View.wraps
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self):
+        """
+        View Fourier space along current MT.
+        """  
         i = self.mt.mtlabel.value
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self.active_tomogram.straighten(i, cylindrical=True)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno")
+        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno", name="FT (Global)")
         return None
     
     @View.wraps
@@ -609,7 +641,6 @@ class MTProfiler:
         tomo = self.active_tomogram
         
         def _run():
-            tomo.make_anchors()
             tomo.refine_fit()
             tomo.make_anchors()
             tomo.measure_radius()
@@ -621,6 +652,13 @@ class MTProfiler:
         self._connect_worker(worker)
         self._worker_control.info.value = f"Refining splines ..."
         worker.start()
+                
+        self._init_widget_params()
+        self.canvas.figure.clf()
+        self.canvas.draw()
+        self.plot.figure.clf()
+        self.plot.figure.add_subplot(111)
+        self.plot.draw()
         return None
     
     @Analysis.wraps
