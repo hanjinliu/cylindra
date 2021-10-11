@@ -361,11 +361,11 @@ class MtTomogram:
                              i: int,
                              rotate: bool = True):
         spl = self._paths[i]
+        anchors = spl.anchors
         if rotate:
             try:
                 out = cachemap[(self, spl, CacheKey.subtomograms)]
             except KeyError:
-                anchors = spl.anchors
                 center_px = self.nm2pixel(spl(anchors))
                 size_px = self.nm2pixel(self.box_size)
                 
@@ -378,7 +378,6 @@ class MtTomogram:
                 
                 cachemap[(self, spl, CacheKey.subtomograms)] = out
         else:
-            anchors = spl.anchors
             center_px = self.nm2pixel(spl(anchors))
             size_px = self.nm2pixel(self.box_size)
             
@@ -436,26 +435,10 @@ class MtTomogram:
                 img.rotate(-angle, cval=np.median(img), update=True)
             
             subtomo_proj = subtomograms.proj("y")
-            iref = npoints//2
-            imgref = subtomo_proj[iref]
             shifts = np.zeros((npoints, 2)) # zx-shift
-            imgs = []
             for i in range(npoints):
                 img = subtomo_proj[i]
-                if i != iref:
-                    shifts[i] = ip.pcc_maximum(imgref, img)
-                else:
-                    shifts[i] = np.array([0, 0])
-                    
-                imgs.append(img.affine(translation=-shifts[i]))
-                
-            imgs = np.stack(imgs, axis="y")
-            imgcory = imgs.proj("y")
-            center_shift = ip.pcc_maximum(imgcory, imgcory[::-1,::-1])            
-            template = imgcory.affine(translation=center_shift/2)
-            for i in range(npoints):
-                img = subtomo_proj[i]
-                shifts[i] = ip.pcc_maximum(template, img)
+                shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img)/2
         
         # Update spline coordinates.
         coords = spl()
@@ -510,9 +493,9 @@ class MtTomogram:
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
         skew_angles = np.arange(npoints) * interval/lp * skew
-        skew_angles %= (360/npf)
+        skew_angles %= 360/npf
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
-            
+        
         with ip.SetConst("SHOW_PROGRESS", False):
             subtomo_proj = subtomograms.proj("y")
             imgs_rot = []
@@ -538,7 +521,7 @@ class MtTomogram:
             # Make template
             imgcory = np.stack(imgs_aligned, axis="y").proj("y")
             center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
-            template = imgcory.affine(translation=center_shift/2)
+            template = imgcory.affine(translation=center_shift/2, mode="reflect")
             
             # Align skew-corrected images to the template
             for i in range(npoints):
@@ -556,10 +539,10 @@ class MtTomogram:
             zxrot = np.array([[cos,  0., sin],
                               [0.,   1.,  0.],
                               [-sin, 0., cos]])
-
+            
             mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
             coords[i] += shift @ zxrot @ mtx * self.scale
-            
+        
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
@@ -1003,7 +986,7 @@ class MtTomogram:
         return np.concatenate(outlist, axis="y")
     
     @batch_process
-    def map_monomer(self, i: int = None):
+    def map_monomer(self, i: int = None) -> Coordinates:
         spl = self._paths[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         r0 = self.nm2pixel(spl.radius)
@@ -1026,7 +1009,7 @@ class MtTomogram:
         mesh = oblique_meshgrid((ny, npf), 
                                 rise = tan_rise*(2*np.pi/npf*radius)/pitch,
                                 tilt = np.tan(np.deg2rad(skew))/2*(2*np.pi/npf), 
-                                offset = (amax - ymax*tan_rise)/rec_cyl.shape.a*2*np.pi
+                                offset = (amax + ymax*tan_rise)/rec_cyl.shape.a*2*np.pi # TODO: not correct?
                                 ).reshape(-1, 2)
         
         dtheta = 2*np.pi/npf
