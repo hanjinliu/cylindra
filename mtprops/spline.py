@@ -392,15 +392,33 @@ class Spline3D:
                             rise_per_px: float = 0.0,
                             skew_per_px: float = 0.0
                             ) -> np.ndarray:
-        # TODO: test me
-        cyl_coords = self.cylindrical(r_range, s_range)
-        
+        s0, s1 = s_range
+        length = self.length(start=s0, stop=s1)
+        stop_length, n_segs = interval_divmod(length, self.scale)
+        n_pixels = n_segs + 1
+        s2 = (s1 - s0) * stop_length/length + s0
+        if n_pixels < 2:
+            raise ValueError("Too short. Change 's_range'.")
+        u = np.linspace(s0, s2, n_pixels)
+        y_ax_coords = self(u)/self.scale # world coordinates of y-axis in spline coords system
+        dslist = self(u, 1).astype(np.float32)
+        map_ = _polar_coords_2d(*r_range)
+        zeros = np.zeros(map_.shape[:-1], dtype=np.float32)
+        ones = np.ones(map_.shape[:-1], dtype=np.float32)
+        map_slice = np.stack([map_[..., 0], 
+                              zeros,
+                              map_[..., 1],
+                              ones
+                              ], axis=2) # V, S, H, D
+        # TODO: each slice must be rotated separately, with different skew
         mtx = np.array([[1.0,         0.0,         0.0, 0.0],
                         [0.0,         1.0, skew_per_px, 0.0],
                         [0.0, rise_per_px,         1.0, 0.0],
-                        [0.0,         0.0,         0.0, 1.0]])
+                        [0.0,         0.0,         0.0, 1.0]], 
+                       dtype=np.float32)
         
-        return cyl_coords.dot(mtx)
+        map_slice = map_slice @ mtx
+        return _rot_with_vector(map_slice, y_ax_coords, dslist)
     
     def inv_cartesian(self,
                       coords: np.ndarray,
@@ -566,7 +584,7 @@ def _polar_coords_2d(r_start: int, r_stop: int) -> np.ndarray:
     coords[:] = np.flip(coords, axis=0)
     coords[:] = np.flip(coords, axis=1)
     return coords
-
+    
 def _cartesian_coords_2d(lenv, lenh):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= (lenv/2 - 0.5)

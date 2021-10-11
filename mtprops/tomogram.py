@@ -413,7 +413,7 @@ class MtTomogram:
         """        
         spl = self._paths[i]
         length = spl.length()
-        npoints = max(ceilint(length/max_interval) + 1, 2)
+        npoints = max(ceilint(length/max_interval) + 1, 4)
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i, rotate=False)
@@ -436,10 +436,13 @@ class MtTomogram:
             img.rotate(-angle, cval=np.median(img), update=True)
         
         subtomo_proj = subtomograms.proj("y")
+        shape = subtomo_proj[0].shape
         shifts = np.zeros((npoints, 2)) # zx-shift
+        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+        
         for i in range(npoints):
             img = subtomo_proj[i]
-            shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img)/2
+            shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img, mask=mask)/2
         
         # Update spline coordinates.
         coords = spl()
@@ -460,10 +463,10 @@ class MtTomogram:
         return self
     
     @batch_process
-    def refine_fit(self, 
-                   i: int = None,
-                   *, 
-                   max_interval: nm = 30.0) -> MtTomogram:
+    def refine(self, 
+               i: int = None,
+               *, 
+               max_interval: nm = 30.0) -> MtTomogram:
         """
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
@@ -483,7 +486,7 @@ class MtTomogram:
         """        
         spl = self._paths[i]
         length = spl.length()
-        npoints = ceilint(length/max_interval) + 1
+        npoints = max(ceilint(length/max_interval) + 1, 4)
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i)
@@ -508,11 +511,13 @@ class MtTomogram:
         iref = npoints//2
         imgref = imgs_rot[iref]
         shifts = np.zeros((npoints, 2)) # zx-shift
+        shape = imgref.shape
+        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) # mask for PCC
         imgs_aligned = []
         for i in range(npoints):
             img = imgs_rot[i]
             if i != iref:
-                shifts[i] = ip.pcc_maximum(imgref, img)
+                shifts[i] = ip.pcc_maximum(imgref, img, mask=mask)
             else:
                 shifts[i] = np.array([0, 0])
                 
@@ -520,13 +525,13 @@ class MtTomogram:
         
         # Make template
         imgcory = np.stack(imgs_aligned, axis="y").proj("y")
-        center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
+        center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1], mask=mask)
         template = imgcory.affine(translation=center_shift/2, mode="reflect")
         
         # Align skew-corrected images to the template
         for i in range(npoints):
             img = imgs_rot[i]
-            shifts[i] = ip.pcc_maximum(template, img)
+            shifts[i] = ip.pcc_maximum(template, img, mask=mask)
 
         coords = spl()
         for i in range(npoints):
@@ -539,7 +544,7 @@ class MtTomogram:
             zxrot = np.array([[cos,  0., sin],
                               [0.,   1.,  0.],
                               [-sin, 0., cos]])
-            
+                        
             mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
             coords[i] += shift @ zxrot @ mtx * self.scale
         
@@ -850,9 +855,11 @@ class MtTomogram:
         # align each fragment
         imgs[0] = imgs[0][:, :ylen]
         ref = imgs[0]
+        shape = ref.shape
+        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
         for i in range(1, len(imgs)):
             img = imgs[i][:, :ylen]
-            shift = ip.pcc_maximum(img, ref)
+            shift = ip.pcc_maximum(img, ref, mask=mask)
             imgs[i] = img.affine(translation=shift, mode="grid-wrap")
 
         out = np.stack(imgs, axis="p").proj("p")
@@ -949,9 +956,11 @@ class MtTomogram:
         # align each fragment
         imgs[0] = imgs[0][f"y=:{ylen}"]
         ref = imgs[0]
+        shape = ref.shape
+        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
         for i in range(1, len(imgs)):
             img = imgs[i][f"y=:{ylen}"]
-            shift = ip.pcc_maximum(img, ref)
+            shift = ip.pcc_maximum(img, ref, mask=mask)
             imgs[i] = img.affine(translation=shift, 
                                     dims="rya", mode="grid-wrap")
 

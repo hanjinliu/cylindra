@@ -319,7 +319,7 @@ class MTProfiler:
         @worker.returned.connect
         def _on_return(out: MtTomogram):
             self._load_tomogram_results()
-        
+        self._worker_control.info.value = f"Spline fitting (0/{self.active_tomogram.n_paths})"
         worker.start()
         return None
     
@@ -330,7 +330,6 @@ class MTProfiler:
         tomo = self.active_tomogram
         tomo.box_size = box_size
         tomo.ft_size = ft_size
-        yield f"Spline fitting (0/{self.active_tomogram.n_paths})"
         for i in range(tomo.n_paths):
             tomo.fit(i)
             tomo.make_anchors(interval=interval)
@@ -341,7 +340,7 @@ class MTProfiler:
             yield f"Local Fourier transform ({i}/{tomo.n_paths}) "
             tomo.measure_radius(i)
             tomo.ft_params(i)
-            if i < tomo.n_paths:
+            if i+1 < tomo.n_paths:
                 yield f"Spline fitting ({i+1}/{tomo.n_paths})"
         yield "Finishing ..."
         return tomo
@@ -640,7 +639,7 @@ class MTProfiler:
         tomo = self.active_tomogram
         
         def _run():
-            tomo.refine_fit()
+            tomo.refine()
             tomo.make_anchors()
             tomo.measure_radius()
         
@@ -1166,7 +1165,12 @@ class MTProfiler:
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        results = tomo.paths[i]
+        try:
+            results = tomo.paths[i]
+        except IndexError:
+            # sometimes i takes wrong value due to event emission
+            i = 0
+            results = tomo.paths[i]
         pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
         self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{int(start)}"
         
