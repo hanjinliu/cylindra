@@ -27,7 +27,9 @@ def batch_process(func):
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
-            return func(self, i=i, **kwargs)
+            with ip.SetConst("SHOW_PROGRESS", False):
+                out = func(self, i=i, **kwargs)
+            return out
         
         if i is None:
             i_list = range(self.n_paths)
@@ -45,7 +47,9 @@ def batch_process(func):
             
             if len(i_list) > len(set(i_list)):
                 raise ValueError("Indices cannot contain duplicated values.")
-        out = [func(self, i=i_, **kwargs) for i_ in i_list]
+        
+        with ip.SetConst("SHOW_PROGRESS", False):
+            out = [func(self, i=i_, **kwargs) for i_ in i_list]
         
         return out
     return _func  
@@ -369,22 +373,20 @@ class MtTomogram:
                 center_px = self.nm2pixel(spl(anchors))
                 size_px = self.nm2pixel(self.box_size)
                 
-                with ip.SetConst("SHOW_PROGRESS", False):
-                    out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
-                                    for c in center_px],
-                                    axis="p")
-                    matrices = spl.rotation_matrix(anchors, center=size_px/2, inverse=True)
-                    out.value[:] = dask_affine(out.value, matrices)
+                out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
+                                for c in center_px],
+                                axis="p")
+                matrices = spl.rotation_matrix(anchors, center=size_px/2, inverse=True)
+                out.value[:] = dask_affine(out.value, matrices)
                 
                 cachemap[(self, spl, CacheKey.subtomograms)] = out
         else:
             center_px = self.nm2pixel(spl(anchors))
             size_px = self.nm2pixel(self.box_size)
             
-            with ip.SetConst("SHOW_PROGRESS", False):
-                out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
-                                for c in center_px],
-                                axis="p")
+            out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
+                            for c in center_px],
+                            axis="p")
                 
         return out
     
@@ -419,26 +421,25 @@ class MtTomogram:
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
         nrots = roundint(14/degree_precision) + 1
 
-        with ip.SetConst("SHOW_PROGRESS", False):
-            # Angular correlation
-            out = delayed_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
-            refined_tilt = np.array([0] + list(out) + [0])
-            size = 2*roundint(48.0/interval) + 1
-            if size > 1:
-                # Mirror-mode padding is "a b c d | c b a", thus edge values will be substituted
-                # with the adjucent values respectively.
-                refined_tilt = ndi.median_filter(refined_tilt, size=size, mode="mirror")
-            
-            # Rotate subtomograms            
-            for i, img in enumerate(subtomograms):
-                angle = refined_tilt[i]
-                img.rotate(-angle, cval=np.median(img), update=True)
-            
-            subtomo_proj = subtomograms.proj("y")
-            shifts = np.zeros((npoints, 2)) # zx-shift
-            for i in range(npoints):
-                img = subtomo_proj[i]
-                shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img)/2
+        # Angular correlation
+        out = delayed_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
+        refined_tilt = np.array([0] + list(out) + [0])
+        size = 2*roundint(48.0/interval) + 1
+        if size > 1:
+            # Mirror-mode padding is "a b c d | c b a", thus edge values will be substituted
+            # with the adjucent values respectively.
+            refined_tilt = ndi.median_filter(refined_tilt, size=size, mode="mirror")
+        
+        # Rotate subtomograms            
+        for i, img in enumerate(subtomograms):
+            angle = refined_tilt[i]
+            img.rotate(-angle, cval=np.median(img), update=True)
+        
+        subtomo_proj = subtomograms.proj("y")
+        shifts = np.zeros((npoints, 2)) # zx-shift
+        for i in range(npoints):
+            img = subtomo_proj[i]
+            shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img)/2
         
         # Update spline coordinates.
         coords = spl()
@@ -496,37 +497,36 @@ class MtTomogram:
         skew_angles %= 360/npf
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
         
-        with ip.SetConst("SHOW_PROGRESS", False):
-            subtomo_proj = subtomograms.proj("y")
-            imgs_rot = []
-            for i, ang in enumerate(skew_angles):     
-                # rotate 'ang' counter-clockwise           
-                rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
-                imgs_rot.append(rotimg)
+        subtomo_proj = subtomograms.proj("y")
+        imgs_rot = []
+        for i, ang in enumerate(skew_angles):     
+            # rotate 'ang' counter-clockwise           
+            rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
+            imgs_rot.append(rotimg)
 
-            # Align skew-corrected images
-            iref = npoints//2
-            imgref = imgs_rot[iref]
-            shifts = np.zeros((npoints, 2)) # zx-shift
-            imgs_aligned = []
-            for i in range(npoints):
-                img = imgs_rot[i]
-                if i != iref:
-                    shifts[i] = ip.pcc_maximum(imgref, img)
-                else:
-                    shifts[i] = np.array([0, 0])
-                    
-                imgs_aligned.append(img.affine(translation=-shifts[i]))
-            
-            # Make template
-            imgcory = np.stack(imgs_aligned, axis="y").proj("y")
-            center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
-            template = imgcory.affine(translation=center_shift/2, mode="reflect")
-            
-            # Align skew-corrected images to the template
-            for i in range(npoints):
-                img = imgs_rot[i]
-                shifts[i] = ip.pcc_maximum(template, img)
+        # Align skew-corrected images
+        iref = npoints//2
+        imgref = imgs_rot[iref]
+        shifts = np.zeros((npoints, 2)) # zx-shift
+        imgs_aligned = []
+        for i in range(npoints):
+            img = imgs_rot[i]
+            if i != iref:
+                shifts[i] = ip.pcc_maximum(imgref, img)
+            else:
+                shifts[i] = np.array([0, 0])
+                
+            imgs_aligned.append(img.affine(translation=-shifts[i]))
+        
+        # Make template
+        imgcory = np.stack(imgs_aligned, axis="y").proj("y")
+        center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1])            
+        template = imgcory.affine(translation=center_shift/2, mode="reflect")
+        
+        # Align skew-corrected images to the template
+        for i in range(npoints):
+            img = imgs_rot[i]
+            shifts[i] = ip.pcc_maximum(template, img)
 
         coords = spl()
         for i in range(npoints):
@@ -583,18 +583,17 @@ class MtTomogram:
         float (nm)
             MT radius.
         """        
-        with ip.SetConst("SHOW_PROGRESS", False):
-            subtomograms = self._sample_subtomograms(i)
-            nbin = 17
-            r_max: nm = 17.0
-            img2d = subtomograms.proj("py")
-            prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
-            if self.light_background:
-                prof = -prof
-                
-            imax = np.argmax(prof)
-            r_peak_sub = centroid(prof, imax-5, imax+5)/nbin*r_max
-            self._paths[i].radius = r_peak_sub
+        subtomograms = self._sample_subtomograms(i)
+        nbin = 17
+        r_max: nm = 17.0
+        img2d = subtomograms.proj("py")
+        prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
+        if self.light_background:
+            prof = -prof
+            
+        imax = np.argmax(prof)
+        r_peak_sub = centroid(prof, imax-5, imax+5)/nbin*r_max
+        self._paths[i].radius = r_peak_sub
         return r_peak_sub
     
     @batch_process
@@ -617,18 +616,17 @@ class MtTomogram:
         spl.localprops = pd.DataFrame([])
         rmin = self.nm2pixel(spl.radius*GVar.inner)
         rmax = self.nm2pixel(spl.radius*GVar.outer)
-        with ip.SetConst("SHOW_PROGRESS", False):
-            tasks = []
-            for anc in spl.anchors:
-                coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
-                coords = np.moveaxis(coords, -1, 0)
-                tasks.append(
-                    da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
-                                    shape=(5,), 
-                                    meta=np.array([], dtype=np.float32)
-                                    )
-                    )
-            results = np.stack(da.compute(tasks)[0], axis=0)
+        tasks = []
+        for anc in spl.anchors:
+            coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
+            coords = np.moveaxis(coords, -1, 0)
+            tasks.append(
+                da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
+                                shape=(5,), 
+                                meta=np.array([], dtype=np.float32)
+                                )
+                )
+        results = np.stack(da.compute(tasks)[0], axis=0)
                 
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
@@ -659,8 +657,7 @@ class MtTomogram:
         """        
         spl = self._paths[i]
         img_st = self.straighten(i, radius=(spl.radius*GVar.inner, spl.radius*GVar.outer), cylindrical=True)
-        with ip.SetConst("SHOW_PROGRESS", False):
-            results = _local_dft_params(img_st, spl.radius)
+        results = _local_dft_params(img_st, spl.radius)
         series = pd.Series([], dtype=np.float32)
         series[H.riseAngle] = results[0]
         series[H.yPitch] = results[1]
@@ -757,12 +754,11 @@ class MtTomogram:
                 
             coords = np.moveaxis(coords, -1, 0)
             
-            with ip.SetConst("SHOW_PROGRESS", False):
-                transformed = map_coordinates(self.image, 
-                                              coords,
-                                              order=1,
-                                              prefilter=False
-                                              )
+            transformed = map_coordinates(self.image, 
+                                            coords,
+                                            order=1,
+                                            prefilter=False
+                                            )
             
             axes = "rya" if cylindrical else "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -790,12 +786,11 @@ class MtTomogram:
             Averaged images. They will have "pzx" axes.
         """        
         subtomograms = self._sample_subtomograms(i)
-        with ip.SetConst("SHOW_PROGRESS", False):
-            projs = subtomograms.proj("y") # pzx
-            spl = self._paths[i]
-            out = np.empty_like(projs)
-            for p, (img, npf) in enumerate(zip(projs, spl.localprops[H.nPF])):
-                out.value[p] = rotational_average(img, fold=npf)
+        projs = subtomograms.proj("y") # pzx
+        spl = self._paths[i]
+        out = np.empty_like(projs)
+        for p, (img, npf) in enumerate(zip(projs, spl.localprops[H.nPF])):
+            out.value[p] = rotational_average(img, fold=npf)
         
         return out
     
@@ -844,54 +839,54 @@ class MtTomogram:
         # Rotate fragment with skew angle
         imgs = []
         ylen = 99999
-        with ip.SetConst("SHOW_PROGRESS", False):
-            # Split image into dimers along y-direction
-            for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
-                start = self.nm2pixel(start)
-                stop = self.nm2pixel(stop)
-                imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode="reflect"))
-                ylen = min(ylen, stop-start)
+    
+        # Split image into dimers along y-direction
+        for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
+            start = self.nm2pixel(start)
+            stop = self.nm2pixel(stop)
+            imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode="reflect"))
+            ylen = min(ylen, stop-start)
 
-            # align each fragment
-            imgs[0] = imgs[0][:, :ylen]
-            ref = imgs[0]
-            for i in range(1, len(imgs)):
-                img = imgs[i][:, :ylen]
-                shift = ip.pcc_maximum(img, ref)
-                imgs[i] = img.affine(translation=shift, mode="grid-wrap")
+        # align each fragment
+        imgs[0] = imgs[0][:, :ylen]
+        ref = imgs[0]
+        for i in range(1, len(imgs)):
+            img = imgs[i][:, :ylen]
+            shift = ip.pcc_maximum(img, ref)
+            imgs[i] = img.affine(translation=shift, mode="grid-wrap")
 
-            out = np.stack(imgs, axis="p").proj("p")
-                        
-            # rotational averaging
-            # TODO: don't Affine twice
-            if rot_ave:
-                input_ = out.copy()
-                center = np.array(out.shape)/2 - 0.5
-                trs0 = np.eye(4, dtype=np.float32)
-                trs1 = np.eye(4, dtype=np.float32)
-                trs0[:3, 3] = -center
-                trs1[:3, 3] = center
-                for i in range(1, npf):
-                    ang = -2*np.pi*i/npf
-                    slope = np.tan(np.deg2rad(rise))
-                    dy = 2*np.pi*i/npf*radius*slope/self.scale
-                    cos = np.cos(ang)
-                    sin = np.sin(ang)
-                    rot = np.array([[cos, 0.,-sin, 0.],
-                                    [ 0., 1.,  0., dy],
-                                    [sin, 0., cos, 0.],
-                                    [ 0., 0.,  0., 1.]],
-                                   dtype=np.float32)
-                    mtx = trs1 @ rot @ trs0
-                    out.value[:] += input_.affine(mtx, mode="grid-wrap")
-            
-            # stack images for better visualization
-            dup = ceilint(y_length/lp)
-            outlist = [out]
-            if dup > 0:
-                for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                    outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
+        out = np.stack(imgs, axis="p").proj("p")
+                    
+        # rotational averaging
+        # TODO: don't Affine twice
+        if rot_ave:
+            input_ = out.copy()
+            center = np.array(out.shape)/2 - 0.5
+            trs0 = np.eye(4, dtype=np.float32)
+            trs1 = np.eye(4, dtype=np.float32)
+            trs0[:3, 3] = -center
+            trs1[:3, 3] = center
+            for i in range(1, npf):
+                ang = -2*np.pi*i/npf
+                slope = np.tan(np.deg2rad(rise))
+                dy = 2*np.pi*i/npf*radius*slope/self.scale
+                cos = np.cos(ang)
+                sin = np.sin(ang)
+                rot = np.array([[cos, 0.,-sin, 0.],
+                                [ 0., 1.,  0., dy],
+                                [sin, 0., cos, 0.],
+                                [ 0., 0.,  0., 1.]],
+                                dtype=np.float32)
+                mtx = trs1 @ rot @ trs0
+                out.value[:] += input_.affine(mtx, mode="grid-wrap")
         
+        # stack images for better visualization
+        dup = ceilint(y_length/lp)
+        outlist = [out]
+        if dup > 0:
+            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+                outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
+    
         return np.concatenate(outlist, axis="y")
     
     @batch_process
@@ -939,50 +934,50 @@ class MtTomogram:
         # Rotate fragment with skew angle
         imgs = []
         ylen = 99999
-        with ip.SetConst("SHOW_PROGRESS", False):
-            # Split image into dimers along y-direction
-            for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
-                start = self.nm2pixel(start)
-                stop = self.nm2pixel(stop)
-                shift = ang/360*img_open.shape.a
-                imgs.append(
-                    img_open[:, start:stop].affine(translation=[0, shift],
-                                                   dims="ya", mode="grid-wrap")
-                    )
-                ylen = min(ylen, stop-start)
-            
-            # align each fragment
-            imgs[0] = imgs[0][f"y=:{ylen}"]
-            ref = imgs[0]
-            for i in range(1, len(imgs)):
-                img = imgs[i][f"y=:{ylen}"]
-                shift = ip.pcc_maximum(img, ref)
-                imgs[i] = img.affine(translation=shift, 
-                                     dims="rya", mode="grid-wrap")
-
-            out = np.stack(imgs, axis="p").proj("p")
-            
-            # rotational averaging
-            # TODO: don't Affine twice
-            if rot_ave:
-                input_ = out.copy()
-                for i in range(1, npf):
-                    slope = np.tan(np.deg2rad(rise))
-                    dy = 2*np.pi*i/npf*radius*slope/self.scale
-                    shift_a = out.shape.a/npf*i
-                    shift = [dy, shift_a]
-                    out.value[:] += input_.affine(translation=shift, 
-                                                  dims="ya", mode="grid-wrap")
-            
-            # stack images for better visualization
-            dup = ceilint(y_length/lp)
-            outlist = [out]
-            if dup > 0:
-                for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                    shift = ang/360*img_open.shape.a
-                    outlist.append(out.affine(translation=[0, -shift], 
-                                              dims="ya", mode="grid-wrap"))
+    
+        # Split image into dimers along y-direction
+        for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
+            start = self.nm2pixel(start)
+            stop = self.nm2pixel(stop)
+            shift = ang/360*img_open.shape.a
+            imgs.append(
+                img_open[:, start:stop].affine(translation=[0, shift],
+                                                dims="ya", mode="grid-wrap")
+                )
+            ylen = min(ylen, stop-start)
         
+        # align each fragment
+        imgs[0] = imgs[0][f"y=:{ylen}"]
+        ref = imgs[0]
+        for i in range(1, len(imgs)):
+            img = imgs[i][f"y=:{ylen}"]
+            shift = ip.pcc_maximum(img, ref)
+            imgs[i] = img.affine(translation=shift, 
+                                    dims="rya", mode="grid-wrap")
+
+        out = np.stack(imgs, axis="p").proj("p")
+        
+        # rotational averaging
+        # TODO: don't Affine twice
+        if rot_ave:
+            input_ = out.copy()
+            for i in range(1, npf):
+                slope = np.tan(np.deg2rad(rise))
+                dy = 2*np.pi*i/npf*radius*slope/self.scale
+                shift_a = out.shape.a/npf*i
+                shift = [dy, shift_a]
+                out.value[:] += input_.affine(translation=shift, 
+                                                dims="ya", mode="grid-wrap")
+        
+        # stack images for better visualization
+        dup = ceilint(y_length/lp)
+        outlist = [out]
+        if dup > 0:
+            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+                shift = ang/360*img_open.shape.a
+                outlist.append(out.affine(translation=[0, -shift], 
+                                            dims="ya", mode="grid-wrap"))
+    
         return np.concatenate(outlist, axis="y")
     
     @batch_process

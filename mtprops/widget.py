@@ -472,7 +472,7 @@ class MTProfiler:
         return None            
     
     @View.wraps
-    @set_design(text="View current patch in napari")
+    @set_design(text="View current MT fragment")
     def send_to_napari(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
@@ -566,8 +566,7 @@ class MTProfiler:
         Show radial projection of cylindrical image along current MT.
         """        
         i = self.mt.mtlabel.value
-        with ip.SetConst("SHOW_PROGRESS", False):
-            polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
+        polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
         self.parent_viewer.add_image(polar, scale=polar.scale, name="R-projection (Global)")
         return None
     
