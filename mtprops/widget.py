@@ -95,47 +95,48 @@ class WorkerControl:
 class MTProfiler:
     # Main GUI class.
     
-    _loader = field(ImageLoader)
-    _worker_control = field(WorkerControl)
+    _loader = ImageLoader()
+    _worker_control = WorkerControl()
     
     @magicmenu
     class File:
-        def open_image_file(self, path: Path): ...
-        def from_json(self, path: Path): ...
-        def save_results(self, path: Path): ...
+        def Open_image(self, path: Path): ...
+        def Load_json(self, path: Path): ...
+        def Save_results_as_json(self, path: Path): ...
     
     @magicmenu
     class View:
-        def send_to_napari(self): ...
-        def show_straightened_img(self): ...
-        sep0 = field(Separator)
+        def View_current_MT_fragment(self): ...
+        def View_straightened_image(self): ...
+        sep0 = Separator()
         def show_current_ft(self): ...
         def show_global_ft(self): ...
         def show_r_proj(self): ...
         def show_global_r_proj(self): ...
-        sep1 = field(Separator)
-        def show_3d_path(self): ...
-        def show_table(self): ...
-        def set_colormap(self): ...
+        sep1 = Separator()
+        def Show_splines(self): ...
+        def Show_results_in_a_table_widget(self): ...
+        def Paint_MT(self): ...
+        def Set_colormap(self): ...
         focus = field(False, options={"text": "Focus"})
     
     @magicmenu
     class Analysis:
-        def fit_spline(self): ...
-        def refine_spline(self): ...
-        sep0 = field(Separator)
-        def local_ft_params(self): ...
-        def global_ft_params(self): ...
-        sep1 = field(Separator)
-        def reconstruction(self): ...
+        def Fit_splines(self): ...
+        def Refine_splines(self): ...
+        sep0 = Separator()
+        def Local_FT_analysis(self): ...
+        def Global_FT_analysis(self): ...
+        sep1 = Separator()
+        def Reconstruct_MT(self): ...
         def cylindric_reconstruction(self): ...
-        def map_tubulin(self): ...
+        def Map_tubulin(self): ...
     
     @magicmenu
     class Others:
-        def create_macro_(self): ...
-        def global_variables(self): ...
-        def info(self): ...
+        def Create_macro(self): ...
+        def Global_variables(self): ...
+        def MTProps_info(self): ...
         
     @magicclass(layout="horizontal", labels=False)
     class operation:
@@ -159,20 +160,17 @@ class MTProfiler:
     
     canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8), "tooltip": "Projections"})
         
-    
     txt = field(str, options={"enabled": False}, name="result")
         
     orientation_choice = field(Ori.none, name="Orientation: ")
     
-    plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of pitch lengths"})
+    plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of local properties"})
 
-    
     @View.wraps
-    @set_design(text="Set colormap")
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
                  limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
-    def set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.10, 4.36)):
+    def Set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.10, 4.36)):
         """
         Set the color-map for painting microtubules.
         
@@ -191,8 +189,10 @@ class MTProfiler:
         return None
     
     @Others.wraps
-    @set_design(text="Create Macro")
-    def create_macro_(self):
+    def Create_macro(self):
+        """
+        Create Python executable script.
+        """        
         self.create_macro(show=True)
         return None
     
@@ -217,7 +217,7 @@ class MTProfiler:
         self.layer_work: Points = None
         self.layer_paint: Labels = None
         
-        self.set_colormap()
+        self.Set_colormap()
         self.mt.pos.min_width = 70
         call_button = self._loader["call_button"]
         call_button.changed.connect(self.load_image)
@@ -378,8 +378,7 @@ class MTProfiler:
         return None
     
     @Others.wraps
-    @set_design(text="Global variables")
-    def global_variables(self, 
+    def Global_variables(self, 
                          nPFmin: int = 11,
                          nPFmax: int = 17,
                          splOrder: int = 3,
@@ -411,8 +410,7 @@ class MTProfiler:
         
     
     @Others.wraps
-    @set_design(text="MTProps info")
-    def info(self):
+    def MTProps_info(self):
         """
         Show information of dependencies.
         """        
@@ -429,14 +427,14 @@ class MTProfiler:
                 f"dask: {dask.__version__}\n"
         
         txt = TextEdit(value=value)
+        txt.native.setParent(self.native, txt.native.windowFlags())
         self.read_only = True
         txt.native.setFont(QFont("Consolas"))
         txt.show()
         return None
     
     @File.wraps
-    @set_design(text="Open image")
-    def open_image_file(self):
+    def Open_image(self):
         """
         Open an image and add to viewer.
         """
@@ -445,8 +443,7 @@ class MTProfiler:
         
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
-    @set_design(text="Load json")
-    def from_json(self, path: Path):
+    def Load_json(self, path: Path):
         """
         Choose a json file and load it.
         """        
@@ -459,7 +456,7 @@ class MTProfiler:
     @File.wraps
     @set_design(text="Save results as json")
     @set_options(file_path={"mode": "w", "filter": "*.json;*.txt"})
-    def save_results(self, file_path: Path):
+    def Save_results_as_json(self, file_path: Path):
         """
         Save the results as json.
         
@@ -471,8 +468,7 @@ class MTProfiler:
         return None            
     
     @View.wraps
-    @set_design(text="View current MT fragment")
-    def send_to_napari(self):
+    def View_current_MT_fragment(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
         """        
@@ -516,7 +512,7 @@ class MTProfiler:
     
     @View.wraps
     @set_design(text="Show results in a table widget")
-    def show_table(self):
+    def Show_results_in_a_table_widget(self):
         """
         Show result table.
         """        
@@ -526,7 +522,7 @@ class MTProfiler:
     
     @View.wraps
     @set_design(text="View straightened image")
-    def show_straightened_img(self):
+    def View_straightened_image(self):
         """
         Send straightened image of the current MT to viewer.
         """        
@@ -595,8 +591,7 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @set_design(text="Show splines")
-    def show_3d_path(self):
+    def Show_splines(self):
         """
         Show 3D spline paths of microtubule center axes as a layer.
         """        
@@ -608,8 +603,7 @@ class MTProfiler:
     
     @Analysis.wraps
     @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"})
-    @set_design(text="Fit splines")
-    def fit_spline(self, 
+    def Fit_splines(self, 
                    box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0)):
         """
         Fit MT with spline curve, using manually selected points.
@@ -627,12 +621,11 @@ class MTProfiler:
             tomo.measure_radius(i)
         
         self._init_layers()
-        self.show_3d_path()
+        self.Show_splines()
         return None
     
     @Analysis.wraps
-    @set_design(text="Refine splines")
-    def refine_spline(self):
+    def Refine_splines(self):
         """
         Refine splines using the global MT structural parameters.
         """        
@@ -660,8 +653,7 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    @set_design(text="Local FT analysis")
-    def local_ft_params(self):
+    def Local_FT_analysis(self):
         tomo = self.active_tomogram
         worker = create_worker(tomo.ft_params,
                                _progress={"total": 0, 
@@ -676,8 +668,7 @@ class MTProfiler:
         return None
         
     @Analysis.wraps
-    @set_design(text="Global FT analysis")
-    def global_ft_params(self):
+    def Global_FT_analysis(self):
         tomo = self.active_tomogram
         worker = create_worker(tomo.global_ft_params,
                                _progress={"total": 0, 
@@ -694,11 +685,10 @@ class MTProfiler:
         
         return None
         
-    @Analysis.wraps
+    @Analysis.wraps(template=MtTomogram.reconstruct)
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
-    @set_design(text="Reconstruct MT")
-    def reconstruction(self, rot_ave: bool = False, y_length: nm = 50.0):
+    def Reconstruct_MT(self, rot_ave, y_length):
         """
         Coarse reconstruction of MT.
 
@@ -732,11 +722,11 @@ class MTProfiler:
         worker.start()
         return None
     
-    @Analysis.wraps
+    @Analysis.wraps(template=MtTomogram.cylindric_reconstruct)
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
-    def cylindric_reconstruction(self, rot_ave: bool = False, y_length: nm = 50.0):
+    def cylindric_reconstruction(self, rot_ave, y_length):
         """
         Coarse reconstruction of MT.
 
@@ -771,7 +761,7 @@ class MTProfiler:
     
     @Analysis.wraps
     @set_design(text="Map tubulin")
-    def map_tubulin(self):
+    def Map_tubulin(self):
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         
@@ -860,7 +850,8 @@ class MTProfiler:
             change_viewer_focus(self.parent_viewer, points[last_i], self.layer_work.data[last_i])
         return None
     
-    def _paint_mt(self):
+    @View.wraps
+    def Paint_MT(self):
         """
         Paint microtubule fragments by its pitch length.
         
@@ -1056,12 +1047,8 @@ class MTProfiler:
         
         self._active_rot_ave = tomo.rotational_average()
         self._init_layers()
-                
-        # Paint MTs by its pitch length
-        self._paint_mt()
-        
+                        
         self.layer_work.mode = "pan_zoom"
-        self.parent_viewer.layers.selection = {self.layer_paint}
         
         self._imshow_all()
         
@@ -1106,6 +1093,9 @@ class MTProfiler:
     
     
     def _current_cylindrical_img(self):
+        """
+        Return cylindric-transformed image at the current position
+        """        
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         tomo = self.active_tomogram

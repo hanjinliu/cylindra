@@ -410,6 +410,7 @@ class Spline3D:
                               map_[..., 1],
                               ones
                               ], axis=2) # V, S, H, D
+        # (WIP)
         # TODO: each slice must be rotated separately, with different skew
         mtx = np.array([[1.0,         0.0,         0.0, 0.0],
                         [0.0,         1.0, skew_per_px, 0.0],

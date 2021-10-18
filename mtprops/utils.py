@@ -102,9 +102,9 @@ def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefil
                                )
 
 def oblique_meshgrid(shape: tuple[int, int], 
-                     rise: float = 0,
-                     tilt: float = 0, 
-                     offset: float = 0) -> np.ndarray:
+                     rise: float = 0.,
+                     tilt: float = 0., 
+                     offset: tuple[float, float] = (0., 0.)) -> np.ndarray:
     v0 = np.array([1, tilt], dtype=np.float32)
     v1 = np.array([rise, 1], dtype=np.float32)
     n0, n1 = shape
@@ -113,5 +113,6 @@ def oblique_meshgrid(shape: tuple[int, int],
     for i in range(n0):
         for j in range(n1):
             out[i, j, :] = (v0 * i + v1 * j) % border
-    out[:, :, 1] += offset
+    out[:, :, 0] += offset[0]
+    out[:, :, 1] += offset[1]
     return out

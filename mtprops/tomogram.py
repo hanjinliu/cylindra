@@ -63,6 +63,9 @@ def json_encoder(obj):
         raise TypeError(f"{obj!r} is not JSON serializable")
 
 class MtSpline(Spline3D):
+    """
+    A spline object with info related to MT.
+    """    
     def __init__(self, scale:float=1, k=3):
         super().__init__(scale=scale, k=k)
         self.orientation = Ori.none
@@ -77,7 +80,7 @@ class MtSpline(Spline3D):
         return self._orientation
     
     @orientation.setter
-    def orientation(self, value):
+    def orientation(self, value: Ori | str):
         try:
             self._orientation = Ori(value)
         except ValueError:
@@ -991,6 +994,21 @@ class MtTomogram:
     
     @batch_process
     def map_monomer(self, i: int = None) -> Coordinates:
+        """
+        Map coordinates of tubulin monomers in world coordinate.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that mapping will be calculated.
+
+        Returns
+        -------
+        Coordinates
+            Named tuple with monomer positions in world coordinates and spline coordinates.
+        """        
+        # TODO: skew is not accurate enough. This function works pretty well with 13 pf but
+        # is not applicable to e.g. 14 pf.
         spl = self._paths[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         r0 = self.nm2pixel(spl.radius)
@@ -1012,8 +1030,8 @@ class MtTomogram:
         tan_rise = np.tan(np.deg2rad(rise))
         mesh = oblique_meshgrid((ny, npf), 
                                 rise = tan_rise*(2*np.pi/npf*radius)/pitch,
-                                tilt = np.tan(np.deg2rad(skew))/2*(2*np.pi/npf), 
-                                offset = (amax + ymax*tan_rise)/rec_cyl.shape.a*2*np.pi # TODO: not correct?
+                                tilt = -np.deg2rad(skew)*npf/(4*np.pi), 
+                                offset = (ymax/pitch*self.scale, amax/rec_cyl.shape.a*2*np.pi)
                                 ).reshape(-1, 2)
         
         dtheta = 2*np.pi/npf
