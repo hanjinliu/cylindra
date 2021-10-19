@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, click, set_options, 
-                            Figure, TupleEdit, CheckButton, Separator, ListWidget)
+                            Figure, TupleEdit, Separator, ListWidget)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
 from .const import nm, H, Ori, GVar
@@ -34,7 +34,7 @@ def bin_image_worker(img, binsize):
 class ImageLoader:
     path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec"})
     scale = field(str, options={"label": "scale (nm)"})
-    bin_size = field(4, options={"label": "bin size", "min": 1, "max":8})
+    bin_size = field(4, options={"label": "bin size", "min": 1, "max": 8})
     light_background = field(True, options={"label": "light background"})
     
     @set_design(text="OK")
@@ -48,9 +48,8 @@ class ImageLoader:
         return self.img
     
     @path.connect
-    def _read_scale(self, event):
-        path = event.value
-        self._imread(path)
+    def _read_scale(self):
+        self._imread(self.path.value)
     
     def _imread(self, path:str):
         self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
@@ -100,7 +99,7 @@ class MTProfiler:
     
     @magicmenu
     class File:
-        def Open_image(self, path: Path): ...
+        def Open_image(self): ...
         def Load_json(self, path: Path): ...
         def Save_results_as_json(self, path: Path): ...
     
@@ -981,7 +980,7 @@ class MTProfiler:
         return None
     
     @click(visible=False)
-    def load_image(self, event=None):
+    def load_image(self):
         img = self._loader.img
         light_bg = self._loader.light_background.value
         binsize = self._loader.bin_size.value
@@ -1151,7 +1150,7 @@ class MTProfiler:
         return None
     
     @mt.pos.connect
-    def _imshow_all(self, event=None):
+    def _imshow_all(self):
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
@@ -1205,13 +1204,13 @@ class MTProfiler:
         self.canvas.draw()
     
     @orientation_choice.connect
-    def _update_note(self, event=None):
+    def _update_note(self):
         i = self.mt.mtlabel.value
         self.active_tomogram.paths[i].orientation = self.orientation_choice.value
         return None
     
     @mt.mtlabel.connect
-    def _update_mtpath(self, event=None):
+    def _update_mtpath(self):
         self.mt.mtlabel.enabled = False
         i = self.mt.mtlabel.value
         tomo = self.active_tomogram
