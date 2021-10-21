@@ -684,10 +684,10 @@ class MTProfiler:
         
         return None
         
-    @Analysis.wraps(template=MtTomogram.reconstruct)
+    @Analysis.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
-    def Reconstruct_MT(self, rot_ave, y_length):
+    def Reconstruct_MT(self, rot_ave=False, y_length=50.0):
         """
         Coarse reconstruction of MT.
 
@@ -721,11 +721,11 @@ class MTProfiler:
         worker.start()
         return None
     
-    @Analysis.wraps(template=MtTomogram.cylindric_reconstruct)
+    @Analysis.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
-    def cylindric_reconstruction(self, rot_ave, y_length):
+    def cylindric_reconstruction(self, rot_ave=False, y_length=50.0):
         """
         Coarse reconstruction of MT.
 

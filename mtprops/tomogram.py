@@ -806,7 +806,7 @@ class MtTomogram:
     def reconstruct(self, 
                     i: int = None,
                     rot_ave: bool = False,
-                    y_length: nm = 50.0) -> ip.arrays.ImgArray:
+                    y_length: nm = 50.0):
         """
         3D reconstruction of MT.
 
@@ -903,7 +903,7 @@ class MtTomogram:
     def cylindric_reconstruct(self, 
                               i: int = None,
                               rot_ave: bool = False, 
-                              y_length: nm = 50.0) -> ip.arrays.ImgArray:
+                              y_length: nm = 50.0):
         """
         3D reconstruction of MT in cylindric coordinate system.
 
