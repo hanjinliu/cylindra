@@ -1119,7 +1119,7 @@ class MTProfiler:
         
         common_properties = dict(ndim=3, n_dimensional=True, size=8)
         if self.layer_prof in self.parent_viewer.layers:
-            self.layer_prof.name = "MT Profiles-old"
+            viewer.layers.remove(self.layer_prof)
     
         self.layer_prof = viewer.add_points(**common_properties,
                                     name="MT Profiles",
@@ -1130,7 +1130,7 @@ class MTProfiler:
         self.layer_prof.editable = False
             
         if self.layer_work in viewer.layers:
-            self.layer_work.name = "Working Layer-old"
+            viewer.layers.remove(self.layer_work)
         
         self.layer_work = viewer.add_points(**common_properties,
                                     name="Working Layer",
@@ -1138,11 +1138,6 @@ class MTProfiler:
                                     )
     
         self.layer_work.mode = "add"
-        
-        if "MT Profiles-old" in viewer.layers:
-            viewer.layers.remove("MT Profiles-old")
-        if "Working Layer-old" in viewer.layers:
-            viewer.layers.remove("Working Layer-old")
         
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
