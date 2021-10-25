@@ -1,5 +1,4 @@
 from __future__ import annotations
-from os import name
 from typing import Iterable
 import json
 import matplotlib.pyplot as plt
@@ -21,6 +20,7 @@ cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 ERROR_NM = 1.0
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 Coordinates = namedtuple("Coordinates", ["world", "spline"])
+
 
 def batch_process(func):
     # TODO: error handling
@@ -634,7 +634,7 @@ class MtTomogram:
                                 meta=np.array([], dtype=np.float32)
                                 )
                 )
-        results = np.stack(da.compute(tasks)[0], axis=0)
+        results = np.stack(da.compute(tasks, scheduler="threads")[0], axis=0)
                 
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
@@ -1064,7 +1064,7 @@ def delayed_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
     tasks = []
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
-    return da.compute(tasks)[0]
+    return da.compute(tasks, scheduler="threads")[0]
     
 def _local_dft_params(img, radius: nm):
     l_circ: nm = 2*np.pi*radius
