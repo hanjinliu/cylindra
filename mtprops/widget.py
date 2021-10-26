@@ -1114,7 +1114,6 @@ class MTProfiler:
         return polar
     
     def _init_layers(self):
-        # TODO: simpler implementation after napari==0.4.12
         viewer: napari.Viewer = self.parent_viewer
         
         common_properties = dict(ndim=3, n_dimensional=True, size=8)
