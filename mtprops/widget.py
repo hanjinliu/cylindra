@@ -648,13 +648,17 @@ class MTProfiler:
         return None
         
     @Analysis.wraps
-    def Refine_splines(self):
+    @set_options(max_interval={"label": "Maximum interval (nm)"})
+    def Refine_splines(self, max_interval: nm = 30):
         """
         Refine splines using the global MT structural parameters.
-        """        
+        """
         tomo = self.active_tomogram
         
-        worker = create_worker(tomo.refine,
+        def _run():
+            tomo.refine(max_interval=max_interval)
+            
+        worker = create_worker(_run,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
@@ -671,8 +675,18 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    def Local_FT_analysis(self):
+    def Local_FT_analysis(self, ft_size: nm = 33.4):
+        """
+        Determine MT structural parameters by local Fourier transformation.
+
+        Parameters
+        ----------
+        ft_size : nm, default is 33.4
+            Longitudinal length of local discrete Fourier transformation used for 
+            structural analysis.
+        """
         tomo = self.active_tomogram
+        tomo.ft_size = ft_size
         worker = create_worker(tomo.ft_params,
                                _progress={"total": 0, 
                                           "desc": "Running"})
@@ -687,6 +701,9 @@ class MTProfiler:
         
     @Analysis.wraps
     def Global_FT_analysis(self):
+        """
+        Determine MT global structural parameters by Fourier transformation.
+        """        
         tomo = self.active_tomogram
         worker = create_worker(tomo.global_ft_params,
                                _progress={"total": 0, 
