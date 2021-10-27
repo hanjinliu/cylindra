@@ -593,7 +593,7 @@ class MtTomogram:
         """        
         subtomograms = self._sample_subtomograms(i)
         nbin = 17
-        r_max: nm = 17.0
+        r_max: nm = GVar.rMax
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
         if self.light_background:

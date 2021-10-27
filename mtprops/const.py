@@ -33,6 +33,7 @@ class GVar:
     splOrder: int = 3
     yPitchAvg: nm = 4.16
     splError: nm = 0.8
+    rMax: nm = 17
     inner: float = 0.7
     outer: float = 1.6
     

@@ -14,7 +14,7 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
     if z0 < 0:
         z0_pad = -z0
         z0 = 0
-    elif size < z1:
+    if size < z1:
         z1_pad = z1 - size
         z1 = size
 

@@ -122,6 +122,7 @@ class MTProfiler:
     @magicmenu
     class Analysis:
         def Fit_splines(self): ...
+        def Add_anchors(self): ...
         def Refine_splines(self): ...
         sep0 = Separator()
         def Local_FT_analysis(self): ...
@@ -383,6 +384,7 @@ class MTProfiler:
                          splOrder: int = 3,
                          yPitchAvg: nm = 4.16,
                          splError: nm = 0.8,
+                         rMax: nm = 17.0,
                          inner: float = 0.7,
                          outer: float = 1.6):
         """
@@ -400,6 +402,8 @@ class MTProfiler:
             Average pitch length estimation.
         splError : nm, default is 0.8
             Average error of spline fitting.
+        rMax : nm, default is 17.0
+            Maximum radius of MT.
         inner : float, default is 0.7
             Radius x inner will be the inner surface of MT.
         outer : float, default is 1.6
@@ -603,7 +607,7 @@ class MTProfiler:
     @Analysis.wraps
     @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"})
     def Fit_splines(self, 
-                   box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0)):
+                    box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0)):
         """
         Fit MT with spline curve, using manually selected points.
 
@@ -624,18 +628,33 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
+    @set_options(interval={"label": "Interval between anchors (nm)"})
+    def Add_anchors(self, interval: nm = 25.0):
+        """
+        Add anchors to splines.
+
+        Parameters
+        ----------
+        interval : nm, default is 25.0
+            Anchor interval.
+        """        
+        tomo = self.active_tomogram
+        if tomo.n_paths == 0:
+            raise ValueError("Cannot add anchors before adding splines.")
+        for i in range(tomo.n_paths):
+            tomo.make_anchors(i, interval=interval)
+            if tomo.paths[i].radius is None:
+                tomo.measure_radius(i)
+        return None
+        
+    @Analysis.wraps
     def Refine_splines(self):
         """
         Refine splines using the global MT structural parameters.
         """        
         tomo = self.active_tomogram
         
-        def _run():
-            tomo.refine()
-            tomo.make_anchors()
-            tomo.measure_radius()
-        
-        worker = create_worker(_run,
+        worker = create_worker(tomo.refine,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
