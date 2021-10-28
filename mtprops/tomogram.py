@@ -398,7 +398,9 @@ class MtTomogram:
             i: int = None,
             *, 
             max_interval: nm = 30.0,
-            degree_precision: float = 0.2) -> MtTomogram:
+            degree_precision: float = 0.2,
+            cutoff_freq: float = 0.0,
+            ) -> MtTomogram:
         """
         Fit i-th path to MT.
 
@@ -408,18 +410,25 @@ class MtTomogram:
             Path ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
+        degree_precision : float, default is 0.2
+            Precision of MT xy-tilt degree in angular correlation.
+        cutoff_freq : float, default is 0.0
+            Cutoff frequency of butterworth low-pass prefilter.
 
         Returns
         -------
         MtTomogram
             Same object with updated MtSpline objects.
         """        
+        
         spl = self._paths[i]
         length = spl.length()
         npoints = max(ceilint(length/max_interval) + 1, 4)
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i, rotate=False)
+        subtomograms = subtomograms.lowpass_filter(cutoff_freq)
+        
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
         nrots = roundint(14/degree_precision) + 1
@@ -437,12 +446,12 @@ class MtTomogram:
         for i, img in enumerate(subtomograms):
             angle = refined_tilt[i]
             img.rotate(-angle, cval=np.median(img), update=True)
-        
+            
+        # zx-shift correction by self-PCC
         subtomo_proj = subtomograms.proj("y")
         shape = subtomo_proj[0].shape
         shifts = np.zeros((npoints, 2)) # zx-shift
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        
         for i in range(npoints):
             img = subtomo_proj[i]
             shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img, mask=mask)/2
@@ -469,7 +478,9 @@ class MtTomogram:
     def refine(self, 
                i: int = None,
                *, 
-               max_interval: nm = 30.0) -> MtTomogram:
+               max_interval: nm = 30.0,
+               cutoff_freq: float = 0.0
+               ) -> MtTomogram:
         """
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
@@ -481,7 +492,9 @@ class MtTomogram:
             Path ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
-            
+        cutoff_freq : float, default is 0.0
+            Cutoff frequency of butterworth low-pass prefilter.
+        
         Returns
         -------
         MtTomogram
@@ -493,6 +506,7 @@ class MtTomogram:
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i)
+        subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.global_ft_params(i)

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, click, set_options, 
-                            Figure, TupleEdit, Separator, ListWidget)
+                            Figure, TupleEdit, Separator, ListWidget, ImageCanvas)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
 from .const import nm, H, Ori, GVar
@@ -90,7 +90,7 @@ class WorkerControl:
         """        
         self.worker.quit()
     
-@magicclass
+@magicclass(widget_type="scrollable")
 class MTProfiler:
     # Main GUI class.
     
@@ -105,6 +105,7 @@ class MTProfiler:
     
     @magicmenu
     class View:
+        def Apply_lowpass_to_reference_image(self): ...
         def View_current_MT_fragment(self): ...
         def View_straightened_image(self): ...
         sep0 = Separator()
@@ -150,8 +151,10 @@ class MTProfiler:
         stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100}, name="stride (nm)")
         def pick_next(self): ...
         def auto_center(self): ...
-        
-    tomograms = field(ListWidget, options={"name": "Tomograms"})
+    
+    @magicclass(widget_type="collapsible")
+    class Tomogram_List:
+        tomograms = ListWidget(name="Tomogram List")
     
     @magicclass(layout="horizontal")
     class mt:
@@ -166,6 +169,12 @@ class MTProfiler:
     
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of local properties"})
 
+    @magicclass(widget_type="tabbed")
+    class Canvas2D:
+        overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
+        r_proj = ImageCanvas()
+        ft_2d = ImageCanvas()
+    
     @View.wraps
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
@@ -222,7 +231,9 @@ class MTProfiler:
         call_button = self._loader["call_button"]
         call_button.changed.connect(self.load_image)
         
-        @self.tomograms.register_callback(MtTomogram)
+        tomograms = self.Tomogram_List.tomograms
+        
+        @tomograms.register_callback(MtTomogram)
         def open_tomogram(tomo: MtTomogram, i: int):
             if tomo is self.active_tomogram:
                 return None
@@ -236,16 +247,20 @@ class MTProfiler:
                 self._init_layers()
                 self._init_widget_params()
         
-        @self.tomograms.register_contextmenu(MtTomogram)
+        @tomograms.register_contextmenu(MtTomogram)
         def Load_tomogram(tomo: MtTomogram, i: int):
             open_tomogram(tomo, i)
         
-        @self.tomograms.register_contextmenu(MtTomogram)
+        @tomograms.register_contextmenu(MtTomogram)
         def Remove_tomogram_from_list(tomo: MtTomogram, i: int):
-            self.tomograms.pop_item(i)
+            tomograms.pop_item(i)
             
-        self.tomograms.height = 120
-        self.tomograms.max_height = 120
+        tomograms.height = 160
+        tomograms.max_height = 160
+        self.min_width = 500
+        self.canvas.min_height = 180
+        self.plot.min_height = 180
+        self.Canvas2D.min_height = 240
              
     @operation.wraps
     @set_design(text="📝")
@@ -267,13 +282,14 @@ class MTProfiler:
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
-        self.canvas.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
-        self.canvas.ax.set_xlim(0, tomo.image.shape.x*tomo.image.scale.x)
-        self.canvas.ax.set_ylim(tomo.image.shape.y*tomo.image.scale.y, 0)
-        self.canvas.ax.set_aspect("equal")
-        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
-        self.canvas.figure.tight_layout()
-        self.canvas.figure.canvas.draw()
+        self.Canvas2D.overview.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
+        self.Canvas2D.overview.ax.set_xlim(0, tomo.image.shape.x*tomo.image.scale.x)
+        self.Canvas2D.overview.ax.set_ylim(tomo.image.shape.y*tomo.image.scale.y, 0)
+        self.Canvas2D.overview.ax.set_aspect("equal")
+        self.Canvas2D.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.Canvas2D.overview.figure.tight_layout()
+        self.Canvas2D.overview.figure.canvas.draw()
+    
         self.layer_work.data = []
         return None
     
@@ -355,7 +371,7 @@ class MTProfiler:
         return None
     
     @operation.wraps
-    @set_options(_={"widget_type":"Label"})
+    @set_options(_={"widget_type": "Label"})
     @set_design(text="💥")
     def clear_all(self, _="Are you sure to clear all?"):
         """
@@ -363,11 +379,10 @@ class MTProfiler:
         """        
         self._init_widget_params()
         self._init_layers()
-        self.canvas.figure.clf()
-        self.canvas.figure.add_subplot(111)
-        self.canvas.draw()
-        self.canvas.ax.set_aspect("equal")
-        self.canvas.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.Canvas2D.overview.ax.cla()
+        self.Canvas2D.overview.draw()
+        self.Canvas2D.overview.ax.set_aspect("equal")
+        self.Canvas2D.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         self.plot.figure.clf()
         self.plot.figure.add_subplot(111)
         self.plot.draw()
@@ -471,6 +486,21 @@ class MTProfiler:
         return None            
     
     @View.wraps
+    @set_options(freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
+    def Apply_lowpass_to_reference_image(self, cutoff: float = 0.2):
+        """
+        Apply Butterworth low-pass filter to enhance contrast of the reference image.
+
+        Parameters
+        ----------
+        cutoff : float, default is None
+            Relative cutoff frequency.
+        """        
+        self.layer_image.data = self.layer_image.data.lowpass_filter(cutoff)
+        self.layer_image.contrast_limits = np.percentile(self.layer_image.data, [1, 97])
+        return None
+        
+    @View.wraps
     def View_current_MT_fragment(self):
         """
         Send the current MT fragment 3D image (not binned) to napari viewer.
@@ -553,8 +583,10 @@ class MTProfiler:
         """
         Show radial projection of cylindrical image around the current MT fragment.
         """        
-        polar = self._current_cylindrical_img().proj("r")
-        self.parent_viewer.add_image(polar, scale=polar.scale, name="R-projection")
+        with ip.SetConst("SHOW_PROGRESS", False):
+            polar = self._current_cylindrical_img().proj("r")
+        
+        self.Canvas2D.r_proj.image = polar.value
         return None
     
     @View.wraps
@@ -564,7 +596,8 @@ class MTProfiler:
         Show radial projection of cylindrical image along current MT.
         """        
         i = self.mt.mtlabel.value
-        polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
+        with ip.SetConst("SHOW_PROGRESS", False):
+            polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
         self.parent_viewer.add_image(polar, scale=polar.scale, name="R-projection (Global)")
         return None
     
@@ -577,7 +610,10 @@ class MTProfiler:
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self._current_cylindrical_img()
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno", name="FT")
+        
+        if self.Canvas2D.ft_2d.image is None:
+            self.Canvas2D.ft_2d.contrast_limits = np.percentile(pw, [0, 95])
+        self.Canvas2D.ft_2d.image = pw.value
         return None
     
     @View.wraps
@@ -605,9 +641,11 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"})
+    @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"},
+                 freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
     def Fit_splines(self, 
-                    box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0)):
+                    box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0),
+                    ):
         """
         Fit MT with spline curve, using manually selected points.
 
@@ -652,13 +690,16 @@ class MTProfiler:
     def Refine_splines(self, max_interval: nm = 30):
         """
         Refine splines using the global MT structural parameters.
+        
+        Parameters
+        ----------
+        max_interval : nm, default is 30
+            Maximum interval between anchors.
         """
         tomo = self.active_tomogram
         
-        def _run():
-            tomo.refine(max_interval=max_interval)
-            
-        worker = create_worker(_run,
+        worker = create_worker(tomo.refine,
+                               max_interval=max_interval,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
@@ -818,6 +859,7 @@ class MTProfiler:
         return None
         
     @auto_picker.wraps
+    @set_design(text="Next")
     def pick_next(self):
         """
         Automatically pick MT center using previous two points.
@@ -859,6 +901,7 @@ class MTProfiler:
         return None
     
     @auto_picker.wraps
+    @set_design(text="AC")
     def auto_center(self):
         """
         Auto centering of selected points.
@@ -1064,7 +1107,7 @@ class MTProfiler:
                 
                 self.active_tomogram = tomo
                 tomo.image = img
-                self.tomograms.add_item(tomo)
+                self.Tomogram_List.tomograms.add_item(tomo)
                 
                 self.clear_all()
             
@@ -1181,6 +1224,7 @@ class MTProfiler:
     
     @mt.pos.connect
     def _imshow_all(self):
+        # TODO: use binned image
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
@@ -1189,6 +1233,8 @@ class MTProfiler:
         except IndexError:
             # sometimes i takes wrong value due to event emission
             i = 0
+            if len(tomo.paths) == 0:
+                return
             results = tomo.paths[i]
         pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
         self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{int(start)}"
