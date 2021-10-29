@@ -486,17 +486,13 @@ class MTProfiler:
         return None            
     
     @View.wraps
-    @set_options(freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
-    def Apply_lowpass_to_reference_image(self, cutoff: float = 0.2):
+    def Apply_lowpass_to_reference_image(self):
         """
         Apply Butterworth low-pass filter to enhance contrast of the reference image.
-
-        Parameters
-        ----------
-        cutoff : float, default is None
-            Relative cutoff frequency.
         """        
-        self.layer_image.data = self.layer_image.data.lowpass_filter(cutoff)
+        cutoff = 0.2
+        with ip.SetConst("SHOW_PROGRESS", False):
+            self.layer_image.data = self.layer_image.data.lowpass_filter(cutoff)
         self.layer_image.contrast_limits = np.percentile(self.layer_image.data, [1, 97])
         return None
         
@@ -557,7 +553,7 @@ class MTProfiler:
     @set_design(text="View straightened image")
     def View_straightened_image(self):
         """
-        Send straightened image of the current MT to viewer.
+        Send straightened image of the current MT to the viewer.
         """        
         i = self.mt.mtlabel.value
         tomo = self.active_tomogram
@@ -610,10 +606,14 @@ class MTProfiler:
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self._current_cylindrical_img()
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+            pw /= pw.max()
         
         if self.Canvas2D.ft_2d.image is None:
             self.Canvas2D.ft_2d.contrast_limits = np.percentile(pw, [0, 95])
         self.Canvas2D.ft_2d.image = pw.value
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        self.Canvas2D.ft_2d.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
         return None
     
     @View.wraps
@@ -626,7 +626,12 @@ class MTProfiler:
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self.active_tomogram.straighten(i, cylindrical=True)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        self.parent_viewer.add_image(pw, scale=pw.scale, colormap="inferno", name="FT (Global)")
+            pw /= pw.max()
+            
+        if self.Canvas2D.ft_2d.image is None:
+            self.Canvas2D.ft_2d.contrast_limits = np.percentile(pw, [0, 95])
+        self.Canvas2D.ft_2d.image = pw.value
+        self.Canvas2D.ft_2d.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         return None
     
     @View.wraps
@@ -641,10 +646,12 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"},
+    @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)", 
+                           "options": {"min": 5.0, "max": 100.0, "step": 4.0}},
                  freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
     def Fit_splines(self, 
                     box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0),
+                    freq = 0.0,
                     ):
         """
         Fit MT with spline curve, using manually selected points.
@@ -657,7 +664,7 @@ class MTProfiler:
         tomo = self.active_tomogram
         tomo.box_size = box_size
         for i in range(tomo.n_paths):
-            tomo.fit(i)
+            tomo.fit(i, cutoff_freq=freq)
             tomo.make_anchors(n=3)
             tomo.measure_radius(i)
         
@@ -686,8 +693,10 @@ class MTProfiler:
         return None
         
     @Analysis.wraps
-    @set_options(max_interval={"label": "Maximum interval (nm)"})
-    def Refine_splines(self, max_interval: nm = 30):
+    @set_options(max_interval={"label": "Maximum interval (nm)"},
+                 freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
+    def Refine_splines(self, max_interval: nm = 30,
+                       freq = 0.0):
         """
         Refine splines using the global MT structural parameters.
         
@@ -700,6 +709,7 @@ class MTProfiler:
         
         worker = create_worker(tomo.refine,
                                max_interval=max_interval,
+                               cutoff_freq=freq,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
@@ -892,11 +902,11 @@ class MTProfiler:
             centering(img_next, point2, angle_deg)
             
         next_data = point2 * imgb.scale.x
+        self.layer_work.add(next_data)
         msg = self._check_path()
         if msg:
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
-        self.layer_work.add(next_data)
         change_viewer_focus(self.parent_viewer, point2, next_data)
         return None
     
@@ -1068,7 +1078,7 @@ class MTProfiler:
         self._loader.close()
         return None
     
-    def _bin_image(self, img, binsize:int, light_bg:bool, new:bool=True):
+    def _bin_image(self, img, binsize: int, light_bg: bool, new: bool=True):
         viewer: napari.Viewer = self.parent_viewer
         worker = bin_image_worker(img, binsize)
         self._connect_worker(worker)
@@ -1228,14 +1238,13 @@ class MTProfiler:
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        try:
-            results = tomo.paths[i]
-        except IndexError:
-            # sometimes i takes wrong value due to event emission
+        npaths = len(tomo.paths)
+        if 0 == npaths:
+            return
+        if 0 < npaths <= i:
             i = 0
-            if len(tomo.paths) == 0:
-                return
-            results = tomo.paths[i]
+        results = tomo.paths[i]
+        
         pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
         self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{int(start)}"
         
@@ -1250,9 +1259,9 @@ class MTProfiler:
             axes[k].cla()
             axes[k].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
             
-        subtomo = tomo._sample_subtomograms(i)[j]
-        lz, ly, lx = subtomo.shape
         with ip.SetConst("SHOW_PROGRESS", False):
+            subtomo = tomo._sample_subtomograms(i)[j]
+            lz, ly, lx = subtomo.shape
             axes[0].imshow(subtomo.proj("z"), cmap="gray")
             axes[0].set_xlabel("x")
             axes[0].set_ylabel("y")

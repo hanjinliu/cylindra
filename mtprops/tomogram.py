@@ -17,7 +17,6 @@ from .utils import (load_a_subtomogram, centroid, rotational_average, map_coordi
                     ceilint, oblique_meshgrid)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
-ERROR_NM = 1.0
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 Coordinates = namedtuple("Coordinates", ["world", "spline"])
 
@@ -427,7 +426,8 @@ class MtTomogram:
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i, rotate=False)
-        subtomograms = subtomograms.lowpass_filter(cutoff_freq)
+        if cutoff_freq > 0:
+            subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
@@ -506,7 +506,8 @@ class MtTomogram:
         interval = length/(npoints-1)
         spl.make_anchors(n=npoints)
         subtomograms = self._sample_subtomograms(i)
-        subtomograms = subtomograms.lowpass_filter(cutoff_freq)
+        if cutoff_freq > 0:
+            subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.global_ft_params(i)
@@ -777,10 +778,10 @@ class MtTomogram:
             coords = np.moveaxis(coords, -1, 0)
             
             transformed = map_coordinates(self.image, 
-                                            coords,
-                                            order=1,
-                                            prefilter=False
-                                            )
+                                          coords,
+                                          order=1,
+                                          prefilter=False
+                                          )
             
             axes = "rya" if cylindrical else "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -1148,7 +1149,7 @@ def ft_params(img, coords, radius):
 lazy_ft_params = delayed(ft_params)
 
 def _affine(img, matrix, order=1):
-    out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=False)
+    out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=order>1)
     return out[np.newaxis]
 
 def dask_affine(images, matrices, order=1):
