@@ -172,8 +172,8 @@ class MTProfiler:
     @magicclass(widget_type="tabbed")
     class Canvas2D:
         overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
-        r_proj = ImageCanvas()
-        ft_2d = ImageCanvas()
+        R_proj = ImageCanvas()
+        FT_2D = ImageCanvas()
     
     @View.wraps
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
@@ -335,6 +335,8 @@ class MTProfiler:
         @worker.returned.connect
         def _on_return(out: MtTomogram):
             self._load_tomogram_results()
+            self.Paint_MT()
+            
         self._worker_control.info.value = f"Spline fitting (0/{self.active_tomogram.n_paths})"
         worker.start()
         return None
@@ -383,6 +385,8 @@ class MTProfiler:
         self.Canvas2D.overview.draw()
         self.Canvas2D.overview.ax.set_aspect("equal")
         self.Canvas2D.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.canvas.figure.clf()
+        self.canvas.draw()
         self.plot.figure.clf()
         self.plot.figure.add_subplot(111)
         self.plot.draw()
@@ -399,9 +403,9 @@ class MTProfiler:
                          splOrder: int = 3,
                          yPitchAvg: nm = 4.16,
                          splError: nm = 0.8,
-                         rMax: nm = 17.0,
-                         inner: float = 0.7,
-                         outer: float = 1.6):
+                         rMax: nm = 14.0,
+                         inner: float = 0.8,
+                         outer: float = 1.5):
         """
         Set global variables.
 
@@ -582,7 +586,7 @@ class MTProfiler:
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self._current_cylindrical_img().proj("r")
         
-        self.Canvas2D.r_proj.image = polar.value
+        self.Canvas2D.R_proj.image = polar.value
         return None
     
     @View.wraps
@@ -608,12 +612,12 @@ class MTProfiler:
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
         
-        if self.Canvas2D.ft_2d.image is None:
-            self.Canvas2D.ft_2d.contrast_limits = np.percentile(pw, [0, 95])
-        self.Canvas2D.ft_2d.image = pw.value
+        if self.Canvas2D.FT_2D.image is None:
+            self.Canvas2D.FT_2D.contrast_limits = np.percentile(pw, [0, 95])
+        self.Canvas2D.FT_2D.image = pw.value
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        self.Canvas2D.ft_2d.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        self.Canvas2D.FT_2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
         return None
     
     @View.wraps
@@ -628,10 +632,10 @@ class MTProfiler:
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             
-        if self.Canvas2D.ft_2d.image is None:
-            self.Canvas2D.ft_2d.contrast_limits = np.percentile(pw, [0, 95])
-        self.Canvas2D.ft_2d.image = pw.value
-        self.Canvas2D.ft_2d.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        if self.Canvas2D.FT_2D.image is None:
+            self.Canvas2D.FT_2D.contrast_limits = np.percentile(pw, [0, 95])
+        self.Canvas2D.FT_2D.image = pw.value
+        self.Canvas2D.FT_2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         return None
     
     @View.wraps

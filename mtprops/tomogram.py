@@ -1022,8 +1022,8 @@ class MtTomogram:
         Coordinates
             Named tuple with monomer positions in world coordinates and spline coordinates.
         """        
-        # TODO: skew is not accurate enough. This function works pretty well with 13 pf but
-        # is not applicable to e.g. 14 pf.
+        # TODO: Sometimes skew angles seems to be not accurate enough for correct tubulin mapping.
+        
         spl = self._paths[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         r0 = self.nm2pixel(spl.radius)
@@ -1040,11 +1040,10 @@ class MtTomogram:
         rise = props[H.riseAngle]
         npf = int(props[H.nPF])
         radius = spl.radius
-        
         ny = roundint(spl.length()/pitch)
         tan_rise = np.tan(np.deg2rad(rise))
         mesh = oblique_meshgrid((ny, npf), 
-                                rise = tan_rise*(2*np.pi/npf*radius)/pitch,
+                                rise = tan_rise*2*np.pi*radius/npf/pitch,
                                 tilt = -np.deg2rad(skew)*npf/(4*np.pi), 
                                 offset = (ymax/pitch*self.scale, amax/rec_cyl.shape.a*2*np.pi)
                                 ).reshape(-1, 2)

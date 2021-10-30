@@ -109,10 +109,9 @@ def oblique_meshgrid(shape: tuple[int, int],
     v1 = np.array([rise, 1], dtype=np.float32)
     n0, n1 = shape
     out = np.empty((n0, n1, 2), dtype=np.float32)
-    border = np.array(shape, dtype=np.float32)
     for i in range(n0):
         for j in range(n1):
-            out[i, j, :] = (v0 * i + v1 * j) % border
+            out[i, j, :] = (v0 * i + v1 * j)
     out[:, :, 0] += offset[0]
     out[:, :, 1] += offset[1]
     return out
