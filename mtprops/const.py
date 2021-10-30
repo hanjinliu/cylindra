@@ -10,7 +10,7 @@ class CacheKey(Enum):
     cart_straight = auto()
     cyl_straight = auto()
     
-nm = float
+nm = float # type alias
 
 class H:
     """
@@ -33,12 +33,12 @@ class GVar:
     splOrder: int = 3
     yPitchAvg: nm = 4.16
     splError: nm = 0.8
-    rMax: nm = 17
-    inner: float = 0.7
-    outer: float = 1.6
+    rMax: nm = 14
+    inner: float = 0.8
+    outer: float = 1.5
     
     @classmethod
-    def set_value(cls, *args, **kwargs):
+    def set_value(cls, **kwargs):
         for k, v in kwargs.items():
             if not hasattr(cls, k):
                 pass
