@@ -172,8 +172,8 @@ class MTProfiler:
     @magicclass(widget_type="tabbed")
     class Canvas2D:
         overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
-        R_proj = ImageCanvas()
-        FT_2D = ImageCanvas()
+        image2D = ImageCanvas()
+        table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     @View.wraps
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
@@ -261,6 +261,7 @@ class MTProfiler:
         self.canvas.min_height = 180
         self.plot.min_height = 180
         self.Canvas2D.min_height = 240
+        self.Canvas2D.image2D.show_button(False)
              
     @operation.wraps
     @set_design(text="📝")
@@ -296,12 +297,15 @@ class MTProfiler:
     @operation.wraps
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
                  box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"}, 
-                 ft_size={"label": "Local DFT window size (nm)"})
+                 ft_size={"label": "Local DFT window size (nm)"},
+                 cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05}
+                 )
     @set_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0),
-                         ft_size: nm = 33.4):
+                         ft_size: nm = 33.4,
+                         cutoff_freq: float = 0.0):
         """
         Run MTProps.
 
@@ -322,6 +326,7 @@ class MTProfiler:
                                interval=interval,
                                box_size=box_size,
                                ft_size=ft_size,
+                               cutoff_freq=cutoff_freq,
                                _progress={"total": self.active_tomogram.n_paths*3 + 1, 
                                           "desc": "Running MTProps"}
                                )
@@ -344,12 +349,13 @@ class MTProfiler:
     def _run_all(self, 
                  interval: nm,
                  box_size,
-                 ft_size):
+                 ft_size,
+                 cutoff_freq):
         tomo = self.active_tomogram
         tomo.box_size = box_size
         tomo.ft_size = ft_size
         for i in range(tomo.n_paths):
-            tomo.fit(i)
+            tomo.fit(i, cutoff_freq=cutoff_freq)
             tomo.make_anchors(interval=interval)
             
             yield f"Reloading subtomograms  ({i}/{tomo.n_paths})"
@@ -549,8 +555,8 @@ class MTProfiler:
         """
         Show result table.
         """        
-        table = Table(value=self.active_tomogram.collect_localprops())
-        self.parent_viewer.window.add_dock_widget(table)
+        self.Canvas2D.table.value = self.active_tomogram.collect_localprops()
+        self.Canvas2D.current_index = 2
         return None
     
     @View.wraps
@@ -586,7 +592,13 @@ class MTProfiler:
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self._current_cylindrical_img().proj("r")
         
-        self.Canvas2D.R_proj.image = polar.value
+        self.Canvas2D.image2D.image = polar.value
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        # move to center
+        ly, lx = polar.shape
+        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
         return None
     
     @View.wraps
@@ -598,7 +610,11 @@ class MTProfiler:
         i = self.mt.mtlabel.value
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
-        self.parent_viewer.add_image(polar, scale=polar.scale, name="R-projection (Global)")
+        self.Canvas2D.image2D.image = polar.value
+        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        # move to center
+        ly, lx = polar.shape
+        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
         return None
     
     @View.wraps
@@ -612,12 +628,15 @@ class MTProfiler:
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
         
-        if self.Canvas2D.FT_2D.image is None:
-            self.Canvas2D.FT_2D.contrast_limits = np.percentile(pw, [0, 95])
-        self.Canvas2D.FT_2D.image = pw.value
+        if self.Canvas2D.image2D.image is None:
+            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 95])
+        self.Canvas2D.image2D.image = pw.value
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        self.Canvas2D.FT_2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        # move to center
+        ly, lx = pw.shape
+        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
         return None
     
     @View.wraps
@@ -632,10 +651,13 @@ class MTProfiler:
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             
-        if self.Canvas2D.FT_2D.image is None:
-            self.Canvas2D.FT_2D.contrast_limits = np.percentile(pw, [0, 95])
-        self.Canvas2D.FT_2D.image = pw.value
-        self.Canvas2D.FT_2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        if self.Canvas2D.image2D.image is None:
+            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 95])
+        self.Canvas2D.image2D.image = pw.value
+        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        # move to center
+        ly, lx = pw.shape
+        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
         return None
     
     @View.wraps
@@ -652,10 +674,10 @@ class MTProfiler:
     @Analysis.wraps
     @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)", 
                            "options": {"min": 5.0, "max": 100.0, "step": 4.0}},
-                 freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
+                 cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05})
     def Fit_splines(self, 
                     box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0),
-                    freq = 0.0,
+                    cutoff_freq: float = 0.0,
                     ):
         """
         Fit MT with spline curve, using manually selected points.
@@ -664,11 +686,12 @@ class MTProfiler:
         ----------
         box_size : tuple[nm, nm, nm], default is (44.0, 56.0, 56.0)
             Box size that will be cropped from the original image when calculate MT center.
+        cutoff_freq : 
         """        
         tomo = self.active_tomogram
         tomo.box_size = box_size
         for i in range(tomo.n_paths):
-            tomo.fit(i, cutoff_freq=freq)
+            tomo.fit(i, cutoff_freq=cutoff_freq)
             tomo.make_anchors(n=3)
             tomo.measure_radius(i)
         
@@ -698,9 +721,9 @@ class MTProfiler:
         
     @Analysis.wraps
     @set_options(max_interval={"label": "Maximum interval (nm)"},
-                 freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
+                 cutoff_freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
     def Refine_splines(self, max_interval: nm = 30,
-                       freq = 0.0):
+                       cutoff_freq = 0.0):
         """
         Refine splines using the global MT structural parameters.
         
@@ -713,7 +736,7 @@ class MTProfiler:
         
         worker = create_worker(tomo.refine,
                                max_interval=max_interval,
-                               cutoff_freq=freq,
+                               cutoff_freq=cutoff_freq,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
@@ -766,8 +789,8 @@ class MTProfiler:
         @worker.returned.connect
         def _on_return(out):
             df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
-            table = Table(value=df)
-            self.parent_viewer.window.add_dock_widget(table, name="Global structures")
+            self.Canvas2D.table.value = df
+            self.Canvas2D.current_index = 2
         
         self._connect_worker(worker)
         self._worker_control.info.value = f"Global Fourier transform ..."
