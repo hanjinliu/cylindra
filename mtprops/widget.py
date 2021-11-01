@@ -403,13 +403,19 @@ class MTProfiler:
         return None
     
     @Others.wraps
+    @set_options(yPitchMin={"step": 0.1},
+                 yPitchMax={"step": 0.1},
+                 minSkew={"min": -90, "max": 90},
+                 maxSkew={"min": -90, "max": 90},)
     def Global_variables(self, 
                          nPFmin: int = 11,
                          nPFmax: int = 17,
                          splOrder: int = 3,
-                         yPitchAvg: nm = 4.16,
-                         maxSkew: float = 1.0,
-                         splError: nm = 0.8,
+                         yPitchMin: nm = GVar.yPitchMin,
+                         yPitchMax: nm = GVar.yPitchMax,
+                         minSkew: float = GVar.minSkew,
+                         maxSkew: float = GVar.maxSkew,
+                         splError: nm = GVar.splError,
                          rMax: nm = 14.0,
                          inner: float = 0.8,
                          outer: float = 1.5):
@@ -418,23 +424,27 @@ class MTProfiler:
 
         Parameters
         ----------
-        nPFmin : int, default is 11
+        nPFmin : int
             Minimum protofilament numbers. 
-        nPFmax : int, default is 17
+        nPFmax : int
             Maximum protofilament numbers.
-        splOrder : int, default is 3
+        splOrder : int
             Maximum order of spline curve.
-        yPitchAvg : nm, default is 4.16
-            Average pitch length estimation.
-        maxSkew : float, default is 1.0
-            Maximum skew angle.
-        splError : nm, default is 0.8
+        yPitchMin : nm
+            Minimum pitch length for estimation.
+        yPitchMax : nm
+            Maximum pitch length for estimation.
+        minSkew : float
+            Minimum skew angle for estimation.
+        maxSkew : float
+            Maximum skew angle for estimation.
+        splError : nm
             Average error of spline fitting.
-        rMax : nm, default is 17.0
+        rMax : nm
             Maximum radius of MT.
-        inner : float, default is 0.7
+        inner : float
             Radius x inner will be the inner surface of MT.
-        outer : float, default is 1.6
+        outer : float
             Radius x outer will be the outer surface of MT.
         """        
         GVar.set_value(**locals())
@@ -1087,12 +1097,12 @@ class MTProfiler:
         self.plot.ax.plot(x, props[H.yPitch], color=pitch_color)
         self.plot.ax.set_xlabel("position (nm)")
         self.plot.ax.set_ylabel("pitch (nm)")
-        self.plot.ax.set_ylim(*self.label_colorlimit)
+        self.plot.ax.set_ylim(GVar.yPitchMin, GVar.yPitchMax)
         
         self.plot.ax2 = self.plot.ax.twinx()
         self.plot.ax2.plot(x, props[H.skewAngle], color=skew_color)
         self.plot.ax2.set_ylabel("skew (deg)")
-        self.plot.ax2.set_ylim(-GVar.maxSkew, GVar.maxSkew)
+        self.plot.ax2.set_ylim(GVar.minSkew, GVar.maxSkew)
         
         self.plot.ax2.spines["left"].set_color(pitch_color)
         self.plot.ax2.spines["right"].set_color(skew_color)

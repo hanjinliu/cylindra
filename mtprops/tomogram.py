@@ -1056,7 +1056,7 @@ class MtTomogram:
                            spline = mesh)
         return crds
         
-def angle_corr(img, ang_center:float=0, drot:float=7, nrots:int=29):
+def angle_corr(img, ang_center: float = 0, drot: float = 7, nrots: int = 29):
     # img: 3D
     img_z = img.proj("z")
     mask = ip.circular_mask(img_z.shape.y/2+2, img_z.shape)
@@ -1083,13 +1083,14 @@ def _local_dft_params(img, radius: nm):
     l_circ: nm = 2*np.pi*radius
     npfmin = GVar.nPFmin
     npfmax = GVar.nPFmax
-    peak_est = img.shape.y/(GVar.yPitchAvg/img.scale.y) # estimated peak
-    y0 = int(peak_est*0.8)
-    y1 = int(peak_est*1.3)
+    ylength_nm = img.shape.y*img.scale.y
+    y0 = ceilint(ylength_nm/GVar.yPitchMax) - 1
+    y1 = max(ceilint(ylength_nm/GVar.yPitchMin), y0+1)
     up_a = 20
-    up_y = max(int(1500/(img.shape.y*img.scale.y)), 1)
+    up_y = max(int(1500/ylength_nm), 1)
+    npfrange = ceilint(npfmax/2) # The peak of longitudinal periodicity is always in this range. 
     
-    power = img.local_power_spectra(key=f"y={y0}:{y1};a={-npfmax}:{npfmax+1}", 
+    power = img.local_power_spectra(key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}", 
                                     upsample_factor=[1, up_y, up_a], 
                                     dims="rya"
                                     ).proj("r")
@@ -1097,7 +1098,7 @@ def _local_dft_params(img, radius: nm):
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     ymaxp = np.argmax(power.proj("a"))
     
-    amax_f = amax - npfmax*up_a
+    amax_f = amax - npfrange*up_a
     ymaxp_f = ymaxp + y0*up_y
     ymax_f = ymax + y0*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
@@ -1108,11 +1109,13 @@ def _local_dft_params(img, radius: nm):
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
-    dy = ceilint(abs(np.tan(np.deg2rad(GVar.maxSkew))*radius/y_pitch/npfmin*img.shape.y/4))
+    y_factor = abs(radius/y_pitch/npfmin*img.shape.y/4)
+    dy0 = ceilint(np.tan(np.deg2rad(-GVar.maxSkew))*y_factor) - 1
+    dy1 = max(ceilint(np.tan(np.deg2rad(-GVar.minSkew))*y_factor), dy0+1)
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
-    power = img.local_power_spectra(key=f"y={-dy}:{dy+1};a={npfmin}:{npfmax}", 
+    power = img.local_power_spectra(key=f"y={dy0}:{dy1};a={npfmin}:{npfmax}", 
                                     upsample_factor=[1, up_y, up_a], 
                                     dims="rya"
                                     ).proj("r")
@@ -1122,7 +1125,7 @@ def _local_dft_params(img, radius: nm):
     
     amax_f = amax + npfmin*up_a
     amaxp_f = amaxp + npfmin*up_a
-    ymax_f = ymax - dy*up_y
+    ymax_f = ymax + dy0*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
