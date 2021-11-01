@@ -1,4 +1,5 @@
 from enum import Enum, auto
+import numpy as np
 
 class Ori(Enum):
     none = "none"
@@ -31,7 +32,9 @@ class GVar:
     nPFmin: int = 11
     nPFmax: int = 17
     splOrder: int = 3
-    yPitchAvg: nm = 4.16
+    yPitchMin: nm = 3.9
+    yPitchMax: nm = 4.5
+    minSkew: float = -1.0
     maxSkew: float = 1.0
     splError: nm = 0.8
     rMax: nm = 14
@@ -40,6 +43,10 @@ class GVar:
     
     @classmethod
     def set_value(cls, **kwargs):
+        if kwargs.get("yPitchMin", -np.inf) >= kwargs.get("yPitchMax", np.inf):
+            raise ValueError("'yPitchMin' must be smaller than 'yPitchMax'.")
+        if kwargs.get("minSkew", -np.inf) >= kwargs.get("maxSkew", np.inf):
+            raise ValueError("'minSkew' must be smaller than 'maxSkew'.")
         for k, v in kwargs.items():
             if not hasattr(cls, k):
                 pass
