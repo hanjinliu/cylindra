@@ -426,6 +426,8 @@ class MTProfiler:
             Maximum order of spline curve.
         yPitchAvg : nm, default is 4.16
             Average pitch length estimation.
+        maxSkew : float, default is 1.0
+            Maximum skew angle.
         splError : nm, default is 0.8
             Average error of spline fitting.
         rMax : nm, default is 17.0

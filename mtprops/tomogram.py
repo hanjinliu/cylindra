@@ -838,7 +838,7 @@ class MtTomogram:
         ip.arrays.ImgArray
             Reconstructed image.
         """        
-        # TODO: dask parallelize
+        # TODO: dask parallelize, iteration
         
         # Cartesian transformation along spline.
         img_st = self.straighten(i)
@@ -1002,7 +1002,7 @@ class MtTomogram:
             for ang in skew_angles[:min(dup, len(skew_angles))-1]:
                 shift = ang/360*img_open.shape.a
                 outlist.append(out.affine(translation=[0, -shift], 
-                                            dims="ya", mode="grid-wrap"))
+                                          dims="ya", mode="grid-wrap"))
     
         return np.concatenate(outlist, axis="y")
     
