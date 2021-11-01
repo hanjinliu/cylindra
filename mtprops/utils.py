@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
+from typing import Any
 from ._dependencies import impy as ip
 
 def roundint(a: float):
@@ -72,7 +73,8 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     n_segs, res = divmod(value + 1e-8, interval)
     return value - res, int(n_segs)
 
-def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefilter=True):
+def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = "constant",
+                    cval: float = 0):
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
@@ -90,15 +92,16 @@ def map_coordinates(input, coordinates, order=3, mode="constant", cval=0, prefil
         coordinates[i] -= _sl.start
     sl = tuple(sl)
     img = input[sl].data
+    
     if np.any(np.array(pad) > 0):
         img = img.pad(pad, dims="zyx", constant_values=np.median(img))
- 
+        
     return ndi.map_coordinates(img,
                                coordinates,
                                order=order,
                                mode=mode, 
                                cval=cval,
-                               prefilter=prefilter
+                               prefilter=order>1
                                )
 
 def oblique_meshgrid(shape: tuple[int, int], 

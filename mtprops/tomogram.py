@@ -779,8 +779,7 @@ class MtTomogram:
             
             transformed = map_coordinates(self.image, 
                                           coords,
-                                          order=1,
-                                          prefilter=False
+                                          order=1
                                           )
             
             axes = "rya" if cylindrical else "zyx"
@@ -1109,7 +1108,7 @@ def _local_dft_params(img, radius: nm):
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
-    dy = 1
+    dy = ceilint(abs(np.tan(np.deg2rad(GVar.maxSkew))*radius/y_pitch/npfmin*img.shape.y/4))
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
@@ -1139,7 +1138,7 @@ def _local_dft_params(img, radius: nm):
     
 
 def ft_params(img, coords, radius):
-    polar = map_coordinates(img, coords, prefilter=True, order=3, mode="grid-wrap")
+    polar = map_coordinates(img, coords, order=3, mode="grid-wrap")
     polar = ip.asarray(polar, axes="rya") # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit

@@ -32,6 +32,7 @@ class GVar:
     nPFmax: int = 17
     splOrder: int = 3
     yPitchAvg: nm = 4.16
+    maxSkew: float = 1.0
     splError: nm = 0.8
     rMax: nm = 14
     inner: float = 0.8

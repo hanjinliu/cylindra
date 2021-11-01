@@ -136,7 +136,7 @@ class MTProfiler:
     @magicmenu
     class Others:
         def Create_macro(self): ...
-        def Global_variables(self): ...
+        def Global_variables(self, **kwargs): ...
         def MTProps_info(self): ...
         
     @magicclass(layout="horizontal", labels=False)
@@ -172,7 +172,7 @@ class MTProfiler:
     @magicclass(widget_type="tabbed")
     class Canvas2D:
         overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
-        image2D = ImageCanvas()
+        image2D = field(ImageCanvas)
         table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     @View.wraps
@@ -408,6 +408,7 @@ class MTProfiler:
                          nPFmax: int = 17,
                          splOrder: int = 3,
                          yPitchAvg: nm = 4.16,
+                         maxSkew: float = 1.0,
                          splError: nm = 0.8,
                          rMax: nm = 14.0,
                          inner: float = 0.8,
@@ -599,6 +600,7 @@ class MTProfiler:
         # move to center
         ly, lx = polar.shape
         self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Canvas2D.current_index = 1
         return None
     
     @View.wraps
@@ -615,6 +617,7 @@ class MTProfiler:
         # move to center
         ly, lx = polar.shape
         self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Canvas2D.current_index = 1
         return None
     
     @View.wraps
@@ -629,7 +632,7 @@ class MTProfiler:
             pw /= pw.max()
         
         if self.Canvas2D.image2D.image is None:
-            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 95])
+            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 75])
         self.Canvas2D.image2D.image = pw.value
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
@@ -637,6 +640,7 @@ class MTProfiler:
         # move to center
         ly, lx = pw.shape
         self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Canvas2D.current_index = 1
         return None
     
     @View.wraps
@@ -652,12 +656,13 @@ class MTProfiler:
             pw /= pw.max()
             
         if self.Canvas2D.image2D.image is None:
-            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 95])
+            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 75])
         self.Canvas2D.image2D.image = pw.value
         self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
         ly, lx = pw.shape
         self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Canvas2D.current_index = 1
         return None
     
     @View.wraps
@@ -839,15 +844,15 @@ class MTProfiler:
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
-    def cylindric_reconstruction(self, rot_ave=False, y_length=50.0):
+    def cylindric_reconstruction(self, rot_ave=False, y_length=48.0):
         """
-        Coarse reconstruction of MT.
+        Cylindric reconstruction of MT.
 
         Parameters
         ----------
         rot_ave : bool, default is False
             Check to run rotational averaging after reconstruction.
-        y_length : nm, default is 50.0
+        y_length : nm, default is 48.0
             Longitudinal length (nm) of reconstructed image.
         """        
         tomo = self.active_tomogram
@@ -1085,7 +1090,7 @@ class MTProfiler:
         self.plot.ax2 = self.plot.ax.twinx()
         self.plot.ax2.plot(x, props[H.skewAngle], color=skew_color)
         self.plot.ax2.set_ylabel("skew (deg)")
-        self.plot.ax2.set_ylim(-2.0, 2.0)
+        self.plot.ax2.set_ylim(-GVar.maxSkew, GVar.maxSkew)
         
         self.plot.ax2.spines["left"].set_color(pitch_color)
         self.plot.ax2.spines["right"].set_color(skew_color)
@@ -1223,7 +1228,7 @@ class MTProfiler:
         coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
         coords = np.moveaxis(coords, -1, 0)
         img = tomo.image
-        polar = map_coordinates(img, coords, prefilter=False, order=1)
+        polar = map_coordinates(img, coords, order=1)
         polar = ip.asarray(polar, axes="rya") # radius, y, angle
         polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
         polar.scale_unit = img.scale_unit
@@ -1261,7 +1266,6 @@ class MTProfiler:
     
     @mt.pos.connect
     def _imshow_all(self):
-        # TODO: use binned image
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
