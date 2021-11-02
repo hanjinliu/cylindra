@@ -1022,6 +1022,7 @@ class MtTomogram:
             Named tuple with monomer positions in world coordinates and spline coordinates.
         """        
         # TODO: Sometimes skew angles seems to be not accurate enough for correct tubulin mapping.
+        # ... and sometimes offset is wrong.
         
         spl = self._paths[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)

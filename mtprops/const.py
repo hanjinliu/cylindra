@@ -40,6 +40,7 @@ class GVar:
     rMax: nm = 14
     inner: float = 0.8
     outer: float = 1.5
+    daskChunk: int = (64, 512, 512)
     
     @classmethod
     def set_value(cls, **kwargs):

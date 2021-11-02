@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable
 import numpy as np
 import napari
 from napari.utils.colormaps.colormap import Colormap
-from napari.qt import thread_worker, create_worker
+from napari.qt import create_worker
 from qtpy.QtGui import QFont
 from pathlib import Path
 from magicgui.widgets import Table, TextEdit
@@ -22,20 +22,19 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
 
-@thread_worker(progress={"total": 0, "desc": "Reading Image"})
-def bin_image_worker(img, binsize):
-    with ip.SetConst("SHOW_PROGRESS", False):
-        imgb = img.binning(binsize, check_edges=False).data
-    
-    return imgb
-
-
 @magicclass
 class ImageLoader:
     path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec"})
     scale = field(str, options={"label": "scale (nm)"})
     bin_size = field(4, options={"label": "bin size", "min": 1, "max": 8})
     light_background = field(True, options={"label": "light background"})
+    use_lowpass = field(False, options={"label": "Apply low-pass filter"})
+    cutoff_freq = field(0.2, options={"label": "Cutoff frequency (1/px)", "visible": False,
+                                      "min": 0.0, "max": 0.5, "step": 0.05})
+    
+    @use_lowpass.connect
+    def _enable_freq_option(self):
+        self.cutoff_freq.visible = self.use_lowpass.value
     
     @set_design(text="OK")
     def call_button(self):
@@ -52,7 +51,7 @@ class ImageLoader:
         self._imread(self.path.value)
     
     def _imread(self, path:str):
-        self.img = ip.lazy_imread(path, chunks=(64, 1024, 1024))
+        self.img = ip.lazy_imread(path, chunks=GVar.daskChunk)
         self.scale.value = f"{self.img.scale.x:.3f}"
 
 @magicclass(layout="horizontal", labels=False)
@@ -239,8 +238,11 @@ class MTProfiler:
                 return None
             self.active_tomogram = tomo
             
-            self._bin_image(tomo.image, tomo.metadata["binsize"], 
-                            tomo.light_background, new=False)
+            # Load dask again. Here, lowpass filter is already applied so that cutoff frequency
+            # should be set to 0.
+            self._process_image(tomo.image, tomo.metadata["binsize"], 
+                                tomo.light_background, 0.0,
+                                new=False)
             if tomo.paths:
                 self._load_tomogram_results()
             else:
@@ -406,19 +408,21 @@ class MTProfiler:
     @set_options(yPitchMin={"step": 0.1},
                  yPitchMax={"step": 0.1},
                  minSkew={"min": -90, "max": 90},
-                 maxSkew={"min": -90, "max": 90},)
+                 maxSkew={"min": -90, "max": 90},
+                 daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048}})
     def Global_variables(self, 
-                         nPFmin: int = 11,
-                         nPFmax: int = 17,
-                         splOrder: int = 3,
+                         nPFmin: int = GVar.nPFmin,
+                         nPFmax: int = GVar.nPFmax,
+                         splOrder: int = GVar.splOrder,
                          yPitchMin: nm = GVar.yPitchMin,
                          yPitchMax: nm = GVar.yPitchMax,
                          minSkew: float = GVar.minSkew,
                          maxSkew: float = GVar.maxSkew,
                          splError: nm = GVar.splError,
-                         rMax: nm = 14.0,
-                         inner: float = 0.8,
-                         outer: float = 1.5):
+                         rMax: nm = GVar.rMax,
+                         inner: float = GVar.inner,
+                         outer: float = GVar.outer,
+                         daskChunk: int = GVar.daskChunk):
         """
         Set global variables.
 
@@ -515,7 +519,7 @@ class MTProfiler:
         """        
         cutoff = 0.2
         with ip.SetConst("SHOW_PROGRESS", False):
-            self.layer_image.data = self.layer_image.data.lowpass_filter(cutoff)
+            self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, chunks=(32, 128, 128))
         self.layer_image.contrast_limits = np.percentile(self.layer_image.data, [1, 97])
         return None
         
@@ -1117,14 +1121,33 @@ class MTProfiler:
         img = self._loader.img
         light_bg = self._loader.light_background.value
         binsize = self._loader.bin_size.value
+        if self._loader.use_lowpass.value:
+            cutoff = self._loader.cutoff_freq.value
+        else:
+            cutoff = 0.0
         
-        self._bin_image(img, binsize, light_bg)
+        self._process_image(img, binsize, light_bg, cutoff)
         self._loader.close()
         return None
     
-    def _bin_image(self, img, binsize: int, light_bg: bool, new: bool=True):
+    def _process_image(self, img, binsize: int, light_bg: bool, cutoff: float, new: bool=True):
         viewer: napari.Viewer = self.parent_viewer
-        worker = bin_image_worker(img, binsize)
+        
+        def _run(img, binsize, cutoff):
+            with ip.SetConst("SHOW_PROGRESS", False):
+                img.tiled_lowpass_filter(cutoff, update=True)
+                img.release()
+                imgb = img.binning(binsize, check_edges=False).data
+            
+            return imgb
+        
+        worker = create_worker(_run,
+                               img=img,
+                               binsize=binsize,
+                               cutoff=cutoff,
+                               _progress={"total": 0, 
+                                          "desc": "Reading Image"})
+
         self._connect_worker(worker)
         self._worker_control.info.value = \
             f"Loading with {binsize}x{binsize} binned size: {tuple(s//binsize for s in img.shape)}"
@@ -1158,6 +1181,7 @@ class MTProfiler:
                 
                 tomo.metadata["source"] = str(self._loader.path.value)
                 tomo.metadata["binsize"] = binsize
+                tomo.metadata["cutoff"] = cutoff
                 
                 self.active_tomogram = tomo
                 tomo.image = img
