@@ -24,13 +24,16 @@ if TYPE_CHECKING:
 
 @magicclass
 class ImageLoader:
-    path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec"})
-    scale = field(str, options={"label": "scale (nm)"})
-    bin_size = field(4, options={"label": "bin size", "min": 1, "max": 8})
-    light_background = field(True, options={"label": "light background"})
-    use_lowpass = field(False, options={"label": "Apply low-pass filter"})
+    path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec",
+                                "tooltip": "Path to tomogram."})
+    scale = field(str, options={"label": "scale (nm)", "tooltip": "Pixel size in nm/pixel."})
+    bin_size = field(4, options={"label": "bin size", "min": 1, "max": 8, 
+                                 "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."})
+    light_background = field(True, options={"label": "light background", "tooltip": "Check if background is bright."})
+    use_lowpass = field(False, options={"label": "Apply low-pass filter", "tooltip": "Check if images need prefilter."})
     cutoff_freq = field(0.2, options={"label": "Cutoff frequency (1/px)", "visible": False,
-                                      "min": 0.0, "max": 0.5, "step": 0.05})
+                                      "min": 0.0, "max": 0.5, "step": 0.05, 
+                                      "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.5."})
     
     @use_lowpass.connect
     def _enable_freq_option(self):
