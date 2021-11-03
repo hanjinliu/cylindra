@@ -22,6 +22,9 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
 
+WORKING_LAYER_NAME = "Working Layer"
+SELECTION_LAYER_NAME = "Selected MTs"
+
 @magicclass
 class ImageLoader:
     path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec",
@@ -41,6 +44,9 @@ class ImageLoader:
     
     @set_design(text="OK")
     def call_button(self):
+        """
+        Start loading image.
+        """
         try:
             scale = float(self.scale.value)
         except Exception as e:
@@ -267,14 +273,23 @@ class MTProfiler:
         self.plot.min_height = 180
         self.Canvas2D.min_height = 240
         self.Canvas2D.image2D.show_button(False)
-             
+            
+    def _get_path(self, widget=None) -> list[list[float]]:
+        coords = self.layer_work.data.tolist()
+        return coords
+    
     @operation.wraps
     @set_design(text="📝")
-    def register_path(self):
+    @set_options(coords={"bind": _get_path})
+    def register_path(self, coords=None):
         """
         Register current selected points as a MT path.
         """        
-        coords = self.layer_work.data
+        if coords is None:
+            coords = self.layer_work.data
+        else:
+            coords = np.asarray(coords)
+        
         if coords.size == 0:
             return None
         tomo = self.active_tomogram
@@ -899,6 +914,9 @@ class MTProfiler:
     @Analysis.wraps
     @set_design(text="Map tubulin")
     def Map_tubulin(self):
+        """
+        Map points to tubulin molecules using the results of global Fourier transformation.
+        """        
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         
@@ -1281,7 +1299,7 @@ class MTProfiler:
             viewer.layers.remove(self.layer_prof)
     
         self.layer_prof = viewer.add_points(**common_properties,
-                                    name="MT Profiles",
+                                    name=SELECTION_LAYER_NAME,
                                     opacity=0.4, 
                                     edge_color="black",
                                     face_color="black",
@@ -1292,7 +1310,7 @@ class MTProfiler:
             viewer.layers.remove(self.layer_work)
         
         self.layer_work = viewer.add_points(**common_properties,
-                                    name="Working Layer",
+                                    name=WORKING_LAYER_NAME,
                                     face_color="yellow"
                                     )
     
