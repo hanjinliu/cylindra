@@ -10,8 +10,8 @@ from magicgui.widgets import Table, TextEdit
 import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
-from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, click, set_options, 
-                            Figure, TupleEdit, Separator, ListWidget, ImageCanvas)
+from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, set_options, 
+                            do_not_record, Figure, TupleEdit, Separator, ListWidget, ImageCanvas)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
 from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
 from .const import nm, H, Ori, GVar
@@ -206,6 +206,7 @@ class MTProfiler:
         return None
     
     @Others.wraps
+    @do_not_record
     def Create_macro(self):
         """
         Create Python executable script.
@@ -391,6 +392,7 @@ class MTProfiler:
     
     @operation.wraps
     @set_design(text="❌")
+    @do_not_record
     def clear_current(self):
         """
         Clear current selection.
@@ -473,6 +475,7 @@ class MTProfiler:
         
     
     @Others.wraps
+    @do_not_record
     def MTProps_info(self):
         """
         Show information of dependencies.
@@ -939,6 +942,7 @@ class MTProfiler:
         
     @auto_picker.wraps
     @set_design(text="Next")
+    @do_not_record
     def pick_next(self):
         """
         Automatically pick MT center using previous two points.
@@ -981,6 +985,7 @@ class MTProfiler:
     
     @auto_picker.wraps
     @set_design(text="AC")
+    @do_not_record
     def auto_center(self):
         """
         Auto centering of selected points.
@@ -1137,7 +1142,7 @@ class MTProfiler:
     
         return None
     
-    @click(visible=False)
+    @set_design(visible=False)
     def load_image(self):
         img = self._loader.img
         light_bg = self._loader.light_background.value

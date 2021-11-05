@@ -6,7 +6,7 @@ import numba as nb
 import json
 from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
-from .utils import interval_divmod, roundint
+from .utils import interval_divmod, oblique_meshgrid, roundint
 from .const import nm
 
 class Spline3D:
@@ -412,10 +412,10 @@ class Spline3D:
                               ], axis=2) # V, S, H, D
         # (WIP)
         # TODO: each slice must be rotated separately, with different skew
-        mtx = np.array([[1.0,         0.0,         0.0, 0.0],
-                        [0.0,         1.0, skew_per_px, 0.0],
-                        [0.0, rise_per_px,         1.0, 0.0],
-                        [0.0,         0.0,         0.0, 1.0]], 
+        mtx = np.array([[1.0,         0.0, 0.0, 0.0],
+                        [0.0,         1.0, 0.0, 0.0],
+                        [0.0, rise_per_px, 1.0, 0.0],
+                        [0.0,         0.0, 0.0, 1.0]], 
                        dtype=np.float32)
         
         map_slice = map_slice @ mtx
@@ -479,9 +479,9 @@ class Spline3D:
         radius = coords[:, 0]
         y = coords[:, 1]
         theta = coords[:, 2]
-        cart_coords = np.stack([radius*np.cos(theta), 
+        cart_coords = np.stack([radius*np.sin(theta), 
                                 y, 
-                                radius*np.sin(theta)],
+                                radius*np.cos(theta)],
                                axis=1)
         
         return self.inv_cartesian(cart_coords, (0, ylength, 0))

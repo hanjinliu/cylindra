@@ -7,7 +7,7 @@ except ImportError as e:
 
 try:
     import magicclass as mcls
-    from magicclass import magicclass, magicmenu, field, set_design, click, set_options
+    from magicclass import magicclass, magicmenu, field, set_design, click, set_options, do_not_record
     from magicclass.widgets import Figure, TupleEdit, CheckButton, Separator, ListWidget
     from magicclass.qtgraph import ImageCanvas
 except ImportError as e:

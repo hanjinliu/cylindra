@@ -693,6 +693,7 @@ class MtTomogram:
     @batch_process
     def straighten(self, 
                    i: int = None, 
+                   *,
                    radius: nm | tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
                    chunkwise: bool = True,
@@ -724,7 +725,7 @@ class MtTomogram:
         """        
         try_cache = radius is None and range_ == (0.0, 1.0)
         cache_key = CacheKey.cyl_straight if cylindrical else CacheKey.cart_straight
-        spl = self._paths[i]
+        spl = self.paths[i]
         if try_cache:
             try:
                 transformed = cachemap[(self, spl, cache_key)]
@@ -736,7 +737,9 @@ class MtTomogram:
         start, end = range_
         chunk_length: nm = 72.0
         length = self._paths[i].length(nknots=512)
+        
         if chunkwise and length > chunk_length:
+            # split image into chunks and call straightening separately.
             out = []
             current_distance: nm = 0.0
             while current_distance < length:
@@ -770,7 +773,7 @@ class MtTomogram:
 
             if cylindrical:
                 if rx <= rz:
-                    raise ValueError("For polar straightening, 'radius' must be (rmin, rmax)")
+                    raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
                 coords = spl.cylindrical((rz, rx), s_range=range_)
             else:
                 coords = spl.cartesian((rz, rx), s_range=range_)
@@ -819,6 +822,7 @@ class MtTomogram:
     @batch_process
     def reconstruct(self, 
                     i: int = None,
+                    *, 
                     rot_ave: bool = False,
                     y_length: nm = 50.0):
         """
@@ -966,7 +970,7 @@ class MtTomogram:
             shift = ang/360*img_open.shape.a
             imgs.append(
                 img_open[:, start:stop].affine(translation=[0, shift],
-                                                dims="ya", mode="grid-wrap")
+                                               dims="ya", mode="grid-wrap")
                 )
             ylen = min(ylen, stop-start)
         
@@ -979,7 +983,7 @@ class MtTomogram:
             img = imgs[i][f"y=:{ylen}"]
             shift = ip.pcc_maximum(img, ref, mask=mask)
             imgs[i] = img.affine(translation=shift, 
-                                    dims="rya", mode="grid-wrap")
+                                 dims="rya", mode="grid-wrap")
 
         out = np.stack(imgs, axis="p").proj("p")
         
@@ -993,7 +997,7 @@ class MtTomogram:
                 shift_a = out.shape.a/npf*i
                 shift = [dy, shift_a]
                 out.value[:] += input_.affine(translation=shift, 
-                                                dims="ya", mode="grid-wrap")
+                                              dims="ya", mode="grid-wrap")
         
         # stack images for better visualization
         dup = ceilint(y_length/lp)
