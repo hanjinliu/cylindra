@@ -90,7 +90,7 @@ class Spline3D:
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
     
-    def fit(self, coords:np.ndarray, w=None, s=None) -> Spline3D:
+    def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline3D:
         """
         Fit spline model using a list of coordinates.
 
@@ -98,6 +98,8 @@ class Spline3D:
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
+        w : np.ndarray, optional
+            Weight of each coordinate.
         s : float, optional
             Total variation , by default None
         """        
@@ -111,7 +113,34 @@ class Spline3D:
         self._anchors = None # Anchor should be deleted after spline is updated
         return self
     
-    def distances(self, u: Iterable[float]=None) -> np.ndarray:
+    def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray=None, s: float = None) -> Spline3D:
+        """
+        Fit spline model using a list of shifts in XZ-plane.
+
+        Parameters
+        ----------
+        u : Iterable[float], optional
+            Positions. Between 0 and 1. If not given, anchors are used instead.
+        shifts : np.ndarray
+            Shift from center. Must be (N, 2).
+        w : np.ndarray, optional
+            Weight of each coordinate.
+        s : float, optional
+            Total variation , by default None
+        """        
+        coords = self(u)
+        mtxs = self.rotation_matrix(u)
+        for i in range(coords.shape[0]):
+            shiftz, shiftx = shifts[i]
+            shift = np.array([shiftz, 0, shiftx])
+            
+            shift = shift @ mtxs[i][:3, :3]
+            coords[i] += shift * self.scale
+        
+        self.fit(coords, s=s)
+        return self
+    
+    def distances(self, u: Iterable[float] = None) -> np.ndarray:
         """
         Get the distances from u=0.
 

@@ -21,7 +21,7 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
 
     return slice(z0, z1), (z0_pad, z1_pad)
 
-def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask:bool=True):
+def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True):
     """
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.

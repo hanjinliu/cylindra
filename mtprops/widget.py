@@ -25,8 +25,11 @@ if TYPE_CHECKING:
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 
+### Child widgets ###
+
 @magicclass
 class ImageLoader:
+    # A loader widget with imread settings.
     path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec",
                                 "tooltip": "Path to tomogram."})
     scale = field(str, options={"label": "scale (nm)", "tooltip": "Pixel size in nm/pixel."})
@@ -65,6 +68,9 @@ class ImageLoader:
 
 @magicclass(layout="horizontal", labels=False)
 class WorkerControl:
+    # A widget that has a napari worker object and appears as buttons in the activity dock 
+    # while running.
+    
     info = field(str)
     
     def __post_init__(self):
@@ -97,13 +103,125 @@ class WorkerControl:
         Interrupt thread.
         """        
         self.worker.quit()
+
+
+@magicclass
+class SplineFitter:
+    # Manually fit MT with spline curve using longitudinal projections
+    
+    canvas = field(ImageCanvas)
+        
+    @magicclass(layout="horizontal")
+    class mt:
+        mtlabel = field(int, options={"max": 0}, name="MTLabel")
+        pos = field(int, options={"max": 0}, name="Pos")
+        def Fit(self): ...
+        
+    def __post_init__(self):
+        self.shifts: list[np.ndarray] = None
+        self.canvas.show_button(False)
+        self.fit_done = True
+        self.canvas.add_curve([0, 0], [-1000, 2000], color="lime")
+        self.canvas.add_curve([-1000, 2000], [0, 0], color="lime")
+        self.mt.max_height = 50
+        self.mt.height = 50
+        
+        @self.canvas.mouse_click_callbacks.append
+        def _(e):
+            self.fit_done = False
+            x, y = e.pos()
+            self._update_cross(x, y)
+    
+    @mt.wraps
+    def Fit(self):
+        i = self.mt.mtlabel.value
+        spl = self.paths[i]
+        sqsum = GVar.splError**2 * self.shifts[i].shape[0]
+        spl.shift_fit(shifts=self.shifts[i], s=sqsum)
+        length = spl.length()
+        npoints = max(ceilint(length/self.max_interval) + 1, 4)
+        interval = length/(npoints-1)
+        spl.make_anchors(interval=interval)
+        self.fit_done = True
+        self._mt_changed()
+    
+    def _update_cross(self, x, y):
+        itemv = self.canvas.layers[0]
+        itemh = self.canvas.layers[1]
+        itemv.xdata = [x, x]
+        itemh.ydata = [y, y]
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        yc, xc = self.subtomograms.shape[-2:]
+        self.shifts[i][j, :] = y - yc/2, x - xc/2
+        return None
+    
+    def _load_parent_state(self, max_interval: nm):
+        self.max_interval = max_interval
+        tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        for i in range(tomo.n_paths):
+            spl = tomo.paths[i]
+            length = spl.length()
+            npoints = max(ceilint(length/self.max_interval) + 1, 4)
+            interval = length/(npoints-1)    
+            spl.make_anchors(interval=interval)
+            
+        self.shifts = [None] * tomo.n_paths
+        self.binsize = tomo.metadata["binsize"]
+        self.mt.mtlabel.max = tomo.n_paths - 1
+        self.mt.mtlabel.value = 0
+        self._mt_changed()
+        
+    @mt.mtlabel.connect
+    def _mt_changed(self):
+        i = self.mt.mtlabel.value
+        self.mt.pos.value = 0
+        imgb = self.__magicclass_parent__.layer_image.data
+        tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        spl = tomo.paths[i]
+        self.paths = tomo.paths
+        npos = spl.anchors.size
+        self.shifts[i] = np.zeros((npos, 2))
+        
+        center_px = tomo.nm2pixel(spl()) // self.binsize
+        size_px = tomo.nm2pixel(tomo.box_size) // self.binsize
+        
+        out = np.stack([load_a_subtomogram(imgb, c, size_px, dask=False)
+                        for c in center_px],
+                        axis="p")
+        matrices = spl.rotation_matrix(center=size_px/2, inverse=True)
+        out.value[:] = dask_affine(out.value, matrices)
+        
+        with ip.SetConst("SHOW_PROGRESS", False):
+            self.subtomograms = out.proj("y")
+        self.canvas.image = self.subtomograms[0]
+        self.mt.pos.max = npos - 1
+        self.canvas.view_range = (0, self.canvas.image.shape[0]), (0, self.canvas.image.shape[1])
+        yc, xc = self.subtomograms.shape[-2:]
+        self._update_cross(xc/2, yc/2)
+        return None
+    
+    @mt.pos.connect
+    def _position_changed(self):
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        self.canvas.image = self.subtomograms[j]
+        y, x = self.shifts[i][j]
+        yc, xc = self.subtomograms.shape[-2:]
+        self._update_cross(x + xc/2, y + yc/2)
+
+
+### The main widget ###
     
 @magicclass(widget_type="scrollable")
 class MTProfiler:
     # Main GUI class.
     
-    _loader = ImageLoader()
-    _worker_control = WorkerControl()
+    ### widgets ###
+    
+    _loader = field(ImageLoader)
+    _worker_control = field(WorkerControl)
+    _spline_fitter = field(SplineFitter)
     
     @magicmenu
     class File:
@@ -131,7 +249,9 @@ class MTProfiler:
     @magicmenu
     class Analysis:
         def Fit_splines(self): ...
+        def Fit_splines_manually(self): ...                
         def Add_anchors(self): ...
+        def Measure_radius(self): ...
         def Refine_splines(self): ...
         sep0 = Separator()
         def Local_FT_analysis(self): ...
@@ -182,6 +302,8 @@ class MTProfiler:
         overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
         image2D = field(ImageCanvas)
         table = field(Table, name="Table", options={"tooltip": "Result table"})
+    
+    ### methods ###
     
     @View.wraps
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
@@ -742,6 +864,11 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
+    def Fit_splines_manually(self, max_interval: nm = 100.0):
+        self._spline_fitter.show()
+        self._spline_fitter._load_parent_state(max_interval=max_interval)
+    
+    @Analysis.wraps
     @set_options(interval={"label": "Interval between anchors (nm)"})
     def Add_anchors(self, interval: nm = 25.0):
         """
@@ -757,10 +884,19 @@ class MTProfiler:
             raise ValueError("Cannot add anchors before adding splines.")
         for i in range(tomo.n_paths):
             tomo.make_anchors(i, interval=interval)
-            if tomo.paths[i].radius is None:
-                tomo.measure_radius(i)
         return None
-        
+    
+    @Analysis.wraps
+    def Measure_radius(self):
+        tomo = self.active_tomogram
+        for i in range(tomo.n_paths):
+            spl = tomo.paths[i]
+            anchors = spl.anchors
+            if anchors is None:
+                spl.make_anchors(i, n=3)
+        tomo.measure_radius()
+        return None
+    
     @Analysis.wraps
     @set_options(max_interval={"label": "Maximum interval (nm)"},
                  cutoff_freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
