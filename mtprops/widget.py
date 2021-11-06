@@ -134,10 +134,13 @@ class SplineFitter:
     
     @mt.wraps
     def Fit(self):
+        """
+        Fit current spline.
+        """        
         i = self.mt.mtlabel.value
         spl = self.paths[i]
         sqsum = GVar.splError**2 * self.shifts[i].shape[0]
-        spl.shift_fit(shifts=self.shifts[i], s=sqsum)
+        spl.shift_fit(shifts=self.shifts[i]*self.binsize, s=sqsum)
         length = spl.length()
         npoints = max(ceilint(length/self.max_interval) + 1, 4)
         interval = length/(npoints-1)
@@ -196,7 +199,7 @@ class SplineFitter:
             self.subtomograms = out.proj("y")
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
-        self.canvas.view_range = (0, self.canvas.image.shape[0]), (0, self.canvas.image.shape[1])
+        self.canvas.view_range = (0, self.canvas.image.shape[1]), (0, self.canvas.image.shape[0])
         yc, xc = self.subtomograms.shape[-2:]
         self._update_cross(xc/2, yc/2)
         return None
@@ -551,6 +554,10 @@ class MTProfiler:
                  yPitchMax={"step": 0.1},
                  minSkew={"min": -90, "max": 90},
                  maxSkew={"min": -90, "max": 90},
+                 splError={"max": 5.0, "step": 0.1},
+                 rMax={"min": 1, "max": 30, "step": 0.5},
+                 inner={"step": 0.1},
+                 outer={"step": 0.1},
                  daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048}})
     def Global_variables(self, 
                          nPFmin: int = GVar.nPFmin,

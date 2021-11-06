@@ -122,7 +122,7 @@ class Spline3D:
         u : Iterable[float], optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
-            Shift from center. Must be (N, 2).
+            Shift from center in pixel. Must be (N, 2).
         w : np.ndarray, optional
             Weight of each coordinate.
         s : float, optional
