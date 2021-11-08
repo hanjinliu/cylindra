@@ -448,7 +448,7 @@ class MtTomogram:
         # Rotate subtomograms            
         for i, img in enumerate(subtomograms):
             angle = refined_tilt[i]
-            img.rotate(-angle, cval=np.median(img), update=True)
+            img.rotate(-angle, cval=np.mean(img), update=True)
             
         # zx-shift correction by self-PCC
         subtomo_proj = subtomograms.proj("y")

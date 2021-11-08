@@ -102,7 +102,7 @@ def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = 
     img = input[sl].data
     
     if np.any(np.array(pad) > 0):
-        img = img.pad(pad, dims="zyx", constant_values=np.median(img))
+        img = img.pad(pad, dims="zyx", constant_values=np.mean(img))
         
     return ndi.map_coordinates(img,
                                coordinates,
