@@ -97,7 +97,7 @@ def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = 
         _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
         sl.append(_sl)
         pad.append(_pad)
-        coordinates[i] -= _sl.start
+        coordinates[i] -= min(_sl.start, imin)
     sl = tuple(sl)
     img = input[sl].data
     

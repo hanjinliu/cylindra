@@ -19,7 +19,12 @@ from .utils import (load_a_subtomogram, centroid, rotational_average, map_coordi
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 Coordinates = namedtuple("Coordinates", ["world", "spline"])
-SCHEDULER = ip.Const["SCHEDULER"]
+
+if ip.Const["RESOURCE"] == "cupy":
+    SCHEDULER = "single-threaded"
+else:
+    SCHEDULER = "threads"
+    
 
 def batch_process(func):
     # TODO: error handling
