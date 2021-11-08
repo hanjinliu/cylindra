@@ -11,8 +11,9 @@ import matplotlib.pyplot as plt
 
 from ._dependencies import impy as ip
 from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, set_options, 
-                            do_not_record, Figure, TupleEdit, Separator, ListWidget, ImageCanvas)
-from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine
+                            do_not_record, Figure, TupleEdit, Separator, ListWidget, QtImageCanvas,
+                            register_type)
+from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
 from .const import nm, H, Ori, GVar
 
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 
+register_type(np.ndarray, lambda arr: str(arr.tolist()))
 ### Child widgets ###
 
 @magicclass
@@ -109,7 +111,7 @@ class WorkerControl:
 class SplineFitter:
     # Manually fit MT with spline curve using longitudinal projections
     
-    canvas = field(ImageCanvas)
+    canvas = field(QtImageCanvas)
         
     @magicclass(layout="horizontal")
     class mt:
@@ -121,26 +123,36 @@ class SplineFitter:
         self.shifts: list[np.ndarray] = None
         self.canvas.show_button(False)
         self.fit_done = True
-        self.canvas.add_curve([0, 0], [-1000, 2000], color="lime")
-        self.canvas.add_curve([-1000, 2000], [0, 0], color="lime")
+        self.canvas.add_curve([0, 0], [-1000, 2000], color="lime", lw=2)
+        self.canvas.add_curve([-1000, 2000], [0, 0], color="lime", lw=2)
+        theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
+        self.canvas.add_curve(np.cos(theta), np.sin(theta), color="lime", lw=2, ls="--")
+        self.canvas.add_curve(2*np.cos(theta), 2*np.sin(theta), color="lime", lw=2, ls="--")
         self.mt.max_height = 50
         self.mt.height = 50
         
         @self.canvas.mouse_click_callbacks.append
         def _(e):
+            if "left" not in e.buttons():
+                return
             self.fit_done = False
-            x, y = e.pos()
-            self._update_cross(x, y)
+            x, z = e.pos()
+            self._update_cross(x, z)
+    
+    def _get_shifts(self, widget=None):
+        i = self.mt.mtlabel.value
+        return self.shifts[i]
     
     @mt.wraps
-    def Fit(self):
+    @set_options(shifts={"bind": _get_shifts})
+    def Fit(self, shifts):
         """
         Fit current spline.
         """        
         i = self.mt.mtlabel.value
         spl = self.paths[i]
-        sqsum = GVar.splError**2 * self.shifts[i].shape[0]
-        spl.shift_fit(shifts=self.shifts[i]*self.binsize, s=sqsum)
+        sqsum = GVar.splError**2 * shifts.shape[0]
+        spl.shift_fit(shifts=shifts*self.binsize, s=sqsum)
         length = spl.length()
         npoints = max(ceilint(length/self.max_interval) + 1, 4)
         interval = length/(npoints-1)
@@ -148,15 +160,35 @@ class SplineFitter:
         self.fit_done = True
         self._mt_changed()
     
-    def _update_cross(self, x, y):
-        itemv = self.canvas.layers[0]
-        itemh = self.canvas.layers[1]
-        itemv.xdata = [x, x]
-        itemh.ydata = [y, y]
+    def _update_cross(self, x, z):
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        yc, xc = self.subtomograms.shape[-2:]
-        self.shifts[i][j, :] = y - yc/2, x - xc/2
+        
+        itemv = self.canvas.layers[0]
+        itemh = self.canvas.layers[1]
+        item_circ_inner = self.canvas.layers[2]
+        item_circ_outer = self.canvas.layers[3]
+        itemv.xdata = [x, x]
+        itemh.ydata = [z, z]
+        
+        tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        r_max: nm = GVar.rMax
+        nbin = 17
+        prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
+        if tomo.light_background:
+            prof = -prof
+            
+        imax = np.argmax(prof)
+        r_peak = centroid(prof, imax-5, imax+5)/nbin*r_max/tomo.scale/self.binsize
+        
+        theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
+        item_circ_inner.xdata = r_peak * GVar.inner * np.cos(theta) + x
+        item_circ_inner.ydata = r_peak * GVar.inner * np.sin(theta) + z
+        item_circ_outer.xdata = r_peak * GVar.outer * np.cos(theta) + x
+        item_circ_outer.ydata = r_peak * GVar.outer * np.sin(theta) + z
+        
+        lz, lx = self.subtomograms.sizesof("zx")
+        self.shifts[i][j, :] = z - lz/2, x - lx/2
         return None
     
     def _load_parent_state(self, max_interval: nm):
@@ -181,27 +213,28 @@ class SplineFitter:
         self.mt.pos.value = 0
         imgb = self.__magicclass_parent__.layer_image.data
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        
         spl = tomo.paths[i]
         self.paths = tomo.paths
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
-        center_px = tomo.nm2pixel(spl()) // self.binsize
-        size_px = tomo.nm2pixel(tomo.box_size) // self.binsize
+        size_px = tomo.nm2pixel(np.array(tomo.box_size)/self.binsize)
         
-        out = np.stack([load_a_subtomogram(imgb, c, size_px, dask=False)
-                        for c in center_px],
-                        axis="p")
-        matrices = spl.rotation_matrix(center=size_px/2, inverse=True)
-        out.value[:] = dask_affine(out.value, matrices)
+        out = []
+        for u in spl.anchors:
+            coords = spl.local_cartesian(size_px[1:], size_px[0], u)
+            coords = np.moveaxis(coords, -1, 0)
+            out.append(map_coordinates(imgb, coords, order=1))
+        out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
         
         with ip.SetConst("SHOW_PROGRESS", False):
             self.subtomograms = out.proj("y")
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
         self.canvas.view_range = (0, self.canvas.image.shape[1]), (0, self.canvas.image.shape[0])
-        yc, xc = self.subtomograms.shape[-2:]
-        self._update_cross(xc/2, yc/2)
+        lz, lx = self.subtomograms.sizesof("zx")
+        self._update_cross(lx/2, lz/2)
         return None
     
     @mt.pos.connect
@@ -210,8 +243,8 @@ class SplineFitter:
         j = self.mt.pos.value
         self.canvas.image = self.subtomograms[j]
         y, x = self.shifts[i][j]
-        yc, xc = self.subtomograms.shape[-2:]
-        self._update_cross(x + xc/2, y + yc/2)
+        lz, lx = self.subtomograms.shape[-2:]
+        self._update_cross(x + lx/2, y + lz/2)
 
 
 ### The main widget ###
@@ -301,9 +334,9 @@ class MTProfiler:
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
-    class Canvas2D:
+    class Panels:
         overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
-        image2D = field(ImageCanvas)
+        image2D = field(QtImageCanvas)
         table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     ### methods ###
@@ -394,14 +427,14 @@ class MTProfiler:
             
         tomograms.height = 160
         tomograms.max_height = 160
-        self.min_width = 500
+        self.min_width = 450
         self.canvas.min_height = 180
         self.plot.min_height = 180
-        self.Canvas2D.min_height = 240
-        self.Canvas2D.image2D.show_button(False)
+        self.Panels.min_height = 240
+        self.Panels.image2D.show_button(False)
             
     def _get_path(self, widget=None) -> list[list[float]]:
-        coords = self.layer_work.data.tolist()
+        coords = self.layer_work.data
         return coords
     
     @operation.wraps
@@ -429,13 +462,13 @@ class MTProfiler:
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
-        self.Canvas2D.overview.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
-        self.Canvas2D.overview.ax.set_xlim(0, tomo.image.shape.x*tomo.image.scale.x)
-        self.Canvas2D.overview.ax.set_ylim(tomo.image.shape.y*tomo.image.scale.y, 0)
-        self.Canvas2D.overview.ax.set_aspect("equal")
-        self.Canvas2D.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
-        self.Canvas2D.overview.figure.tight_layout()
-        self.Canvas2D.overview.figure.canvas.draw()
+        self.Panels.overview.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
+        self.Panels.overview.ax.set_xlim(0, tomo.image.shape.x*tomo.image.scale.x)
+        self.Panels.overview.ax.set_ylim(tomo.image.shape.y*tomo.image.scale.y, 0)
+        self.Panels.overview.ax.set_aspect("equal")
+        self.Panels.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.Panels.overview.figure.tight_layout()
+        self.Panels.overview.figure.canvas.draw()
     
         self.layer_work.data = []
         return None
@@ -534,10 +567,10 @@ class MTProfiler:
         """        
         self._init_widget_params()
         self._init_layers()
-        self.Canvas2D.overview.ax.cla()
-        self.Canvas2D.overview.draw()
-        self.Canvas2D.overview.ax.set_aspect("equal")
-        self.Canvas2D.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.Panels.overview.ax.cla()
+        self.Panels.overview.draw()
+        self.Panels.overview.ax.set_aspect("equal")
+        self.Panels.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         self.canvas.figure.clf()
         self.canvas.draw()
         self.plot.figure.clf()
@@ -722,8 +755,8 @@ class MTProfiler:
         """
         Show result table.
         """        
-        self.Canvas2D.table.value = self.active_tomogram.collect_localprops()
-        self.Canvas2D.current_index = 2
+        self.Panels.table.value = self.active_tomogram.collect_localprops()
+        self.Panels.current_index = 2
         return None
     
     @View.wraps
@@ -759,14 +792,14 @@ class MTProfiler:
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self._current_cylindrical_img().proj("r")
         
-        self.Canvas2D.image2D.image = polar.value
+        self.Panels.image2D.image = polar.value
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
         # move to center
         ly, lx = polar.shape
-        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
-        self.Canvas2D.current_index = 1
+        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.current_index = 1
         return None
     
     @View.wraps
@@ -778,12 +811,12 @@ class MTProfiler:
         i = self.mt.mtlabel.value
         with ip.SetConst("SHOW_PROGRESS", False):
             polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
-        self.Canvas2D.image2D.image = polar.value
-        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        self.Panels.image2D.image = polar.value
+        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
         ly, lx = polar.shape
-        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
-        self.Canvas2D.current_index = 1
+        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.current_index = 1
         return None
     
     @View.wraps
@@ -797,16 +830,16 @@ class MTProfiler:
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
         
-        if self.Canvas2D.image2D.image is None:
-            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 75])
-        self.Canvas2D.image2D.image = pw.value
+        if self.Panels.image2D.image is None:
+            self.Panels.image2D.contrast_limits = np.percentile(pw, [0, 75])
+        self.Panels.image2D.image = pw.value
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
         # move to center
         ly, lx = pw.shape
-        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
-        self.Canvas2D.current_index = 1
+        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.current_index = 1
         return None
     
     @View.wraps
@@ -821,14 +854,14 @@ class MTProfiler:
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             
-        if self.Canvas2D.image2D.image is None:
-            self.Canvas2D.image2D.contrast_limits = np.percentile(pw, [0, 75])
-        self.Canvas2D.image2D.image = pw.value
-        self.Canvas2D.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        if self.Panels.image2D.image is None:
+            self.Panels.image2D.contrast_limits = np.percentile(pw, [0, 75])
+        self.Panels.image2D.image = pw.value
+        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
         ly, lx = pw.shape
-        self.Canvas2D.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
-        self.Canvas2D.current_index = 1
+        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.current_index = 1
         return None
     
     @View.wraps
@@ -974,8 +1007,8 @@ class MTProfiler:
         @worker.returned.connect
         def _on_return(out):
             df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
-            self.Canvas2D.table.value = df
-            self.Canvas2D.current_index = 2
+            self.Panels.table.value = df
+            self.Panels.current_index = 2
         
         self._connect_worker(worker)
         self._worker_control.info.value = f"Global Fourier transform ..."

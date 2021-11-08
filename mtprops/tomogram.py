@@ -19,7 +19,7 @@ from .utils import (load_a_subtomogram, centroid, rotational_average, map_coordi
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 Coordinates = namedtuple("Coordinates", ["world", "spline"])
-
+SCHEDULER = ip.Const["SCHEDULER"]
 
 def batch_process(func):
     # TODO: error handling
@@ -372,14 +372,14 @@ class MtTomogram:
             try:
                 out = cachemap[(self, spl, CacheKey.subtomograms)]
             except KeyError:
-                center_px = self.nm2pixel(spl(anchors))
                 size_px = self.nm2pixel(self.box_size)
                 
-                out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
-                                for c in center_px],
-                                axis="p")
-                matrices = spl.rotation_matrix(anchors, center=size_px/2, inverse=True)
-                out.value[:] = dask_affine(out.value, matrices)
+                out = []
+                for u in spl.anchors:
+                    coords = spl.local_cartesian(size_px[1:], size_px[0], u)
+                    coords = np.moveaxis(coords, -1, 0)
+                    out.append(map_coordinates(self.image, coords, order=3))
+                out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
                 
                 cachemap[(self, spl, CacheKey.subtomograms)] = out
         else:
@@ -649,7 +649,7 @@ class MtTomogram:
                                 meta=np.array([], dtype=np.float32)
                                 )
                 )
-        results = np.stack(da.compute(tasks, scheduler="threads")[0], axis=0)
+        results = np.stack(da.compute(tasks, scheduler=SCHEDULER)[0], axis=0)
                 
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
@@ -1082,7 +1082,7 @@ def delayed_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
     tasks = []
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
-    return da.compute(tasks, scheduler="threads")[0]
+    return da.compute(tasks, scheduler=SCHEDULER)[0]
     
 def _local_dft_params(img, radius: nm):
     l_circ: nm = 2*np.pi*radius

@@ -79,6 +79,14 @@ def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = 
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
     """    
+    if isinstance(input, np.ndarray):
+        return ndi.map_coordinates(input,
+                                   coordinates,
+                                   order=order,
+                                   mode=mode, 
+                                   cval=cval,
+                                   prefilter=order>1
+                                   )
     coordinates = coordinates.copy()
     shape = input.shape
     sl = []
