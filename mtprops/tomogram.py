@@ -373,13 +373,16 @@ class MtTomogram:
                 out = cachemap[(self, spl, CacheKey.subtomograms)]
             except KeyError:
                 size_px = self.nm2pixel(self.box_size)
+                plane_shape = (size_px[0], size_px[2])
+                axial_size = size_px[1]
                 
                 out = []
                 for u in spl.anchors:
-                    coords = spl.local_cartesian(size_px[1:], size_px[0], u)
+                    coords = spl.local_cartesian(plane_shape, axial_size, u)
                     coords = np.moveaxis(coords, -1, 0)
                     out.append(map_coordinates(self.image, coords, order=3))
                 out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+                out.set_scale(xyz=self.scale)
                 
                 cachemap[(self, spl, CacheKey.subtomograms)] = out
         else:

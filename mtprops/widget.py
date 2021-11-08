@@ -220,13 +220,22 @@ class SplineFitter:
         self.shifts[i] = np.zeros((npos, 2))
         
         size_px = tomo.nm2pixel(np.array(tomo.box_size)/self.binsize)
+        plane_shape = (size_px[0], size_px[2])
+        axial_size = size_px[1]
         
+        # To get correct pixel coordinates, spline scale parameter should be modified temporarily.
+        spl.scale *= self.binsize
+        
+        # Get local MT fragments and stack them
         out = []
-        for u in spl.anchors:
-            coords = spl.local_cartesian(size_px[1:], size_px[0], u)
+        for u in spl.anchors:    
+            coords = spl.local_cartesian(plane_shape, axial_size, u)
             coords = np.moveaxis(coords, -1, 0)
             out.append(map_coordinates(imgb, coords, order=1))
         out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+        
+        # Restore spline scale.
+        spl.scale /= self.binsize
         
         with ip.SetConst("SHOW_PROGRESS", False):
             self.subtomograms = out.proj("y")
