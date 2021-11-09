@@ -13,7 +13,7 @@ from ._dependencies import impy as ip
 from .const import nm, H, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import (load_a_subtomogram, centroid, rotational_average, map_coordinates, roundint, 
+from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_a_rot_subtomogram,
                     ceilint, oblique_meshgrid)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
@@ -134,12 +134,13 @@ class MtTomogram:
     ones.
     """    
     def __init__(self, *,
-                 box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0), 
+                 subtomogram_length: nm = 48.0,
+                 subtomogram_width: nm = 40.0,
                  ft_size: nm = 33.4,
                  light_background: bool = True,
                  ):
-        
-        self.box_size = box_size
+        self.subtomo_length = subtomogram_length
+        self.subtomo_width = subtomogram_width
         self.ft_size = ft_size
         self.light_background = light_background
         self.metadata = {}
@@ -158,18 +159,6 @@ class MtTomogram:
     @property
     def paths(self) -> list[MtSpline]:
         return self._paths
-    
-    @property
-    def box_size(self) -> tuple[nm, nm, nm]:
-        return self._box_radius
-    
-    @box_size.setter
-    def box_size(self, value: nm|Iterable[nm]):
-        if np.isscalar(value):
-            value = (value,)*3
-        elif len(value) != 3:
-            raise ValueError("'box_radius' must be composed of 1 or 3 scalars.")
-        self._box_radius = tuple(value)
     
     @property
     def ft_size(self) -> nm:
@@ -372,27 +361,18 @@ class MtTomogram:
                              i: int,
                              rotate: bool = True):
         spl = self._paths[i]
-        anchors = spl.anchors
+        length_px = self.nm2pixel(self.subtomo_length)
+        width_px = self.nm2pixel(self.subtomo_width)
         if rotate:
             try:
                 out = cachemap[(self, spl, CacheKey.subtomograms)]
             except KeyError:
-                size_px = self.nm2pixel(self.box_size)
-                plane_shape = (size_px[0], size_px[2])
-                axial_size = size_px[1]
-                
-                out = []
-                for u in spl.anchors:
-                    coords = spl.local_cartesian(plane_shape, axial_size, u)
-                    coords = np.moveaxis(coords, -1, 0)
-                    out.append(map_coordinates(self.image, coords, order=3))
-                out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+                out = load_a_rot_subtomogram(self.image, length_px, width_px, spl)
                 out.set_scale(xyz=self.scale)
-                
                 cachemap[(self, spl, CacheKey.subtomograms)] = out
         else:
-            center_px = self.nm2pixel(spl(anchors))
-            size_px = self.nm2pixel(self.box_size)
+            center_px = self.nm2pixel(spl())
+            size_px = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
             
             out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
                             for c in center_px],
@@ -465,17 +445,20 @@ class MtTomogram:
             shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img, mask=mask)/2
         
         # Update spline coordinates.
-        coords = spl()
+        # Because centers of subtomogram are on lattice points of pixel coordinate,
+        # coordinates that will be shifted should be converted to integers. 
+        coords_px = self.nm2pixel(spl()).astype(np.float32)
         for i in range(npoints):
             shiftz, shiftx = -shifts[i]
-            shift = np.array([shiftz, 0, shiftx])
+            shift = np.array([shiftz, 0, shiftx], dtype=np.float32)
             rad = -np.deg2rad(refined_tilt[i])
             cos, sin = np.cos(rad), np.sin(rad)
             shift = shift @ [[1.,   0.,  0.],
                              [0.,  cos, sin],
                              [0., -sin, cos]]
-            coords[i] += shift * self.scale
-        
+            coords_px[i] += shift
+            
+        coords = coords_px*self.scale
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
@@ -616,9 +599,9 @@ class MtTomogram:
         """        
         subtomograms = self._sample_subtomograms(i)
         nbin = 17
-        r_max: nm = GVar.rMax
+        r_max = self.subtomo_width / 2 * self.scale
         img2d = subtomograms.proj("py")
-        prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
+        prof = img2d.radial_profile(nbin=nbin, r_max=r_max, method="sum")
         if self.light_background:
             prof = -prof
             
@@ -802,30 +785,7 @@ class MtTomogram:
             cachemap[(self, spl, cache_key)] = transformed
         
         return transformed
-    
-    @batch_process
-    def rotational_average(self, i: int = None) -> ip.arrays.ImgArray:
-        """
-        2D rotational averaging of MT at XZ-section.
 
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Path ID that you want to execute averaging.
-
-        Returns
-        -------
-        ip.arrays.ImgArray
-            Averaged images. They will have "pzx" axes.
-        """        
-        subtomograms = self._sample_subtomograms(i)
-        projs = subtomograms.proj("y") # pzx
-        spl = self._paths[i]
-        out = np.empty_like(projs)
-        for p, (img, npf) in enumerate(zip(projs, spl.localprops[H.nPF])):
-            out.value[p] = rotational_average(img, fold=npf)
-        
-        return out
     
     @batch_process
     def reconstruct(self, 

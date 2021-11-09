@@ -42,6 +42,23 @@ def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True)
             reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
     return reg
 
+import time
+
+def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl):
+    t0 = time.time()
+    plane_shape = (width_px, width_px)
+    axial_size = length_px
+    out = []
+    for u in spl.anchors:
+        # TODO: dask parallelize
+        coords = spl.local_cartesian(plane_shape, axial_size, u)
+        print(time.time() - t0)
+        
+        coords = np.moveaxis(coords, -1, 0)
+        out.append(map_coordinates(img, coords, order=3))
+    out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+    print(time.time() - t0, "finish")
+    return out
 
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
     """
@@ -54,7 +71,7 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
     return np.sum(input_arr*x)/np.sum(input_arr)
 
 
-def rotational_average(img, fold:int=13):
+def rotational_average(img, fold: int = 13):
     angles = np.arange(fold)*360/fold
     average_img = img.copy()
     with ip.SetConst("SHOW_PROGRESS", False):
@@ -79,14 +96,6 @@ def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = 
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
     """    
-    if isinstance(input, np.ndarray):
-        return ndi.map_coordinates(input,
-                                   coordinates,
-                                   order=order,
-                                   mode=mode, 
-                                   cval=cval,
-                                   prefilter=order>1
-                                   )
     coordinates = coordinates.copy()
     shape = input.shape
     sl = []
@@ -99,12 +108,14 @@ def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = 
         pad.append(_pad)
         coordinates[i] -= min(_sl.start, imin)
     sl = tuple(sl)
-    img = input[sl].data
+    img = input[sl]
+    if isinstance(img, ip.arrays.LazyImgArray):
+        img = img.data
     
     if np.any(np.array(pad) > 0):
         img = img.pad(pad, dims="zyx", constant_values=np.mean(img))
         
-    return ndi.map_coordinates(img,
+    return ndi.map_coordinates(img.value,
                                coordinates,
                                order=order,
                                mode=mode, 
@@ -126,3 +137,20 @@ def oblique_meshgrid(shape: tuple[int, int],
     out[:, :, 0] += offset[0]
     out[:, :, 1] += offset[1]
     return out
+
+class Projections:
+    """
+    Class that stores projections of a 3D image.
+    """
+    def __init__(self, image: ip.arrays.ImgArray):
+        with ip.SetConst("SHOW_PROGRESS", False):
+            self.yx = image.proj("z")
+            self.zx = image.proj("y")
+        self.zx_ave = None
+        
+        self.shape = image.shape
+    
+    def rotational_average(self, npf: int):
+        self.zx_ave = rotational_average(self.zx, fold=int(npf))
+        return self.zx_ave
+    

@@ -37,7 +37,6 @@ class GVar:
     minSkew: float = -1.0
     maxSkew: float = 1.0
     splError: nm = 0.8
-    rMax: nm = 14
     inner: float = 0.8
     outer: float = 1.5
     daskChunk: int = (64, 512, 512)

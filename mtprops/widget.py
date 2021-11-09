@@ -14,7 +14,7 @@ from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, set_
                             do_not_record, Figure, TupleEdit, Separator, ListWidget, QtImageCanvas,
                             register_type)
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine, centroid
-from .utils import load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint
+from .utils import Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint, load_a_rot_subtomogram
 from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
@@ -27,21 +27,49 @@ WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
+
 ### Child widgets ###
 
 @magicclass
 class ImageLoader:
     # A loader widget with imread settings.
-    path = field(Path, options={"filter": "*.tif;*.tiff;*.mrc;*.rec",
-                                "tooltip": "Path to tomogram."})
-    scale = field(str, options={"label": "scale (nm)", "tooltip": "Pixel size in nm/pixel."})
-    bin_size = field(4, options={"label": "bin size", "min": 1, "max": 8, 
-                                 "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."})
-    light_background = field(True, options={"label": "light background", "tooltip": "Check if background is bright."})
-    use_lowpass = field(False, options={"label": "Apply low-pass filter", "tooltip": "Check if images need prefilter."})
-    cutoff_freq = field(0.2, options={"label": "Cutoff frequency (1/px)", "visible": False,
-                                      "min": 0.0, "max": 0.5, "step": 0.05, 
-                                      "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.5."})
+    path = field(Path, options={
+        "filter": "*.tif;*.tiff;*.mrc;*.rec",
+        "tooltip": "Path to tomogram."}
+                 )
+    scale = field(str, options={
+        "label": "scale (nm)", 
+        "tooltip": "Pixel size in nm/pixel."}
+                  )
+    bin_size = field(4, options={
+        "label": "bin size", 
+        "min": 1, "max": 8, 
+        "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."}
+                     )
+    subtomo_length = field(48.0, options={
+        "label": "subtomogram length (nm)", 
+        "min": 2.0, "max": 100.0, "step": 4.0, 
+        "tooltip": "The axial length of subtomogram."}
+                               )
+    subtomo_width = field(44.0, options={
+        "label": "subtomogram width (nm)", 
+        "min": 2.0, "max": 100.0, "step": 4.0, 
+        "tooltip": "The diameter of subtomogram."}
+                              )
+    light_background = field(True, options={
+        "label": "light background", 
+        "tooltip": "Check if background is bright."}
+                             )
+    use_lowpass = field(False, options={
+        "label": "Apply low-pass filter",
+        "tooltip": "Check if images need prefilter."}
+                        )
+    cutoff_freq = field(0.2, options={
+        "label": "Cutoff frequency (1/px)", 
+        "visible": False,
+        "min": 0.0, "max": 0.5, "step": 0.05, 
+        "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.5."}
+                        )
     
     @use_lowpass.connect
     def _enable_freq_option(self):
@@ -172,7 +200,7 @@ class SplineFitter:
         itemh.ydata = [z, z]
         
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
-        r_max: nm = GVar.rMax
+        r_max: nm = tomo.subtomo_width/2
         nbin = 17
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
         if tomo.light_background:
@@ -219,20 +247,10 @@ class SplineFitter:
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
-        size_px = tomo.nm2pixel(np.array(tomo.box_size)/self.binsize)
-        plane_shape = (size_px[0], size_px[2])
-        axial_size = size_px[1]
-        
-        # To get correct pixel coordinates, spline scale parameter should be modified temporarily.
         spl.scale *= self.binsize
-        
-        # Get local MT fragments and stack them
-        out = []
-        for u in spl.anchors:    
-            coords = spl.local_cartesian(plane_shape, axial_size, u)
-            coords = np.moveaxis(coords, -1, 0)
-            out.append(map_coordinates(imgb, coords, order=1))
-        out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+        length_px = tomo.nm2pixel(tomo.subtomo_length/self.binsize)
+        width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
+        out = load_a_rot_subtomogram(imgb, length_px, width_px, spl)
         
         # Restore spline scale.
         spl.scale /= self.binsize
@@ -419,6 +437,7 @@ class MTProfiler:
             # should be set to 0.
             self._process_image(tomo.image, tomo.metadata["binsize"], 
                                 tomo.light_background, 0.0,
+                                tomo.subtomo_length, tomo.subtomo_width,
                                 new=False)
             if tomo.paths:
                 self._load_tomogram_results()
@@ -484,14 +503,12 @@ class MTProfiler:
     
     @operation.wraps
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
-                 box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)"}, 
                  ft_size={"label": "Local DFT window size (nm)"},
                  cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05}
                  )
     @set_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
-                         box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0),
                          ft_size: nm = 33.4,
                          cutoff_freq: float = 0.0):
         """
@@ -501,8 +518,6 @@ class MTProfiler:
         ----------
         interval : nm, default is 24.0
             Interval of sampling points of microtubule fragments.
-        box_size : tuple[nm, nm, nm], default is (44.0, 56.0, 56.0)
-            Box size of microtubule fragments used for angle correction and centering.
         ft_size : nm, default is 33.4
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
@@ -512,7 +527,6 @@ class MTProfiler:
         
         worker = create_worker(self._run_all, 
                                interval=interval,
-                               box_size=box_size,
                                ft_size=ft_size,
                                cutoff_freq=cutoff_freq,
                                _progress={"total": self.active_tomogram.n_paths*3 + 1, 
@@ -536,11 +550,9 @@ class MTProfiler:
     
     def _run_all(self, 
                  interval: nm,
-                 box_size,
                  ft_size,
                  cutoff_freq):
         tomo = self.active_tomogram
-        tomo.box_size = box_size
         tomo.ft_size = ft_size
         for i in range(tomo.n_paths):
             tomo.fit(i, cutoff_freq=cutoff_freq)
@@ -597,7 +609,6 @@ class MTProfiler:
                  minSkew={"min": -90, "max": 90},
                  maxSkew={"min": -90, "max": 90},
                  splError={"max": 5.0, "step": 0.1},
-                 rMax={"min": 1, "max": 30, "step": 0.5},
                  inner={"step": 0.1},
                  outer={"step": 0.1},
                  daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048}})
@@ -610,7 +621,6 @@ class MTProfiler:
                          minSkew: float = GVar.minSkew,
                          maxSkew: float = GVar.maxSkew,
                          splError: nm = GVar.splError,
-                         rMax: nm = GVar.rMax,
                          inner: float = GVar.inner,
                          outer: float = GVar.outer,
                          daskChunk: int = GVar.daskChunk):
@@ -635,8 +645,6 @@ class MTProfiler:
             Maximum skew angle for estimation.
         splError : nm
             Average error of spline fitting.
-        rMax : nm
-            Maximum radius of MT.
         inner : float
             Radius x inner will be the inner surface of MT.
         outer : float
@@ -885,11 +893,8 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    @set_options(box_size={"widget_type": TupleEdit, "label": "Initial box size (nm)", 
-                           "options": {"min": 5.0, "max": 100.0, "step": 4.0}},
-                 cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05})
+    @set_options(cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05})
     def Fit_splines(self, 
-                    box_size: tuple[nm, nm, nm] = (44.0, 56.0, 56.0),
                     cutoff_freq: float = 0.0,
                     ):
         """
@@ -897,12 +902,9 @@ class MTProfiler:
 
         Parameters
         ----------
-        box_size : tuple[nm, nm, nm], default is (44.0, 56.0, 56.0)
-            Box size that will be cropped from the original image when calculate MT center.
         cutoff_freq : 
         """        
         tomo = self.active_tomogram
-        tomo.box_size = box_size
         for i in range(tomo.n_paths):
             tomo.fit(i, cutoff_freq=cutoff_freq)
             tomo.make_anchors(n=3)
@@ -1144,7 +1146,12 @@ class MTProfiler:
         tomo = self.active_tomogram
         binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         
-        shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        # shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
+        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        
+        shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
+        
         with ip.SetConst("SHOW_PROGRESS", False):
             orientation = point1[1:] - point0[1:]
             img = load_a_subtomogram(imgb, point1, shape, dask=False)
@@ -1179,7 +1186,11 @@ class MTProfiler:
         tomo = self.active_tomogram
         binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         selected = self.layer_work.selected_data
-        shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        # shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
+        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        
+        shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
         points = self.layer_work.data / imgb.scale.x
         last_i = -1
@@ -1332,16 +1343,20 @@ class MTProfiler:
         img = self._loader.img
         light_bg = self._loader.light_background.value
         binsize = self._loader.bin_size.value
+        subtomo_length = self._loader.subtomo_length.value
+        subtomo_width = self._loader.subtomo_width.value
+        
         if self._loader.use_lowpass.value:
             cutoff = self._loader.cutoff_freq.value
         else:
             cutoff = 0.0
         
-        self._process_image(img, binsize, light_bg, cutoff)
+        self._process_image(img, binsize, light_bg, cutoff, subtomo_length, subtomo_width)
         self._loader.close()
         return None
     
-    def _process_image(self, img, binsize: int, light_bg: bool, cutoff: float, new: bool=True):
+    def _process_image(self, img, binsize: int, light_bg: bool, cutoff: float, 
+                       length: nm, width: nm, *, new: bool = True):
         viewer: napari.Viewer = self.parent_viewer
         
         def _run(img, binsize, cutoff):
@@ -1388,8 +1403,10 @@ class MTProfiler:
             viewer.dims.axis_labels = ("z", "y", "x")
             
             if new:
-                tomo = MtTomogram(light_background=light_bg)
-                
+                tomo = MtTomogram(subtomogram_length=length, 
+                                  subtomogram_width=width, 
+                                  light_background=light_bg)
+                # metadata for GUI
                 tomo.metadata["source"] = str(self._loader.path.value)
                 tomo.metadata["binsize"] = binsize
                 tomo.metadata["cutoff"] = cutoff
@@ -1412,14 +1429,11 @@ class MTProfiler:
         self.mt.mtlabel.max = tomo.n_paths - 1
         self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance]) - 1
         
-        self._active_rot_ave = tomo.rotational_average()
         self._init_layers()
                         
         self.layer_work.mode = "pan_zoom"
         
-        self._imshow_all()
-        
-        self._plot_properties()
+        self._update_mtpath()
         
         return None
     
@@ -1440,8 +1454,10 @@ class MTProfiler:
             return ""
         else:
             point0 = self.layer_work.data[-1]
+            box_size = (tomo.subtomo_width,) + ((tomo.subtomo_width+tomo.subtomo_length)/1.41,)*2
+            
             if not np.all([r/4 <= p < s - r/4
-                           for p, s, r in zip(point0, imgshape_nm, tomo.box_size)]):
+                           for p, s, r in zip(point0, imgshape_nm, box_size)]):
                 # outside image
                 return "Outside boundary."
             elif self.layer_work.data.shape[0] >= 3:
@@ -1536,31 +1552,32 @@ class MTProfiler:
         for k in range(3):
             axes[k].cla()
             axes[k].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
-            
+        
+        binsize = self.active_tomogram.metadata["binsize"]
         with ip.SetConst("SHOW_PROGRESS", False):
-            subtomo = tomo._sample_subtomograms(i)[j]
-            lz, ly, lx = subtomo.shape
-            axes[0].imshow(subtomo.proj("z"), cmap="gray")
+            proj = self.projections[j]
+            lz, ly, lx = np.array(proj.shape)
+            axes[0].imshow(proj.yx, cmap="gray")
             axes[0].set_xlabel("x")
             axes[0].set_ylabel("y")
-            axes[1].imshow(subtomo.proj("y"), cmap="gray")
+            axes[1].imshow(proj.zx, cmap="gray")
             axes[1].set_xlabel("x")
             axes[1].set_ylabel("z")
-            axes[2].imshow(self._active_rot_ave[i][j], cmap="gray")
+            axes[2].imshow(proj.zx_ave, cmap="gray")
             axes[2].set_xlabel("x")
             axes[2].set_ylabel("z")
         
-        ylen = tomo.nm2pixel(tomo.ft_size/2)
+        ylen = tomo.nm2pixel(tomo.ft_size/2/binsize)
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
-        r = tomo.nm2pixel(results.radius)*GVar.outer
+        r = tomo.nm2pixel(results.radius)*GVar.outer/binsize
         xmin, xmax = -r + lx/2, r + lx/2
         axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
         axes[0].text(1, 1, f"{i}-{j}", color="lime", font="Consolas", size=15, va="top")
     
         theta = np.linspace(0, 2*np.pi, 360)
-        r = tomo.nm2pixel(results.radius) * GVar.inner
+        r = tomo.nm2pixel(results.radius) * GVar.inner/binsize
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = tomo.nm2pixel(results.radius) * GVar.outer
+        r = tomo.nm2pixel(results.radius) * GVar.outer/binsize
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
         self.canvas.figure.tight_layout()
@@ -1577,6 +1594,27 @@ class MTProfiler:
         self.mt.mtlabel.enabled = False
         i = self.mt.mtlabel.value
         tomo = self.active_tomogram
+        
+        # calculate projection
+        binsize = tomo.metadata["binsize"]
+        imgb = self.layer_image.data
+        
+        spl = tomo.paths[i]
+        spl.scale *= binsize
+        
+        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
+        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        out = load_a_rot_subtomogram(imgb, length_px, width_px, spl)
+        
+        spl.scale /= binsize
+        
+        projections: list[Projections] = []
+        for img, npf in zip(out, spl.localprops[H.nPF]):    
+            proj = Projections(img)
+            proj.rotational_average(npf)
+            projections.append(proj)
+        
+        self.projections = projections
         
         self.mt.pos.max = len(tomo.paths[i].localprops) - 1
         note = tomo.paths[i].orientation
