@@ -599,7 +599,7 @@ class MtTomogram:
         """        
         subtomograms = self._sample_subtomograms(i)
         nbin = 17
-        r_max = self.subtomo_width / 2 * self.scale
+        r_max = self.subtomo_width / 2
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max, method="sum")
         if self.light_background:
@@ -670,7 +670,7 @@ class MtTomogram:
             Global properties.
         """        
         spl = self._paths[i]
-        img_st = self.straighten(i, radius=(spl.radius*GVar.inner, spl.radius*GVar.outer), cylindrical=True)
+        img_st = self.cylindric_straighten(i)
         results = _local_dft_params(img_st, spl.radius)
         series = pd.Series([], dtype=np.float32)
         series[H.riseAngle] = results[0]
@@ -685,10 +685,9 @@ class MtTomogram:
     def straighten(self, 
                    i: int = None, 
                    *,
-                   radius: nm | tuple[nm, nm] = None,
+                   size: nm | tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
-                   chunkwise: bool = True,
-                   cylindrical: bool = False):
+                   chunkwise: bool = True):
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -697,25 +696,21 @@ class MtTomogram:
         ----------
         i : int or iterable of int, optional
             Path ID that you want to straighten.
-        radius : float (nm), optional
-            Parameter that specify the size of coordinate system. For Cartesian coordinate
-            system, this parameter is interpreted as box size. For cylindrical coordinate
-            system, this parameter is interpreted as the range of radius.
+        size : float (nm), optional
+            Vertical/horizontal box size.
         range_ : tuple[float, float], default is (0.0, 1.0)
             Range of spline domain.
         chunkwise : bool, default is True
             If True, spline is first split into chunks and all the straightened images are
             concatenated afterward, in order to avoid loading entire image into memory.
-        cylindrical : bool, default is False
-            If True, cylindrical coordinate system will be used.
 
         Returns
         -------
         ip.array.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
-        try_cache = radius is None and range_ == (0.0, 1.0)
-        cache_key = CacheKey.cyl_straight if cylindrical else CacheKey.cart_straight
+        try_cache = size is None and range_ == (0.0, 1.0)
+        cache_key = CacheKey.cart_straight
         spl = self.paths[i]
         if try_cache:
             try:
@@ -725,58 +720,29 @@ class MtTomogram:
             else:
                 return transformed
             
-        start, end = range_
         chunk_length: nm = 72.0
         length = self._paths[i].length(nknots=512)
         
         if chunkwise and length > chunk_length:
-            # split image into chunks and call straightening separately.
-            out = []
-            current_distance: nm = 0.0
-            while current_distance < length:
-                start = current_distance/length
-                stop = start + chunk_length/length
-                if end - start < 1e-3:
-                    # Sometimes divmod of floating values generates very small residuals.
-                    break
-                sub_range = (start, min(stop, end))
-                img_st = self.straighten(i, range_=sub_range, radius=radius, 
-                                         chunkwise=False, cylindrical=cylindrical)
-                
-                out.append(img_st)
-                
-                # We have to sum up real distance instead of start/end, to precisely deal
-                # with the borders of chunks
-                current_distance += img_st.shape.y * self.scale
-            
-            # concatenate all the chunks
-            transformed = np.concatenate(out, axis="y")
+            transformed = self._chunked_straighten(
+                i, length, range_,
+                self.straighten, size=size
+            )
             
         else:
-            if radius is None:
-                if cylindrical:
-                    rz, rx = self.nm2pixel(self._paths[i].radius * np.array([GVar.inner, GVar.outer]))
-                else:
-                    rz = rx = self.nm2pixel(self._paths[i].radius * GVar.outer) * 2 + 1
+            if size is None:
+                rz = rx = self.nm2pixel(self._paths[i].radius * GVar.outer) * 2 + 1
             
             else:
-                rz, rx = self.nm2pixel(radius)
+                rz, rx = self.nm2pixel(size)
 
-            if cylindrical:
-                if rx <= rz:
-                    raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
-                coords = spl.cylindrical((rz, rx), s_range=range_)
-            else:
-                coords = spl.cartesian((rz, rx), s_range=range_)
-                
+            coords = spl.cartesian((rz, rx), s_range=range_)
             coords = np.moveaxis(coords, -1, 0)
             
-            transformed = map_coordinates(self.image, 
-                                          coords,
-                                          order=1
-                                          )
+            with ip.SetConst("SHOW_PROGRESS", False):
+                transformed = map_coordinates(self.image, coords, order=1)
             
-            axes = "rya" if cylindrical else "zyx"
+            axes = "zyx"
             transformed = ip.asarray(transformed, axes=axes)
             transformed.set_scale({k: self.scale for k in axes})
             transformed.scale_unit = "nm"
@@ -786,6 +752,105 @@ class MtTomogram:
         
         return transformed
 
+    @batch_process
+    def cylindric_straighten(self, 
+                   i: int = None, 
+                   *,
+                   radii: tuple[nm, nm] = None,
+                   range_: tuple[float, float] = (0.0, 1.0), 
+                   chunkwise: bool = True):
+        """
+        MT straightening by building curved coordinate system around splines. Currently
+        Cartesian coordinate system and cylindrical coordinate system are supported.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to straighten.
+        radii : tuple of float (nm), optional
+            Lower/upper limit of radius.
+        range_ : tuple[float, float], default is (0.0, 1.0)
+            Range of spline domain.
+        chunkwise : bool, default is True
+            If True, spline is first split into chunks and all the straightened images are
+            concatenated afterward, in order to avoid loading entire image into memory.
+
+        Returns
+        -------
+        ip.array.ImgArray
+            Straightened image. If Cartesian coordinate system is used, it will have "zyx".
+        """        
+        try_cache = radii is None and range_ == (0.0, 1.0)
+        cache_key = CacheKey.cyl_straight
+        spl = self.paths[i]
+        if try_cache:
+            try:
+                transformed = cachemap[(self, spl, cache_key)]
+            except KeyError:
+                pass
+            else:
+                return transformed
+            
+        chunk_length: nm = 72.0
+        length = self._paths[i].length(nknots=512)
+        
+        if chunkwise and length > chunk_length:
+            transformed = self._chunked_straighten(
+                i, length, range_, 
+                function=self.cylindric_straighten,
+                radii=radii
+                )
+            
+        else:
+            if radii is None:
+                inner_radius, outer_radius = self.nm2pixel(
+                    self._paths[i].radius * np.array([GVar.inner, GVar.outer])
+                    )
+            else:
+                inner_radius, outer_radius = self.nm2pixel(radii)
+
+            if outer_radius <= inner_radius:
+                raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
+            
+            coords = spl.cylindrical((inner_radius, outer_radius), s_range=range_)
+            coords = np.moveaxis(coords, -1, 0)
+            
+            with ip.SetConst("SHOW_PROGRESS", False):
+                transformed = map_coordinates(self.image, coords, order=1)
+            
+            axes = "rya"
+            transformed = ip.asarray(transformed, axes=axes)
+            transformed.set_scale({k: self.scale for k in axes})
+            transformed.scale_unit = "nm"
+        
+        if try_cache:
+            cachemap[(self, spl, cache_key)] = transformed
+        
+        return transformed
+    
+    def _chunked_straighten(self, i, length, range_, function, **kwargs):
+        out = []
+        current_distance: nm = 0.0
+        chunk_length: nm = 72.0
+        start, end = range_
+        while current_distance < length:
+            start = current_distance/length
+            stop = start + chunk_length/length
+            if end - start < 1e-3:
+                # Sometimes divmod of floating values generates very small residuals.
+                break
+            sub_range = (start, min(stop, end))
+            img_st = function(i, range_=sub_range, chunkwise=False, **kwargs)
+            
+            out.append(img_st)
+            
+            # We have to sum up real distance instead of start/end, to precisely deal
+            # with the borders of chunks
+            current_distance += img_st.shape.y * self.scale
+        
+        # concatenate all the chunks
+        transformed = np.concatenate(out, axis="y")
+        return transformed
     
     @batch_process
     def reconstruct(self, 
@@ -910,7 +975,7 @@ class MtTomogram:
         # TODO: dask parallelize
         
         # Cartesian transformation along spline.
-        img_open = self.straighten(i, cylindrical=True)
+        img_open = self.cylindric_straighten(i)
         scale = img_open.scale.y
         total_length: nm = img_open.shape.y*scale
         

@@ -250,13 +250,13 @@ class SplineFitter:
         spl.scale *= self.binsize
         length_px = tomo.nm2pixel(tomo.subtomo_length/self.binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
-        out = load_a_rot_subtomogram(imgb, length_px, width_px, spl)
-        
-        # Restore spline scale.
-        spl.scale /= self.binsize
         
         with ip.SetConst("SHOW_PROGRESS", False):
+            out = load_a_rot_subtomogram(imgb, length_px, width_px, spl)
             self.subtomograms = out.proj("y")
+            
+        # Restore spline scale.
+        spl.scale /= self.binsize
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
         self.canvas.view_range = (0, self.canvas.image.shape[1]), (0, self.canvas.image.shape[0])
@@ -826,7 +826,7 @@ class MTProfiler:
         """        
         i = self.mt.mtlabel.value
         with ip.SetConst("SHOW_PROGRESS", False):
-            polar = self.active_tomogram.straighten(i, cylindrical=True).proj("r")
+            polar = self.active_tomogram.cylindric_straighten(i).proj("r")
         self.Panels.image2D.image = polar.value
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
@@ -866,7 +866,7 @@ class MTProfiler:
         """  
         i = self.mt.mtlabel.value
         with ip.SetConst("SHOW_PROGRESS", False):
-            polar = self.active_tomogram.straighten(i, cylindrical=True)
+            polar = self.active_tomogram.cylindric_straighten(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             
