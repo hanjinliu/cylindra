@@ -363,14 +363,14 @@ class MtTomogram:
         spl = self._paths[i]
         length_px = self.nm2pixel(self.subtomo_length)
         width_px = self.nm2pixel(self.subtomo_width)
+        
         if rotate:
-            try:
-                out = cachemap[(self, spl, CacheKey.subtomograms)]
-            except KeyError:
-                out = load_a_rot_subtomogram(self.image, length_px, width_px, spl)
-                out.set_scale(xyz=self.scale)
-                cachemap[(self, spl, CacheKey.subtomograms)] = out
+            out = load_a_rot_subtomogram(self.image, length_px, width_px, spl)
+            out.set_scale(xyz=self.scale)
+            
         else:
+            # If subtomogram region is rotated by 45 degree, its XY-width will be
+            # sqrt(2) * (length + width)
             center_px = self.nm2pixel(spl())
             size_px = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
             
@@ -400,7 +400,7 @@ class MtTomogram:
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.
         cutoff_freq : float, default is 0.0
-            Cutoff frequency of butterworth low-pass prefilter.
+            Cutoff frequency of Butterworth low-pass prefilter.
 
         Returns
         -------

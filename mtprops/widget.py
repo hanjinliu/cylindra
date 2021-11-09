@@ -295,8 +295,6 @@ class MTProfiler:
     @magicmenu
     class View:
         def Apply_lowpass_to_reference_image(self): ...
-        def View_current_MT_fragment(self): ...
-        def View_straightened_image(self): ...
         sep0 = Separator()
         def show_current_ft(self): ...
         def show_global_ft(self): ...
@@ -305,6 +303,7 @@ class MTProfiler:
         sep1 = Separator()
         def Show_splines(self): ...
         def Show_results_in_a_table_widget(self): ...
+        def Show_straightened_image(self): ...
         def Paint_MT(self): ...
         def Set_colormap(self): ...
         focus = field(False, options={"text": "Focus"})
@@ -521,6 +520,8 @@ class MTProfiler:
         ft_size : nm, default is 33.4
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
+        cutoff_freq : float, default is 0.0
+            Cutoff frequency of Butterworth low-pass prefilter.
         """        
         if self.layer_work.data.size > 0:
             self.register_path()
@@ -723,18 +724,18 @@ class MTProfiler:
         self.layer_image.contrast_limits = np.percentile(self.layer_image.data, [1, 97])
         return None
         
-    @View.wraps
-    def View_current_MT_fragment(self):
-        """
-        Send the current MT fragment 3D image (not binned) to napari viewer.
-        """        
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
-        tomo = self.active_tomogram
-        img = tomo._sample_subtomograms(i)[j]
-        self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
-                                     rendering="minip" if tomo.light_background else "mip")
-        return None
+    # @View.wraps
+    # def View_current_MT_fragment(self):
+    #     """
+    #     Send the current MT fragment 3D image (not binned) to napari viewer.
+    #     """        
+    #     i = self.mt.mtlabel.value
+    #     j = self.mt.pos.value
+    #     tomo = self.active_tomogram
+    #     img = tomo._sample_subtomograms(i)[j]
+    #     self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
+    #                                  rendering="minip" if tomo.light_background else "mip")
+    #     return None
             
     @mt.mtlabel.connect
     @mt.pos.connect
@@ -767,7 +768,6 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @set_design(text="Show results in a table widget")
     def Show_results_in_a_table_widget(self):
         """
         Show result table.
@@ -777,8 +777,7 @@ class MTProfiler:
         return None
     
     @View.wraps
-    @set_design(text="View straightened image")
-    def View_straightened_image(self):
+    def Show_straightened_image(self):
         """
         Send straightened image of the current MT to the viewer.
         """        
@@ -902,7 +901,8 @@ class MTProfiler:
 
         Parameters
         ----------
-        cutoff_freq : 
+        cutoff_freq : float, default is 0.0
+            Cutoff frequency of Butterworth low-pass prefilter.
         """        
         tomo = self.active_tomogram
         for i in range(tomo.n_paths):
@@ -960,6 +960,8 @@ class MTProfiler:
         ----------
         max_interval : nm, default is 30
             Maximum interval between anchors.
+        cutoff_freq : float, default is 0.0
+            Cutoff frequency of Butterworth low-pass prefilter.
         """
         tomo = self.active_tomogram
         

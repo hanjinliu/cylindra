@@ -7,7 +7,6 @@ class Ori(Enum):
     MinusToPlus = "MinusToPlus"
 
 class CacheKey(Enum):
-    subtomograms = auto()
     cart_straight = auto()
     cyl_straight = auto()
     

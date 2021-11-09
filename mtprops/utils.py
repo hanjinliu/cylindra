@@ -1,7 +1,6 @@
 from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
-from typing import Any
 from ._dependencies import impy as ip
 
 def roundint(a: float):
@@ -40,24 +39,20 @@ def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True)
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
             reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
+    
     return reg
 
-import time
-
 def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl):
-    t0 = time.time()
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
     for u in spl.anchors:
         # TODO: dask parallelize
         coords = spl.local_cartesian(plane_shape, axial_size, u)
-        print(time.time() - t0)
         
         coords = np.moveaxis(coords, -1, 0)
         out.append(map_coordinates(img, coords, order=3))
     out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
-    print(time.time() - t0, "finish")
     return out
 
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
