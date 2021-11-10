@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable
+from typing import Callable, Iterable
 import json
 import matplotlib.pyplot as plt
 from collections import namedtuple
@@ -165,6 +165,9 @@ class MtTomogram:
     
     @property
     def ft_size(self) -> nm:
+        """
+        Length of local Fourier transformation window size in nm.
+        """        
         return self._ft_size
     
     @ft_size.setter
@@ -175,10 +178,16 @@ class MtTomogram:
     
     @property
     def n_paths(self) -> int:
+        """
+        Number of spline paths.
+        """        
         return len(self._paths)
     
     @property
     def image(self) -> ip.LazyImgArray:
+        """
+        Tomogram image data.
+        """        
         return self._image
     
     @image.setter
@@ -262,6 +271,12 @@ class MtTomogram:
                 )
             
         return self
+
+    def argpeak(self, x: np.ndarray) -> Callable:
+        if self.light_background:
+            return np.argmin(x)
+        else:
+            return np.argmax(x)
     
     def add_spline(self, coords: np.ndarray):
         """
@@ -605,11 +620,14 @@ class MtTomogram:
         r_max = self.subtomo_width / 2
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max, method="sum")
-        if self.light_background:
-            prof = -prof
-            
-        imax = np.argmax(prof)
-        r_peak_sub = centroid(prof, imax-5, imax+5)/nbin*r_max
+        
+        # determine precise radius using centroid    
+        imax = self.argpeak(prof)
+        imax_sub = centroid(prof, imax-5, imax+5)
+        
+        # prof[0] is radial profile at r=0.5 (not r=0.0)
+        r_peak_sub = (imax_sub+0.5)/nbin*r_max
+        
         self._paths[i].radius = r_peak_sub
         return r_peak_sub
     
@@ -690,7 +708,7 @@ class MtTomogram:
                    *,
                    size: nm | tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
-                   chunkwise: bool = True):
+                   chunkwise: bool = True) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -761,7 +779,7 @@ class MtTomogram:
                    *,
                    radii: tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
-                   chunkwise: bool = True):
+                   chunkwise: bool = True) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -860,7 +878,7 @@ class MtTomogram:
                     i: int = None,
                     *, 
                     rot_ave: bool = False,
-                    y_length: nm = 50.0):
+                    y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT.
 
@@ -957,7 +975,7 @@ class MtTomogram:
     def cylindric_reconstruct(self, 
                               i: int = None,
                               rot_ave: bool = False, 
-                              y_length: nm = 50.0):
+                              y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT in cylindric coordinate system.
 
@@ -1061,17 +1079,10 @@ class MtTomogram:
         Coordinates
             Named tuple with monomer positions in world coordinates and spline coordinates.
         """        
-        # TODO: Sometimes skew angles seems to be not accurate enough for correct tubulin mapping.
-        # ... and sometimes offset is wrong.
-        
         spl = self._paths[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
-        r0 = self.nm2pixel(spl.radius)
-        rec2d = rec_cyl[f"r={r0}:"].proj("r")
-        if self.light_background:
-            ymax, amax = np.unravel_index(np.argmin(rec2d), rec2d.shape)
-        else:
-            ymax, amax = np.unravel_index(np.argmax(rec2d), rec2d.shape)
+        rec2d = rec_cyl.proj("r")
+        ymax, amax = np.unravel_index(self.argpeak(rec2d), rec2d.shape)
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.global_ft_params(i)

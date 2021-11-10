@@ -15,7 +15,7 @@ from magicclass import magicclass, magicmenu, field, set_design, set_options, do
 from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, QtImageCanvas
 from magicclass.macro import register_type
 
-from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine, centroid
+from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint, load_a_rot_subtomogram
 from .const import nm, H, Ori, GVar
 
@@ -205,11 +205,10 @@ class SplineFitter:
         r_max: nm = tomo.subtomo_width/2
         nbin = 17
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
-        if tomo.light_background:
-            prof = -prof
-            
-        imax = np.argmax(prof)
-        r_peak = centroid(prof, imax-5, imax+5)/nbin*r_max/tomo.scale/self.binsize
+        
+        imax = tomo.argpeak(prof)
+        imax_sub = centroid(prof, imax-5, imax+5)
+        r_peak = (imax_sub+0.5)/nbin*r_max/tomo.scale/self.binsize
         
         theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
         item_circ_inner.xdata = r_peak * GVar.inner * np.cos(theta) + x
@@ -1113,19 +1112,20 @@ class MTProfiler:
         Map points to tubulin molecules using the results of global Fourier transformation.
         """        
         tomo = self.active_tomogram
-        i = self.mt.mtlabel.value
         
-        worker = create_worker(tomo.map_monomer, 
-                               i=i,
+        worker = create_worker(tomo.map_monomer,
                                _progress={"total": 0, 
                                           "desc": "Running"}
                                )
         
         @worker.returned.connect
-        def _on_return(out):
-            self.parent_viewer.add_points(out.world, size=3, face_color="lime",
-                                          n_dimensional=True,
-                                          name="tubulin monomers")
+        def _on_return(out: list[Coordinates]):
+            for coords in out:
+                tr = self.layer_image.translate
+                self.parent_viewer.add_points(
+                    coords.world, size=3, face_color="lime",
+                    n_dimensional=True, translate=tr, name="tubulin monomers"
+                    )
         
         self._connect_worker(worker)
         self._worker_control.info.value = f"Tubulin mapping ..."
@@ -1580,9 +1580,9 @@ class MTProfiler:
         axes[0].text(1, 1, f"{i}-{j}", color="lime", font="Consolas", size=15, va="top")
     
         theta = np.linspace(0, 2*np.pi, 360)
-        r = tomo.nm2pixel(results.radius) * GVar.inner/binsize
+        r = tomo.nm2pixel(results.radius * GVar.inner/binsize)
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = tomo.nm2pixel(results.radius) * GVar.outer/binsize
+        r = tomo.nm2pixel(results.radius * GVar.outer/binsize)
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
         self.canvas.figure.tight_layout()
