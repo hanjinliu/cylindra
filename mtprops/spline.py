@@ -508,9 +508,9 @@ class Spline3D:
         radius = coords[:, 0]
         y = coords[:, 1]
         theta = coords[:, 2]
-        cart_coords = np.stack([radius*np.sin(theta), 
+        cart_coords = np.stack([radius*np.cos(theta), 
                                 y, 
-                                radius*np.cos(theta)],
+                                radius*np.sin(theta)],
                                axis=1)
         
         return self.inv_cartesian(cart_coords, (0, ylength, 0))

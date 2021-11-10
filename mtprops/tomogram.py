@@ -9,7 +9,7 @@ import pandas as pd
 from scipy import ndimage as ndi
 from dask import array as da, delayed
 
-from ._dependencies import impy as ip
+import impy as ip
 from .const import nm, H, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
@@ -59,6 +59,9 @@ def batch_process(func):
     return _func  
 
 def json_encoder(obj):
+    """
+    Enable Enum and DataFrame encoding.
+    """    
     if isinstance(obj, Ori):
         return obj.name
     elif isinstance(obj, pd.DataFrame):

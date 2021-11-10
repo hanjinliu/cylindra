@@ -9,10 +9,12 @@ from pathlib import Path
 from magicgui.widgets import Table, TextEdit
 import matplotlib.pyplot as plt
 
-from ._dependencies import impy as ip
-from ._dependencies import (mcls, magicclass, magicmenu, field, set_design, set_options, 
-                            do_not_record, Figure, TupleEdit, Separator, ListWidget, QtImageCanvas,
-                            register_type)
+import impy as ip
+
+from magicclass import magicclass, magicmenu, field, set_design, set_options, do_not_record
+from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, QtImageCanvas
+from magicclass.macro import register_type
+
 from .tomogram import MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint, load_a_rot_subtomogram
 from .const import nm, H, Ori, GVar
@@ -663,6 +665,7 @@ class MTProfiler:
         import napari
         import magicgui
         from .__init__ import __version__
+        import magicclass as mcls
         import dask
         
         value = f"MTProps: {__version__}\n"\

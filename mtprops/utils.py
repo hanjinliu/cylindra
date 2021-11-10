@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
-from ._dependencies import impy as ip
+import impy as ip
 
 def roundint(a: float):
     return int(round(a))

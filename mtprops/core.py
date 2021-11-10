@@ -2,7 +2,7 @@ from __future__ import annotations
 import pandas as pd
 import napari
 from .widget import MTProfiler
-from ._dependencies import impy as ip
+import impy as ip
 
 def start(viewer:"napari.Viewer"=None):
     if viewer is None:

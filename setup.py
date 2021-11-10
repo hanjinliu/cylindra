@@ -11,8 +11,10 @@ setup(name="MTProps",
       license="BSD 3-Clause",
       packages=find_packages(),
       install_requires=[
-            "impy-array>=1.23.0",
-            "magic-class>=0.5.4",
+            "impy-array>=1.24.0",
+            "magic-class>=0.5.5",
+            "numba>=0.54",
+            "pyqtgraph>=0.12",
       ],
       python_requires=">=3.7",
       )
