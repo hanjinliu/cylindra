@@ -105,7 +105,7 @@ def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = 
         coordinates[i] -= min(_sl.start, imin)
     sl = tuple(sl)
     img = input[sl]
-    if isinstance(img, ip.arrays.LazyImgArray):
+    if isinstance(img, ip.LazyImgArray):
         img = img.data
     
     if np.any(np.array(pad) > 0):
@@ -138,7 +138,7 @@ class Projections:
     """
     Class that stores projections of a 3D image.
     """
-    def __init__(self, image: ip.arrays.ImgArray):
+    def __init__(self, image: ip.ImgArray):
         with ip.SetConst("SHOW_PROGRESS", False):
             self.yx = image.proj("z")
             self.zx = image.proj("y")

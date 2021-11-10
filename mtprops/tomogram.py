@@ -178,12 +178,12 @@ class MtTomogram:
         return len(self._paths)
     
     @property
-    def image(self) -> ip.arrays.LazyImgArray:
+    def image(self) -> ip.LazyImgArray:
         return self._image
     
     @image.setter
     def image(self, image):
-        if not isinstance(image, ip.arrays.LazyImgArray):
+        if not isinstance(image, ip.LazyImgArray):
             raise TypeError(f"Type {type(image)} not supported.")
         self._image = image
         
@@ -567,7 +567,7 @@ class MtTomogram:
                 
                 
     @batch_process
-    def get_subtomograms(self, i: int = None) -> ip.arrays.ImgArray:
+    def get_subtomograms(self, i: int = None) -> ip.ImgArray:
         """
         Get subtomograms at anchors. All the subtomograms are rotated to oriented
         to the spline.
@@ -579,7 +579,7 @@ class MtTomogram:
 
         Returns
         -------
-        ip.arrays.ImgArray
+        ip.ImgArray
             Subtomograms stacked along "p" axis.
         """        
         subtomograms = self._sample_subtomograms(i)
@@ -875,7 +875,7 @@ class MtTomogram:
 
         Returns
         -------
-        ip.arrays.ImgArray
+        ip.ImgArray
             Reconstructed image.
         """        
         # TODO: dask parallelize, iteration
@@ -899,7 +899,7 @@ class MtTomogram:
         skew_angles = np.arange(borders.size - 1) * skew
         
         # Rotate fragment with skew angle
-        imgs = []
+        imgs: list[ip.ImgArray] = []
         ylen = 99999
     
         # Split image into dimers along y-direction
@@ -972,7 +972,7 @@ class MtTomogram:
 
         Returns
         -------
-        ip.arrays.ImgArray
+        ip.ImgArray
             Reconstructed image.
         """        
         # TODO: dask parallelize

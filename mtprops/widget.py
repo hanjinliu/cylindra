@@ -794,7 +794,7 @@ class MTProfiler:
                                )
         
         @worker.returned.connect
-        def _on_return(out: ip.arrays.ImgArray):
+        def _on_return(out: ip.ImgArray):
             self.parent_viewer.add_image(out, scale=out.scale)
         
         self._worker_control.info.value = f"Straightening spline No. {i}"
@@ -1058,7 +1058,7 @@ class MTProfiler:
                                )
         
         @worker.returned.connect
-        def _on_return(out: ip.arrays.ImgArray):
+        def _on_return(out: ip.ImgArray):
             if tomo.light_background:
                 out = -out
             self.parent_viewer.add_image(out, scale=out.scale, 
@@ -1096,7 +1096,7 @@ class MTProfiler:
                                )
         
         @worker.returned.connect
-        def _on_return(out: ip.arrays.ImgArray):
+        def _on_return(out: ip.ImgArray):
             if tomo.light_background:
                 out = -out
             self.parent_viewer.add_image(out, scale=out.scale)
