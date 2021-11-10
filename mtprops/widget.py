@@ -1296,7 +1296,8 @@ class MTProfiler:
         df = tomo.collect_localprops()[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
         df_reset[_id] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
-        df_reset[_type] = df_reset.apply(lambda x: "{}_{}".format(int(x[H.nPF]), int(x[H.start])), axis=1)
+        df_reset[_type] = df_reset.apply(lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), 
+                                                                              start=x[H.start]), axis=1)
         
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df_reset[columns]])
@@ -1545,7 +1546,7 @@ class MTProfiler:
         results = tomo.paths[i]
         
         pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
-        self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{int(start)}"
+        self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
         
         if len(self.canvas.axes) < 3:
             self.canvas.figure.clf()

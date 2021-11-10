@@ -669,7 +669,7 @@ class MtTomogram:
         spl.localprops[H.yPitch] = results[:, 1]
         spl.localprops[H.skewAngle] = results[:, 2]
         spl.localprops[H.nPF] = np.round(results[:, 3]).astype(np.uint8)
-        spl.localprops[H.start] = np.round(results[:, 4]).astype(np.uint8)
+        spl.localprops[H.start] = results[:, 4]
         
         return spl.localprops
     
@@ -698,7 +698,7 @@ class MtTomogram:
         series[H.yPitch] = results[1]
         series[H.skewAngle] = results[2]
         series[H.nPF] = np.round(results[3])
-        series[H.start] = np.round(results[4])
+        series[H.start] = results[4]
         
         return series
 
