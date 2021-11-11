@@ -16,12 +16,13 @@ from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, QtImage
 from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
-from .utils import Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, roundint, ceilint, load_a_rot_subtomogram
+from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, 
+                    roundint, ceilint, load_a_rot_subtomogram)
 from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
-    from napari._qt.qthreading import GeneratorWorker
+    from napari._qt.qthreading import GeneratorWorker, WorkerBase
     from matplotlib.axes import Axes
 
 
@@ -725,20 +726,7 @@ class MTProfiler:
             self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, chunks=(32, 128, 128))
         self.layer_image.contrast_limits = np.percentile(self.layer_image.data, [1, 97])
         return None
-        
-    # @View.wraps
-    # def View_current_MT_fragment(self):
-    #     """
-    #     Send the current MT fragment 3D image (not binned) to napari viewer.
-    #     """        
-    #     i = self.mt.mtlabel.value
-    #     j = self.mt.pos.value
-    #     tomo = self.active_tomogram
-    #     img = tomo._sample_subtomograms(i)[j]
-    #     self.parent_viewer.add_image(img, scale=img.scale, name=img.name,
-    #                                  rendering="minip" if tomo.light_background else "mip")
-    #     return None
-            
+                    
     @mt.mtlabel.connect
     @mt.pos.connect
     def _focus_on(self):
@@ -917,9 +905,19 @@ class MTProfiler:
         return None
     
     @Analysis.wraps
-    def Fit_splines_manually(self, max_interval: nm = 100.0):
+    @set_options(max_interval={"label": "Max interval (nm)"})
+    def Fit_splines_manually(self, max_interval: nm = 50.0):
+        """
+        Open a spline fitter window and fit MT with spline manually.
+
+        Parameters
+        ----------
+        max_interval : nm, default is 50.0
+            Maximum interval between new anchors.
+        """        
         self._spline_fitter.show()
         self._spline_fitter._load_parent_state(max_interval=max_interval)
+        return None
     
     @Analysis.wraps
     @set_options(interval={"label": "Interval between anchors (nm)"})
@@ -1630,7 +1628,7 @@ class MTProfiler:
         self.mt.mtlabel.enabled = True
         return None
     
-    def _connect_worker(self, worker):
+    def _connect_worker(self, worker: WorkerBase):
         self._worker_control._set_worker(worker)
         viewer: napari.Viewer = self.parent_viewer
         viewer.window._status_bar._toggle_activity_dock(True)
@@ -1644,11 +1642,12 @@ class MTProfiler:
         dialog.layout().addWidget(self._worker_control.native)
         return None
 
-def centering(imgb, point, angle, drot=5, nrots=7):
-            
+def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5, 
+              nrots: int = 7):
+    
     angle_deg2 = angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
     
-    img_next_rot = imgb.rotate(-angle_deg2, cval=np.median(imgb))
+    img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
     proj = img_next_rot.proj("y")
     proj_mirror = proj["z=::-1;x=::-1"]
     shift = ip.pcc_maximum(proj, proj_mirror)
@@ -1663,7 +1662,8 @@ def centering(imgb, point, angle, drot=5, nrots=7):
                      [0., -sin, cos]]
     point += shift
 
-def change_viewer_focus(viewer, next_center, next_coord):
+def change_viewer_focus(viewer: "napari.Viewer", next_center: Iterable[float], 
+                        next_coord: np.ndarray):
     viewer.camera.center = next_center
     zoom = viewer.camera.zoom
     viewer.camera.events.zoom()
