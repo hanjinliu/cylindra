@@ -54,6 +54,7 @@ def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl):
             coords = np.moveaxis(coords, -1, 0)
             out.append(map_coordinates(img, coords, order=3))
     out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+    out.set_scale(img)
     return out
 
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:

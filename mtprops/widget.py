@@ -22,7 +22,7 @@ from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
-    from napari._qt.qthreading import GeneratorWorker, WorkerBase
+    from napari._qt.qthreading import GeneratorWorker
     from matplotlib.axes import Axes
 
 
@@ -191,7 +191,7 @@ class SplineFitter:
         self.fit_done = True
         self._mt_changed()
     
-    def _update_cross(self, x, z):
+    def _update_cross(self, x: float, z: float):
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         
@@ -261,7 +261,7 @@ class SplineFitter:
         spl.scale /= self.binsize
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
-        self.canvas.view_range = (0, self.canvas.image.shape[1]), (0, self.canvas.image.shape[0])
+        self.canvas.view_range = (0, self.canvas.image.shape[0]), (0, self.canvas.image.shape[1])
         lz, lx = self.subtomograms.sizesof("zx")
         self._update_cross(lx/2, lz/2)
         return None
@@ -1628,7 +1628,7 @@ class MTProfiler:
         self.mt.mtlabel.enabled = True
         return None
     
-    def _connect_worker(self, worker: WorkerBase):
+    def _connect_worker(self, worker):
         self._worker_control._set_worker(worker)
         viewer: napari.Viewer = self.parent_viewer
         viewer.window._status_bar._toggle_activity_dock(True)
