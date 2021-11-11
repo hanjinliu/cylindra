@@ -616,10 +616,10 @@ class MtTomogram:
             MT radius.
         """        
         subtomograms = self._sample_subtomograms(i)
-        nbin = 17
         r_max = self.subtomo_width / 2
+        nbin = r_max/self.scale/2
         img2d = subtomograms.proj("py")
-        prof = img2d.radial_profile(nbin=nbin, r_max=r_max, method="sum")
+        prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
         
         # determine precise radius using centroid    
         imax = self.argpeak(prof)
