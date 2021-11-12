@@ -147,11 +147,11 @@ class MtTomogram:
                  ):
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
+        self._paths: list[MtSpline] = []
         self.ft_size = ft_size
         self.light_background = light_background
         self.metadata = {}
         
-        self._paths: list[MtSpline] = []
     
     def __hash__(self) -> int:
         return id(self)
@@ -1123,37 +1123,58 @@ class MtTomogram:
                            spline = mesh)
         return crds
     
-    def pf_offsets(self, i = None):
+    @batch_process
+    def pf_offsets(self, i = None) -> np.ndarray:
+        """
+        Calculate pixel offsets of protofilament origins.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that offsets will be calculated.
+
+        Returns
+        -------
+        np.ndarray
+            Float angle offsets in degree. If MT has N protofilaments, this array will be (N,).
+        """
         spl = self._paths[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
-        rise = props[H.riseAngle]
         npf = int(props[H.nPF])
-        # affine
-        # proj("ry")
-        # return np.angle(line.fft(dims="a", shift=False)[npf])/(2*np.pi)*img.shape.a
+        imgst = self.cylindric_straighten(i).proj("r")
+        tilt = np.deg2rad(skew) * spl.radius / pitch / 2
+        with ip.SetConst("SHOW_PROGRESS", False):
+            img_shear = imgst.affine(np.array([[1, 0, 0],[tilt, 1, 0],[0, 0, 1]]), 
+                                     mode="grid-wrap", dims="ya")
+            line = img_shear.proj("y")
+        
+        if self.light_background:
+            line = -line
+            
+        offset = np.rad2deg(np.angle(line.fft(dims="a", shift=False)[npf]))
+        return (np.arange(npf)*360/npf + offset) % 360
         
     
     @batch_process
     def map_pf_line(self, i = None, angle_offset: float = 0) -> Coordinates:
-        # WIP!
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         spl = self._paths[i]
         ny = roundint(spl.length()/pitch)
-        l_circ = 2*spl.radius*np.pi
+        mono_skew_rad = -np.deg2rad(skew) / 2
         
         rcoords = np.full(ny, spl.radius)
-        ycoords = np.arange(ny)*pitch
-        acoords = ycoords*np.tan(np.deg2rad(skew)) % l_circ * 2 * np.pi + np.deg2rad(angle_offset)
+        ycoords = np.arange(ny) * pitch
+        acoords = np.arange(ny) * mono_skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
         crds = Coordinates(world = spl.inv_cylindrical(coords=coords, ylength=ny*pitch),
                            spline = coords)
         return crds
         
-def angle_corr(img, ang_center: float = 0, drot: float = 7, nrots: int = 29):
+def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):
     # img: 3D
     img_z = img.proj("z")
     mask = ip.circular_mask(img_z.shape.y/2+2, img_z.shape)
