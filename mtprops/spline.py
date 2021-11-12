@@ -517,8 +517,8 @@ class Spline3D:
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
-                    map_params:tuple,
-                    s_range:tuple[float, float]):
+                    map_params: tuple,
+                    s_range: tuple[float, float]):
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
         stop_length, n_segs = interval_divmod(length, self.scale)

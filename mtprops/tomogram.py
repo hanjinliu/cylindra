@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 import json
 import matplotlib.pyplot as plt
 from collections import namedtuple
@@ -66,6 +66,8 @@ def json_encoder(obj):
         return obj.name
     elif isinstance(obj, pd.DataFrame):
         return obj.to_dict(orient="list")
+    elif isinstance(obj, pd.Series):
+        return obj.to_dict()
     else:
         raise TypeError(f"{obj!r} is not JSON serializable")
 
@@ -81,6 +83,7 @@ class MtSpline(Spline3D):
     def _init_properties(self):
         self._radius: nm = None
         self.localprops: pd.DataFrame = pd.DataFrame([])
+        self.globalprops: pd.Series = pd.Series([], dtype=np.float32)
         
     @property
     def orientation(self) -> Ori:
@@ -103,8 +106,6 @@ class MtSpline(Spline3D):
             self._radius = float(value)
         except ValueError:
             raise ValueError(f"Cannot set {type(value)} to radius.")
-        else:
-            self._updates += 1
     
     def fit(self, coords:np.ndarray, w=None, s=None):
         super().fit(coords, w=w, s=s)
@@ -116,6 +117,7 @@ class MtSpline(Spline3D):
         d["radius"] = self.radius
         d["orientation"] = self.orientation.name
         d["localprops"] = self.localprops[LOCALPROPS]
+        d["globalprops"] = self.globalprops
         return d
         
     @classmethod
@@ -124,6 +126,7 @@ class MtSpline(Spline3D):
         self.radius = d.get("radius", None)
         self.orientation = d.get("orientation", Ori.none)
         self.localprops = pd.DataFrame(d.get("localprops", None))
+        self.globalprops = pd.Series(d.get("globalprops", None))
         if H.splPosition in self.localprops.columns:
             self.anchors = self.localprops[H.splPosition]
         return self
@@ -175,6 +178,10 @@ class MtTomogram:
         if not np.isscalar(value):
             raise ValueError("'ft_size' must be a scalar.")
         self._ft_size = value
+        
+        # Delete outdated local properties
+        for spl in self._paths:
+            spl.localprops = pd.DataFrame(None)
     
     @property
     def n_paths(self) -> int:
@@ -400,7 +407,7 @@ class MtTomogram:
     
     @batch_process
     def fit(self, 
-            i: int = None,
+            i = None,
             *, 
             max_interval: nm = 30.0,
             degree_precision: float = 0.2,
@@ -485,7 +492,7 @@ class MtTomogram:
     
     @batch_process
     def refine(self, 
-               i: int = None,
+               i = None,
                *, 
                max_interval: nm = 30.0,
                cutoff_freq: float = 0.0
@@ -582,7 +589,7 @@ class MtTomogram:
                 
                 
     @batch_process
-    def get_subtomograms(self, i: int = None) -> ip.ImgArray:
+    def get_subtomograms(self, i = None) -> ip.ImgArray:
         """
         Get subtomograms at anchors. All the subtomograms are rotated to oriented
         to the spline.
@@ -601,7 +608,7 @@ class MtTomogram:
         return subtomograms
     
     @batch_process
-    def measure_radius(self, i: int = None) -> nm:
+    def measure_radius(self, i = None) -> nm:
         """
         Measure MT radius using radial profile from the center.
 
@@ -632,7 +639,7 @@ class MtTomogram:
         return r_peak_sub
     
     @batch_process
-    def ft_params(self, i: int = None) -> pd.DataFrame:
+    def ft_params(self, i = None) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
 
@@ -646,8 +653,11 @@ class MtTomogram:
         pd.DataFrame
             Local properties.
         """        
-        ylen = self.nm2pixel(self.ft_size)
         spl = self._paths[i]
+        if not spl.localprops.empty:
+            return spl.localprops
+        
+        ylen = self.nm2pixel(self.ft_size)
         spl.localprops = pd.DataFrame([])
         rmin = self.nm2pixel(spl.radius*GVar.inner)
         rmax = self.nm2pixel(spl.radius*GVar.outer)
@@ -674,7 +684,7 @@ class MtTomogram:
         return spl.localprops
     
     @batch_process
-    def global_ft_params(self, i: int = None):
+    def global_ft_params(self, i = None):
         """
         Calculate MT global structural parameters from cylindrical Fourier space along 
         spline. This function calls ``straighten`` beforehand, so that Fourier space is 
@@ -691,6 +701,9 @@ class MtTomogram:
             Global properties.
         """        
         spl = self._paths[i]
+        if not spl.globalprops.empty:
+            return spl.globalprops
+        
         img_st = self.cylindric_straighten(i)
         results = _local_dft_params(img_st, spl.radius)
         series = pd.Series([], dtype=np.float32)
@@ -700,11 +713,12 @@ class MtTomogram:
         series[H.nPF] = np.round(results[3])
         series[H.start] = results[4]
         
+        spl.globalprops = series
         return series
 
     @batch_process
     def straighten(self, 
-                   i: int = None, 
+                   i = None, 
                    *,
                    size: nm | tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
@@ -775,7 +789,7 @@ class MtTomogram:
 
     @batch_process
     def cylindric_straighten(self, 
-                   i: int = None, 
+                   i = None, 
                    *,
                    radii: tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
@@ -850,6 +864,7 @@ class MtTomogram:
         return transformed
     
     def _chunked_straighten(self, i, length, range_, function, **kwargs):
+        # BUG: sometimes fail by ValueError: Too short. Change 's_range'.
         out = []
         current_distance: nm = 0.0
         chunk_length: nm = 72.0
@@ -875,7 +890,7 @@ class MtTomogram:
     
     @batch_process
     def reconstruct(self, 
-                    i: int = None,
+                    i = None,
                     *, 
                     rot_ave: bool = False,
                     y_length: nm = 50.0) -> ip.ImgArray:
@@ -973,7 +988,7 @@ class MtTomogram:
     
     @batch_process
     def cylindric_reconstruct(self, 
-                              i: int = None,
+                              i = None,
                               rot_ave: bool = False, 
                               y_length: nm = 50.0) -> ip.ImgArray:
         """
@@ -1039,7 +1054,7 @@ class MtTomogram:
             imgs[i] = img.affine(translation=shift, 
                                  dims="rya", mode="grid-wrap")
 
-        out = np.stack(imgs, axis="p").proj("p")
+        out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
         
         # rotational averaging
         # TODO: don't Affine twice
@@ -1065,7 +1080,7 @@ class MtTomogram:
         return np.concatenate(outlist, axis="y")
     
     @batch_process
-    def map_monomer(self, i: int = None) -> Coordinates:
+    def map_monomer(self, i = None) -> Coordinates:
         """
         Map coordinates of tubulin monomers in world coordinate.
 
@@ -1107,6 +1122,36 @@ class MtTomogram:
         crds = Coordinates(world = spl.inv_cylindrical(coords=mesh, ylength=ny*pitch),
                            spline = mesh)
         return crds
+    
+    def pf_offsets(self, i = None):
+        spl = self._paths[i]
+        props = self.global_ft_params(i)
+        pitch = props[H.yPitch]
+        skew = props[H.skewAngle]
+        rise = props[H.riseAngle]
+        npf = int(props[H.nPF])
+        # affine
+        # proj("ry")
+        # return np.angle(line.fft(dims="a", shift=False)[npf])/(2*np.pi)*img.shape.a
+        
+    
+    @batch_process
+    def map_pf_line(self, i = None, angle_offset: float = 0) -> Coordinates:
+        # WIP!
+        props = self.global_ft_params(i)
+        pitch = props[H.yPitch]
+        skew = props[H.skewAngle]
+        spl = self._paths[i]
+        ny = roundint(spl.length()/pitch)
+        l_circ = 2*spl.radius*np.pi
+        
+        rcoords = np.full(ny, spl.radius)
+        ycoords = np.arange(ny)*pitch
+        acoords = ycoords*np.tan(np.deg2rad(skew)) % l_circ * 2 * np.pi + np.deg2rad(angle_offset)
+        coords = np.stack([rcoords, ycoords, acoords], axis=1)
+        crds = Coordinates(world = spl.inv_cylindrical(coords=coords, ylength=ny*pitch),
+                           spline = coords)
+        return crds
         
 def angle_corr(img, ang_center: float = 0, drot: float = 7, nrots: int = 29):
     # img: 3D
@@ -1131,7 +1176,7 @@ def delayed_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
     return da.compute(tasks, scheduler=SCHEDULER)[0]
     
-def _local_dft_params(img, radius: nm):
+def _local_dft_params(img: ip.ImgArray, radius: nm):
     l_circ: nm = 2*np.pi*radius
     npfmin = GVar.nPFmin
     npfmax = GVar.nPFmax
@@ -1192,7 +1237,7 @@ def _local_dft_params(img, radius: nm):
                     dtype=np.float32)
     
 
-def ft_params(img, coords, radius):
+def ft_params(img: ip.ImgArray, coords: np.ndarray, radius: nm):
     polar = map_coordinates(img, coords, order=3, mode="grid-wrap")
     polar = ip.asarray(polar, axes="rya") # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
