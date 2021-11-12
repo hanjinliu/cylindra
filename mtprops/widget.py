@@ -204,9 +204,8 @@ class SplineFitter:
         
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
         r_max: nm = tomo.subtomo_width/2
-        nbin = 17
+        nbin = r_max/tomo.scale/self.binsize/2
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
-        
         imax = tomo.argpeak(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
         r_peak = (imax_sub+0.5)/nbin*r_max/tomo.scale/self.binsize
