@@ -1155,7 +1155,83 @@ class MtTomogram:
             
         offset = np.rad2deg(np.angle(line.fft(dims="a", shift=False)[npf]))
         return (np.arange(npf)*360/npf + offset) % 360
+    
+    @batch_process
+    def seam_offset(self, i = None) -> float:
+        spl = self._paths[i]
+        props = self.global_ft_params(i)
+        pitch = props[H.yPitch]
+        skew = props[H.skewAngle]
+        rise = props[H.riseAngle]
+        npf = roundint(props[H.nPF])
+        imgst = self.cylindric_straighten(i)
+        a_size = imgst.shape.a
+        tilt = np.deg2rad(skew) * spl.radius / pitch / 2
+        with ip.SetConst("SHOW_PROGRESS", False):
+            mtx = np.array([[1.,   0., 0., 0.],
+                            [0.,   1., 0., 0.],
+                            [0., tilt, 1., 0.],
+                            [0.,   0., 0., 1.]],
+                           dtype=np.float32)
+            img_shear = imgst.affine(mtx, mode="grid-wrap", dims="rya")
+            line = img_shear.proj("ry")
         
+        if self.light_background:
+            line = -line
+        
+        fig, ax = plt.subplots(1,2, figsize=(8, 22))
+        ax[0].imshow(imgst.proj("r"), cmap="gray")
+        ax[1].imshow(img_shear.proj("r"), cmap="gray")
+        plt.show()
+        
+        # "offset" means the peak of monomer     
+        offset_rad = np.angle(np.fft.fft(line.value)[npf]) % (2 * np.pi)
+        offset_px: float = offset_rad / 2 / np.pi * a_size
+        
+        plt.plot(np.arange(a_size)/a_size*np.pi*2, line)
+        for i in range(npf):
+            x = offset_rad + i*np.pi*2/npf
+            x %= 2*np.pi
+            plt.plot([x, x], [line.min(), line.max()], color="yellow")
+            
+        plt.show()
+        
+        l = roundint(a_size/npf)
+        l_dimer = pitch*2
+        slope = np.tan(np.deg2rad(-rise))
+        opt_y_mat = np.zeros((npf, npf), dtype=np.float32)
+        with ip.SetConst("SHOW_PROGRESS", False):
+            # TODO: This is not efficient. At least, fft is calculated many times in pcc_maximum
+            for i in range(npf):
+                for j in range(i, npf):
+                    si = roundint(a_size/npf*i - offset_px - l/2)
+                    sj = roundint(a_size/npf*j - offset_px - l/2)
+                    sl_i = np.arange(si, si+l) % a_size
+                    sl_j = np.arange(sj, sj+l) % a_size
+                    img0 = img_shear[:, :, sl_i]
+                    img1 = img_shear[:, :, sl_j]
+                    shift = ip.pcc_maximum(img0, img1)
+                    if j-i==1:
+                        plt.plot(sl_i, img0.proj("ry"))
+                        plt.show()
+                    opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] - slope*a_size/npf*(j-i)) % l_dimer
+
+        plt.imshow(opt_y_mat, cmap="hsv", vmin=0, vmax=l_dimer)
+        
+        std_list: list[float] = []
+        for seam in range(npf):
+            cl0 = np.cos(opt_y_mat[:seam, :seam]/l_dimer*2*np.pi)
+            cl1 = np.cos(opt_y_mat[seam:, seam:]/l_dimer*2*np.pi)
+            std_list.append(np.std(np.concatenate([cl0.ravel(), cl1.ravel()])))
+        
+        seampos = np.argmin(std_list)
+        plt.plot([-0.5, npf-0.5], [seampos+0.5, seampos+0.5], color="black")
+        plt.show()
+        
+        plt.plot(std_list)
+        plt.show()
+        return np.rad2deg(seampos / len(std_list) * 2 * np.pi + offset_rad)
+
     
     @batch_process
     def map_pf_line(self, i = None, angle_offset: float = 0) -> Coordinates:
