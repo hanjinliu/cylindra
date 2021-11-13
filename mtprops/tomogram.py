@@ -113,9 +113,13 @@ class MtSpline(Spline3D):
     @radius.setter
     def radius(self, value: nm):
         try:
-            self._radius = float(value)
+            value = float(value)
         except ValueError:
             raise ValueError(f"Cannot set {type(value)} to radius.")
+        else:
+            if value <= 0:
+                raise ValueError("Cannot set negative radius.")
+            self._radius = value
     
     def fit(self, coords: np.ndarray, w=None, s=None):
         super().fit(coords, w=w, s=s)
@@ -341,7 +345,7 @@ class MtTomogram:
         return pix
     
     @batch_process
-    def make_anchors(self, i: int = None, interval: nm = None, n: int = None):
+    def make_anchors(self, i = None, interval: nm = None, n: int = None):
         """
         Make anchors on MtSpline object(s).
 

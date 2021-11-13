@@ -940,8 +940,7 @@ class MTProfiler:
         tomo = self.active_tomogram
         for i in range(tomo.n_paths):
             spl = tomo.paths[i]
-            anchors = spl.anchors
-            if anchors is None:
+            if spl._anchors is None:
                 spl.make_anchors(i, n=3)
         tomo.measure_radius()
         return None

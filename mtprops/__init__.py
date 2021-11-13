@@ -1,4 +1,4 @@
-__version__ = "0.6.1dev1"
+__version__ = "0.6.1"
 
 from .core import start
 from .tomogram import MtTomogram
