@@ -110,7 +110,6 @@ class WorkerControl:
         self.paused = False
         self.worker: GeneratorWorker = None
         self._last_info = ""
-        self.metadata: dict[str] = {}
         self.info.enabled = False
     
     def _set_worker(self, worker):

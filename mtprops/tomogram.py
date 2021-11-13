@@ -851,7 +851,7 @@ class MtTomogram:
             coords = np.moveaxis(coords, -1, 0)
             
             with ip.SetConst("SHOW_PROGRESS", False):
-                transformed = map_coordinates(self.image, coords, order=1)
+                transformed = map_coordinates(self.image, coords, order=3)
             
             axes = "rya"
             transformed = ip.asarray(transformed, axes=axes)
@@ -893,6 +893,7 @@ class MtTomogram:
                     i = None,
                     *, 
                     rot_ave: bool = False,
+                    seam_offset: float = None,
                     y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT.
@@ -989,7 +990,10 @@ class MtTomogram:
     @batch_process
     def cylindric_reconstruct(self, 
                               i = None,
+                              *,
                               rot_ave: bool = False, 
+                              seam_offset: float = None,
+                              radii: tuple[nm, nm] = None,
                               y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT in cylindric coordinate system.
@@ -1011,13 +1015,14 @@ class MtTomogram:
         # TODO: dask parallelize
         
         # Cartesian transformation along spline.
-        img_open = self.cylindric_straighten(i)
+        img_open = self.cylindric_straighten(i, radii=radii)
         scale = img_open.scale.y
         total_length: nm = img_open.shape.y*scale
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.global_ft_params(i)
-        lp = props[H.yPitch] * 2
+        pitch = props[H.yPitch]
+        lp = pitch * 2
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
@@ -1060,13 +1065,36 @@ class MtTomogram:
         # TODO: don't Affine twice
         if rot_ave:
             input_ = out.copy()
-            for i in range(1, npf):
+            a_size = out.shape.a
+            if seam_offset is not None:
+                len_pf = out.shape.a/npf
+                seam_px = seam_offset/360*a_size
+                pfrange = [np.arange(roundint(seam_px + len_pf*i), 
+                                     roundint(seam_px + len_pf*i) + roundint(len_pf)
+                                     ) % a_size for i in range(npf)]
                 slope = np.tan(np.deg2rad(rise))
-                dy = 2*np.pi*i/npf*radius*slope/self.scale
-                shift_a = out.shape.a/npf*i
-                shift = [dy, shift_a]
-                out.value[:] += input_.affine(translation=shift, 
-                                              dims="ya", mode="grid-wrap")
+                da = a_size/npf * np.arange(npf)
+                dy = 2*np.pi/npf*radius*slope/self.scale * np.arange(npf)
+                sumimg = out[:, :, pfrange[0]].copy()
+                for i in range(1, npf):
+                    shift = [dy[i], da[i]]
+                    
+                    sumimg.value[:] += input_[:, :, pfrange[i]].affine(translation=shift, 
+                                                     dims="ya", mode="grid-wrap")
+                out = np.zeros_like(out)
+                for i in range(npf):
+                    out[:, :, pfrange[i]] = sumimg.affine(translation=[-dy[i]], dims="y", mode="grid-wrap")
+                    
+            else:
+                slope = np.tan(np.deg2rad(rise))
+                for i in range(1, npf):
+                    dy = 2*np.pi*i/npf*radius*slope/self.scale
+                    shift_a = a_size/npf*i
+                    shift = [dy, shift_a]
+                    
+                    rot_input = input_.affine(translation=shift, 
+                                            dims="ya", mode="grid-wrap")
+                    out.value[:] += rot_input
         
         # stack images for better visualization
         dup = ceilint(y_length/lp)
@@ -1138,6 +1166,7 @@ class MtTomogram:
         np.ndarray
             Float angle offsets in degree. If MT has N protofilaments, this array will be (N,).
         """
+        # WIP!
         spl = self._paths[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
@@ -1158,13 +1187,14 @@ class MtTomogram:
     
     @batch_process
     def seam_offset(self, i = None) -> float:
+        # WIP!
         spl = self._paths[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
-        imgst = self.cylindric_straighten(i)
+        imgst = self.cylindric_reconstruct(i, y_length=0)
         a_size = imgst.shape.a
         tilt = np.deg2rad(skew) * spl.radius / pitch / 2
         with ip.SetConst("SHOW_PROGRESS", False):
@@ -1176,26 +1206,10 @@ class MtTomogram:
             img_shear = imgst.affine(mtx, mode="grid-wrap", dims="rya")
             line = img_shear.proj("ry")
         
-        if self.light_background:
-            line = -line
-        
-        fig, ax = plt.subplots(1,2, figsize=(8, 22))
-        ax[0].imshow(imgst.proj("r"), cmap="gray")
-        ax[1].imshow(img_shear.proj("r"), cmap="gray")
-        plt.show()
-        
         # "offset" means the peak of monomer     
         offset_rad = np.angle(np.fft.fft(line.value)[npf]) % (2 * np.pi)
         offset_px: float = offset_rad / 2 / np.pi * a_size
-        
-        plt.plot(np.arange(a_size)/a_size*np.pi*2, line)
-        for i in range(npf):
-            x = offset_rad + i*np.pi*2/npf
-            x %= 2*np.pi
-            plt.plot([x, x], [line.min(), line.max()], color="yellow")
-            
-        plt.show()
-        
+                
         l = roundint(a_size/npf)
         l_dimer = pitch*2
         slope = np.tan(np.deg2rad(-rise))
@@ -1211,9 +1225,6 @@ class MtTomogram:
                     img0 = img_shear[:, :, sl_i]
                     img1 = img_shear[:, :, sl_j]
                     shift = ip.pcc_maximum(img0, img1)
-                    if j-i==1:
-                        plt.plot(sl_i, img0.proj("ry"))
-                        plt.show()
                     opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] - slope*a_size/npf*(j-i)) % l_dimer
 
         plt.imshow(opt_y_mat, cmap="hsv", vmin=0, vmax=l_dimer)
@@ -1225,12 +1236,12 @@ class MtTomogram:
             std_list.append(np.std(np.concatenate([cl0.ravel(), cl1.ravel()])))
         
         seampos = np.argmin(std_list)
-        plt.plot([-0.5, npf-0.5], [seampos+0.5, seampos+0.5], color="black")
+        plt.plot([-0.5, npf-0.5], [seampos-0.5, seampos-0.5], color="black")
         plt.show()
         
         plt.plot(std_list)
         plt.show()
-        return np.rad2deg(seampos / len(std_list) * 2 * np.pi + offset_rad)
+        return np.rad2deg(seampos / len(std_list) * 2 * np.pi + offset_rad) % 360
 
     
     @batch_process
