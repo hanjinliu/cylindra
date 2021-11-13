@@ -241,7 +241,10 @@ class Spline3D:
         
         return None
     
-    def rotation_matrix(self, u: Iterable[float]=None, center=None, inverse:bool=False) -> np.ndarray:
+    def rotation_matrix(self, 
+                        u: Iterable[float] = None,
+                        center: Iterable[float] = None, 
+                        inverse: bool = False) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correcpond to
         the orientation of spline curve.

@@ -10,7 +10,7 @@ from scipy import ndimage as ndi
 from dask import array as da, delayed
 
 import impy as ip
-from .const import nm, H, Ori, CacheKey, GVar
+from .const import nm, H, K, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_a_rot_subtomogram,
@@ -75,7 +75,17 @@ class MtSpline(Spline3D):
     """
     A spline object with info related to MT.
     """    
-    def __init__(self, scale:float=1, k=3):
+    def __init__(self, scale: float = 1.0, k: int = 3):
+        """
+        Spline object for MT.
+        
+        Parameters
+        ----------
+        scale : float, default is 1.0
+            Pixel scale
+        k : int, default is 3
+            Spline order.
+        """        
         super().__init__(scale=scale, k=k)
         self.orientation = Ori.none
         self._init_properties()
@@ -107,26 +117,26 @@ class MtSpline(Spline3D):
         except ValueError:
             raise ValueError(f"Cannot set {type(value)} to radius.")
     
-    def fit(self, coords:np.ndarray, w=None, s=None):
+    def fit(self, coords: np.ndarray, w=None, s=None):
         super().fit(coords, w=w, s=s)
         self._init_properties()
         return self
     
     def to_dict(self) -> dict:
         d = super().to_dict()
-        d["radius"] = self.radius
-        d["orientation"] = self.orientation.name
-        d["localprops"] = self.localprops[LOCALPROPS]
-        d["globalprops"] = self.globalprops
+        d[K.radius] = self.radius
+        d[K.orientation] = self.orientation.name
+        d[K.localprops] = self.localprops[LOCALPROPS]
+        d[K.globalprops] = self.globalprops
         return d
         
     @classmethod
     def from_dict(cls, d: dict):
         self = super().from_dict(d)
-        self.radius = d.get("radius", None)
-        self.orientation = d.get("orientation", Ori.none)
-        self.localprops = pd.DataFrame(d.get("localprops", None))
-        self.globalprops = pd.Series(d.get("globalprops", None))
+        self.radius = d.get(K.radius, None)
+        self.orientation = d.get(K.orientation, Ori.none)
+        self.localprops = pd.DataFrame(d.get(K.localprops, None))
+        self.globalprops = pd.Series(d.get(K.globalprops, None))
         if H.splPosition in self.localprops.columns:
             self.anchors = self.localprops[H.splPosition]
         return self
@@ -148,6 +158,7 @@ class MtTomogram:
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
         self._paths: list[MtSpline] = []
+        self._ft_size = None
         self.ft_size = ft_size
         self.light_background = light_background
         self.metadata = {}
@@ -177,11 +188,14 @@ class MtTomogram:
     def ft_size(self, value: nm):
         if not np.isscalar(value):
             raise ValueError("'ft_size' must be a scalar.")
+        
+        is_same = self._ft_size and (self._ft_size == value)
         self._ft_size = value
         
         # Delete outdated local properties
-        for spl in self._paths:
-            spl.localprops = pd.DataFrame(None)
+        if not is_same:
+            for spl in self._paths:
+                spl.localprops = pd.DataFrame(None)
     
     @property
     def n_paths(self) -> int:
@@ -248,7 +262,7 @@ class MtTomogram:
             json.dump(all_results, f, indent=4, separators=(",", ": "), default=json_encoder)
         return None
     
-    def load(self, file_path :str) -> MtTomogram:
+    def load(self, file_path: str) -> MtTomogram:
         """
         Load splines from a json file.
 
@@ -280,6 +294,9 @@ class MtTomogram:
         return self
 
     def argpeak(self, x: np.ndarray) -> Callable:
+        """
+        Dispatch argmin and argmax according to background.
+        """        
         if self.light_background:
             return np.argmin(x)
         else:
@@ -381,6 +398,26 @@ class MtTomogram:
                        )
         df.index.name = ("path", "position")
         return df
+    
+    def collect_radii(self, i: int|Iterable[int] = None) -> np.ndarray:
+        """
+        Collect all the radius into a single array.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to collect.
+
+        Returns
+        -------
+        np.ndarray
+            Radius of each spline
+        """        
+        if i is None:
+            i = range(self.n_paths)
+        elif isinstance(i, int):
+            i = [i]
+        return np.array([self._paths[i_].radius for i_ in i])
     
     def _sample_subtomograms(self, 
                              i: int,
@@ -953,7 +990,7 @@ class MtTomogram:
             shift = ip.pcc_maximum(img, ref, mask=mask)
             imgs[i] = img.affine(translation=shift, mode="grid-wrap")
 
-        out = np.stack(imgs, axis="p").proj("p")
+        out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
                     
         # rotational averaging
         # TODO: don't Affine twice
@@ -1246,6 +1283,22 @@ class MtTomogram:
     
     @batch_process
     def map_pf_line(self, i = None, angle_offset: float = 0) -> Coordinates:
+        """
+        Calculate mapping of protofilament line at an angle offset.
+        This function is useful for visualizing seam or protofilament.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that mapping will be calculated.
+        angle_offset : float, default is 0.0
+            Angle offset in degree.
+
+        Returns
+        -------
+        Coordinates
+            World coordinates and spline coordinates of protofilament.
+        """        
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]

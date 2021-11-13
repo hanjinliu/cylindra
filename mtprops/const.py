@@ -24,6 +24,12 @@ class H:
     nPF = "nPF"  
     start = "start"
 
+class K:
+    radius = "radius"
+    orientation = "orientation"
+    localprops = "localprops"
+    globalprops = "globalprops"
+
 class GVar:
     """
     Global variables
