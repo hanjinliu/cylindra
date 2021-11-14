@@ -527,7 +527,7 @@ class MTProfiler:
         if self.layer_work.data.size > 0:
             self.register_path()
             
-        total = self.active_tomogram.n_paths*(2 + int(refine)) + 1
+        total = 3 + int(refine)
         
         worker = create_worker(self._run_all, 
                                interval=interval,
@@ -549,7 +549,7 @@ class MTProfiler:
             self._load_tomogram_results()
             self.Paint_MT()
             
-        self._worker_control.info.value = f"Spline fitting (0/{self.active_tomogram.n_paths})"
+        self._worker_control.info.value = f"Spline fitting"
         worker.start()
         return None
     
@@ -560,20 +560,17 @@ class MTProfiler:
                  cutoff_freq):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
-        for i in range(tomo.n_paths):
-            tomo.fit(i, cutoff_freq=cutoff_freq)
+        tomo.fit(cutoff_freq=cutoff_freq)
+        tomo.make_anchors(n=3)
+        tomo.measure_radius()
+        if refine:
+            yield f"Refine spline ..."
+            tomo.refine(max_interval=max(interval, 30))
             tomo.make_anchors(n=3)
-            tomo.measure_radius(i)
-            if refine:
-                yield f"Refine spline ({i}/{tomo.n_paths}) "
-                tomo.refine(i, max_interval=max(interval, 30))
-                tomo.make_anchors(n=3)
-                tomo.measure_radius(i)
-            tomo.make_anchors(interval=interval)
-            yield f"Local Fourier transform ({i}/{tomo.n_paths}) "
-            tomo.ft_params(i)
-            if i+1 < tomo.n_paths:
-                yield f"Spline fitting ({i+1}/{tomo.n_paths})"
+            tomo.measure_radius()
+        tomo.make_anchors(interval=interval)
+        yield f"Local Fourier transformation ..."
+        tomo.ft_params()
         yield "Finishing ..."
         return tomo
     
