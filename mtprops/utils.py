@@ -84,6 +84,8 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     2. stop <= value
     3. stop is largest.
     """    
+    if interval == 0:
+        raise ZeroDivisionError("Devided by zero.")
     n_segs, res = divmod(value + 1e-8, interval)
     return value - res, int(n_segs)
 

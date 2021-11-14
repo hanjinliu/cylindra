@@ -21,6 +21,13 @@ class Spline3D:
     - Scipy document
       https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
     """    
+    # global properties will be re-initialized every time spline curve is updated.
+    _global_properties = []
+    
+    # local properties will be re-initialized every time spline curve is updated or anchor
+    # is changed.
+    _local_properties = []
+    
     def __init__(self, scale:float=1, k=3):
         self._tck = None
         self._u = None
@@ -43,6 +50,9 @@ class Spline3D:
         
     @property
     def anchors(self) -> np.ndarray:
+        """
+        Local anchors along spline.
+        """        
         if self._anchors is None:
             raise ValueError("Anchor has not been set yet.")
         return self._anchors
@@ -58,6 +68,15 @@ class Spline3D:
             warnings.warn(msg, UserWarning)
         self._anchors = positions
         self._updates += 1
+        for name in self._local_properties:
+            setattr(self, name, None)    
+    
+    @anchors.deleter
+    def anchors(self):
+        self._anchors = None
+        self._updates += 1
+        for name in self._local_properties:
+            setattr(self, name, None)    
     
     def make_anchors(self, interval: nm = None, n: int=None):
         """
@@ -104,16 +123,17 @@ class Spline3D:
             Total variation , by default None
         """        
         npoints = coords.shape[0]
-        if npoints  < 2:
+        if npoints < 2:
             raise ValueError("npoins must be > 1.")
         elif npoints <= self._k:
             self._k = npoints - 1
         self._tck, self._u = splprep(coords.T, k=self._k, w=w, s=s)
-        self._updates += 1
-        self._anchors = None # Anchor should be deleted after spline is updated
+        del self.anchors # Anchor should be deleted after spline is updated
+        for name in self._global_properties:
+            setattr(self, name, None)
         return self
     
-    def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray=None, s: float = None) -> Spline3D:
+    def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray = None, s: float = None) -> Spline3D:
         """
         Fit spline model using a list of shifts in XZ-plane.
 

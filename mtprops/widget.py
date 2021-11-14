@@ -509,6 +509,7 @@ class MTProfiler:
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          ft_size: nm = 33.4,
+                         refine: bool = False,
                          cutoff_freq: float = 0.0):
         """
         Run MTProps.
@@ -525,12 +526,15 @@ class MTProfiler:
         """        
         if self.layer_work.data.size > 0:
             self.register_path()
+            
+        total = self.active_tomogram.n_paths*(2 + int(refine)) + 1
         
         worker = create_worker(self._run_all, 
                                interval=interval,
                                ft_size=ft_size,
+                               refine=refine,
                                cutoff_freq=cutoff_freq,
-                               _progress={"total": self.active_tomogram.n_paths*3 + 1, 
+                               _progress={"total": total, 
                                           "desc": "Running MTProps"}
                                )
         
@@ -552,18 +556,21 @@ class MTProfiler:
     def _run_all(self, 
                  interval: nm,
                  ft_size,
+                 refine,
                  cutoff_freq):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
         for i in range(tomo.n_paths):
             tomo.fit(i, cutoff_freq=cutoff_freq)
-            tomo.make_anchors(interval=interval)
-            
-            yield f"Reloading subtomograms  ({i}/{tomo.n_paths})"
-            tomo.get_subtomograms(i)
-            
-            yield f"Local Fourier transform ({i}/{tomo.n_paths}) "
+            tomo.make_anchors(n=3)
             tomo.measure_radius(i)
+            if refine:
+                yield f"Refine spline ({i}/{tomo.n_paths}) "
+                tomo.refine(i, max_interval=max(interval, 30))
+                tomo.make_anchors(n=3)
+                tomo.measure_radius(i)
+            tomo.make_anchors(interval=interval)
+            yield f"Local Fourier transform ({i}/{tomo.n_paths}) "
             tomo.ft_params(i)
             if i+1 < tomo.n_paths:
                 yield f"Spline fitting ({i+1}/{tomo.n_paths})"
@@ -944,7 +951,7 @@ class MTProfiler:
         for i in range(tomo.n_paths):
             spl = tomo.paths[i]
             if spl._anchors is None:
-                spl.make_anchors(i, n=3)
+                spl.make_anchors(n=3)
         tomo.measure_radius()
         return None
     
@@ -1031,8 +1038,10 @@ class MTProfiler:
         
     @Analysis.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
+                 find_seam={"label": "Find seam position"},
+                 niter={"label": "Iteration", "max": 3},
                  y_length={"label": "Longitudinal length (nm)"})
-    def Reconstruct_MT(self, rot_ave=False, find_seam=False, y_length=50.0):
+    def Reconstruct_MT(self, rot_ave=False, find_seam=False, niter=1, y_length=50.0):
         """
         Coarse reconstruction of MT.
 
@@ -1040,6 +1049,8 @@ class MTProfiler:
         ----------
         rot_ave : bool, default is False
             Check to run rotational averaging after reconstruction.
+        find_seam : bool, default is False
+            Check to find seam position while rotational averaging.
         y_length : nm, default is 50.0
             Longitudinal length (nm) of reconstructed image.
         """        
@@ -1050,6 +1061,7 @@ class MTProfiler:
                                i=i,
                                rot_ave=rot_ave, 
                                seam_offset="find" if find_seam else None,
+                               niter=niter,
                                y_length=y_length,
                                _progress={"total": 0, 
                                           "desc": "Running"}
@@ -1069,9 +1081,11 @@ class MTProfiler:
     
     @Analysis.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
+                 find_seam={"label": "Find seam position"},
+                 niter={"label": "Iteration", "max": 3},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
-    def cylindric_reconstruction(self, rot_ave=False, find_seam=False, y_length=48.0):
+    def cylindric_reconstruction(self, rot_ave=False, find_seam=False, niter=1, y_length=50.0):
         """
         Cylindric reconstruction of MT.
 
@@ -1079,6 +1093,8 @@ class MTProfiler:
         ----------
         rot_ave : bool, default is False
             Check to run rotational averaging after reconstruction.
+        find_seam : bool, default is False
+            Check to find seam position while rotational averaging.
         y_length : nm, default is 48.0
             Longitudinal length (nm) of reconstructed image.
         """        
@@ -1089,6 +1105,7 @@ class MTProfiler:
                                i=i,
                                rot_ave=rot_ave, 
                                seam_offset="find" if find_seam else None,
+                               niter=niter,
                                y_length=y_length,
                                _progress={"total": 0, 
                                           "desc": "Running"}
