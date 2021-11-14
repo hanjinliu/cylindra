@@ -1032,7 +1032,7 @@ class MTProfiler:
     @Analysis.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
-    def Reconstruct_MT(self, rot_ave=False, y_length=50.0):
+    def Reconstruct_MT(self, rot_ave=False, find_seam=False, y_length=50.0):
         """
         Coarse reconstruction of MT.
 
@@ -1049,6 +1049,7 @@ class MTProfiler:
         worker = create_worker(tomo.reconstruct, 
                                i=i,
                                rot_ave=rot_ave, 
+                               seam_offset="find" if find_seam else None,
                                y_length=y_length,
                                _progress={"total": 0, 
                                           "desc": "Running"}
@@ -1059,7 +1060,7 @@ class MTProfiler:
             if tomo.light_background:
                 out = -out
             self.parent_viewer.add_image(out, scale=out.scale, 
-                                         name=f"Reconstruction of MT-{i}")
+                                         name=f"MT-{i} reconstruction")
         
         self._connect_worker(worker)
         self._worker_control.info.value = f"Reconstruction ..."
@@ -1070,7 +1071,7 @@ class MTProfiler:
     @set_options(rot_ave={"label": "Rotational averaging"},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
-    def cylindric_reconstruction(self, rot_ave=False, y_length=48.0):
+    def cylindric_reconstruction(self, rot_ave=False, find_seam=False, y_length=48.0):
         """
         Cylindric reconstruction of MT.
 
@@ -1087,6 +1088,7 @@ class MTProfiler:
         worker = create_worker(tomo.cylindric_reconstruct, 
                                i=i,
                                rot_ave=rot_ave, 
+                               seam_offset="find" if find_seam else None,
                                y_length=y_length,
                                _progress={"total": 0, 
                                           "desc": "Running"}
@@ -1096,7 +1098,8 @@ class MTProfiler:
         def _on_return(out: ip.ImgArray):
             if tomo.light_background:
                 out = -out
-            self.parent_viewer.add_image(out, scale=out.scale)
+            self.parent_viewer.add_image(out, scale=out.scale,
+                                         name=f"MT-{i} cylindric reconstruction")
         
         self._connect_worker(worker)
         self._worker_control.info.value = f"Cylindric reconstruction ..."

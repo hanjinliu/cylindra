@@ -934,7 +934,8 @@ class MtTomogram:
                     i = None,
                     *, 
                     rot_ave: bool = False,
-                    seam_offset: float = None,
+                    seam_offset: float | str = None,
+                    erase_corner: bool = True,
                     y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT.
@@ -945,6 +946,12 @@ class MtTomogram:
             Path ID that you want to reconstruct.
         rot_ave : bool, default is False
             If true, rotational averaging is applied to the reconstruction to remove missing wedge.
+        seam_offset : float or "find", optional
+            Angle offset of seam position in degree. If given and rot_ave is True, reconstruction 
+            will be executed considering seam.
+        erase_corner : bool, default is True
+            Substitute four corners with median of non-corner domain. This option is useful for iso
+            threshold visualization.
         y_length : nm, default is 100.0
             Longitudinal length of reconstruction.
 
@@ -989,26 +996,27 @@ class MtTomogram:
         ref = imgs[0]
         shape = ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        for i in range(1, len(imgs)):
-            img = imgs[i][:, :ylen]
+        for k in range(1, len(imgs)):
+            img = imgs[k][:, :ylen]
             shift = ip.pcc_maximum(img, ref, mask=mask)
-            imgs[i] = img.affine(translation=shift, mode="grid-wrap")
+            imgs[k] = img.affine(translation=shift, mode="grid-wrap")
 
         out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
                     
         # rotational averaging
         # TODO: don't Affine twice
+        center = np.array(out.shape)/2 - 0.5
+        
         if rot_ave:
             input_ = out.copy()
-            center = np.array(out.shape)/2 - 0.5
             trs0 = np.eye(4, dtype=np.float32)
             trs1 = np.eye(4, dtype=np.float32)
             trs0[:3, 3] = -center
             trs1[:3, 3] = center
             slope = np.tan(np.deg2rad(rise))
-            for i in range(1, npf):
-                ang = -2*np.pi*i/npf
-                dy = 2*np.pi*i/npf*radius*slope/self.scale
+            for pf in range(1, npf):
+                ang = -2*np.pi*pf/npf
+                dy = 2*np.pi*pf/npf*radius*slope/self.scale
                 cos = np.cos(ang)
                 sin = np.sin(ang)
                 rot = np.array([[cos, 0.,-sin, 0.],
@@ -1019,7 +1027,53 @@ class MtTomogram:
                 mtx = trs1 @ rot @ trs0
                 out.value[:] += input_.affine(mtx, mode="grid-wrap")
             
-            
+            if seam_offset == "find":
+                seam_offset = self.seam_offset(i)
+                
+            if seam_offset is not None:
+                if self.light_background:
+                    missing = out.max()
+                    extrema = np.minimum
+                else:
+                    missing = out.min()
+                    extrema = np.maximum
+                
+                z, x = np.indices(out.sizesof("zx"))
+                angle = np.rad2deg(np.arctan2(z-center[0], x-center[2]))
+                eps = 2.0
+                # TODO: do not work when seam_offset ~ 0??
+                sl_zx = (seam_offset - 360/npf - eps <= angle) & (angle <= seam_offset + eps)
+                sl = np.stack([sl_zx]*out.shape.y, axis=1)
+                
+                # image only contains one protofilament just before seam.
+                base: ip.ImgArray = ip.empty(out.shape, dtype=np.float32, axes="zyx")
+                base[:] = missing
+                base[sl] = out[sl]
+                out[:] = base[:]
+                
+                out.proj("y").imshow()
+                
+                for pf in range(1, npf):
+                    ang = 2*np.pi*pf/npf
+                    dy = -2*np.pi*pf/npf*radius*slope/self.scale
+                    cos = np.cos(ang)
+                    sin = np.sin(ang)
+                    rot = np.array([[cos, 0.,-sin, 0.],
+                                    [ 0., 1.,  0., dy],
+                                    [sin, 0., cos, 0.],
+                                    [ 0., 0.,  0., 1.]],
+                                    dtype=np.float32)
+                    mtx = trs1 @ rot @ trs0
+                    rot_img = base.affine(mtx, mode="grid-wrap")
+                    out.value[:] = extrema(out, rot_img)
+        
+        if erase_corner:
+            # This option is needed because padding mode is "grid-wrap".
+            z, x = np.indices(out.sizesof("zx"))
+            r = min(out.sizesof("zx")) / 2 - 0.5
+            corner = (z-center[0])**2 + (x-center[2])**2 > r**2
+            sl = np.stack([corner]*out.shape.y, axis=1)
+            out.value[sl] = np.median(out.value[~sl])
         
         # stack images for better visualization
         dup = ceilint(y_length/lp)
@@ -1035,7 +1089,7 @@ class MtTomogram:
                               i = None,
                               *,
                               rot_ave: bool = False, 
-                              seam_offset: float = None,
+                              seam_offset: float | str = None,
                               radii: tuple[nm, nm] = None,
                               y_length: nm = 50.0) -> ip.ImgArray:
         """
@@ -1096,10 +1150,10 @@ class MtTomogram:
         ref = imgs[0]
         shape = ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        for i in range(1, len(imgs)):
-            img = imgs[i][f"y=:{ylen}"]
+        for k in range(1, len(imgs)):
+            img = imgs[k][f"y=:{ylen}"]
             shift = ip.pcc_maximum(img, ref, mask=mask)
-            imgs[i] = img.affine(translation=shift, 
+            imgs[k] = img.affine(translation=shift, 
                                  dims="rya", mode="grid-wrap")
 
         out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
@@ -1109,36 +1163,45 @@ class MtTomogram:
         if rot_ave:
             input_ = out.copy()
             a_size = out.shape.a
+            slope = np.tan(np.deg2rad(rise))
+            for pf in range(1, npf):
+                dy = 2*np.pi*pf/npf*radius*slope/self.scale
+                shift_a = a_size/npf*pf
+                shift = [dy, shift_a]
+                
+                rot_input = input_.affine(translation=shift, 
+                                        dims="ya", mode="grid-wrap")
+                out.value[:] += rot_input
+            
+            if seam_offset == "find":
+                seam_offset = self._find_seam_offset(i, input_)
+                
             if seam_offset is not None:
+                if self.light_background:
+                    missing = out.max()
+                    extrema = np.minimum
+                else:
+                    missing = out.min()
+                    extrema = np.maximum
+                    
                 len_pf = out.shape.a/npf
                 seam_px = seam_offset/360*a_size
-                pfrange = [np.arange(roundint(seam_px + len_pf*i), 
-                                     roundint(seam_px + len_pf*i) + roundint(len_pf)
-                                     ) % a_size for i in range(npf)]
+                sl_temp = np.arange(int(seam_px - len_pf), ceilint(seam_px)) % a_size
+                
+                # image only contains one protofilament just before seam.
+                base: ip.ImgArray = ip.empty(out.shape, dtype=np.float32, axes="rya")
+                base[:] = missing
+                base[:,:,sl_temp] = out[:,:,sl_temp]
+                out[:] = base[:]
+                
                 slope = np.tan(np.deg2rad(rise))
                 da = a_size/npf * np.arange(npf)
                 dy = 2*np.pi/npf*radius*slope/self.scale * np.arange(npf)
-                sumimg = out[:, :, pfrange[0]].copy()
-                for i in range(1, npf):
-                    shift = [dy[i], da[i]]
+                for pf in range(1, npf):
+                    shift = [-dy[pf], -da[pf]]
+                    rot_img = base.affine(translation=shift, dims="ya", mode="grid-wrap")
+                    out.value[:] = extrema(out, rot_img)
                     
-                    sumimg.value[:] += input_[:, :, pfrange[i]].affine(translation=shift, 
-                                                     dims="ya", mode="grid-wrap")
-                out = np.zeros_like(out)
-                for i in range(npf):
-                    out[:, :, pfrange[i]] = sumimg.affine(translation=[-dy[i]], dims="y", mode="grid-wrap")
-                    
-            else:
-                slope = np.tan(np.deg2rad(rise))
-                for i in range(1, npf):
-                    dy = 2*np.pi*i/npf*radius*slope/self.scale
-                    shift_a = a_size/npf*i
-                    shift = [dy, shift_a]
-                    
-                    rot_input = input_.affine(translation=shift, 
-                                            dims="ya", mode="grid-wrap")
-                    out.value[:] += rot_input
-        
         # stack images for better visualization
         dup = ceilint(y_length/lp)
         outlist = [out]
@@ -1228,17 +1291,14 @@ class MtTomogram:
         offset = np.rad2deg(np.angle(line.fft(dims="a", shift=False)[npf]))
         return (np.arange(npf)*360/npf + offset) % 360
     
-    @batch_process
-    def seam_offset(self, i = None) -> float:
-        # WIP!
+    def _find_seam_offset(self, i, rec):
         spl = self._paths[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
-        imgst = self.cylindric_reconstruct(i, y_length=0)
-        a_size = imgst.shape.a
+        a_size = rec.shape.a
         tilt = np.deg2rad(skew) * spl.radius / pitch / 2
         with ip.SetConst("SHOW_PROGRESS", False):
             mtx = np.array([[1.,   0., 0., 0.],
@@ -1246,7 +1306,7 @@ class MtTomogram:
                             [0., tilt, 1., 0.],
                             [0.,   0., 0., 1.]],
                            dtype=np.float32)
-            img_shear = imgst.affine(mtx, mode="grid-wrap", dims="rya")
+            img_shear = rec.affine(mtx, mode="grid-wrap", dims="rya")
             line = img_shear.proj("ry")
         
         # "offset" means the peak of monomer     
@@ -1269,8 +1329,6 @@ class MtTomogram:
                     img1 = img_shear[:, :, sl_j]
                     shift = ip.pcc_maximum(img0, img1)
                     opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] - slope*a_size/npf*(j-i)) % l_dimer
-
-        plt.imshow(opt_y_mat, cmap="hsv", vmin=0, vmax=l_dimer)
         
         std_list: list[float] = []
         for seam in range(npf):
@@ -1279,12 +1337,13 @@ class MtTomogram:
             std_list.append(np.std(np.concatenate([cl0.ravel(), cl1.ravel()])))
         
         seampos = np.argmin(std_list)
-        plt.plot([-0.5, npf-0.5], [seampos-0.5, seampos-0.5], color="black")
-        plt.show()
-        
-        plt.plot(std_list)
-        plt.show()
         return np.rad2deg(seampos / len(std_list) * 2 * np.pi + offset_rad) % 360
+    
+    @batch_process
+    def seam_offset(self, i = None) -> float:
+        # WIP!
+        rec = self.cylindric_reconstruct(i, y_length=0)
+        return self._find_seam_offset(i, rec)
 
     
     @batch_process
