@@ -203,7 +203,7 @@ class SplineFitter:
         
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
         r_max: nm = tomo.subtomo_width/2
-        nbin = r_max/tomo.scale/self.binsize/2
+        nbin = roundint(r_max/tomo.scale/self.binsize/2)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
         imax = tomo.argpeak(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
@@ -1591,17 +1591,18 @@ class MTProfiler:
             axes[2].set_xlabel("x")
             axes[2].set_ylabel("z")
         
-        ylen = tomo.nm2pixel(tomo.ft_size/2/binsize)
+        ylen = tomo.ft_size/2/binsize/tomo.scale
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
-        r = tomo.nm2pixel(results.radius)*GVar.outer/binsize
+        r_px = results.radius/tomo.scale/binsize
+        r = r_px*GVar.outer
         xmin, xmax = -r + lx/2, r + lx/2
         axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
         axes[0].text(1, 1, f"{i}-{j}", color="lime", font="Consolas", size=15, va="top")
     
         theta = np.linspace(0, 2*np.pi, 360)
-        r = tomo.nm2pixel(results.radius * GVar.inner/binsize)
+        r = r_px * GVar.inner
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = tomo.nm2pixel(results.radius * GVar.outer/binsize)
+        r = r_px * GVar.outer
         axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
         self.canvas.figure.tight_layout()

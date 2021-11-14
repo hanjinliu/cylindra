@@ -645,7 +645,7 @@ class MtTomogram:
         """        
         subtomograms = self._sample_subtomograms(i)
         r_max = self.subtomo_width / 2
-        nbin = r_max/self.scale/2
+        nbin = roundint(r_max/self.scale/2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
         
@@ -1065,7 +1065,7 @@ class MtTomogram:
             sl = np.stack([corner]*out.shape.y, axis=1)
             out.value[sl] = np.median(out.value[~sl])
             
-        return 
+        return out
     
     @batch_process
     def cylindric_reconstruct(self, 
