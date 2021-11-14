@@ -937,6 +937,9 @@ class MTProfiler:
     
     @Analysis.wraps
     def Measure_radius(self):
+        """
+        Measure MT radius for each spline path.
+        """        
         tomo = self.active_tomogram
         for i in range(tomo.n_paths):
             spl = tomo.paths[i]
@@ -958,7 +961,7 @@ class MTProfiler:
         max_interval : nm, default is 30
             Maximum interval between anchors.
         cutoff_freq : float, default is 0.0
-            Cutoff frequency of Butterworth low-pass prefilter.
+            Cutoff frequency of Butterworth low-pass prefilter applied before image alignment.
         """
         tomo = self.active_tomogram
         

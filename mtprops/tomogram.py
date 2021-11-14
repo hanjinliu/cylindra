@@ -830,11 +830,11 @@ class MtTomogram:
 
     @batch_process
     def cylindric_straighten(self, 
-                   i = None, 
-                   *,
-                   radii: tuple[nm, nm] = None,
-                   range_: tuple[float, float] = (0.0, 1.0), 
-                   chunkwise: bool = True) -> ip.ImgArray:
+                             i = None, 
+                             *,
+                             radii: tuple[nm, nm] = None,
+                             range_: tuple[float, float] = (0.0, 1.0), 
+                             chunkwise: bool = True) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -1005,9 +1005,9 @@ class MtTomogram:
             trs1 = np.eye(4, dtype=np.float32)
             trs0[:3, 3] = -center
             trs1[:3, 3] = center
+            slope = np.tan(np.deg2rad(rise))
             for i in range(1, npf):
                 ang = -2*np.pi*i/npf
-                slope = np.tan(np.deg2rad(rise))
                 dy = 2*np.pi*i/npf*radius*slope/self.scale
                 cos = np.cos(ang)
                 sin = np.sin(ang)
@@ -1018,6 +1018,8 @@ class MtTomogram:
                                 dtype=np.float32)
                 mtx = trs1 @ rot @ trs0
                 out.value[:] += input_.affine(mtx, mode="grid-wrap")
+            
+            
         
         # stack images for better visualization
         dup = ceilint(y_length/lp)
