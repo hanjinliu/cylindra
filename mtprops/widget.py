@@ -5,6 +5,7 @@ import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import create_worker
 from qtpy.QtGui import QFont
+from qtpy.QtWidgets import QMessageBox
 from pathlib import Path
 from magicgui.widgets import Table, TextEdit
 import matplotlib.pyplot as plt
@@ -114,6 +115,11 @@ class WorkerControl:
     
     def _set_worker(self, worker):
         self.worker = worker
+        @worker.errored.connect
+        def _(e):
+            # In some environments, errors raised in workers are completely hidden.
+            # We have to re-raise it here.
+            QMessageBox.critical(self.native, e.__class__.__name__, str(e), QMessageBox.Ok)
         
     def Pause(self):
         """
