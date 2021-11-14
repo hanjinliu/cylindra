@@ -700,7 +700,6 @@ class MTProfiler:
         """        
         tomo = self.active_tomogram
         tomo.load(path)
-        tomo.get_subtomograms()
         self._load_tomogram_results()
         return None
     

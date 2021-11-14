@@ -117,12 +117,13 @@ class MtSpline(Spline3D):
     @classmethod
     def from_dict(cls, d: dict):
         self = super().from_dict(d)
+        localprops = d.get(K.localprops, None)
+        if localprops is not None and H.splPosition in localprops:
+            self.anchors = localprops[H.splPosition]
+        self.globalprops = pd.Series(d.get(K.globalprops, None))
         self.radius = d.get(K.radius, None)
         self.orientation = d.get(K.orientation, Ori.none)
-        self.localprops = pd.DataFrame(d.get(K.localprops, None))
-        self.globalprops = pd.Series(d.get(K.globalprops, None))
-        if H.splPosition in self.localprops.columns:
-            self.anchors = self.localprops[H.splPosition]
+        self.localprops = pd.DataFrame(localprops)
         return self
 
 class MtTomogram:
