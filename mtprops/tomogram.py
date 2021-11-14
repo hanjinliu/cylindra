@@ -75,6 +75,9 @@ class MtSpline(Spline3D):
     """
     A spline object with info related to MT.
     """    
+    _local_properties = ["localprops"]
+    _global_properties = ["globalprops", "radius"]
+    
     def __init__(self, scale: float = 1.0, k: int = 3):
         """
         Spline object for MT.
@@ -88,10 +91,7 @@ class MtSpline(Spline3D):
         """        
         super().__init__(scale=scale, k=k)
         self.orientation = Ori.none
-        self._init_properties()
-    
-    def _init_properties(self):
-        self._radius: nm = None
+        self.radius: nm = None
         self.localprops: pd.DataFrame = pd.DataFrame([])
         self.globalprops: pd.Series = pd.Series([], dtype=np.float32)
         
@@ -105,26 +105,6 @@ class MtSpline(Spline3D):
             self._orientation = Ori(value)
         except ValueError:
             self._orientation = Ori.none
-    
-    @property
-    def radius(self) -> nm:
-        return self._radius
-    
-    @radius.setter
-    def radius(self, value: nm):
-        try:
-            value = float(value)
-        except ValueError:
-            raise ValueError(f"Cannot set {type(value)} to radius.")
-        else:
-            if value <= 0:
-                raise ValueError("Cannot set negative radius.")
-            self._radius = value
-    
-    def fit(self, coords: np.ndarray, w=None, s=None):
-        super().fit(coords, w=w, s=s)
-        self._init_properties()
-        return self
     
     def to_dict(self) -> dict:
         d = super().to_dict()
@@ -199,7 +179,7 @@ class MtTomogram:
         # Delete outdated local properties
         if not is_same:
             for spl in self._paths:
-                spl.localprops = pd.DataFrame(None)
+                spl.localprops = None
     
     @property
     def n_paths(self) -> int:
@@ -695,11 +675,10 @@ class MtTomogram:
             Local properties.
         """        
         spl = self._paths[i]
-        if not spl.localprops.empty:
+        if spl.localprops is not None:
             return spl.localprops
         
         ylen = self.nm2pixel(self.ft_size)
-        spl.localprops = pd.DataFrame([])
         rmin = self.nm2pixel(spl.radius*GVar.inner)
         rmax = self.nm2pixel(spl.radius*GVar.outer)
         tasks = []
@@ -714,6 +693,7 @@ class MtTomogram:
                 )
         results = np.stack(da.compute(tasks, scheduler=SCHEDULER)[0], axis=0)
                 
+        spl.localprops = pd.DataFrame([])
         spl.localprops[H.splPosition] = spl.anchors
         spl.localprops[H.splDistance] = spl.distances()
         spl.localprops[H.riseAngle] = results[:, 0]
@@ -742,7 +722,7 @@ class MtTomogram:
             Global properties.
         """        
         spl = self._paths[i]
-        if not spl.globalprops.empty:
+        if spl.globalprops is not None:
             return spl.globalprops
         
         img_st = self.cylindric_straighten(i)
@@ -936,6 +916,7 @@ class MtTomogram:
                     rot_ave: bool = False,
                     seam_offset: float | str = None,
                     erase_corner: bool = True,
+                    niter: int = 1,
                     y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT.
@@ -996,12 +977,14 @@ class MtTomogram:
         ref = imgs[0]
         shape = ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        for k in range(1, len(imgs)):
-            img = imgs[k][:, :ylen]
-            shift = ip.pcc_maximum(img, ref, mask=mask)
-            imgs[k] = img.affine(translation=shift, mode="grid-wrap")
+        for _ in range(niter):
+            for k in range(1, len(imgs)):
+                img = imgs[k][:, :ylen]
+                shift = ip.pcc_maximum(img, ref, mask=mask)
+                imgs[k] = img.affine(translation=shift, mode="grid-wrap")
 
-        out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
+            out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
+            ref = out
                     
         # rotational averaging
         # TODO: don't Affine twice
@@ -1051,8 +1034,6 @@ class MtTomogram:
                 base[sl] = out[sl]
                 out[:] = base[:]
                 
-                out.proj("y").imshow()
-                
                 for pf in range(1, npf):
                     ang = 2*np.pi*pf/npf
                     dy = -2*np.pi*pf/npf*radius*slope/self.scale
@@ -1066,6 +1047,15 @@ class MtTomogram:
                     mtx = trs1 @ rot @ trs0
                     rot_img = base.affine(mtx, mode="grid-wrap")
                     out.value[:] = extrema(out, rot_img)
+                
+        # stack images for better visualization
+        dup = ceilint(y_length/lp)
+        outlist = [out]
+        if dup > 0:
+            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+                outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
+        
+        out = np.concatenate(outlist, axis="y")
         
         if erase_corner:
             # This option is needed because padding mode is "grid-wrap".
@@ -1074,15 +1064,8 @@ class MtTomogram:
             corner = (z-center[0])**2 + (x-center[2])**2 > r**2
             sl = np.stack([corner]*out.shape.y, axis=1)
             out.value[sl] = np.median(out.value[~sl])
-        
-        # stack images for better visualization
-        dup = ceilint(y_length/lp)
-        outlist = [out]
-        if dup > 0:
-            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
-    
-        return np.concatenate(outlist, axis="y")
+            
+        return 
     
     @batch_process
     def cylindric_reconstruct(self, 
@@ -1091,6 +1074,7 @@ class MtTomogram:
                               rot_ave: bool = False, 
                               seam_offset: float | str = None,
                               radii: tuple[nm, nm] = None,
+                              niter: int = 1,
                               y_length: nm = 50.0) -> ip.ImgArray:
         """
         3D reconstruction of MT in cylindric coordinate system.
@@ -1150,13 +1134,16 @@ class MtTomogram:
         ref = imgs[0]
         shape = ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        for k in range(1, len(imgs)):
-            img = imgs[k][f"y=:{ylen}"]
-            shift = ip.pcc_maximum(img, ref, mask=mask)
-            imgs[k] = img.affine(translation=shift, 
-                                 dims="rya", mode="grid-wrap")
+        
+        for _ in range(niter):
+            for k in range(1, len(imgs)):
+                img = imgs[k][f"y=:{ylen}"]
+                shift = ip.pcc_maximum(img, ref, mask=mask)
+                imgs[k] = img.affine(translation=shift, 
+                                    dims="rya", mode="grid-wrap")
 
-        out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
+            out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
+            ref = out
         
         # rotational averaging
         # TODO: don't Affine twice
@@ -1341,6 +1328,19 @@ class MtTomogram:
     
     @batch_process
     def seam_offset(self, i = None) -> float:
+        """
+        Find seam position using cylindrical recunstruction.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that seam offset will be calculated.
+
+        Returns
+        -------
+        float
+            Angle offset of seam in degree.
+        """        
         # WIP!
         rec = self.cylindric_reconstruct(i, y_length=0)
         return self._find_seam_offset(i, rec)
