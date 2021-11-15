@@ -42,7 +42,21 @@ def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True)
     
     return reg
 
-def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl):
+
+def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl, u):
+    plane_shape = (width_px, width_px)
+    axial_size = length_px
+    out = []
+    with ip.SetConst("SHOW_PROGRESS", False):
+        coords = spl.local_cartesian(plane_shape, axial_size, u)
+        
+        coords = np.moveaxis(coords, -1, 0)
+        out = map_coordinates(img, coords, order=3)
+    out = ip.asarray(out, axes="zyx")
+    out.set_scale(img)
+    return out
+
+def load_rot_subtomograms(img, length_px: int, width_px: int, spl):
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []

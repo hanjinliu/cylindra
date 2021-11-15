@@ -18,7 +18,7 @@ from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, 
-                    roundint, ceilint, load_a_rot_subtomogram)
+                    roundint, ceilint, load_rot_subtomograms)
 from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
@@ -147,17 +147,75 @@ class WorkerControl:
 class SplineFitter:
     # Manually fit MT with spline curve using longitudinal projections
     
-    canvas = field(QtImageCanvas)
+    canvas = field(QtImageCanvas, options={"show_button": False})
         
     @magicclass(layout="horizontal")
     class mt:
         mtlabel = field(int, options={"max": 0}, name="MTLabel")
         pos = field(int, options={"max": 0}, name="Pos")
         def Fit(self): ...
+    
+    @magicclass(widget_type="collapsible")
+    class Rotational_averaging:
+        canvas_rot = field(QtImageCanvas, options={"show_button": False})
+        def __post_init__(self):
+            self.canvas_rot.min_height = 200
+            
+        @magicclass(layout="horizontal")
+        class frame:
+            nPF = field(10, options={"min": 1, "max": 48,
+                                     "tooltip": "Number of protofilament (if nPF=12, rotational "
+                                                "average will be calculated by summing up every "
+                                                "30° rotated images)."})
+            cutoff = field(0.2, options={"min": 0.0, "max": 0.5, "step": 0.05,
+                                         "tooltip": "Relative cutoff frequency of low-pass filter."})
+            def Average(self): ...
+    
+    def _get_shifts(self, widget=None):
+        i = self.mt.mtlabel.value
+        return self.shifts[i]
+    
+    @mt.wraps
+    @set_options(shifts={"bind": _get_shifts})
+    def Fit(self, shifts):
+        """
+        Fit current spline.
+        """        
+        i = self.mt.mtlabel.value
+        shifts = np.asarray(shifts)
+        spl = self.paths[i]
+        sqsum = GVar.splError**2 * shifts.shape[0]
+        spl.shift_fit(shifts=shifts*self.binsize, s=sqsum)
+        length = spl.length()
+        npoints = max(ceilint(length/self.max_interval) + 1, 4)
+        interval = length/(npoints-1)
+        spl.make_anchors(interval=interval)
+        self.fit_done = True
+        self._mt_changed()
+    
+    @Rotational_averaging.frame.wraps
+    @do_not_record
+    def Average(self):
+        """
+        Show rotatinal averaged image.
+        """        
+        i = self.mt.mtlabel.value
+        j = self.mt.pos.value
+        parent: MTProfiler = self.__magicclass_parent__
         
+        with ip.SetConst("SHOW_PROGRESS", False):
+            img = parent._current_cartesian_img(i, j)
+            cutoff = self.Rotational_averaging.frame.cutoff.value
+            if 0 < cutoff < 0.5:
+                img = img.lowpass_filter(cutoff=cutoff)
+            proj = Projections(img)
+            proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
+        self.Rotational_averaging.canvas_rot.image = proj.zx_ave
+    
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
         self.canvas.show_button(False)
+        self.canvas.min_height = 200
         self.fit_done = True
         self.canvas.add_curve([0, 0], [-1000, 2000], color="lime", lw=2)
         self.canvas.add_curve([-1000, 2000], [0, 0], color="lime", lw=2)
@@ -175,27 +233,6 @@ class SplineFitter:
             x, z = e.pos()
             self._update_cross(x, z)
     
-    def _get_shifts(self, widget=None):
-        i = self.mt.mtlabel.value
-        return self.shifts[i]
-    
-    @mt.wraps
-    @set_options(shifts={"bind": _get_shifts})
-    def Fit(self, shifts):
-        """
-        Fit current spline.
-        """        
-        i = self.mt.mtlabel.value
-        spl = self.paths[i]
-        sqsum = GVar.splError**2 * shifts.shape[0]
-        spl.shift_fit(shifts=shifts*self.binsize, s=sqsum)
-        length = spl.length()
-        npoints = max(ceilint(length/self.max_interval) + 1, 4)
-        interval = length/(npoints-1)
-        spl.make_anchors(interval=interval)
-        self.fit_done = True
-        self._mt_changed()
-    
     def _update_cross(self, x: float, z: float):
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
@@ -209,7 +246,7 @@ class SplineFitter:
         
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
         r_max: nm = tomo.subtomo_width/2
-        nbin = roundint(r_max/tomo.scale/self.binsize/2)
+        nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
         imax = tomo.argpeak(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
@@ -222,7 +259,7 @@ class SplineFitter:
         item_circ_outer.ydata = r_peak * GVar.outer * np.sin(theta) + z
         
         lz, lx = self.subtomograms.sizesof("zx")
-        self.shifts[i][j, :] = z - lz/2, x - lx/2
+        self.shifts[i][j, :] = z - lz/2 + 0.5, x - lx/2 + 0.5
         return None
     
     def _load_parent_state(self, max_interval: nm):
@@ -258,7 +295,7 @@ class SplineFitter:
         width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
         
         with ip.SetConst("SHOW_PROGRESS", False):
-            out = load_a_rot_subtomogram(imgb, length_px, width_px, spl)
+            out = load_rot_subtomograms(imgb, length_px, width_px, spl)
             self.subtomograms = out.proj("y")
             
         # Restore spline scale.
@@ -267,7 +304,7 @@ class SplineFitter:
         self.mt.pos.max = npos - 1
         self.canvas.view_range = (0, self.canvas.image.shape[0]), (0, self.canvas.image.shape[1])
         lz, lx = self.subtomograms.sizesof("zx")
-        self._update_cross(lx/2, lz/2)
+        self._update_cross(lx/2 - 0.5, lz/2 - 0.5)
         return None
     
     @mt.pos.connect
@@ -275,9 +312,12 @@ class SplineFitter:
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         self.canvas.image = self.subtomograms[j]
-        y, x = self.shifts[i][j]
+        if self.shifts is not None:
+            y, x = self.shifts[i][j]
+        else:
+            y = x = 0
         lz, lx = self.subtomograms.shape[-2:]
-        self._update_cross(x + lx/2, y + lz/2)
+        self._update_cross(x + lx/2 - 0.5, y + lz/2 - 0.5)
 
 
 ### The main widget ###
@@ -367,8 +407,9 @@ class MTProfiler:
 
     @magicclass(widget_type="tabbed")
     class Panels:
-        overview = field(Figure, name="Overview", options={"tooltip": "Overview of splines"})
-        image2D = field(QtImageCanvas)
+        overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines", 
+                                                                  "show_button": False})
+        image2D = field(QtImageCanvas, options={"show_button": False})
         table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     ### methods ###
@@ -464,7 +505,6 @@ class MTProfiler:
         self.canvas.min_height = 180
         self.plot.min_height = 180
         self.Panels.min_height = 240
-        self.Panels.image2D.show_button(False)
             
     def _get_path(self, widget=None) -> list[list[float]]:
         coords = self.layer_work.data
@@ -484,7 +524,7 @@ class MTProfiler:
         
         if coords.size == 0:
             return None
-        tomo = self.active_tomogram
+        scale = self.layer_image.scale[0]
         self.active_tomogram.add_spline(coords)
         spl = self.active_tomogram.paths[-1]
         
@@ -495,14 +535,7 @@ class MTProfiler:
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
-        self.Panels.overview.ax.plot(fit[:,2], fit[:,1], color="gray", lw=2.5)
-        self.Panels.overview.ax.set_xlim(0, tomo.image.shape.x*tomo.image.scale.x)
-        self.Panels.overview.ax.set_ylim(tomo.image.shape.y*tomo.image.scale.y, 0)
-        self.Panels.overview.ax.set_aspect("equal")
-        self.Panels.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
-        self.Panels.overview.figure.tight_layout()
-        self.Panels.overview.figure.canvas.draw()
-    
+        self.Panels.overview.add_curve(fit[:,2]/scale, fit[:,1]/scale, color="lime", lw=5)
         self.layer_work.data = []
         return None
     
@@ -599,10 +632,7 @@ class MTProfiler:
         """        
         self._init_widget_params()
         self._init_layers()
-        self.Panels.overview.ax.cla()
-        self.Panels.overview.draw()
-        self.Panels.overview.ax.set_aspect("equal")
-        self.Panels.overview.ax.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+        self.Panels.overview.layers.clear()
         self.canvas.figure.clf()
         self.canvas.draw()
         self.plot.figure.clf()
@@ -731,7 +761,11 @@ class MTProfiler:
         cutoff = 0.2
         with ip.SetConst("SHOW_PROGRESS", False):
             self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, chunks=(32, 128, 128))
-        self.layer_image.contrast_limits = np.percentile(self.layer_image.data, [1, 97])
+            contrast_limits = np.percentile(self.layer_image.data, [1, 97])
+            self.layer_image.contrast_limits = contrast_limits
+            proj = self.layer_image.data.proj("z")
+            self.Panels.overview.image = proj
+            self.Panels.overview.contrast_limits = contrast_limits
         return None
                     
     @mt.mtlabel.connect
@@ -922,8 +956,8 @@ class MTProfiler:
         max_interval : nm, default is 50.0
             Maximum interval between new anchors.
         """        
-        self._spline_fitter.show()
         self._spline_fitter._load_parent_state(max_interval=max_interval)
+        self._spline_fitter.show()
         return None
     
     @Analysis.wraps
@@ -1428,6 +1462,11 @@ class MTProfiler:
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
             
+            with ip.SetConst("SHOW_PROGRESS", False):
+                proj = imgb.proj("z")
+            self.Panels.overview.image = proj
+            self.Panels.overview.view_range = (0, proj.shape[0]), (0, proj.shape[1])
+            
             if new:
                 tomo = MtTomogram(subtomogram_length=length, 
                                   subtomogram_width=width, 
@@ -1500,13 +1539,33 @@ class MTProfiler:
         
         return ""
     
+    def _current_cartesian_img(self, i=None, j=None):
+        """
+        Return local Cartesian image at the current position
+        """        
+        i = i or self.mt.mtlabel.value
+        j = j or self.mt.pos.value
+        tomo = self.active_tomogram
+        spl = tomo._paths[i]
+        
+        l = tomo.nm2pixel(tomo.subtomo_length)
+        w = tomo.nm2pixel(tomo.subtomo_width)
+        
+        coords = spl.local_cartesian((w, w), l, spl.anchors[j])
+        coords = np.moveaxis(coords, -1, 0)
+        img = tomo.image
+        out = map_coordinates(img, coords, order=1)
+        out = ip.asarray(out, axes="zyx")
+        out.set_scale(img)
+        out.scale_unit = img.scale_unit
+        return out
     
-    def _current_cylindrical_img(self):
+    def _current_cylindrical_img(self, i=None, j=None):
         """
         Return cylindric-transformed image at the current position
         """        
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
+        i = i or self.mt.mtlabel.value
+        j = j or self.mt.pos.value
         tomo = self.active_tomogram
         ylen = tomo.nm2pixel(tomo.ft_size)
         spl = tomo._paths[i]
@@ -1565,8 +1624,10 @@ class MTProfiler:
             i = 0
         results = tomo.paths[i]
         
-        pitch, skew, npf, start = results.localprops[[H.yPitch, H.skewAngle, H.nPF, H.start]].iloc[j]
-        self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
+        if results.localprops is not None:
+            headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
+            pitch, skew, npf, start = results.localprops[headers].iloc[j]
+            self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
         
         if len(self.canvas.axes) < 3:
             self.canvas.figure.clf()
@@ -1631,7 +1692,7 @@ class MTProfiler:
         
         length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
-        out = load_a_rot_subtomogram(imgb, length_px, width_px, spl)
+        out = load_rot_subtomograms(imgb, length_px, width_px, spl)
         
         spl.scale /= binsize
         

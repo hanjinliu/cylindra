@@ -13,7 +13,7 @@ import impy as ip
 from .const import nm, H, K, Ori, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_a_rot_subtomogram,
+from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_rot_subtomograms,
                     ceilint, oblique_meshgrid)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
@@ -412,8 +412,7 @@ class MtTomogram:
         width_px = self.nm2pixel(self.subtomo_width)
         
         if rotate:
-            out = load_a_rot_subtomogram(self.image, length_px, width_px, spl)
-            out.set_scale(xyz=self.scale)
+            out = load_rot_subtomograms(self.image, length_px, width_px, spl)
             
         else:
             # If subtomogram region is rotated by 45 degree, its XY-width will be
