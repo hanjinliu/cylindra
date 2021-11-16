@@ -584,14 +584,15 @@ class MtTomogram:
         skew_angles %= 360/npf
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
         
+        # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
+        # after this rotation.
         subtomo_proj = subtomograms.proj("y")
         imgs_rot: list[ip.ImgArray] = []
-        for i, ang in enumerate(skew_angles):     
-            # rotate 'ang' counter-clockwise           
+        for i, ang in enumerate(skew_angles):
             rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
             imgs_rot.append(rotimg)
 
-        # Align skew-corrected images
+        # Coarsely align skew-corrected images
         iref = npoints//2
         imgref = imgs_rot[iref]
         shifts = np.zeros((npoints, 2)) # zx-shift
@@ -607,8 +608,8 @@ class MtTomogram:
                 
             imgs_aligned.append(img.affine(translation=-shifts[i]))
         
-        # Make template
-        imgcory = np.stack(imgs_aligned, axis="y").proj("y")
+        # Make template using coarse aligned images.
+        imgcory: ip.ImgArray = np.stack(imgs_aligned, axis="y").proj("y")
         center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1], mask=mask)
         template = imgcory.affine(translation=center_shift/2, mode="reflect")
         
@@ -617,6 +618,7 @@ class MtTomogram:
             img = imgs_rot[i]
             shifts[i] = ip.pcc_maximum(template, img, mask=mask)
 
+        # Calculate refined shifts
         coords = spl()
         for i in range(npoints):
             shiftz, shiftx = -shifts[i]
@@ -824,8 +826,7 @@ class MtTomogram:
             coords = spl.cartesian((rz, rx), s_range=range_)
             coords = np.moveaxis(coords, -1, 0)
             
-            with ip.SetConst("SHOW_PROGRESS", False):
-                transformed = map_coordinates(self.image, coords, order=1)
+            transformed = map_coordinates(self.image, coords, order=1)
             
             axes = "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -900,8 +901,7 @@ class MtTomogram:
             coords = spl.cylindrical((inner_radius, outer_radius), s_range=range_)
             coords = np.moveaxis(coords, -1, 0)
             
-            with ip.SetConst("SHOW_PROGRESS", False):
-                transformed = map_coordinates(self.image, coords, order=3)
+            transformed = map_coordinates(self.image, coords, order=3)
             
             axes = "rya"
             transformed = ip.asarray(transformed, axes=axes)
@@ -913,18 +913,25 @@ class MtTomogram:
         
         return transformed
     
-    def _chunked_straighten(self, i, length, range_, function, **kwargs):
-        # BUG: sometimes fail by ValueError: Too short. Change 's_range'.
+    def _chunked_straighten(self, i: int, length: nm, range_: tuple[float, float],
+                            function: Callable, **kwargs):
         out = []
         current_distance: nm = 0.0
         chunk_length: nm = 72.0
         start, end = range_
+        spl = self.paths[i]
         while current_distance < length:
             start = current_distance/length
             stop = start + chunk_length/length
+            
+            # The last segment could be very short
+            if spl.length(start=stop, stop=end)/self.scale < 2:
+                stop = end
+            
+            # Sometimes divmod of floating values generates very small residuals.
             if end - start < 1e-3:
-                # Sometimes divmod of floating values generates very small residuals.
                 break
+            
             sub_range = (start, min(stop, end))
             img_st = function(i, range_=sub_range, chunkwise=False, **kwargs)
             
