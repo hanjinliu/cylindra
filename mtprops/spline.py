@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 import warnings
 import numpy as np
 import numba as nb
 import json
 from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
-from .utils import interval_divmod, oblique_meshgrid, roundint
+from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
 
 class Spline3D:
@@ -78,10 +78,13 @@ class Spline3D:
         for name in self._local_properties:
             setattr(self, name, None)    
     
-    def make_anchors(self, interval: nm = None, n: int=None):
+    def make_anchors(self, 
+                     interval: nm = None,
+                     n: int = None,
+                     max_interval: nm = None) -> None:
         """
-        Make anchor points at constant intervals. Either interval or the number of anchor
-        points can be specified.
+        Make anchor points at constant intervals. Either interval, number of anchor or the 
+        maximum interval between anchors can be specified.
 
         Parameters
         ----------
@@ -89,6 +92,10 @@ class Spline3D:
             Interval between anchor points.
         n : int, optional
             Number of anchor points, including both ends.
+        max_interval: nm, optional
+            Spline will be split by as little anchors as possible but interval between anchors
+            will not be larger than this. The number of anchors are also guaranteed to be larger
+            than spline order.
         """        
         length = self.length()
         if interval is not None:
@@ -96,6 +103,9 @@ class Spline3D:
             end = stop/length
             n = n_segs + 1
         elif n is not None:
+            end = 1
+        elif max_interval is not None:
+            n = max(ceilint(length/max_interval), self.k) + 1
             end = 1
         else:
             raise ValueError("Either 'interval' or 'n' must be specified.")
@@ -108,6 +118,12 @@ class Spline3D:
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
+    
+    def __len__(self) -> int:
+        if self._anchors is None:
+            return 0
+        else:
+            return self._anchors.size
     
     def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline3D:
         """
@@ -189,7 +205,7 @@ class Spline3D:
             coords = splev(u, self._tck, der=der)
             return np.stack(coords, axis=1).astype(np.float32)
 
-    def partition(self, n:int, der:int=0):
+    def partition(self, n: int, der: int = 0):
         u = np.linspace(0, 1, n)
         return self(u, der)
 
@@ -202,7 +218,7 @@ class Spline3D:
         dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
     
-    def curvature(self, u: Iterable[float]=None) -> np.ndarray:
+    def curvature(self, u: Iterable[float] = None) -> np.ndarray:
         """
         Calculate curvature of spline curve.
 
@@ -219,6 +235,7 @@ class Spline3D:
         References
         ----------
         - https://en.wikipedia.org/wiki/Curvature#Space_curves
+        
         """        
         
         if u is None:
@@ -226,10 +243,13 @@ class Spline3D:
         
         dz, dy, dx = self(u, 1).T
         ddz, ddy, ddx = self(u, 2).T
-        a = (ddz*dy-ddy*dz)**2 + (ddx*dz-ddz*dx)**2 + (ddy*dx-ddx*dy)**2
-        return np.sqrt(a)/(dx**2+dy**2+dz**2)**1.5/self.scale
+        a = (ddz*dy - ddy*dz)**2 + (ddx*dz - ddz*dx)**2 + (ddy*dx - ddx*dy)**2
+        return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5 / self.scale
     
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert spline info into a dict.
+        """        
         t = self.tck[0]
         c = self.tck[1]
         k = self.tck[2]
@@ -241,7 +261,8 @@ class Spline3D:
                       "x": c[2].tolist()},
                 "k": k,
                 "u": u.tolist(),
-                "scale": scale}
+                "scale": scale
+                }
     
     @classmethod
     def from_dict(cls, d: dict):

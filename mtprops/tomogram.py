@@ -27,7 +27,6 @@ else:
     
 
 def batch_process(func):
-    # TODO: error handling
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
@@ -35,6 +34,7 @@ def batch_process(func):
                 out = func(self, i=i, **kwargs)
             return out
         
+        # Determine along which spline function will be executed.
         if i is None:
             i_list = range(self.n_paths)
         elif not hasattr(i, "__iter__"):
@@ -52,9 +52,20 @@ def batch_process(func):
             if len(i_list) > len(set(i_list)):
                 raise ValueError("Indices cannot contain duplicated values.")
         
+        # Run function along each spline
+        out = []
         with ip.SetConst("SHOW_PROGRESS", False):
-            out = [func(self, i=i_, **kwargs) for i_ in i_list]
-        
+            for i_ in i_list:
+                try:
+                    result = func(self, i=i_, **kwargs)
+                except Exception as e:
+                    errcls = type(e)
+                    errname = errcls.__class__
+                    msg = str(e)
+                    raise errcls(f"Exception at spline-{i_}.\n{errname}: {msg}")
+                else:
+                    out.append(result)
+            
         return out
     return _func  
 
@@ -406,7 +417,7 @@ class MtTomogram:
     
     def _sample_subtomograms(self, 
                              i: int,
-                             rotate: bool = True):
+                             rotate: bool = True) -> ip.ImgArray:
         spl = self._paths[i]
         length_px = self.nm2pixel(self.subtomo_length)
         width_px = self.nm2pixel(self.subtomo_width)
@@ -433,6 +444,7 @@ class MtTomogram:
             max_interval: nm = 30.0,
             degree_precision: float = 0.2,
             cutoff_freq: float = 0.0,
+            dense_mode: bool = False,
             ) -> MtTomogram:
         """
         Fit i-th path to MT.
@@ -447,28 +459,42 @@ class MtTomogram:
             Precision of MT xy-tilt degree in angular correlation.
         cutoff_freq : float, default is 0.0
             Cutoff frequency of Butterworth low-pass prefilter.
+        dense_mode : bool, default is False
+            If True, fitting will be executed in the dense-mocrotubule mode.
 
         Returns
         -------
         MtTomogram
             Same object with updated MtSpline objects.
         """        
-        
         spl = self._paths[i]
-        length = spl.length()
-        npoints = max(ceilint(length/max_interval) + 1, 4)
-        interval = length/(npoints-1)
-        spl.make_anchors(n=npoints)
+        spl.make_anchors(max_interval=max_interval)
+        npoints = len(spl)
+        interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
+        
+        # Apply low-pass filter if needed
         if cutoff_freq > 0:
             subtomograms = subtomograms.lowpass_filter(cutoff_freq)
+        
+        if dense_mode:
+            yy, xx = np.indices(subtomograms.sizesof("yx"))
+            yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
+            cval = np.mean(subtomograms)
+            for i, ds in enumerate(spl(der=1)):
+                _, vy, vx = ds
+                const = xc*vy - yc*vx
+                distance = np.abs(-xx*vy + yy*vx + const)/np.sqrt(vx**2 + vy**2)
+                sl = np.stack([distance > self.subtomo_width/2]*subtomograms.shape.z, 
+                              axis=0)
+                subtomograms[i][sl] = cval
         
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
         nrots = roundint(14/degree_precision) + 1
 
         # Angular correlation
-        out = delayed_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
+        out = dask_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
         refined_tilt = np.array([0] + list(out) + [0])
         size = 2*roundint(48.0/interval) + 1
         if size > 1:
@@ -482,6 +508,7 @@ class MtTomogram:
             img.rotate(-angle, cval=np.mean(img), update=True)
             
         # zx-shift correction by self-PCC
+        # TODO: This is not accurate enough for 13-pf MTs.
         subtomo_proj = subtomograms.proj("y")
         shape = subtomo_proj[0].shape
         shifts = np.zeros((npoints, 2)) # zx-shift
@@ -504,7 +531,8 @@ class MtTomogram:
                              [0., -sin, cos]]
             coords_px[i] += shift
             
-        coords = coords_px*self.scale
+        coords = coords_px * self.scale
+        
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
@@ -538,15 +566,16 @@ class MtTomogram:
             Same object with updated MtSpline objects.
         """        
         spl = self._paths[i]
-        length = spl.length()
-        npoints = max(ceilint(length/max_interval) + 1, 4)
-        interval = length/(npoints-1)
-        spl.make_anchors(n=npoints)
+        spl.make_anchors(max_interval=max_interval)
+        npoints = len(spl)
+        interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i)
         if cutoff_freq > 0:
             subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
+        # Skew angles are divided by the angle of single protofilament and the residual
+        # angles are used, considering missing wedge effect.
         props = self.global_ft_params(i)
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
@@ -556,7 +585,7 @@ class MtTomogram:
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
         
         subtomo_proj = subtomograms.proj("y")
-        imgs_rot = []
+        imgs_rot: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):     
             # rotate 'ang' counter-clockwise           
             rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
@@ -1395,7 +1424,7 @@ def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: 
     angle = angs[np.argmax(corrs)]
     return angle
 
-def delayed_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
+def dask_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
     _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
     tasks = []
     for img, ang in zip(imgs, ang_centers):

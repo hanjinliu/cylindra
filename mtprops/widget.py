@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from napari._qt.qthreading import GeneratorWorker
     from matplotlib.axes import Axes
 
+# TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
+# should also be initialized.
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
@@ -186,10 +188,7 @@ class SplineFitter:
         spl = self.paths[i]
         sqsum = GVar.splError**2 * shifts.shape[0]
         spl.shift_fit(shifts=shifts*self.binsize, s=sqsum)
-        length = spl.length()
-        npoints = max(ceilint(length/self.max_interval) + 1, 4)
-        interval = length/(npoints-1)
-        spl.make_anchors(interval=interval)
+        spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()
     
@@ -267,10 +266,7 @@ class SplineFitter:
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
         for i in range(tomo.n_paths):
             spl = tomo.paths[i]
-            length = spl.length()
-            npoints = max(ceilint(length/self.max_interval) + 1, 4)
-            interval = length/(npoints-1)    
-            spl.make_anchors(interval=interval)
+            spl.make_anchors(max_interval=self.max_interval)
             
         self.shifts = [None] * tomo.n_paths
         self.binsize = tomo.metadata["binsize"]
@@ -535,7 +531,7 @@ class MTProfiler:
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
-        self.Panels.overview.add_curve(fit[:,2]/scale, fit[:,1]/scale, color="lime", lw=5)
+        self.Panels.overview.add_curve(fit[:,2]/scale, fit[:,1]/scale, color="lime", lw=4)
         self.layer_work.data = []
         return None
     
@@ -549,6 +545,7 @@ class MTProfiler:
                          interval: nm = 24.0,
                          ft_size: nm = 33.4,
                          refine: bool = False,
+                         dense_mode: bool = False,
                          cutoff_freq: float = 0.0):
         """
         Run MTProps.
@@ -572,6 +569,7 @@ class MTProfiler:
                                interval=interval,
                                ft_size=ft_size,
                                refine=refine,
+                               dense_mode=dense_mode,
                                cutoff_freq=cutoff_freq,
                                _progress={"total": total, 
                                           "desc": "Running MTProps"}
@@ -596,10 +594,11 @@ class MTProfiler:
                  interval: nm,
                  ft_size,
                  refine,
+                 dense_mode,
                  cutoff_freq):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
-        tomo.fit(cutoff_freq=cutoff_freq)
+        tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
         tomo.make_anchors(n=3)
         tomo.measure_radius()
         if refine:
@@ -926,6 +925,7 @@ class MTProfiler:
     @set_options(cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05})
     def Fit_splines(self, 
                     cutoff_freq: float = 0.0,
+                    dense_mode: bool = False,
                     ):
         """
         Fit MT with spline curve, using manually selected points.
@@ -937,7 +937,7 @@ class MTProfiler:
         """        
         tomo = self.active_tomogram
         for i in range(tomo.n_paths):
-            tomo.fit(i, cutoff_freq=cutoff_freq)
+            tomo.fit(i, cutoff_freq=cutoff_freq, dense_mode=dense_mode)
             tomo.make_anchors(n=3)
             tomo.measure_radius(i)
         
