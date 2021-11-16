@@ -590,7 +590,7 @@ class MtTomogram:
         MtTomogram
             Same object with updated MtSpline objects.
         """        
-        spl = self._paths[i]
+        spl = self.paths[i]
         spl.make_anchors(max_interval=max_interval)
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
@@ -730,9 +730,12 @@ class MtTomogram:
         pd.DataFrame
             Local properties.
         """        
-        spl = self._paths[i]
+        spl = self.paths[i]
         if spl.localprops is not None:
             return spl.localprops
+        
+        if spl.radius is None:
+            raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(self.ft_size)
         rmin = self.nm2pixel(spl.radius*GVar.inner)
@@ -761,7 +764,7 @@ class MtTomogram:
         return spl.localprops
     
     @batch_process
-    def global_ft_params(self, i = None):
+    def global_ft_params(self, i = None) -> pd.Series:
         """
         Calculate MT global structural parameters from cylindrical Fourier space along 
         spline. This function calls ``straighten`` beforehand, so that Fourier space is 
@@ -894,6 +897,10 @@ class MtTomogram:
         try_cache = radii is None and range_ == (0.0, 1.0)
         cache_key = CacheKey.cyl_straight
         spl = self.paths[i]
+        
+        if spl.radius is None:
+            raise ValueError("Radius has not been determined yet.")
+        
         if try_cache:
             try:
                 transformed = cachemap[(self, spl, cache_key)]
@@ -915,7 +922,7 @@ class MtTomogram:
         else:
             if radii is None:
                 inner_radius, outer_radius = self.nm2pixel(
-                    self._paths[i].radius * np.array([GVar.inner, GVar.outer])
+                    spl.radius * np.array([GVar.inner, GVar.outer])
                     )
             else:
                 inner_radius, outer_radius = self.nm2pixel(radii)

@@ -1283,7 +1283,7 @@ class MTProfiler:
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """        
-        lbl = ip.zeros(self.layer_image.data.shape, dtype=np.uint8)
+        lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         tomo = self.active_tomogram
@@ -1338,7 +1338,7 @@ class MTProfiler:
 
             sl = tuple(sl)
             outsl = tuple(outsl)
-            lbl.value[sl][out[i][outsl]] = i + 1
+            lbl[sl][out[i][outsl]] = i + 1
         
         # paint finely
         ref = self.layer_image.data
@@ -1356,9 +1356,14 @@ class MTProfiler:
         columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _type]
         df = tomo.collect_localprops()[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
-        df_reset[_id] = df_reset.apply(lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), axis=1)
-        df_reset[_type] = df_reset.apply(lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), 
-                                                                              start=x[H.start]), axis=1)
+        df_reset[_id] = df_reset.apply(
+            lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), 
+            axis=1
+            )
+        df_reset[_type] = df_reset.apply(
+            lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), start=x[H.start]), 
+            axis=1
+            )
         
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df_reset[columns]])
@@ -1366,12 +1371,12 @@ class MTProfiler:
         # Add labels layer
         if self.layer_paint is None:
             self.layer_paint = self.parent_viewer.add_labels(
-                lbl.value, color=color, scale=self.layer_image.scale,
+                lbl, color=color, scale=self.layer_image.scale,
                 translate=self.layer_image.translate, opacity=0.33, name="Label",
                 properties=props
                 )
         else:
-            self.layer_paint.data = lbl.value
+            self.layer_paint.data = lbl
             self.layer_paint.properties = props
         self._update_colormap()
         return None
@@ -1426,7 +1431,7 @@ class MTProfiler:
                        length: nm, width: nm, *, new: bool = True):
         viewer: napari.Viewer = self.parent_viewer
         
-        def _run(img, binsize, cutoff):
+        def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
             with ip.SetConst("SHOW_PROGRESS", False):
                 img.tiled_lowpass_filter(cutoff, update=True)
                 img.release()
