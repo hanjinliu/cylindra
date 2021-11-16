@@ -392,8 +392,33 @@ class MtTomogram:
         df = pd.concat([self._paths[i_].localprops for i_ in i], 
                         keys=list(i)
                        )
-        df.index.name = ("path", "position")
+        
+        df.index = df.index.rename(["SplineID", "PosID"])
         return df
+    
+    def plot_localprops(self, i: int|Iterable[int] = None,
+                        x=None, y=None, hue=None, **kwargs):
+        """
+        Simple plot function for visualizing local properties.
+        """        
+        import seaborn as sns
+        df = self.collect_localprops(i)
+        data = df.reset_index()
+        return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
+    
+    def summerize_localprops(self, i: int|Iterable[int] = None, 
+                             by: str | list[str] = "SplineID", 
+                             functions: Callable|list[Callable] = None) -> pd.DataFrame:
+        """
+        Simple summerize of local properties.
+        """
+        df = self.collect_localprops(i).reset_index()
+        if functions is None:
+            def se(x): return np.std(x)/np.sqrt(len(x))
+            def n(x): return len(x)
+            functions = [np.mean, np.std, se, n]
+            
+        return df.groupby(by=by).agg(functions)
     
     def collect_radii(self, i: int|Iterable[int] = None) -> np.ndarray:
         """

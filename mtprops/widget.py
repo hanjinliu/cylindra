@@ -5,7 +5,6 @@ import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import create_worker
 from qtpy.QtGui import QFont
-from qtpy.QtWidgets import QMessageBox
 from pathlib import Path
 from magicgui.widgets import Table, TextEdit
 import matplotlib.pyplot as plt
@@ -13,7 +12,7 @@ import matplotlib.pyplot as plt
 import impy as ip
 
 from magicclass import magicclass, magicmenu, field, set_design, set_options, do_not_record
-from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, QtImageCanvas
+from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, QtImageCanvas, show_messagebox
 from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
@@ -121,7 +120,7 @@ class WorkerControl:
         def _(e):
             # In some environments, errors raised in workers are completely hidden.
             # We have to re-raise it here.
-            QMessageBox.critical(self.native, e.__class__.__name__, str(e), QMessageBox.Ok)
+            show_messagebox("error", title=e.__class__.__name__, text=str(e), parent=self.native)
         
     def Pause(self):
         """
@@ -544,7 +543,7 @@ class MTProfiler:
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          ft_size: nm = 33.4,
-                         refine: bool = False,
+                         refine: bool = True,
                          dense_mode: bool = False,
                          cutoff_freq: float = 0.0):
         """
@@ -557,6 +556,11 @@ class MTProfiler:
         ft_size : nm, default is 33.4
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
+        refine : bool, default is True
+            Check if execute spline refinement.
+        dense_mode : bool, default is False
+            Check if microtubules are densely packed. Initial spline position must be "almost" fitted
+            in dense mode.
         cutoff_freq : float, default is 0.0
             Cutoff frequency of Butterworth low-pass prefilter.
         """        
@@ -934,6 +938,9 @@ class MTProfiler:
         ----------
         cutoff_freq : float, default is 0.0
             Cutoff frequency of Butterworth low-pass prefilter.
+        dense_mode : bool, default is False
+            Check if microtubules are densely packed. Initial spline position must be "almost" fitted
+            in dense mode.
         """        
         tomo = self.active_tomogram
         for i in range(tomo.n_paths):
@@ -1245,7 +1252,7 @@ class MTProfiler:
         tomo = self.active_tomogram
         binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         selected = self.layer_work.selected_data
-        # shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
+        
         length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
         
@@ -1349,7 +1356,7 @@ class MTProfiler:
         columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _type]
         df = tomo.collect_localprops()[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
-        df_reset[_id] = df_reset.apply(lambda x: "{}-{}".format(int(x["level_0"]), int(x["level_1"])), axis=1)
+        df_reset[_id] = df_reset.apply(lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), axis=1)
         df_reset[_type] = df_reset.apply(lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), 
                                                                               start=x[H.start]), axis=1)
         
