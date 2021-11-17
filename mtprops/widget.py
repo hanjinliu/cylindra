@@ -4,15 +4,12 @@ import numpy as np
 import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import create_worker
-from qtpy.QtGui import QFont
 from pathlib import Path
-from magicgui.widgets import Table, TextEdit
-import matplotlib.pyplot as plt
 
 import impy as ip
 
 from magicclass import magicclass, magicmenu, field, set_design, set_options, do_not_record
-from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, QtImageCanvas, show_messagebox
+from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas, show_messagebox
 from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
@@ -246,7 +243,9 @@ class SplineFitter:
         r_max: nm = tomo.subtomo_width/2
         nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
-        imax = tomo.argpeak(prof)
+        if tomo.light_background:
+            prof = -prof
+        imax = np.argmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
         r_peak = (imax_sub+0.5)/nbin*r_max/tomo.scale/self.binsize
         
@@ -662,7 +661,7 @@ class MTProfiler:
                  splError={"max": 5.0, "step": 0.1},
                  inner={"step": 0.1},
                  outer={"step": 0.1},
-                 daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048}})
+                 daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048, "step": 16}})
     def Global_variables(self, 
                          nPFmin: int = GVar.nPFmin,
                          nPFmax: int = GVar.nPFmax,
@@ -722,12 +721,7 @@ class MTProfiler:
                 f"magicclass: {mcls.__version__}\n"\
                 f"napari: {napari.__version__}\n"\
                 f"dask: {dask.__version__}\n"
-        
-        txt = TextEdit(value=value)
-        txt.native.setParent(self.native, txt.native.windowFlags())
-        self.read_only = True
-        txt.native.setFont(QFont("Consolas"))
-        txt.show()
+        show_messagebox(title="MTProps info", text=value, parent=self.native)
         return None
     
     @File.wraps

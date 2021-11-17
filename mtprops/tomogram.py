@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Any, Callable, Iterable
+from typing import Callable, Iterable
 import json
-import matplotlib.pyplot as plt
 from collections import namedtuple
 from functools import partial, wraps
 import numpy as np
@@ -707,9 +706,12 @@ class MtTomogram:
         nbin = roundint(r_max/self.scale/2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
-        
+
         # determine precise radius using centroid    
-        imax = self.argpeak(prof)
+        if self.light_background:
+            prof = -prof
+        
+        imax = np.argmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
         
         # prof[0] is radial profile at r=0.5 (not r=0.0)
@@ -960,7 +962,7 @@ class MtTomogram:
             stop = start + chunk_length/length
             
             # The last segment could be very short
-            if spl.length(start=stop, stop=end)/self.scale < 2:
+            if spl.length(start=stop, stop=end)/self.scale < 3:
                 stop = end
             
             # Sometimes divmod of floating values generates very small residuals.
