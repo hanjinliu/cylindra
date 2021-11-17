@@ -337,7 +337,7 @@ class MtTomogram:
         return pix
     
     @batch_process
-    def make_anchors(self, i = None, interval: nm = None, n: int = None):
+    def make_anchors(self, i = None, interval: nm = None, n: int = None, max_interval: nm = None):
         """
         Make anchors on MtSpline object(s).
 
@@ -348,7 +348,7 @@ class MtTomogram:
         """        
         if interval is None and n is None:
             interval = 24.0
-        self._paths[i].make_anchors(interval=interval, n=n)
+        self._paths[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
         return None
     
     def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
@@ -699,6 +699,9 @@ class MtTomogram:
         float (nm)
             MT radius.
         """        
+        if self.paths[i]._anchors is None:
+            self.paths[i].make_anchors(n=3)
+            
         subtomograms = self._sample_subtomograms(i)
         r_max = self.subtomo_width / 2
         nbin = roundint(r_max/self.scale/2)

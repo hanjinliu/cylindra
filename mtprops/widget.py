@@ -300,6 +300,9 @@ class SplineFitter:
         self.canvas.view_range = (0, self.canvas.image.shape[0]), (0, self.canvas.image.shape[1])
         lz, lx = self.subtomograms.sizesof("zx")
         self._update_cross(lx/2 - 0.5, lz/2 - 0.5)
+        
+        del self.Rotational_averaging.canvas_rot.image # to avoid confusion
+        
         return None
     
     @mt.pos.connect
@@ -537,13 +540,14 @@ class MTProfiler:
     @operation.wraps
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
                  ft_size={"label": "Local DFT window size (nm)"},
+                 n_refine={"label": "Refinement iteration", "max": 4},
                  cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05}
                  )
     @set_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          ft_size: nm = 33.4,
-                         refine: bool = True,
+                         n_refine: int = 1,
                          dense_mode: bool = False,
                          cutoff_freq: float = 0.0):
         """
@@ -556,8 +560,8 @@ class MTProfiler:
         ft_size : nm, default is 33.4
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
-        refine : bool, default is True
-            Check if execute spline refinement.
+        n_refine : int, default is 1
+            Iteration number of spline refinement.
         dense_mode : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
@@ -567,12 +571,12 @@ class MTProfiler:
         if self.layer_work.data.size > 0:
             self.register_path()
             
-        total = 3 + int(refine)
+        total = 3 + n_refine
         
         worker = create_worker(self._run_all, 
                                interval=interval,
                                ft_size=ft_size,
-                               refine=refine,
+                               n_refine=n_refine,
                                dense_mode=dense_mode,
                                cutoff_freq=cutoff_freq,
                                _progress={"total": total, 
@@ -590,28 +594,31 @@ class MTProfiler:
             self._load_tomogram_results()
             self.Paint_MT()
             
-        self._worker_control.info.value = f"Spline fitting"
+        self._worker_control.info.value = "Spline fitting"
         worker.start()
         return None
     
     def _run_all(self, 
                  interval: nm,
                  ft_size,
-                 refine,
+                 n_refine,
                  dense_mode,
                  cutoff_freq):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
         tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
-        tomo.make_anchors(n=3)
         tomo.measure_radius()
-        if refine:
-            yield f"Refine spline ..."
+        
+        for i in range(n_refine):
+            if n_refine == 1:
+                yield "Spline refinement ..."
+            else:
+                yield f"Spline refinement (n={i+1}) ..."
             tomo.refine(max_interval=max(interval, 30))
-            tomo.make_anchors(n=3)
             tomo.measure_radius()
+            
         tomo.make_anchors(interval=interval)
-        yield f"Local Fourier transformation ..."
+        yield "Local Fourier transformation ..."
         tomo.ft_params()
         yield "Finishing ..."
         return tomo
@@ -943,10 +950,8 @@ class MTProfiler:
             in dense mode.
         """        
         tomo = self.active_tomogram
-        for i in range(tomo.n_paths):
-            tomo.fit(i, cutoff_freq=cutoff_freq, dense_mode=dense_mode)
-            tomo.make_anchors(n=3)
-            tomo.measure_radius(i)
+        tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
+        tomo.measure_radius()
         
         self._init_layers()
         self.Show_splines()
@@ -991,10 +996,6 @@ class MTProfiler:
         Measure MT radius for each spline path.
         """        
         tomo = self.active_tomogram
-        for i in range(tomo.n_paths):
-            spl = tomo.paths[i]
-            if spl._anchors is None:
-                spl.make_anchors(n=3)
         tomo.measure_radius()
         return None
     
@@ -1248,7 +1249,7 @@ class MTProfiler:
         """
         Auto centering of selected points.
         """        
-        imgb = self.layer_image.data
+        imgb: ip.ImgArray = self.layer_image.data
         tomo = self.active_tomogram
         binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
         selected = self.layer_work.selected_data
