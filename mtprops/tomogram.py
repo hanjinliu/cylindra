@@ -102,8 +102,8 @@ class MtSpline(Spline3D):
         super().__init__(scale=scale, k=k)
         self.orientation = Ori.none
         self.radius: nm = None
-        self.localprops: pd.DataFrame = pd.DataFrame([])
-        self.globalprops: pd.Series = pd.Series([], dtype=np.float32)
+        self.localprops: pd.DataFrame = None
+        self.globalprops: pd.Series = None
         
     @property
     def orientation(self) -> Ori:
@@ -120,7 +120,7 @@ class MtSpline(Spline3D):
         d = super().to_dict()
         d[K.radius] = self.radius
         d[K.orientation] = self.orientation.name
-        d[K.localprops] = self.localprops[LOCALPROPS]
+        d[K.localprops] = self.localprops[[l for l in LOCALPROPS if l in self.localprops.columns]]
         d[K.globalprops] = self.globalprops
         return d
         
@@ -502,6 +502,7 @@ class MtTomogram:
             subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         if dense_mode:
+            # roughly crop MT and fill outside with a constant value
             yy, xx = np.indices(subtomograms.sizesof("yx"))
             yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
             cval = np.mean(subtomograms)
@@ -532,8 +533,13 @@ class MtTomogram:
             img.rotate(-angle, cval=np.mean(img), update=True)
             
         # zx-shift correction by self-PCC
-        # TODO: This is not accurate enough for 13-pf MTs.
         subtomo_proj = subtomograms.proj("y")
+        
+        if dense_mode:
+            xc = int(subtomo_proj.shape.x//2)
+            w = int(self.subtomo_width//2)
+            subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
+            
         shape = subtomo_proj[0].shape
         shifts = np.zeros((npoints, 2)) # zx-shift
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
@@ -1014,7 +1020,7 @@ class MtTomogram:
         ip.ImgArray
             Reconstructed image.
         """        
-        # TODO: dask parallelize, iteration
+        # TODO: dask parallelize
         
         # Cartesian transformation along spline.
         img_st = self.straighten(i)
