@@ -332,7 +332,7 @@ class SplineFitter(MagicTemplate):
         
         with ip.SetConst("SHOW_PROGRESS", False):
             out = load_rot_subtomograms(imgb, length_px, width_px, spl)
-            self.subtomograms = out.proj("y")
+            self.subtomograms = out.proj("y")["x=::-1"]
             
         # Restore spline scale.
         spl.scale /= self.binsize

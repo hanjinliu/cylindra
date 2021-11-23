@@ -1357,7 +1357,7 @@ class MtTomogram:
         offset = np.rad2deg(np.angle(line.fft(dims="a", shift=False)[npf]))
         return (np.arange(npf)*360/npf + offset) % 360
     
-    def _find_seam_offset(self, i, rec):
+    def _find_seam_offset(self, i, rec: ip.ImgArray):
         spl = self._paths[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
