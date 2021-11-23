@@ -9,7 +9,7 @@ from scipy import ndimage as ndi
 from dask import array as da, delayed
 
 import impy as ip
-from .const import nm, H, K, Ori, CacheKey, GVar
+from .const import nm, H, K, Ori, Mode, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_rot_subtomograms,
@@ -525,7 +525,7 @@ class MtTomogram:
         if size > 1:
             # Mirror-mode padding is "a b c d | c b a", thus edge values will be substituted
             # with the adjucent values respectively.
-            refined_tilt = ndi.median_filter(refined_tilt, size=size, mode="mirror")
+            refined_tilt = ndi.median_filter(refined_tilt, size=size, mode=Mode.mirror)
         
         # Rotate subtomograms            
         for i, img in enumerate(subtomograms):
@@ -619,7 +619,7 @@ class MtTomogram:
         subtomo_proj = subtomograms.proj("y")
         imgs_rot: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
-            rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode="reflect")
+            rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode=Mode.reflect)
             imgs_rot.append(rotimg)
 
         # Coarsely align skew-corrected images
@@ -641,7 +641,7 @@ class MtTomogram:
         # Make template using coarse aligned images.
         imgcory: ip.ImgArray = np.stack(imgs_aligned, axis="y").proj("y")
         center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1], mask=mask)
-        template = imgcory.affine(translation=center_shift/2, mode="reflect")
+        template = imgcory.affine(translation=center_shift/2, mode=Mode.reflect)
         
         # Align skew-corrected images to the template
         for i in range(npoints):
@@ -1048,7 +1048,7 @@ class MtTomogram:
         for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
             start = self.nm2pixel(start)
             stop = self.nm2pixel(stop)
-            imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode="reflect"))
+            imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode=Mode.reflect))
             ylen = min(ylen, stop-start)
 
         # align each fragment
@@ -1060,7 +1060,7 @@ class MtTomogram:
             for k in range(1, len(imgs)):
                 img = imgs[k][:, :ylen]
                 shift = ip.pcc_maximum(img, ref, mask=mask)
-                imgs[k] = img.affine(translation=shift, mode="grid-wrap")
+                imgs[k] = img.affine(translation=shift, mode=Mode.grid_wrap)
 
             out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
             ref = out
@@ -1075,7 +1075,7 @@ class MtTomogram:
             trs1 = np.eye(4, dtype=np.float32)
             trs0[:3, 3] = -center
             trs1[:3, 3] = center
-            slope = np.tan(np.deg2rad(rise))
+            slope = -np.tan(np.deg2rad(rise))
             for pf in range(1, npf):
                 ang = -2*np.pi*pf/npf
                 dy = 2*np.pi*pf/npf*radius*slope/self.scale
@@ -1087,7 +1087,7 @@ class MtTomogram:
                                 [ 0., 0.,  0., 1.]],
                                 dtype=np.float32)
                 mtx = trs1 @ rot @ trs0
-                out.value[:] += input_.affine(mtx, mode="grid-wrap")
+                out.value[:] += input_.affine(mtx, mode=Mode.grid_wrap)
             
             if seam_offset == "find":
                 seam_offset = self.seam_offset(i)
@@ -1124,7 +1124,7 @@ class MtTomogram:
                                     [ 0., 0.,  0., 1.]],
                                     dtype=np.float32)
                     mtx = trs1 @ rot @ trs0
-                    rot_img = base.affine(mtx, mode="grid-wrap")
+                    rot_img = base.affine(mtx, mode=Mode.grid_wrap)
                     out.value[:] = extrema(out, rot_img)
                 
         # stack images for better visualization
@@ -1132,7 +1132,7 @@ class MtTomogram:
         outlist = [out]
         if dup > 0:
             for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                outlist.append(out.rotate(ang, dims="zx", mode="reflect"))
+                outlist.append(out.rotate(ang, dims="zx", mode=Mode.reflect))
         
         out = np.concatenate(outlist, axis="y")
         
@@ -1201,10 +1201,10 @@ class MtTomogram:
         for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
             start = self.nm2pixel(start)
             stop = self.nm2pixel(stop)
-            shift = ang/360*img_open.shape.a
+            shift = -ang/360*img_open.shape.a
             imgs.append(
                 img_open[:, start:stop].affine(translation=[0, shift],
-                                               dims="ya", mode="grid-wrap")
+                                               dims="ya", mode=Mode.grid_wrap)
                 )
             ylen = min(ylen, stop-start)
         
@@ -1219,7 +1219,7 @@ class MtTomogram:
                 img = imgs[k][f"y=:{ylen}"]
                 shift = ip.pcc_maximum(img, ref, mask=mask)
                 imgs[k] = img.affine(translation=shift, 
-                                    dims="rya", mode="grid-wrap")
+                                    dims="rya", mode=Mode.grid_wrap)
 
             out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
             ref = out
@@ -1236,7 +1236,7 @@ class MtTomogram:
                 shift = [dy, shift_a]
                 
                 rot_input = input_.affine(translation=shift, 
-                                        dims="ya", mode="grid-wrap")
+                                        dims="ya", mode=Mode.grid_wrap)
                 out.value[:] += rot_input
             
             if seam_offset == "find":
@@ -1265,7 +1265,7 @@ class MtTomogram:
                 dy = 2*np.pi/npf*radius*slope/self.scale * np.arange(npf)
                 for pf in range(1, npf):
                     shift = [-dy[pf], -da[pf]]
-                    rot_img = base.affine(translation=shift, dims="ya", mode="grid-wrap")
+                    rot_img = base.affine(translation=shift, dims="ya", mode=Mode.grid_wrap)
                     out.value[:] = extrema(out, rot_img)
                     
         # stack images for better visualization
@@ -1275,7 +1275,7 @@ class MtTomogram:
             for ang in skew_angles[:min(dup, len(skew_angles))-1]:
                 shift = ang/360*img_open.shape.a
                 outlist.append(out.affine(translation=[0, -shift], 
-                                          dims="ya", mode="grid-wrap"))
+                                          dims="ya", mode=Mode.grid_wrap))
     
         return np.concatenate(outlist, axis="y")
     
@@ -1310,7 +1310,7 @@ class MtTomogram:
         tan_rise = np.tan(np.deg2rad(rise))
         mesh = oblique_meshgrid((ny, npf), 
                                 rise = tan_rise*2*np.pi*radius/npf/pitch,
-                                tilt = -np.deg2rad(skew)*npf/(4*np.pi), 
+                                tilt = np.deg2rad(skew)*npf/(4*np.pi), 
                                 offset = (ymax/pitch*self.scale, amax/rec_cyl.shape.a*2*np.pi)
                                 ).reshape(-1, 2)
         
@@ -1345,10 +1345,10 @@ class MtTomogram:
         skew = props[H.skewAngle]
         npf = int(props[H.nPF])
         imgst = self.cylindric_straighten(i).proj("r")
-        tilt = np.deg2rad(skew) * spl.radius / pitch / 2
+        tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
         with ip.SetConst("SHOW_PROGRESS", False):
             img_shear = imgst.affine(np.array([[1, 0, 0],[tilt, 1, 0],[0, 0, 1]]), 
-                                     mode="grid-wrap", dims="ya")
+                                     mode=Mode.grid_wrap, dims="ya")
             line = img_shear.proj("y")
         
         if self.light_background:
@@ -1365,14 +1365,14 @@ class MtTomogram:
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
         a_size = rec.shape.a
-        tilt = np.deg2rad(skew) * spl.radius / pitch / 2
+        tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
         with ip.SetConst("SHOW_PROGRESS", False):
             mtx = np.array([[1.,   0., 0., 0.],
                             [0.,   1., 0., 0.],
                             [0., tilt, 1., 0.],
                             [0.,   0., 0., 1.]],
                            dtype=np.float32)
-            img_shear = rec.affine(mtx, mode="grid-wrap", dims="rya")
+            img_shear = rec.affine(mtx, mode=Mode.grid_wrap, dims="rya")
             line = img_shear.proj("ry")
         
         # "offset" means the peak of monomer     
@@ -1448,7 +1448,7 @@ class MtTomogram:
         skew = props[H.skewAngle]
         spl = self._paths[i]
         ny = roundint(spl.length()/pitch)
-        mono_skew_rad = -np.deg2rad(skew) / 2
+        mono_skew_rad = np.deg2rad(skew) / 2
         
         rcoords = np.full(ny, spl.radius)
         ycoords = np.arange(ny) * pitch
@@ -1531,8 +1531,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
-    skew = np.arctan(-y_freq[ymax_f]/a_freq[amax_f]*2*y_pitch/radius)
-    start = l_circ/y_pitch/(-np.tan(skew) + 1/np.tan(rise))
+    skew = np.arctan(y_freq[ymax_f]/a_freq[amax_f]*2*y_pitch/radius)
+    start = l_circ/y_pitch/(np.tan(skew) + 1/np.tan(rise))
     
     return np.array([np.rad2deg(rise), 
                      y_pitch, 
@@ -1543,7 +1543,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     
 
 def ft_params(img: ip.ImgArray, coords: np.ndarray, radius: nm):
-    polar = map_coordinates(img, coords, order=3, mode="grid-wrap")
+    polar = map_coordinates(img, coords, order=3, mode=Mode.grid_wrap)
     polar = ip.asarray(polar, axes="rya") # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit

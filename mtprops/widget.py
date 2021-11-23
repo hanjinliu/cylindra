@@ -5,11 +5,12 @@ import warnings
 import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import create_worker
+from napari._qt.qthreading import GeneratorWorker, WorkerBase
 from pathlib import Path
 
 import impy as ip
 
-from magicclass import magicclass, magicmenu, field, set_design, set_options, do_not_record, Bound
+from magicclass import magicclass, magicmenu, field, set_design, set_options, do_not_record, Bound, MagicTemplate
 from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas, show_messagebox
 from magicclass.macro import register_type
 
@@ -20,7 +21,6 @@ from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
-    from napari._qt.qthreading import GeneratorWorker, WorkerBase
     from matplotlib.axes import Axes
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
@@ -50,7 +50,7 @@ def run_worker_function(worker: WorkerBase):
 ### Child widgets ###
 
 @magicclass
-class ImageLoader:
+class ImageLoader(MagicTemplate):
     # A loader widget with imread settings.
     path = field(Path, record=False, options={
         "filter": "*.tif;*.tiff;*.mrc;*.rec",
@@ -139,7 +139,7 @@ class ImageLoader:
         self.scale.value = f"{img.scale.x:.3f}"
 
 @magicclass(layout="horizontal", labels=False, error_mode="stderr")
-class WorkerControl:
+class WorkerControl(MagicTemplate):
     # A widget that has a napari worker object and appears as buttons in the activity dock 
     # while running.
     
@@ -184,19 +184,19 @@ class WorkerControl:
 
 
 @magicclass
-class SplineFitter:
+class SplineFitter(MagicTemplate):
     # Manually fit MT with spline curve using longitudinal projections
     
     canvas = field(QtImageCanvas, options={"show_button": False})
         
     @magicclass(layout="horizontal")
-    class mt:
+    class mt(MagicTemplate):
         mtlabel = field(int, options={"max": 0}, name="MTLabel", record=False)
         pos = field(int, options={"max": 0}, name="Pos", record=False)
         def Fit(self): ...
     
     @magicclass(widget_type="collapsible")
-    class Rotational_averaging:
+    class Rotational_averaging(MagicTemplate):
         canvas_rot = field(QtImageCanvas, options={"show_button": False})
         def __post_init__(self):
             self.canvas_rot.min_height = 200
@@ -362,7 +362,7 @@ class SplineFitter:
 ### The main widget ###
     
 @magicclass(widget_type="scrollable")
-class MTProfiler:
+class MTProfiler(MagicTemplate):
     # Main GUI class.
     
     ### widgets ###
@@ -372,13 +372,13 @@ class MTProfiler:
     _spline_fitter = field(SplineFitter)
     
     @magicmenu
-    class File:
+    class File(MagicTemplate):
         def Open_image(self): ...
         def Load_json(self, path: Path): ...
         def Save_results_as_json(self, path: Path): ...
     
     @magicmenu
-    class View:
+    class View(MagicTemplate):
         def Apply_lowpass_to_reference_image(self): ...
         sep0 = Separator()
         def show_current_ft(self): ...
@@ -394,7 +394,7 @@ class MTProfiler:
         focus = field(False, options={"text": "Focus"}, record=False)
     
     @magicmenu
-    class Analysis:
+    class Analysis(MagicTemplate):
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...                
         def Add_anchors(self): ...
@@ -409,20 +409,20 @@ class MTProfiler:
         def Map_tubulin(self): ...
     
     @magicmenu
-    class Others:
+    class Others(MagicTemplate):
         def Create_macro(self): ...
         def Global_variables(self, **kwargs): ...
         def MTProps_info(self): ...
         
     @magicclass(layout="horizontal", labels=False)
-    class operation:
+    class operation(MagicTemplate):
         def register_path(self): ...
         def run_for_all_path(self): ...
         def clear_current(self): ...
         def clear_all(self): ...
     
     @magicclass(layout="horizontal")
-    class auto_picker:
+    class auto_picker(MagicTemplate):
         stride = field(50.0, widget_type="FloatSlider", 
                        options={"min": 10, "max": 100, "tooltip": "Stride length of aut picker"}, 
                        name="stride (nm)", record=False)
@@ -430,11 +430,11 @@ class MTProfiler:
         def auto_center(self): ...
     
     @magicclass(widget_type="collapsible")
-    class Tomogram_List:
+    class Tomogram_List(MagicTemplate):
         tomograms = ListWidget(name="Tomogram List")
     
     @magicclass(layout="horizontal")
-    class mt:
+    class mt(MagicTemplate):
         mtlabel = field(int, options={"max": 0}, name="MTLabel", record=False)
         pos = field(int, widget_type="Slider", options={"max":0}, name="Pos", record=False)
     
@@ -447,7 +447,7 @@ class MTProfiler:
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
-    class Panels:
+    class Panels(MagicTemplate):
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines", 
                                                                   "show_button": False})
         image2D = field(QtImageCanvas, options={"show_button": False})

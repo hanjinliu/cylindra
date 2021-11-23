@@ -154,11 +154,36 @@ def oblique_meshgrid(shape: tuple[int, int],
 class Projections:
     """
     Class that stores projections of a 3D image.
+    
+    .. note::
+    
+        We have to think thoroughly about the XYZ coordinate here.
+        In right-handed coordinate system, the XYZ axes look like following.
+    
+        Z (parallel tp sight)
+        o-------> X
+        |
+        |
+        |
+        v Y
+        
+        When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
+        and viewed parallel to Y axis, the projection should look like following.
+        
+        X <--------o
+                   |
+                   |
+                   |
+                 Z v
+
+        Therefore, if we use standard ``imshow`` functions like ``plt.imshow`` and those
+        in ``pyqtgraph``, we must **flip along X axis**.
+    
     """
     def __init__(self, image: ip.ImgArray):
         with ip.SetConst("SHOW_PROGRESS", False):
             self.yx = image.proj("z")
-            self.zx = image.proj("y")
+            self.zx = image.proj("y")["x=::-1"]
         self.zx_ave = None
         
         self.shape = image.shape

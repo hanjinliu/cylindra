@@ -663,4 +663,4 @@ def _cartesian_coords_2d(lenv, lenh):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= (lenv/2 - 0.5)
     h -= (lenh/2 - 0.5)
-    return np.stack([v, h], axis=2) # V, H, 2
+    return np.stack([v, -h], axis=2) # V, H, 2

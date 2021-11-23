@@ -30,6 +30,14 @@ class K:
     localprops = "localprops"
     globalprops = "globalprops"
 
+class Mode:
+    """
+    Padding mode used in scipy.ndimage.
+    """    
+    grid_wrap = "grid-wrap"
+    reflect = "reflect"
+    mirror = "mirror"
+
 class GVar:
     """
     Global variables
