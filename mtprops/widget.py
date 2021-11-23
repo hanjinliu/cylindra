@@ -1,11 +1,11 @@
 import pandas as pd
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Union
 import numpy as np
 import warnings
 import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import create_worker
-from napari._qt.qthreading import GeneratorWorker, WorkerBase
+from napari._qt.qthreading import GeneratorWorker, WorkerBase, FunctionWorker
 from pathlib import Path
 
 import impy as ip
@@ -31,7 +31,7 @@ SELECTION_LAYER_NAME = "Selected MTs"
 
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
 
-def run_worker_function(worker: WorkerBase):
+def run_worker_function(worker: Union[FunctionWorker, GeneratorWorker]):
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("always")
@@ -95,10 +95,16 @@ class ImageLoader(MagicTemplate):
         self.cutoff_freq.visible = self.use_lowpass.value
     
     @set_design(text="OK")
-    def call(self, path: Bound(path), scale: Bound(scale), bin_size: Bound(bin_size),
-             light_background: Bound(light_background), cutoff_freq: Bound(cutoff_freq),
-             subtomo_length: Bound(subtomo_length), subtomo_width: Bound(subtomo_width),
-             use_lowpass: Bound(use_lowpass)):
+    def call(self, 
+             path: Bound(path),
+             scale: Bound(scale),
+             bin_size: Bound(bin_size),
+             light_background: Bound(light_background),
+             cutoff_freq: Bound(cutoff_freq),
+             subtomo_length: Bound(subtomo_length),
+             subtomo_width: Bound(subtomo_width),
+             use_lowpass: Bound(use_lowpass)
+             ):
         """
         Start loading image.
         """
@@ -615,7 +621,7 @@ class MTProfiler(MagicTemplate):
             Cutoff frequency of Butterworth low-pass prefilter.
         """        
         if self.layer_work.data.size > 0:
-            self.register_path()
+            raise ValueError("The last curve is not registered yet.")
             
         total = 3 + n_refine
         
@@ -1150,6 +1156,8 @@ class MTProfiler(MagicTemplate):
             Check to run rotational averaging after reconstruction.
         find_seam : bool, default is False
             Check to find seam position while rotational averaging.
+        niter : int, default is 1
+            Number of iteration
         y_length : nm, default is 50.0
             Longitudinal length (nm) of reconstructed image.
         """        
@@ -1169,8 +1177,7 @@ class MTProfiler(MagicTemplate):
         def _on_return(out: ip.ImgArray):
             if tomo.light_background:
                 out = -out
-            self.parent_viewer.add_image(out, scale=out.scale, 
-                                         name=f"MT-{i} reconstruction")
+            _show_reconstruction(out, name=f"MT-{i} reconstruction")
         
         self._worker_control.info.value = f"Reconstruction ..."
         if self.Analysis["Reconstruct_MT"].running:
@@ -1197,6 +1204,8 @@ class MTProfiler(MagicTemplate):
             Check to run rotational averaging after reconstruction.
         find_seam : bool, default is False
             Check to find seam position while rotational averaging.
+        niter : int, default is 1
+            Number of iteration
         y_length : nm, default is 48.0
             Longitudinal length (nm) of reconstructed image.
         """        
@@ -1216,9 +1225,8 @@ class MTProfiler(MagicTemplate):
         def _on_return(out: ip.ImgArray):
             if tomo.light_background:
                 out = -out
-            self.parent_viewer.add_image(out, scale=out.scale,
-                                         name=f"MT-{i} cylindric reconstruction")
-        
+            _show_reconstruction(out, name=f"MT-{i} cylindric reconstruction")
+            
         self._worker_control.info.value = f"Cylindric reconstruction ..."
         if self.Analysis["cylindric_reconstruction"].running:
             self._connect_worker(worker)
@@ -1548,6 +1556,7 @@ class MTProfiler(MagicTemplate):
         return worker
     
     def _load_tomogram_results(self):
+        self._spline_fitter.close()
         tomo = self.active_tomogram
         # initialize GUI
         self._init_widget_params()
@@ -1813,3 +1822,14 @@ def change_viewer_focus(viewer: "napari.Viewer", next_center: Iterable[float],
     viewer.camera.events.zoom()
     viewer.camera.zoom = zoom
     viewer.dims.current_step = list(next_coord.astype(np.int64))
+
+def _show_reconstruction(img: ip.ImgArray, name):
+    from magicclass.widgets import NapariCanvas, Container
+    container = Container(labels=False)
+    c = NapariCanvas(ndisplay=3, axis_labels=("z", "y", "x"))
+    c.viewer.scale_bar.visible = True
+    c.viewer.scale_bar.unit = "nm"
+    container.append(c)
+    container.append(c.layer_controls)
+    container.show()
+    c.viewer.add_image(img, scale=img.scale, name=name)
