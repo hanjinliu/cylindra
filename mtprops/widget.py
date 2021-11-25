@@ -386,12 +386,12 @@ class MTProfiler(MagicTemplate):
     @magicmenu
     class View(MagicTemplate):
         def Apply_lowpass_to_reference_image(self): ...
-        sep0 = Separator()
+        sep0 = field(Separator)
         def show_current_ft(self): ...
         def show_global_ft(self): ...
         def show_r_proj(self): ...
         def show_global_r_proj(self): ...
-        sep1 = Separator()
+        sep1 = field(Separator)
         def Show_splines(self): ...
         def Show_results_in_a_table_widget(self): ...
         def Show_straightened_image(self): ...
@@ -646,7 +646,7 @@ class MTProfiler(MagicTemplate):
             self.Paint_MT()
             
         self._worker_control.info.value = "Spline fitting"
-        if self.operation["run_for_all_path"].running:
+        if self["run_for_all_path"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -838,7 +838,7 @@ class MTProfiler(MagicTemplate):
         if not self.View.focus.value or self.layer_paint is None:
             return None
         
-        viewer: napari.Viewer = self.parent_viewer
+        viewer = self.parent_viewer
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         
@@ -887,7 +887,7 @@ class MTProfiler(MagicTemplate):
         
         self._worker_control.info.value = f"Straightening spline No. {i}"
         
-        if self.View["Show_straightened_image"].running:
+        if self["Show_straightened_image"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -1073,7 +1073,7 @@ class MTProfiler(MagicTemplate):
         
         self._worker_control.info.value = f"Refining splines ..."
         
-        if self.Analysis["Refine_splines"].running:
+        if self["Refine_splines"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -1108,7 +1108,7 @@ class MTProfiler(MagicTemplate):
             self._load_tomogram_results()
         
         self._worker_control.info.value = f"Local Fourier transform ..."
-        if self.Analysis["Local_FT_analysis"].running:
+        if self["Local_FT_analysis"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -1130,10 +1130,9 @@ class MTProfiler(MagicTemplate):
             self.Panels.table.value = df
             self.Panels.current_index = 2
         
-        self._connect_worker(worker)
         self._worker_control.info.value = f"Global Fourier transform ..."
         
-        if self.Analysis["Global_FT_analysis"].running:
+        if self["Global_FT_analysis"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -1180,7 +1179,7 @@ class MTProfiler(MagicTemplate):
             _show_reconstruction(out, name=f"MT-{i} reconstruction")
         
         self._worker_control.info.value = f"Reconstruction ..."
-        if self.Analysis["Reconstruct_MT"].running:
+        if self["Reconstruct_MT"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -1228,7 +1227,7 @@ class MTProfiler(MagicTemplate):
             _show_reconstruction(out, name=f"MT-{i} cylindric reconstruction")
             
         self._worker_control.info.value = f"Cylindric reconstruction ..."
-        if self.Analysis["cylindric_reconstruction"].running:
+        if self["cylindric_reconstruction"].running:
             self._connect_worker(worker)
             worker.start()
         else:
@@ -1259,7 +1258,7 @@ class MTProfiler(MagicTemplate):
         
         self._worker_control.info.value = f"Tubulin mapping ..."
         
-        if self.Analysis["Map_tubulin"].running:
+        if self["Map_tubulin"].running:
             self._connect_worker(worker)
             worker.start()
         else:
