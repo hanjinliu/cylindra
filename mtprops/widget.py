@@ -1,5 +1,6 @@
 import pandas as pd
 from typing import TYPE_CHECKING, Iterable, Union
+import os
 import numpy as np
 import warnings
 import napari
@@ -14,7 +15,7 @@ from magicclass import magicclass, magicmenu, field, set_design, set_options, do
 from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas, show_messagebox
 from magicclass.macro import register_type
 
-from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
+from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, 
                     roundint, ceilint, load_rot_subtomograms, no_verbose)
 from .const import nm, H, Ori, GVar
@@ -235,6 +236,7 @@ class SplineFitter(MagicTemplate):
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()
+        self.__magicclass_parent__._update_splines_in_images()
     
     @Rotational_averaging.frame.wraps
     @do_not_record
@@ -574,18 +576,12 @@ class MTProfiler(MagicTemplate):
         
         if coords.size == 0:
             return None
-        scale = self.layer_image.scale[0]
+
         self.active_tomogram.add_spline(coords)
         spl = self.active_tomogram.paths[-1]
         
-        # check/draw path
-        interval = 30
-        length = spl.length()
-        
-        n = int(length/interval) + 1
-        fit = spl(np.linspace(0, 1, n))
-        self.layer_prof.add(fit)
-        self.Panels.overview.add_curve(fit[:,2]/scale, fit[:,1]/scale, color="lime", lw=4)
+        # draw path
+        self._add_spline_to_images(spl)
         self.layer_work.data = []
         return None
     
@@ -796,8 +792,14 @@ class MTProfiler(MagicTemplate):
         Choose a json file and load it.
         """        
         tomo = self.active_tomogram
-        tomo.load(path)
-        self._load_tomogram_results()
+        worker = create_worker(tomo.load, path, _progress={"total": 0, "desc": "Running"})
+        worker.returned.connect(self._load_tomogram_results)
+        self._worker_control.info.value = f"Loading {os.path.basename(path)}"
+        if self["Load_json"].running:
+            self._connect_worker(worker)
+            worker.start()
+        else:
+            run_worker_function(worker)
         return None
     
     @File.wraps
@@ -820,13 +822,27 @@ class MTProfiler(MagicTemplate):
         Apply Butterworth low-pass filter to enhance contrast of the reference image.
         """        
         cutoff = 0.2
-        with no_verbose:
-            self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, chunks=(32, 128, 128))
-            contrast_limits = np.percentile(self.layer_image.data, [1, 97])
+        def func():
+            with no_verbose:
+                self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, 
+                                                                                   chunks=(32, 128, 128))
+                return np.percentile(self.layer_image.data, [1, 97])
+        worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
+        self._worker_control.info.value = "Low-pass filtering"
+
+        @worker.returned.connect
+        def _on_return(contrast_limits):
             self.layer_image.contrast_limits = contrast_limits
             proj = self.layer_image.data.proj("z")
             self.Panels.overview.image = proj
             self.Panels.overview.contrast_limits = contrast_limits
+        
+        if self["Apply_lowpass_to_reference_image"].running:
+            self._connect_worker(worker)
+            worker.start()
+        else:
+            run_worker_function(worker)
+            
         return None
                     
     @mt.mtlabel.connect
@@ -877,8 +893,7 @@ class MTProfiler(MagicTemplate):
         
         worker = create_worker(tomo.straighten, 
                                i=i, 
-                               _progress={"total": 0, 
-                                          "desc": "Running"}
+                               _progress={"total": 0, "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -999,12 +1014,21 @@ class MTProfiler(MagicTemplate):
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
         """        
-        tomo = self.active_tomogram
-        tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
-        tomo.measure_radius()
+        def func():
+            tomo = self.active_tomogram
+            tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
+            tomo.measure_radius()
         
-        self._init_layers()
-        self.Show_splines()
+        worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
+        worker.returned.connect(self._init_layers)
+        worker.returned.connect(self._update_splines_in_images)
+        self._worker_control.info.value = "Spline Fitting"
+
+        if self["Fit_splines"].running:
+            self._connect_worker(worker)
+            worker.start()
+        else:
+            run_worker_function(worker)
         return None
     
     @Analysis.wraps
@@ -1071,7 +1095,9 @@ class MTProfiler(MagicTemplate):
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
-        self._worker_control.info.value = f"Refining splines ..."
+        worker.finished.connect(self._update_splines_in_images)
+
+        self._worker_control.info.value = "Refining splines ..."
         
         if self["Refine_splines"].running:
             self._connect_worker(worker)
@@ -1101,8 +1127,7 @@ class MTProfiler(MagicTemplate):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
         worker = create_worker(tomo.ft_params,
-                               _progress={"total": 0, 
-                                          "desc": "Running"})
+                               _progress={"total": 0, "desc": "Running"})
         @worker.returned.connect
         def _on_return(df):
             self._load_tomogram_results()
@@ -1122,8 +1147,7 @@ class MTProfiler(MagicTemplate):
         """        
         tomo = self.active_tomogram
         worker = create_worker(tomo.global_ft_params,
-                               _progress={"total": 0, 
-                                          "desc": "Running"})
+                               _progress={"total": 0, "desc": "Running"})
         @worker.returned.connect
         def _on_return(out):
             df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
@@ -1168,8 +1192,7 @@ class MTProfiler(MagicTemplate):
                                seam_offset="find" if find_seam else None,
                                niter=niter,
                                y_length=y_length,
-                               _progress={"total": 0, 
-                                          "desc": "Running"}
+                               _progress={"total": 0, "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -1216,8 +1239,7 @@ class MTProfiler(MagicTemplate):
                                seam_offset="find" if find_seam else None,
                                niter=niter,
                                y_length=y_length,
-                               _progress={"total": 0, 
-                                          "desc": "Running"}
+                               _progress={"total": 0, "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -1243,8 +1265,7 @@ class MTProfiler(MagicTemplate):
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.map_monomer,
-                               _progress={"total": 0, 
-                                          "desc": "Running"}
+                               _progress={"total": 0, "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -1499,8 +1520,7 @@ class MTProfiler(MagicTemplate):
                                img=img,
                                binsize=binsize,
                                cutoff=cutoff,
-                               _progress={"total": 0, 
-                                          "desc": "Reading Image"})
+                               _progress={"total": 0, "desc": "Reading Image"})
 
         self._connect_worker(worker)
         self._worker_control.info.value = \
@@ -1793,6 +1813,23 @@ class MTProfiler(MagicTemplate):
 
         dialog.layout().addWidget(self._worker_control.native)
         return None
+        
+    def _add_spline_to_images(self, spl: MtSpline):
+        interval = 30
+        length = spl.length()
+        scale = self.layer_image.scale[0]
+        
+        n = int(length/interval) + 1
+        fit = spl(np.linspace(0, 1, n))
+        self.layer_prof.add(fit)
+        self.Panels.overview.add_curve(fit[:,2]/scale, fit[:,1]/scale, color="lime", lw=4)
+    
+    def _update_splines_in_images(self):
+        self.Panels.overview.layers.clear()
+        self.layer_prof.data = []
+        for spl in self.active_tomogram.paths:
+            self._add_spline_to_images(spl)
+        
 
 def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5, 
               nrots: int = 7):

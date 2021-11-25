@@ -4,6 +4,7 @@ import json
 from collections import namedtuple
 from functools import partial, wraps
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import ndimage as ndi
 from dask import array as da, delayed
@@ -59,7 +60,7 @@ def batch_process(func):
                     result = func(self, i=i_, **kwargs)
                 except Exception as e:
                     errcls = type(e)
-                    errname = errcls.__class__
+                    errname = errcls.__name__
                     msg = str(e)
                     raise errcls(f"Exception at spline-{i_}.\n{errname}: {msg}")
                 else:
@@ -595,6 +596,7 @@ class MtTomogram:
         MtTomogram
             Same object with updated MtSpline objects.
         """        
+        props = self.global_ft_params(i)
         spl = self.paths[i]
         spl.make_anchors(max_interval=max_interval)
         npoints = len(spl)
@@ -606,7 +608,6 @@ class MtTomogram:
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        props = self.global_ft_params(i)
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
@@ -616,10 +617,10 @@ class MtTomogram:
         
         # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
         # after this rotation.
-        subtomo_proj = subtomograms.proj("y")
+        subtomo_proj = subtomograms.proj("y")["x=::-1"]
         imgs_rot: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
-            rotimg = subtomo_proj[i].rotate(-ang, dims="zx", mode=Mode.reflect)
+            rotimg = subtomo_proj[i].rotate(ang, dims="zx", mode=Mode.reflect)
             imgs_rot.append(rotimg)
 
         # Coarsely align skew-corrected images
@@ -647,7 +648,7 @@ class MtTomogram:
         for i in range(npoints):
             img = imgs_rot[i]
             shifts[i] = ip.pcc_maximum(template, img, mask=mask)
-
+        
         # Calculate refined shifts
         coords = spl()
         for i in range(npoints):
