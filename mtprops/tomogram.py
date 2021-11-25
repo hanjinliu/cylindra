@@ -13,7 +13,7 @@ from .const import nm, H, K, Ori, Mode, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_rot_subtomograms,
-                    ceilint, oblique_meshgrid)
+                    ceilint, oblique_meshgrid, no_verbose)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -29,7 +29,7 @@ def batch_process(func):
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
-            with ip.SetConst("SHOW_PROGRESS", False):
+            with no_verbose:
                 out = func(self, i=i, **kwargs)
             return out
         
@@ -53,7 +53,7 @@ def batch_process(func):
         
         # Run function along each spline
         out = []
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             for i_ in i_list:
                 try:
                     result = func(self, i=i_, **kwargs)
@@ -1346,7 +1346,7 @@ class MtTomogram:
         npf = int(props[H.nPF])
         imgst = self.cylindric_straighten(i).proj("r")
         tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             img_shear = imgst.affine(np.array([[1, 0, 0],[tilt, 1, 0],[0, 0, 1]]), 
                                      mode=Mode.grid_wrap, dims="ya")
             line = img_shear.proj("y")
@@ -1366,7 +1366,7 @@ class MtTomogram:
         npf = roundint(props[H.nPF])
         a_size = rec.shape.a
         tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             mtx = np.array([[1.,   0., 0., 0.],
                             [0.,   1., 0., 0.],
                             [0., tilt, 1., 0.],
@@ -1383,7 +1383,7 @@ class MtTomogram:
         l_dimer = pitch*2
         slope = np.tan(np.deg2rad(-rise))
         opt_y_mat = np.zeros((npf, npf), dtype=np.float32)
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             # TODO: This is not efficient. At least, fft is calculated many times in pcc_maximum
             for i in range(npf):
                 for j in range(i, npf):

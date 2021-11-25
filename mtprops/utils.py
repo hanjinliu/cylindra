@@ -9,6 +9,8 @@ def roundint(a: float):
 def ceilint(a: float):
     return int(np.ceil(a))
 
+no_verbose = ip.SetConst("SHOW_PROGRESS", False)
+
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
     z0_pad = z1_pad = 0
     if z0 < 0:

@@ -16,7 +16,7 @@ from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, 
-                    roundint, ceilint, load_rot_subtomograms)
+                    roundint, ceilint, load_rot_subtomograms, no_verbose)
 from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
@@ -246,7 +246,7 @@ class SplineFitter(MagicTemplate):
         j = self.mt.pos.value
         parent: MTProfiler = self.__magicclass_parent__
         
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             img = parent._current_cartesian_img(i, j)
             cutoff = self.Rotational_averaging.frame.cutoff.value
             if 0 < cutoff < 0.5:
@@ -336,7 +336,7 @@ class SplineFitter(MagicTemplate):
         length_px = tomo.nm2pixel(tomo.subtomo_length/self.binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
         
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             out = load_rot_subtomograms(imgb, length_px, width_px, spl)
             self.subtomograms = out.proj("y")["x=::-1"]
             
@@ -820,7 +820,7 @@ class MTProfiler(MagicTemplate):
         Apply Butterworth low-pass filter to enhance contrast of the reference image.
         """        
         cutoff = 0.2
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, chunks=(32, 128, 128))
             contrast_limits = np.percentile(self.layer_image.data, [1, 97])
             self.layer_image.contrast_limits = contrast_limits
@@ -900,7 +900,7 @@ class MTProfiler(MagicTemplate):
         """
         Show radial projection of cylindrical image around the current MT fragment.
         """        
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             polar = self._current_cylindrical_img().proj("r")
         
         self.Panels.image2D.image = polar.value
@@ -918,7 +918,7 @@ class MTProfiler(MagicTemplate):
         Show radial projection of cylindrical image along current MT.
         """        
         i = self.mt.mtlabel.value
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             polar = self.active_tomogram.cylindric_straighten(i).proj("r")
         self.Panels.image2D.image = polar.value
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
@@ -934,7 +934,7 @@ class MTProfiler(MagicTemplate):
         """
         View Fourier space of local cylindrical coordinate system at current position.
         """        
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             polar = self._current_cylindrical_img()
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
@@ -956,7 +956,7 @@ class MTProfiler(MagicTemplate):
         View Fourier space along current MT.
         """  
         
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             polar = self.active_tomogram.cylindric_straighten(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
@@ -1291,7 +1291,7 @@ class MTProfiler(MagicTemplate):
         
         shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             orientation = point1[1:] - point0[1:]
             img = load_a_subtomogram(imgb, point1, shape, dask=False)
             center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
@@ -1333,7 +1333,7 @@ class MTProfiler(MagicTemplate):
         
         points = self.layer_work.data / imgb.scale.x
         last_i = -1
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
@@ -1364,7 +1364,7 @@ class MTProfiler(MagicTemplate):
         lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in [15, tomo.ft_size/2, 15]]
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = roundint(bin_scale/tomo.scale)
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             center = np.array([lz, ly, lx])/2 + 0.5
             z, y, x = np.indices((lz, ly, lx))
             cylinders = []
@@ -1488,7 +1488,7 @@ class MTProfiler(MagicTemplate):
         viewer: napari.Viewer = self.parent_viewer
         
         def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
-            with ip.SetConst("SHOW_PROGRESS", False):
+            with no_verbose:
                 img.tiled_lowpass_filter(cutoff, update=True)
                 img.release()
                 imgb = img.binning(binsize, check_edges=False).data
@@ -1530,7 +1530,7 @@ class MTProfiler(MagicTemplate):
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
             
-            with ip.SetConst("SHOW_PROGRESS", False):
+            with no_verbose:
                 proj = imgb.proj("z")
             self.Panels.overview.image = proj
             self.Panels.overview.view_range = (0, proj.shape[0]), (0, proj.shape[1])
@@ -1709,7 +1709,7 @@ class MTProfiler(MagicTemplate):
             axes[k].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
         
         binsize = self.active_tomogram.metadata["binsize"]
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             proj = self.projections[j]
             lz, ly, lx = np.array(proj.shape)
             axes[0].imshow(proj.yx, cmap="gray")
