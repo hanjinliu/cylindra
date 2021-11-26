@@ -105,6 +105,22 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     n_segs, res = divmod(value + 1e-8, interval)
     return value - res, int(n_segs)
 
+def mirror_pcc(img0: ip.ImgArray, mask=None):
+    """
+    Phase cross correlation of an image and its mirror image.
+    Identical to ``ip.pcc_maximum(img0, img0[::-1, ::-1])``
+    FFT of the mirror image can efficiently calculated from FFT of the original image.
+    """    
+    ft0 = img0.fft()
+    
+    shape = img0.shape
+    ind = np.indices(shape)
+    phase = np.sum([ix/n for ix, n in zip(ind, shape)])
+    weight = np.exp(1j*2*np.pi*phase)
+    
+    ft1 = weight*ft0.conj()
+    return ip.ft_pcc_maximum(ft0, ft1, mask)
+    
 def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = "constant",
                     cval: float = 0):
     """

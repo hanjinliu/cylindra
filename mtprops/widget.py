@@ -16,7 +16,7 @@ from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, 
 from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
-from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, 
+from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, mirror_pcc, 
                     roundint, ceilint, load_rot_subtomograms, no_verbose)
 from .const import nm, H, Ori, GVar
 
@@ -1838,8 +1838,7 @@ def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5,
     
     img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
     proj = img_next_rot.proj("y")
-    proj_mirror = proj["z=::-1;x=::-1"]
-    shift = ip.pcc_maximum(proj, proj_mirror)
+    shift = mirror_pcc(proj)
     
     shiftz, shiftx = shift/2
     shift = np.array([shiftz, 0, shiftx])

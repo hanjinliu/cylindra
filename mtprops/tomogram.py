@@ -14,7 +14,7 @@ from .const import nm, H, K, Ori, Mode, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_rot_subtomograms,
-                    ceilint, oblique_meshgrid, no_verbose)
+                    ceilint, oblique_meshgrid, no_verbose, mirror_pcc)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -59,10 +59,9 @@ def batch_process(func):
                 try:
                     result = func(self, i=i_, **kwargs)
                 except Exception as e:
-                    errcls = type(e)
-                    errname = errcls.__name__
+                    errname = type(e).__name__
                     msg = str(e)
-                    raise errcls(f"Exception at spline-{i_}.\n{errname}: {msg}")
+                    raise RuntimeError(f"Exception at spline-{i_}.\n{errname}: {msg}") from e
                 else:
                     out.append(result)
             
@@ -546,7 +545,7 @@ class MtTomogram:
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
         for i in range(npoints):
             img = subtomo_proj[i]
-            shifts[i] = ip.pcc_maximum(img[::-1, ::-1], img, mask=mask)/2
+            shifts[i] = -mirror_pcc(img, mask=mask)/2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -622,35 +621,33 @@ class MtTomogram:
         for i, ang in enumerate(skew_angles):
             rotimg = subtomo_proj[i].rotate(ang, dims="zx", mode=Mode.reflect)
             imgs_rot.append(rotimg)
-
+        imgs_rot: ip.ImgArray = np.stack(imgs_rot, axis="p")
+        imgs_rot_ft = imgs_rot.fft(dims="zx")
+        
         # Coarsely align skew-corrected images
-        # TODO: this is time consuming
         iref = npoints//2
-        imgref = imgs_rot[iref]
+        ft_ref = imgs_rot_ft[iref]
         shifts = np.zeros((npoints, 2)) # zx-shift
-        shape = imgref.shape
+        shape = ft_ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) # mask for PCC
         imgs_aligned = []
         for i in range(npoints):
             img = imgs_rot[i]
-            if i != iref:
-                shifts[i] = ip.pcc_maximum(imgref, img, mask=mask)
-            else:
-                shifts[i] = np.array([0, 0])
-                
+            ft = imgs_rot_ft[i]
+            shifts[i] = ip.ft_pcc_maximum(ft_ref, ft, mask=mask)
             imgs_aligned.append(img.affine(translation=-shifts[i]))
-        
+            
         # Make template using coarse aligned images.
         imgcory: ip.ImgArray = np.stack(imgs_aligned, axis="y").proj("y")
-        center_shift = ip.pcc_maximum(imgcory, imgcory[::-1, ::-1], mask=mask)
-        template = imgcory.affine(translation=center_shift/2, mode=Mode.reflect)
-        
+        center_shift = mirror_pcc(imgcory, mask=mask)/2
+        template = imgcory.affine(translation=center_shift, mode=Mode.reflect)
+        template_ft = template.fft(dims="zx")
         # Align skew-corrected images to the template
         # TODO: this is time consuming
         
         for i in range(npoints):
-            img = imgs_rot[i]
-            shifts[i] = ip.pcc_maximum(template, img, mask=mask)
+            ft = imgs_rot_ft[i]
+            shifts[i] = ip.ft_pcc_maximum(template_ft, ft, mask=mask)
         
         # tasks = []
         # for i in range(npoints):
