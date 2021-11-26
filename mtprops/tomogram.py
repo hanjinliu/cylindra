@@ -540,7 +540,7 @@ class MtTomogram:
             xc = int(subtomo_proj.shape.x//2)
             w = int(self.subtomo_width//2)
             subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
-            
+
         shape = subtomo_proj[0].shape
         shifts = np.zeros((npoints, 2)) # zx-shift
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
@@ -624,6 +624,7 @@ class MtTomogram:
             imgs_rot.append(rotimg)
 
         # Coarsely align skew-corrected images
+        # TODO: this is time consuming
         iref = npoints//2
         imgref = imgs_rot[iref]
         shifts = np.zeros((npoints, 2)) # zx-shift
@@ -645,9 +646,16 @@ class MtTomogram:
         template = imgcory.affine(translation=center_shift/2, mode=Mode.reflect)
         
         # Align skew-corrected images to the template
+        # TODO: this is time consuming
+        
         for i in range(npoints):
             img = imgs_rot[i]
             shifts[i] = ip.pcc_maximum(template, img, mask=mask)
+        
+        # tasks = []
+        # for i in range(npoints):
+        #     img = imgs_rot[i]
+        #     tasks = lazy_pcc(template, img, mask)
         
         # Calculate refined shifts
         coords = spl()
@@ -750,8 +758,8 @@ class MtTomogram:
             raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(self.ft_size)
-        rmin = self.nm2pixel(spl.radius*GVar.inner)
-        rmax = self.nm2pixel(spl.radius*GVar.outer)
+        rmin = spl.radius*GVar.inner/self.scale
+        rmax = spl.radius*GVar.outer/self.scale
         tasks = []
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
@@ -933,11 +941,11 @@ class MtTomogram:
             
         else:
             if radii is None:
-                inner_radius, outer_radius = self.nm2pixel(
-                    spl.radius * np.array([GVar.inner, GVar.outer])
-                    )
+                inner_radius = spl.radius * GVar.inner / self.scale
+                outer_radius = spl.radius * GVar.outer / self.scale
+                
             else:
-                inner_radius, outer_radius = self.nm2pixel(radii)
+                inner_radius, outer_radius = radii / self.scale
 
             if outer_radius <= inner_radius:
                 raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
@@ -1299,8 +1307,6 @@ class MtTomogram:
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         rec2d = rec_cyl.proj("r")
         ymax, amax = np.unravel_index(self.argpeak(rec2d), rec2d.shape)
-        
-        # Calculate Fourier parameters by cylindrical transformation along spline.
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
@@ -1311,7 +1317,7 @@ class MtTomogram:
         tan_rise = np.tan(np.deg2rad(rise))
         mesh = oblique_meshgrid((ny, npf), 
                                 rise = tan_rise*2*np.pi*radius/npf/pitch,
-                                tilt = np.deg2rad(skew)*npf/(4*np.pi), 
+                                tilt = -np.deg2rad(skew)*npf/(4*np.pi), 
                                 offset = (ymax/pitch*self.scale, amax/rec_cyl.shape.a*2*np.pi)
                                 ).reshape(-1, 2)
         
@@ -1320,7 +1326,7 @@ class MtTomogram:
         mesh[:, 1] *= pitch
         mesh[:, 2] *= dtheta
         
-        crds = Coordinates(world = spl.inv_cylindrical(coords=mesh, ylength=ny*pitch),
+        crds = Coordinates(world = spl.inv_cylindrical(coords=mesh),
                            spline = mesh)
         return crds
     
@@ -1455,7 +1461,7 @@ class MtTomogram:
         ycoords = np.arange(ny) * pitch
         acoords = np.arange(ny) * mono_skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
-        crds = Coordinates(world = spl.inv_cylindrical(coords=coords, ylength=ny*pitch),
+        crds = Coordinates(world = spl.inv_cylindrical(coords=coords),
                            spline = coords)
         return crds
         
@@ -1551,6 +1557,7 @@ def ft_params(img: ip.ImgArray, coords: np.ndarray, radius: nm):
     return _local_dft_params(polar, radius)
 
 lazy_ft_params = delayed(ft_params)
+lazy_pcc = delayed(ip.pcc_maximum)
 
 def _affine(img, matrix, order=1):
     out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=order>1)

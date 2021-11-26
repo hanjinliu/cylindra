@@ -209,10 +209,10 @@ class Spline3D:
         u = np.linspace(0, 1, n)
         return self(u, der)
 
-    def length(self, start:float=0, stop:float=1, nknots:int=100) -> nm:
+    def length(self, start: float = 0, stop: float = 1, nknots: int = 256) -> nm:
         """
         Approximate the length of B-spline between [start, stop] by partitioning
-        the spline with 'nknots' knots.
+        the spline with 'nknots' knots. nknots=256 is large enough for most cases.
         """
         u = np.linspace(start, stop, nknots)
         dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
@@ -362,7 +362,7 @@ class Spline3D:
         return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels)
     
     def local_cylindrical(self,
-                          r_range: tuple[int, int],
+                          r_range: tuple[float, float],
                           n_pixels,
                           u=None):
         """
@@ -371,7 +371,7 @@ class Spline3D:
 
         Parameters
         ----------
-        r_range : tuple of two int
+        r_range : tuple[float, float]
             Lower and upper bound of radius.
         n_pixels : int
             Length of y axis in pixels.
@@ -435,7 +435,7 @@ class Spline3D:
         return self._get_coords(_cartesian_coords_2d, shape, s_range)
 
     def cylindrical(self, 
-                    r_range: tuple[int, int],
+                    r_range: tuple[float, float],
                     s_range: tuple[float, float] = (0, 1)
                     ) -> np.ndarray:
         """
@@ -445,7 +445,7 @@ class Spline3D:
 
         Parameters
         ----------
-        r_range : tuple[int, int]
+        r_range : tuple[float, float]
             Range of radius in pixels. r=0 will be spline curve itself after coodinate 
             transformation.
         s_range : tuple[float, float], default is (0, 1)
@@ -494,9 +494,7 @@ class Spline3D:
         map_slice = map_slice @ mtx
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
     
-    def inv_cartesian(self,
-                      coords: np.ndarray,
-                      shape: tuple[nm, nm, nm]) -> np.ndarray:
+    def inv_cartesian(self, coords: np.ndarray) -> np.ndarray:
         """
         Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
 
@@ -504,8 +502,6 @@ class Spline3D:
         ----------
         coords : np.ndarray
             Spline Cartesian coordinates. All the coordinates must be in nm unit.
-        shape : tuple[nm, nm, nm]
-            Shape of world coordinate image.
 
         Returns
         -------
@@ -513,13 +509,13 @@ class Spline3D:
             World coordinates.
         """        
         ncoords = coords.shape[0]
-        u = coords[:, 1]/shape[1]
+        u = coords[:, 1]/self.length()
         s = self(u)
         ds = self(u, 1)
         
-        coords_ext = np.stack([coords[:, 0] - shape[0] / 2, 
+        coords_ext = np.stack([coords[:, 0], 
                                np.zeros(ncoords, dtype=np.float32),
-                               coords[:, 2] - shape[2] / 2, 
+                               coords[:, 2], 
                                np.zeros(ncoords, dtype=np.float32)],
                               axis=1)
         s_ext = np.concatenate([s, np.zeros((ncoords, 1), dtype=np.float32)], axis=1)
@@ -529,9 +525,7 @@ class Spline3D:
         
         return coords_ext[:, :3]
     
-    def inv_cylindrical(self, 
-                        coords: np.ndarray,
-                        ylength: nm) -> np.ndarray:
+    def inv_cylindrical(self, coords: np.ndarray) -> np.ndarray:
         """
         Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
 
@@ -540,9 +534,6 @@ class Spline3D:
         coords : np.ndarray
             Cylindrical coordinates. "r" and "y" must be in scale of "nm", while angle
             must be in radian.
-        ylength : nm
-            Length of y-axis of input coordinates. Position [0, ylength] corresponds to
-            [0, 1] of spline position.
 
         Returns
         -------
@@ -552,12 +543,12 @@ class Spline3D:
         radius = coords[:, 0]
         y = coords[:, 1]
         theta = coords[:, 2]
-        cart_coords = np.stack([radius*np.cos(theta), 
+        cart_coords = np.stack([radius*np.sin(theta), 
                                 y, 
-                                radius*np.sin(theta)],
+                                radius*np.cos(theta)],
                                axis=1)
         
-        return self.inv_cartesian(cart_coords, (0, ylength, 0))
+        return self.inv_cartesian(cart_coords)
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
@@ -646,16 +637,18 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
         coords[:, i] = slice_out + y
     return coords
 
-def _polar_coords_2d(r_start: int, r_stop: int) -> np.ndarray:
+def _polar_coords_2d(r_start: float, r_stop: float) -> np.ndarray:
     n_angle = roundint((r_start + r_stop) * np.pi)
-    n_radius = r_stop - r_start
+    n_radius = roundint(r_stop - r_start)
     r_, ang_ = np.indices((n_radius, n_angle))
-    r_ += r_start
+    r_ = r_ + (r_start + r_stop - n_radius + 1)/2
     output_coords = np.column_stack([r_.ravel(), ang_.ravel()])
-    coords = _linear_polar_mapping(np.array(output_coords), n_angle/2/np.pi, 1, [0, 0]
+    coords = _linear_polar_mapping(np.array(output_coords), 
+                                   k_angle=n_angle/2/np.pi, 
+                                   k_radius=1,
+                                   center=[0, 0]
                                    ).astype(np.float32)
     coords = coords.reshape(n_radius, n_angle, 2) # V, H, 2
-    coords[:] = np.flip(coords, axis=0)
     coords[:] = np.flip(coords, axis=1)
     return coords
     
