@@ -1014,12 +1014,11 @@ class MTProfiler(MagicTemplate):
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
         """        
-        def func():
-            tomo = self.active_tomogram
-            tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
-            tomo.measure_radius()
-        
-        worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
+        worker = create_worker(self.active_tomogram.fit,
+                               cutoff_freq=cutoff_freq,
+                               dense_mode=dense_mode,
+                               _progress={"total": 0, "desc": "Running"}
+                               )
         worker.returned.connect(self._init_layers)
         worker.returned.connect(self._update_splines_in_images)
         self._worker_control.info.value = "Spline Fitting"
@@ -1069,8 +1068,17 @@ class MTProfiler(MagicTemplate):
         """
         Measure MT radius for each spline path.
         """        
-        tomo = self.active_tomogram
-        tomo.measure_radius()
+        worker = create_worker(self.active_tomogram.measure_radius,
+                               _progress={"total": 0, "desc": "Running"}
+                               )
+        
+        self._worker_control.info.value = "Measuring Radius"
+
+        if self["Measure_radius"].running:
+            self._connect_worker(worker)
+            worker.start()
+        else:
+            run_worker_function(worker)
         return None
     
     @Analysis.wraps
@@ -1314,7 +1322,7 @@ class MTProfiler(MagicTemplate):
         
         with no_verbose:
             orientation = point1[1:] - point0[1:]
-            img = load_a_subtomogram(imgb, point1, shape, dask=False)
+            img = load_a_subtomogram(imgb, point1, shape)
             center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
             angle_deg = angle_corr(img, ang_center=center, drot=25, nrots=25)
             angle_rad = np.deg2rad(angle_deg)
@@ -1323,7 +1331,7 @@ class MTProfiler(MagicTemplate):
                 point2 = point1 + dr
             else:
                 point2 = point1 - dr
-            img_next = load_a_subtomogram(imgb, point2, shape, dask=False)
+            img_next = load_a_subtomogram(imgb, point2, shape)
             centering(img_next, point2, angle_deg)
             
         next_data = point2 * imgb.scale.x
@@ -1358,7 +1366,7 @@ class MTProfiler(MagicTemplate):
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
-                img_input = load_a_subtomogram(imgb, point, shape, dask=False)
+                img_input = load_a_subtomogram(imgb, point, shape)
                 angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=19)
                 centering(img_input, point, angle_deg, drot=5, nrots=7)
                 last_i = i

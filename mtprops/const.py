@@ -2,11 +2,17 @@ from enum import Enum, auto
 import numpy as np
 
 class Ori(Enum):
+    """
+    Microtubule orientation values.
+    """    
     none = "none"
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
 
 class CacheKey(Enum):
+    """
+    Caching keys of straightening operations.
+    """    
     cart_straight = auto()
     cyl_straight = auto()
     
@@ -25,6 +31,9 @@ class H:
     start = "start"
 
 class K:
+    """
+    Keys of spline attributes.
+    """    
     radius = "radius"
     orientation = "orientation"
     localprops = "localprops"
@@ -37,6 +46,7 @@ class Mode:
     grid_wrap = "grid-wrap"
     reflect = "reflect"
     mirror = "mirror"
+    constant = "constant"
 
 class GVar:
     """

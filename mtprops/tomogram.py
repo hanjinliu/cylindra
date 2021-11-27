@@ -212,7 +212,8 @@ class MtTomogram:
             raise TypeError(f"Type {type(image)} not supported.")
         self._image = image
         
-        if abs(image.scale.z - image.scale.x) > 1e-3 or abs(image.scale.z - image.scale.y) > 1e-3:
+        if (abs(image.scale.z - image.scale.x) > 1e-3 
+            or abs(image.scale.z - image.scale.y) > 1e-3):
             raise ValueError("Uneven scale.")
         self.scale = image.scale.x
         return None
@@ -455,7 +456,7 @@ class MtTomogram:
             center_px = self.nm2pixel(spl())
             size_px = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
             
-            out = np.stack([load_a_subtomogram(self._image, c, size_px, True) 
+            out = np.stack([load_a_subtomogram(self._image, c, size_px) 
                             for c in center_px],
                             axis="p")
                 
@@ -545,14 +546,14 @@ class MtTomogram:
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
         for i in range(npoints):
             img = subtomo_proj[i]
-            shifts[i] = -mirror_pcc(img, mask=mask)/2
+            shifts[i] = mirror_pcc(img, mask=mask)/2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
         # coordinates that will be shifted should be converted to integers. 
         coords_px = self.nm2pixel(spl()).astype(np.float32)
         for i in range(npoints):
-            shiftz, shiftx = -shifts[i]
+            shiftz, shiftx = shifts[i]
             shift = np.array([shiftz, 0, shiftx], dtype=np.float32)
             rad = -np.deg2rad(refined_tilt[i])
             cos, sin = np.cos(rad), np.sin(rad)
@@ -595,8 +596,12 @@ class MtTomogram:
         MtTomogram
             Same object with updated MtSpline objects.
         """        
-        props = self.global_ft_params(i)
+        
         spl = self.paths[i]
+        if spl.radius is None:
+            spl.make_anchors(n=3)
+            self.measure_radius(i=i)
+        props = self.global_ft_params(i)
         spl.make_anchors(max_interval=max_interval)
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
@@ -613,51 +618,44 @@ class MtTomogram:
         skew_angles = np.arange(npoints) * interval/lp * skew
         skew_angles %= 360/npf
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
-        
+
         # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
         # after this rotation.
         subtomo_proj = subtomograms.proj("y")["x=::-1"]
+        cval = np.median(subtomo_proj)
+        
         imgs_rot: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
-            rotimg = subtomo_proj[i].rotate(ang, dims="zx", mode=Mode.reflect)
+            rotimg = subtomo_proj[i].rotate(ang, dims="zx", mode=Mode.constant, cval=cval)
             imgs_rot.append(rotimg)
         imgs_rot: ip.ImgArray = np.stack(imgs_rot, axis="p")
         imgs_rot_ft = imgs_rot.fft(dims="zx")
-        
+
         # Coarsely align skew-corrected images
         iref = npoints//2
         ft_ref = imgs_rot_ft[iref]
-        shifts = np.zeros((npoints, 2)) # zx-shift
         shape = ft_ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) # mask for PCC
         imgs_aligned = []
         for i in range(npoints):
             img = imgs_rot[i]
             ft = imgs_rot_ft[i]
-            shifts[i] = ip.ft_pcc_maximum(ft_ref, ft, mask=mask)
-            imgs_aligned.append(img.affine(translation=-shifts[i]))
+            shift = ip.ft_pcc_maximum(ft_ref, ft, mask=mask)
+            imgs_aligned.append(img.affine(translation=-shift, mode=Mode.constant, cval=cval))
             
         # Make template using coarse aligned images.
         imgcory: ip.ImgArray = np.stack(imgs_aligned, axis="y").proj("y")
         center_shift = mirror_pcc(imgcory, mask=mask)/2
-        template = imgcory.affine(translation=center_shift, mode=Mode.reflect)
+        template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=cval)
         template_ft = template.fft(dims="zx")
-        # Align skew-corrected images to the template
-        # TODO: this is time consuming
         
+        # Align skew-corrected images to the template
+        coords = spl()
+        self._shifts = np.zeros_like(coords)
+        self._old_coords = coords.copy()
         for i in range(npoints):
             ft = imgs_rot_ft[i]
-            shifts[i] = ip.ft_pcc_maximum(template_ft, ft, mask=mask)
-        
-        # tasks = []
-        # for i in range(npoints):
-        #     img = imgs_rot[i]
-        #     tasks = lazy_pcc(template, img, mask)
-        
-        # Calculate refined shifts
-        coords = spl()
-        for i in range(npoints):
-            shiftz, shiftx = -shifts[i]
+            shiftz, shiftx = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
             shift = np.array([shiftz, 0, shiftx])
             rad = np.deg2rad(skew_angles[i])
             cos, sin = np.cos(rad), np.sin(rad)
@@ -666,9 +664,10 @@ class MtTomogram:
             zxrot = np.array([[cos,  0., sin],
                               [0.,   1.,  0.],
                               [-sin, 0., cos]])
-                        
+            
             mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
-            coords[i] += shift @ zxrot @ mtx * self.scale
+            self._shifts[i] = shift @ zxrot @ mtx * self.scale
+            coords[i] += self._shifts[i]
         
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
@@ -1025,9 +1024,7 @@ class MtTomogram:
         -------
         ip.ImgArray
             Reconstructed image.
-        """        
-        # TODO: dask parallelize
-        
+        """                
         # Cartesian transformation along spline.
         img_st = self.straighten(i)
         scale = img_st.scale.y
@@ -1072,7 +1069,6 @@ class MtTomogram:
             ref = out
                     
         # rotational averaging
-        # TODO: don't Affine twice
         center = np.array(out.shape)/2 - 0.5
         
         if rot_ave:
@@ -1178,8 +1174,6 @@ class MtTomogram:
         ip.ImgArray
             Reconstructed image.
         """        
-        # TODO: dask parallelize
-        
         # Cartesian transformation along spline.
         img_open = self.cylindric_straighten(i, radii=radii)
         scale = img_open.scale.y
@@ -1231,7 +1225,6 @@ class MtTomogram:
             ref = out
         
         # rotational averaging
-        # TODO: don't Affine twice
         if rot_ave:
             input_ = out.copy()
             a_size = out.shape.a
@@ -1554,7 +1547,7 @@ def ft_params(img: ip.ImgArray, coords: np.ndarray, radius: nm):
     return _local_dft_params(polar, radius)
 
 lazy_ft_params = delayed(ft_params)
-lazy_pcc = delayed(ip.pcc_maximum)
+lazy_ft_pcc = delayed(ip.ft_pcc_maximum)
 
 def _affine(img, matrix, order=1):
     out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=order>1)

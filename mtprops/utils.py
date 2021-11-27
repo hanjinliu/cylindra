@@ -2,6 +2,11 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .spline import Spline3D
+    from dask import array as da
 
 def roundint(a: float):
     return int(round(a))
@@ -22,7 +27,9 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
 
     return slice(z0, z1), (z0_pad, z1_pad)
 
-def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True):
+def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray, 
+                       pos,
+                       shape: tuple[int, int, int]):
     """
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
@@ -35,7 +42,7 @@ def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True)
     sl_y, pad_y = make_slice_and_pad(roundint(y - ry), roundint(y + ry + 1), sizey)
     sl_x, pad_x = make_slice_and_pad(roundint(x - rx), roundint(x + rx + 1), sizex)
     reg = img[sl_z, sl_y, sl_x]
-    if dask:
+    if isinstance(reg, ip.LazyImgArray):
         reg = reg.data
     with ip.SetConst("SHOW_PROGRESS", False):
         pads = [pad_z, pad_y, pad_x]
@@ -45,7 +52,7 @@ def load_a_subtomogram(img, pos, shape: tuple[int, int, int], dask: bool = True)
     return reg
 
 
-def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl, u):
+def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl: "Spline3D", u):
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
@@ -58,7 +65,7 @@ def load_a_rot_subtomogram(img, length_px: int, width_px: int, spl, u):
     out.set_scale(img)
     return out
 
-def load_rot_subtomograms(img, length_px: int, width_px: int, spl):
+def load_rot_subtomograms(img: ip.ImgArray, length_px: int, width_px: int, spl: "Spline3D"):
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
@@ -121,7 +128,10 @@ def mirror_pcc(img0: ip.ImgArray, mask=None):
     ft1 = weight*ft0.conj()
     return ip.ft_pcc_maximum(ft0, ft1, mask)
     
-def map_coordinates(input, coordinates: np.ndarray, order: int = 3, mode: str = "constant",
+def map_coordinates(input: np.ndarray | "da.core.Array", 
+                    coordinates: np.ndarray,
+                    order: int = 3, 
+                    mode: str = "constant",
                     cval: float = 0):
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
