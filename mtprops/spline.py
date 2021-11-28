@@ -400,13 +400,7 @@ class Spline3D:
         y_ax_coords = (self(u)/self.scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds]*n_pixels, axis=0)
         map_ = map_func(*map_params)
-        zeros = np.zeros(map_.shape[:-1], dtype=np.float32)
-        ones = np.ones(map_.shape[:-1], dtype=np.float32)
-        map_slice = np.stack([map_[..., 0], 
-                              zeros,
-                              map_[..., 1],
-                              ones
-                              ], axis=2) # V, H, D
+        map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
     def cartesian(self, 
@@ -565,16 +559,9 @@ class Spline3D:
         y_ax_coords = self(u)/self.scale # world coordinates of y-axis in spline coords system
         dslist = self(u, 1).astype(np.float32)
         map_ = map_func(*map_params)
-        zeros = np.zeros(map_.shape[:-1], dtype=np.float32)
-        ones = np.ones(map_.shape[:-1], dtype=np.float32)
-        map_slice = np.stack([map_[..., 0], 
-                              zeros,
-                              map_[..., 1],
-                              ones
-                              ], axis=2) # V, S, H, D
+        map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
-
-
+    
 
 _V = slice(None) # vertical dimension
 _S = slice(None) # longitudinal dimension along spline curve
@@ -637,16 +624,18 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
         coords[:, i] = slice_out + y
     return coords
 
-def _polar_coords_2d(r_start: float, r_stop: float) -> np.ndarray:
+def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
     n_angle = roundint((r_start + r_stop) * np.pi)
     n_radius = roundint(r_stop - r_start)
     r_, ang_ = np.indices((n_radius, n_angle))
     r_ = r_ + (r_start + r_stop - n_radius + 1)/2
     output_coords = np.column_stack([r_.ravel(), ang_.ravel()])
+    if center is None:
+        center = [0, 0]
     coords = _linear_polar_mapping(np.array(output_coords), 
                                    k_angle=n_angle/2/np.pi, 
                                    k_radius=1,
-                                   center=[0, 0]
+                                   center=center
                                    ).astype(np.float32)
     coords = coords.reshape(n_radius, n_angle, 2) # V, H, 2
     coords[:] = np.flip(coords, axis=1)
@@ -657,3 +646,13 @@ def _cartesian_coords_2d(lenv, lenh):
     v -= (lenv/2 - 0.5)
     h -= (lenh/2 - 0.5)
     return np.stack([v, -h], axis=2) # V, H, 2
+
+def _stack_coords(coords: np.ndarray): # V, H, D
+    zeros = np.zeros(coords.shape[:-1], dtype=np.float32)
+    ones = np.ones(coords.shape[:-1], dtype=np.float32)
+    stacked = np.stack([coords[..., 0], 
+                        zeros,
+                        coords[..., 1],
+                        ones
+                        ], axis=2) # V, S, H, D
+    return stacked

@@ -65,13 +65,13 @@ def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl:
     out.set_scale(img)
     return out
 
-def load_rot_subtomograms(img: ip.ImgArray, length_px: int, width_px: int, spl: "Spline3D"):
+def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, width_px: int,
+                          spl: "Spline3D"):
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
     with ip.SetConst("SHOW_PROGRESS", False):
         for u in spl.anchors:
-            # TODO: dask parallelize
             coords = spl.local_cartesian(plane_shape, axial_size, u)
             
             coords = np.moveaxis(coords, -1, 0)

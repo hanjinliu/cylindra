@@ -510,7 +510,7 @@ class MtTomogram:
             for i, ds in enumerate(spl(der=1)):
                 _, vy, vx = ds
                 const = xc*vy - yc*vx
-                distance = np.abs(-xx*vy + yy*vx + const)/np.sqrt(vx**2 + vy**2)
+                distance = np.abs(-xx*vy + yy*vx + const)/np.sqrt(vx**2 + vy**2) * self.scale
                 sl = np.stack([distance > self.subtomo_width/2]*subtomograms.shape.z, 
                               axis=0)
                 subtomograms[i][sl] = cval
@@ -538,7 +538,7 @@ class MtTomogram:
         
         if dense_mode:
             xc = int(subtomo_proj.shape.x//2)
-            w = int(self.subtomo_width//2)
+            w = int((self.subtomo_width/self.scale)//2)
             subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
 
         shape = subtomo_proj[0].shape
@@ -624,11 +624,12 @@ class MtTomogram:
         subtomo_proj = subtomograms.proj("y")["x=::-1"]
         cval = np.median(subtomo_proj)
         
-        imgs_rot: list[ip.ImgArray] = []
+        imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
             rotimg = subtomo_proj[i].rotate(ang, dims="zx", mode=Mode.constant, cval=cval)
-            imgs_rot.append(rotimg)
-        imgs_rot: ip.ImgArray = np.stack(imgs_rot, axis="p")
+            imgs_rot_list.append(rotimg)
+            
+        imgs_rot: ip.ImgArray = np.stack(imgs_rot_list, axis="p")
         imgs_rot_ft = imgs_rot.fft(dims="zx")
 
         # Coarsely align skew-corrected images
@@ -638,7 +639,7 @@ class MtTomogram:
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) # mask for PCC
         imgs_aligned = []
         for i in range(npoints):
-            img = imgs_rot[i]
+            img: ip.ImgArray = imgs_rot[i]
             ft = imgs_rot_ft[i]
             shift = ip.ft_pcc_maximum(ft_ref, ft, mask=mask)
             imgs_aligned.append(img.affine(translation=-shift, mode=Mode.constant, cval=cval))
@@ -648,32 +649,75 @@ class MtTomogram:
         center_shift = mirror_pcc(imgcory, mask=mask)/2
         template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=cval)
         template_ft = template.fft(dims="zx")
-        
+                
         # Align skew-corrected images to the template
-        coords = spl()
-        self._shifts = np.zeros_like(coords)
-        self._old_coords = coords.copy()
+        shifts = np.zeros((npoints, 2))
         for i in range(npoints):
             ft = imgs_rot_ft[i]
-            shiftz, shiftx = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
-            shift = np.array([shiftz, 0, shiftx])
+            shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
             rad = np.deg2rad(skew_angles[i])
             cos, sin = np.cos(rad), np.sin(rad)
-            
-            # rotate by 'rad' clockwise
-            zxrot = np.array([[cos,  0., sin],
-                              [0.,   1.,  0.],
-                              [-sin, 0., cos]])
-            
-            mtx = spl.rotation_matrix(spl.anchors[i])[:3, :3]
-            self._shifts[i] = shift @ zxrot @ mtx * self.scale
-            coords[i] += self._shifts[i]
+            zxrot = np.array([[ cos, sin],
+                              [-sin, cos]], dtype=np.float32)
+            shifts[i] = shift @ zxrot
         
         # Update spline parameters
-        sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
-        spl.fit(coords, s=sqsum)
+        sqsum = GVar.splError**2 * npoints # unit: nm^2
+        spl.shift_fit(shifts=shifts, s=sqsum)
         return self
-                
+    
+    @batch_process
+    def fine_fit(self, i = None, *, max_interval: nm = 30.0) -> MtTomogram:
+        """
+        Fit i-th path to MT, using y=0, theta=1 of Fourier space.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Path ID that you want to fit.
+        max_interval : nm, default is 24.0
+            Maximum interval of sampling points in nm unit.
+            
+        Returns
+        -------
+        MtTomogram
+            Same object with updated MtSpline objects.
+        """        
+        spl = self.paths[i]
+        if spl.radius is None:
+            spl.make_anchors(n=3)
+            self.measure_radius(i=i)
+        spl.make_anchors(max_interval=max_interval)
+        npoints = len(spl)
+        subtomograms = self._sample_subtomograms(i)
+        subproj = subtomograms.proj("y")["x=::-1"] # axes = pzx
+        offset = np.array(subproj.sizesof("zx"))/2 - 0.5
+        
+        from .spline import _polar_coords_2d
+        from scipy.optimize import minimize
+        
+        def _func(center, img):
+            center = center + offset
+            center = center[::-1] # (z, x) -> (x, z)
+            map_ = _polar_coords_2d(spl.radius*0.8, spl.radius*1.2, center)
+            map_ = np.moveaxis(map_, -1, 0)
+            
+            out = ndi.map_coordinates(img, map_, prefilter=True, mode=Mode.reflect)
+            out = ip.asarray(out, axes="ra")
+            pw = out.local_power_spectra("a=0:2", dims="ra").proj("r")
+            return pw[1]/pw[0]
+        
+        shifts = np.zeros((npoints, 2))
+        for i in range(npoints):
+            img = subproj[i]
+            res = minimize(_func, np.array([0., 0.]), args=(img,))
+            shift = res.x
+            shifts[i] = shift
+        self._shifts = shifts
+        # Update spline parameters
+        sqsum = GVar.splError**2 * npoints # unit: nm^2
+        spl.shift_fit(shifts=shifts, s=sqsum)
+        return self
                 
     @batch_process
     def get_subtomograms(self, i = None) -> ip.ImgArray:
@@ -1053,19 +1097,28 @@ class MtTomogram:
             stop = self.nm2pixel(stop)
             imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode=Mode.reflect))
             ylen = min(ylen, stop-start)
+        
+        # Make image sizes same and prepare FT images.
+        imgs = [img[f"y=:{ylen}"] for img in imgs]
+        ft_imgs = [img.fft() for img in imgs]
 
         # align each fragment
-        imgs[0] = imgs[0][:, :ylen]
         ref = imgs[0]
         shape = ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+        imgs_aligned: list[ip.ImgArray] = []
         for _ in range(niter):
-            for k in range(1, len(imgs)):
-                img = imgs[k][:, :ylen]
-                shift = ip.pcc_maximum(img, ref, mask=mask)
-                imgs[k] = img.affine(translation=shift, mode=Mode.grid_wrap)
+            ft_ref = ref.fft()
+            imgs_aligned.clear()
+            for k in range(len(imgs)):
+                img = imgs[k]
+                ft_img = ft_imgs[k]
+                shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
+                imgs_aligned.append(
+                    img.affine(translation=shift, mode=Mode.grid_wrap)
+                    )
 
-            out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
+            out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
             ref = out
                     
         # rotational averaging
@@ -1194,7 +1247,7 @@ class MtTomogram:
         skew_angles = np.arange(borders.size - 1) * skew
         
         # Rotate fragment with skew angle
-        imgs = []
+        imgs: list[ip.ImgArray] = []
         ylen = 99999
     
         # Split image into dimers along y-direction
@@ -1208,20 +1261,28 @@ class MtTomogram:
                 )
             ylen = min(ylen, stop-start)
         
+        # Make image sizes same and prepare FT images.
+        imgs = [img[f"y=:{ylen}"] for img in imgs]
+        ft_imgs = [img.fft(dims="rya") for img in imgs]
+        
         # align each fragment
-        imgs[0] = imgs[0][f"y=:{ylen}"]
         ref = imgs[0]
         shape = ref.shape
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        
+        imgs_aligned: list[ip.ImgArray] = []
         for _ in range(niter):
-            for k in range(1, len(imgs)):
-                img = imgs[k][f"y=:{ylen}"]
-                shift = ip.pcc_maximum(img, ref, mask=mask)
-                imgs[k] = img.affine(translation=shift, 
-                                    dims="rya", mode=Mode.grid_wrap)
+            ft_ref = ref.fft(dims="rya")
+            imgs_aligned.clear()
+            for k in range(len(imgs)):
+                img = imgs[k]
+                ft_img = ft_imgs[k]
+                shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
+                imgs_aligned.append(
+                    img.affine(translation=shift, 
+                               dims="rya", mode=Mode.grid_wrap)
+                    )
 
-            out: ip.ImgArray = np.stack(imgs, axis="p").proj("p")
+            out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
             ref = out
         
         # rotational averaging
