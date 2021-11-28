@@ -462,7 +462,7 @@ class MtTomogram:
             dense_mode: bool = False,
             ) -> MtTomogram:
         """
-        Fit i-th path to MT.
+        Roughly fit i-th spline to MT.
 
         Parameters
         ----------
@@ -558,7 +558,9 @@ class MtTomogram:
     def refine(self, 
                i = None,
                *, 
-               max_interval: nm = 30.0
+               max_interval: nm = 30.0,
+               projection: bool = True,
+               mask_8nm: bool = False,
                ) -> MtTomogram:
         """
         Refine spline using the result of previous fit and the global structural parameters.
@@ -592,6 +594,8 @@ class MtTomogram:
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
         lp = props[H.yPitch] * 2
+        ylen = subtomograms.shape.y
+        dist = roundint(ylen*self.scale/lp) # this is for masking 8 nm peak
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
         skew_angles = np.arange(npoints) * interval/lp * skew
@@ -600,40 +604,60 @@ class MtTomogram:
 
         # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
         # after this rotation.
-        subtomo_proj = subtomograms.proj("y")["x=::-1"]
-        cval = np.median(subtomo_proj)
+        if projection:
+            if mask_8nm:
+                ft = subtomograms.fft()
+                ycenter = ylen//2
+                ft[f"y={ycenter+dist-1}:{ycenter+dist+2}"] = 0
+                ft[f"y={ycenter-dist-1}:{ycenter-dist+2}"] = 0
+                subtomograms = ft.ifft()
+                del ft
+            inputs = subtomograms.proj("y")["x=::-1"]
+        else:
+            inputs = subtomograms["x=::-1"]
+        cval = np.median(inputs)
         
         imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
-            rotimg = subtomo_proj[i].rotate(ang, dims="zx", mode=Mode.constant, cval=cval)
+            rotimg = inputs[i].rotate(ang, dims="zx", mode=Mode.constant, cval=cval)
             imgs_rot_list.append(rotimg)
             
         imgs_rot: ip.ImgArray = np.stack(imgs_rot_list, axis="p")
-        imgs_rot_ft = imgs_rot.fft(dims="zx")
+        imgs_rot_ft = imgs_rot.fft(dims=imgs_rot_list[0].axes)
 
         # Coarsely align skew-corrected images
         iref = npoints//2
         ft_ref = imgs_rot_ft[iref]
         shape = ft_ref.shape
-        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) # mask for PCC
+        # mask for PCC
+        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) 
+        if not projection and mask_8nm:
+            ycenter = ylen//2
+            mask[f"y={ycenter+dist-1}:{ycenter+dist+2}"] = True
+            mask[f"y={ycenter-dist-1}:{ycenter-dist+2}"] = True
+            
         imgs_aligned = []
         for i in range(npoints):
             img: ip.ImgArray = imgs_rot[i]
             ft = imgs_rot_ft[i]
             shift = ip.ft_pcc_maximum(ft_ref, ft, mask=mask)
+            if not projection:
+                shift[1] = 0
             imgs_aligned.append(img.affine(translation=-shift, mode=Mode.constant, cval=cval))
             
         # Make template using coarse aligned images.
-        imgcory: ip.ImgArray = np.stack(imgs_aligned, axis="y").proj("y")
+        imgcory: ip.ImgArray = sum(imgs_aligned)
         center_shift = mirror_pcc(imgcory, mask=mask)/2
         template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=cval)
-        template_ft = template.fft(dims="zx")
+        template_ft = template.fft(dims=template.axes)
                 
         # Align skew-corrected images to the template
         shifts = np.zeros((npoints, 2))
         for i in range(npoints):
             ft = imgs_rot_ft[i]
             shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
+            if not projection:
+                shift = shift[[0, 2]]
             rad = np.deg2rad(skew_angles[i])
             cos, sin = np.cos(rad), np.sin(rad)
             zxrot = np.array([[ cos, sin],
@@ -648,7 +672,7 @@ class MtTomogram:
     @batch_process
     def fit_mao(self, i = None, *, max_interval: nm = 30.0) -> MtTomogram:
         """
-        Fit i-th path to MT, using Minimum Angular Oscillation method.
+        Fit i-th spline to MT, using Minimum Angular Oscillation method.
         The amplitude at y=0, theta=1 in Fourier space is large when spline is not
         centered. Thus, MT centering can be achieved by a standard minimization
         algorithm. Because we are only interested in the y=0 plane of Fourier space,
@@ -688,14 +712,24 @@ class MtTomogram:
             
             out = ndi.map_coordinates(img, map_, prefilter=True, mode=Mode.reflect)
             out = ip.asarray(out, axes="ra")
-            pw = out.local_power_spectra("a=1:2", dims="ra").proj("r")
-            return pw[0]
+            pw = out.local_power_spectra(f"a=1:3", dims="ra").proj("r")
+            return pw[0] / (pw[0] + pw[1])
         
         shifts = np.zeros((npoints, 2))
+        
+        initial_guess = np.array([[-2, -2], [-2, 0], [-2, 2], 
+                                  [ 0, -2], [ 0, 0], [ 0, 2],
+                                  [ 2, -2], [ 2, 0], [ 2, 2]],
+                                  dtype=np.float32)
+        dc = 1.0
         for i in range(npoints):
             img = subtomo_proj[i]
-            res = minimize(_func, np.array([0., 0.]), args=(img,),
-                           bounds=((-2., 2.), (-2., 2.)))
+            osc = [_func(yx, img) for yx in initial_guess]
+            center = initial_guess[np.argmin(osc)]
+            res = minimize(_func, center, args=(img,),
+                           bounds=((center[0] - dc, center[0] + dc), 
+                                   (center[1] - dc, center[1] + dc))
+                           )
             shift = res.x
             shifts[i] = shift
         

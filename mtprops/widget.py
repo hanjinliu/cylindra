@@ -1068,8 +1068,10 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    @set_options(max_interval={"label": "Maximum interval (nm)"})
-    def Refine_splines(self, max_interval: nm = 30):
+    @set_options(max_interval={"label": "Maximum interval (nm)"},
+                 mask_8nm={"label": "Mask 8-nm peak"})
+    def Refine_splines(self, max_interval: nm = 30, projection: bool = True, 
+                       mask_8nm: bool = False):
         """
         Refine splines using the global MT structural parameters.
         
@@ -1077,11 +1079,18 @@ class MTProfiler(MagicTemplate):
         ----------
         max_interval : nm, default is 30
             Maximum interval between anchors.
+        projection : bool, default is True
+            Check and Y-projection will be used to align subtomograms.
+        mask_8nm : bool, default is False
+            Chech if mask 8-nm peak to prevent phase of binding proteins affects
+            refinement results.
         """
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.refine,
                                max_interval=max_interval,
+                               projection=projection,
+                               mask_8nm=mask_8nm,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
@@ -1099,6 +1108,8 @@ class MTProfiler(MagicTemplate):
         self._init_figures()
         return None
     
+    @Analysis.wraps
+    @set_options(max_interval={"label": "Maximum interval (nm)"})
     def Refine_splines_with_MAO(self, max_interval: nm = 30):
         """
         Refine splines using Minimum Angular Oscillation.
@@ -1130,7 +1141,7 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    def Local_FT_analysis(self, ft_size: nm = 33.4):
+    def Local_FT_analysis(self, interval: nm = 25, ft_size: nm = 33.4):
         """
         Determine MT structural parameters by local Fourier transformation.
 
@@ -1142,8 +1153,12 @@ class MTProfiler(MagicTemplate):
         """
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
+        if tomo.splines[0].radius is None:
+            self.Measure_radius()
+        self.Add_anchors(interval=interval)
         worker = create_worker(tomo.local_ft_params,
-                               _progress={"total": 0, "desc": "Running"})
+                               _progress={"total": 0, "desc": "Running"}
+                               )
         @worker.returned.connect
         def _on_return(df):
             self._load_tomogram_results()
