@@ -230,7 +230,7 @@ class SplineFitter(MagicTemplate):
         """        
         i = self.mt.mtlabel.value
         shifts = np.asarray(shifts)
-        spl = self.paths[i]
+        spl = self.splines[i]
         sqsum = GVar.splError**2 * shifts.shape[0]
         spl.shift_fit(shifts=shifts*self.binsize, s=sqsum)
         spl.make_anchors(max_interval=self.max_interval)
@@ -312,13 +312,13 @@ class SplineFitter(MagicTemplate):
     def _load_parent_state(self, max_interval: nm):
         self.max_interval = max_interval
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
-        for i in range(tomo.n_paths):
-            spl = tomo.paths[i]
+        for i in range(tomo.n_splines):
+            spl = tomo.splines[i]
             spl.make_anchors(max_interval=self.max_interval)
             
-        self.shifts = [None] * tomo.n_paths
+        self.shifts = [None] * tomo.n_splines
         self.binsize = tomo.metadata["binsize"]
-        self.mt.mtlabel.max = tomo.n_paths - 1
+        self.mt.mtlabel.max = tomo.n_splines - 1
         self.mt.mtlabel.value = 0
         self._mt_changed()
         
@@ -329,8 +329,8 @@ class SplineFitter(MagicTemplate):
         imgb = self.__magicclass_parent__.layer_image.data
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
         
-        spl = tomo.paths[i]
-        self.paths = tomo.paths
+        spl = tomo.splines[i]
+        self.splines = tomo.splines
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
@@ -537,7 +537,7 @@ class MTProfiler(MagicTemplate):
             
             worker.start()
             
-            if tomo.paths:
+            if tomo.splines:
                 self._load_tomogram_results()
             else:
                 self._init_layers()
@@ -578,7 +578,7 @@ class MTProfiler(MagicTemplate):
             return None
 
         self.active_tomogram.add_spline(coords)
-        spl = self.active_tomogram.paths[-1]
+        spl = self.active_tomogram.splines[-1]
         
         # draw path
         self._add_spline_to_images(spl)
@@ -701,7 +701,7 @@ class MTProfiler(MagicTemplate):
         self.plot.draw()
         
         cachemap.clear()
-        self.active_tomogram._paths.clear()
+        self.active_tomogram._splines.clear()
         
         return None
     
@@ -859,7 +859,7 @@ class MTProfiler(MagicTemplate):
         j = self.mt.pos.value
         
         tomo = self.active_tomogram
-        spl = tomo.paths[i]
+        spl = tomo.splines[i]
         pos = spl.anchors[j]
         next_center = spl(pos)
         viewer.dims.current_step = list(next_center.astype(np.int64))
@@ -871,7 +871,7 @@ class MTProfiler(MagicTemplate):
         
         self.layer_paint.show_selected_label = True
         
-        j_offset = sum(spl.anchors.size for spl in tomo.paths[:i])
+        j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
         self.layer_paint.selected_label = j_offset + j + 1
         return None
     
@@ -991,7 +991,7 @@ class MTProfiler(MagicTemplate):
         """
         Show 3D spline paths of microtubule center axes as a layer.
         """        
-        paths = [r.partition(100) for r in self.active_tomogram.paths]
+        paths = [r.partition(100) for r in self.active_tomogram.splines]
         
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
                                       translate=self.layer_image.translate)
@@ -1057,9 +1057,9 @@ class MTProfiler(MagicTemplate):
             Anchor interval.
         """        
         tomo = self.active_tomogram
-        if tomo.n_paths == 0:
+        if tomo.n_splines == 0:
             raise ValueError("Cannot add anchors before adding splines.")
-        for i in range(tomo.n_paths):
+        for i in range(tomo.n_splines):
             tomo.make_anchors(i, interval=interval)
         return None
     
@@ -1265,14 +1265,13 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    @set_design(text="Map tubulin")
     def Map_tubulin(self):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
         """        
         tomo = self.active_tomogram
         
-        worker = create_worker(tomo.map_monomer,
+        worker = create_worker(tomo.map_monomers,
                                _progress={"total": 0, "desc": "Running"}
                                )
         
@@ -1398,7 +1397,7 @@ class MTProfiler(MagicTemplate):
             z, y, x = np.indices((lz, ly, lx))
             cylinders = []
             matrices = []
-            for i, spl in enumerate(tomo.paths):
+            for i, spl in enumerate(tomo.splines):
                 # Prepare template hollow image
                 r0 = spl.radius/tomo.scale*0.9/binsize
                 r1 = spl.radius/tomo.scale*1.1/binsize
@@ -1486,7 +1485,7 @@ class MTProfiler(MagicTemplate):
             
     def _plot_properties(self):
         i = self.mt.mtlabel.value
-        props = self.active_tomogram.paths[i].localprops
+        props = self.active_tomogram.splines[i].localprops
         x = props[H.splDistance]
         pitch_color = "lime"
         skew_color = "gold"
@@ -1587,8 +1586,8 @@ class MTProfiler(MagicTemplate):
         tomo = self.active_tomogram
         # initialize GUI
         self._init_widget_params()
-        self.mt.mtlabel.max = tomo.n_paths - 1
-        self.mt.pos.max = len(tomo.paths[0].localprops[H.splDistance]) - 1
+        self.mt.mtlabel.max = tomo.n_splines - 1
+        self.mt.pos.max = len(tomo.splines[0].localprops[H.splDistance]) - 1
         
         self._init_layers()
                         
@@ -1642,7 +1641,7 @@ class MTProfiler(MagicTemplate):
         i = i or self.mt.mtlabel.value
         j = j or self.mt.pos.value
         tomo = self.active_tomogram
-        spl = tomo._paths[i]
+        spl = tomo._splines[i]
         
         l = tomo.nm2pixel(tomo.subtomo_length)
         w = tomo.nm2pixel(tomo.subtomo_width)
@@ -1664,7 +1663,7 @@ class MTProfiler(MagicTemplate):
         j = j or self.mt.pos.value
         tomo = self.active_tomogram
         ylen = tomo.nm2pixel(tomo.ft_size)
-        spl = tomo._paths[i]
+        spl = tomo._splines[i]
         
         rmin = tomo.nm2pixel(spl.radius*GVar.inner)
         rmax = tomo.nm2pixel(spl.radius*GVar.outer)
@@ -1713,12 +1712,12 @@ class MTProfiler(MagicTemplate):
         tomo = self.active_tomogram
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        npaths = len(tomo.paths)
+        npaths = len(tomo.splines)
         if 0 == npaths:
             return
         if 0 < npaths <= i:
             i = 0
-        results = tomo.paths[i]
+        results = tomo.splines[i]
         
         if results.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -1770,7 +1769,7 @@ class MTProfiler(MagicTemplate):
     @orientation_choice.connect
     def _update_note(self):
         i = self.mt.mtlabel.value
-        self.active_tomogram.paths[i].orientation = self.orientation_choice.value
+        self.active_tomogram.splines[i].orientation = self.orientation_choice.value
         return None
     
     @mt.mtlabel.connect
@@ -1783,7 +1782,7 @@ class MTProfiler(MagicTemplate):
         binsize = tomo.metadata["binsize"]
         imgb = self.layer_image.data
         
-        spl = tomo.paths[i]
+        spl = tomo.splines[i]
         spl.scale *= binsize
         
         length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
@@ -1800,8 +1799,8 @@ class MTProfiler(MagicTemplate):
         
         self.projections = projections
         
-        self.mt.pos.max = len(tomo.paths[i].localprops) - 1
-        note = tomo.paths[i].orientation
+        self.mt.pos.max = len(tomo.splines[i].localprops) - 1
+        note = tomo.splines[i].orientation
         self.orientation_choice.value = Ori(note)
         self._plot_properties()
         self._imshow_all()
@@ -1835,7 +1834,7 @@ class MTProfiler(MagicTemplate):
     def _update_splines_in_images(self):
         self.Panels.overview.layers.clear()
         self.layer_prof.data = []
-        for spl in self.active_tomogram.paths:
+        for spl in self.active_tomogram.splines:
             self._add_spline_to_images(spl)
         
 

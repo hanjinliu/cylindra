@@ -36,15 +36,15 @@ def batch_process(func):
         
         # Determine along which spline function will be executed.
         if i is None:
-            i_list = range(self.n_paths)
-        elif not hasattr(i, "__iter__"):
+            i_list = range(self.n_splines)
+        elif not isinstance(i, Iterable):
             raise TypeError("'i' must be int or iterable of int if specified")
         else:
             i_list = []
             for i_ in i:
-                if -self.n_paths <= i_ < 0:
-                    i_list.append(i_ + self.n_paths)
-                elif 0 <= i_ < self.n_paths:
+                if -self.n_splines <= i_ < 0:
+                    i_list.append(i_ + self.n_splines)
+                elif 0 <= i_ < self.n_splines:
                     i_list.append(i_)
                 else:
                     raise ValueError(f"Index {i_} is out of bound")
@@ -70,7 +70,7 @@ def batch_process(func):
 
 def json_encoder(obj):
     """
-    Enable Enum and DataFrame encoding.
+    Enable Enum and pandas encoding.
     """    
     if isinstance(obj, Ori):
         return obj.name
@@ -152,7 +152,7 @@ class MtTomogram:
                  ):
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
-        self._paths: list[MtSpline] = []
+        self._splines: list[MtSpline] = []
         self._ft_size = None
         self.ft_size = ft_size
         self.light_background = light_background
@@ -169,8 +169,8 @@ class MtTomogram:
         return f"{self.__class__.__name__} of '{self._image.name}'"
             
     @property
-    def paths(self) -> list[MtSpline]:
-        return self._paths
+    def splines(self) -> list[MtSpline]:
+        return self._splines
     
     @property
     def ft_size(self) -> nm:
@@ -189,15 +189,15 @@ class MtTomogram:
         
         # Delete outdated local properties
         if not is_same:
-            for spl in self._paths:
+            for spl in self._splines:
                 spl.localprops = None
     
     @property
-    def n_paths(self) -> int:
+    def n_splines(self) -> int:
         """
         Number of spline paths.
         """        
-        return len(self._paths)
+        return len(self._splines)
     
     @property
     def image(self) -> ip.LazyImgArray:
@@ -243,7 +243,7 @@ class MtTomogram:
         path = str(path)
         
         all_results = {}
-        for i, spl in enumerate(self._paths):
+        for i, spl in enumerate(self._splines):
             spl_dict = spl.to_dict()
             all_results[i] = spl_dict
         
@@ -283,7 +283,7 @@ class MtTomogram:
             except:
                 setattr(self, i, d)
             else:
-                self._paths.append(
+                self._splines.append(
                     MtSpline.from_dict(d)
                 )
             
@@ -318,7 +318,7 @@ class MtTomogram:
         if coords.shape[0] <= GVar.splOrder and coords.shape[0] < fit.shape[0]:
             return self.add_spline(fit)
         
-        self._paths.append(spl)
+        self._splines.append(spl)
         return None
     
     def nm2pixel(self, value: Iterable[nm]|nm) -> np.ndarray|int:
@@ -348,7 +348,7 @@ class MtTomogram:
         """        
         if interval is None and n is None:
             interval = 24.0
-        self._paths[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
+        self._splines[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
         return None
     
     def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
@@ -366,10 +366,10 @@ class MtTomogram:
             Coordinates in shape (N, 3).
         """        
         if i is None:
-            i = range(self.n_paths)
+            i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        return np.concatenate([self._paths[i_]() for i_ in i], axis=0)
+        return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
     
     def collect_localprops(self, i: int|Iterable[int] = None) -> pd.DataFrame:
         """
@@ -386,10 +386,10 @@ class MtTomogram:
             Concatenated data frame.
         """        
         if i is None:
-            i = range(self.n_paths)
+            i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        df = pd.concat([self._paths[i_].localprops for i_ in i], 
+        df = pd.concat([self._splines[i_].localprops for i_ in i], 
                         keys=list(i)
                        )
         
@@ -435,15 +435,15 @@ class MtTomogram:
             Radius of each spline
         """        
         if i is None:
-            i = range(self.n_paths)
+            i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        return np.array([self._paths[i_].radius for i_ in i])
+        return np.array([self._splines[i_].radius for i_ in i])
     
     def _sample_subtomograms(self, 
                              i: int,
                              rotate: bool = True) -> ip.ImgArray:
-        spl = self._paths[i]
+        spl = self._splines[i]
         length_px = self.nm2pixel(self.subtomo_length)
         width_px = self.nm2pixel(self.subtomo_width)
         
@@ -492,7 +492,7 @@ class MtTomogram:
         MtTomogram
             Same object with updated MtSpline objects.
         """        
-        spl = self._paths[i]
+        spl = self._splines[i]
         spl.make_anchors(max_interval=max_interval)
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
@@ -597,7 +597,7 @@ class MtTomogram:
             Same object with updated MtSpline objects.
         """        
         
-        spl = self.paths[i]
+        spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
             self.measure_radius(i=i)
@@ -669,7 +669,7 @@ class MtTomogram:
     @batch_process
     def fine_fit(self, i = None, *, max_interval: nm = 30.0) -> MtTomogram:
         """
-        Fit i-th path to MT, using y=0, theta=1 of Fourier space.
+        Fit i-th path to MT, using amplitude at y=0, theta=1 in Fourier space.
 
         Parameters
         ----------
@@ -683,7 +683,7 @@ class MtTomogram:
         MtTomogram
             Same object with updated MtSpline objects.
         """        
-        spl = self.paths[i]
+        spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
             self.measure_radius(i=i)
@@ -696,24 +696,27 @@ class MtTomogram:
         from .spline import _polar_coords_2d
         from scipy.optimize import minimize
         
+        radius_px = spl.radius/self.scale
+        
         def _func(center, img):
             center = center + offset
             center = center[::-1] # (z, x) -> (x, z)
-            map_ = _polar_coords_2d(spl.radius*0.8, spl.radius*1.2, center)
+            map_ = _polar_coords_2d(radius_px*GVar.inner, radius_px*GVar.outer, center)
             map_ = np.moveaxis(map_, -1, 0)
             
             out = ndi.map_coordinates(img, map_, prefilter=True, mode=Mode.reflect)
             out = ip.asarray(out, axes="ra")
-            pw = out.local_power_spectra("a=0:2", dims="ra").proj("r")
-            return pw[1]/pw[0]
+            pw = out.local_power_spectra("a=1:2", dims="ra").proj("r")
+            return pw[0]
         
         shifts = np.zeros((npoints, 2))
         for i in range(npoints):
             img = subproj[i]
-            res = minimize(_func, np.array([0., 0.]), args=(img,))
+            res = minimize(_func, np.array([0., 0.]), args=(img,),
+                           bounds=((-2., 2.), (-2., 2.)))
             shift = res.x
             shifts[i] = shift
-        self._shifts = shifts
+        
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
         spl.shift_fit(shifts=shifts, s=sqsum)
@@ -753,8 +756,8 @@ class MtTomogram:
         float (nm)
             MT radius.
         """        
-        if self.paths[i]._anchors is None:
-            self.paths[i].make_anchors(n=3)
+        if self.splines[i]._anchors is None:
+            self.splines[i].make_anchors(n=3)
             
         subtomograms = self._sample_subtomograms(i)
         r_max = self.subtomo_width / 2
@@ -772,7 +775,7 @@ class MtTomogram:
         # prof[0] is radial profile at r=0.5 (not r=0.0)
         r_peak_sub = (imax_sub+0.5)/nbin*r_max
         
-        self._paths[i].radius = r_peak_sub
+        self._splines[i].radius = r_peak_sub
         return r_peak_sub
     
     @batch_process
@@ -790,7 +793,7 @@ class MtTomogram:
         pd.DataFrame
             Local properties.
         """        
-        spl = self.paths[i]
+        spl = self.splines[i]
         if spl.localprops is not None:
             return spl.localprops
         
@@ -840,7 +843,7 @@ class MtTomogram:
         pd.DataFrame
             Global properties.
         """        
-        spl = self._paths[i]
+        spl = self._splines[i]
         if spl.globalprops is not None:
             return spl.globalprops
         
@@ -886,7 +889,7 @@ class MtTomogram:
         """        
         try_cache = size is None and range_ == (0.0, 1.0)
         cache_key = CacheKey.cart_straight
-        spl = self.paths[i]
+        spl = self.splines[i]
         if try_cache:
             try:
                 transformed = cachemap[(self, spl, cache_key)]
@@ -896,7 +899,7 @@ class MtTomogram:
                 return transformed
             
         chunk_length: nm = 72.0
-        length = self._paths[i].length(nknots=512)
+        length = self._splines[i].length(nknots=512)
         
         if chunkwise and length > chunk_length:
             transformed = self._chunked_straighten(
@@ -906,7 +909,7 @@ class MtTomogram:
             
         else:
             if size is None:
-                rz = rx = self.nm2pixel(self._paths[i].radius * GVar.outer) * 2 + 1
+                rz = rx = self.nm2pixel(self._splines[i].radius * GVar.outer) * 2 + 1
             
             else:
                 rz, rx = self.nm2pixel(size)
@@ -956,7 +959,7 @@ class MtTomogram:
         """        
         try_cache = radii is None and range_ == (0.0, 1.0)
         cache_key = CacheKey.cyl_straight
-        spl = self.paths[i]
+        spl = self.splines[i]
         
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
@@ -970,7 +973,7 @@ class MtTomogram:
                 return transformed
             
         chunk_length: nm = 72.0
-        length = self._paths[i].length(nknots=512)
+        length = self._splines[i].length(nknots=512)
         
         if chunkwise and length > chunk_length:
             transformed = self._chunked_straighten(
@@ -1011,7 +1014,7 @@ class MtTomogram:
         current_distance: nm = 0.0
         chunk_length: nm = 72.0
         start, end = range_
-        spl = self.paths[i]
+        spl = self.splines[i]
         while current_distance < length:
             start = current_distance/length
             stop = start + chunk_length/length
@@ -1080,7 +1083,7 @@ class MtTomogram:
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = int(props[H.nPF])
-        radius = self.paths[i].radius
+        radius = self.splines[i].radius
         
         # Determine how to split image into tubulin dimer fragments
         dl, resl = divmod(total_length, lp)
@@ -1239,7 +1242,7 @@ class MtTomogram:
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
-        radius = self.paths[i].radius
+        radius = self.splines[i].radius
         
         # Determine how to split image into tubulin dimer fragments
         dl, resl = divmod(total_length, lp)
@@ -1340,7 +1343,7 @@ class MtTomogram:
         return np.concatenate(outlist, axis="y")
     
     @batch_process
-    def map_monomer(self, i = None) -> Coordinates:
+    def map_monomers(self, i = None) -> Coordinates:
         """
         Map coordinates of tubulin monomers in world coordinate.
 
@@ -1354,7 +1357,8 @@ class MtTomogram:
         Coordinates
             Named tuple with monomer positions in world coordinates and spline coordinates.
         """        
-        spl = self._paths[i]
+        # WIP!
+        spl = self._splines[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         rec2d = rec_cyl.proj("r")
         ymax, amax = np.unravel_index(self.argpeak(rec2d), rec2d.shape)
@@ -1397,7 +1401,7 @@ class MtTomogram:
             Float angle offsets in degree. If MT has N protofilaments, this array will be (N,).
         """
         # WIP!
-        spl = self._paths[i]
+        spl = self._splines[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
@@ -1416,7 +1420,7 @@ class MtTomogram:
         return (np.arange(npf)*360/npf + offset) % 360
     
     def _find_seam_offset(self, i, rec: ip.ImgArray):
-        spl = self._paths[i]
+        spl = self._splines[i]
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
@@ -1501,10 +1505,11 @@ class MtTomogram:
         Coordinates
             World coordinates and spline coordinates of protofilament.
         """        
+        # WIP!
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
-        spl = self._paths[i]
+        spl = self._splines[i]
         ny = roundint(spl.length()/pitch)
         mono_skew_rad = np.deg2rad(skew) / 2
         
