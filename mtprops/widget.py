@@ -670,7 +670,7 @@ class MTProfiler(MagicTemplate):
             
         tomo.make_anchors(interval=interval)
         yield "Local Fourier transformation ..."
-        tomo.ft_params()
+        tomo.local_ft_params()
         yield "Finishing ..."
         return tomo
     
@@ -1134,7 +1134,7 @@ class MTProfiler(MagicTemplate):
         """
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
-        worker = create_worker(tomo.ft_params,
+        worker = create_worker(tomo.local_ft_params,
                                _progress={"total": 0, "desc": "Running"})
         @worker.returned.connect
         def _on_return(df):

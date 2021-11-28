@@ -358,7 +358,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to collect.
+            Spline ID that you want to collect.
 
         Returns
         -------
@@ -378,7 +378,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to collect.
+            Spline ID that you want to collect.
 
         Returns
         -------
@@ -427,7 +427,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to collect.
+            Spline ID that you want to collect.
 
         Returns
         -------
@@ -477,7 +477,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to fit.
+            Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.2
@@ -585,7 +585,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to fit.
+            Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
         cutoff_freq : float, default is 0.0
@@ -667,14 +667,18 @@ class MtTomogram:
         return self
     
     @batch_process
-    def fine_fit(self, i = None, *, max_interval: nm = 30.0) -> MtTomogram:
+    def fit_mao(self, i = None, *, max_interval: nm = 30.0) -> MtTomogram:
         """
-        Fit i-th path to MT, using amplitude at y=0, theta=1 in Fourier space.
+        Fit i-th path to MT, using Minimum Angular Oscillation method.
+        The amplitude at y=0, theta=1 in Fourier space is large when spline is not
+        centered. Thus, MT centering can be achieved by a standard minimization
+        algorithm. Because we are only interested in the y=0 plane of Fourier space,
+        optimization procedure becomes faster by using projection-slicing theorem.
 
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to fit.
+            Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
             
@@ -690,8 +694,8 @@ class MtTomogram:
         spl.make_anchors(max_interval=max_interval)
         npoints = len(spl)
         subtomograms = self._sample_subtomograms(i)
-        subproj = subtomograms.proj("y")["x=::-1"] # axes = pzx
-        offset = np.array(subproj.sizesof("zx"))/2 - 0.5
+        subtomo_proj = subtomograms.proj("y")["x=::-1"] # axes = pzx
+        offset = np.array(subtomo_proj.sizesof("zx"))/2 - 0.5
         
         from .spline import _polar_coords_2d
         from scipy.optimize import minimize
@@ -700,7 +704,6 @@ class MtTomogram:
         
         def _func(center, img):
             center = center + offset
-            center = center[::-1] # (z, x) -> (x, z)
             map_ = _polar_coords_2d(radius_px*GVar.inner, radius_px*GVar.outer, center)
             map_ = np.moveaxis(map_, -1, 0)
             
@@ -711,7 +714,7 @@ class MtTomogram:
         
         shifts = np.zeros((npoints, 2))
         for i in range(npoints):
-            img = subproj[i]
+            img = subtomo_proj[i]
             res = minimize(_func, np.array([0., 0.]), args=(img,),
                            bounds=((-2., 2.), (-2., 2.)))
             shift = res.x
@@ -731,7 +734,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to load samples.
+            Spline ID that you want to load samples.
 
         Returns
         -------
@@ -749,7 +752,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to measure.
+            Spline ID that you want to measure.
 
         Returns
         -------
@@ -779,14 +782,14 @@ class MtTomogram:
         return r_peak_sub
     
     @batch_process
-    def ft_params(self, i = None) -> pd.DataFrame:
+    def local_ft_params(self, i = None) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
 
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to analyze.
+            Spline ID that you want to analyze.
 
         Returns
         -------
@@ -836,7 +839,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to analyze.
+            Spline ID that you want to analyze.
 
         Returns
         -------
@@ -873,7 +876,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to straighten.
+            Spline ID that you want to straighten.
         size : float (nm), optional
             Vertical/horizontal box size.
         range_ : tuple[float, float], default is (0.0, 1.0)
@@ -943,7 +946,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to straighten.
+            Spline ID that you want to straighten.
         radii : tuple of float (nm), optional
             Lower/upper limit of radius.
         range_ : tuple[float, float], default is (0.0, 1.0)
@@ -1055,7 +1058,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to reconstruct.
+            Spline ID that you want to reconstruct.
         rot_ave : bool, default is False
             If true, rotational averaging is applied to the reconstruction to remove missing wedge.
         seam_offset : float or "find", optional
@@ -1219,7 +1222,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that you want to reconstruct.
+            Spline ID that you want to reconstruct.
         rot_ave : bool, default is False
             If true, rotational averaging is applied to the reconstruction to remove missing wedge.
         y_length : nm, default is 100.0
@@ -1350,7 +1353,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that mapping will be calculated.
+            Spline ID that mapping will be calculated.
 
         Returns
         -------
@@ -1393,7 +1396,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that offsets will be calculated.
+            Spline ID that offsets will be calculated.
 
         Returns
         -------
@@ -1475,7 +1478,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that seam offset will be calculated.
+            Spline ID that seam offset will be calculated.
 
         Returns
         -------
@@ -1496,7 +1499,7 @@ class MtTomogram:
         Parameters
         ----------
         i : int or iterable of int, optional
-            Path ID that mapping will be calculated.
+            Spline ID that mapping will be calculated.
         angle_offset : float, default is 0.0
             Angle offset in degree.
 
