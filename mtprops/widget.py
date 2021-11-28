@@ -408,6 +408,7 @@ class MTProfiler(MagicTemplate):
         def Add_anchors(self): ...
         def Measure_radius(self): ...
         def Refine_splines(self): ...
+        def Refine_splines_with_MAO(self): ...
         sep0 = Separator()
         def Local_FT_analysis(self): ...
         def Global_FT_analysis(self): ...
@@ -588,16 +589,14 @@ class MTProfiler(MagicTemplate):
     @operation.wraps
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
                  ft_size={"label": "Local DFT window size (nm)"},
-                 n_refine={"label": "Refinement iteration", "max": 4},
-                 cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05}
+                 n_refine={"label": "Refinement iteration", "max": 4}
                  )
     @set_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          ft_size: nm = 33.4,
                          n_refine: int = 1,
-                         dense_mode: bool = False,
-                         cutoff_freq: float = 0.0):
+                         dense_mode: bool = False):
         """
         Run MTProps.
 
@@ -613,8 +612,6 @@ class MTProfiler(MagicTemplate):
         dense_mode : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
-        cutoff_freq : float, default is 0.0
-            Cutoff frequency of Butterworth low-pass prefilter.
         """        
         if self.layer_work.data.size > 0:
             raise ValueError("The last curve is not registered yet.")
@@ -626,7 +623,6 @@ class MTProfiler(MagicTemplate):
                                ft_size=ft_size,
                                n_refine=n_refine,
                                dense_mode=dense_mode,
-                               cutoff_freq=cutoff_freq,
                                _progress={"total": total, 
                                           "desc": "Running MTProps"}
                                )
@@ -653,11 +649,10 @@ class MTProfiler(MagicTemplate):
                  interval: nm,
                  ft_size,
                  n_refine,
-                 dense_mode,
-                 cutoff_freq):
+                 dense_mode):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
-        tomo.fit(cutoff_freq=cutoff_freq, dense_mode=dense_mode)
+        tomo.fit(dense_mode=dense_mode)
         tomo.measure_radius()
         
         for i in range(n_refine):
@@ -694,11 +689,7 @@ class MTProfiler(MagicTemplate):
         self._init_widget_params()
         self._init_layers()
         self.Panels.overview.layers.clear()
-        self.canvas.figure.clf()
-        self.canvas.draw()
-        self.plot.figure.clf()
-        self.plot.figure.add_subplot(111)
-        self.plot.draw()
+        self._init_figures()
         
         cachemap.clear()
         self.active_tomogram._splines.clear()
@@ -998,9 +989,7 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    @set_options(cutoff_freq={"label": "Cutoff freqency (1/px)", "min": 0.0, "max": 0.5, "step": 0.05})
     def Fit_splines(self, 
-                    cutoff_freq: float = 0.0,
                     dense_mode: bool = False,
                     ):
         """
@@ -1008,14 +997,11 @@ class MTProfiler(MagicTemplate):
 
         Parameters
         ----------
-        cutoff_freq : float, default is 0.0
-            Cutoff frequency of Butterworth low-pass prefilter.
         dense_mode : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
         """        
         worker = create_worker(self.active_tomogram.fit,
-                               cutoff_freq=cutoff_freq,
                                dense_mode=dense_mode,
                                _progress={"total": 0, "desc": "Running"}
                                )
@@ -1082,9 +1068,8 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    @set_options(max_interval={"label": "Maximum interval (nm)"},
-                 cutoff_freq={"label": "Cutoff freqencey", "min": 0.0, "max": 0.5, "step": 0.05})
-    def Refine_splines(self, max_interval: nm = 30, cutoff_freq = 0.0):
+    @set_options(max_interval={"label": "Maximum interval (nm)"})
+    def Refine_splines(self, max_interval: nm = 30):
         """
         Refine splines using the global MT structural parameters.
         
@@ -1092,14 +1077,11 @@ class MTProfiler(MagicTemplate):
         ----------
         max_interval : nm, default is 30
             Maximum interval between anchors.
-        cutoff_freq : float, default is 0.0
-            Cutoff frequency of Butterworth low-pass prefilter applied before image alignment.
         """
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.refine,
                                max_interval=max_interval,
-                               cutoff_freq=cutoff_freq,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
@@ -1114,11 +1096,37 @@ class MTProfiler(MagicTemplate):
             run_worker_function(worker)
                 
         self._init_widget_params()
-        self.canvas.figure.clf()
-        self.canvas.draw()
-        self.plot.figure.clf()
-        self.plot.figure.add_subplot(111)
-        self.plot.draw()
+        self._init_figures()
+        return None
+    
+    def Refine_splines_with_MAO(self, max_interval: nm = 30):
+        """
+        Refine splines using Minimum Angular Oscillation.
+        
+        Parameters
+        ----------
+        max_interval : nm, default is 30
+            Maximum interval between anchors.
+        """
+        tomo = self.active_tomogram
+        
+        worker = create_worker(tomo.fit_mao,
+                               max_interval=max_interval,
+                               _progress={"total": 0, 
+                                          "desc": "Running"})
+        
+        worker.finished.connect(self._update_splines_in_images)
+
+        self._worker_control.info.value = "Refining splines with MAO..."
+        
+        if self["Refine_splines_with_MAO"].running:
+            self._connect_worker(worker)
+            worker.start()
+        else:
+            run_worker_function(worker)
+                
+        self._init_widget_params()
+        self._init_figures()
         return None
     
     @Analysis.wraps
@@ -1605,6 +1613,14 @@ class MTProfiler(MagicTemplate):
         self.mt.pos.min = 0
         self.mt.pos.max = 0
         self.txt.value = ""
+        return None
+    
+    def _init_figures(self):
+        self.canvas.figure.clf()
+        self.canvas.draw()
+        self.plot.figure.clf()
+        self.plot.figure.add_subplot(111)
+        self.plot.draw()
         return None
     
     def _check_path(self) -> str:

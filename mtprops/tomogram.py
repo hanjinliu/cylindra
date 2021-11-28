@@ -288,15 +288,6 @@ class MtTomogram:
                 )
             
         return self
-
-    def argpeak(self, x: np.ndarray) -> Callable:
-        """
-        Dispatch argmin and argmax according to background.
-        """        
-        if self.light_background:
-            return np.argmin(x)
-        else:
-            return np.argmax(x)
     
     def add_spline(self, coords: np.ndarray):
         """
@@ -468,7 +459,6 @@ class MtTomogram:
             *, 
             max_interval: nm = 30.0,
             degree_precision: float = 0.2,
-            cutoff_freq: float = 0.0,
             dense_mode: bool = False,
             ) -> MtTomogram:
         """
@@ -482,8 +472,6 @@ class MtTomogram:
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.
-        cutoff_freq : float, default is 0.0
-            Cutoff frequency of Butterworth low-pass prefilter.
         dense_mode : bool, default is False
             If True, fitting will be executed in the dense-mocrotubule mode.
 
@@ -497,10 +485,6 @@ class MtTomogram:
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
-        
-        # Apply low-pass filter if needed
-        if cutoff_freq > 0:
-            subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         if dense_mode:
             # roughly crop MT and fill outside with a constant value
@@ -574,8 +558,7 @@ class MtTomogram:
     def refine(self, 
                i = None,
                *, 
-               max_interval: nm = 30.0,
-               cutoff_freq: float = 0.0
+               max_interval: nm = 30.0
                ) -> MtTomogram:
         """
         Refine spline using the result of previous fit and the global structural parameters.
@@ -588,8 +571,6 @@ class MtTomogram:
             Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
-        cutoff_freq : float, default is 0.0
-            Cutoff frequency of butterworth low-pass prefilter.
         
         Returns
         -------
@@ -606,8 +587,6 @@ class MtTomogram:
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i)
-        if cutoff_freq > 0:
-            subtomograms = subtomograms.lowpass_filter(cutoff_freq)
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
@@ -1364,7 +1343,8 @@ class MtTomogram:
         spl = self._splines[i]
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         rec2d = rec_cyl.proj("r")
-        ymax, amax = np.unravel_index(self.argpeak(rec2d), rec2d.shape)
+        argpeak = np.argmin if self.light_background else np.argmax
+        ymax, amax = np.unravel_index(argpeak(rec2d), rec2d.shape)
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
