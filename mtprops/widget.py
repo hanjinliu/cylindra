@@ -539,10 +539,10 @@ class MTProfiler(MagicTemplate):
             worker.start()
             
             if tomo.splines:
-                self._load_tomogram_results()
+                worker.finished.connect(self._load_tomogram_results)
             else:
-                self._init_layers()
-                self._init_widget_params()
+                worker.finished.connect(self._init_layers)
+                worker.finished.connect(self._init_widget_params)
         
         @tomograms.register_contextmenu(MtTomogram)
         def Load_tomogram(tomo: MtTomogram, i: int):
