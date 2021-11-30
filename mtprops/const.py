@@ -56,13 +56,13 @@ class GVar:
     nPFmax: int = 17
     splOrder: int = 3
     yPitchMin: nm = 3.9
-    yPitchMax: nm = 4.5
+    yPitchMax: nm = 4.3
     minSkew: float = -1.0
     maxSkew: float = 1.0
     splError: nm = 0.8
     inner: float = 0.8
     outer: float = 1.5
-    daskChunk: int = (64, 512, 512)
+    daskChunk: int = (128, 256, 256)
     
     @classmethod
     def set_value(cls, **kwargs):
