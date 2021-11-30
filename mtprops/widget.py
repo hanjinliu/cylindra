@@ -552,6 +552,17 @@ class MTProfiler(MagicTemplate):
         def Remove_tomogram_from_list(tomo: MtTomogram, i: int):
             tomograms.pop(i)
             
+        @tomograms.register_contextmenu(MtTomogram)
+        def Copy_path(tomo: MtTomogram, i: int):
+            from qtpy.QtGui import QGuiApplication
+            clipboard = QGuiApplication.clipboard()
+            clipboard.setText(tomo.metadata["source"])
+        
+        @tomograms.register_tooltip(MtTomogram)
+        def _tooltip(tomo: MtTomogram):
+            gb = tomo.image.gb
+            return f"{gb:.3g} GB"
+            
         tomograms.height = 160
         tomograms.max_height = 160
         self.min_width = 450
@@ -744,6 +755,9 @@ class MTProfiler(MagicTemplate):
             Radius x outer will be the outer surface of MT.
         """        
         GVar.set_value(**locals())
+        for spl in self.active_tomogram.splines:
+            spl.localprops = None
+            spl.globalprops = None
         
     
     @Others.wraps
