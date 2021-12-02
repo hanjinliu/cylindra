@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 # should also be initialized.
 # TODO: rotational averaging in "Fit splines manually" is not correct??
 # TODO: Do not fit mode of "Fit splines manually"
-# TODO: find seam sometimes fails (no density)
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
