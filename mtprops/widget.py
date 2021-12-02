@@ -11,8 +11,10 @@ from pathlib import Path
 
 import impy as ip
 
-from magicclass import magicclass, magicmenu, field, set_design, set_options, do_not_record, Bound, MagicTemplate
-from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas, show_messagebox
+from magicclass import (magicclass, magicmenu, field, set_design, set_options, do_not_record, 
+                        Bound, MagicTemplate, bind_key)
+from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas
+from magicclass.utils import show_messagebox
 from magicclass.macro import register_type
 
 from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
@@ -26,6 +28,8 @@ if TYPE_CHECKING:
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
+# TODO: rotational averaging in "Fit splines manually" is not correct??
+# TODO: Do not fit mode of "Fit splines manually"
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
@@ -577,6 +581,7 @@ class MTProfiler(MagicTemplate):
     @operation.wraps
     @set_design(text="📝")
     @set_options(coords={"bind": _get_path})
+    @bind_key("F1")
     def register_path(self, coords=None):
         """
         Register current selected points as a MT path.

@@ -12,10 +12,10 @@ setup(name="MTProps",
       packages=find_packages(),
       install_requires=[
             "impy-array>=1.24.2",
-            "magic-class>=0.5.9",
+            "magic-class>=0.5.10",
             "numba>=0.54",
             "pyqtgraph>=0.12",
             "mrcfile>=1.3.0",
       ],
-      python_requires=">=3.7",
+      python_requires=">=3.8",
       )
