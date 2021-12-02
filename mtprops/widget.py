@@ -611,7 +611,7 @@ class MTProfiler(MagicTemplate):
     @set_design(text="👉")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
-                         ft_size: nm = 33.4,
+                         ft_size: nm = 32.0,
                          n_refine: int = 1,
                          dense_mode: bool = False):
         """
@@ -621,7 +621,7 @@ class MTProfiler(MagicTemplate):
         ----------
         interval : nm, default is 24.0
             Interval of sampling points of microtubule fragments.
-        ft_size : nm, default is 33.4
+        ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
         n_refine : int, default is 1
@@ -1161,13 +1161,13 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    def Local_FT_analysis(self, interval: nm = 25, ft_size: nm = 33.4):
+    def Local_FT_analysis(self, interval: nm = 25, ft_size: nm = 32.0):
         """
         Determine MT structural parameters by local Fourier transformation.
 
         Parameters
         ----------
-        ft_size : nm, default is 33.4
+        ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
         """

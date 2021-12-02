@@ -147,7 +147,7 @@ class MtTomogram:
     def __init__(self, *,
                  subtomogram_length: nm = 48.0,
                  subtomogram_width: nm = 40.0,
-                 ft_size: nm = 33.4,
+                 ft_size: nm = 32.0,
                  light_background: bool = True,
                  ):
         self.subtomo_length = subtomogram_length
