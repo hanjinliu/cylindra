@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 # should also be initialized.
 # TODO: rotational averaging in "Fit splines manually" is not correct??
 # TODO: Do not fit mode of "Fit splines manually"
+# TODO: find seam sometimes fails (no density)
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
@@ -472,7 +473,7 @@ class MTProfiler(MagicTemplate):
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
                  limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
-    def Set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.10, 4.36)):
+    def Set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.00, 4.24)):
         """
         Set the color-map for painting microtubules.
         
@@ -482,7 +483,7 @@ class MTProfiler(MagicTemplate):
             RGB color that corresponds to the most compacted microtubule.
         end : tuple, default is (1.0, 0.0, 0.0)
             RGB color that corresponds to the most expanded microtubule.
-        limit : tuple, default is (4.10, 4.36)
+        limit : tuple, default is (4.00, 4.24)
             Color limit (nm).
         """        
         self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
@@ -574,7 +575,7 @@ class MTProfiler(MagicTemplate):
         self.plot.min_height = 180
         self.Panels.min_height = 240
             
-    def _get_path(self, widget=None) -> list[list[float]]:
+    def _get_path(self, widget=None) -> np.ndarray:
         coords = self.layer_work.data
         return coords
     
