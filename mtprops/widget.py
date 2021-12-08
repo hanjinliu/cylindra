@@ -15,7 +15,7 @@ from magicclass import (magicclass, magicmenu, field, set_design, set_options, d
                         Bound, MagicTemplate, bind_key)
 from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas
 from magicclass.utils import show_messagebox
-from magicclass.macro import register_type
+from macrokit import register_type
 
 from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, mirror_pcc, 
@@ -205,6 +205,17 @@ class SplineFitter(MagicTemplate):
         mtlabel = field(int, options={"max": 0}, name="MTLabel", record=False)
         pos = field(int, options={"max": 0}, name="Pos", record=False)
         def Fit(self): ...
+        
+        @bind_key("Up")
+        @do_not_record
+        def _next_pos(self):
+            self.pos.value = min(self.pos.value + 1, self.pos.max)
+        
+        @bind_key("Down")
+        @do_not_record
+        def _prev_pos(self):
+            self.pos.value = max(self.pos.value - 1, self.pos.min)
+            
     
     @magicclass(widget_type="collapsible")
     class Rotational_averaging(MagicTemplate):
@@ -217,9 +228,11 @@ class SplineFitter(MagicTemplate):
             nPF = field(10, options={"min": 1, "max": 48,
                                      "tooltip": "Number of protofilament (if nPF=12, rotational "
                                                 "average will be calculated by summing up every "
-                                                "30° rotated images)."})
+                                                "30° rotated images)."}, 
+                        record=False)
             cutoff = field(0.2, options={"min": 0.0, "max": 0.5, "step": 0.05,
-                                         "tooltip": "Relative cutoff frequency of low-pass filter."})
+                                         "tooltip": "Relative cutoff frequency of low-pass filter."}, 
+                           record=False)
             def Average(self): ...
     
     def _get_shifts(self, widget=None):
