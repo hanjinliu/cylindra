@@ -12,7 +12,7 @@ from pathlib import Path
 import impy as ip
 
 from magicclass import (magicclass, magicmenu, field, set_design, set_options, do_not_record, 
-                        Bound, MagicTemplate, bind_key)
+                        Bound, MagicTemplate, bind_key, build_help)
 from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas
 from magicclass.utils import show_messagebox
 from macrokit import register_type
@@ -202,8 +202,11 @@ class SplineFitter(MagicTemplate):
         
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
-        mtlabel = field(int, options={"max": 0}, name="MTLabel", record=False)
-        pos = field(int, options={"max": 0}, name="Pos", record=False)
+        """MT sub-regions"""
+        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT"}, 
+                        name="MTLabel", record=False)
+        pos = field(int, options={"max": 0, "tooltip": "Position in a MT"},
+                    name="Pos", record=False)
         def Fit(self): ...
         
         @bind_key("Up")
@@ -398,12 +401,18 @@ class MTProfiler(MagicTemplate):
     
     @magicmenu
     class File(MagicTemplate):
+        """
+        File I/O.
+        """        
         def Open_image(self): ...
         def Load_json(self, path: Path): ...
         def Save_results_as_json(self, path: Path): ...
     
     @magicmenu
     class View(MagicTemplate):
+        """
+        Visualization.
+        """        
         def Apply_lowpass_to_reference_image(self): ...
         sep0 = field(Separator)
         def show_current_ft(self): ...
@@ -420,6 +429,9 @@ class MTProfiler(MagicTemplate):
     
     @magicmenu
     class Analysis(MagicTemplate):
+        """
+        Analysis of tomograms.
+        """        
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...                
         def Add_anchors(self): ...
@@ -439,9 +451,13 @@ class MTProfiler(MagicTemplate):
         def Create_macro(self): ...
         def Global_variables(self, **kwargs): ...
         def MTProps_info(self): ...
+        def Open_help(self): ...
         
     @magicclass(layout="horizontal", labels=False)
     class operation(MagicTemplate):
+        """
+        Frequently used operations.
+        """        
         def register_path(self): ...
         def run_for_all_path(self): ...
         def clear_current(self): ...
@@ -449,6 +465,9 @@ class MTProfiler(MagicTemplate):
     
     @magicclass(layout="horizontal")
     class auto_picker(MagicTemplate):
+        """
+        Automatic MT center picking along MT.
+        """        
         stride = field(50.0, widget_type="FloatSlider", 
                        options={"min": 10, "max": 100, "tooltip": "Stride length of aut picker"}, 
                        name="stride (nm)", record=False)
@@ -457,23 +476,34 @@ class MTProfiler(MagicTemplate):
     
     @magicclass(widget_type="collapsible")
     class Tomogram_List(MagicTemplate):
+        """
+        List of tomograms that have loaded to the widget.
+        """        
         tomograms = ListWidget(name="Tomogram List")
     
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
-        mtlabel = field(int, options={"max": 0}, name="MTLabel", record=False)
-        pos = field(int, widget_type="Slider", options={"max":0}, name="Pos", record=False)
+        """MT sub-regions"""
+        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."},
+                        name="MTLabel", record=False)
+        pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, 
+                    name="Pos", record=False)
     
     canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8), "tooltip": "Projections"})
         
-    txt = field(str, options={"enabled": False}, name="result")
+    txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."},
+                name="result")
         
-    orientation_choice = field(Ori.none, name="Orientation: ")
+    orientation_choice = field(Ori.none, name="Orientation: ", 
+                               options={"tooltip": "MT polarity."})
     
     plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
+        """
+        Panels for output.
+        """        
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines", 
                                                                   "show_button": False})
         image2D = field(QtImageCanvas, options={"show_button": False})
@@ -509,7 +539,7 @@ class MTProfiler(MagicTemplate):
         """
         Create Python executable script.
         """        
-        self.create_macro(show=True)
+        self.macro.widget.duplicate().show()
         return None
     
     def _update_colormap(self, prop: str = H.yPitch):
@@ -797,6 +827,13 @@ class MTProfiler(MagicTemplate):
                 f"napari: {napari.__version__}\n"\
                 f"dask: {dask.__version__}\n"
         show_messagebox(title="MTProps info", text=value, parent=self.native)
+        return None
+    
+    @Others.wraps
+    @do_not_record
+    def Open_help(self):
+        help = build_help(self)
+        help.show()
         return None
     
     @File.wraps
