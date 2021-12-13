@@ -243,12 +243,10 @@ class SplineFitter(MagicTemplate):
         return self.shifts[i]
     
     @mt.wraps
-    @set_options(shifts={"bind": _get_shifts})
-    def Fit(self, shifts):
+    def Fit(self, shifts: Bound(_get_shifts), i: Bound(mt.mtlabel)):
         """
         Fit current spline.
         """        
-        i = self.mt.mtlabel.value
         shifts = np.asarray(shifts)
         spl = self.splines[i]
         sqsum = GVar.splError**2 * shifts.shape[0]
@@ -469,7 +467,7 @@ class MTProfiler(MagicTemplate):
         Automatic MT center picking along MT.
         """        
         stride = field(50.0, widget_type="FloatSlider", 
-                       options={"min": 10, "max": 100, "tooltip": "Stride length of aut picker"}, 
+                       options={"min": 10, "max": 100, "tooltip": "Stride length of auto picker"}, 
                        name="stride (nm)", record=False)
         def pick_next(self): ...
         def auto_center(self): ...
@@ -623,9 +621,9 @@ class MTProfiler(MagicTemplate):
     
     @operation.wraps
     @set_design(text="📝")
-    @set_options(coords={"bind": _get_path})
+    # @set_options(coords={"bind": _get_path})
     @bind_key("F1")
-    def register_path(self, coords=None):
+    def register_path(self, coords: Bound(_get_path) = None):
         """
         Register current selected points as a MT path.
         """        
@@ -832,6 +830,9 @@ class MTProfiler(MagicTemplate):
     @Others.wraps
     @do_not_record
     def Open_help(self):
+        """
+        Open a help window.
+        """        
         help = build_help(self)
         help.show()
         return None
@@ -879,13 +880,14 @@ class MTProfiler(MagicTemplate):
     @View.wraps
     def Apply_lowpass_to_reference_image(self):
         """
-        Apply Butterworth low-pass filter to enhance contrast of the reference image.
+        Apply low-pass filter to enhance contrast of the reference image.
         """        
         cutoff = 0.2
         def func():
             with no_verbose:
-                self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(cutoff, 
-                                                                                   chunks=(32, 128, 128))
+                self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(
+                    cutoff, chunks=(32, 128, 128)
+                    )
                 return np.percentile(self.layer_image.data, [1, 97])
         worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
         self._worker_control.info.value = "Low-pass filtering"
