@@ -47,6 +47,7 @@ class Mode:
     reflect = "reflect"
     mirror = "mirror"
     constant = "constant"
+    nearest = "nearest"
 
 class GVar:
     """

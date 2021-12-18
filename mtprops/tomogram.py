@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Any
 import json
 from collections import namedtuple
 from functools import partial, wraps
@@ -156,7 +156,7 @@ class MtTomogram:
         self._ft_size = None
         self.ft_size = ft_size
         self.light_background = light_background
-        self.metadata = {}
+        self.metadata: dict[str, Any] = {}
         
     
     def __hash__(self) -> int:
@@ -615,7 +615,7 @@ class MtTomogram:
             inputs = subtomograms.proj("y")["x=::-1"]
         else:
             inputs = subtomograms["x=::-1"]
-        cval = np.median(inputs)
+        cval = np.mean(inputs)
         
         imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
@@ -1542,12 +1542,14 @@ def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: 
     # img: 3D
     img_z = img.proj("z")
     mask = ip.circular_mask(img_z.shape.y/2+2, img_z.shape)
-    img_mirror = img_z["x=::-1"]
+    img_mirror: ip.ImgArray = img_z["x=::-1"]
     angs = np.linspace(ang_center-drot, ang_center+drot, nrots, endpoint=True)
     corrs = []
     f0 = np.sqrt(img_z.power_spectra(dims="yx", zero_norm=True))
+    cval = np.mean(img_z)
     for ang in angs:
-        f1 = np.sqrt(img_mirror.rotate(ang*2).power_spectra(dims="yx", zero_norm=True))
+        img_mirror_rot = img_mirror.rotate(ang*2, mode=Mode.constant, cval=cval)
+        f1 = np.sqrt(img_mirror_rot.power_spectra(dims="yx", zero_norm=True))
         corr = ip.zncc(f0, f1, mask)
         corrs.append(corr)
         
@@ -1612,7 +1614,10 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
     skew = np.arctan(y_freq[ymax_f]/a_freq[amax_f]*2*y_pitch/radius)
-    start = l_circ/y_pitch/(np.tan(skew) + 1/np.tan(rise))
+    if rise == 0.0:
+        start = 0.0
+    else:
+        start = l_circ/y_pitch/(np.tan(skew) + 1/np.tan(rise))
     
     return np.array([np.rad2deg(rise), 
                      y_pitch, 
@@ -1632,15 +1637,18 @@ def ft_params(img: ip.ImgArray, coords: np.ndarray, radius: nm):
 lazy_ft_params = delayed(ft_params)
 lazy_ft_pcc = delayed(ip.ft_pcc_maximum)
 
-def _affine(img, matrix, order=1):
-    out = ndi.affine_transform(img[0], matrix[0,:,:,0], order=order, prefilter=order>1)
+def _affine(img, matrix, mode: str, cval: float, order):
+    out = ndi.affine_transform(img[0], matrix[0,:,:,0], mode=mode, cval=cval, 
+                               order=order, prefilter=order>1)
     return out[np.newaxis]
 
-def dask_affine(images, matrices, order=1):
+def dask_affine(images, matrices, mode: str = Mode.constant, cval: float = 0, order=1):
     imgs = da.from_array(images, chunks=(1,)+images.shape[1:])
     mtxs = da.from_array(matrices[..., np.newaxis], chunks=(1,)+matrices.shape[1:]+(1,))
-    return imgs.map_blocks(_affine, 
+    return imgs.map_blocks(_affine,
                            mtxs,
+                           mode=mode,
+                           cval=cval,
                            order=order,
                            meta=np.array([], dtype=np.float32),
                            ).compute()

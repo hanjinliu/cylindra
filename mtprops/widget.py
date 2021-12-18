@@ -1605,14 +1605,21 @@ class MTProfiler(MagicTemplate):
     
         return None
         
-    def _get_process_image_worker(self, img, binsize: int, light_bg: bool, cutoff: float, 
-                                  length: nm, width: nm, *, new: bool = True):
-        viewer: napari.Viewer = self.parent_viewer
+    def _get_process_image_worker(self, img: ip.LazyImgArray, binsize: int, light_bg: bool, 
+                                  cutoff: float, length: nm, width: nm, *, new: bool = True):
+        """
+        When an image is opened, we have to (1) prepare binned image for reference, (2) apply 
+        low-pass filter if needed, (3) change existing layer scales if needed, (4) construct
+        a new ``MtTomogram`` object if needed (5) make 2D projection. 
+        """
+        viewer = self.parent_viewer
+        img = img.as_float()
         
         def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
             with no_verbose:
-                img.tiled_lowpass_filter(cutoff, update=True)
-                img.release()
+                if 0 < cutoff < 0.5:
+                    img.tiled_lowpass_filter(cutoff, update=True)
+                    img.release()
                 imgb = img.binning(binsize, check_edges=False).data
             
             return imgb
@@ -1650,6 +1657,9 @@ class MTProfiler(MagicTemplate):
                 
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
+            
+            if self.layer_paint is not None:
+                self.layer_paint.scale = imgb.scale
             
             with no_verbose:
                 proj = imgb.proj("z")
@@ -1786,26 +1796,29 @@ class MTProfiler(MagicTemplate):
         if self.layer_prof in self.parent_viewer.layers:
             viewer.layers.remove(self.layer_prof)
     
-        self.layer_prof = viewer.add_points(**common_properties,
-                                    name=SELECTION_LAYER_NAME,
-                                    opacity=0.4, 
-                                    edge_color="black",
-                                    face_color="black",
-                                    )
+        self.layer_prof = viewer.add_points(
+            **common_properties,
+            name=SELECTION_LAYER_NAME,
+            opacity=0.4, 
+            edge_color="black",
+            face_color="black",
+            )
         self.layer_prof.editable = False
             
         if self.layer_work in viewer.layers:
             viewer.layers.remove(self.layer_work)
         
-        self.layer_work = viewer.add_points(**common_properties,
-                                    name=WORKING_LAYER_NAME,
-                                    face_color="yellow"
-                                    )
-    
+        self.layer_work = viewer.add_points(
+            **common_properties,
+            name=WORKING_LAYER_NAME,
+            face_color="yellow"
+            )
+
         self.layer_work.mode = "add"
         
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
+            self.layer_paint.scale = self.layer_image.scale
         self.orientation_choice.value = Ori.none
         return None
     

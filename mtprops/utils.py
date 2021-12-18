@@ -4,6 +4,8 @@ from scipy import ndimage as ndi
 import impy as ip
 from typing import TYPE_CHECKING
 
+from mtprops.const import Mode
+
 if TYPE_CHECKING:
     from .spline import Spline3D
     from dask import array as da
@@ -44,10 +46,10 @@ def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray,
     reg = img[sl_z, sl_y, sl_x]
     if isinstance(reg, ip.LazyImgArray):
         reg = reg.data
-    with ip.SetConst("SHOW_PROGRESS", False):
+    with no_verbose:
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
-            reg = reg.pad(pads, dims="zyx", constant_values=np.median(reg))
+            reg = reg.pad(pads, dims="zyx", constant_values=np.mean(reg))
     
     return reg
 
@@ -56,11 +58,11 @@ def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl:
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
-    with ip.SetConst("SHOW_PROGRESS", False):
+    with no_verbose:
         coords = spl.local_cartesian(plane_shape, axial_size, u)
         
         coords = np.moveaxis(coords, -1, 0)
-        out = map_coordinates(img, coords, order=3)
+        out = map_coordinates(img, coords, order=3, mode=Mode.nearest)
     out = ip.asarray(out, axes="zyx")
     out.set_scale(img)
     return out
@@ -70,12 +72,12 @@ def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, wi
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
-    with ip.SetConst("SHOW_PROGRESS", False):
+    with no_verbose:
         for u in spl.anchors:
             coords = spl.local_cartesian(plane_shape, axial_size, u)
             
             coords = np.moveaxis(coords, -1, 0)
-            out.append(map_coordinates(img, coords, order=3))
+            out.append(map_coordinates(img, coords, order=3, mode=Mode.nearest))
     out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
     out.set_scale(img)
     return out
@@ -91,12 +93,12 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
     return np.sum(input_arr*x)/np.sum(input_arr)
 
 
-def rotational_average(img, fold: int = 13):
+def rotational_average(img: ip.ImgArray, fold: int = 13):
     angles = np.arange(fold)*360/fold
     average_img = img.copy()
-    with ip.SetConst("SHOW_PROGRESS", False):
+    with no_verbose:
         for angle in angles[1:]:
-            average_img.value[:] += img.rotate(angle, dims="zx")
+            average_img.value[:] += img.rotate(angle, dims="zx", mode=Mode.nearest)
     average_img /= fold
     return average_img
 
@@ -131,7 +133,7 @@ def mirror_pcc(img0: ip.ImgArray, mask=None):
 def map_coordinates(input: np.ndarray | "da.core.Array", 
                     coordinates: np.ndarray,
                     order: int = 3, 
-                    mode: str = "constant",
+                    mode: str = Mode.constant,
                     cval: float = 0):
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
@@ -209,7 +211,7 @@ class Projections:
     
     """
     def __init__(self, image: ip.ImgArray):
-        with ip.SetConst("SHOW_PROGRESS", False):
+        with no_verbose:
             self.yx = image.proj("z")
             self.zx = image.proj("y")["x=::-1"]
         self.zx_ave = None
