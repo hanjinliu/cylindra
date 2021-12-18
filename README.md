@@ -19,5 +19,5 @@ Quantify local/global properties of microtubule (or other cylindrically periodic
 ```python
 from mtprops import start
 
-ui = start()
+ui = start() # launch a napari viewer with a MTProfiler dock widget.
 ```

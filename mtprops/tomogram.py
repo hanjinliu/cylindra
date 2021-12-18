@@ -153,7 +153,8 @@ class MtTomogram:
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
         self._splines: list[MtSpline] = []
-        self._ft_size = None
+        self._ft_size: nm = None
+        self._background_intensity: float = None
         self.ft_size = ft_size
         self.light_background = light_background
         self.metadata: dict[str, Any] = {}
@@ -520,6 +521,9 @@ class MtTomogram:
         # zx-shift correction by self-PCC
         subtomo_proj = subtomograms.proj("y")
         
+        if self._background_intensity is None:
+            self._background_intensity = np.mean(subtomo_proj)
+        
         if dense_mode:
             xc = int(subtomo_proj.shape.x//2)
             w = int((self.subtomo_width/self.scale)//2)
@@ -615,7 +619,8 @@ class MtTomogram:
             inputs = subtomograms.proj("y")["x=::-1"]
         else:
             inputs = subtomograms["x=::-1"]
-        cval = np.mean(inputs)
+        
+        cval = self._background_intensity or np.mean(inputs)
         
         imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
@@ -819,12 +824,13 @@ class MtTomogram:
         ylen = self.nm2pixel(self.ft_size)
         rmin = spl.radius*GVar.inner/self.scale
         rmax = spl.radius*GVar.outer/self.scale
+        cval = self._background_intensity or 0
         tasks = []
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
             coords = np.moveaxis(coords, -1, 0)
             tasks.append(
-                da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
+                da.from_delayed(lazy_ft_params(self.image, coords, spl.radius, cval), 
                                 shape=(5,), 
                                 meta=np.array([], dtype=np.float32)
                                 )
@@ -1627,8 +1633,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
                     dtype=np.float32)
     
 
-def ft_params(img: ip.ImgArray, coords: np.ndarray, radius: nm):
-    polar = map_coordinates(img, coords, order=3, mode=Mode.grid_wrap)
+def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm, cval: float):
+    polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=cval)
     polar = ip.asarray(polar, axes="rya") # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit
