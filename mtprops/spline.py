@@ -58,7 +58,7 @@ class Spline3D:
         return self._anchors
     
     @anchors.setter
-    def anchors(self, positions: float|Iterable[float]):
+    def anchors(self, positions: float | Iterable[float]):
         positions = np.atleast_1d(np.asarray(positions, dtype=np.float32))
         if positions.ndim != 1:
             raise TypeError(f"Could not convert positions into 1D array.")

@@ -1660,6 +1660,7 @@ class MTProfiler(MagicTemplate):
             
             if self.layer_paint is not None:
                 self.layer_paint.scale = imgb.scale
+                self.layer_paint.translate = [tr, tr, tr]
             
             with no_verbose:
                 proj = imgb.proj("z")

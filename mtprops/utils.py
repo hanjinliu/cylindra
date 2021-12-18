@@ -19,14 +19,23 @@ def ceilint(a: float):
 no_verbose = ip.SetConst("SHOW_PROGRESS", False)
 
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
+    """
+    This function calculates what slicing and padding are needed when an array is sliced
+    by ``z0:z1``. Array must be padded when z0 is negative or z1 is outside the array size.
+    """    
     z0_pad = z1_pad = 0
     if z0 < 0:
         z0_pad = -z0
         z0 = 0
+    elif size < z0:
+        raise ValueError(f"Out of bound: {z0}:{z1}")
+    
     if size < z1:
         z1_pad = z1 - size
         z1 = size
-
+    elif z1 < 0:
+        raise ValueError(f"Out of bound: {z0}:{z1}")
+    
     return slice(z0, z1), (z0_pad, z1_pad)
 
 def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray, 
@@ -142,22 +151,19 @@ def map_coordinates(input: np.ndarray | "da.core.Array",
     coordinates = coordinates.copy()
     shape = input.shape
     sl = []
-    pad = []
-    for i in range(3):
+    
+    for i in range(input.ndim):
         imin = int(np.min(coordinates[i]))
         imax = int(np.max(coordinates[i])) + 2
         _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
         sl.append(_sl)
-        pad.append(_pad)
-        coordinates[i] -= min(_sl.start, imin)
+        coordinates[i] -= _sl.start
+        
     sl = tuple(sl)
     img = input[sl]
     if isinstance(img, ip.LazyImgArray):
         img = img.data
     
-    if np.any(np.array(pad) > 0):
-        img = img.pad(pad, dims="zyx", constant_values=np.mean(img))
-        
     return ndi.map_coordinates(img.value,
                                coordinates,
                                order=order,
