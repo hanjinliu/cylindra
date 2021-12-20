@@ -143,7 +143,7 @@ def map_coordinates(input: np.ndarray | "da.core.Array",
                     coordinates: np.ndarray,
                     order: int = 3, 
                     mode: str = Mode.constant,
-                    cval: float = 0.0):
+                    cval: float = 0.0) -> np.ndarray:
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.

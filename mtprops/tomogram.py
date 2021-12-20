@@ -716,7 +716,7 @@ class MtTomogram:
             map_ = np.moveaxis(map_, -1, 0)
             
             out = ndi.map_coordinates(img, map_, prefilter=True, mode=Mode.reflect)
-            out = ip.asarray(out, axes="ra")
+            out = ip.asarray(out, axes="ra", dtype=np.float32)
             pw = out.local_power_spectra(f"a=1:3", dims="ra").proj("r")
             return pw[0] / (pw[0] + pw[1])
         
@@ -1570,10 +1570,11 @@ def dask_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
     return da.compute(tasks, scheduler=SCHEDULER)[0]
     
 def _local_dft_params(img: ip.ImgArray, radius: nm):
+    img = img - img.mean() # NOTE: rescale for now, but this should be solved in other ways.
     l_circ: nm = 2*np.pi*radius
     npfmin = GVar.nPFmin
     npfmax = GVar.nPFmax
-    ylength_nm = img.shape.y*img.scale.y
+    ylength_nm = img.shape.y * img.scale.y
     y0 = ceilint(ylength_nm/GVar.yPitchMax) - 1
     y1 = max(ceilint(ylength_nm/GVar.yPitchMin), y0+1)
     up_a = 20
@@ -1635,7 +1636,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
 
 def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm, cval: float):
     polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=cval)
-    polar = ip.asarray(polar, axes="rya") # radius, y, angle
+    polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit
     return _local_dft_params(polar, radius)

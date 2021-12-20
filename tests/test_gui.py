@@ -1,9 +1,10 @@
 from mtprops import start
-
+from pathlib import Path
 ui = start()
 
 def test_run_all():    
-    ui._loader.call(path=r'C:\Users\liuha\Desktop\Analysis\python_codes\MTProps\tests\test_image.tif', 
+    path = Path(__file__).parent / "test_image.tif"
+    ui._loader.call(path=path,
                     scale='1.052', 
                     bin_size=2,
                     light_background=False,
