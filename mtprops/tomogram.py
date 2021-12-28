@@ -14,7 +14,7 @@ from .const import nm, H, K, Ori, Mode, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
 from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_rot_subtomograms,
-                    ceilint, oblique_meshgrid, no_verbose, mirror_pcc)
+                    ceilint, oblique_meshgrid, no_verbose, mirror_pcc, mirror_ft_pcc)
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -593,6 +593,7 @@ class MtTomogram:
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i)
+        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
@@ -619,21 +620,17 @@ class MtTomogram:
             inputs = subtomograms.proj("y")["x=::-1"]
         else:
             inputs = subtomograms["x=::-1"]
-        
-        cval = self._background_intensity or np.mean(inputs)
-        
+                
         imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
-            rotimg = inputs[i].rotate(ang, dims="zx", mode=Mode.constant, cval=cval)
+            rotimg = inputs[i].rotate(ang, dims="zx", mode=Mode.constant, cval=0)
             imgs_rot_list.append(rotimg)
-            
+        
         imgs_rot: ip.ImgArray = np.stack(imgs_rot_list, axis="p")
         imgs_rot_ft = imgs_rot.fft(dims=imgs_rot_list[0].axes)
 
         # Coarsely align skew-corrected images
-        iref = npoints//2
-        ft_ref = imgs_rot_ft[iref]
-        shape = ft_ref.shape
+        shape = imgs_rot_ft[0].shape
         # mask for PCC
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) 
         if not projection and mask_8nm:
@@ -645,15 +642,15 @@ class MtTomogram:
         for i in range(npoints):
             img: ip.ImgArray = imgs_rot[i]
             ft = imgs_rot_ft[i]
-            shift = ip.ft_pcc_maximum(ft_ref, ft, mask=mask)
+            shift = mirror_ft_pcc(ft, mask=mask)/2
             if not projection:
                 shift[1] = 0
-            imgs_aligned.append(img.affine(translation=-shift, mode=Mode.constant, cval=cval))
+            imgs_aligned.append(img.affine(translation=shift, mode=Mode.constant, cval=0))
             
         # Make template using coarse aligned images.
         imgcory: ip.ImgArray = sum(imgs_aligned)
         center_shift = mirror_pcc(imgcory, mask=mask)/2
-        template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=cval)
+        template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
         template_ft = template.fft(dims=template.axes)
                 
         # Align skew-corrected images to the template
@@ -665,8 +662,8 @@ class MtTomogram:
                 shift = shift[[0, 2]]
             rad = np.deg2rad(skew_angles[i])
             cos, sin = np.cos(rad), np.sin(rad)
-            zxrot = np.array([[ cos, sin],
-                              [-sin, cos]], dtype=np.float32)
+            zxrot = np.array([[cos,-sin],
+                              [sin, cos]], dtype=np.float32)
             shifts[i] = shift @ zxrot
         
         # Update spline parameters
@@ -1570,7 +1567,7 @@ def dask_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
     return da.compute(tasks, scheduler=SCHEDULER)[0]
     
 def _local_dft_params(img: ip.ImgArray, radius: nm):
-    img = img - img.mean() # NOTE: rescale for now, but this should be solved in other ways.
+    img = img - img.mean()
     l_circ: nm = 2*np.pi*radius
     npfmin = GVar.nPFmin
     npfmax = GVar.nPFmax

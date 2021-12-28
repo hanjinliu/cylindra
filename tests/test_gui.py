@@ -17,7 +17,13 @@ def test_run_all():
     ui.register_path(coords=[[18.97, 190.0, 28.99], 
                              [18.97, 107.8, 51.48],
                              [18.97,  35.2, 79.90]])
-    ui.run_for_all_path(interval=32.0, ft_size=32.0, n_refine=1, dense_mode=True)
+    ui.run_for_all_path(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True)
+    ui.Global_FT_analysis()
+    ypitch_mean = ui.active_tomogram.splines[0].localprops["yPitch"].mean()
+    ypitch_glob = ui.active_tomogram.splines[0].globalprops["yPitch"]
+    assert 4.09 < ypitch_glob < 4.11
+    assert abs(ypitch_glob - ypitch_mean) < 0.02
+    
 
 def test_viewing():
     ...

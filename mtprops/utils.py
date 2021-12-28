@@ -76,6 +76,7 @@ def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl:
     out.set_scale(img)
     return out
 
+
 def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, width_px: int,
                           spl: "Spline3D"):
     plane_shape = (width_px, width_px)
@@ -90,6 +91,7 @@ def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, wi
     out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
     out.set_scale(img)
     return out
+
 
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
     """
@@ -111,6 +113,7 @@ def rotational_average(img: ip.ImgArray, fold: int = 13):
     average_img /= fold
     return average_img
 
+
 def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     """
     Calculate stop and n_segs, where satisfy:
@@ -123,6 +126,7 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     n_segs, res = divmod(value + 1e-8, interval)
     return value - res, int(n_segs)
 
+
 def mirror_pcc(img0: ip.ImgArray, mask=None):
     """
     Phase cross correlation of an image and its mirror image.
@@ -131,7 +135,16 @@ def mirror_pcc(img0: ip.ImgArray, mask=None):
     """    
     ft0 = img0.fft()
     
-    shape = img0.shape
+    return mirror_ft_pcc(ft0, mask)
+
+
+def mirror_ft_pcc(ft0: ip.ImgArray, mask=None):
+    """
+    Phase cross correlation of an image and its mirror image.
+    Identical to ``ip.ft_pcc_maximum(img0, img0[::-1, ::-1])``
+    ``ft0`` must be FFT of ``img0``.
+    """    
+    shape = ft0.shape
     ind = np.indices(shape)
     phase = np.sum([ix/n for ix, n in zip(ind, shape)])
     weight = np.exp(1j*2*np.pi*phase)
@@ -139,6 +152,7 @@ def mirror_pcc(img0: ip.ImgArray, mask=None):
     ft1 = weight*ft0.conj()
     return ip.ft_pcc_maximum(ft0, ft1, mask)
     
+
 def map_coordinates(input: np.ndarray | "da.core.Array", 
                     coordinates: np.ndarray,
                     order: int = 3, 
@@ -171,6 +185,7 @@ def map_coordinates(input: np.ndarray | "da.core.Array",
                                cval=cval,
                                prefilter=order>1
                                )
+
 
 def oblique_meshgrid(shape: tuple[int, int], 
                      rise: float = 0.,
