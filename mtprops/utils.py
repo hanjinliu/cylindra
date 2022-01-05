@@ -150,7 +150,7 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None):
     weight = np.exp(1j*2*np.pi*phase)
     
     ft1 = weight*ft0.conj()
-    return ip.ft_pcc_maximum(ft0, ft1, mask)
+    return ip.ft_pcc_maximum(ft0, ft1, mask) + 1
     
 
 def map_coordinates(input: np.ndarray | "da.core.Array", 

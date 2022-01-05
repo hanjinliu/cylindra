@@ -22,7 +22,7 @@ def test_run_all():
     ypitch_mean = ui.active_tomogram.splines[0].localprops["yPitch"].mean()
     ypitch_glob = ui.active_tomogram.splines[0].globalprops["yPitch"]
     assert 4.09 < ypitch_glob < 4.11
-    assert abs(ypitch_glob - ypitch_mean) < 0.02
+    assert abs(ypitch_glob - ypitch_mean) < 0.01
     
 
 def test_viewing():

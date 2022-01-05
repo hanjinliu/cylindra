@@ -1,6 +1,7 @@
 from mtprops import utils
 import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 import impy as ip
 
 def test_ints():
@@ -32,24 +33,24 @@ def test_load_a_subtomogram():
     img = ip.asarray(zz*1e4 + yy*1e2 + xx, axes="zyx")
     
     sub = utils.load_a_subtomogram(img, (20, 25, 25), (3, 3, 3))
-    assert np.allclose(sub[0], np.array([[192424, 192425, 192426],
-                                         [192524, 192525, 192526], 
-                                         [192624, 192625, 192626]]))
-    assert np.allclose(sub[1], np.array([[202424, 202425, 202426],
-                                         [202524, 202525, 202526], 
-                                         [202624, 202625, 202626]]))
-    assert np.allclose(sub[2], np.array([[212424, 212425, 212426],
-                                         [212524, 212525, 212526], 
-                                         [212624, 212625, 212626]]))
+    assert_allclose(sub[0], np.array([[192424, 192425, 192426],
+                                      [192524, 192525, 192526], 
+                                      [192624, 192625, 192626]]))
+    assert_allclose(sub[1], np.array([[202424, 202425, 202426],
+                                      [202524, 202525, 202526], 
+                                      [202624, 202625, 202626]]))
+    assert_allclose(sub[2], np.array([[212424, 212425, 212426],
+                                      [212524, 212525, 212526], 
+                                      [212624, 212625, 212626]]))
     
     sub = utils.load_a_subtomogram(img, (1, 1, 1), (5, 5, 5))
     c = np.mean(sub)
-    assert np.allclose(sub[0], np.full((5, 5), c))
-    assert np.allclose(sub[1], np.array([[c,   c,   c,   c,   c],
-                                         [c,   0,   1,   2,   3],
-                                         [c, 100, 101, 102, 103],
-                                         [c, 200, 201, 202, 203],
-                                         [c, 300, 301, 302, 303]]))
+    assert_allclose(sub[0], np.full((5, 5), c))
+    assert_allclose(sub[1], np.array([[c,   c,   c,   c,   c],
+                                      [c,   0,   1,   2,   3],
+                                      [c, 100, 101, 102, 103],
+                                      [c, 200, 201, 202, 203],
+                                      [c, 300, 301, 302, 303]]))
 
 
 def test_interval_divmod():
@@ -87,4 +88,21 @@ def test_map_coordinates():
     assert isclose(coords)
     
     np.random.seed(None)
-    
+
+def test_mirror_pcc():
+    np.random.seed(1234)
+    with ip.SetConst(SHOW_PROGRESS=False):
+        # Even number
+        img = ip.random.normal(size=(128, 128))
+        img_mirror = img[::-1, ::-1]
+        shift1 = ip.pcc_maximum(img, img_mirror)
+        shift2 = utils.mirror_pcc(img)
+        assert_allclose(shift1, shift2)
+        
+        # Odd number
+        img = ip.random.normal(size=(127, 127))
+        img_mirror = img[::-1, ::-1]
+        shift1 = ip.pcc_maximum(img, img_mirror)
+        shift2 = utils.mirror_pcc(img)
+        assert_allclose(shift1, shift2)
+    np.random.seed()

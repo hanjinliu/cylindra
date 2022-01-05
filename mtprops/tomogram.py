@@ -534,7 +534,7 @@ class MtTomogram:
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
         for i in range(npoints):
             img = subtomo_proj[i]
-            shifts[i] = mirror_pcc(img, mask=mask)/2
+            shifts[i] = mirror_pcc(img, mask=mask) / 2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -582,8 +582,7 @@ class MtTomogram:
         -------
         MtTomogram
             Same object with updated MtSpline objects.
-        """        
-        
+        """
         spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
@@ -593,7 +592,7 @@ class MtTomogram:
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i)
-        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()
+        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean() # normalize
         
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
@@ -642,14 +641,14 @@ class MtTomogram:
         for i in range(npoints):
             img: ip.ImgArray = imgs_rot[i]
             ft = imgs_rot_ft[i]
-            shift = mirror_ft_pcc(ft, mask=mask)/2
+            shift = mirror_ft_pcc(ft, mask=mask) / 2
             if not projection:
                 shift[1] = 0
             imgs_aligned.append(img.affine(translation=shift, mode=Mode.constant, cval=0))
             
         # Make template using coarse aligned images.
         imgcory: ip.ImgArray = sum(imgs_aligned)
-        center_shift = mirror_pcc(imgcory, mask=mask)/2
+        center_shift = mirror_pcc(imgcory, mask=mask) / 2
         template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
         template_ft = template.fft(dims=template.axes)
                 
@@ -699,6 +698,7 @@ class MtTomogram:
         spl.make_anchors(max_interval=max_interval)
         npoints = len(spl)
         subtomograms = self._sample_subtomograms(i)
+        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean() # normalize
         subtomo_proj = subtomograms.proj("y")["x=::-1"] # axes = pzx
         offset = np.array(subtomo_proj.sizesof("zx"))/2 - 0.5
         
