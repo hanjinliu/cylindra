@@ -11,15 +11,42 @@ from pathlib import Path
 
 import impy as ip
 
-from magicclass import (magicclass, magicmenu, field, set_design, set_options, do_not_record, 
-                        Bound, MagicTemplate, bind_key, build_help)
-from magicclass.widgets import Figure, TupleEdit, Separator, ListWidget, Table, QtImageCanvas
+from magicclass import (
+    magicclass,
+    magicmenu,
+    field,
+    set_design,
+    set_options,
+    do_not_record,
+    Bound,
+    MagicTemplate,
+    bind_key,
+    build_help,
+    )
+from magicclass.widgets import (
+    TupleEdit,
+    Separator,
+    ListWidget,
+    Table,
+    QtImageCanvas,
+    QtMultiPlotCanvas,
+    QtMultiImageCanvas,
+    )
 from magicclass.utils import show_messagebox
 from macrokit import register_type
 
 from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
-from .utils import (Projections, load_a_subtomogram, make_slice_and_pad, map_coordinates, mirror_pcc, 
-                    roundint, ceilint, load_rot_subtomograms, no_verbose)
+from .utils import (
+    Projections,
+    load_a_subtomogram,
+    make_slice_and_pad,
+    map_coordinates,
+    mirror_pcc, 
+    roundint,
+    ceilint,
+    load_rot_subtomograms,
+    no_verbose
+    )
 from .const import nm, H, Ori, GVar
 
 if TYPE_CHECKING:
@@ -110,9 +137,7 @@ class ImageLoader(MagicTemplate):
              subtomo_width: Bound(subtomo_width),
              use_lowpass: Bound(use_lowpass)
              ):
-        """
-        Start loading image.
-        """
+        """Start loading image."""
         try:
             scale = float(scale)
         except Exception as e:
@@ -148,6 +173,7 @@ class ImageLoader(MagicTemplate):
     def _read_scale(self):
         img = ip.lazy_imread(self.path.value, chunks=GVar.daskChunk)
         self.scale.value = f"{img.scale.x:.3f}"
+
 
 @magicclass(layout="horizontal", labels=False, error_mode="stderr")
 class WorkerControl(MagicTemplate):
@@ -198,7 +224,7 @@ class WorkerControl(MagicTemplate):
 class SplineFitter(MagicTemplate):
     # Manually fit MT with spline curve using longitudinal projections
     
-    canvas = field(QtImageCanvas, options={"show_button": False})
+    canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
         
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
@@ -222,9 +248,10 @@ class SplineFitter(MagicTemplate):
     
     @magicclass(widget_type="collapsible")
     class Rotational_averaging(MagicTemplate):
-        canvas_rot = field(QtImageCanvas, options={"show_button": False})
+        canvas_rot = field(QtImageCanvas, options={"lock_contrast_limits": True})
+        
         def __post_init__(self):
-            self.canvas_rot.min_height = 200
+            self.canvas_rot.min_height = 160
             
         @magicclass(layout="horizontal")
         class frame:
@@ -277,8 +304,7 @@ class SplineFitter(MagicTemplate):
     
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
-        self.canvas.show_button(False)
-        self.canvas.min_height = 200
+        self.canvas.min_height = 160
         self.fit_done = True
         self.canvas.add_curve([0, 0], [-1000, 2000], color="lime", lw=2)
         self.canvas.add_curve([-1000, 2000], [0, 0], color="lime", lw=2)
@@ -364,7 +390,8 @@ class SplineFitter(MagicTemplate):
         spl.scale /= self.binsize
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
-        self.canvas.view_range = (0, self.canvas.image.shape[0]), (0, self.canvas.image.shape[1])
+        self.canvas.xlim = (0, self.canvas.image.shape[1])
+        self.canvas.ylim = (0, self.canvas.image.shape[0])
         lz, lx = self.subtomograms.sizesof("zx")
         self._update_cross(lx/2 - 0.5, lz/2 - 0.5)
         
@@ -487,7 +514,8 @@ class MTProfiler(MagicTemplate):
         pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, 
                     name="Pos", record=False)
     
-    canvas = field(Figure, name="Figure", options={"figsize":(4.2, 1.8), "tooltip": "Projections"})
+    canvas = field(QtMultiImageCanvas, name="Figure", 
+                   options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
         
     txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."},
                 name="result")
@@ -495,16 +523,16 @@ class MTProfiler(MagicTemplate):
     orientation_choice = field(Ori.none, name="Orientation: ", 
                                options={"tooltip": "MT polarity."})
     
-    plot = field(Figure, name="Plot", options={"figsize":(4.2, 1.8), "tooltip": "Plot of local properties"})
+    plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True,
+                                                          "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
         """
         Panels for output.
         """        
-        overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines", 
-                                                                  "show_button": False})
-        image2D = field(QtImageCanvas, options={"show_button": False})
+        overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
+        image2D = field(QtImageCanvas)
         table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     ### methods ###
@@ -612,7 +640,17 @@ class MTProfiler(MagicTemplate):
         tomograms.max_height = 160
         self.min_width = 450
         self.canvas.min_height = 180
-        self.plot.min_height = 180
+        for i in range(3):
+            self.canvas[i].lock_contrast_limits = True
+        self.plot.min_height = 240
+        self.plot[0].ylabel = "pitch (nm)"
+        self.plot[0].legend.visible = False
+        self.plot[0].border = [1, 1, 1, 0.2]
+        self.plot[1].xlabel = "position (nm)"
+        self.plot[1].ylabel = "skew (deg)"
+        self.plot[1].legend.visible = False
+        self.plot[1].border = [1, 1, 1, 0.2]
+        
         self.Panels.min_height = 240
             
     def _get_path(self, widget=None) -> np.ndarray:
@@ -621,7 +659,6 @@ class MTProfiler(MagicTemplate):
     
     @operation.wraps
     @set_design(text="📝")
-    # @set_options(coords={"bind": _get_path})
     @bind_key("F1")
     def register_path(self, coords: Bound(_get_path) = None):
         """
@@ -984,7 +1021,7 @@ class MTProfiler(MagicTemplate):
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
         # move to center
         ly, lx = polar.shape
-        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
         self.Panels.current_index = 1
         return None
     
@@ -1001,7 +1038,7 @@ class MTProfiler(MagicTemplate):
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
         ly, lx = polar.shape
-        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
         self.Panels.current_index = 1
         return None
     
@@ -1022,7 +1059,7 @@ class MTProfiler(MagicTemplate):
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
         # move to center
         ly, lx = pw.shape
-        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
         self.Panels.current_index = 1
         return None
     
@@ -1044,7 +1081,7 @@ class MTProfiler(MagicTemplate):
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
         ly, lx = pw.shape
-        self.Panels.image2D.view_range = [[ly*0.3, ly*0.7], [lx*0.3, lx*0.7]]
+        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
         self.Panels.current_index = 1
         return None
     
@@ -1580,29 +1617,17 @@ class MTProfiler(MagicTemplate):
     def _plot_properties(self):
         i = self.mt.mtlabel.value
         props = self.active_tomogram.splines[i].localprops
-        x = props[H.splDistance]
+        x = np.asarray(props[H.splDistance])
         pitch_color = "lime"
         skew_color = "gold"
-        self.plot.ax.cla()
-        if hasattr(self.plot, "ax2"):
-            self.plot.ax2.cla()
         
-        self.plot.ax.plot(x, props[H.yPitch], color=pitch_color)
-        self.plot.ax.set_xlabel("position (nm)")
-        self.plot.ax.set_ylabel("pitch (nm)")
-        self.plot.ax.set_ylim(GVar.yPitchMin, GVar.yPitchMax)
+        self.plot[0].layers.clear()
+        self.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
         
-        self.plot.ax2 = self.plot.ax.twinx()
-        self.plot.ax2.plot(x, props[H.skewAngle], color=skew_color)
-        self.plot.ax2.set_ylabel("skew (deg)")
-        self.plot.ax2.set_ylim(GVar.minSkew, GVar.maxSkew)
-        
-        self.plot.ax2.spines["left"].set_color(pitch_color)
-        self.plot.ax2.spines["right"].set_color(skew_color)
-                    
-        self.plot.figure.tight_layout()
-        self.plot.draw()
-    
+        self.plot[1].layers.clear()
+        self.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
+
+        self.plot.xlim = (x[0] - 2, x[-1] + 2)
         return None
         
     def _get_process_image_worker(self, img: ip.LazyImgArray, binsize: int, light_bg: bool, 
@@ -1665,7 +1690,7 @@ class MTProfiler(MagicTemplate):
             with no_verbose:
                 proj = imgb.proj("z")
             self.Panels.overview.image = proj
-            self.Panels.overview.view_range = (0, proj.shape[0]), (0, proj.shape[1])
+            self.Panels.overview.ylim = (0, proj.shape[0])
             
             if new:
                 tomo = MtTomogram(subtomogram_length=length, 
@@ -1713,11 +1738,12 @@ class MTProfiler(MagicTemplate):
         return None
     
     def _init_figures(self):
-        self.canvas.figure.clf()
-        self.canvas.draw()
-        self.plot.figure.clf()
-        self.plot.figure.add_subplot(111)
-        self.plot.draw()
+        for i in range(3):
+            del self.canvas[i].image
+            self.canvas[i].layers.clear()
+            self.canvas[i].text_overlay.text = ""
+        for i in range(2):
+            self.plot[i].layers.clear()
         return None
     
     def _check_path(self) -> str:
@@ -1839,48 +1865,33 @@ class MTProfiler(MagicTemplate):
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = results.localprops[headers].iloc[j]
             self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
-        
-        if len(self.canvas.axes) < 3:
-            self.canvas.figure.clf()
-            self.canvas.figure.add_subplot(131)
-            self.canvas.figure.add_subplot(132)
-            self.canvas.figure.add_subplot(133)
-        
-        axes: Iterable[Axes] = self.canvas.axes
-        for k in range(3):
-            axes[k].cla()
-            axes[k].tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
-        
+
         binsize = self.active_tomogram.metadata["binsize"]
         with no_verbose:
             proj = self.projections[j]
-            lz, ly, lx = np.array(proj.shape)
-            axes[0].imshow(proj.yx, cmap="gray")
-            axes[0].set_xlabel("x")
-            axes[0].set_ylabel("y")
-            axes[1].imshow(proj.zx, cmap="gray")
-            axes[1].set_xlabel("x")
-            axes[1].set_ylabel("z")
-            axes[2].imshow(proj.zx_ave, cmap="gray")
-            axes[2].set_xlabel("x")
-            axes[2].set_ylabel("z")
+            for i in range(3):
+                self.canvas[i].layers.clear()
+            self.canvas[0].image = proj.yx
+            self.canvas[1].image = proj.zx
+            self.canvas[2].image = proj.zx_ave
         
+        lz, ly, lx = np.array(proj.shape)
         ylen = tomo.ft_size/2/binsize/tomo.scale
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
         r_px = results.radius/tomo.scale/binsize
         r = r_px*GVar.outer
         xmin, xmax = -r + lx/2, r + lx/2
-        axes[0].plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime")
-        axes[0].text(1, 1, f"{i}-{j}", color="lime", font="Consolas", size=15, va="top")
+        self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
+                                 [ymin, ymax, ymax, ymin, ymin], color="lime")
+        self.canvas[0].text_overlay.text = f"{i}-{j}"
+        self.canvas[0].text_overlay.color = "lime"
     
         theta = np.linspace(0, 2*np.pi, 360)
         r = r_px * GVar.inner
-        axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
         r = r_px * GVar.outer
-        axes[1].plot(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
-        self.canvas.figure.tight_layout()
-        self.canvas.draw()
     
     @orientation_choice.connect
     def _update_note(self):
