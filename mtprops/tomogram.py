@@ -633,10 +633,11 @@ class MtTomogram:
         
         imgs_rot: ip.ImgArray = np.stack(imgs_rot_list, axis="p")
         imgs_rot_ft = imgs_rot.fft(dims=imgs_rot_list[0].axes)
-
+        
         # Coarsely align skew-corrected images
         shape = imgs_rot_ft[0].shape
-        # mask for PCC
+        
+        # prepare a mask image for PCC calculation
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) 
         if not projection and mask_8nm:
             ycenter = ylen//2
@@ -657,20 +658,21 @@ class MtTomogram:
         center_shift = mirror_pcc(imgcory, mask=mask) / 2
         template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
         template_ft = template.fft(dims=template.axes)
-                
+        
         # Align skew-corrected images to the template
         shifts = np.zeros((npoints, 2))
         for i in range(npoints):
             ft = imgs_rot_ft[i]
             shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
+            
             if not projection:
                 shift = shift[[0, 2]]
             rad = np.deg2rad(skew_angles[i])
             cos, sin = np.cos(rad), np.sin(rad)
-            zxrot = np.array([[cos,-sin],
-                              [sin, cos]], dtype=np.float32)
+            zxrot = np.array([[ cos, sin],
+                              [-sin, cos]], dtype=np.float32)
             shifts[i] = shift @ zxrot
-        
+
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
         spl.shift_fit(shifts=shifts, s=sqsum)

@@ -340,7 +340,7 @@ class Spline3D:
     def local_cartesian(self,
                         shape: tuple[int, int],
                         n_pixels: int,
-                        u=None):
+                        u: float = None):
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -353,6 +353,7 @@ class Spline3D:
             Length of y axis in pixels.
         u : float
             Position on the spline at which local Cartesian coordinates will be built.
+        
         Returns
         -------
         np.ndarray
@@ -363,8 +364,8 @@ class Spline3D:
     
     def local_cylindrical(self,
                           r_range: tuple[float, float],
-                          n_pixels,
-                          u=None):
+                          n_pixels: int,
+                          u: float = None):
         """
         Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -389,7 +390,7 @@ class Spline3D:
     
     def _get_local_coords(self,
                           map_func: Callable[[tuple], np.ndarray],
-                          map_params:tuple, 
+                          map_params: tuple, 
                           u: np.ndarray, 
                           n_pixels:int):
         if u is None:
