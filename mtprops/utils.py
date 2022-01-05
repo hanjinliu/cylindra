@@ -224,7 +224,7 @@ def oblique_meshgrid(shape: tuple[int, int],
     
     for i in range(n0):
         for j in range(n1):
-            out[i, j, :] = (v0 * i + v1 * j)
+            out[i, j, :] = v0 * i + v1 * j
     
     out[:, :, 0] = out[:, :, 0] * d0 + c0
     out[:, :, 1] = out[:, :, 1] * d1 + c1

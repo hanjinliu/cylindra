@@ -3,7 +3,7 @@ import napari
 from .widget import MTProfiler
 import impy as ip
 
-def start(viewer: "napari.Viewer" = None):
+def start(viewer: "napari.Viewer" = None) -> MTProfiler:
     """
     Start napari viewer and dock MTProfiler widget as a dock widget.
     By default impy's viewer is used.

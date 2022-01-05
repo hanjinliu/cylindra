@@ -78,6 +78,7 @@ class Spline3D:
         for name in self._local_properties:
             setattr(self, name, None)    
     
+
     def make_anchors(self, 
                      interval: nm = None,
                      n: int = None,
@@ -112,19 +113,23 @@ class Spline3D:
         
         self.anchors = np.linspace(0, end, n)
         return None
+
     
     def __hash__(self) -> int:
         return hash((id(self), self._updates))
     
+
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
     
+
     def __len__(self) -> int:
         if self._anchors is None:
             return 0
         else:
             return self._anchors.size
     
+
     def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline3D:
         """
         Fit spline model using a list of coordinates.
@@ -149,6 +154,7 @@ class Spline3D:
             setattr(self, name, None)
         return self
     
+
     def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray = None, s: float = None) -> Spline3D:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -175,6 +181,7 @@ class Spline3D:
         
         self.fit(coords, s=s)
         return self
+
     
     def distances(self, u: Iterable[float] = None) -> np.ndarray:
         """
@@ -195,7 +202,8 @@ class Spline3D:
         length = self.length()
         return length * np.asarray(u)
 
-    def __call__(self, u:np.ndarray|float=None, der:int=0) -> np.ndarray:
+
+    def __call__(self, u: np.ndarray | float = None, der: int = 0) -> np.ndarray:
         if u is None:
             u = self.anchors
         if np.isscalar(u):
@@ -205,9 +213,11 @@ class Spline3D:
             coords = splev(u, self._tck, der=der)
             return np.stack(coords, axis=1).astype(np.float32)
 
+
     def partition(self, n: int, der: int = 0):
         u = np.linspace(0, 1, n)
         return self(u, der)
+
 
     def length(self, start: float = 0, stop: float = 1, nknots: int = 256) -> nm:
         """
@@ -217,6 +227,7 @@ class Spline3D:
         u = np.linspace(start, stop, nknots)
         dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
+
     
     def curvature(self, u: Iterable[float] = None) -> np.ndarray:
         """
@@ -234,8 +245,7 @@ class Spline3D:
             
         References
         ----------
-        - https://en.wikipedia.org/wiki/Curvature#Space_curves
-        
+        - https://en.wikipedia.org/wiki/Curvature#Space_curves        
         """        
         
         if u is None:
@@ -245,6 +255,7 @@ class Spline3D:
         ddz, ddy, ddx = self(u, 2).T
         a = (ddz*dy - ddy*dz)**2 + (ddx*dz - ddz*dx)**2 + (ddy*dx - ddx*dy)**2
         return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5 / self.scale
+
     
     def to_dict(self) -> dict[str, Any]:
         """
@@ -274,6 +285,7 @@ class Spline3D:
         self._u = np.asarray(d["u"])
         return self
     
+
     def to_json(self, file_path: str):
         file_path = str(file_path)
         
@@ -282,6 +294,7 @@ class Spline3D:
         
         return None
     
+
     def rotation_matrix(self, 
                         u: Iterable[float] = None,
                         center: Iterable[float] = None, 
@@ -336,6 +349,7 @@ class Spline3D:
             out = translation_0 @ out @ translation_1
         
         return out
+
     
     def local_cartesian(self,
                         shape: tuple[int, int],
@@ -361,6 +375,7 @@ class Spline3D:
             dimensional axis.
         """        
         return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels)
+
     
     def local_cylindrical(self,
                           r_range: tuple[float, float],
@@ -404,6 +419,7 @@ class Spline3D:
         map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
+
     def cartesian(self, 
                   shape: tuple[int, int], 
                   s_range: tuple[float, float] = (0, 1)
@@ -429,6 +445,7 @@ class Spline3D:
         """        
         return self._get_coords(_cartesian_coords_2d, shape, s_range)
 
+
     def cylindrical(self, 
                     r_range: tuple[float, float],
                     s_range: tuple[float, float] = (0, 1)
@@ -453,7 +470,8 @@ class Spline3D:
             dimensional axis.
         """   
         return self._get_coords(_polar_coords_2d, r_range, s_range)
-    
+
+
     def oblique_cylindrical(self,
                             r_range: tuple[int, int],
                             s_range: tuple[float, float] = (0, 1),

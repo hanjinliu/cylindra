@@ -1287,7 +1287,8 @@ class MtTomogram:
             shift = -ang/360*img_open.shape.a
             imgs.append(
                 img_open[:, start:stop].affine(translation=[0, shift],
-                                               dims="ya", mode=Mode.grid_wrap)
+                                               dims="ya", mode=Mode.grid_wrap,
+                                               order=3)
                 )
             ylen = min(ylen, stop-start)
         
@@ -1309,7 +1310,8 @@ class MtTomogram:
                 shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
                 imgs_aligned.append(
                     img.affine(translation=shift, 
-                               dims="rya", mode=Mode.grid_wrap)
+                               dims="rya", mode=Mode.grid_wrap,
+                               order=3)
                     )
 
             out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
@@ -1388,7 +1390,6 @@ class MtTomogram:
         
         # Calculate reconstruction in cylindric coodinate system
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
-        rec2d = rec_cyl.proj("r")
         
         # Get structural parameters
         props = self.global_ft_params(i)
@@ -1397,25 +1398,25 @@ class MtTomogram:
         rise = props[H.riseAngle]
         npf = int(props[H.nPF])
         radius = spl.radius
-        
+
         # Find monomer peak
         argpeak = np.argmin if self.light_background else np.argmax
-        ymax, amax = np.unravel_index(argpeak(rec2d), rec2d.shape)
+        rmax, ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
         ny = roundint(spl.length()/pitch) # number of monomers in y-direction
         tan_rise = np.tan(np.deg2rad(rise))
-        
+
         # Construct meshgrid
         # a-coordinate must be radian.
-        shape = (ny, npf)
-        tilts = (-np.deg2rad(skew)/(4*np.pi),
-                 tan_rise*2*np.pi*radius/npf/pitch)
-        intervals = (pitch, 2*np.pi/npf)
-        offsets = (ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi)
+        shape = [ny, npf]
+        tilts = [-np.deg2rad(skew)/(4*np.pi)*npf,
+                 tan_rise*2*np.pi*radius/npf/pitch]
+        intervals = [pitch, 2*np.pi/npf]
+        offsets = [ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi]
         
         mesh = oblique_meshgrid(shape, tilts, intervals, offsets).reshape(-1, 2)
         radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
         mesh = np.concatenate([radius_arr, mesh], axis=1)
-        
+
         # inverse mapping of monomer coordinates
         crds = Coordinates(world = spl.inv_cylindrical(coords=mesh),
                            spline = mesh)
