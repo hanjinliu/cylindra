@@ -638,7 +638,7 @@ class MTProfiler(MagicTemplate):
             
         tomograms.height = 160
         tomograms.max_height = 160
-        self.min_width = 450
+        self.min_width = 395
         self.canvas.min_height = 180
         for i in range(3):
             self.canvas[i].lock_contrast_limits = True

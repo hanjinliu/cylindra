@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Callable, Iterable, Any
+from typing import Callable, Iterable, Any, NamedTuple
 import json
-from collections import namedtuple
 from functools import partial, wraps
 import numpy as np
+import time
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import ndimage as ndi
@@ -18,7 +18,12 @@ from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, loa
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
-Coordinates = namedtuple("Coordinates", ["world", "spline"])
+
+class Coordinates(NamedTuple):
+    """Coordinates in world coodinate system and spline coordinate system."""
+    world: np.ndarray
+    spline: np.ndarray
+
 
 if ip.Const["RESOURCE"] == "cupy":
     SCHEDULER = "single-threaded"
@@ -606,8 +611,7 @@ class MtTomogram:
         skew_angles %= 360/npf
         skew_angles[skew_angles > 360/npf/2] -= 360/npf
 
-        # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
-        # after this rotation.
+        # prepare input images according to the options.
         if projection:
             if mask_8nm:
                 ft = subtomograms.fft()
@@ -619,7 +623,9 @@ class MtTomogram:
             inputs = subtomograms.proj("y")["x=::-1"]
         else:
             inputs = subtomograms["x=::-1"]
-                
+
+        # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
+        # after this rotation.
         imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
             rotimg = inputs[i].rotate(ang, dims="zx", mode=Mode.constant, cval=0)
@@ -1375,32 +1381,40 @@ class MtTomogram:
         -------
         Coordinates
             Named tuple with monomer positions in world coordinates and spline coordinates.
-        """        
-        # WIP!
+        """
         spl = self._splines[i]
+        
+        # Calculate reconstruction in cylindric coodinate system
         rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
         rec2d = rec_cyl.proj("r")
-        argpeak = np.argmin if self.light_background else np.argmax
-        ymax, amax = np.unravel_index(argpeak(rec2d), rec2d.shape)
+        
+        # Get structural parameters
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = int(props[H.nPF])
         radius = spl.radius
-        ny = roundint(spl.length()/pitch)
+        
+        # Find monomer peak
+        argpeak = np.argmin if self.light_background else np.argmax
+        ymax, amax = np.unravel_index(argpeak(rec2d), rec2d.shape)
+        ny = roundint(spl.length()/pitch) # number of monomers in y-direction
         tan_rise = np.tan(np.deg2rad(rise))
-        mesh = oblique_meshgrid((ny, npf), 
-                                rise = tan_rise*2*np.pi*radius/npf/pitch,
-                                tilt = -np.deg2rad(skew)*npf/(4*np.pi), 
-                                offset = (ymax/pitch*self.scale, amax/rec_cyl.shape.a*2*np.pi)
-                                ).reshape(-1, 2)
         
-        dtheta = 2*np.pi/npf
-        mesh = np.concatenate([np.full((mesh.shape[0], 1), radius, dtype=np.float32), mesh], axis=1)
-        mesh[:, 1] *= pitch
-        mesh[:, 2] *= dtheta
+        # Construct meshgrid
+        # a-coordinate must be radian.
+        shape = (ny, npf)
+        tilts = (-np.deg2rad(skew)/(4*np.pi),
+                 tan_rise*2*np.pi*radius/npf/pitch)
+        intervals = (pitch, 2*np.pi/npf)
+        offsets = (ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi)
         
+        mesh = oblique_meshgrid(shape, tilts, intervals, offsets).reshape(-1, 2)
+        radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
+        mesh = np.concatenate([radius_arr, mesh], axis=1)
+        
+        # inverse mapping of monomer coordinates
         crds = Coordinates(world = spl.inv_cylindrical(coords=mesh),
                            spline = mesh)
         return crds
