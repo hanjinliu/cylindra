@@ -254,7 +254,7 @@ class Projections:
                        |
                        |
                        |
-                       Z v
+                     Z v
 
         Therefore, if we use standard ``imshow`` functions like ``plt.imshow`` and those
         in ``pyqtgraph``, we must **flip along X axis**.

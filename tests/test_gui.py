@@ -3,7 +3,7 @@ from pathlib import Path
 ui = start()
 
 def test_run_all():    
-    path = Path(__file__).parent / "test_image.tif"
+    path = Path(__file__).parent / "13pf_MT.tif"
     ui._loader.call(path=path,
                     scale='1.052', 
                     bin_size=2,
@@ -19,10 +19,12 @@ def test_run_all():
                              [18.97,  35.2, 79.90]])
     ui.run_for_all_path(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True)
     ui.Global_FT_analysis()
-    ypitch_mean = ui.active_tomogram.splines[0].localprops["yPitch"].mean()
-    ypitch_glob = ui.active_tomogram.splines[0].globalprops["yPitch"]
-    assert 4.09 < ypitch_glob < 4.11
+    spl = ui.active_tomogram.splines[0]
+    ypitch_mean = spl.localprops["yPitch"].mean()
+    ypitch_glob = spl.globalprops["yPitch"]
+    assert 4.08 < ypitch_glob < 4.11 # GDP-bound microtubule has pitch length in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.013
+    assert all(spl.localprops["nPF"] == 13)
     
 
 def test_viewing():

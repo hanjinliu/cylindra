@@ -204,6 +204,21 @@ class Spline3D:
 
 
     def __call__(self, u: np.ndarray | float = None, der: int = 0) -> np.ndarray:
+        """
+        Calculate coordinates (or n-th derivative) at points on the spline.
+
+        Parameters
+        ----------
+        u : np.ndarray or float, optional
+            Positions. Between 0 and 1. If not given, anchors are used instead.
+        der : int, default is 0
+            ``der``-th derivative will be calculated.
+
+        Returns
+        -------
+        np.ndarray
+            Positions or vectors in (N, 3) shape.
+        """        
         if u is None:
             u = self.anchors
         if np.isscalar(u):
@@ -286,7 +301,15 @@ class Spline3D:
         return self
     
 
-    def to_json(self, file_path: str):
+    def to_json(self, file_path: str) -> None:
+        """
+        Save spline model in a json format.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to the file.
+        """
         file_path = str(file_path)
         
         with open(file_path, mode="w") as f:
@@ -530,7 +553,7 @@ class Spline3D:
         coords_ext = np.stack([coords[:, 0], 
                                np.zeros(ncoords, dtype=np.float32),
                                coords[:, 2], 
-                               np.zeros(ncoords, dtype=np.float32)],
+                               -np.zeros(ncoords, dtype=np.float32)],
                               axis=1)
         s_ext = np.concatenate([s, np.zeros((ncoords, 1), dtype=np.float32)], axis=1)
         for crd, s0, ds0 in zip(coords_ext, s_ext, ds):
@@ -570,6 +593,10 @@ class Spline3D:
                     map_func: Callable[[tuple], np.ndarray],
                     map_params: tuple,
                     s_range: tuple[float, float]):
+        """
+        Make coordinate system using function ``map_func`` and stack the same point cloud
+        in the direction of the spline, in the range of ``s_range``.
+        """
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
         stop_length, n_segs = interval_divmod(length, self.scale)
@@ -663,9 +690,8 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
     coords = coords.reshape(n_radius, n_angle, 2) # V, H, 2
     
     # Here, the first coordinate should be theta=0, and theta moves anti-clockwise
-    coords[:] = np.flip(coords, axis=0)
-    coords[:] = np.flip(coords, axis=2)
-    coords[..., 1] = -coords[..., 1]
+    coords[:] = np.flip(coords, axis=0) # flip around y=0
+    coords[:] = np.flip(coords, axis=2) # flip around y=x
     return coords
     
 
@@ -673,15 +699,16 @@ def _cartesian_coords_2d(lenv, lenh):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= lenv/2 - 0.5
     h -= lenh/2 - 0.5
-    return np.stack([v, -h], axis=2) # V, H, 2
+    return np.stack([v, h], axis=2) # V, H, 2
 
 
 def _stack_coords(coords: np.ndarray): # V, H, D
-    zeros = np.zeros(coords.shape[:-1], dtype=np.float32)
-    ones = np.ones(coords.shape[:-1], dtype=np.float32)
+    shape = coords.shape[:-1]
+    zeros = np.zeros(shape, dtype=np.float32)
+    ones = np.ones(shape, dtype=np.float32)
     stacked = np.stack([coords[..., 0], 
                         zeros,
-                        coords[..., 1],
+                        -coords[..., 1],
                         ones
                         ], axis=2) # V, S, H, D
     return stacked

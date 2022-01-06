@@ -1408,7 +1408,7 @@ class MtTomogram:
         # Construct meshgrid
         # a-coordinate must be radian.
         shape = [ny, npf]
-        tilts = [-np.deg2rad(skew)/(4*np.pi)*npf,
+        tilts = [np.deg2rad(skew)/(4*np.pi)*npf,
                  tan_rise*2*np.pi*radius/npf/pitch]
         intervals = [pitch, 2*np.pi/npf]
         offsets = [ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi]

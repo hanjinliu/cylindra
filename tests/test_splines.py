@@ -1,12 +1,13 @@
+from mtprops.utils import map_coordinates
 from mtprops.spline import Spline3D
 import numpy as np
 from numpy.testing import assert_allclose
-
-spl = Spline3D()
-coords = np.array([[0, 0, 0], [0, 1, 0],[0, 2, 0],[0, 3, 0]])
-spl.fit(coords)
+import impy as ip
 
 def test_inverse_mapping():
+    spl = Spline3D()
+    coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
+    spl.fit(coords)
     coords = np.array([[1, 1.5, 0], 
                        [0, 1.5, 1],
                        [-1, 1.5, 0], 
@@ -19,7 +20,7 @@ def test_inverse_mapping():
                        [-1, 1.5, 0], 
                        [2, 1.5, -3]])
     
-    assert_allclose(crds_spl, answer)
+    assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
     
     coords = np.array([[1, 1.5, 0], 
                        [1, 1.5, np.pi/4],
@@ -30,10 +31,65 @@ def test_inverse_mapping():
     crds_spl = spl.inv_cylindrical(coords)
     
     answer = np.array([[0, 1.5, -1],
-                       [np.sqrt(2)/2, 1.5, -np.sqrt(2)/2]
+                       [np.sqrt(2)/2, 1.5, -np.sqrt(2)/2],
                        [1, 1.5, 0],
                        [0, 1.5, 2],
                        [-2, 1.5, 0]])
     
-    assert_allclose(crds_spl, answer)
+    assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
+
+
+def test_coordinate_transformation():
+    spl = Spline3D()
+    coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
+    spl.fit(coords)
+    
+    # Cartesian
+    img = ip.array(np.arange(5*6*5).reshape(5, 6, 5), dtype=np.float32, axes="zyx")
+    
+    crds = spl.cartesian((3, 3))
+    crds = np.moveaxis(crds, -1, 0)
+    img_tr = map_coordinates(img, crds)
+    assert_allclose(img["z=1:4;y=1:5;x=1:4"], img_tr, rtol=1e-6, atol=1e-6)
+    
+    crds = spl.local_cartesian((3, 3), 4, u=0.5)
+    crds = np.moveaxis(crds, -1, 0)
+    img_tr = map_coordinates(img, crds)
+    assert_allclose(img["z=1:4;y=1:5;x=1:4"], img_tr, rtol=1e-6, atol=1e-6)
+    
+    # Cylindrical
+    img = ip.zeros((5, 4, 5), dtype=np.float32, axes="zyx")
+    img["z=2;y=2;x=3"] = 1
+    img["z=3;y=2;x=1"] = -1
+    
+    # 0  0  0  0  0  z
+    # 0 -1  0  0  0  ^
+    # 0  0  0 +1  0  |
+    # 0  0  0  0  0
+    # 0  0  0  0  0 -> x
+    
+    crds = spl.cylindrical((1, 3))
+    crds = np.moveaxis(crds, -1, 0)
+    img_tr = map_coordinates(img, crds)
+    img_tr = ip.asarray(img_tr, axes="rya")
+    rmax, ymax, amax = np.unravel_index(np.argmax(img_tr), img_tr.shape)
+    rmin, ymin, amin = np.unravel_index(np.argmin(img_tr), img_tr.shape)
+    assert amax == 0
+    assert ymax == 1
+    assert rmax == 1
+    assert amin < img_tr.shape[-1]/2
+    
+    crds = spl.local_cylindrical((1, 3), 4, u=0.5)
+    crds = np.moveaxis(crds, -1, 0)
+    img_tr = map_coordinates(img, crds)
+    img_tr = ip.asarray(img_tr, axes="rya")
+    rmax, ymax, amax = np.unravel_index(np.argmax(img_tr), img_tr.shape)
+    rmin, ymin, amin = np.unravel_index(np.argmin(img_tr), img_tr.shape)
+    assert amax == 0
+    assert ymax == 1
+    assert rmax == 1
+    assert amin < img_tr.shape[-1]/2
+    
+    
+    
     
