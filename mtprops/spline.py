@@ -28,7 +28,7 @@ class Spline3D:
     # is changed.
     _local_properties = []
     
-    def __init__(self, scale:float=1, k=3):
+    def __init__(self, scale: float = 1, k: int = 3):
         self._tck = None
         self._u = None
         self.scale = scale
@@ -506,7 +506,8 @@ class Spline3D:
         
         map_slice = map_slice @ mtx
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
-    
+
+
     def inv_cartesian(self, coords: np.ndarray) -> np.ndarray:
         """
         Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
@@ -537,7 +538,8 @@ class Spline3D:
             crd[:] = mtx.dot(crd) + s0
         
         return coords_ext[:, :3]
-    
+
+
     def inv_cylindrical(self, coords: np.ndarray) -> np.ndarray:
         """
         Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
@@ -562,6 +564,7 @@ class Spline3D:
                                axis=1)
         
         return self.inv_cartesian(cart_coords)
+
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
@@ -643,6 +646,7 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
         coords[:, i] = slice_out + y
     return coords
 
+
 def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
     n_angle = roundint((r_start + r_stop) * np.pi)
     n_radius = roundint(r_stop - r_start)
@@ -657,14 +661,20 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
                                    center=center[::-1]
                                    ).astype(np.float32)
     coords = coords.reshape(n_radius, n_angle, 2) # V, H, 2
-    coords[:] = np.flip(coords, axis=1)
+    
+    # Here, the first coordinate should be theta=0, and theta moves anti-clockwise
+    coords[:] = np.flip(coords, axis=0)
+    coords[:] = np.flip(coords, axis=2)
+    coords[..., 1] = -coords[..., 1]
     return coords
     
+
 def _cartesian_coords_2d(lenv, lenh):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
-    v -= (lenv/2 - 0.5)
-    h -= (lenh/2 - 0.5)
+    v -= lenv/2 - 0.5
+    h -= lenh/2 - 0.5
     return np.stack([v, -h], axis=2) # V, H, 2
+
 
 def _stack_coords(coords: np.ndarray): # V, H, D
     zeros = np.zeros(coords.shape[:-1], dtype=np.float32)

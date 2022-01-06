@@ -1,13 +1,19 @@
 from __future__ import annotations
-import napari
-from .widget import MTProfiler
-import impy as ip
+from typing import TYPE_CHECKING
 
-def start(viewer: "napari.Viewer" = None) -> MTProfiler:
+if TYPE_CHECKING:
+    import napari
+    from .widget import MTProfiler
+    
+
+def start(viewer: "napari.Viewer" = None) -> "MTProfiler":
     """
     Start napari viewer and dock MTProfiler widget as a dock widget.
     By default impy's viewer is used.
     """
+    from .widget import MTProfiler
+    import impy as ip
+    
     if viewer is None:
         ip.gui.start()
         viewer = ip.gui.viewer
