@@ -3,7 +3,6 @@ from typing import Callable, Iterable, Any, NamedTuple
 import json
 from functools import partial, wraps
 import numpy as np
-import time
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import ndimage as ndi
@@ -13,8 +12,18 @@ import impy as ip
 from .const import nm, H, K, Ori, Mode, CacheKey, GVar
 from .spline import Spline3D
 from .cache import ArrayCacheMap
-from .utils import (load_a_subtomogram, centroid, map_coordinates, roundint, load_rot_subtomograms,
-                    ceilint, oblique_meshgrid, no_verbose, mirror_pcc, mirror_ft_pcc)
+from .utils import (
+    load_a_subtomogram,
+    centroid,
+    map_coordinates,
+    roundint,
+    load_rot_subtomograms,
+    ceilint,
+    oblique_meshgrid,
+    no_verbose,
+    mirror_pcc,
+    mirror_ft_pcc
+    )
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -318,7 +327,7 @@ class MtTomogram:
         self._splines.append(spl)
         return None
     
-    def nm2pixel(self, value: Iterable[nm]|nm) -> np.ndarray|int:
+    def nm2pixel(self, value: Iterable[nm] | nm) -> np.ndarray | int:
         """
         Convert nm float value into pixel value. Useful for conversion from 
         coordinate to pixel position.
@@ -607,9 +616,11 @@ class MtTomogram:
         dist = roundint(ylen*self.scale/lp) # this is for masking 8 nm peak
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
+        
         skew_angles = np.arange(npoints) * interval/lp * skew
-        skew_angles %= 360/npf
-        skew_angles[skew_angles > 360/npf/2] -= 360/npf
+        pf_ang = 360/npf
+        skew_angles %= pf_ang
+        skew_angles[skew_angles > pf_ang/2] -= pf_ang
 
         # prepare input images according to the options.
         if projection:
@@ -628,7 +639,7 @@ class MtTomogram:
         # after this rotation.
         imgs_rot_list: list[ip.ImgArray] = []
         for i, ang in enumerate(skew_angles):
-            rotimg = inputs[i].rotate(ang, dims="zx", mode=Mode.constant, cval=0)
+            rotimg = inputs[i].rotate(-ang, dims="zx", mode=Mode.constant, cval=0)
             imgs_rot_list.append(rotimg)
         
         imgs_rot: ip.ImgArray = np.stack(imgs_rot_list, axis="p")
@@ -667,6 +678,7 @@ class MtTomogram:
             
             if not projection:
                 shift = shift[[0, 2]]
+                
             rad = np.deg2rad(skew_angles[i])
             cos, sin = np.cos(rad), np.sin(rad)
             zxrot = np.array([[ cos, sin],
@@ -1125,7 +1137,7 @@ class MtTomogram:
         for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
             start = self.nm2pixel(start)
             stop = self.nm2pixel(stop)
-            imgs.append(img_st[:, start:stop].rotate(-ang, dims="zx", mode=Mode.reflect))
+            imgs.append(img_st[:, start:stop].rotate(ang, dims="zx", mode=Mode.reflect))
             ylen = min(ylen, stop-start)
         
         # Make image sizes same and prepare FT images.
@@ -1160,7 +1172,7 @@ class MtTomogram:
             trs1 = np.eye(4, dtype=np.float32)
             trs0[:3, 3] = -center
             trs1[:3, 3] = center
-            slope = -np.tan(np.deg2rad(rise))
+            slope = np.tan(np.deg2rad(rise))
             for pf in range(1, npf):
                 ang = -2*np.pi*pf/npf
                 dy = 2*np.pi*pf/npf*radius*slope/self.scale
@@ -1217,7 +1229,7 @@ class MtTomogram:
         outlist = [out]
         if dup > 0:
             for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                outlist.append(out.rotate(ang, dims="zx", mode=Mode.reflect))
+                outlist.append(out.rotate(-ang, dims="zx", mode=Mode.reflect))
         
         out = np.concatenate(outlist, axis="y")
         
@@ -1388,9 +1400,6 @@ class MtTomogram:
         """
         spl = self._splines[i]
         
-        # Calculate reconstruction in cylindric coodinate system
-        rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
-        
         # Get structural parameters
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
@@ -1398,18 +1407,27 @@ class MtTomogram:
         rise = props[H.riseAngle]
         npf = int(props[H.nPF])
         radius = spl.radius
-
+        
+        # Calculate reconstruction in cylindric coodinate system
+        rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
+        sigma = pitch/self.scale/8
+        rec_cyl = rec_cyl.gaussian_filter(sigma, dims="zyx")
+        
         # Find monomer peak
         argpeak = np.argmin if self.light_background else np.argmax
         rmax, ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
         ny = roundint(spl.length()/pitch) # number of monomers in y-direction
         tan_rise = np.tan(np.deg2rad(rise))
-
+        # plt.imshow(rec_cyl.proj("r"))
+        # plt.scatter([amax], [ymax], color="r", marker="+")
+        # plt.show()
         # Construct meshgrid
         # a-coordinate must be radian.
+        # If starting number is non-integer, we must determine the seam position to correctly
+        # map monomers. Use integer here.
         shape = [ny, npf]
         tilts = [np.deg2rad(skew)/(4*np.pi)*npf,
-                 tan_rise*2*np.pi*radius/npf/pitch]
+                 roundint(-tan_rise*2*np.pi*radius/pitch)/npf]
         intervals = [pitch, 2*np.pi/npf]
         offsets = [ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi]
         
@@ -1557,7 +1575,8 @@ class MtTomogram:
         crds = Coordinates(world = spl.inv_cylindrical(coords=coords),
                            spline = coords)
         return crds
-        
+
+
 def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):
     # img: 3D
     img_z = img.proj("z")
@@ -1576,13 +1595,15 @@ def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: 
     angle = angs[np.argmax(corrs)]
     return angle
 
-def dask_angle_corr(imgs, ang_centers, drot: float=7, nrots: int = 29):
+
+def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
     _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
     tasks = []
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
     return da.compute(tasks, scheduler=SCHEDULER)[0]
-    
+
+
 def _local_dft_params(img: ip.ImgArray, radius: nm):
     img = img - img.mean()
     l_circ: nm = 2*np.pi*radius
@@ -1597,7 +1618,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     
     power = img.local_power_spectra(key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}", 
                                     upsample_factor=[1, up_y, up_a], 
-                                    dims="rya"
+                                    dims="rya",
                                     ).proj("r")
     
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
@@ -1615,14 +1636,14 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     y_factor = abs(radius/y_pitch/npfmin*img.shape.y/4)
-    dy0 = ceilint(np.tan(np.deg2rad(-GVar.maxSkew))*y_factor) - 1
-    dy1 = max(ceilint(np.tan(np.deg2rad(-GVar.minSkew))*y_factor), dy0+1)
+    dy_min = ceilint(np.tan(np.deg2rad(GVar.minSkew))*y_factor) - 1
+    dy_max = max(ceilint(np.tan(np.deg2rad(GVar.maxSkew))*y_factor), dy_min+1)
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
-    power = img.local_power_spectra(key=f"y={dy0}:{dy1};a={npfmin}:{npfmax}", 
+    power = img.local_power_spectra(key=f"y={dy_min}:{dy_max};a={npfmin}:{npfmax}", 
                                     upsample_factor=[1, up_y, up_a], 
-                                    dims="rya"
+                                    dims="rya",
                                     ).proj("r")
     
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
@@ -1630,11 +1651,14 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     
     amax_f = amax + npfmin*up_a
     amaxp_f = amaxp + npfmin*up_a
-    ymax_f = ymax + dy0*up_y
+    ymax_f = ymax + dy_min*up_y
     a_freq = np.fft.fftfreq(img.shape.a*up_a)
     y_freq = np.fft.fftfreq(img.shape.y*up_y)
     
+    # When skew angle is positive and y-coordinate increses, a-coordinate will
+    # decrese.
     skew = np.arctan(y_freq[ymax_f]/a_freq[amax_f]*2*y_pitch/radius)
+    
     if rise == 0.0:
         start = 0.0
     else:
@@ -1655,13 +1679,16 @@ def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm, cval: float)
     polar.scale_unit = img.scale_unit
     return _local_dft_params(polar, radius)
 
+
 lazy_ft_params = delayed(ft_params)
 lazy_ft_pcc = delayed(ip.ft_pcc_maximum)
+
 
 def _affine(img, matrix, mode: str, cval: float, order):
     out = ndi.affine_transform(img[0], matrix[0,:,:,0], mode=mode, cval=cval, 
                                order=order, prefilter=order>1)
     return out[np.newaxis]
+
 
 def dask_affine(images, matrices, mode: str = Mode.constant, cval: float = 0, order=1):
     imgs = da.from_array(images, chunks=(1,)+images.shape[1:])

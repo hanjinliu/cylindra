@@ -240,8 +240,8 @@ class Projections:
         We have to think thoroughly about the XYZ coordinate here.
         In right-handed coordinate system, the XYZ axes look like following.
     
-            Z (parallel tp sight)
-            o-------> X
+            Z (parallel to sight)
+           (x)------> X
             |
             |
             |
@@ -250,7 +250,7 @@ class Projections:
         When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
         and viewed parallel to Y axis, the projection should look like following.
         
-            X <--------o
+            X <-------(x) Y
                        |
                        |
                        |

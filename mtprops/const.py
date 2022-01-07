@@ -1,7 +1,7 @@
 from enum import Enum, auto
 import numpy as np
 
-class Ori(Enum):
+class Ori(str, Enum):
     """
     Microtubule orientation values.
     """    
