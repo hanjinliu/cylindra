@@ -533,7 +533,7 @@ class Spline3D:
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
 
-    def inv_cartesian(self, coords: np.ndarray) -> np.ndarray:
+    def cartesian_to_world(self, coords: np.ndarray) -> np.ndarray:
         """
         Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
 
@@ -565,7 +565,7 @@ class Spline3D:
         return coords_ext[:, :3]
 
 
-    def inv_cylindrical(self, coords: np.ndarray) -> np.ndarray:
+    def cylindrical_to_world(self, coords: np.ndarray) -> np.ndarray:
         """
         Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
 
@@ -588,19 +588,38 @@ class Spline3D:
                                 radius*np.cos(theta)],
                                axis=1)
         
-        return self.inv_cartesian(cart_coords)
+        return self.cartesian_to_world(cart_coords)
+
+    
+    def world_to_cylindrical(self, coords: np.ndarray, precision: float = 1e-3,
+                             angle_tol: float = 1e-2) -> Spline3D:
+        # WIP
+        u = np.linspace(0, 1, 1/precision)
+        sample_points = self(u) # (N, 3)
+        vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3) # (S, N, 3)
+        dist2_map = np.sum(vector_map**2, axis=2)
+        argmins = np.argmin(dist2_map, axis=0).tolist()
+        argmin_pos = u[argmins]
+        s = self(argmin_pos)
+        ds = self(argmin_pos, der=1)
+        norm_vector = coords - s
+        inner = np.tensordot(ds, norm_vector, [(1,), (1,)])
+        theta = np.arccos(
+            inner/np.sqrt(np.sum(ds**2, axis=1)*np.sum(norm_vector**2, axis=1))
+            )
+        valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
 
 
-    def vec_from_cartesian(self, coords: np.ndarray) -> VectorField3D:
-        world_coords = self.inv_cartesian(coords)
+    def cartesian_to_world_vector(self, coords: np.ndarray) -> VectorField3D:
+        world_coords = self.cartesian_to_world(coords)
         
         # world coordinates of the projection point of coords onto the spline
         ycoords = self(coords[:, 1])
         return VectorField3D(world_coords, world_coords - ycoords)
 
 
-    def vec_from_cylindrical(self, coords: np.ndarray) -> VectorField3D:
-        world_coords = self.inv_cylindrical(coords)
+    def cylindrical_to_world_vector(self, coords: np.ndarray) -> VectorField3D:
+        world_coords = self.cylindrical_to_world(coords)
         
         # world coordinates of the projection point of coords onto the spline
         ycoords = self(coords[:, 1])

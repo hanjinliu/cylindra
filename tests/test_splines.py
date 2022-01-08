@@ -13,7 +13,7 @@ def test_inverse_mapping():
                        [-1, 1.5, 0], 
                        [2, 1.5, 3]])
     
-    crds_spl = spl.inv_cartesian(coords)
+    crds_spl = spl.cartesian_to_world(coords)
     
     answer = np.array([[1, 1.5, 0], 
                        [0, 1.5, -1],
@@ -28,7 +28,7 @@ def test_inverse_mapping():
                        [2, 1.5, np.pi], 
                        [2, 1.5, np.pi*1.5]])
     
-    crds_spl = spl.inv_cylindrical(coords)
+    crds_spl = spl.cylindrical_to_world(coords)
     
     answer = np.array([[0, 1.5, -1],
                        [np.sqrt(2)/2, 1.5, -np.sqrt(2)/2],

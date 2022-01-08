@@ -1438,7 +1438,7 @@ class MtTomogram:
         mesh = np.concatenate([radius_arr, mesh], axis=1)
 
         # inverse mapping of monomer coordinates
-        crds = Coordinates(world = spl.inv_cylindrical(coords=mesh),
+        crds = Coordinates(world = spl.cylindrical_to_world(coords=mesh),
                            spline = mesh)
         return crds
     
@@ -1576,7 +1576,7 @@ class MtTomogram:
         ycoords = np.arange(ny) * pitch
         acoords = np.arange(ny) * mono_skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
-        crds = Coordinates(world = spl.inv_cylindrical(coords=coords),
+        crds = Coordinates(world = spl.cylindrical_to_world(coords=coords),
                            spline = coords)
         return crds
 
