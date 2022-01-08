@@ -15,6 +15,8 @@ class VectorField3D:
             raise ValueError(f"Shape of the position array must be (N, 3), got {pos.shape}")
         if vec.ndim != 2 or vec.shape[1] != 3:
             raise ValueError(f"Shape of the vector array must be (N, 3), got {vec.shape}")
+        if pos.shape != vec.shape:
+            raise ValueError("Shape mismatch in positions and vectors.")
         
         self._pos = pos
         self._vec = vec
@@ -37,8 +39,8 @@ class VectorField3D:
     
     
     def __neg__(self) -> VectorField3D:
-        """Revert vectors."""
-        return self.__class__(self._pos, -self._vec)
+        """Invert vectors."""
+        return self.invert()
     
     
     def __getitem__(self, key):
@@ -60,13 +62,34 @@ class VectorField3D:
         return self._vec
     
     
-    def rotate(self, mtx: np.ndarray) -> VectorField3D:
-        """Rotate every vector while kept start points unchanged."""
+    def linear_transform(self, mtx: np.ndarray) -> VectorField3D:
+        """Linear-transform every vector while kept start points unchanged."""
         mtx = np.asarray(mtx)
         if mtx.shape != (3, 3):
-            raise ValueError(f"Rotation matrix must be (3, 3), got {mtx.shape}")
+            raise ValueError(f"Transformation matrix must be (3, 3), got {mtx.shape}.")
         vec = self._vec @ mtx
         return VectorField3D(self._pos, vec)
+    
+    
+    def affine_transform(self, mtx: np.ndarray) -> VectorField3D:
+        """Affine-transform every vector while kept start points unchanged."""
+        mtx = np.asarray(mtx)
+        if mtx.shape != (4, 4):
+            raise ValueError(f"Transformation matrix must be (4, 4), got {mtx.shape}.")
+        input = np.concatenate([self._vec, np.ones(self._vec.shape[0])], axis=1)
+        vec = input @ mtx
+        return VectorField3D(self._pos, vec[:, :3])
+    
+    
+    def invert(self) -> VectorField3D:
+        """Invert vectors."""
+        return self.__class__(self._pos, -self._vec)
+    
+    
+    def normalize(self) -> VectorField3D:
+        """Normalize vectors."""
+        norm = np.sqrt(np.sum(self._vec**2, axis=1))
+        return self.__class__(self._pos, self._vec/norm)
     
     
     def rot_matrix(self, src_vector: np.ndarray | str = "z") -> np.ndarray:
@@ -197,7 +220,7 @@ def _vec_to_vec_rotation_matrix(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
     """
     I = np.eye(3)
     n = dst.shape[0]
-    out = np.empty((len(src), 3, 3), dtype=np.float32)
+    out = np.empty((n, 3, 3), dtype=np.float32)
     for i in range(n):
         d = dst[i]
         if np.all(src == d):

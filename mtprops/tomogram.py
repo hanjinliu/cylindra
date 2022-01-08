@@ -41,7 +41,8 @@ else:
 
 
 def tandg(x):
-    return np.tan(np.rad2deg(x))
+    """Tangent in degree."""
+    return np.tan(np.deg2rad(x))
 
 def batch_process(func):
     @wraps(func)
@@ -1364,7 +1365,7 @@ class MtTomogram:
                 # image only contains one protofilament just before seam.
                 base: ip.ImgArray = ip.empty(out.shape, dtype=np.float32, axes="rya")
                 base[:] = missing
-                base[:,:,sl_temp] = out[:,:,sl_temp]
+                base[:, :, sl_temp] = out[:, :, sl_temp]
                 out[:] = base[:]
                 
                 slope = tandg(rise)

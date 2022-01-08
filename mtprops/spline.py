@@ -611,18 +611,48 @@ class Spline3D:
 
 
     def cartesian_to_world_vector(self, coords: np.ndarray) -> VectorField3D:
+        """
+        Convert coordinates of points near the spline to normal vectors.
+        
+        Coordinates of points must be those in spline Cartesian coordinate system.
+
+        Parameters
+        ----------
+        coords : (N, 3) array
+            Spline Cartesian coordinates of points.
+
+        Returns
+        -------
+        VectorField3D
+            Vector field object of points.
+        """        
         world_coords = self.cartesian_to_world(coords)
         
         # world coordinates of the projection point of coords onto the spline
-        ycoords = self(coords[:, 1])
+        ycoords = self(coords[:, 1]/self.length())
         return VectorField3D(world_coords, world_coords - ycoords)
 
 
     def cylindrical_to_world_vector(self, coords: np.ndarray) -> VectorField3D:
+        """
+        Convert coordinates of points near the spline to normal vectors.
+        
+        Coordinates of points must be those in spline cylindrical coordinate system.
+
+        Parameters
+        ----------
+        coords : (N, 3) array
+            Spline cylindrical coordinates of points.
+
+        Returns
+        -------
+        VectorField3D
+            Vector field object of points.
+        """        
         world_coords = self.cylindrical_to_world(coords)
         
         # world coordinates of the projection point of coords onto the spline
-        ycoords = self(coords[:, 1])
+        ycoords = self(coords[:, 1]/self.length())
         return VectorField3D(world_coords, world_coords - ycoords)
 
 

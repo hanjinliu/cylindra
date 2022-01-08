@@ -4,6 +4,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip
 
+
 def test_inverse_mapping():
     spl = Spline3D()
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
