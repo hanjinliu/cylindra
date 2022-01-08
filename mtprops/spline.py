@@ -8,6 +8,8 @@ from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
 from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
+from .vector import VectorField3D
+
 
 class Spline3D:
     """
@@ -589,6 +591,22 @@ class Spline3D:
         return self.inv_cartesian(cart_coords)
 
 
+    def vec_from_cartesian(self, coords: np.ndarray) -> VectorField3D:
+        world_coords = self.inv_cartesian(coords)
+        
+        # world coordinates of the projection point of coords onto the spline
+        ycoords = self(coords[:, 1])
+        return VectorField3D(world_coords, world_coords - ycoords)
+
+
+    def vec_from_cylindrical(self, coords: np.ndarray) -> VectorField3D:
+        world_coords = self.inv_cylindrical(coords)
+        
+        # world coordinates of the projection point of coords onto the spline
+        ycoords = self(coords[:, 1])
+        return VectorField3D(world_coords, world_coords - ycoords)
+
+
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
                     map_params: tuple,
@@ -611,6 +629,7 @@ class Spline3D:
         map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
     
+        
 
 _V = slice(None) # vertical dimension
 _S = slice(None) # longitudinal dimension along spline curve
@@ -695,7 +714,7 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
     return coords
     
 
-def _cartesian_coords_2d(lenv, lenh):
+def _cartesian_coords_2d(lenv: int, lenh: int):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= lenv/2 - 0.5
     h -= lenh/2 - 0.5

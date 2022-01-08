@@ -1411,7 +1411,7 @@ class MTProfiler(MagicTemplate):
             for coords in out:
                 tr = self.layer_image.translate
                 self.parent_viewer.add_points(
-                    coords.world, size=3, face_color="lime",
+                    coords.world, size=3, face_color="lime", edge_color="#007d15ff",
                     n_dimensional=True, translate=tr, name="tubulin monomers"
                     )
         
@@ -1869,8 +1869,8 @@ class MTProfiler(MagicTemplate):
         binsize = self.active_tomogram.metadata["binsize"]
         with no_verbose:
             proj = self.projections[j]
-            for i in range(3):
-                self.canvas[i].layers.clear()
+            for ic in range(3):
+                self.canvas[ic].layers.clear()
             self.canvas[0].image = proj.yx
             self.canvas[1].image = proj.zx
             self.canvas[2].image = proj.zx_ave

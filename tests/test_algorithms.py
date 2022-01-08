@@ -1,4 +1,5 @@
 from mtprops import start
+from mtprops.const import H
 from pathlib import Path
 ui = start()
 
@@ -20,15 +21,16 @@ def test_run_all():
     ui.run_for_all_path(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True)
     ui.Global_FT_analysis()
     spl = ui.active_tomogram.splines[0]
-    ypitch_mean = spl.localprops["yPitch"].mean()
-    ypitch_glob = spl.globalprops["yPitch"]
-    assert 4.075 < ypitch_glob < 4.10 # GDP-bound microtubule has pitch length in this range
+    ypitch_mean = spl.localprops[H.yPitch].mean()
+    ypitch_glob = spl.globalprops[H.yPitch]
+    assert 4.075 < ypitch_glob < 4.105 # GDP-bound microtubule has pitch length in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.013
-    assert all(spl.localprops["nPF"] == 13)
-    assert all(spl.localprops["riseAngle"] > 8.3)
+    assert all(spl.localprops[H.nPF] == 13)
+    assert all(spl.localprops[H.riseAngle] > 8.3)
     
     path = Path(__file__).parent / "14pf_MT.tif"
     ui._loader.call(path=path, 
+                    scale='1.052', 
                     bin_size=1, 
                     light_background=False,
                     cutoff_freq=0.2,
@@ -42,13 +44,13 @@ def test_run_all():
     ui.run_for_all_path(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True)
     ui.Global_FT_analysis()
     spl = ui.active_tomogram.splines[0]
-    ypitch_mean = spl.localprops["yPitch"].mean()
-    ypitch_glob = spl.globalprops["yPitch"]
-    assert 4.075 < ypitch_glob < 4.10 # GDP-bound microtubule has pitch length in this range
+    ypitch_mean = spl.localprops[H.yPitch].mean()
+    ypitch_glob = spl.globalprops[H.yPitch]
+    assert 4.075 < ypitch_glob < 4.105 # GDP-bound microtubule has pitch length in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.013
-    assert all(spl.localprops["nPF"] == 14)
-    assert all(spl.localprops["riseAngle"] > 8.3)
-    assert spl.globalprops["skewAngle"] < -0.25 # 14-pf MT has negative skew (Atherton et al., 2019)
+    assert all(spl.localprops[H.nPF] == 14)
+    assert all(spl.localprops[H.riseAngle] > 7.5)
+    assert spl.globalprops[H.skewAngle] < -0.25 # 14-pf MT has negative skew (Atherton et al., 2019)
     
 
 def test_viewing():

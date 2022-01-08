@@ -22,7 +22,7 @@ from .utils import (
     oblique_meshgrid,
     no_verbose,
     mirror_pcc,
-    mirror_ft_pcc
+    mirror_ft_pcc,
     )
 
 cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
@@ -38,7 +38,10 @@ if ip.Const["RESOURCE"] == "cupy":
     SCHEDULER = "single-threaded"
 else:
     SCHEDULER = "threads"
-    
+
+
+def tandg(x):
+    return np.tan(np.rad2deg(x))
 
 def batch_process(func):
     @wraps(func)
@@ -1172,7 +1175,7 @@ class MtTomogram:
             trs1 = np.eye(4, dtype=np.float32)
             trs0[:3, 3] = -center
             trs1[:3, 3] = center
-            slope = np.tan(np.deg2rad(rise))
+            slope = tandg(rise)
             for pf in range(1, npf):
                 ang = -2*np.pi*pf/npf
                 dy = 2*np.pi*pf/npf*radius*slope/self.scale
@@ -1333,14 +1336,14 @@ class MtTomogram:
         if rot_ave:
             input_ = out.copy()
             a_size = out.shape.a
-            slope = np.tan(np.deg2rad(rise))
+            slope = tandg(rise)
             for pf in range(1, npf):
                 dy = 2*np.pi*pf/npf*radius*slope/self.scale
                 shift_a = a_size/npf*pf
                 shift = [dy, shift_a]
                 
                 rot_input = input_.affine(translation=shift, 
-                                        dims="ya", mode=Mode.grid_wrap)
+                                          dims="ya", mode=Mode.grid_wrap)
                 out.value[:] += rot_input
             
             if seam_offset == "find":
@@ -1364,7 +1367,7 @@ class MtTomogram:
                 base[:,:,sl_temp] = out[:,:,sl_temp]
                 out[:] = base[:]
                 
-                slope = np.tan(np.deg2rad(rise))
+                slope = tandg(rise)
                 da = a_size/npf * np.arange(npf)
                 dy = 2*np.pi/npf*radius*slope/self.scale * np.arange(npf)
                 for pf in range(1, npf):
@@ -1384,7 +1387,10 @@ class MtTomogram:
         return np.concatenate(outlist, axis="y")
     
     @batch_process
-    def map_monomers(self, i = None) -> Coordinates:
+    def map_monomers(self, 
+                     i = None,
+                     *, 
+                     offsets: tuple[nm, float] = None) -> Coordinates:
         """
         Map coordinates of tubulin monomers in world coordinate.
 
@@ -1409,18 +1415,14 @@ class MtTomogram:
         radius = spl.radius
         
         # Calculate reconstruction in cylindric coodinate system
-        rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
-        sigma = pitch/self.scale/8
-        rec_cyl = rec_cyl.gaussian_filter(sigma, dims="zyx")
+        rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0).proj("r")
         
         # Find monomer peak
         argpeak = np.argmin if self.light_background else np.argmax
-        rmax, ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
+        ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
         ny = roundint(spl.length()/pitch) # number of monomers in y-direction
-        tan_rise = np.tan(np.deg2rad(rise))
-        # plt.imshow(rec_cyl.proj("r"))
-        # plt.scatter([amax], [ymax], color="r", marker="+")
-        # plt.show()
+        tan_rise = tandg(rise)
+        
         # Construct meshgrid
         # a-coordinate must be radian.
         # If starting number is non-integer, we must determine the seam position to correctly
@@ -1464,7 +1466,7 @@ class MtTomogram:
         imgst = self.cylindric_straighten(i).proj("r")
         tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
         with no_verbose:
-            img_shear = imgst.affine(np.array([[1, 0, 0],[tilt, 1, 0],[0, 0, 1]]), 
+            img_shear = imgst.affine(np.array([[1, 0, 0], [tilt, 1, 0], [0, 0, 1]]), 
                                      mode=Mode.grid_wrap, dims="ya")
             line = img_shear.proj("y")
         
@@ -1482,7 +1484,7 @@ class MtTomogram:
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
         a_size = rec.shape.a
-        tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
+        tilt = np.deg2rad(skew) * spl.radius / pitch / 2
         with no_verbose:
             mtx = np.array([[1.,   0., 0., 0.],
                             [0.,   1., 0., 0.],
@@ -1495,10 +1497,12 @@ class MtTomogram:
         # "offset" means the peak of monomer     
         offset_rad = np.angle(np.fft.fft(line.value)[npf]) % (2 * np.pi)
         offset_px: float = offset_rad / 2 / np.pi * a_size
-                
+        plt.plot(line)
+        plt.plot([offset_px,offset_px], [line.min(), line.max()])
+        plt.show()
         l = roundint(a_size/npf)
         l_dimer = pitch*2
-        slope = np.tan(np.deg2rad(-rise))
+        slope = tandg(rise)
         opt_y_mat = np.zeros((npf, npf), dtype=np.float32)
         with no_verbose:
             # TODO: This is not efficient. At least, fft is calculated many times in pcc_maximum
@@ -1512,7 +1516,8 @@ class MtTomogram:
                     img1 = img_shear[:, :, sl_j]
                     shift = ip.pcc_maximum(img0, img1)
                     opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] - slope*a_size/npf*(j-i)) % l_dimer
-        
+        plt.imshow(opt_y_mat, cmap="hsv")
+        plt.show()
         std_list: list[float] = []
         for seam in range(npf):
             cl0 = np.cos(opt_y_mat[:seam, :seam]/l_dimer*2*np.pi)
@@ -1543,7 +1548,7 @@ class MtTomogram:
 
     
     @batch_process
-    def map_pf_line(self, i = None, angle_offset: float = 0) -> Coordinates:
+    def map_pf_line(self, i = None, *, angle_offset: float = 0) -> Coordinates:
         """
         Calculate mapping of protofilament line at an angle offset.
         This function is useful for visualizing seam or protofilament.
@@ -1560,7 +1565,6 @@ class MtTomogram:
         Coordinates
             World coordinates and spline coordinates of protofilament.
         """        
-        # WIP!
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
@@ -1636,8 +1640,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     y_factor = abs(radius/y_pitch/npfmin*img.shape.y/4)
-    dy_min = ceilint(np.tan(np.deg2rad(GVar.minSkew))*y_factor) - 1
-    dy_max = max(ceilint(np.tan(np.deg2rad(GVar.maxSkew))*y_factor), dy_min+1)
+    dy_min = ceilint(tandg(GVar.minSkew)*y_factor) - 1
+    dy_max = max(ceilint(tandg(GVar.maxSkew)*y_factor), dy_min+1)
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
