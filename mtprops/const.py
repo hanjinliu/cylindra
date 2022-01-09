@@ -2,26 +2,20 @@ from enum import Enum, auto
 import numpy as np
 
 class Ori(str, Enum):
-    """
-    Microtubule orientation values.
-    """    
+    """Microtubule orientation values."""
     none = "none"
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
 
 class CacheKey(Enum):
-    """
-    Caching keys of straightening operations.
-    """    
+    """Caching keys of straightening operations."""
     cart_straight = auto()
     cyl_straight = auto()
     
 nm = float # type alias
 
 class H:
-    """
-    Header names for result table of local properties.
-    """
+    """Header names for result table of local properties."""
     splDistance = "splDistance"
     splPosition = "splPosition"
     riseAngle = "riseAngle"
@@ -31,23 +25,45 @@ class H:
     start = "start"
 
 class K:
-    """
-    Keys of spline attributes.
-    """    
+    """Keys of spline attributes."""
     radius = "radius"
     orientation = "orientation"
     localprops = "localprops"
     globalprops = "globalprops"
 
 class Mode:
-    """
-    Padding mode used in scipy.ndimage.
-    """    
+    """Padding mode used in scipy.ndimage."""
     grid_wrap = "grid-wrap"
     reflect = "reflect"
     mirror = "mirror"
     constant = "constant"
     nearest = "nearest"
+
+class EulerAxes(str, Enum):
+    xyz = "xyz"
+    yzx = "yzx"
+    zxy = "zxy"
+    xzy = "xzy"
+    yxz = "yxz"
+    zyx = "zyx"
+    xyx = "xyx"
+    xzx = "xzx"
+    yxy = "yxy"
+    yzy = "yzy"
+    zxz = "zxz"
+    zyz = "zyz"
+    XYZ = "XYZ"
+    YZX = "YZX"
+    ZXY = "ZXY"
+    XZY = "XZY"
+    YXZ = "YXZ"
+    ZYX = "ZYX"
+    XYX = "XYX"
+    XZX = "XZX"
+    YXY = "YXY"
+    YZY = "YZY"
+    ZXZ = "ZXZ"
+    ZYZ = "ZYZ"
 
 class GVar:
     """

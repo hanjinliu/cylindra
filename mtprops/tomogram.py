@@ -487,7 +487,7 @@ class MtTomogram:
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to fit.
-        max_interval : nm, default is 24.0
+        max_interval : nm, default is 30.0
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.

@@ -7,6 +7,7 @@ import napari
 from napari.utils.colormaps.colormap import Colormap
 from napari.qt import create_worker
 from napari._qt.qthreading import GeneratorWorker, WorkerBase, FunctionWorker
+from napari.layers import Points, Vectors
 from pathlib import Path
 
 import impy as ip
@@ -35,6 +36,8 @@ from magicclass.widgets import (
 from magicclass.utils import show_messagebox
 from macrokit import register_type
 
+from mtprops.vector import VectorField3D
+
 from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import (
     Projections,
@@ -47,7 +50,7 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import nm, H, Ori, GVar
+from .const import EulerAxes, nm, H, Ori, GVar
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
@@ -426,18 +429,17 @@ class MTProfiler(MagicTemplate):
     
     @magicmenu
     class File(MagicTemplate):
-        """
-        File I/O.
-        """        
+        """File I/O."""  
         def Open_image(self): ...
         def Load_json(self, path: Path): ...
         def Save_results_as_json(self, path: Path): ...
+        def Save_results_as_csv(self, path: Path): ...
+        def Save_monomer_coordinates(self, path: Path, layer: Points): ...
+        def Save_monomer_angles(self, path: Path, layer: Vectors, sequence: EulerAxes): ...
     
     @magicmenu
     class View(MagicTemplate):
-        """
-        Visualization.
-        """        
+        """Visualization."""
         def Apply_lowpass_to_reference_image(self): ...
         sep0 = field(Separator)
         def show_current_ft(self): ...
@@ -454,9 +456,7 @@ class MTProfiler(MagicTemplate):
     
     @magicmenu
     class Analysis(MagicTemplate):
-        """
-        Analysis of tomograms.
-        """        
+        """Analysis of tomograms."""        
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...                
         def Add_anchors(self): ...
@@ -469,7 +469,7 @@ class MTProfiler(MagicTemplate):
         sep1 = Separator()
         def Reconstruct_MT(self): ...
         def cylindric_reconstruction(self): ...
-        def Map_tubulin(self): ...
+        def Map_monomers(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
@@ -480,9 +480,7 @@ class MTProfiler(MagicTemplate):
         
     @magicclass(layout="horizontal", labels=False)
     class operation(MagicTemplate):
-        """
-        Frequently used operations.
-        """        
+        """Frequently used operations."""        
         def register_path(self): ...
         def run_for_all_path(self): ...
         def clear_current(self): ...
@@ -490,9 +488,7 @@ class MTProfiler(MagicTemplate):
     
     @magicclass(layout="horizontal")
     class auto_picker(MagicTemplate):
-        """
-        Automatic MT center picking along MT.
-        """        
+        """Automatic MT center picking along MT."""        
         stride = field(50.0, widget_type="FloatSlider", 
                        options={"min": 10, "max": 100, "tooltip": "Stride length of auto picker"}, 
                        name="stride (nm)", record=False)
@@ -501,9 +497,7 @@ class MTProfiler(MagicTemplate):
     
     @magicclass(widget_type="collapsible")
     class Tomogram_List(MagicTemplate):
-        """
-        List of tomograms that have loaded to the widget.
-        """        
+        """List of tomograms that have loaded to the widget."""        
         tomograms = ListWidget(name="Tomogram List")
     
     @magicclass(layout="horizontal")
@@ -536,53 +530,8 @@ class MTProfiler(MagicTemplate):
         table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     ### methods ###
-    
-    @View.wraps
-    @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
-                 end={"widget_type": TupleEdit, "options": {"step": 0.1}},
-                 limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
-    def Set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.00, 4.24)):
-        """
-        Set the color-map for painting microtubules.
-        
-        Parameters
-        ----------
-        start : tuple, default is (0.0, 0.0, 1.0)
-            RGB color that corresponds to the most compacted microtubule.
-        end : tuple, default is (1.0, 0.0, 0.0)
-            RGB color that corresponds to the most expanded microtubule.
-        limit : tuple, default is (4.00, 4.24)
-            Color limit (nm).
-        """        
-        self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
-        self.label_colorlimit = limit
-        self._update_colormap()
-        return None
-    
-    @Others.wraps
-    @do_not_record
-    def Create_macro(self):
-        """
-        Create Python executable script.
-        """        
-        self.macro.widget.duplicate().show()
-        return None
-    
-    def _update_colormap(self, prop: str = H.yPitch):
-        # TODO: color by other properties
-        if self.layer_paint is None:
-            return None
-        color = {0: np.array([0., 0., 0., 0.], dtype=np.float32),
-                 None: np.array([0., 0., 0., 1.], dtype=np.float32)}
-        lim0, lim1 = self.label_colorlimit
-        df = self.active_tomogram.collect_localprops()[prop]
-        for i, value in enumerate(df):
-            color[i+1] = self.label_colormap.map((value - lim0)/(lim1 - lim0))
-        self.layer_paint.color = color
-        return None
         
     def __post_init__(self):
-        self._mtpath = None
         self.active_tomogram: MtTomogram = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
@@ -767,9 +716,7 @@ class MTProfiler(MagicTemplate):
     @set_design(text="❌")
     @do_not_record
     def clear_current(self):
-        """
-        Clear current selection.
-        """        
+        """Clear current selection."""        
         self.layer_work.data = []
         return None
     
@@ -777,9 +724,7 @@ class MTProfiler(MagicTemplate):
     @set_options(_={"widget_type": "Label"})
     @set_design(text="💥")
     def clear_all(self, _="Are you sure to clear all?"):
-        """
-        Clear all the paths and heatmaps.
-        """        
+        """Clear all the splines and results."""
         self._init_widget_params()
         self._init_layers()
         self.Panels.overview.layers.clear()
@@ -788,6 +733,15 @@ class MTProfiler(MagicTemplate):
         cachemap.clear()
         self.active_tomogram._splines.clear()
         
+        return None
+    
+    @Others.wraps
+    @do_not_record
+    def Create_macro(self):
+        """
+        Create Python executable script.
+        """        
+        self.macro.widget.duplicate().show()
         return None
     
     @Others.wraps
@@ -846,9 +800,7 @@ class MTProfiler(MagicTemplate):
     @Others.wraps
     @do_not_record
     def MTProps_info(self):
-        """
-        Show information of dependencies.
-        """        
+        """Show information of dependencies."""
         import napari
         import magicgui
         from .__init__ import __version__
@@ -867,9 +819,7 @@ class MTProfiler(MagicTemplate):
     @Others.wraps
     @do_not_record
     def Open_help(self):
-        """
-        Open a help window.
-        """        
+        """Open a help window."""
         help = build_help(self)
         help.show()
         return None
@@ -877,18 +827,14 @@ class MTProfiler(MagicTemplate):
     @File.wraps
     @do_not_record
     def Open_image(self):
-        """
-        Open an image and add to viewer.
-        """
+        """Open an image and add to viewer."""
         self._loader.show()
         return None
         
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
     def Load_json(self, path: Path):
-        """
-        Choose a json file and load it.
-        """        
+        """Choose a json file and load it."""        
         tomo = self.active_tomogram
         worker = create_worker(tomo.load, path, _progress={"total": 0, "desc": "Running"})
         worker.returned.connect(self._load_tomogram_results)
@@ -902,23 +848,45 @@ class MTProfiler(MagicTemplate):
     
     @File.wraps
     @set_design(text="Save results as json")
-    @set_options(file_path={"mode": "w", "filter": "*.json;*.txt"})
-    def Save_results_as_json(self, file_path: Path):
+    @set_options(save_path={"mode": "w", "filter": "*.json;*.txt"})
+    def Save_results_as_json(self, save_path: Path):
+        """Save the results as json."""
+        self.active_tomogram.save(save_path)
+        return None
+    
+    @File.wraps
+    @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"},
+                 separator={"choices": ["','", "'\\t'", "' '"]})
+    def Save_monomer_angles(self, save_path: Path, layer: Vectors, 
+                            rotation_axes = EulerAxes.ZXZ, in_degree: bool = True,
+                            separator: str = "','"):
         """
-        Save the results as json.
-        
+        Save a vectors layer of monomer angles in Euler angles.
+
         Parameters
         ----------
-        file_path: Path
+        save_path : Path
+            Saving path.
+        layer : Vectors
+            Select the Vectors layer to save.
+        rotation_axes : str, default is "ZXZ"
+            Select the rotation axes. {"X", "Y", "Z"} for intrinsic rotations, or
+            {"x", "y", "z"} for extrinsic rotations.
+        in_degree : bool, default is True
+            Check to save angles in degrres.
+        separator : str, optional
+            Select the separator.
         """        
-        self.active_tomogram.save(file_path)
-        return None            
+        start, vector = layer.data[:, 0], layer.data[:, 1]
+        vf = VectorField3D(start, vector)
+        arr = vf.euler_angle("y", rotation_axes, degrees=in_degree)
+        separator = {"','": ",", "'\\t'": "\t", "' '": " "}[str(separator)]
+        np.savetxt(save_path, arr, delimiter=separator)
+        return None
     
     @View.wraps
     def Apply_lowpass_to_reference_image(self):
-        """
-        Apply low-pass filter to enhance contrast of the reference image.
-        """        
+        """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
         def func():
             with no_verbose:
@@ -947,9 +915,7 @@ class MTProfiler(MagicTemplate):
     @mt.mtlabel.connect
     @mt.pos.connect
     def _focus_on(self):
-        """
-        Change camera focus to the position of current MT fragment.
-        """        
+        """Change camera focus to the position of current MT fragment."""        
         if not self.View.focus.value or self.layer_paint is None:
             return None
         
@@ -976,18 +942,14 @@ class MTProfiler(MagicTemplate):
     
     @View.wraps
     def Show_results_in_a_table_widget(self):
-        """
-        Show result table.
-        """        
+        """Show result table."""
         self.Panels.table.value = self.active_tomogram.collect_localprops()
         self.Panels.current_index = 2
         return None
     
     @View.wraps
     def Show_straightened_image(self, i: Bound(mt.mtlabel)):
-        """
-        Send straightened image of the current MT to the viewer.
-        """        
+        """Send straightened image of the current MT to the viewer."""        
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.straighten, 
@@ -1011,9 +973,7 @@ class MTProfiler(MagicTemplate):
     @View.wraps
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
-        """
-        Show radial projection of cylindrical image around the current MT fragment.
-        """        
+        """Show radial projection of cylindrical image around the current MT fragment."""
         with no_verbose:
             polar = self._current_cylindrical_img().proj("r")
         
@@ -1028,9 +988,7 @@ class MTProfiler(MagicTemplate):
     @View.wraps
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
-        """
-        Show radial projection of cylindrical image along current MT.
-        """        
+        """Show radial projection of cylindrical image along current MT."""        
         i = self.mt.mtlabel.value
         with no_verbose:
             polar = self.active_tomogram.cylindric_straighten(i).proj("r")
@@ -1045,9 +1003,7 @@ class MTProfiler(MagicTemplate):
     @View.wraps
     @set_design(text="2D-FT")
     def show_current_ft(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
-        """
-        View Fourier space of local cylindrical coordinate system at current position.
-        """        
+        """View Fourier space of local cylindrical coordinate system at current position."""        
         with no_verbose:
             polar = self._current_cylindrical_img()
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
@@ -1066,10 +1022,7 @@ class MTProfiler(MagicTemplate):
     @View.wraps
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound(mt.mtlabel)):
-        """
-        View Fourier space along current MT.
-        """  
-        
+        """View Fourier space along current MT."""  
         with no_verbose:
             polar = self.active_tomogram.cylindric_straighten(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
@@ -1087,9 +1040,7 @@ class MTProfiler(MagicTemplate):
     
     @View.wraps
     def Show_splines(self):
-        """
-        Show 3D spline paths of microtubule center axes as a layer.
-        """        
+        """Show 3D spline paths of microtubule center axes as a layer."""        
         paths = [r.partition(100) for r in self.active_tomogram.splines]
         
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
@@ -1097,7 +1048,10 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
+    @set_options(max_interval={"label": "Max interval (nm)"})
     def Fit_splines(self, 
+                    max_interval: nm = 30,
+                    degree_precision: float = 0.2,
                     dense_mode: bool = False,
                     ):
         """
@@ -1105,11 +1059,17 @@ class MTProfiler(MagicTemplate):
 
         Parameters
         ----------
+        max_interval : nm, default is 30.0
+            Maximum interval of sampling points in nm unit.
+        degree_precision : float, default is 0.2
+            Precision of MT xy-tilt degree in angular correlation.
         dense_mode : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
         """        
         worker = create_worker(self.active_tomogram.fit,
+                               max_interval=max_interval,
+                               degree_precision=degree_precision,
                                dense_mode=dense_mode,
                                _progress={"total": 0, "desc": "Running"}
                                )
@@ -1159,9 +1119,7 @@ class MTProfiler(MagicTemplate):
     
     @Analysis.wraps
     def Measure_radius(self):
-        """
-        Measure MT radius for each spline path.
-        """        
+        """Measure MT radius for each spline path."""        
         worker = create_worker(self.active_tomogram.measure_radius,
                                _progress={"total": 0, "desc": "Running"}
                                )
@@ -1249,12 +1207,14 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    def Local_FT_analysis(self, interval: nm = 25, ft_size: nm = 32.0):
+    def Local_FT_analysis(self, interval: nm = 32.0, ft_size: nm = 32.0):
         """
         Determine MT structural parameters by local Fourier transformation.
 
         Parameters
         ----------
+        interval : nm, default is 32.0
+            Interval of subtomogram analysis.
         ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
@@ -1281,9 +1241,7 @@ class MTProfiler(MagicTemplate):
         
     @Analysis.wraps
     def Global_FT_analysis(self):
-        """
-        Determine MT global structural parameters by Fourier transformation.
-        """        
+        """Determine MT global structural parameters by Fourier transformation."""        
         tomo = self.active_tomogram
         worker = create_worker(tomo.global_ft_params,
                                _progress={"total": 0, "desc": "Running"})
@@ -1396,9 +1354,14 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    def Map_tubulin(self):
+    def Map_monomers(self, show_vectors: bool = False):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
+        
+        Parameters
+        ----------
+        show_vectors : bool, default is False
+            If true, also show orientation vectors of monomers.
         """        
         tomo = self.active_tomogram
         
@@ -1408,30 +1371,35 @@ class MTProfiler(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(out: list[Coordinates]):
-            for coords in out:
-                tr = self.layer_image.translate
+            for i, coords in enumerate(out):
                 self.parent_viewer.add_points(
                     coords.world, size=3, face_color="lime", edge_color="#007d15ff",
-                    n_dimensional=True, translate=tr, name="tubulin monomers"
+                    n_dimensional=True, name=f"Monomers-{i}"
                     )
+                
+                if show_vectors:
+                    spl = tomo.splines[i]
+                    vf = spl.cylindrical_to_world_vector(coords.spline)
+                    vector_data = np.stack([vf.starts, vf.vectors], axis=1)
+                    self.parent_viewer.add_vectors(
+                        vector_data, edge_width=0.2, edge_color="crimson", length=0.3,
+                        name=f"Monomer vectors-{i}"
+                        )
         
-        self._worker_control.info.value = f"Tubulin mapping ..."
+        self._worker_control.info.value = f"Monomer mapping ..."
         
-        if self["Map_tubulin"].running:
+        if self["Map_monomers"].running:
             self._connect_worker(worker)
             worker.start()
         else:
             run_worker_function(worker)
         return None
     
-        
     @auto_picker.wraps
     @set_design(text="Next")
     @do_not_record
     def pick_next(self):
-        """
-        Automatically pick MT center using previous two points.
-        """        
+        """Automatically pick MT center using previous two points."""        
         stride_nm = self.auto_picker.stride.value
         imgb = self.layer_image.data
         try:
@@ -1477,9 +1445,7 @@ class MTProfiler(MagicTemplate):
     @set_design(text="AC")
     @do_not_record
     def auto_center(self):
-        """
-        Auto centering of selected points.
-        """        
+        """Auto centering of selected points."""        
         imgb: ip.ImgArray = self.layer_image.data
         tomo = self.active_tomogram
         binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
@@ -1612,8 +1578,44 @@ class MTProfiler(MagicTemplate):
             self.layer_paint.properties = props
         self._update_colormap()
         return None
+    
+    @View.wraps
+    @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
+                 end={"widget_type": TupleEdit, "options": {"step": 0.1}},
+                 limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
+    def Set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.00, 4.24)):
+        """
+        Set the color-map for painting microtubules.
         
-            
+        Parameters
+        ----------
+        start : tuple, default is (0.0, 0.0, 1.0)
+            RGB color that corresponds to the most compacted microtubule.
+        end : tuple, default is (1.0, 0.0, 0.0)
+            RGB color that corresponds to the most expanded microtubule.
+        limit : tuple, default is (4.00, 4.24)
+            Color limit (nm).
+        """        
+        self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
+        self.label_colorlimit = limit
+        self._update_colormap()
+        return None
+    
+    
+    def _update_colormap(self, prop: str = H.yPitch):
+        # TODO: color by other properties
+        if self.layer_paint is None:
+            return None
+        color = {0: np.array([0., 0., 0., 0.], dtype=np.float32),
+                 None: np.array([0., 0., 0., 1.], dtype=np.float32)}
+        lim0, lim1 = self.label_colorlimit
+        df = self.active_tomogram.collect_localprops()[prop]
+        for i, value in enumerate(df):
+            color[i+1] = self.label_colormap.map((value - lim0)/(lim1 - lim0))
+        self.layer_paint.color = color
+        return None
+
+
     def _plot_properties(self):
         i = self.mt.mtlabel.value
         props = self.active_tomogram.splines[i].localprops

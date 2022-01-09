@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator
 import numpy as np
+from .const import EulerAxes
 
 if TYPE_CHECKING:
     from scipy.spatial.transform import Rotation
@@ -131,7 +132,7 @@ class VectorField3D:
     
     def euler_angle(self, 
                     src_vector: np.ndarray | str = "z",
-                    seq: str = "ZXZ",
+                    seq: str | EulerAxes = EulerAxes.ZXZ,
                     degrees: bool = False) -> np.ndarray:
         """
         Calculate Euler angles that transforms a source vector to vectors that 
@@ -157,6 +158,7 @@ class VectorField3D:
         (N, 3) ndarray
             Euler angles.
         """
+        seq = EulerAxes(seq).value
         rot = self._get_rotator(src_vector)
         return rot.as_euler(seq, degrees=degrees)
     

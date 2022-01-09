@@ -591,7 +591,9 @@ class Spline3D:
         return self.cartesian_to_world(cart_coords)
 
     
-    def world_to_cylindrical(self, coords: np.ndarray, precision: float = 1e-3,
+    def world_to_cylindrical(self, 
+                             coords: np.ndarray,
+                             precision: float = 1e-3,
                              angle_tol: float = 1e-2) -> Spline3D:
         # WIP
         u = np.linspace(0, 1, 1/precision)
