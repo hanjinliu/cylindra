@@ -4,7 +4,7 @@ import os
 import numpy as np
 import warnings
 import napari
-from napari.utils.colormaps.colormap import Colormap
+from napari.utils import Colormap
 from napari.qt import create_worker
 from napari._qt.qthreading import GeneratorWorker, WorkerBase, FunctionWorker
 from napari.layers import Points, Vectors
@@ -14,6 +14,7 @@ import impy as ip
 
 from magicclass import (
     magicclass,
+    magictoolbar,
     magicmenu,
     field,
     set_design,
@@ -54,7 +55,6 @@ from .const import EulerAxes, nm, H, Ori, GVar
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
-    from matplotlib.axes import Axes
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
@@ -268,7 +268,7 @@ class SplineFitter(MagicTemplate):
                            record=False)
             def Average(self): ...
     
-    def _get_shifts(self, widget=None):
+    def _get_shifts(self, _=None):
         i = self.mt.mtlabel.value
         return self.shifts[i]
     
@@ -305,12 +305,13 @@ class SplineFitter(MagicTemplate):
             proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
         self.Rotational_averaging.canvas_rot.image = proj.zx_ave
     
+    
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
         self.canvas.min_height = 160
         self.fit_done = True
-        self.canvas.add_curve([0, 0], [-1000, 2000], color="lime", lw=2)
-        self.canvas.add_curve([-1000, 2000], [0, 0], color="lime", lw=2)
+        self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
+        self.canvas.add_infline(pos=[0, 0], angle=0, color="lime", lw=2)
         theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
         self.canvas.add_curve(np.cos(theta), np.sin(theta), color="lime", lw=2, ls="--")
         self.canvas.add_curve(2*np.cos(theta), 2*np.sin(theta), color="lime", lw=2, ls="--")
@@ -333,8 +334,8 @@ class SplineFitter(MagicTemplate):
         itemh = self.canvas.layers[1]
         item_circ_inner = self.canvas.layers[2]
         item_circ_outer = self.canvas.layers[3]
-        itemv.xdata = [x, x]
-        itemh.ydata = [z, z]
+        itemv.pos = [x, z]
+        itemh.pos = [x, z]
         
         tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
         r_max: nm = tomo.subtomo_width/2
@@ -478,7 +479,7 @@ class MTProfiler(MagicTemplate):
         def MTProps_info(self): ...
         def Open_help(self): ...
         
-    @magicclass(layout="horizontal", labels=False)
+    @magictoolbar
     class operation(MagicTemplate):
         """Frequently used operations."""        
         def register_path(self): ...
@@ -588,9 +589,17 @@ class MTProfiler(MagicTemplate):
         tomograms.height = 160
         tomograms.max_height = 160
         self.min_width = 395
+        
+        # Initialize multi-image canvas
         self.canvas.min_height = 180
-        for i in range(3):
-            self.canvas[i].lock_contrast_limits = True
+        self.canvas[0].lock_contrast_limits = True
+        self.canvas[0].title = "XY-Projection"
+        self.canvas[1].lock_contrast_limits = True
+        self.canvas[1].title = "XZ-Projection"
+        self.canvas[2].lock_contrast_limits = True
+        self.canvas[2].title = "Rot. average"
+        
+        # Initialize multi-plot canvas
         self.plot.min_height = 240
         self.plot[0].ylabel = "pitch (nm)"
         self.plot[0].legend.visible = False
@@ -601,15 +610,16 @@ class MTProfiler(MagicTemplate):
         self.plot[1].border = [1, 1, 1, 0.2]
         
         self.Panels.min_height = 240
-            
-    def _get_path(self, widget=None) -> np.ndarray:
+
+
+    def _get_spline_coordinates(self, widget=None) -> np.ndarray:
         coords = self.layer_work.data
         return coords
     
     @operation.wraps
     @set_design(text="📝")
     @bind_key("F1")
-    def register_path(self, coords: Bound(_get_path) = None):
+    def register_path(self, coords: Bound(_get_spline_coordinates) = None):
         """
         Register current selected points as a MT path.
         """        
@@ -856,10 +866,10 @@ class MTProfiler(MagicTemplate):
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"},
-                 separator={"choices": ["','", "'\\t'", "' '"]})
+                 separator={"choices": ["Comma", "Tab", "Space"]})
     def Save_monomer_angles(self, save_path: Path, layer: Vectors, 
                             rotation_axes = EulerAxes.ZXZ, in_degree: bool = True,
-                            separator: str = "','"):
+                            separator: str = "Comma"):
         """
         Save a vectors layer of monomer angles in Euler angles.
 
@@ -880,7 +890,7 @@ class MTProfiler(MagicTemplate):
         start, vector = layer.data[:, 0], layer.data[:, 1]
         vf = VectorField3D(start, vector)
         arr = vf.euler_angle("y", rotation_axes, degrees=in_degree)
-        separator = {"','": ",", "'\\t'": "\t", "' '": " "}[str(separator)]
+        separator = {"Comma": ",", "Tab": "\t", "Space": " "}[str(separator)]
         np.savetxt(save_path, arr, delimiter=separator)
         return None
     
