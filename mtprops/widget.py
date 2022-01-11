@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import TYPE_CHECKING, Iterable, Union
+from typing import Iterable, Union
 import os
 import numpy as np
 import warnings
@@ -53,14 +53,12 @@ from .utils import (
     )
 from .const import EulerAxes, nm, H, Ori, GVar, Sep
 
-if TYPE_CHECKING:
-    from napari.layers import Image, Points, Labels
-
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
+ICON_DIR = Path(__file__).parent / "icons"
 
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
 register_type(Layer, lambda layer: layer.name)
@@ -472,28 +470,25 @@ class MTProfiler(MagicTemplate):
     
     @magicmenu
     class Others(MagicTemplate):
+        """Other menus."""
         def Create_macro(self): ...
         def Global_variables(self, **kwargs): ...
         def MTProps_info(self): ...
         def Open_help(self): ...
         
-    @magictoolbar
-    class operation(MagicTemplate):
+    @magictoolbar(labels=False)
+    class toolbar(MagicTemplate):
         """Frequently used operations."""        
         def register_path(self): ...
         def run_for_all_path(self): ...
-        def clear_current(self): ...
-        def clear_all(self): ...
-    
-    @magicclass(layout="horizontal")
-    class auto_picker(MagicTemplate):
-        """Automatic MT center picking along MT."""        
-        stride = field(50.0, widget_type="FloatSlider", 
-                       options={"min": 10, "max": 100, "tooltip": "Stride length of auto picker"}, 
-                       name="stride (nm)", record=False)
         def pick_next(self): ...
         def auto_center(self): ...
-    
+        def clear_current(self): ...
+        def clear_all(self): ...
+        stride = field(50.0, widget_type="FloatSlider", 
+                       options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, 
+                       record=False)
+        
     @magicclass(widget_type="collapsible")
     class Tomogram_List(MagicTemplate):
         """List of tomograms that have loaded to the widget."""        
@@ -509,15 +504,19 @@ class MTProfiler(MagicTemplate):
     
     canvas = field(QtMultiImageCanvas, name="Figure", 
                    options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
-        
-    txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."},
-                name="result")
-        
-    orientation_choice = field(Ori.none, name="Orientation: ", 
-                               options={"tooltip": "MT polarity."})
     
-    plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True,
-                                                          "tooltip": "Plot of local properties"})
+    
+    @magicclass(widget_type="collapsible")
+    class Profiles(MagicTemplate):
+                
+        txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."},
+                    name="result")
+            
+        orientation_choice = field(Ori.none, name="Orientation: ", 
+                                   options={"tooltip": "MT polarity."})
+        
+        plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True,
+                                                            "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
@@ -589,7 +588,8 @@ class MTProfiler(MagicTemplate):
         self.min_width = 395
         
         # Initialize multi-image canvas
-        self.canvas.min_height = 180
+        self.canvas.min_height = 200
+        self.canvas.max_height = 230
         self.canvas[0].lock_contrast_limits = True
         self.canvas[0].title = "XY-Projection"
         self.canvas[1].lock_contrast_limits = True
@@ -597,25 +597,27 @@ class MTProfiler(MagicTemplate):
         self.canvas[2].lock_contrast_limits = True
         self.canvas[2].title = "Rot. average"
         
-        # Initialize multi-plot canvas
-        self.plot.min_height = 240
-        self.plot[0].ylabel = "pitch (nm)"
-        self.plot[0].legend.visible = False
-        self.plot[0].border = [1, 1, 1, 0.2]
-        self.plot[1].xlabel = "position (nm)"
-        self.plot[1].ylabel = "skew (deg)"
-        self.plot[1].legend.visible = False
-        self.plot[1].border = [1, 1, 1, 0.2]
+        # self.Profiles.collapsed = False TODO: update this
         
-        self.Panels.min_height = 240
+        # Initialize multi-plot canvas
+        self.Profiles.plot.min_height = 240
+        self.Profiles.plot[0].ylabel = "pitch (nm)"
+        self.Profiles.plot[0].legend.visible = False
+        self.Profiles.plot[0].border = [1, 1, 1, 0.2]
+        self.Profiles.plot[1].xlabel = "position (nm)"
+        self.Profiles.plot[1].ylabel = "skew (deg)"
+        self.Profiles.plot[1].legend.visible = False
+        self.Profiles.plot[1].border = [1, 1, 1, 0.2]
+        
+        self.Panels.min_height = 300
 
 
     def _get_spline_coordinates(self, widget=None) -> np.ndarray:
         coords = self.layer_work.data
         return coords
     
-    @operation.wraps
-    @set_design(text="📝")
+    @toolbar.wraps
+    @set_design(icon_path=ICON_DIR/"add_spline.png")
     @bind_key("F1")
     def register_path(self, coords: Bound(_get_spline_coordinates) = None):
         """
@@ -637,12 +639,12 @@ class MTProfiler(MagicTemplate):
         self.layer_work.data = []
         return None
     
-    @operation.wraps
+    @toolbar.wraps
     @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
                  ft_size={"label": "Local DFT window size (nm)"},
                  n_refine={"label": "Refinement iteration", "max": 4}
                  )
-    @set_design(text="👉")
+    @set_design(icon_path=ICON_DIR/"run_all.png")
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          ft_size: nm = 32.0,
@@ -682,9 +684,11 @@ class MTProfiler(MagicTemplate):
         def _on_yield(out):
             if isinstance(out, str):
                 self._worker_control.info.value = out
+                self._update_splines_in_images()
             
         @worker.returned.connect
         def _on_return(out: MtTomogram):
+            self._update_splines_in_images()
             self._load_tomogram_results()
             self.Paint_MT()
             
@@ -720,17 +724,17 @@ class MTProfiler(MagicTemplate):
         yield "Finishing ..."
         return tomo
     
-    @operation.wraps
-    @set_design(text="❌")
+    @toolbar.wraps
+    @set_design(icon_path=ICON_DIR/"clear_last.png")
     @do_not_record
     def clear_current(self):
         """Clear current selection."""        
         self.layer_work.data = []
         return None
     
-    @operation.wraps
+    @toolbar.wraps
     @set_options(_={"widget_type": "Label"})
-    @set_design(text="💥")
+    @set_design(icon_path=ICON_DIR/"clear_all.png")
     def clear_all(self, _="Are you sure to clear all?"):
         """Clear all the splines and results."""
         self._init_widget_params()
@@ -1128,6 +1132,7 @@ class MTProfiler(MagicTemplate):
             raise ValueError("Cannot add anchors before adding splines.")
         for i in range(tomo.n_splines):
             tomo.make_anchors(i, interval=interval)
+        self._update_splines_in_images()
         return None
     
     @Analysis.wraps
@@ -1367,13 +1372,13 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
-    def Map_monomers(self, show_vectors: bool = False):
+    def Map_monomers(self, show_vectors: bool = True):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
         
         Parameters
         ----------
-        show_vectors : bool, default is False
+        show_vectors : bool, default is True
             If true, also show orientation vectors of monomers.
         """        
         tomo = self.active_tomogram
@@ -1408,12 +1413,12 @@ class MTProfiler(MagicTemplate):
             run_worker_function(worker)
         return None
     
-    @auto_picker.wraps
-    @set_design(text="Next")
+    @toolbar.wraps
+    @set_design(icon_path=ICON_DIR/"pick_next.png")
     @do_not_record
     def pick_next(self):
         """Automatically pick MT center using previous two points."""        
-        stride_nm = self.auto_picker.stride.value
+        stride_nm = self.toolbar.stride.value
         imgb = self.layer_image.data
         try:
             # orientation is point0 -> point1
@@ -1454,8 +1459,8 @@ class MTProfiler(MagicTemplate):
         change_viewer_focus(self.parent_viewer, point2, next_data)
         return None
     
-    @auto_picker.wraps
-    @set_design(text="AC")
+    @toolbar.wraps
+    @set_design(icon_path=ICON_DIR/"auto_center.png")
     @do_not_record
     def auto_center(self):
         """Auto centering of selected points."""        
@@ -1638,13 +1643,13 @@ class MTProfiler(MagicTemplate):
         pitch_color = "lime"
         skew_color = "gold"
         
-        self.plot[0].layers.clear()
-        self.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
+        self.Profiles.plot[0].layers.clear()
+        self.Profiles.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
         
-        self.plot[1].layers.clear()
-        self.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
+        self.Profiles.plot[1].layers.clear()
+        self.Profiles.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
 
-        self.plot.xlim = (x[0] - 2, x[-1] + 2)
+        self.Profiles.plot.xlim = (x[0] - 2, x[-1] + 2)
         return None
         
     def _get_process_image_worker(self, img: ip.LazyImgArray, binsize: int, light_bg: bool, 
@@ -1751,7 +1756,7 @@ class MTProfiler(MagicTemplate):
         self.mt.pos.value = 0
         self.mt.pos.min = 0
         self.mt.pos.max = 0
-        self.txt.value = ""
+        self.Profiles.txt.value = ""
         return None
     
     def _init_figures(self):
@@ -1760,7 +1765,7 @@ class MTProfiler(MagicTemplate):
             self.canvas[i].layers.clear()
             self.canvas[i].text_overlay.text = ""
         for i in range(2):
-            self.plot[i].layers.clear()
+            self.Profiles.plot[i].layers.clear()
         return None
     
     def _check_path(self) -> str:
@@ -1863,7 +1868,7 @@ class MTProfiler(MagicTemplate):
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
             self.layer_paint.scale = self.layer_image.scale
-        self.orientation_choice.value = Ori.none
+        self.Profiles.orientation_choice.value = Ori.none
         return None
     
     @mt.pos.connect
@@ -1881,7 +1886,7 @@ class MTProfiler(MagicTemplate):
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
-            self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
+            self.Profiles.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
 
         binsize = self.active_tomogram.metadata["binsize"]
         with no_verbose:
@@ -1914,10 +1919,10 @@ class MTProfiler(MagicTemplate):
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
     
-    @orientation_choice.connect
+    @Profiles.orientation_choice.connect
     def _update_note(self):
         i = self.mt.mtlabel.value
-        self.active_tomogram.splines[i].orientation = self.orientation_choice.value
+        self.active_tomogram.splines[i].orientation = self.Profiles.orientation_choice.value
         return None
     
     @mt.mtlabel.connect
@@ -1949,7 +1954,7 @@ class MTProfiler(MagicTemplate):
         
         self.mt.pos.max = len(tomo.splines[i].localprops) - 1
         note = tomo.splines[i].orientation
-        self.orientation_choice.value = Ori(note)
+        self.Profiles.orientation_choice.value = Ori(note)
         self._plot_properties()
         self._imshow_all()
         self.mt.mtlabel.enabled = True
@@ -1970,20 +1975,25 @@ class MTProfiler(MagicTemplate):
         return None
         
     def _add_spline_to_images(self, spl: MtSpline):
-        interval = 30
+        interval = 15
         length = spl.length()
         scale = self.layer_image.scale[0]
         
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.add(fit)
-        self.Panels.overview.add_curve(fit[:,2]/scale, fit[:,1]/scale, color="lime", lw=4)
+        self.Panels.overview.add_curve(fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=3)
     
     def _update_splines_in_images(self):
         self.Panels.overview.layers.clear()
         self.layer_prof.data = []
         for spl in self.active_tomogram.splines:
             self._add_spline_to_images(spl)
+            if spl.anchors is None:
+                continue
+            coords = spl()
+            self.Panels.overview.add_scatter(coords[:, 2]/spl.scale, coords[:, 1]/spl.scale,
+                                             color="lime", symbol="x", lw=1, size=10)
         
 
 def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5, 
