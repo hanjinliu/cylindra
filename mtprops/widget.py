@@ -37,7 +37,7 @@ from magicclass.widgets import (
 from magicclass.utils import show_messagebox
 from macrokit import register_type
 
-from mtprops.vector import VectorField3D
+from mtprops.molecules import Molecules
 
 from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
 from .utils import (
@@ -895,9 +895,8 @@ class MTProfiler(MagicTemplate):
         separator : str, optional
             Select the separator.
         """        
-        start, vector = layer.data[:, 0], layer.data[:, 1]
-        vf = VectorField3D(start, vector)
-        arr = vf.euler_angle("y", rotation_axes, degrees=in_degree)
+        mol: Molecules = layer.metadata["Molecules"]
+        arr = mol.euler_angle(rotation_axes, degrees=in_degree)
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
@@ -1397,11 +1396,12 @@ class MTProfiler(MagicTemplate):
                 
                 if show_vectors:
                     spl = tomo.splines[i]
-                    vf = spl.cylindrical_to_world_vector(coords.spline)
-                    vector_data = np.stack([vf.starts, vf.vectors], axis=1)
+                    mol = spl.cylindrical_to_world_vector(coords.spline)
+                    vectors = mol.z
+                    vector_data = np.stack([mol.pos, vectors], axis=1)
                     self.parent_viewer.add_vectors(
                         vector_data, edge_width=0.2, edge_color="crimson", length=0.3,
-                        name=f"Monomer vectors-{i}"
+                        name=f"Monomer vectors-{i}", metadata={"Molecules": mol},
                         )
         
         self._worker_control.info.value = f"Monomer mapping ..."

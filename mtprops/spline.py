@@ -8,7 +8,7 @@ from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
 from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
-from .vector import VectorField3D
+from .molecules import Molecules
 
 
 class Spline3D:
@@ -341,7 +341,7 @@ class Spline3D:
             
         Returns
         -------
-        np.ndarray (N, M, M)
+        np.ndarray (N, 4, 4)
             3D array of matrices, where the first dimension corresponds to each point.
         """        
         if u is None:
@@ -612,7 +612,7 @@ class Spline3D:
         valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
 
 
-    def cartesian_to_world_vector(self, coords: np.ndarray) -> VectorField3D:
+    def cartesian_to_world_vector(self, coords: np.ndarray) -> Molecules:
         """
         Convert coordinates of points near the spline to normal vectors.
         
@@ -625,17 +625,20 @@ class Spline3D:
 
         Returns
         -------
-        VectorField3D
-            Vector field object of points.
+        Molecules
+            Molecules object of points.
         """        
         world_coords = self.cartesian_to_world(coords)
         
         # world coordinates of the projection point of coords onto the spline
-        ycoords = self(coords[:, 1]/self.length())
-        return VectorField3D(world_coords, world_coords - ycoords)
+        u = coords[:, 1]/self.length()
+        ycoords = self(u)
+        zvec = world_coords - ycoords
+        yvec = self(u, der=1)
+        return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
 
 
-    def cylindrical_to_world_vector(self, coords: np.ndarray) -> VectorField3D:
+    def cylindrical_to_world_vector(self, coords: np.ndarray) -> Molecules:
         """
         Convert coordinates of points near the spline to normal vectors.
         
@@ -648,14 +651,17 @@ class Spline3D:
 
         Returns
         -------
-        VectorField3D
-            Vector field object of points.
+        Molecules
+            Molecules object of points.
         """        
         world_coords = self.cylindrical_to_world(coords)
         
         # world coordinates of the projection point of coords onto the spline
-        ycoords = self(coords[:, 1]/self.length())
-        return VectorField3D(world_coords, world_coords - ycoords)
+        u = coords[:, 1]/self.length()
+        ycoords = self(u)
+        zvec = world_coords - ycoords
+        yvec = self(u, der=1)
+        return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
 
 
     def _get_coords(self,
