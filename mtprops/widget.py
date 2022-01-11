@@ -7,7 +7,7 @@ import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
 from napari._qt.qthreading import GeneratorWorker, WorkerBase, FunctionWorker
-from napari.layers import Points, Vectors
+from napari.layers import Points, Vectors, Layer, Image, Labels
 from pathlib import Path
 
 import impy as ip
@@ -51,20 +51,19 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import EulerAxes, nm, H, Ori, GVar
+from .const import EulerAxes, nm, H, Ori, GVar, Sep
 
 if TYPE_CHECKING:
     from napari.layers import Image, Points, Labels
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
-# TODO: rotational averaging in "Fit splines manually" is not correct??
-# TODO: Do not fit mode of "Fit splines manually"
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
+register_type(Layer, lambda layer: layer.name)
 
 def run_worker_function(worker: Union[FunctionWorker, GeneratorWorker]):
     try:
@@ -252,10 +251,7 @@ class SplineFitter(MagicTemplate):
     @magicclass(widget_type="collapsible")
     class Rotational_averaging(MagicTemplate):
         canvas_rot = field(QtImageCanvas, options={"lock_contrast_limits": True})
-        
-        def __post_init__(self):
-            self.canvas_rot.min_height = 160
-            
+
         @magicclass(layout="horizontal")
         class frame:
             nPF = field(10, options={"min": 1, "max": 48,
@@ -313,8 +309,10 @@ class SplineFitter(MagicTemplate):
         self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
         self.canvas.add_infline(pos=[0, 0], angle=0, color="lime", lw=2)
         theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
-        self.canvas.add_curve(np.cos(theta), np.sin(theta), color="lime", lw=2, ls="--")
-        self.canvas.add_curve(2*np.cos(theta), 2*np.sin(theta), color="lime", lw=2, ls="--")
+        cos = np.cos(theta)
+        sin = np.sin(theta)
+        self.canvas.add_curve(cos, sin, color="lime", lw=2, ls="--")
+        self.canvas.add_curve(2*cos, 2*sin, color="lime", lw=2, ls="--")
         self.mt.max_height = 50
         self.mt.height = 50
         
@@ -464,10 +462,10 @@ class MTProfiler(MagicTemplate):
         def Measure_radius(self): ...
         def Refine_splines(self): ...
         def Refine_splines_with_MAO(self): ...
-        sep0 = Separator()
+        sep0 = field(Separator)
         def Local_FT_analysis(self): ...
         def Global_FT_analysis(self): ...
-        sep1 = Separator()
+        sep1 = field(Separator)
         def Reconstruct_MT(self): ...
         def cylindric_reconstruction(self): ...
         def Map_monomers(self): ...
@@ -865,11 +863,17 @@ class MTProfiler(MagicTemplate):
         return None
     
     @File.wraps
-    @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"},
-                 separator={"choices": ["Comma", "Tab", "Space"]})
+    @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
+    def Save_monomer_coordinates(self, save_path: Path, layer: Points, separator = Sep.Comma):
+        arr = layer.data
+        np.savetxt(save_path, arr, delimiter=str(separator))
+        return None
+    
+    @File.wraps
+    @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
     def Save_monomer_angles(self, save_path: Path, layer: Vectors, 
                             rotation_axes = EulerAxes.ZXZ, in_degree: bool = True,
-                            separator: str = "Comma"):
+                            separator = Sep.Comma):
         """
         Save a vectors layer of monomer angles in Euler angles.
 
@@ -890,8 +894,7 @@ class MTProfiler(MagicTemplate):
         start, vector = layer.data[:, 0], layer.data[:, 1]
         vf = VectorField3D(start, vector)
         arr = vf.euler_angle("y", rotation_axes, degrees=in_degree)
-        separator = {"Comma": ",", "Tab": "\t", "Space": " "}[str(separator)]
-        np.savetxt(save_path, arr, delimiter=separator)
+        np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
     @View.wraps
@@ -1629,6 +1632,8 @@ class MTProfiler(MagicTemplate):
     def _plot_properties(self):
         i = self.mt.mtlabel.value
         props = self.active_tomogram.splines[i].localprops
+        if props is None:
+            return None
         x = np.asarray(props[H.splDistance])
         pitch_color = "lime"
         skew_color = "gold"
@@ -1729,7 +1734,7 @@ class MTProfiler(MagicTemplate):
         # initialize GUI
         self._init_widget_params()
         self.mt.mtlabel.max = tomo.n_splines - 1
-        self.mt.pos.max = len(tomo.splines[0].localprops[H.splDistance]) - 1
+        self.mt.pos.max = len(tomo.splines[0].anchors) - 1
         
         self._init_layers()
                         
@@ -1871,11 +1876,11 @@ class MTProfiler(MagicTemplate):
             return
         if 0 < npaths <= i:
             i = 0
-        results = tomo.splines[i]
+        spl = tomo.splines[i]
         
-        if results.localprops is not None:
+        if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = results.localprops[headers].iloc[j]
+            pitch, skew, npf, start = spl.localprops[headers].iloc[j]
             self.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
 
         binsize = self.active_tomogram.metadata["binsize"]
@@ -1887,16 +1892,20 @@ class MTProfiler(MagicTemplate):
             self.canvas[1].image = proj.zx
             self.canvas[2].image = proj.zx_ave
         
+        # Update text overlay
+        self.canvas[0].text_overlay.text = f"{i}-{j}"
+        self.canvas[0].text_overlay.color = "lime"
+        
+        if spl.radius is None:
+            return None
         lz, ly, lx = np.array(proj.shape)
         ylen = tomo.ft_size/2/binsize/tomo.scale
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
-        r_px = results.radius/tomo.scale/binsize
+        r_px = spl.radius/tomo.scale/binsize
         r = r_px*GVar.outer
         xmin, xmax = -r + lx/2, r + lx/2
         self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
                                  [ymin, ymax, ymax, ymin, ymin], color="lime")
-        self.canvas[0].text_overlay.text = f"{i}-{j}"
-        self.canvas[0].text_overlay.color = "lime"
     
         theta = np.linspace(0, 2*np.pi, 360)
         r = r_px * GVar.inner

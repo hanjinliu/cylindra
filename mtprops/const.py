@@ -39,7 +39,19 @@ class Mode:
     constant = "constant"
     nearest = "nearest"
 
+
+class Sep(str, Enum):
+    """Separator character."""
+    Comma = ","
+    Tab = "\t"
+    Space = " "
+    
+    def __str__(self):
+        return self.value
+
+
 class EulerAxes(str, Enum):
+    """Sequence of Euler angles."""
     xyz = "xyz"
     yzx = "yzx"
     zxy = "zxy"
