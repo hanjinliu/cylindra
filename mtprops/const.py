@@ -76,6 +76,9 @@ class EulerAxes(str, Enum):
     YZY = "YZY"
     ZXZ = "ZXZ"
     ZYZ = "ZYZ"
+    
+    def __str__(self):
+        return self.value
 
 class GVar:
     """

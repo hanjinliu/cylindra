@@ -1997,12 +1997,13 @@ class MTProfiler(MagicTemplate):
     def _update_splines_in_images(self):
         self.Panels.overview.layers.clear()
         self.layer_prof.data = []
+        scale = self.layer_image.scale[0]
         for spl in self.active_tomogram.splines:
             self._add_spline_to_images(spl)
             if spl.anchors is None:
                 continue
             coords = spl()
-            self.Panels.overview.add_scatter(coords[:, 2]/spl.scale, coords[:, 1]/spl.scale,
+            self.Panels.overview.add_scatter(coords[:, 2]/scale, coords[:, 1]/scale,
                                              color="lime", symbol="x", lw=1, size=10)
         
 
