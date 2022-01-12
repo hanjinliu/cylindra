@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Iterable, Union
+from typing import Iterable, NewType, Union
 import os
 import numpy as np
 import warnings
@@ -35,7 +35,6 @@ from magicclass.widgets import (
     QtMultiImageCanvas,
     )
 from magicclass.utils import show_messagebox
-from macrokit import register_type
 
 from mtprops.molecules import Molecules
 
@@ -59,9 +58,25 @@ from .const import EulerAxes, nm, H, Ori, GVar, Sep
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
+MOLECULES = "Molecules"
 
-register_type(np.ndarray, lambda arr: str(arr.tolist()))
-register_type(Layer, lambda layer: layer.name)
+import macrokit
+import magicgui
+from magicgui.widgets._bases import CategoricalWidget
+from napari.utils._magicgui import find_viewer_ancestor
+
+macrokit.register_type(np.ndarray, lambda arr: str(arr.tolist()))
+macrokit.register_type(Layer, lambda layer: f"viewer.layers[{layer.name}]")
+
+MonomerLayer = NewType("MonomerLayer", Points)
+
+def get_monomer_layers(gui: CategoricalWidget) -> list[Layer]:
+    viewer = find_viewer_ancestor(gui.native)
+    if not viewer:
+        return []
+    return [x for x in viewer.layers if isinstance(x, gui.annotation) and MOLECULES in x.metadata]
+
+magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
 
 def run_worker_function(worker: Union[FunctionWorker, GeneratorWorker]):
     try:
@@ -868,14 +883,14 @@ class MTProfiler(MagicTemplate):
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_coordinates(self, save_path: Path, layer: Points, separator = Sep.Comma):
+    def Save_monomer_coordinates(self, save_path: Path, layer: MonomerLayer, separator = Sep.Comma):
         arr = layer.data
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_angles(self, save_path: Path, layer: Vectors, 
+    def Save_monomer_angles(self, save_path: Path, layer: MonomerLayer, 
                             rotation_axes = EulerAxes.ZXZ, in_degree: bool = True,
                             separator = Sep.Comma):
         """
@@ -885,7 +900,7 @@ class MTProfiler(MagicTemplate):
         ----------
         save_path : Path
             Saving path.
-        layer : Vectors
+        layer : Points
             Select the Vectors layer to save.
         rotation_axes : str, default is "ZXZ"
             Select the rotation axes. {"X", "Y", "Z"} for intrinsic rotations, or
@@ -895,7 +910,7 @@ class MTProfiler(MagicTemplate):
         separator : str, optional
             Select the separator.
         """        
-        mol: Molecules = layer.metadata["Molecules"]
+        mol: Molecules = layer.metadata[MOLECULES]
         arr = mol.euler_angle(rotation_axes, degrees=in_degree)
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
@@ -1389,21 +1404,19 @@ class MTProfiler(MagicTemplate):
         @worker.returned.connect
         def _on_return(out: list[Coordinates]):
             for i, coords in enumerate(out):
+                spl = tomo.splines[i]
+                mol = spl.cylindrical_to_world_vector(coords.spline)
                 self.parent_viewer.add_points(
                     coords.world, size=3, face_color="lime", edge_color="#007d15ff",
-                    n_dimensional=True, name=f"Monomers-{i}"
+                    n_dimensional=True, name=f"Monomers-{i}", metadata={MOLECULES: mol}
                     )
                 
-                if show_vectors:
-                    spl = tomo.splines[i]
-                    mol = spl.cylindrical_to_world_vector(coords.spline)
-                    vectors = mol.z
-                    vector_data = np.stack([mol.pos, vectors], axis=1)
-                    self.parent_viewer.add_vectors(
-                        vector_data, edge_width=0.2, edge_color="crimson", length=0.3,
-                        name=f"Monomer vectors-{i}", metadata={"Molecules": mol},
-                        )
-        
+                vector_data = np.stack([mol.pos, mol.z], axis=1)
+                self.parent_viewer.add_vectors(
+                    vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
+                    name=f"Monomer-{i} Z-axis",
+                    )
+    
         self._worker_control.info.value = f"Monomer mapping ..."
         
         if self["Map_monomers"].running:

@@ -32,7 +32,7 @@ class Molecules:
                   x: np.ndarray | None = None) -> Molecules:
         pos = np.atleast_2d(pos)
         
-        if sum(_ax is None for _ax in [z, y, x]) != 2:
+        if sum((_ax is not None) for _ax in [z, y, x]) != 2:
             raise TypeError("You must specify two out of z, y, and x.")
         
         if z is None:
@@ -174,12 +174,13 @@ class Molecules:
 
 
 def _normalize(a: np.ndarray) -> np.ndarray:
-    return a / np.sqrt(np.sum(a**2, axis=1))
+    """Normalize vectors to length 1. Input must be (N, 3)."""
+    return a / np.sqrt(np.sum(a**2, axis=1))[:, np.newaxis]
 
 def _extract_orthogonal(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Extract component of b orthogonal to a."""
-    a_norm = a / np.sqrt(np.sum(a**2, axis=1))
-    return b - np.sum(a_norm * b, axis=1) * a_norm
+    a_norm = _normalize(a)
+    return b - np.sum(a_norm * b, axis=1)[:, np.newaxis] * a_norm
 
 
 def _vector_to_rotation_matrix(ds: np.ndarray):
