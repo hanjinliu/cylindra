@@ -70,11 +70,11 @@ macrokit.register_type(Layer, lambda layer: f"viewer.layers[{layer.name}]")
 
 MonomerLayer = NewType("MonomerLayer", Points)
 
-def get_monomer_layers(gui: CategoricalWidget) -> list[Layer]:
+def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
-    return [x for x in viewer.layers if isinstance(x, gui.annotation) and MOLECULES in x.metadata]
+    return [x for x in viewer.layers if isinstance(x, Points) and MOLECULES in x.metadata]
 
 magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
 
@@ -283,9 +283,7 @@ class SplineFitter(MagicTemplate):
     
     @mt.wraps
     def Fit(self, shifts: Bound(_get_shifts), i: Bound(mt.mtlabel)):
-        """
-        Fit current spline.
-        """        
+        """Fit current spline."""        
         shifts = np.asarray(shifts)
         spl = self.splines[i]
         sqsum = GVar.splError**2 * shifts.shape[0]
@@ -298,9 +296,7 @@ class SplineFitter(MagicTemplate):
     @Rotational_averaging.frame.wraps
     @do_not_record
     def Average(self):
-        """
-        Show rotatinal averaged image.
-        """        
+        """Show rotatinal averaged image."""        
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
         parent: MTProfiler = self.__magicclass_parent__
@@ -443,11 +439,11 @@ class MTProfiler(MagicTemplate):
     class File(MagicTemplate):
         """File I/O."""  
         def Open_image(self): ...
-        def Load_json(self, path: Path): ...
-        def Save_results_as_json(self, path: Path): ...
-        def Save_results_as_csv(self, path: Path): ...
-        def Save_monomer_coordinates(self, path: Path, layer: Points): ...
-        def Save_monomer_angles(self, path: Path, layer: Vectors, sequence: EulerAxes): ...
+        def Load_json(self): ...
+        def Save_results_as_json(self): ...
+        def Save_results_as_csv(self): ...
+        def Save_monomer_coordinates(self): ...
+        def Save_monomer_angles(self): ...
     
     @magicmenu
     class View(MagicTemplate):
@@ -948,6 +944,7 @@ class MTProfiler(MagicTemplate):
     def _focus_on(self):
         """Change camera focus to the position of current MT fragment."""        
         if not self.View.focus.value or self.layer_paint is None:
+            self.layer_paint.show_selected_label = False
             return None
         
         viewer = self.parent_viewer

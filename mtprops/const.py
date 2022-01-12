@@ -90,7 +90,7 @@ class GVar:
     maxSkew: float = 1.0
     splError: nm = 0.8
     inner: float = 0.8
-    outer: float = 1.5
+    outer: float = 1.3
     daskChunk: int = (128, 256, 256)
     
     @classmethod
