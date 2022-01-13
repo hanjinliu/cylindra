@@ -9,24 +9,24 @@ Sq2 = np.sqrt(2)
 
 values = [([1, 0, 0], 
            [0, 1/Sq2, 1/Sq2],
-           [[[1,     0,      0], 
-             [0, 1/Sq2, -1/Sq2], 
-             [0, 1/Sq2,  1/Sq2]]]),
+           [[1,     0,      0], 
+            [0, 1/Sq2, -1/Sq2], 
+            [0, 1/Sq2,  1/Sq2]]),
           ([0, 0, -1],
-		   [0, 1, 0],
-           [[[ 0, 0, 1], 
-             [ 0, 1, 0], 
-             [-1, 0, 0]]]),
+		    [0, 1, 0],
+           [[ 0, 0, 1], 
+            [ 0, 1, 0], 
+            [-1, 0, 0]]),
           ([1, 0, 0],
-		   [0, Sq3/2, 1/2],
-           [[[1,     0,     0], 
-             [0, Sq3/2,  -1/2], 
-             [0,   1/2, Sq3/2]]]),
+		    [0, Sq3/2, 1/2],
+           [[1,     0,     0], 
+            [0, Sq3/2,  -1/2], 
+            [0,   1/2, Sq3/2]]),
           ([  1/2, -Sq3/2, 0],
            [Sq3/2,    1/2, 0],
-           [[[   1/2, Sq3/2, 0], 
-             [-Sq3/2,   1/2, 0], 
-             [     0,     0, 1]]])
+           [[   1/2, Sq3/2, 0], 
+            [-Sq3/2,   1/2, 0], 
+            [     0,     0, 1]])
           ]
 
 @pytest.mark.parametrize("zvec, yvec, mat", values)
@@ -34,6 +34,7 @@ def test_matrix(zvec, yvec, mat):
     pos = np.array([0, 0, 0])
     zvec = np.array(zvec)
     yvec = np.array(yvec)
+    mat = np.array(mat)[np.newaxis]
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     assert_allclose(mol.z[0], zvec)
     assert_allclose(mol.y[0], yvec)

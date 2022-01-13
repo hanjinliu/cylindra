@@ -7,7 +7,7 @@ import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
 from napari._qt.qthreading import GeneratorWorker, WorkerBase, FunctionWorker
-from napari.layers import Points, Vectors, Layer, Image, Labels
+from napari.layers import Points, Layer, Image, Labels
 from pathlib import Path
 
 import impy as ip
@@ -66,7 +66,14 @@ from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
 
 macrokit.register_type(np.ndarray, lambda arr: str(arr.tolist()))
-macrokit.register_type(Layer, lambda layer: f"viewer.layers[{layer.name}]")
+@macrokit.register_type(Layer)
+def _get_layer_macro(layer: Layer):
+    viewer = napari.current_viewer()
+    expr = macrokit.Expr("getitem", 
+                         [macrokit.Expr("getattr", [viewer, "layer"]),
+                          layer.name]
+                         )
+    return expr
 
 MonomerLayer = NewType("MonomerLayer", Points)
 
