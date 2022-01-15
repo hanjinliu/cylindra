@@ -10,20 +10,14 @@ ui = start(viewer)
 
 def test_run_all():    
     path = Path(__file__).parent / "13pf_MT.tif"
-    ui.call(path=path,
-            scale='1.052', 
-            bin_size=2,
-            light_background=False,
-            cutoff=0.0,
-            subtomo_length=48.0,
-            subtomo_width=44.0
-            )
+    ui.load_tomogram(path=path, scale='1.052', bin_size=2, light_background=False,
+                     cutoff=0.0, subtomo_length=48.0, subtomo_width=44.0)
     ui.Apply_lowpass_to_reference_image()
     ui.register_path(coords=[[18.97, 190.0, 28.99], 
                              [18.97, 107.8, 51.48],
                              [18.97,  35.2, 79.90]])
-    ui.run_for_all_path(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True)
-    ui.Global_FT_analysis()
+    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, local_props=True, 
+                   global_props=True, paint=True)
     spl = ui.active_tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
@@ -33,19 +27,13 @@ def test_run_all():
     assert all(spl.localprops[H.riseAngle] > 8.3)
     
     path = Path(__file__).parent / "14pf_MT.tif"
-    ui.call(path=path, 
-            scale='1.052', 
-            bin_size=1, 
-            light_background=False,
-            cutoff=0.0,
-            subtomo_length=48.0,
-            subtomo_width=44.0
-            )
+    ui.load_tomogram(path=path, scale='1.052', bin_size=1, light_background=False, cutoff=0.0,
+            subtomo_length=48.0, subtomo_width=44.0)
     ui.register_path(coords=[[21.97, 123.1, 32.98],
                              [21.97, 83.3, 40.5],
                              [21.97, 17.6, 64.96]])
-    ui.run_for_all_path(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True)
-    ui.Global_FT_analysis()
+    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, local_props=True, 
+                   global_props=True, paint=True)
     spl = ui.active_tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
@@ -54,6 +42,13 @@ def test_run_all():
     assert all(spl.localprops[H.nPF] == 14)
     assert all(spl.localprops[H.riseAngle] > 7.5)
     assert spl.globalprops[H.skewAngle] < -0.25 # 14-pf MT has negative skew (Atherton et al., 2019)
+    
+    # map monomer coordinates and save them.
+    ui.Map_monomers()
+    ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
+                                layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
+    ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",
+                           layer=viewer.layers['Monomers-0'], rotation_axes="ZXZ", in_degree=True, separator=",")
     
 
 def test_result_io():

@@ -45,7 +45,7 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import EulerAxes, nm, H, Ori, GVar, Sep
+from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
@@ -55,19 +55,20 @@ SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
 MOLECULES = "Molecules"
 
-import macrokit
+import macrokit as mkit
 import magicgui
 from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
 
-macrokit.register_type(np.ndarray, lambda arr: str(arr.tolist()))
-@macrokit.register_type(Layer)
+mkit.register_type(np.ndarray, lambda arr: str(arr.tolist()))
+_mkit_viewer = mkit.Symbol.var("viewer")
+
+@mkit.register_type(Layer)
 def _get_layer_macro(layer: Layer):
-    viewer = napari.current_viewer()
-    expr = macrokit.Expr("getitem", 
-                         [macrokit.Expr("getattr", [viewer, "layer"]),
-                          layer.name]
-                         )
+    expr = mkit.Expr("getitem", 
+                     [mkit.Expr("getattr", [_mkit_viewer, "layers"]),
+                      layer.name]
+                     )
     return expr
 
 MonomerLayer = NewType("MonomerLayer", Points)
@@ -408,7 +409,7 @@ class MTProfiler(MagicTemplate):
     class toolbar(MagicTemplate):
         """Frequently used operations."""        
         def register_path(self): ...
-        def run_for_all_path(self): ...
+        def open_runner(self): ...
         def pick_next(self): ...
         def auto_center(self): ...
         def clear_current(self): ...
@@ -566,49 +567,49 @@ class MTProfiler(MagicTemplate):
         self.layer_work.data = []
         return None
     
-    @toolbar.wraps
-    @set_options(interval={"min":1.0, "max": 100.0, "label": "Interval (nm)"},
-                 ft_size={"label": "Local DFT window size (nm)"},
-                 n_refine={"label": "Refinement iteration", "max": 4}
-                 )
-    @set_design(icon_path=ICON_DIR/"run_all.png")
-    @dispatch_worker
-    def run_for_all_path(self, 
-                         interval: nm = 24.0,
-                         ft_size: nm = 32.0,
-                         n_refine: int = 1,
-                         dense_mode: bool = False,
-                         local_props: bool = True,
-                         global_props: bool = True,
-                         paint: bool = True):
-        """
-        Run MTProps.
+    @magicclass(name="Run MTProps")
+    class _runner(MagicTemplate):
+        n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4, "tooltip": "Iteration number of spline refinement."})
+        dense_mode = vfield(False, options={"tooltip": "Check if microtubules are densely packed. Initial spline position must be 'almost' fitted in dense mode."})
+        local_props = vfield(True, options={"label": "Calculate local properties", "tooltip": "Check if calculate local properties."})
+        interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)", "tooltip": "Interval of sampling points of microtubule fragments."})
+        ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)", "tooltip": "Longitudinal length of local discrete Fourier transformation used for structural analysis."})
+        paint = vfield(True, options={"tooltip": "Check if paint microtubules after local properties are calculated."})
+        global_props = vfield(True, options={"label": "Calculate global properties", "tooltip": "Check if calculate global properties."})
 
-        Parameters
-        ----------
-        interval : nm, default is 24.0
-            Interval of sampling points of microtubule fragments.
-        ft_size : nm, default is 32.0
-            Longitudinal length of local discrete Fourier transformation used for 
-            structural analysis.
-        n_refine : int, default is 1
-            Iteration number of spline refinement.
-        dense_mode : bool, default is False
-            Check if microtubules are densely packed. Initial spline position must be "almost" fitted
-            in dense mode.
-        local_props: bool, default is True
-            Check if calculate local properties.
-        global_props: bool, default is True
-            Check if calculate global properties.
-        paint: bool, default is True
-            Check if paint microtubules after local properties are calculated.
-        """        
+        @local_props.connect
+        def _toggle_localprops_params(self):
+            self[3].visible = self.local_props
+            self[4].visible = self.local_props
+            self[5].visible = self.local_props
+        
+        def run_mtprops(self): ...
+    
+    @toolbar.wraps
+    @set_design(icon_path=ICON_DIR/"run_all.png")
+    def open_runner(self):
+        """Run MTProps with various settings."""
+        self._runner.show()
+        return None
+    
+    @_runner.wraps
+    @dispatch_worker
+    def run_mtprops(self,
+                    interval: Bound(_runner.interval),
+                    ft_size: Bound(_runner.ft_size),
+                    n_refine: Bound(_runner.n_refine),
+                    dense_mode: Bound(_runner.dense_mode),
+                    local_props: Bound(_runner.local_props),
+                    global_props: Bound(_runner.global_props),
+                    paint: Bound(_runner.paint)):
+        """Run MTProps"""
+        self._runner.close()
         if self.layer_work.data.size > 0:
             raise ValueError("The last curve is not registered yet.")
-            
+        
         total = 1 + n_refine + int(local_props) + int(global_props)
         
-        worker = create_worker(self._run_all, 
+        worker = create_worker(self._iter_run, 
                                interval=interval,
                                ft_size=ft_size,
                                n_refine=n_refine,
@@ -638,13 +639,13 @@ class MTProfiler(MagicTemplate):
         self._worker_control.info.value = "Spline fitting"
         return worker
     
-    def _run_all(self, 
-                 interval: nm,
-                 ft_size,
-                 n_refine,
-                 dense_mode,
-                 local_props,
-                 global_props):
+    def _iter_run(self, 
+                  interval: nm,
+                  ft_size,
+                  n_refine,
+                  dense_mode,
+                  local_props,
+                  global_props):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
         tomo.fit(dense_mode=dense_mode)
@@ -807,20 +808,20 @@ class MTProfiler(MagicTemplate):
             img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
             self.scale = f"{img.scale.x:.3f}"
         
-        def call(self): ...
+        def load_tomogram(self): ...
     
     @_loader.wraps
     @set_design(text="OK")
     @dispatch_worker
-    def call(self, 
-             path: Bound(_loader.path),
-             scale: Bound(_loader.scale),
-             bin_size: Bound(_loader.bin_size),
-             light_background: Bound(_loader.light_background),
-             cutoff: Bound(_loader._get_cutoff_freq),
-             subtomo_length: Bound(_loader.subtomo_length),
-             subtomo_width: Bound(_loader.subtomo_width)
-             ):
+    def load_tomogram(self, 
+                      path: Bound(_loader.path),
+                      scale: Bound(_loader.scale),
+                      bin_size: Bound(_loader.bin_size),
+                      light_background: Bound(_loader.light_background),
+                      cutoff: Bound(_loader._get_cutoff_freq),
+                      subtomo_length: Bound(_loader.subtomo_length),
+                      subtomo_width: Bound(_loader.subtomo_width)
+                      ):
         """Start loading image."""
         try:
             scale = float(scale)
@@ -870,18 +871,45 @@ class MTProfiler(MagicTemplate):
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_coordinates(self, save_path: Path, layer: MonomerLayer, separator = Sep.Comma):
-        arr = layer.data
+    def Save_monomer_coordinates(self,
+                                 save_path: Path,
+                                 layer: MonomerLayer, 
+                                 separator = Sep.Comma,
+                                 unit = Unit.pixel):
+        """
+        Save monomer coordinates.
+
+        Parameters
+        ----------
+        save_path : Path
+            Saving path.
+        layer : Points
+            Select the Vectors layer to save.
+        separator : str, optional
+            Select the separator.
+        unit : Unit
+            Unit of length.
+        """        
+        unit = Unit(unit)
+        if unit == Unit.pixel:
+            arr = layer.data / self.active_tomogram.scale
+        elif unit == Unit.nm:
+            arr = layer.data
+        elif unit == Unit.angstrom:
+            arr = layer.data * 10
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_angles(self, save_path: Path, layer: MonomerLayer, 
-                            rotation_axes = EulerAxes.ZXZ, in_degree: bool = True,
+    def Save_monomer_angles(self, 
+                            save_path: Path,
+                            layer: MonomerLayer, 
+                            rotation_axes = EulerAxes.ZXZ,
+                            in_degree: bool = True,
                             separator = Sep.Comma):
         """
-        Save a vectors layer of monomer angles in Euler angles.
+        Save monomer angles in Euler angles.
 
         Parameters
         ----------

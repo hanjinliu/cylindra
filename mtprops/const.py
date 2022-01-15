@@ -1,11 +1,15 @@
 from enum import Enum, auto
 import numpy as np
 
-class Ori(str, Enum):
+
+class Ori(Enum):
     """Microtubule orientation values."""
     none = "none"
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
+    
+    def __str__(self):
+        return self.value
 
 class CacheKey(Enum):
     """Caching keys of straightening operations."""
@@ -40,7 +44,7 @@ class Mode:
     nearest = "nearest"
 
 
-class Sep(str, Enum):
+class Sep(Enum):
     """Separator character."""
     Comma = ","
     Tab = "\t"
@@ -49,8 +53,16 @@ class Sep(str, Enum):
     def __str__(self):
         return self.value
 
+class Unit(Enum):
+    """Unit of length."""
+    pixel = "pixel"
+    nm = "nm"
+    angstrom = "angstrom"
+    
+    def __str__(self):
+        return self.value
 
-class EulerAxes(str, Enum):
+class EulerAxes(Enum):
     """Sequence of Euler angles."""
     xyz = "xyz"
     yzx = "yzx"
