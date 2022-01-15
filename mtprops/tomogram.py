@@ -184,7 +184,6 @@ class MtTomogram:
         self.subtomo_width = subtomogram_width
         self._splines: list[MtSpline] = []
         self._ft_size: nm = None
-        self._background_intensity: float = None
         self.ft_size = ft_size
         self.light_background = light_background
         self.metadata: dict[str, Any] = {}
@@ -527,9 +526,15 @@ class MtTomogram:
             max_interval: nm = 30.0,
             degree_precision: float = 0.2,
             dense_mode: bool = False,
+            dense_mode_sigma: nm = 2.0,
             ) -> MtTomogram:
         """
         Roughly fit i-th spline to MT.
+        
+        Subtomograms will be sampled at every ``max_interval`` nm. In dense mode,
+        Subtomograms will be masked relative to XY-plane, using sigmoid function.
+        Sharpness of the sigmoid function is determined by ``dense_mode_sigma``
+        (``dense_mode_sigma=0`` corresponds to a step function).
 
         Parameters
         ----------
@@ -540,7 +545,10 @@ class MtTomogram:
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.
         dense_mode : bool, default is False
-            If True, fitting will be executed in the dense-mocrotubule mode.
+            If True, fitting will be executed in the dense-microtubule mode.
+        dense_mode_sigma : nm, default is 2.0
+            Sharpness of mask at the edges. Soft mask is important for precision
+            because sharp changes in intensity cause strong correlation at the edges.
 
         Returns
         -------
@@ -552,20 +560,24 @@ class MtTomogram:
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
+        subtomograms -= subtomograms.mean()
         
         if dense_mode:
-            # roughly crop MT and fill outside with a constant value
+            # mask XY-region outside the microtubules with sigmoid function.
             yy, xx = np.indices(subtomograms.sizesof("yx"))
             yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
-            cval = np.mean(subtomograms)
+            yr = yy - yc
+            xr = xx - xc
             for i, ds in enumerate(spl(der=1)):
                 _, vy, vx = ds
-                const = xc*vy - yc*vx
-                distance = np.abs(-xx*vy + yy*vx + const)/np.sqrt(vx**2 + vy**2) * self.scale
-                sl = np.stack([distance > self.subtomo_width/2]*subtomograms.shape.z, 
-                              axis=0)
-                subtomograms[i][sl] = cval
-                # TODO: blur edge of mask
+                distance: nm = np.abs(-xr*vy + yr*vx)/np.sqrt(vx**2 + vy**2) * self.scale
+                distance_cutoff = self.subtomo_width/2
+                if dense_mode_sigma == 0:
+                    mask_yx = (distance > distance_cutoff).astype(np.float32)
+                else:
+                    mask_yx = 1 / (1 + np.exp((distance - distance_cutoff)/dense_mode_sigma))
+                mask = np.stack([mask_yx]*subtomograms.shape.z, axis=0)
+                subtomograms[i] *= mask
         
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
@@ -583,25 +595,22 @@ class MtTomogram:
         # Rotate subtomograms            
         for i, img in enumerate(subtomograms):
             angle = refined_tilt[i]
-            img.rotate(-angle, cval=np.mean(img), update=True)
-            
+            img.rotate(-angle, cval=0, update=True)
         # zx-shift correction by self-PCC
         subtomo_proj = subtomograms.proj("y")
         
-        if self._background_intensity is None:
-            self._background_intensity = np.mean(subtomo_proj)
-        
         if dense_mode:
-            xc = int(subtomo_proj.shape.x//2)
-            w = int((self.subtomo_width/self.scale)//2)
+            # Regions outside the mask don't need to be considered.
+            xc = int(subtomo_proj.shape.x/2)
+            w = int((self.subtomo_width/self.scale)/2)
             subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
 
         shape = subtomo_proj[0].shape
         shifts = np.zeros((npoints, 2)) # zx-shift
-        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+        mask_yx = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
         for i in range(npoints):
             img = subtomo_proj[i]
-            shifts[i] = mirror_pcc(img, mask=mask) / 2
+            shifts[i] = mirror_pcc(img, mask=mask_yx) / 2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -620,7 +629,7 @@ class MtTomogram:
         coords = coords_px * self.scale
         
         # Update spline parameters
-        sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
+        sqsum = GVar.splError**2 * coords.shape[0]  # unit: nm^2
         spl.fit(coords, s=sqsum)
         
         return self
@@ -644,6 +653,12 @@ class MtTomogram:
             Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
+        projection: bool, default is True
+            If true, 2-D images of projection along the longitudinal axis are used for boosting
+            correlation calculation. Otherwise 3-D images will be used.
+        mask_8nm: bool, default is False
+            If true, 8-nm in Fourier space will be masked to avoid correlation originated from
+            binding proteins.
         
         Returns
         -------
@@ -894,13 +909,12 @@ class MtTomogram:
         ylen = self.nm2pixel(self.ft_size)
         rmin = spl.radius*GVar.inner/self.scale
         rmax = spl.radius*GVar.outer/self.scale
-        cval = self._background_intensity or 0
         tasks = []
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
             coords = np.moveaxis(coords, -1, 0)
             tasks.append(
-                da.from_delayed(lazy_ft_params(self.image, coords, spl.radius, cval), 
+                da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
                                 shape=(5,), 
                                 meta=np.array([], dtype=np.float32)
                                 )
@@ -1547,9 +1561,9 @@ class MtTomogram:
         # "offset" means the peak of monomer     
         offset_rad = np.angle(np.fft.fft(line.value)[npf]) % (2 * np.pi)
         offset_px: float = offset_rad / 2 / np.pi * a_size
-        plt.plot(line)
-        plt.plot([offset_px,offset_px], [line.min(), line.max()])
-        plt.show()
+        # plt.plot(line)
+        # plt.plot([offset_px,offset_px], [line.min(), line.max()])
+        # plt.show()
         l = roundint(a_size/npf)
         l_dimer = pitch*2
         slope = tandg(rise)
@@ -1566,8 +1580,8 @@ class MtTomogram:
                     img1 = img_shear[:, :, sl_j]
                     shift = ip.pcc_maximum(img0, img1)
                     opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] - slope*a_size/npf*(j-i)) % l_dimer
-        plt.imshow(opt_y_mat, cmap="hsv")
-        plt.show()
+        # plt.imshow(opt_y_mat, cmap="hsv")
+        # plt.show()
         std_list: list[float] = []
         for seam in range(npf):
             cl0 = np.cos(opt_y_mat[:seam, :seam]/l_dimer*2*np.pi)
@@ -1726,8 +1740,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
                     dtype=np.float32)
     
 
-def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm, cval: float):
-    polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=cval)
+def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm):
+    polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit
