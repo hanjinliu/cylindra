@@ -133,9 +133,7 @@ class WorkerControl(MagicTemplate):
             show_messagebox("error", title=e.__class__.__name__, text=str(e), parent=self.native)
         
     def Pause(self):
-        """
-        Pause/Resume thread.
-        """        
+        """Pause/Resume thread."""        
         if not isinstance(self.worker, GeneratorWorker):
             return
         if self.paused:
@@ -438,14 +436,9 @@ class MTProfiler(MagicTemplate):
     @magicclass(widget_type="collapsible")
     class Profiles(MagicTemplate):
                 
-        txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."},
-                    name="result")
-            
-        orientation_choice = field(Ori.none, name="Orientation: ", 
-                                   options={"tooltip": "MT polarity."})
-        
-        plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True,
-                                                            "tooltip": "Plot of local properties"})
+        txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result")    
+        orientation_choice = field(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
+        plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True, "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):

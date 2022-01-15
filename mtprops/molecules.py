@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import numpy as np
-from numpy import linalg as npl
 from .const import EulerAxes
 
 if TYPE_CHECKING:
@@ -54,9 +53,9 @@ class Molecules:
         
         mat1 = []
         for r in ref:
-            mat_ = _vector_to_rotation_matrix(-r)[..., :3, :3]
+            mat_ = _vector_to_rotation_matrix(-r)
             mat1.append(mat_)
-        mat1 = npl.inv(np.stack(mat1))
+        mat1 = np.stack(mat1)
         
         vec_trans = np.einsum("ij,ijk->ik", vec, mat1) # in zx-plane
         
@@ -65,12 +64,12 @@ class Molecules:
         for theta in thetas:
             cos = np.cos(theta)
             sin = np.sin(theta)
-            rotation_zx = np.array([[cos, 0.,-sin],
-                                    [ 0., 1.,  0.],
-                                    [sin, 0., cos]])
+            rotation_zx = np.array([[ cos, 0., sin],
+                                    [  0., 1.,  0.],
+                                    [-sin, 0., cos]])
             mat2.append(rotation_zx)
             
-        mat2 = npl.inv(np.stack(mat2))
+        mat2 = np.stack(mat2)
         mat = np.einsum("ijk,ikl->ijl", mat1, mat2)
         
         from scipy.spatial.transform import Rotation
@@ -188,19 +187,16 @@ def _vector_to_rotation_matrix(ds: np.ndarray):
     zy = np.arctan(-ds[0]/np.abs(ds[1]))
     cos = np.cos(xy)
     sin = np.sin(xy)
-    rotation_yx = np.array([[1.,  0.,   0., 0.],
-                            [0., cos, -sin, 0.],
-                            [0., sin,  cos, 0.],
-                            [0.,  0.,   0., 1.]],
+    rotation_yx = np.array([[1.,  0.,   0.],
+                            [0., cos, sin],
+                            [0.,-sin, cos]],
                             dtype=np.float32)
     cos = np.cos(zy)
     sin = np.sin(zy)
-    rotation_zy = np.array([[cos, -sin, 0., 0.],
-                            [sin,  cos, 0., 0.],
-                            [ 0.,   0., 1., 0.],
-                            [ 0.,   0., 0., 1.]],
+    rotation_zy = np.array([[ cos, sin, 0.],
+                            [-sin, cos, 0.],
+                            [  0.,  0., 1.]],
                             dtype=np.float32)
 
-    mx = rotation_zy.dot(rotation_yx)
-    mx[-1, :] = [0, 0, 0, 1]
-    return np.ascontiguousarray(mx)
+    mx = rotation_yx @ rotation_zy
+    return mx
