@@ -138,8 +138,11 @@ class MtSpline(Spline3D):
         d = super().to_dict()
         d[K.radius] = self.radius
         d[K.orientation] = self.orientation.name
-        d[K.localprops] = self.localprops[[l for l in LOCALPROPS if l in self.localprops.columns]]
-        d[K.globalprops] = self.globalprops
+        if self.localprops is not None:
+            cols = [l for l in LOCALPROPS if l in self.localprops.columns]
+            d[K.localprops] = self.localprops[cols]
+        if self.globalprops is not None:
+            d[K.globalprops] = self.globalprops
         return d
         
     @classmethod
@@ -148,11 +151,19 @@ class MtSpline(Spline3D):
         localprops = d.get(K.localprops, None)
         if localprops is not None and H.splPosition in localprops:
             self.anchors = localprops[H.splPosition]
-        self.globalprops = pd.Series(d.get(K.globalprops, None))
         self.radius = d.get(K.radius, None)
         self.orientation = d.get(K.orientation, Ori.none)
-        self.localprops = pd.DataFrame(localprops)
+        if localprops is None:
+            self.localprops = None
+        else:
+            self.localprops = pd.DataFrame(localprops)
+        globalprops = d.get(K.globalprops, None)
+        if globalprops is None:
+            self.globalprops = globalprops
+        else:
+            self.globalprops = pd.Series(globalprops)
         return self
+
 
 class MtTomogram:
     """
@@ -161,7 +172,8 @@ class MtTomogram:
     are temporarily loaded into memory via cache map. Once memory usage exceed
     certain amount, the subtomogram cache will automatically deleted from the old
     ones.
-    """    
+    """
+    _image: ip.LazyImgArray
     def __init__(self, *,
                  subtomogram_length: nm = 48.0,
                  subtomogram_width: nm = 40.0,
@@ -189,13 +201,12 @@ class MtTomogram:
             
     @property
     def splines(self) -> list[MtSpline]:
+        """List of splines."""
         return self._splines
     
     @property
     def ft_size(self) -> nm:
-        """
-        Length of local Fourier transformation window size in nm.
-        """        
+        """Length of local Fourier transformation window size in nm."""
         return self._ft_size
     
     @ft_size.setter
@@ -213,31 +224,57 @@ class MtTomogram:
     
     @property
     def n_splines(self) -> int:
-        """
-        Number of spline paths.
-        """        
+        """Number of spline paths."""
         return len(self._splines)
     
+    @classmethod
+    def imread(cls, 
+               path: str,
+               *, 
+               scale: float = None,
+               subtomogram_length: nm = 48.0,
+               subtomogram_width: nm = 40.0,
+               ft_size: nm = 32.0,
+               light_background: bool = True) -> MtTomogram:
+        
+        self = cls(subtomogram_length=subtomogram_length,
+                   subtomogram_width=subtomogram_width,
+                   ft_size=ft_size,
+                   light_background=light_background)
+        img = ip.lazy_imread(path, chunks=GVar.daskChunk).as_float()
+        if scale is not None:
+            img.set_scale(xyz=scale)
+        else:
+            if (abs(img.scale.z - img.scale.x) > 1e-4
+                or abs(img.scale.z - img.scale.y) > 1e-4):
+                raise ValueError("Uneven scale.")
+        
+        self._set_image(img)
+        return self
+        
     @property
     def image(self) -> ip.LazyImgArray:
-        """
-        Tomogram image data.
-        """        
+        """Tomogram image data."""
         return self._image
     
-    @image.setter
-    def image(self, image):
-        if not isinstance(image, ip.LazyImgArray):
-            raise TypeError(f"Type {type(image)} not supported.")
-        self._image = image
-        
-        if (abs(image.scale.z - image.scale.x) > 1e-3 
-            or abs(image.scale.z - image.scale.y) > 1e-3):
+    def _set_image(self, img: ip.LazyImgArray) -> None:
+        if isinstance(img, ip.LazyImgArray):
+            pass
+        elif isinstance(img, np.ndarray):
+            if img.ndim != 3:
+                raise ValueError("Can only set 3-D image.")
+            img = ip.aslazy(img, dtype=np.float32, axes="zyx", chunks=GVar.daskChunk)
+        else:
+            raise TypeError(f"Cannot set type {type(img)} as an image.")
+        if (abs(img.scale.z - img.scale.x) > 1e-4
+            or abs(img.scale.z - img.scale.y) > 1e-4):
             raise ValueError("Uneven scale.")
-        self.scale = image.scale.x
+        self.scale = img.scale.x
+        self._image = img
         return None
     
-    def export_results(self, file_path: str, **kwargs):
+    
+    def export_localprops(self, file_path: str, **kwargs):
         """
         Export local properties as a csv file.
 
@@ -250,7 +287,8 @@ class MtTomogram:
         df.to_csv(file_path, **kwargs)
         return None
     
-    def save(self, path: str):
+    
+    def save_json(self, path: str):
         """
         Save splines with its local properties as a json file.
 
@@ -277,7 +315,8 @@ class MtTomogram:
             json.dump(all_results, f, indent=4, separators=(",", ": "), default=json_encoder)
         return None
     
-    def load(self, file_path: str) -> MtTomogram:
+    
+    def load_json(self, file_path: str) -> MtTomogram:
         """
         Load splines from a json file.
 
@@ -297,7 +336,8 @@ class MtTomogram:
             js: dict = json.load(f)
         
         for i, d in js.items():
-            try: 
+            try:
+                # integer key means it's spline info
                 int(i)
             except:
                 setattr(self, i, d)
@@ -307,6 +347,7 @@ class MtTomogram:
                 )
             
         return self
+    
     
     def add_spline(self, coords: np.ndarray):
         """
@@ -330,6 +371,7 @@ class MtTomogram:
         
         self._splines.append(spl)
         return None
+    
     
     def nm2pixel(self, value: Iterable[nm] | nm) -> np.ndarray | int:
         """
@@ -361,6 +403,7 @@ class MtTomogram:
         self._splines[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
         return None
     
+    
     def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
         """
         Collect all the anchor coordinates into a single np.ndarray.
@@ -380,6 +423,7 @@ class MtTomogram:
         elif isinstance(i, int):
             i = [i]
         return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
+    
     
     def collect_localprops(self, i: int|Iterable[int] = None) -> pd.DataFrame:
         """
@@ -406,6 +450,7 @@ class MtTomogram:
         df.index = df.index.rename(["SplineID", "PosID"])
         return df
     
+    
     def plot_localprops(self, i: int|Iterable[int] = None,
                         x=None, y=None, hue=None, **kwargs):
         """
@@ -415,6 +460,7 @@ class MtTomogram:
         df = self.collect_localprops(i)
         data = df.reset_index()
         return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
+    
     
     def summerize_localprops(self, i: int|Iterable[int] = None, 
                              by: str | list[str] = "SplineID", 
@@ -429,6 +475,7 @@ class MtTomogram:
             functions = [np.mean, np.std, se, n]
             
         return df.groupby(by=by).agg(functions)
+    
     
     def collect_radii(self, i: int|Iterable[int] = None) -> np.ndarray:
         """
@@ -449,6 +496,7 @@ class MtTomogram:
         elif isinstance(i, int):
             i = [i]
         return np.array([self._splines[i_].radius for i_ in i])
+    
     
     def _sample_subtomograms(self, 
                              i: int,
@@ -517,6 +565,7 @@ class MtTomogram:
                 sl = np.stack([distance > self.subtomo_width/2]*subtomograms.shape.z, 
                               axis=0)
                 subtomograms[i][sl] = cval
+                # TODO: blur edge of mask
         
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))

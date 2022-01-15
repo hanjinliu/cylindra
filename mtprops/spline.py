@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, TypedDict
 import warnings
 import numpy as np
 import numba as nb
@@ -9,6 +9,19 @@ from skimage.transform._warps import _linear_polar_mapping
 from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
 from .molecules import Molecules
+
+class Coords3D(TypedDict):
+    z: list[float]
+    y: list[float]
+    x: list[float]
+
+    
+class SplineInfo(TypedDict):
+    t: list[float]
+    c: Coords3D
+    k: int
+    u: list[float]
+    scale: float
 
 
 class Spline3D:
@@ -49,6 +62,17 @@ class Spline3D:
     @property
     def k(self) -> int:
         return self._k
+    
+    def __eq__(self, other: Spline3D):
+        if not isinstance(other, self.__class__):
+            return False
+        t0, c0, k0 = self.tck
+        t1, c1, k1 = other.tck
+        return (
+            np.allclose(t0, t1) and 
+            all(np.allclose(x, y) for x, y in zip(c0, c1)) 
+            and k0 == k1
+            )
         
     @property
     def anchors(self) -> np.ndarray:
@@ -274,7 +298,7 @@ class Spline3D:
         return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5 / self.scale
 
     
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> SplineInfo:
         """
         Convert spline info into a dict.
         """        
@@ -293,7 +317,7 @@ class Spline3D:
                 }
     
     @classmethod
-    def from_dict(cls, d: dict):
+    def from_dict(cls, d: SplineInfo):
         self = cls(d["scale"], d["k"])
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]
@@ -315,7 +339,7 @@ class Spline3D:
         file_path = str(file_path)
         
         with open(file_path, mode="w") as f:
-            json.dump(self.to_dict(), f, indent=4, separators=(",", ": "))
+            json.dump(self.to_dict(), f, indent=4, separators=(", ", ": "))
         
         return None
     

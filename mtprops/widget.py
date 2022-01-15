@@ -1,12 +1,13 @@
+from functools import wraps
 import pandas as pd
-from typing import Iterable, NewType, Union
+from typing import Any, Callable, Iterable, NewType, Union
 import os
 import numpy as np
 import warnings
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
-from napari._qt.qthreading import GeneratorWorker, WorkerBase, FunctionWorker
+from napari._qt.qthreading import GeneratorWorker, FunctionWorker
 from napari.layers import Points, Layer, Image, Labels
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from magicclass import (
     magictoolbar,
     magicmenu,
     field,
+    vfield,
     set_design,
     set_options,
     do_not_record,
@@ -25,16 +27,9 @@ from magicclass import (
     bind_key,
     build_help,
     )
-from magicclass.widgets import (
-    TupleEdit,
-    Separator,
-    ListWidget,
-    Table,
-    QtImageCanvas,
-    QtMultiPlotCanvas,
-    QtMultiImageCanvas,
-    )
-from magicclass.utils import show_messagebox
+from magicclass.widgets import TupleEdit, Separator, ListWidget, Table
+from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
+from magicclass.utils import show_messagebox, to_clipboard
 
 from mtprops.molecules import Molecules
 
@@ -76,6 +71,7 @@ def _get_layer_macro(layer: Layer):
     return expr
 
 MonomerLayer = NewType("MonomerLayer", Points)
+Worker = Union[FunctionWorker, GeneratorWorker]
 
 def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
     viewer = find_viewer_ancestor(gui.native)
@@ -85,7 +81,7 @@ def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
 
 magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
 
-def run_worker_function(worker: Union[FunctionWorker, GeneratorWorker]):
+def run_worker_function(worker: Worker):
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("always")
@@ -99,103 +95,21 @@ def run_worker_function(worker: Union[FunctionWorker, GeneratorWorker]):
     worker._running = False
     worker.finished.emit()
     worker._finished.emit(worker)
-        
-    
-### Child widgets ###
 
-@magicclass
-class ImageLoader(MagicTemplate):
-    # A loader widget with imread settings.
-    path = field(Path, record=False, options={
-        "filter": "*.tif;*.tiff;*.mrc;*.rec",
-        "tooltip": "Path to tomogram."}
-                 )
-    scale = field(str, record=False, options={
-        "label": "scale (nm)", 
-        "tooltip": "Pixel size in nm/pixel."}
-                  )
-    bin_size = field(4, record=False, options={
-        "label": "bin size", 
-        "min": 1, "max": 8, 
-        "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."}
-                     )
-    subtomo_length = field(48.0, record=False, options={
-        "label": "subtomogram length (nm)", 
-        "min": 2.0, "max": 100.0, "step": 4.0, 
-        "tooltip": "The axial length of subtomogram."}
-                               )
-    subtomo_width = field(44.0, record=False, options={
-        "label": "subtomogram width (nm)", 
-        "min": 2.0, "max": 100.0, "step": 4.0, 
-        "tooltip": "The diameter of subtomogram."}
-                              )
-    light_background = field(True, record=False, options={
-        "label": "light background", 
-        "tooltip": "Check if background is bright."}
-                             )
-    use_lowpass = field(False, record=False, options={
-        "label": "Apply low-pass filter",
-        "tooltip": "Check if images need prefilter."}
-                        )
-    cutoff_freq = field(0.2, record=False, options={
-        "label": "Cutoff frequency (1/px)", 
-        "visible": False,
-        "min": 0.0, "max": 0.5, "step": 0.05, 
-        "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.5."}
-                        )
-    
-    @use_lowpass.connect
-    def _enable_freq_option(self):
-        self.cutoff_freq.visible = self.use_lowpass.value
-    
-    @set_design(text="OK")
-    def call(self, 
-             path: Bound(path),
-             scale: Bound(scale),
-             bin_size: Bound(bin_size),
-             light_background: Bound(light_background),
-             cutoff_freq: Bound(cutoff_freq),
-             subtomo_length: Bound(subtomo_length),
-             subtomo_width: Bound(subtomo_width),
-             use_lowpass: Bound(use_lowpass)
-             ):
-        """Start loading image."""
-        try:
-            scale = float(scale)
-        except Exception as e:
-            raise type(e)(f"Invalid input: {scale}")
-        
-        img = ip.lazy_imread(path, chunks=GVar.daskChunk)
-        img.scale.x = img.scale.y = img.scale.z = scale
-        
-        if use_lowpass:
-            cutoff = cutoff_freq
-        else:
-            cutoff = 0.0
-        
-        worker = self.__magicclass_parent__._get_process_image_worker(
-            img, 
-            bin_size,
-            light_background,
-            cutoff, 
-            subtomo_length,
-            subtomo_width
-            )
-        
-        if self["call"].running:
-            self.__magicclass_parent__._connect_worker(worker)
+
+def dispatch_worker(f: Callable[[Any], Worker]) -> Callable[[Any], None]:
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        worker = f(self, *args, **kwargs)
+        if self[f.__name__].running:
+            self._connect_worker(worker)
             worker.start()
         else:
             run_worker_function(worker)
-        
-        self.close()
         return None
+    return wrapper
     
-    @path.connect
-    def _read_scale(self):
-        img = ip.lazy_imread(self.path.value, chunks=GVar.daskChunk)
-        self.scale.value = f"{img.scale.x:.3f}"
-
+### Child widgets ###
 
 @magicclass(layout="horizontal", labels=False, error_mode="stderr")
 class WorkerControl(MagicTemplate):
@@ -206,9 +120,8 @@ class WorkerControl(MagicTemplate):
     
     def __post_init__(self):
         self.paused = False
-        self.worker: WorkerBase = None
+        self.worker: Worker = None
         self._last_info = ""
-        self.info.enabled = False
     
     def _set_worker(self, worker):
         self.worker = worker
@@ -236,9 +149,7 @@ class WorkerControl(MagicTemplate):
         self.paused = not self.paused
         
     def Interrupt(self):
-        """
-        Interrupt thread.
-        """        
+        """Interrupt thread."""
         self.worker.quit()
 
 
@@ -438,7 +349,6 @@ class MTProfiler(MagicTemplate):
     
     ### widgets ###
     
-    _loader = field(ImageLoader)
     _worker_control = field(WorkerControl)
     _spline_fitter = field(SplineFitter)
     
@@ -569,7 +479,7 @@ class MTProfiler(MagicTemplate):
             # should be set to 0.
             worker = self._get_process_image_worker(
                 tomo.image, tomo.metadata["binsize"], 
-                tomo.light_background, 0.0,
+                tomo.light_background, tomo.metadata["cutoff"],
                 tomo.subtomo_length, tomo.subtomo_width,
                 new=False
                 )
@@ -592,9 +502,8 @@ class MTProfiler(MagicTemplate):
             
         @tomograms.register_contextmenu(MtTomogram)
         def Copy_path(tomo: MtTomogram, i: int):
-            from qtpy.QtGui import QGuiApplication
-            clipboard = QGuiApplication.clipboard()
-            clipboard.setText(tomo.metadata["source"])
+            if "source" in tomo.metadata:
+                to_clipboard(tomo.metadata["source"])
         
         @tomograms.register_tooltip(MtTomogram)
         def _tooltip(tomo: MtTomogram):
@@ -615,7 +524,7 @@ class MTProfiler(MagicTemplate):
         self.canvas[2].lock_contrast_limits = True
         self.canvas[2].title = "Rot. average"
         
-        # self.Profiles.collapsed = False TODO: update this
+        self.Profiles.collapsed = False
         
         # Initialize multi-plot canvas
         self.Profiles.plot.min_height = 240
@@ -663,11 +572,15 @@ class MTProfiler(MagicTemplate):
                  n_refine={"label": "Refinement iteration", "max": 4}
                  )
     @set_design(icon_path=ICON_DIR/"run_all.png")
+    @dispatch_worker
     def run_for_all_path(self, 
                          interval: nm = 24.0,
                          ft_size: nm = 32.0,
                          n_refine: int = 1,
-                         dense_mode: bool = False):
+                         dense_mode: bool = False,
+                         local_props: bool = True,
+                         global_props: bool = True,
+                         paint: bool = True):
         """
         Run MTProps.
 
@@ -683,17 +596,25 @@ class MTProfiler(MagicTemplate):
         dense_mode : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
+        local_props: bool, default is True
+            Check if calculate local properties.
+        global_props: bool, default is True
+            Check if calculate global properties.
+        paint: bool, default is True
+            Check if paint microtubules after local properties are calculated.
         """        
         if self.layer_work.data.size > 0:
             raise ValueError("The last curve is not registered yet.")
             
-        total = 3 + n_refine
+        total = 1 + n_refine + int(local_props) + int(global_props)
         
         worker = create_worker(self._run_all, 
                                interval=interval,
                                ft_size=ft_size,
                                n_refine=n_refine,
                                dense_mode=dense_mode,
+                               local_props=local_props,
+                               global_props=global_props,
                                _progress={"total": total, 
                                           "desc": "Running MTProps"}
                                )
@@ -705,24 +626,25 @@ class MTProfiler(MagicTemplate):
                 self._update_splines_in_images()
             
         @worker.returned.connect
-        def _on_return(out: MtTomogram):
+        def _on_return(tomo: MtTomogram):
             self._update_splines_in_images()
-            self._load_tomogram_results()
-            self.Paint_MT()
+            if local_props:
+                self._load_tomogram_results()
+                if paint:
+                    self.Paint_MT()
+            if global_props:
+                self._globalprops_to_table(tomo.global_ft_params())
             
         self._worker_control.info.value = "Spline fitting"
-        if self["run_for_all_path"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     def _run_all(self, 
                  interval: nm,
                  ft_size,
                  n_refine,
-                 dense_mode):
+                 dense_mode,
+                 local_props,
+                 global_props):
         tomo = self.active_tomogram
         tomo.ft_size = ft_size
         tomo.fit(dense_mode=dense_mode)
@@ -737,8 +659,12 @@ class MTProfiler(MagicTemplate):
             tomo.measure_radius()
             
         tomo.make_anchors(interval=interval)
-        yield "Local Fourier transformation ..."
-        tomo.local_ft_params()
+        if local_props:
+            yield "Local Fourier transformation ..."
+            tomo.local_ft_params()
+        if global_props:
+            yield "Local Fourier transformation ..."
+            tomo.global_ft_params()
         yield "Finishing ..."
         return tomo
     
@@ -854,6 +780,68 @@ class MTProfiler(MagicTemplate):
         help.show()
         return None
     
+    @magicclass
+    class _loader(MagicTemplate):
+        # A loader widget with imread settings.
+        path = vfield(Path, record=False, options={"filter": "*.tif;*.tiff;*.mrc;*.rec", "tooltip": "Path to tomogram."})
+        scale = vfield(str, record=False, options={"label": "scale (nm)", "tooltip": "Pixel size in nm/pixel."})
+        bin_size = vfield(4, record=False, options={"label": "bin size", "min": 1, "max": 8, "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."})
+        subtomo_length = vfield(48.0, record=False, options={"label": "subtomogram length (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The axial length of subtomogram."})
+        subtomo_width = vfield(44.0, record=False, options={"label": "subtomogram width (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The diameter of subtomogram."})
+        light_background = vfield(True, record=False, options={"label": "light background", "tooltip": "Check if background is bright."})
+        use_lowpass = vfield(False, record=False, options={"label": "Apply low-pass filter","tooltip": "Check if images need prefilter."})
+        cutoff_freq = vfield(0.2, record=False, options={"label": "Cutoff frequency (1/px)", "visible": False, "min": 0.0, "max": 0.5, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.5."})
+        
+        @use_lowpass.connect
+        def _enable_freq_option(self):
+            self[7].visible = self.use_lowpass
+        
+        def _get_cutoff_freq(self, _=None):
+            if self.use_lowpass:
+                return self.cutoff_freq
+            else:
+                return 0.0
+        
+        @path.connect
+        def _read_scale(self):
+            img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
+            self.scale = f"{img.scale.x:.3f}"
+        
+        def call(self): ...
+    
+    @_loader.wraps
+    @set_design(text="OK")
+    @dispatch_worker
+    def call(self, 
+             path: Bound(_loader.path),
+             scale: Bound(_loader.scale),
+             bin_size: Bound(_loader.bin_size),
+             light_background: Bound(_loader.light_background),
+             cutoff: Bound(_loader._get_cutoff_freq),
+             subtomo_length: Bound(_loader.subtomo_length),
+             subtomo_width: Bound(_loader.subtomo_width)
+             ):
+        """Start loading image."""
+        try:
+            scale = float(scale)
+        except Exception as e:
+            raise type(e)(f"Invalid input: {scale}")
+        
+        img = ip.lazy_imread(path, chunks=GVar.daskChunk)
+        img.scale.x = img.scale.y = img.scale.z = scale
+        
+        worker = self._get_process_image_worker(
+            img, 
+            bin_size,
+            light_background,
+            cutoff, 
+            subtomo_length,
+            subtomo_width
+            )
+        
+        self._loader.close()
+        return worker
+    
     @File.wraps
     @do_not_record
     def Open_image(self):
@@ -863,25 +851,21 @@ class MTProfiler(MagicTemplate):
         
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
+    @dispatch_worker
     def Load_json(self, path: Path):
         """Choose a json file and load it."""        
         tomo = self.active_tomogram
-        worker = create_worker(tomo.load, path, _progress={"total": 0, "desc": "Running"})
+        worker = create_worker(tomo.load_json, path, _progress={"total": 0, "desc": "Running"})
         worker.returned.connect(self._load_tomogram_results)
         self._worker_control.info.value = f"Loading {os.path.basename(path)}"
-        if self["Load_json"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     @File.wraps
     @set_design(text="Save results as json")
     @set_options(save_path={"mode": "w", "filter": "*.json;*.txt"})
     def Save_results_as_json(self, save_path: Path):
         """Save the results as json."""
-        self.active_tomogram.save(save_path)
+        self.active_tomogram.save_json(save_path)
         return None
     
     @File.wraps
@@ -919,6 +903,7 @@ class MTProfiler(MagicTemplate):
         return None
     
     @View.wraps
+    @dispatch_worker
     def Apply_lowpass_to_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
@@ -938,19 +923,16 @@ class MTProfiler(MagicTemplate):
             self.Panels.overview.image = proj
             self.Panels.overview.contrast_limits = contrast_limits
         
-        if self["Apply_lowpass_to_reference_image"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-            
-        return None
+        return worker
                     
     @mt.mtlabel.connect
     @mt.pos.connect
+    @View.focus.connect
     def _focus_on(self):
-        """Change camera focus to the position of current MT fragment."""        
-        if not self.View.focus.value or self.layer_paint is None:
+        """Change camera focus to the position of current MT fragment."""
+        if self.layer_paint is None:
+            return None
+        if not self.View.focus.value:
             self.layer_paint.show_selected_label = False
             return None
         
@@ -983,6 +965,7 @@ class MTProfiler(MagicTemplate):
         return None
     
     @View.wraps
+    @dispatch_worker
     def Show_straightened_image(self, i: Bound(mt.mtlabel)):
         """Send straightened image of the current MT to the viewer."""        
         tomo = self.active_tomogram
@@ -998,12 +981,7 @@ class MTProfiler(MagicTemplate):
         
         self._worker_control.info.value = f"Straightening spline No. {i}"
         
-        if self["Show_straightened_image"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     @View.wraps
     @set_design(text="R-projection")
@@ -1084,6 +1062,7 @@ class MTProfiler(MagicTemplate):
     
     @Analysis.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
+    @dispatch_worker
     def Fit_splines(self, 
                     max_interval: nm = 30,
                     degree_precision: float = 0.2,
@@ -1112,12 +1091,7 @@ class MTProfiler(MagicTemplate):
         worker.returned.connect(self._update_splines_in_images)
         self._worker_control.info.value = "Spline Fitting"
 
-        if self["Fit_splines"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     @Analysis.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
@@ -1154,6 +1128,7 @@ class MTProfiler(MagicTemplate):
         return None
     
     @Analysis.wraps
+    @dispatch_worker
     def Measure_radius(self):
         """Measure MT radius for each spline path."""        
         worker = create_worker(self.active_tomogram.measure_radius,
@@ -1162,16 +1137,12 @@ class MTProfiler(MagicTemplate):
         
         self._worker_control.info.value = "Measuring Radius"
 
-        if self["Measure_radius"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     @Analysis.wraps
     @set_options(max_interval={"label": "Maximum interval (nm)"},
                  mask_8nm={"label": "Mask 8-nm peak"})
+    @dispatch_worker
     def Refine_splines(self, max_interval: nm = 30, projection: bool = True, 
                        mask_8nm: bool = False):
         """
@@ -1200,18 +1171,14 @@ class MTProfiler(MagicTemplate):
 
         self._worker_control.info.value = "Refining splines ..."
         
-        if self["Refine_splines"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-                
         self._init_widget_params()
         self._init_figures()
-        return None
+        return worker
+
     
     @Analysis.wraps
     @set_options(max_interval={"label": "Maximum interval (nm)"})
+    @dispatch_worker
     def Refine_splines_with_MAO(self, max_interval: nm = 30):
         """
         Refine splines using Minimum Angular Oscillation.
@@ -1232,17 +1199,12 @@ class MTProfiler(MagicTemplate):
 
         self._worker_control.info.value = "Refining splines with MAO..."
         
-        if self["Refine_splines_with_MAO"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-                
         self._init_widget_params()
         self._init_figures()
-        return None
+        return worker
     
     @Analysis.wraps
+    @dispatch_worker
     def Local_FT_analysis(self, interval: nm = 32.0, ft_size: nm = 32.0):
         """
         Determine MT structural parameters by local Fourier transformation.
@@ -1267,34 +1229,26 @@ class MTProfiler(MagicTemplate):
         def _on_return(df):
             self._load_tomogram_results()
         
-        self._worker_control.info.value = f"Local Fourier transform ..."
-        if self["Local_FT_analysis"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        self._worker_control.info.value = "Local Fourier transform ..."
+        return worker
         
     @Analysis.wraps
+    @dispatch_worker
     def Global_FT_analysis(self):
         """Determine MT global structural parameters by Fourier transformation."""        
         tomo = self.active_tomogram
         worker = create_worker(tomo.global_ft_params,
                                _progress={"total": 0, "desc": "Running"})
-        @worker.returned.connect
-        def _on_return(out):
-            df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
-            self.Panels.table.value = df
-            self.Panels.current_index = 2
+        worker.returned.connect(self._globalprops_to_table)
         
         self._worker_control.info.value = f"Global Fourier transform ..."
         
-        if self["Global_FT_analysis"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        
+        return worker
+    
+    def _globalprops_to_table(self, out: list[pd.Series]):
+        df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
+        self.Panels.table.value = df
+        self.Panels.current_index = 2
         return None
         
     @Analysis.wraps
@@ -1302,6 +1256,7 @@ class MTProfiler(MagicTemplate):
                  find_seam={"label": "Find seam position"},
                  niter={"label": "Iteration", "max": 3},
                  y_length={"label": "Longitudinal length (nm)"})
+    @dispatch_worker
     def Reconstruct_MT(self, i: Bound(mt.mtlabel), rot_ave=False, find_seam=False, niter=1, y_length=50.0):
         """
         Coarse reconstruction of MT.
@@ -1335,12 +1290,7 @@ class MTProfiler(MagicTemplate):
             _show_reconstruction(out, name=f"MT-{i} reconstruction")
         
         self._worker_control.info.value = f"Reconstruction ..."
-        if self["Reconstruct_MT"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     @Analysis.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
@@ -1348,6 +1298,7 @@ class MTProfiler(MagicTemplate):
                  niter={"label": "Iteration", "max": 3},
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
+    @dispatch_worker
     def cylindric_reconstruction(self, i: Bound(mt.mtlabel), rot_ave=False, find_seam=False, niter=1, 
                                  y_length=50.0):
         """
@@ -1382,22 +1333,13 @@ class MTProfiler(MagicTemplate):
             _show_reconstruction(out, name=f"MT-{i} cylindric reconstruction")
             
         self._worker_control.info.value = f"Cylindric reconstruction ..."
-        if self["cylindric_reconstruction"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        return worker
     
     @Analysis.wraps
-    def Map_monomers(self, show_vectors: bool = True):
+    @dispatch_worker
+    def Map_monomers(self):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
-        
-        Parameters
-        ----------
-        show_vectors : bool, default is True
-            If true, also show orientation vectors of monomers.
         """        
         tomo = self.active_tomogram
         
@@ -1410,10 +1352,12 @@ class MTProfiler(MagicTemplate):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
                 mol = spl.cylindrical_to_world_vector(coords.spline)
-                self.parent_viewer.add_points(
-                    coords.world, size=3, face_color="lime", edge_color="#007d15ff",
+                points_layer = self.parent_viewer.add_points(
+                    coords.world, size=3, face_color="lime", edge_color="lime",
                     n_dimensional=True, name=f"Monomers-{i}", metadata={MOLECULES: mol}
                     )
+                
+                points_layer.shading = "spherical"
                 
                 vector_data = np.stack([mol.pos, mol.z], axis=1)
                 self.parent_viewer.add_vectors(
@@ -1421,14 +1365,8 @@ class MTProfiler(MagicTemplate):
                     name=f"Monomer-{i} Z-axis",
                     )
     
-        self._worker_control.info.value = f"Monomer mapping ..."
-        
-        if self["Map_monomers"].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
+        self._worker_control.info.value = "Monomer mapping ..."
+        return worker
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")
@@ -1699,7 +1637,7 @@ class MTProfiler(MagicTemplate):
             f"Loading with {binsize}x{binsize} binned size: {tuple(s//binsize for s in img.shape)}"
         
         @worker.returned.connect
-        def _on_return(imgb):
+        def _on_return(imgb: ip.ImgArray):
             tr = (binsize - 1)/2*img.scale.x
             rendering = "minip" if light_bg else "mip"
             if self.layer_image not in viewer.layers:
@@ -1736,12 +1674,12 @@ class MTProfiler(MagicTemplate):
                                   subtomogram_width=width, 
                                   light_background=light_bg)
                 # metadata for GUI
-                tomo.metadata["source"] = str(self._loader.path.value)
+                tomo.metadata["source"] = str(self._loader.path)
                 tomo.metadata["binsize"] = binsize
                 tomo.metadata["cutoff"] = cutoff
                 
+                tomo._set_image(img)
                 self.active_tomogram = tomo
-                tomo.image = img
                 self.Tomogram_List.tomograms.append(tomo)
                 
                 self.clear_all()
@@ -2042,7 +1980,8 @@ def change_viewer_focus(viewer: "napari.Viewer", next_center: Iterable[float],
     viewer.dims.current_step = list(next_coord.astype(np.int64))
 
 def _show_reconstruction(img: ip.ImgArray, name):
-    from magicclass.widgets import NapariCanvas, Container
+    from magicclass.ext.napari import NapariCanvas
+    from magicclass.widgets import Container
     container = Container(labels=False)
     c = NapariCanvas(ndisplay=3, axis_labels=("z", "y", "x"))
     c.viewer.scale_bar.visible = True
