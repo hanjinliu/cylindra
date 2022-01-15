@@ -117,7 +117,7 @@ class WorkerControl(MagicTemplate):
     # A widget that has a napari worker object and appears as buttons in the activity dock 
     # while running.
     
-    info = field(str)
+    info = field(str, record=False)
     
     def __post_init__(self):
         self.paused = False
@@ -184,14 +184,8 @@ class SplineFitter(MagicTemplate):
 
         @magicclass(layout="horizontal")
         class frame:
-            nPF = field(10, options={"min": 1, "max": 48,
-                                     "tooltip": "Number of protofilament (if nPF=12, rotational "
-                                                "average will be calculated by summing up every "
-                                                "30° rotated images)."}, 
-                        record=False)
-            cutoff = field(0.2, options={"min": 0.0, "max": 0.5, "step": 0.05,
-                                         "tooltip": "Relative cutoff frequency of low-pass filter."}, 
-                           record=False)
+            nPF = field(10, options={"min": 1, "max": 48, "tooltip": "Number of protofilament (if nPF=12, rotational average will be calculated by summing up every 30° rotated images)."}, record=False)
+            cutoff = field(0.2, options={"min": 0.0, "max": 0.5, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass filter."}, record=False)
             def Average(self): ...
     
     def _get_shifts(self, _=None):
@@ -412,9 +406,7 @@ class MTProfiler(MagicTemplate):
         def auto_center(self): ...
         def clear_current(self): ...
         def clear_all(self): ...
-        stride = field(50.0, widget_type="FloatSlider", 
-                       options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, 
-                       record=False)
+        stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
         
     @magicclass(widget_type="collapsible")
     class Tomogram_List(MagicTemplate):
@@ -424,27 +416,21 @@ class MTProfiler(MagicTemplate):
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
         """MT sub-regions"""
-        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."},
-                        name="MTLabel", record=False)
-        pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, 
-                    name="Pos", record=False)
+        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."}, name="MTLabel", record=False)
+        pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Pos", record=False)
     
-    canvas = field(QtMultiImageCanvas, name="Figure", 
-                   options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
-    
+    canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
     
     @magicclass(widget_type="collapsible")
     class Profiles(MagicTemplate):
-                
+        """Local profiles."""
         txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result")    
         orientation_choice = field(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
         plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True, "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
-        """
-        Panels for output.
-        """        
+        """Panels for output."""
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
         image2D = field(QtImageCanvas)
         table = field(Table, name="Table", options={"tooltip": "Result table"})
@@ -478,6 +464,7 @@ class MTProfiler(MagicTemplate):
                 new=False
                 )
             
+            self._connect_worker(worker)
             worker.start()
             
             if tomo.splines:
@@ -534,6 +521,7 @@ class MTProfiler(MagicTemplate):
 
 
     def _get_spline_coordinates(self, widget=None) -> np.ndarray:
+        """Get coordinates of the manually picked spline."""
         coords = self.layer_work.data
         return coords
     
@@ -541,9 +529,7 @@ class MTProfiler(MagicTemplate):
     @set_design(icon_path=ICON_DIR/"add_spline.png")
     @bind_key("F1")
     def register_path(self, coords: Bound(_get_spline_coordinates) = None):
-        """
-        Register current selected points as a MT path.
-        """        
+        """Register current selected points as a MT path."""        
         if coords is None:
             coords = self.layer_work.data
         else:
@@ -562,51 +548,65 @@ class MTProfiler(MagicTemplate):
     
     @magicclass(name="Run MTProps")
     class _runner(MagicTemplate):
-        n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4, "tooltip": "Iteration number of spline refinement."})
-        dense_mode = vfield(False, options={"tooltip": "Check if microtubules are densely packed. Initial spline position must be 'almost' fitted in dense mode."})
-        local_props = vfield(True, options={"label": "Calculate local properties", "tooltip": "Check if calculate local properties."})
-        interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)", "tooltip": "Interval of sampling points of microtubule fragments."})
-        ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)", "tooltip": "Longitudinal length of local discrete Fourier transformation used for structural analysis."})
-        paint = vfield(True, options={"tooltip": "Check if paint microtubules after local properties are calculated."})
-        global_props = vfield(True, options={"label": "Calculate global properties", "tooltip": "Check if calculate global properties."})
+        dense_mode = vfield(True, options={"label": "Use dense-mode", "tooltip": "Check if microtubules are densely packed. Initial spline position must be 'almost' fitted in dense mode."}, record=False)
+        @magicclass(widget_type="groupbox", name="Parameters")
+        class params1:
+            """Parameters used in spline fitting."""
+            dense_mode_sigma = vfield(2.0, options={"label": "dense-mode sigma", "tooltip": "Sharpness of dense-mode mask."}, record=False)
+        n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4, "tooltip": "Iteration number of spline refinement."}, record=False)
+        local_props = vfield(True, options={"label": "Calculate local properties", "tooltip": "Check if calculate local properties."}, record=False)
+        @magicclass(widget_type="groupbox", name="Parameters")
+        class params2:
+            """Parameters used in calculation of local properties."""
+            interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)", "tooltip": "Interval of sampling points of microtubule fragments."}, record=False)
+            ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)", "tooltip": "Longitudinal length of local discrete Fourier transformation used for structural analysis."}, record=False)
+            paint = vfield(True, options={"tooltip": "Check if paint microtubules after local properties are calculated."}, record=False)
+        global_props = vfield(True, options={"label": "Calculate global properties", "tooltip": "Check if calculate global properties."}, record=False)
 
+        @dense_mode.connect
+        def _toggle_dense_mode_sigma(self):
+            self.params1.visible = self.dense_mode
+        
         @local_props.connect
         def _toggle_localprops_params(self):
-            self[3].visible = self.local_props
-            self[4].visible = self.local_props
-            self[5].visible = self.local_props
+            self.params2.visible = self.local_props
         
         def run_mtprops(self): ...
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"run_all.png")
+    @do_not_record
     def open_runner(self):
         """Run MTProps with various settings."""
         self._runner.show()
         return None
     
     @_runner.wraps
+    @set_design(text="Run")
     @dispatch_worker
     def run_mtprops(self,
-                    interval: Bound(_runner.interval),
-                    ft_size: Bound(_runner.ft_size),
+                    interval: Bound(_runner.params2.interval),
+                    ft_size: Bound(_runner.params2.ft_size),
                     n_refine: Bound(_runner.n_refine),
                     dense_mode: Bound(_runner.dense_mode),
+                    dense_mode_sigma: Bound(_runner.params1.dense_mode_sigma),
                     local_props: Bound(_runner.local_props),
                     global_props: Bound(_runner.global_props),
-                    paint: Bound(_runner.paint)):
+                    paint: Bound(_runner.params2.paint)):
         """Run MTProps"""
         self._runner.close()
         if self.layer_work.data.size > 0:
-            raise ValueError("The last curve is not registered yet.")
+            raise ValueError("The last spline is not registered yet.")
         
         total = 1 + n_refine + int(local_props) + int(global_props)
         
-        worker = create_worker(self._iter_run, 
+        worker = create_worker(_iter_run, 
+                               tomo=self.active_tomogram,
                                interval=interval,
                                ft_size=ft_size,
                                n_refine=n_refine,
                                dense_mode=dense_mode,
+                               dense_mode_sigma=dense_mode_sigma,
                                local_props=local_props,
                                global_props=global_props,
                                _progress={"total": total, 
@@ -631,36 +631,6 @@ class MTProfiler(MagicTemplate):
             
         self._worker_control.info.value = "Spline fitting"
         return worker
-    
-    def _iter_run(self, 
-                  interval: nm,
-                  ft_size,
-                  n_refine,
-                  dense_mode,
-                  local_props,
-                  global_props):
-        tomo = self.active_tomogram
-        tomo.ft_size = ft_size
-        tomo.fit(dense_mode=dense_mode)
-        tomo.measure_radius()
-        
-        for i in range(n_refine):
-            if n_refine == 1:
-                yield "Spline refinement ..."
-            else:
-                yield f"Spline refinement (iteration {i+1}/{n_refine}) ..."
-            tomo.refine(max_interval=max(interval, 30))
-            tomo.measure_radius()
-            
-        tomo.make_anchors(interval=interval)
-        if local_props:
-            yield "Local Fourier transformation ..."
-            tomo.local_ft_params()
-        if global_props:
-            yield "Local Fourier transformation ..."
-            tomo.global_ft_params()
-        yield "Finishing ..."
-        return tomo
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"clear_last.png")
@@ -688,9 +658,7 @@ class MTProfiler(MagicTemplate):
     @Others.wraps
     @do_not_record
     def Create_macro(self):
-        """
-        Create Python executable script.
-        """        
+        """Create Python executable script."""
         self.macro.widget.duplicate().show()
         return None
     
@@ -1653,7 +1621,6 @@ class MTProfiler(MagicTemplate):
                                cutoff=cutoff,
                                _progress={"total": 0, "desc": "Reading Image"})
 
-        self._connect_worker(worker)
         self._worker_control.info.value = \
             f"Loading with {binsize}x{binsize} binned size: {tuple(s//binsize for s in img.shape)}"
         
@@ -1936,7 +1903,7 @@ class MTProfiler(MagicTemplate):
         self.mt.mtlabel.enabled = True
         return None
     
-    def _connect_worker(self, worker):
+    def _connect_worker(self, worker: Worker):
         self._worker_control._set_worker(worker)
         viewer: napari.Viewer = self.parent_viewer
         viewer.window._status_bar._toggle_activity_dock(True)
@@ -1966,7 +1933,7 @@ class MTProfiler(MagicTemplate):
         scale = self.layer_image.scale[0]
         for spl in self.active_tomogram.splines:
             self._add_spline_to_images(spl)
-            if spl.anchors is None:
+            if spl._anchors is None:
                 continue
             coords = spl()
             self.Panels.overview.add_scatter(coords[:, 2]/scale, coords[:, 1]/scale,
@@ -2011,3 +1978,33 @@ def _show_reconstruction(img: ip.ImgArray, name):
     container.append(c.layer_controls)
     container.show()
     c.viewer.add_image(img, scale=img.scale, name=name)
+
+def _iter_run(tomo: MtTomogram, 
+              interval: nm,
+              ft_size,
+              n_refine,
+              dense_mode,
+              dense_mode_sigma,
+              local_props,
+              global_props):
+    tomo.ft_size = ft_size
+    tomo.fit(dense_mode=dense_mode, dense_mode_sigma=dense_mode_sigma)
+    tomo.measure_radius()
+    
+    for i in range(n_refine):
+        if n_refine == 1:
+            yield "Spline refinement ..."
+        else:
+            yield f"Spline refinement (iteration {i+1}/{n_refine}) ..."
+        tomo.refine(max_interval=max(interval, 30))
+        tomo.measure_radius()
+        
+    tomo.make_anchors(interval=interval)
+    if local_props:
+        yield "Local Fourier transformation ..."
+        tomo.local_ft_params()
+    if global_props:
+        yield "Local Fourier transformation ..."
+        tomo.global_ft_params()
+    yield "Finishing ..."
+    return tomo

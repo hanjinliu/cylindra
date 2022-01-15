@@ -1,6 +1,8 @@
 from enum import Enum, auto
 import numpy as np
 
+nm = float # type alias for clearer annotation.
+
 class strEnum(Enum):
     def __str__(self):
         return self.value
@@ -8,7 +10,8 @@ class strEnum(Enum):
     def __eq__(self, other):
         if isinstance(other, str):
             return self.value == other
-        return self == other
+        return super().__eq__(other)
+
 
 class Ori(strEnum):
     """Microtubule orientation values."""
@@ -16,12 +19,12 @@ class Ori(strEnum):
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
 
+
 class CacheKey(Enum):
     """Caching keys of straightening operations."""
     cart_straight = auto()
     cyl_straight = auto()
-    
-nm = float # type alias
+
 
 class H:
     """Header names for result table of local properties."""
@@ -33,12 +36,14 @@ class H:
     nPF = "nPF"  
     start = "start"
 
+
 class K:
     """Keys of spline attributes."""
     radius = "radius"
     orientation = "orientation"
     localprops = "localprops"
     globalprops = "globalprops"
+
 
 class Mode:
     """Padding mode used in scipy.ndimage."""
@@ -55,11 +60,13 @@ class Sep(strEnum):
     Tab = "\t"
     Space = " "
 
+
 class Unit(strEnum):
     """Unit of length."""
     pixel = "pixel"
     nm = "nm"
     angstrom = "angstrom"
+
 
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
@@ -87,6 +94,7 @@ class EulerAxes(strEnum):
     YZY = "YZY"
     ZXZ = "ZXZ"
     ZYZ = "ZYZ"
+
 
 class GVar:
     """

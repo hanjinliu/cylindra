@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from mtprops.const import Mode
 
@@ -157,7 +157,7 @@ def map_coordinates(input: np.ndarray | "da.core.Array",
                     coordinates: np.ndarray,
                     order: int = 3, 
                     mode: str = Mode.constant,
-                    cval: float = 0.0) -> np.ndarray:
+                    cval: float | Callable[[ip.ImgArray], float] = 0.0) -> np.ndarray:
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
@@ -177,6 +177,8 @@ def map_coordinates(input: np.ndarray | "da.core.Array",
     img = input[sl]
     if isinstance(img, ip.LazyImgArray):
         img = img.data
+    if callable(cval):
+        cval = cval(img)
     
     return ndi.map_coordinates(img.value,
                                coordinates,
