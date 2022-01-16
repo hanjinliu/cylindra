@@ -16,7 +16,8 @@ def roundint(a: float):
 def ceilint(a: float):
     return int(np.ceil(a))
 
-no_verbose = ip.SetConst("SHOW_PROGRESS", False)
+def no_verbose():
+    return ip.SetConst("SHOW_PROGRESS", False)
 
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
     """
@@ -55,7 +56,7 @@ def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray,
     reg = img[sl_z, sl_y, sl_x]
     if isinstance(reg, ip.LazyImgArray):
         reg = reg.data
-    with no_verbose:
+    with no_verbose():
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
             reg = reg.pad(pads, dims="zyx", constant_values=np.mean(reg))
@@ -67,11 +68,10 @@ def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl:
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
-    with no_verbose:
+    with no_verbose():
         coords = spl.local_cartesian(plane_shape, axial_size, u)
-        
         coords = np.moveaxis(coords, -1, 0)
-        out = map_coordinates(img, coords, order=3, mode=Mode.nearest)
+        out = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
     out = ip.asarray(out, axes="zyx")
     out.set_scale(img)
     return out
@@ -82,12 +82,11 @@ def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, wi
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
-    with no_verbose:
+    with no_verbose():
         for u in spl.anchors:
             coords = spl.local_cartesian(plane_shape, axial_size, u)
-            
             coords = np.moveaxis(coords, -1, 0)
-            out.append(map_coordinates(img, coords, order=3, mode=Mode.nearest))
+            out.append(map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean))
     out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
     out.set_scale(img)
     return out
@@ -107,7 +106,7 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
 def rotational_average(img: ip.ImgArray, fold: int = 13):
     angles = np.arange(fold)*360/fold
     average_img = img.copy()
-    with no_verbose:
+    with no_verbose():
         for angle in angles[1:]:
             average_img.value[:] += img.rotate(angle, dims="zx", mode=Mode.nearest)
     average_img /= fold
@@ -263,7 +262,7 @@ class Projections:
     
     """
     def __init__(self, image: ip.ImgArray):
-        with no_verbose:
+        with no_verbose():
             self.yx = image.proj("z")
             self.zx = image.proj("y")["x=::-1"]
         self.zx_ave = None

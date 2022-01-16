@@ -210,9 +210,9 @@ class SplineFitter(MagicTemplate):
         """Show rotatinal averaged image."""        
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        parent: MTProfiler = self.__magicclass_parent__
+        parent: MTPropsWidget = self.__magicclass_parent__
         
-        with no_verbose:
+        with no_verbose():
             img = parent._current_cartesian_img(i, j)
             cutoff = self.Rotational_averaging.frame.cutoff.value
             if 0 < cutoff < 0.5:
@@ -304,7 +304,7 @@ class SplineFitter(MagicTemplate):
         length_px = tomo.nm2pixel(tomo.subtomo_length/self.binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
         
-        with no_verbose:
+        with no_verbose():
             out = load_rot_subtomograms(imgb, length_px, width_px, spl)
             self.subtomograms = out.proj("y")["x=::-1"]
             
@@ -336,8 +336,8 @@ class SplineFitter(MagicTemplate):
 
 ### The main widget ###
     
-@magicclass(widget_type="scrollable")
-class MTProfiler(MagicTemplate):
+@magicclass(widget_type="scrollable", name="MTProps widget")
+class MTPropsWidget(MagicTemplate):
     # Main GUI class.
     
     ### widgets ###
@@ -385,9 +385,12 @@ class MTProfiler(MagicTemplate):
         def Local_FT_analysis(self): ...
         def Global_FT_analysis(self): ...
         sep1 = field(Separator)
-        def Reconstruct_MT(self): ...
-        def cylindric_reconstruction(self): ...
+        @magicmenu
+        class Reconstruction(MagicTemplate):
+            def Reconstruct_MT(self): ...
+            def cylindric_reconstruction(self): ...
         def Map_monomers(self): ...
+        def Map_monomers_manually(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
@@ -432,7 +435,7 @@ class MTProfiler(MagicTemplate):
     class Panels(MagicTemplate):
         """Panels for output."""
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
-        image2D = field(QtImageCanvas)
+        image2D = field(QtImageCanvas, options={"tooltip": "2-D image viewer."})
         table = field(Table, name="Table", options={"tooltip": "Result table"})
     
     ### methods ###
@@ -897,7 +900,7 @@ class MTProfiler(MagicTemplate):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
         def func():
-            with no_verbose:
+            with no_verbose():
                 self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(
                     cutoff, chunks=(32, 128, 128)
                     )
@@ -976,7 +979,7 @@ class MTProfiler(MagicTemplate):
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
         """Show radial projection of cylindrical image around the current MT fragment."""
-        with no_verbose:
+        with no_verbose():
             polar = self._current_cylindrical_img().proj("r")
         
         self.Panels.image2D.image = polar.value
@@ -992,7 +995,7 @@ class MTProfiler(MagicTemplate):
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
         i = self.mt.mtlabel.value
-        with no_verbose:
+        with no_verbose():
             polar = self.active_tomogram.cylindric_straighten(i).proj("r")
         self.Panels.image2D.image = polar.value
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
@@ -1006,7 +1009,7 @@ class MTProfiler(MagicTemplate):
     @set_design(text="2D-FT")
     def show_current_ft(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
         """View Fourier space of local cylindrical coordinate system at current position."""        
-        with no_verbose:
+        with no_verbose():
             polar = self._current_cylindrical_img()
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
@@ -1025,7 +1028,7 @@ class MTProfiler(MagicTemplate):
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound(mt.mtlabel)):
         """View Fourier space along current MT."""  
-        with no_verbose:
+        with no_verbose():
             polar = self.active_tomogram.cylindric_straighten(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
@@ -1240,7 +1243,7 @@ class MTProfiler(MagicTemplate):
         self.Panels.current_index = 2
         return None
         
-    @Analysis.wraps
+    @Analysis.Reconstruction.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
                  find_seam={"label": "Find seam position"},
                  niter={"label": "Iteration", "max": 3},
@@ -1281,7 +1284,7 @@ class MTProfiler(MagicTemplate):
         self._worker_control.info.value = f"Reconstruction ..."
         return worker
     
-    @Analysis.wraps
+    @Analysis.Reconstruction.wraps
     @set_options(rot_ave={"label": "Rotational averaging"},
                  find_seam={"label": "Find seam position"},
                  niter={"label": "Iteration", "max": 3},
@@ -1356,7 +1359,38 @@ class MTProfiler(MagicTemplate):
     
         self._worker_control.info.value = "Monomer mapping ..."
         return worker
-    
+
+    @Analysis.wraps
+    @set_options(auto_call=True, 
+                 y_offset={"widget_type": "FloatSlider", "max": 5, "step": 0.1, "label": "y offset (nm)"},
+                 theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"})
+    def Map_monomers_manually(self, i: Bound(mt.mtlabel), y_offset: nm = 0, theta_offset: float = 0):
+        theta_offset = np.deg2rad(theta_offset)
+        tomo = self.active_tomogram
+        tomo.global_ft_params(i)
+        coords = tomo.map_monomers(i, offsets=(y_offset, theta_offset))
+        spl = tomo.splines[i]
+        mol = spl.cylindrical_to_world_vector(coords.spline)
+        viewer = self.parent_viewer
+        layer_name = f"Monomers-{i}"
+        if layer_name not in viewer.layers:
+            points_layer = self.parent_viewer.add_points(
+                ndim=3, size=3, face_color="lime", edge_color="lime",
+                n_dimensional=True, name=layer_name, metadata={MOLECULES: mol}
+                )
+            
+            points_layer.shading = "spherical"
+            
+            self.parent_viewer.add_vectors(
+                ndim=3, edge_width=0.8, edge_color="crimson", length=2.4,
+                name=layer_name + " Z-axis",
+                )
+        
+        points_layer = viewer.layers[layer_name]
+        points_layer.data = coords.world
+        vector_layer = viewer.layers[layer_name + " Z-axis"]
+        vector_layer.data = np.stack([mol.pos, mol.z], axis=1)
+        
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")
     @do_not_record
@@ -1380,7 +1414,7 @@ class MTProfiler(MagicTemplate):
         
         shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
-        with no_verbose:
+        with no_verbose():
             orientation = point1[1:] - point0[1:]
             img = load_a_subtomogram(imgb, point1, shape)
             center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
@@ -1420,7 +1454,7 @@ class MTProfiler(MagicTemplate):
         
         points = self.layer_work.data / imgb.scale.x
         last_i = -1
-        with no_verbose:
+        with no_verbose():
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
@@ -1451,7 +1485,7 @@ class MTProfiler(MagicTemplate):
         lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in [15, tomo.ft_size/2, 15]]
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = roundint(bin_scale/tomo.scale)
-        with no_verbose:
+        with no_verbose():
             center = np.array([lz, ly, lx])/2 + 0.5
             z, y, x = np.indices((lz, ly, lx))
             cylinders = []
@@ -1607,7 +1641,7 @@ class MTProfiler(MagicTemplate):
         img = img.as_float()
         
         def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
-            with no_verbose:
+            with no_verbose():
                 if 0 < cutoff < 0.5:
                     img.tiled_lowpass_filter(cutoff, update=True)
                     img.release()
@@ -1652,7 +1686,7 @@ class MTProfiler(MagicTemplate):
                 self.layer_paint.scale = imgb.scale
                 self.layer_paint.translate = [tr, tr, tr]
             
-            with no_verbose:
+            with no_verbose():
                 proj = imgb.proj("z")
             self.Panels.overview.image = proj
             self.Panels.overview.ylim = (0, proj.shape[0])
@@ -1832,7 +1866,7 @@ class MTProfiler(MagicTemplate):
             self.Profiles.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
 
         binsize = self.active_tomogram.metadata["binsize"]
-        with no_verbose:
+        with no_verbose():
             proj = self.projections[j]
             for ic in range(3):
                 self.canvas[ic].layers.clear()
@@ -1968,16 +2002,10 @@ def change_viewer_focus(viewer: "napari.Viewer", next_center: Iterable[float],
     viewer.dims.current_step = list(next_coord.astype(np.int64))
 
 def _show_reconstruction(img: ip.ImgArray, name):
-    from magicclass.ext.napari import NapariCanvas
-    from magicclass.widgets import Container
-    container = Container(labels=False)
-    c = NapariCanvas(ndisplay=3, axis_labels=("z", "y", "x"))
-    c.viewer.scale_bar.visible = True
-    c.viewer.scale_bar.unit = "nm"
-    container.append(c)
-    container.append(c.layer_controls)
-    container.show()
-    c.viewer.add_image(img, scale=img.scale, name=name)
+    viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
+    viewer.scale_bar.visible = True
+    viewer.scale_bar.unit = "nm"
+    viewer.add_image(img, scale=img.scale, name=name)
 
 def _iter_run(tomo: MtTomogram, 
               interval: nm,

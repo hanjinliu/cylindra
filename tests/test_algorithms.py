@@ -16,8 +16,8 @@ def test_run_all():
     ui.register_path(coords=[[18.97, 190.0, 28.99], 
                              [18.97, 107.8, 51.48],
                              [18.97,  35.2, 79.90]])
-    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, local_props=True, 
-                   global_props=True, paint=True)
+    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, dense_mode_sigma=0.2, 
+                   local_props=True, global_props=True, paint=True)
     spl = ui.active_tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
@@ -32,8 +32,8 @@ def test_run_all():
     ui.register_path(coords=[[21.97, 123.1, 32.98],
                              [21.97, 83.3, 40.5],
                              [21.97, 17.6, 64.96]])
-    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, local_props=True, 
-                   global_props=True, paint=True)
+    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, dense_mode_sigma=0.2, 
+                   local_props=True, global_props=True, paint=True)
     spl = ui.active_tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
