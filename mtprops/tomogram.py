@@ -640,7 +640,7 @@ class MtTomogram:
                *, 
                max_interval: nm = 30.0,
                projection: bool = True,
-               mask_8nm: bool = False,
+               corr_allowed: float = 0.9,
                ) -> MtTomogram:
         """
         Refine spline using the result of previous fit and the global structural parameters.
@@ -656,9 +656,6 @@ class MtTomogram:
         projection: bool, default is True
             If true, 2-D images of projection along the longitudinal axis are used for boosting
             correlation calculation. Otherwise 3-D images will be used.
-        mask_8nm: bool, default is False
-            If true, 8-nm in Fourier space will be masked to avoid correlation originated from
-            binding proteins.
         
         Returns
         -------
@@ -692,13 +689,6 @@ class MtTomogram:
 
         # prepare input images according to the options.
         if projection:
-            if mask_8nm:
-                ft = subtomograms.fft()
-                ycenter = ylen//2
-                ft[f"y={ycenter+dist-1}:{ycenter+dist+2}"] = 0
-                ft[f"y={ycenter-dist-1}:{ycenter-dist+2}"] = 0
-                subtomograms = ft.ifft()
-                del ft
             inputs = subtomograms.proj("y")["x=::-1"]
         else:
             inputs = subtomograms["x=::-1"]
@@ -717,23 +707,27 @@ class MtTomogram:
         shape = imgs_rot_ft[0].shape
         
         # prepare a mask image for PCC calculation
-        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape) 
-        if not projection and mask_8nm:
-            ycenter = ylen//2
-            mask[f"y={ycenter+dist-1}:{ycenter+dist+2}"] = True
-            mask[f"y={ycenter-dist-1}:{ycenter-dist+2}"] = True
+        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
             
-        imgs_aligned = []
+        imgs_aligned: ip.ImgArray = ip.empty(imgs_rot.shape, dtype=np.float32, axes=imgs_rot.axes)
+        
         for i in range(npoints):
             img: ip.ImgArray = imgs_rot[i]
             ft = imgs_rot_ft[i]
             shift = mirror_ft_pcc(ft, mask=mask) / 2
             if not projection:
                 shift[1] = 0
-            imgs_aligned.append(img.affine(translation=shift, mode=Mode.constant, cval=0))
+            imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
+            
+        if corr_allowed < 1:
+            # remove low correlation image from calculation of template image.
+            corrs = ip.zncc(imgs_aligned, imgs_aligned["z=::-1;x=::-1"])
+            threshold = np.quantile(corrs, 1 - corr_allowed)
+            indices: np.ndarray = np.where(corrs >= threshold)[0]
+            imgs_aligned = imgs_aligned[indices.tolist()]
             
         # Make template using coarse aligned images.
-        imgcory: ip.ImgArray = sum(imgs_aligned)
+        imgcory: ip.ImgArray = imgs_aligned.proj("p")
         center_shift = mirror_pcc(imgcory, mask=mask) / 2
         template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
         template_ft = template.fft(dims=template.axes)

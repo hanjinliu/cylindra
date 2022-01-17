@@ -1132,11 +1132,9 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     @Analysis.wraps
-    @set_options(max_interval={"label": "Maximum interval (nm)"},
-                 mask_8nm={"label": "Mask 8-nm peak"})
+    @set_options(max_interval={"label": "Maximum interval (nm)"})
     @dispatch_worker
-    def Refine_splines(self, max_interval: nm = 30, projection: bool = True, 
-                       mask_8nm: bool = False):
+    def Refine_splines(self, max_interval: nm = 30, projection: bool = True):
         """
         Refine splines using the global MT structural parameters.
         
@@ -1146,16 +1144,12 @@ class MTPropsWidget(MagicTemplate):
             Maximum interval between anchors.
         projection : bool, default is True
             Check and Y-projection will be used to align subtomograms.
-        mask_8nm : bool, default is False
-            Chech if mask 8-nm peak to prevent phase of binding proteins affects
-            refinement results.
         """
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.refine,
                                max_interval=max_interval,
                                projection=projection,
-                               mask_8nm=mask_8nm,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         
