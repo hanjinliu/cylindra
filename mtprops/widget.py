@@ -1132,9 +1132,10 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     @Analysis.wraps
-    @set_options(max_interval={"label": "Maximum interval (nm)"})
+    @set_options(max_interval={"label": "Maximum interval (nm)"},
+                 corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1})
     @dispatch_worker
-    def Refine_splines(self, max_interval: nm = 30, projection: bool = True):
+    def Refine_splines(self, max_interval: nm = 30, projection: bool = True, corr_allowed: float = 0.9):
         """
         Refine splines using the global MT structural parameters.
         
@@ -1144,12 +1145,16 @@ class MTPropsWidget(MagicTemplate):
             Maximum interval between anchors.
         projection : bool, default is True
             Check and Y-projection will be used to align subtomograms.
+        corr_allowed : float, defaul is 0.9
+            How many images will be used to make template for alignment. If 0.9, then top 90%
+            will be used.
         """
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.refine,
                                max_interval=max_interval,
                                projection=projection,
+                               corr_allowed=corr_allowed,
                                _progress={"total": 0, 
                                           "desc": "Running"})
         

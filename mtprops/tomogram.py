@@ -656,6 +656,9 @@ class MtTomogram:
         projection: bool, default is True
             If true, 2-D images of projection along the longitudinal axis are used for boosting
             correlation calculation. Otherwise 3-D images will be used.
+        corr_allowed : float, defaul is 0.9
+            How many images will be used to make template for alignment. If 0.9, then top 90%
+            will be used.
         
         Returns
         -------
