@@ -178,14 +178,11 @@ class MtTomogram:
                  *,
                  subtomogram_length: nm = 48.0,
                  subtomogram_width: nm = 40.0,
-                 ft_size: nm = 32.0,
                  light_background: bool = True,
                  ):
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
         self._splines: list[MtSpline] = []
-        self._ft_size: nm = None
-        self.ft_size = ft_size
         self.light_background = light_background
         self.metadata: dict[str, Any] = {}
         
@@ -205,24 +202,6 @@ class MtTomogram:
         return self._splines
     
     @property
-    def ft_size(self) -> nm:
-        """Length of local Fourier transformation window size in nm."""
-        return self._ft_size
-    
-    @ft_size.setter
-    def ft_size(self, value: nm):
-        if not np.isscalar(value):
-            raise ValueError("'ft_size' must be a scalar.")
-        
-        is_same = self._ft_size and (self._ft_size == value)
-        self._ft_size = value
-        
-        # Delete outdated local properties
-        if not is_same:
-            for spl in self._splines:
-                spl.localprops = None
-    
-    @property
     def n_splines(self) -> int:
         """Number of spline paths."""
         return len(self._splines)
@@ -234,12 +213,10 @@ class MtTomogram:
                scale: float = None,
                subtomogram_length: nm = 48.0,
                subtomogram_width: nm = 40.0,
-               ft_size: nm = 32.0,
                light_background: bool = True) -> MtTomogram:
         
         self = cls(subtomogram_length=subtomogram_length,
                    subtomogram_width=subtomogram_width,
-                   ft_size=ft_size,
                    light_background=light_background)
         img = ip.lazy_imread(path, chunks=GVar.daskChunk).as_float()
         if scale is not None:
@@ -311,7 +288,6 @@ class MtTomogram:
         from .__init__ import __version__
         metadata = self.metadata.copy()
         metadata["light_background"] = self.light_background
-        metadata["ft_size"] = self.ft_size
         metadata["version"] = __version__
         all_results["metadata"] = metadata
 
@@ -888,7 +864,7 @@ class MtTomogram:
         return r_peak_sub
     
     @batch_process
-    def local_ft_params(self, i = None) -> pd.DataFrame:
+    def local_ft_params(self, i = None, ft_size: nm = 32.0) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
 
@@ -896,6 +872,8 @@ class MtTomogram:
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
+        ft_size : nm, default is 32.0
+            Length of subtomogram for calculation of local parameters.
 
         Returns
         -------
@@ -909,7 +887,7 @@ class MtTomogram:
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
         
-        ylen = self.nm2pixel(self.ft_size)
+        ylen = self.nm2pixel(ft_size)
         rmin = spl.radius*GVar.inner/self.scale
         rmax = spl.radius*GVar.outer/self.scale
         tasks = []

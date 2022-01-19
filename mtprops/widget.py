@@ -395,7 +395,8 @@ class MTPropsWidget(MagicTemplate):
     class Others(MagicTemplate):
         """Other menus."""
         def Create_macro(self): ...
-        def Global_variables(self, **kwargs): ...
+        def Global_variables(self): ...
+        def Clear_cache(self): ...
         def MTProps_info(self): ...
         def Open_help(self): ...
         
@@ -441,6 +442,7 @@ class MTPropsWidget(MagicTemplate):
         
     def __post_init__(self):
         self.active_tomogram: MtTomogram = None
+        self._last_ft_size: nm = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -465,7 +467,7 @@ class MTPropsWidget(MagicTemplate):
                 tomo.subtomo_length, tomo.subtomo_width,
                 new=False
                 )
-            
+            self._last_ft_size = tomo.metadata.get("ft_size", None)
             self._connect_worker(worker)
             worker.start()
             
@@ -474,6 +476,7 @@ class MTPropsWidget(MagicTemplate):
             else:
                 worker.finished.connect(self._init_layers)
                 worker.finished.connect(self._init_widget_params)
+                worker.finished.connect(self.Panels.overview.layers.clear)
         
         @tomograms.register_contextmenu(MtTomogram)
         def Load_tomogram(tomo: MtTomogram, i: int):
@@ -628,9 +631,10 @@ class MTPropsWidget(MagicTemplate):
                 self._load_tomogram_results()
                 if paint:
                     self.Paint_MT()
+            tomo.metadata["ft_size"] = self._last_ft_size
             if global_props:
                 self._globalprops_to_table(tomo.global_ft_params())
-            
+        self._last_ft_size = ft_size
         self._worker_control.info.value = "Spline fitting"
         return worker
     
@@ -672,7 +676,7 @@ class MTPropsWidget(MagicTemplate):
                  inner={"step": 0.1},
                  outer={"step": 0.1},
                  daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048, "step": 16}})
-    def Global_variables(self, 
+    def Global_variables(self,
                          nPFmin: int = GVar.nPFmin,
                          nPFmax: int = GVar.nPFmax,
                          splOrder: int = GVar.splOrder,
@@ -714,7 +718,12 @@ class MTPropsWidget(MagicTemplate):
         for spl in self.active_tomogram.splines:
             spl.localprops = None
             spl.globalprops = None
-        
+    
+    @Others.wraps
+    def Clear_cache(self):
+        """Clear cache stored on the current tomogram."""
+        if self.active_tomogram is not None:
+            self.active_tomogram.clear_cache()
     
     @Others.wraps
     @do_not_record
@@ -1207,17 +1216,17 @@ class MTPropsWidget(MagicTemplate):
             structural analysis.
         """
         tomo = self.active_tomogram
-        tomo.ft_size = ft_size
         if tomo.splines[0].radius is None:
             self.Measure_radius()
         self.Add_anchors(interval=interval)
         worker = create_worker(tomo.local_ft_params,
+                               ft_size=ft_size,
                                _progress={"total": 0, "desc": "Running"}
                                )
         @worker.returned.connect
         def _on_return(df):
             self._load_tomogram_results()
-        
+        self._last_ft_size = ft_size
         self._worker_control.info.value = "Local Fourier transform ..."
         return worker
         
@@ -1473,13 +1482,16 @@ class MTPropsWidget(MagicTemplate):
         1. Prepare small boxes and make masks inside them.
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
-        """        
+        """
+        if self._last_ft_size is None:
+            raise ValueError("Local structural parameters have not been determined yet.")
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         tomo = self.active_tomogram
+        ft_size = self._last_ft_size
         
-        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in [15, tomo.ft_size/2, 15]]
+        lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in [15, ft_size/2, 15]]
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = roundint(bin_scale/tomo.scale)
         with no_verbose():
@@ -1498,7 +1510,7 @@ class MTPropsWidget(MagicTemplate):
                     domain = (r0**2 < _sq) & (_sq < r1**2)
                     ry = min((dist[j+1] - dist[j]) / 2, 
                              (dist[j+2] - dist[j+1]) / 2, 
-                              tomo.ft_size/2) / bin_scale + 0.5 
+                              ft_size/2) / bin_scale + 0.5 
                         
                     ry = max(ceilint(ry), 1)
                     domain[:, :ly//2-ry] = 0
@@ -1696,6 +1708,8 @@ class MTPropsWidget(MagicTemplate):
                 tomo.metadata["source"] = str(self._loader.path)
                 tomo.metadata["binsize"] = binsize
                 tomo.metadata["cutoff"] = cutoff
+                if self._last_ft_size is not None:
+                    tomo.metadata["ft_size"] = self._last_ft_size
                 
                 tomo._set_image(img)
                 self.active_tomogram = tomo
@@ -1797,7 +1811,10 @@ class MTPropsWidget(MagicTemplate):
         i = i or self.mt.mtlabel.value
         j = j or self.mt.pos.value
         tomo = self.active_tomogram
-        ylen = tomo.nm2pixel(tomo.ft_size)
+        if self._last_ft_size is None:
+            raise ValueError("Local structural parameters have not been determined yet.")
+        
+        ylen = tomo.nm2pixel(self._last_ft_size)
         spl = tomo._splines[i]
         
         rmin = tomo.nm2pixel(spl.radius*GVar.inner)
@@ -1857,6 +1874,9 @@ class MTPropsWidget(MagicTemplate):
             i = 0
         spl = tomo.splines[i]
         
+        if self._last_ft_size is None:
+            raise ValueError("Local structural parameters have not been determined yet.")
+        
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
@@ -1878,7 +1898,8 @@ class MTPropsWidget(MagicTemplate):
         if spl.radius is None:
             return None
         lz, ly, lx = np.array(proj.shape)
-        ylen = tomo.ft_size/2/binsize/tomo.scale
+        
+        ylen = self._last_ft_size/2/binsize/tomo.scale
         ymin, ymax = ly/2 - ylen, ly/2 + ylen
         r_px = spl.radius/tomo.scale/binsize
         r = r_px*GVar.outer
@@ -2012,7 +2033,7 @@ def _iter_run(tomo: MtTomogram,
               dense_mode_sigma,
               local_props,
               global_props):
-    tomo.ft_size = ft_size
+    
     tomo.fit(dense_mode=dense_mode, dense_mode_sigma=dense_mode_sigma)
     tomo.measure_radius()
     
@@ -2027,7 +2048,7 @@ def _iter_run(tomo: MtTomogram,
     tomo.make_anchors(interval=interval)
     if local_props:
         yield "Local Fourier transformation ..."
-        tomo.local_ft_params()
+        tomo.local_ft_params(ft_size=ft_size)
     if global_props:
         yield "Local Fourier transformation ..."
         tomo.global_ft_params()
