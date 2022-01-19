@@ -36,12 +36,12 @@ class Spline3D:
     - Scipy document
       https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
     """    
-    # global properties will be re-initialized every time spline curve is updated.
-    _global_properties = []
+    # global cache will be re-initialized every time spline curve is updated.
+    _global_cache = []
     
-    # local properties will be re-initialized every time spline curve is updated or anchor
+    # local cache will be re-initialized every time spline curve is updated or anchor
     # is changed.
-    _local_properties = []
+    _local_cache = []
     
     def __init__(self, scale: float = 1, k: int = 3):
         self._tck = None
@@ -49,7 +49,6 @@ class Spline3D:
         self.scale = scale
         self._k = k
         self._anchors = None
-        self._updates = 0
     
     @property
     def tck(self) -> tuple[np.ndarray, list[np.ndarray], int]:
@@ -73,12 +72,28 @@ class Spline3D:
             all(np.allclose(x, y) for x, y in zip(c0, c1)) 
             and k0 == k1
             )
+    
+    def clear_cache(self, loc: bool = True, glob: bool = True):
+        """
+        Clear caches stored on the spline.
+
+        Parameters
+        ----------
+        loc : bool, default is True
+            Clear local cache if true.
+        glob : bool, default is True
+            Clear global cache if true.
+        """
+        if loc:
+            for name in self._local_cache:
+                setattr(self, name, None)
+        if glob:
+            for name in self._global_cache:
+                setattr(self, name, None)
         
     @property
     def anchors(self) -> np.ndarray:
-        """
-        Local anchors along spline.
-        """        
+        """Local anchors along spline."""
         if self._anchors is None:
             raise ValueError("Anchor has not been set yet.")
         return self._anchors
@@ -93,16 +108,12 @@ class Spline3D:
                   f"curve does not fit well."
             warnings.warn(msg, UserWarning)
         self._anchors = positions
-        self._updates += 1
-        for name in self._local_properties:
-            setattr(self, name, None)    
+        self.clear_cache(loc=True, glob=False)
     
     @anchors.deleter
     def anchors(self):
         self._anchors = None
-        self._updates += 1
-        for name in self._local_properties:
-            setattr(self, name, None)    
+        self.clear_cache(loc=True, glob=False)
     
 
     def make_anchors(self, 
@@ -140,10 +151,6 @@ class Spline3D:
         self.anchors = np.linspace(0, end, n)
         return None
 
-    
-    def __hash__(self) -> int:
-        return hash((id(self), self._updates))
-    
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
@@ -176,8 +183,7 @@ class Spline3D:
             self._k = npoints - 1
         self._tck, self._u = splprep(coords.T, k=self._k, w=w, s=s)
         del self.anchors # Anchor should be deleted after spline is updated
-        for name in self._global_properties:
-            setattr(self, name, None)
+        self.clear_cache(loc=True, glob=True)
         return self
     
 

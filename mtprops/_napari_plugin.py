@@ -1,3 +1,5 @@
+"""Make MTProps available in napari-plugin engine."""
+
 from napari_plugin_engine import napari_hook_implementation
 from .widget import MTPropsWidget
 

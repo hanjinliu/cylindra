@@ -31,9 +31,8 @@ from magicclass.widgets import TupleEdit, Separator, ListWidget, Table
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
 
-from mtprops.molecules import Molecules
-
-from .tomogram import Coordinates, MtSpline, MtTomogram, cachemap, angle_corr, dask_affine, centroid
+from .molecules import Molecules
+from .tomogram import Coordinates, MtSpline, MtTomogram, angle_corr, dask_affine, centroid
 from .utils import (
     Projections,
     load_a_subtomogram,
@@ -652,8 +651,7 @@ class MTPropsWidget(MagicTemplate):
         self._init_layers()
         self.Panels.overview.layers.clear()
         self._init_figures()
-        
-        cachemap.clear()
+        self.active_tomogram.clear_cache()
         self.active_tomogram._splines.clear()
         
         return None

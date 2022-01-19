@@ -3,15 +3,15 @@ from typing import Callable, Iterable, Any, NamedTuple
 import json
 from functools import partial, wraps
 import numpy as np
+from numpy.typing import ArrayLike
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import ndimage as ndi
 from dask import array as da, delayed
 
 import impy as ip
-from .const import nm, H, K, Ori, Mode, CacheKey, GVar
+from .const import nm, H, K, Ori, Mode, GVar
 from .spline import Spline3D
-from .cache import ArrayCacheMap
 from .utils import (
     load_a_subtomogram,
     centroid,
@@ -25,7 +25,6 @@ from .utils import (
     mirror_ft_pcc,
     )
 
-cachemap = ArrayCacheMap(maxgb=ip.Const["MAX_GB"])
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
 class Coordinates(NamedTuple):
@@ -44,7 +43,8 @@ def tandg(x):
     """Tangent in degree."""
     return np.tan(np.deg2rad(x))
 
-def batch_process(func):
+def batch_process(func: Callable):
+    """Enable running function for every splines."""
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
@@ -87,9 +87,7 @@ def batch_process(func):
     return _func  
 
 def json_encoder(obj):
-    """
-    Enable Enum and pandas encoding.
-    """    
+    """Enable Enum and pandas encoding."""
     if isinstance(obj, Ori):
         return obj.name
     elif isinstance(obj, pd.DataFrame):
@@ -103,8 +101,8 @@ class MtSpline(Spline3D):
     """
     A spline object with info related to MT.
     """    
-    _local_properties = ["localprops"]
-    _global_properties = ["globalprops", "radius"]
+    _local_cache = [K.localprops]
+    _global_cache = [K.globalprops, K.radius, K.orientation, K.cart_stimg, K.cyl_stimg]
     
     def __init__(self, scale: float = 1.0, k: int = 3):
         """
@@ -122,6 +120,8 @@ class MtSpline(Spline3D):
         self.radius: nm = None
         self.localprops: pd.DataFrame = None
         self.globalprops: pd.Series = None
+        self.cart_stimg: ip.ImgArray = None
+        self.cyl_stimg: ip.ImgArray = None
         
     @property
     def orientation(self) -> Ori:
@@ -174,7 +174,8 @@ class MtTomogram:
     ones.
     """
     _image: ip.LazyImgArray
-    def __init__(self, *,
+    def __init__(self, 
+                 *,
                  subtomogram_length: nm = 48.0,
                  subtomogram_width: nm = 40.0,
                  ft_size: nm = 32.0,
@@ -287,6 +288,10 @@ class MtTomogram:
         return None
     
     
+    def clear_cache(self, loc: bool = True, glob: bool = True):
+        for spl in self.splines:
+            spl.clear_cache(loc, glob)
+    
     def save_json(self, path: str):
         """
         Save splines with its local properties as a json file.
@@ -348,16 +353,17 @@ class MtTomogram:
         return self
     
     
-    def add_spline(self, coords: np.ndarray):
+    def add_spline(self, coords: ArrayLike):
         """
         Add MtSpline path to tomogram.
 
         Parameters
         ----------
-        coords : np.ndarray
+        coords : array-like
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """        
         spl = MtSpline(self.scale, k=GVar.splOrder)
+        coords = np.asarray(coords)
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, s=sqsum)
         interval: nm = 30.0
@@ -424,7 +430,7 @@ class MtTomogram:
         return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
     
     
-    def collect_localprops(self, i: int|Iterable[int] = None) -> pd.DataFrame:
+    def collect_localprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
         """
         Collect all the local properties into a single pd.DataFrame.
 
@@ -450,7 +456,7 @@ class MtTomogram:
         return df
     
     
-    def plot_localprops(self, i: int|Iterable[int] = None,
+    def plot_localprops(self, i: int | Iterable[int] = None,
                         x=None, y=None, hue=None, **kwargs):
         """
         Simple plot function for visualizing local properties.
@@ -991,15 +997,9 @@ class MtTomogram:
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
         try_cache = size is None and range_ == (0.0, 1.0)
-        cache_key = CacheKey.cart_straight
         spl = self.splines[i]
-        if try_cache:
-            try:
-                transformed = cachemap[(self, spl, cache_key)]
-            except KeyError:
-                pass
-            else:
-                return transformed
+        if try_cache and spl.cart_stimg is not None:
+            return spl.cart_stimg
             
         chunk_length: nm = 72.0
         length = self._splines[i].length(nknots=512)
@@ -1015,8 +1015,11 @@ class MtTomogram:
                 rz = rx = self.nm2pixel(self._splines[i].radius * GVar.outer) * 2 + 1
             
             else:
-                rz, rx = self.nm2pixel(size)
-
+                if isinstance(size, Iterable):
+                    rz, rx = self.nm2pixel(size)
+                else:
+                    rz = rx = self.nm2pixel(size)
+                    
             coords = spl.cartesian((rz, rx), s_range=range_)
             coords = np.moveaxis(coords, -1, 0)
             
@@ -1028,7 +1031,7 @@ class MtTomogram:
             transformed.scale_unit = "nm"
         
         if try_cache:
-            cachemap[(self, spl, cache_key)] = transformed
+            spl.cart_stimg = transformed
         
         return transformed
 
@@ -1061,19 +1064,13 @@ class MtTomogram:
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
         try_cache = radii is None and range_ == (0.0, 1.0)
-        cache_key = CacheKey.cyl_straight
         spl = self.splines[i]
         
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
         
-        if try_cache:
-            try:
-                transformed = cachemap[(self, spl, cache_key)]
-            except KeyError:
-                pass
-            else:
-                return transformed
+        if try_cache and spl.cyl_stimg is not None:
+            return spl.cyl_stimg
             
         chunk_length: nm = 72.0
         length = self._splines[i].length(nknots=512)
@@ -1107,7 +1104,7 @@ class MtTomogram:
             transformed.scale_unit = "nm"
         
         if try_cache:
-            cachemap[(self, spl, cache_key)] = transformed
+            spl.cyl_stimg = transformed
         
         return transformed
     

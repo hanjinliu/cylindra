@@ -1,5 +1,6 @@
-from enum import Enum, auto
+from enum import Enum
 import numpy as np
+from types import SimpleNamespace
 
 nm = float # type alias for clearer annotation.
 
@@ -20,13 +21,7 @@ class Ori(strEnum):
     MinusToPlus = "MinusToPlus"
 
 
-class CacheKey(Enum):
-    """Caching keys of straightening operations."""
-    cart_straight = auto()
-    cyl_straight = auto()
-
-
-class H:
+class H(SimpleNamespace):
     """Header names for result table of local properties."""
     splDistance = "splDistance"
     splPosition = "splPosition"
@@ -37,15 +32,17 @@ class H:
     start = "start"
 
 
-class K:
+class K(SimpleNamespace):
     """Keys of spline attributes."""
     radius = "radius"
     orientation = "orientation"
     localprops = "localprops"
     globalprops = "globalprops"
+    cart_stimg = "cart_stimg"
+    cyl_stimg = "cyl_stimg"
 
 
-class Mode:
+class Mode(SimpleNamespace):
     """Padding mode used in scipy.ndimage."""
     grid_wrap = "grid-wrap"
     reflect = "reflect"
