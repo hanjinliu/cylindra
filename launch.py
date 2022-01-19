@@ -1,6 +1,7 @@
 from mtprops import start
 import napari
+import sys
 
 if __name__ == "__main__":
     ui = start()
-    napari.run()
+    sys.exit(napari.run())

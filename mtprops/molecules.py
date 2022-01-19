@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import numpy as np
+from numpy.typing import ArrayLike
 from .const import EulerAxes
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class Molecules:
                   z: np.ndarray | None = None, 
                   y: np.ndarray | None = None,
                   x: np.ndarray | None = None) -> Molecules:
+        """Construct molecule cloud with orientation from two of their local axes."""
         pos = np.atleast_2d(pos)
         
         if sum((_ax is not None) for _ax in [z, y, x]) != 2:
@@ -51,11 +53,7 @@ class Molecules:
         if pos.ndim != 2 or pos.shape[1] != 3:
             raise ValueError(f"Shape of the input arrays must be (N, 3).")
         
-        mat1 = []
-        for r in ref:
-            mat_ = _vector_to_rotation_matrix(-r)
-            mat1.append(mat_)
-        mat1 = np.stack(mat1)
+        mat1 = _vector_to_rotation_matrix(-ref)
         
         vec_trans = np.einsum("ij,ijk->ik", vec, mat1) # in zx-plane
         
@@ -101,7 +99,7 @@ class Molecules:
         return self._rotator.apply([1., 0., 0.])
 
         
-    def rot_matrix(self) -> np.ndarray:
+    def matrix(self) -> np.ndarray:
         """
         Calculate rotation matrices that align molecules in such orientations that ``vec``
         belong to the object.
@@ -112,7 +110,6 @@ class Molecules:
             Rotation matrices. Rotations represented by these matrices transform molecules
             to the same orientations, i.e., align all the molecules.
         """
-        
         return self._rotator.as_matrix()
     
     
@@ -170,6 +167,130 @@ class Molecules:
             Rotation vectors.
         """
         return self._rotator.as_rotvec()
+    
+    
+    def translate(self, shifts: ArrayLike, copy: bool = True) -> Molecules:
+        """
+        Translate molecule positions by ``shifts``. This operation does not convert
+        molecule orientations.
+
+        Parameters
+        ----------
+        shifts : ArrayLike
+            Spatial shift of molecules.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated positional coordinates.
+        """
+        coords = self._pos + shifts
+        if copy:
+            out = self.__class__(coords, self._rotator)
+        else:
+            self._pos = coords
+            out = self
+        return out
+    
+    
+    def rotate_by_matrix(self, matrix: ArrayLike, copy: bool = True) -> Molecules:
+        """
+        Rotate molecules using rotation matrices, **with their position unchanged**.
+
+        Parameters
+        ----------
+        matrix : ArrayLike
+            Rotation matrices, whose length must be same as the number of molecules.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated orientation.
+        """
+        from scipy.spatial.transform import Rotation
+        rotator = Rotation.from_matrix(matrix)
+        return self.rotate_by(rotator, copy)
+    
+    
+    def rotate_by_quaternion(self, quat: ArrayLike, copy: bool = True) -> Molecules:
+        """
+        Rotate molecules using quaternions, **with their position unchanged**.
+
+        Parameters
+        ----------
+        quat : ArrayLike
+            Rotation quaternion.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated orientation.
+        """
+        from scipy.spatial.transform import Rotation
+        rotator = Rotation.from_quat(quat)
+        return self.rotate_by(rotator, copy)
+    
+    
+    def rotate_by_euler_angle(self, 
+                              angles: ArrayLike,
+                              seq: str | EulerAxes = EulerAxes.ZXZ,
+                              degrees: bool = False,
+                              copy: bool = True) -> Molecules:
+        """
+        Rotate molecules using Euler angles, **with their position unchanged**.
+
+        Parameters
+        ----------
+        angles: array-like
+            Euler angles of rotation.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated orientation.
+        """
+        from scipy.spatial.transform import Rotation
+        rotator = Rotation.from_euler(EulerAxes(seq).value, angles, degrees)
+        return self.rotate_by(rotator, copy)
+    
+    
+    def rotate_by_rot_vector(self, vector: ArrayLike, copy: bool = True) -> Molecules:
+        """
+        Rotate molecules using rotation vectors, **with their position unchanged**.
+
+        Parameters
+        ----------
+        vector: array-like
+            Rotation vectors.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated orientation.
+        """
+        from scipy.spatial.transform import Rotation
+        rotator = Rotation.from_rotvec(vector)
+        return self.rotate_by(rotator, copy)
+    
+    
+    def rotate_by(self, rotator: "Rotation", copy: bool = True) -> Molecules:
+        rot = self._rotator * rotator
+        if copy:
+            out = self.__class__(self._pos, rot)
+        else:
+            self._rotator = rot
+            out = self
+        return out
 
 
 def _normalize(a: np.ndarray) -> np.ndarray:
@@ -181,22 +302,33 @@ def _extract_orthogonal(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     a_norm = _normalize(a)
     return b - np.sum(a_norm * b, axis=1)[:, np.newaxis] * a_norm
 
-
 def _vector_to_rotation_matrix(ds: np.ndarray):
-    xy = np.arctan2(ds[2], -ds[1])
-    zy = np.arctan(-ds[0]/np.abs(ds[1]))
+    n = ds.shape[0]
+    xy = np.arctan2(ds[:, 2], -ds[:, 1])
+    zy = np.arctan(-ds[:, 0]/np.abs(ds[:, 1]))
+    
+    # In YX plane, rotation matrix should be
+    # [[1.,  0.,  0.],
+    #  [0., cos, sin],
+    #  [0.,-sin, cos]]
     cos = np.cos(xy)
     sin = np.sin(xy)
-    rotation_yx = np.array([[1.,  0.,   0.],
-                            [0., cos, sin],
-                            [0.,-sin, cos]],
-                            dtype=np.float32)
+    rotation_yx = np.zeros((n, 3, 3), dtype=np.float32)
+    rotation_yx[:, 0, 0] = 1.
+    rotation_yx[:, 1, 1] = rotation_yx[:, 2, 2] = cos
+    rotation_yx[:, 2, 1] = -sin
+    rotation_yx[:, 1, 2] = sin
+    
+    # In ZY plane, rotation matrix should be
+    # [[1.,  0.,  0.],
+    #  [0., cos, sin],
+    #  [0.,-sin, cos]]
     cos = np.cos(zy)
     sin = np.sin(zy)
-    rotation_zy = np.array([[ cos, sin, 0.],
-                            [-sin, cos, 0.],
-                            [  0.,  0., 1.]],
-                            dtype=np.float32)
+    rotation_zy = np.zeros((n, 3, 3), dtype=np.float32)
+    rotation_zy[:, 2, 2] = 1.
+    rotation_zy[:, 0, 0] = rotation_zy[:, 1, 1] = cos
+    rotation_zy[:, 1, 0] = -sin
+    rotation_zy[:, 0, 1] = sin
 
-    mx = rotation_yx @ rotation_zy
-    return mx
+    return np.einsum("ijk,ikl->ijl", rotation_yx, rotation_zy)

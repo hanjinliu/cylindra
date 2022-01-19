@@ -38,7 +38,7 @@ def test_matrix(zvec, yvec, mat):
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     assert_allclose(mol.z[0], zvec)
     assert_allclose(mol.y[0], yvec)
-    out = mol.rot_matrix()
+    out = mol.matrix()
     assert_allclose(out, mat, rtol=1e-6, atol=1e-6)
 
 
