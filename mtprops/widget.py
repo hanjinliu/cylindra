@@ -353,6 +353,12 @@ class MTPropsWidget(MagicTemplate):
         def Save_results_as_csv(self): ...
         def Save_monomer_coordinates(self): ...
         def Save_monomer_angles(self): ...
+        sep0 = field(Separator)
+        @magicmenu
+        class PEET(MagicTemplate):
+            def Read_monomer(self): ...
+            def Save_monomer(self): ...
+            
     
     @magicmenu
     class View(MagicTemplate):
@@ -901,6 +907,48 @@ class MTPropsWidget(MagicTemplate):
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
+    @File.PEET.wraps
+    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "*.mod"},
+                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
+    def Read_monomer(self, 
+                     mod_path: Path,
+                     ang_path: Path):
+        from .ext.etomo import read_mod
+        scale = self.active_tomogram.scale
+        mod = read_mod(mod_path).values
+        csv = pd.read_csv(ang_path)
+        
+        if csv.shape[1] == 3:
+            csv_data = csv.values
+        elif "CCC" in csv.columns:
+            csv_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
+        else:
+            raise ValueError(f"Could not interpret data format of {ang_path}")
+        from scipy.spatial.transform import Rotation
+        mol = Molecules(pos=mod*scale, rot=Rotation.from_euler("ZXZ", csv_data, degrees=True))
+        _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
+    
+    @File.PEET.wraps
+    @set_options(save_path={"mode": "d"})
+    def Save_monomer(self, 
+                     save_path: Path,
+                     layer: MonomerLayer):
+        """
+        Save monomer angles in PEET format.
+
+        Parameters
+        ----------
+        save_path : Path
+            Saving path.
+        layer : Points
+            Select the Vectors layer to save.
+        """        
+        mol: Molecules = layer.metadata[MOLECULES]
+        from .ext.etomo import save_mod
+        save_mod(save_path, mol.pos[:, ::-1])
+        
+        return None
+    
     @View.wraps
     @dispatch_worker
     def Apply_lowpass_to_reference_image(self):
@@ -1350,19 +1398,8 @@ class MTPropsWidget(MagicTemplate):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
                 mol = spl.cylindrical_to_world_vector(coords.spline)
-                points_layer = self.parent_viewer.add_points(
-                    coords.world, size=3, face_color="lime", edge_color="lime",
-                    n_dimensional=True, name=f"Monomers-{i}", metadata={MOLECULES: mol}
-                    )
+                _add_molecules(self.parent_viewer, mol, f"Monomers-{i}")
                 
-                points_layer.shading = "spherical"
-                
-                vector_data = np.stack([mol.pos, mol.z], axis=1)
-                self.parent_viewer.add_vectors(
-                    vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
-                    name=f"Monomer-{i} Z-axis",
-                    )
-    
         self._worker_control.info.value = "Monomer mapping ..."
         return worker
 
@@ -2054,3 +2091,17 @@ def _iter_run(tomo: MtTomogram,
         tomo.global_ft_params()
     yield "Finishing ..."
     return tomo
+
+def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name):
+    points_layer = viewer.add_points(
+        mol.pos, size=3, face_color="lime", edge_color="lime",
+        n_dimensional=True, name=name, metadata={MOLECULES: mol}
+        )
+    
+    points_layer.shading = "spherical"
+    
+    vector_data = np.stack([mol.pos, mol.z], axis=1)
+    viewer.add_vectors(
+        vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
+        name=name + " Z-axis",
+        )
