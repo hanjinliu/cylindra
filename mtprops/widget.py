@@ -358,8 +358,7 @@ class MTPropsWidget(MagicTemplate):
         class PEET(MagicTemplate):
             def Read_monomer(self): ...
             def Save_monomer(self): ...
-            
-    
+
     @magicmenu
     class View(MagicTemplate):
         """Visualization."""
@@ -1691,7 +1690,7 @@ class MTPropsWidget(MagicTemplate):
                 if 0 < cutoff < 0.5:
                     img.tiled_lowpass_filter(cutoff, update=True)
                     img.release()
-                imgb = img.binning(binsize, check_edges=False).data
+                imgb = img.binning(binsize, check_edges=False).compute()
             
             return imgb
         

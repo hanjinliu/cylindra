@@ -55,7 +55,7 @@ def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray,
     sl_x, pad_x = make_slice_and_pad(roundint(x - rx), roundint(x + rx + 1), sizex)
     reg = img[sl_z, sl_y, sl_x]
     if isinstance(reg, ip.LazyImgArray):
-        reg = reg.data
+        reg = reg.compute()
     with no_verbose():
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
@@ -175,7 +175,7 @@ def map_coordinates(input: np.ndarray | "da.core.Array",
     sl = tuple(sl)
     img = input[sl]
     if isinstance(img, ip.LazyImgArray):
-        img = img.data
+        img = img.compute()
     if callable(cval):
         cval = cval(img)
     
