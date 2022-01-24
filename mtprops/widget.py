@@ -44,7 +44,7 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep
+from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
@@ -338,37 +338,44 @@ class PEET(MagicTemplate):
     """PEET extension."""
     @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "*.mod"},
                  ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
-    def Read_monomers(self, 
-                     mod_path: Path,
-                     ang_path: Path):
+    def Read_monomers(self, mod_path: Path, ang_path: Path):
+        """
+        Read monomer coordinates and angles from PEET-format files.
+
+        Parameters
+        ----------
+        mod_path : Path
+            Path to the mod file that contains monomer coordinates.
+        ang_path : Path
+            Path to the text file that contains monomer angles in Euler angles.
+        """        
         from .ext.etomo import read_mod
         scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
         mod = read_mod(mod_path).values
         csv_data = _read_angle(ang_path)
-        from scipy.spatial.transform import Rotation
-        # NOTE: In Molecules class the order of dimensions is zyx so Euler angle should be translated
-        # as ZXZ -> XZX
-        mol = Molecules(pos=mod*scale, rot=Rotation.from_euler("XZX", csv_data, degrees=True))
+        mol = Molecules.from_euler(pos=mod*scale, angles=csv_data, degrees=True)
         _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
     
-    @set_options(save_path={"mode": "d"})
+    @set_options(save_dir={"mode": "d"})
     def Save_monomers(self, 
-                     save_path: Path,
-                     layer: MonomerLayer):
+                      save_dir: Path,
+                      layer: MonomerLayer):
         """
         Save monomer angles in PEET format.
 
         Parameters
         ----------
-        save_path : Path
+        save_dir : Path
             Saving path.
         layer : Points
             Select the Vectors layer to save.
         """        
+        scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
+        save_dir = Path(save_dir)
         mol: Molecules = layer.metadata[MOLECULES]
         from .ext.etomo import save_mod
-        save_mod(save_path, mol.pos[:, ::-1])
-        
+        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/scale)
+        np.savetxt(save_dir/"angles.txt", mol.euler_angle(EulerAxes.ZXZ, degrees=True), delimiter="\t")
         return None
     
     @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
@@ -377,9 +384,7 @@ class PEET(MagicTemplate):
         mol: Molecules = layer.metadata[MOLECULES]
         shifts, angs = _read_shift_and_angle(ang_path)
         mol_shifted = mol.translate(shifts*scale)
-        from scipy.spatial.transform import Rotation
-        rot = Rotation.from_euler("XZX", angs, degrees=True)
-        mol_shifted._rotator = rot
+        mol_shifted = Molecules.from_euler(pos=mol_shifted.pos, angles=angs, degrees=True)
         
         vector_data = np.stack([mol_shifted.pos, mol_shifted.z], axis=1)
         if update:
@@ -916,7 +921,8 @@ class MTPropsWidget(MagicTemplate):
                                  save_path: Path,
                                  layer: MonomerLayer, 
                                  separator = Sep.Comma,
-                                 unit = Unit.pixel):
+                                 unit = Unit.pixel,
+                                 order = Order.xyz):
         """
         Save monomer coordinates.
 
@@ -930,14 +936,22 @@ class MTPropsWidget(MagicTemplate):
             Select the separator.
         unit : Unit
             Unit of length.
+        order : Order
+            The order of output array.
         """        
         unit = Unit(unit)
+        order = Order(order)
+        separator = Sep(separator)
         if unit == Unit.pixel:
             arr = layer.data / self.active_tomogram.scale
         elif unit == Unit.nm:
             arr = layer.data
         elif unit == Unit.angstrom:
             arr = layer.data * 10
+        if order == Order.xyz:
+            arr = arr[:, ::-1]
+        elif not order == Order.zyx:
+            raise RuntimeError
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
@@ -966,6 +980,7 @@ class MTPropsWidget(MagicTemplate):
         separator : str, optional
             Select the separator.
         """        
+        separator = Sep(separator)
         mol: Molecules = layer.metadata[MOLECULES]
         arr = mol.euler_angle(rotation_axes, degrees=in_degree)
         np.savetxt(save_path, arr, delimiter=str(separator))
@@ -2128,8 +2143,15 @@ def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name):
         name=name + " Z-axis",
         )
 
+
 def _read_angle(ang_path: str) -> np.ndarray:
-    csv = pd.read_csv(ang_path)
+    line1 = str(pd.read_csv(ang_path, nrows=1).values[0, 0])  # determine sep
+    if "\t" in line1:
+        sep = "\t"
+    else:
+        sep = ","
+    
+    csv = pd.read_csv(ang_path, sep=sep)
     
     if csv.shape[1] == 3:
         try:
@@ -2140,8 +2162,9 @@ def _read_angle(ang_path: str) -> np.ndarray:
     elif "CCC" in csv.columns:
         csv_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
     else:
-        raise ValueError(f"Could not interpret data format of {ang_path}")
+        raise ValueError(f"Could not interpret data format of {ang_path}:\n{csv.head(5)}")
     return csv_data
+
 
 def _read_shift_and_angle(path: str) -> np.ndarray:
     csv = pd.read_csv(path)
@@ -2149,5 +2172,5 @@ def _read_shift_and_angle(path: str) -> np.ndarray:
         ang_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
         shifts_data = csv[["zOffset", "yOffset", "xOffset"]].values
     else:
-        raise ValueError(f"Could not interpret data format of {path}")
+        raise ValueError(f"Could not interpret data format of {path}:\n{csv.head(5)}")
     return shifts_data, ang_data

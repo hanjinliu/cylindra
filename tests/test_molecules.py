@@ -50,7 +50,7 @@ def test_euler_const():
 def test_euler():
     pos = np.array([0, 0, 0])
     zvec = np.array([1, 0, 0])
-    yvec = np.array([0, 1/np.sqrt(2), 1/np.sqrt(2)])
+    yvec = np.array([0, 1/Sq2, 1/Sq2])
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     assert_allclose(mol.euler_angle("ZYX", degrees=True), [[45, 0, 0]])
     
@@ -59,12 +59,18 @@ def test_euler():
     yvec = np.array([0, 1, 0])
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     assert_allclose(mol.euler_angle("zyz", degrees=True), [[0, 90, 0]])
+    
+    pos = np.array([0, 0, 0])
+    zvec = np.array([1/Sq2, 1/Sq2, 0])
+    yvec = np.array([-1/Sq2, 1/Sq2, 0])
+    mol = Molecules.from_axes(pos, z=zvec, y=yvec)
+    assert_allclose(mol.euler_angle("zyx", degrees=True), [[0, 0, 45]])
 
 
 def test_rotvec():
     pos = np.array([0, 0, 0])
     zvec = np.array([1, 0, 0])
-    yvec = np.array([0, 1/np.sqrt(2), 1/np.sqrt(2)])
+    yvec = np.array([0, 1/Sq2, 1/Sq2])
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     assert_allclose(mol.rot_vector(), [[np.pi/4, 0, 0]])
     
@@ -73,5 +79,17 @@ def test_rotvec():
     yvec = np.array([0, 1, 0])
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     assert_allclose(mol.rot_vector(), [[0, np.pi/2, 0]])
+
+
+def test_save_and_load_euler_angle():
+    pos = np.array([0, 0, 0])
+    zvec = np.array([1, 0.4, 0.1])
+    yvec = np.array([0, 1.1, 2])
+    mol = Molecules.from_axes(pos, z=zvec, y=yvec)
+    euler = mol.euler_angle(degrees=True)
+    mol2 = Molecules.from_euler(pos, euler, degrees=True)
+    assert_allclose(mol.x, mol2.x)
+    assert_allclose(mol.y, mol2.y)
+    assert_allclose(mol.z, mol2.z)
 
 # TODO: test from_axes using x=...

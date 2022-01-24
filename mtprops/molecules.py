@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class Molecules:
     """
     Object that represents multiple orientation and position of molecules. Orientation
-    is represented by `scipy.spatial.transform.Rotation`. All the vectors are zyx-order.
+    is represented by `scipy.spatial.transform.Rotation`. **All the vectors are zyx-order**.
     """
     def __init__(self, pos: np.ndarray, rot: "Rotation"):
         pos = np.atleast_2d(pos)
@@ -80,10 +80,17 @@ class Molecules:
         rotator = Rotation.from_matrix(mat)
         return cls(pos, rotator)
 
+    @classmethod
+    def from_euler(cls, pos: np.ndarray, angles: np.ndarray, 
+                   seq: str | EulerAxes = EulerAxes.ZXZ, degrees: bool = False):
+        from scipy.spatial.transform import Rotation
+        seq = _translate_euler(EulerAxes(seq).value)
+        rotator = Rotation.from_euler(seq, angles, degrees)
+        return cls(pos, rotator)
 
     def __len__(self) -> int:
         return self._pos.shape[0]
-
+    
     @property
     def pos(self) -> np.ndarray:
         """Positions of molecules."""
@@ -101,7 +108,7 @@ class Molecules:
     
     @property
     def z(self) -> np.ndarray:
-        """Vectors of x-axis."""
+        """Vectors of z-axis."""
         return self._rotator.apply([1., 0., 0.])
 
         

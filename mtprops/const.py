@@ -64,7 +64,11 @@ class Unit(strEnum):
     nm = "nm"
     angstrom = "angstrom"
 
-
+class Order(strEnum):
+    """Order of dimensions"""
+    zyx = "zyx"
+    xyz = "xyz"
+    
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
     xyz = "xyz"
