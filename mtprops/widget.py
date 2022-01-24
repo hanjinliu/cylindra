@@ -201,7 +201,7 @@ class SplineFitter(MagicTemplate):
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()
-        self.__magicclass_parent__._update_splines_in_images()
+        self.find_ancestor(MTPropsWidget)._update_splines_in_images()
     
     @Rotational_averaging.frame.wraps
     @do_not_record
@@ -209,10 +209,9 @@ class SplineFitter(MagicTemplate):
         """Show rotatinal averaged image."""        
         i = self.mt.mtlabel.value
         j = self.mt.pos.value
-        parent: MTPropsWidget = self.__magicclass_parent__
-        
+                
         with no_verbose():
-            img = parent._current_cartesian_img(i, j)
+            img = self.find_ancestor(MTPropsWidget)._current_cartesian_img(i, j)
             cutoff = self.Rotational_averaging.frame.cutoff.value
             if 0 < cutoff < 0.5:
                 img = img.lowpass_filter(cutoff=cutoff)
@@ -254,7 +253,7 @@ class SplineFitter(MagicTemplate):
         itemv.pos = [x, z]
         itemh.pos = [x, z]
         
-        tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        tomo = self.find_ancestor(MTPropsWidget).active_tomogram
         r_max: nm = tomo.subtomo_width/2
         nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
@@ -276,7 +275,7 @@ class SplineFitter(MagicTemplate):
     
     def _load_parent_state(self, max_interval: nm):
         self.max_interval = max_interval
-        tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        tomo = self.find_ancestor(MTPropsWidget).active_tomogram
         for i in range(tomo.n_splines):
             spl = tomo.splines[i]
             spl.make_anchors(max_interval=self.max_interval)
@@ -291,8 +290,9 @@ class SplineFitter(MagicTemplate):
     def _mt_changed(self):
         i = self.mt.mtlabel.value
         self.mt.pos.value = 0
-        imgb = self.__magicclass_parent__.layer_image.data
-        tomo: MtTomogram = self.__magicclass_parent__.active_tomogram
+        parent = self.find_ancestor(MTPropsWidget)
+        imgb = parent.layer_image.data
+        tomo: MtTomogram = parent.active_tomogram
         
         spl = tomo.splines[i]
         self.splines = tomo.splines
@@ -333,6 +333,74 @@ class SplineFitter(MagicTemplate):
         self._update_cross(x + lx/2 - 0.5, y + lz/2 - 0.5)
 
 
+@magicmenu
+class PEET(MagicTemplate):
+    """PEET extension."""
+    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "*.mod"},
+                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
+    def Read_monomers(self, 
+                     mod_path: Path,
+                     ang_path: Path):
+        from .ext.etomo import read_mod
+        scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
+        mod = read_mod(mod_path).values
+        csv_data = _read_angle(ang_path)
+        from scipy.spatial.transform import Rotation
+        # NOTE: In Molecules class the order of dimensions is zyx so Euler angle should be translated
+        # as ZXZ -> XZX
+        mol = Molecules(pos=mod*scale, rot=Rotation.from_euler("XZX", csv_data, degrees=True))
+        _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
+    
+    @set_options(save_path={"mode": "d"})
+    def Save_monomers(self, 
+                     save_path: Path,
+                     layer: MonomerLayer):
+        """
+        Save monomer angles in PEET format.
+
+        Parameters
+        ----------
+        save_path : Path
+            Saving path.
+        layer : Points
+            Select the Vectors layer to save.
+        """        
+        mol: Molecules = layer.metadata[MOLECULES]
+        from .ext.etomo import save_mod
+        save_mod(save_path, mol.pos[:, ::-1])
+        
+        return None
+    
+    @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
+    def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
+        scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
+        mol: Molecules = layer.metadata[MOLECULES]
+        shifts, angs = _read_shift_and_angle(ang_path)
+        mol_shifted = mol.translate(shifts*scale)
+        from scipy.spatial.transform import Rotation
+        rot = Rotation.from_euler("XZX", angs, degrees=True)
+        mol_shifted._rotator = rot
+        
+        vector_data = np.stack([mol_shifted.pos, mol_shifted.z], axis=1)
+        if update:
+            layer.data = mol_shifted.pos
+            vector_layer = None
+            vector_layer_name = layer.name + " Z-axis"
+            for l in self.parent_viewer.layers:
+                if l.name == vector_layer_name:
+                    vector_layer = l
+                    break
+            if vector_layer is not None:
+                vector_layer.data = vector_data
+            else:
+                self.parent_viewer.add_vectors(
+                    vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
+                    name=vector_layer_name,
+                    )
+            layer.metadata[MOLECULES] = mol_shifted
+        else:
+            _add_molecules(self.parent_viewer, mol_shifted, "Molecules from PEET")
+
 ### The main widget ###
     
 @magicclass(widget_type="scrollable", name="MTProps widget")
@@ -354,10 +422,7 @@ class MTPropsWidget(MagicTemplate):
         def Save_monomer_coordinates(self): ...
         def Save_monomer_angles(self): ...
         sep0 = field(Separator)
-        @magicmenu
-        class PEET(MagicTemplate):
-            def Read_monomer(self): ...
-            def Save_monomer(self): ...
+        PEET = PEET
 
     @magicmenu
     class View(MagicTemplate):
@@ -904,48 +969,6 @@ class MTPropsWidget(MagicTemplate):
         mol: Molecules = layer.metadata[MOLECULES]
         arr = mol.euler_angle(rotation_axes, degrees=in_degree)
         np.savetxt(save_path, arr, delimiter=str(separator))
-        return None
-    
-    @File.PEET.wraps
-    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "*.mod"},
-                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
-    def Read_monomer(self, 
-                     mod_path: Path,
-                     ang_path: Path):
-        from .ext.etomo import read_mod
-        scale = self.active_tomogram.scale
-        mod = read_mod(mod_path).values
-        csv = pd.read_csv(ang_path)
-        
-        if csv.shape[1] == 3:
-            csv_data = csv.values
-        elif "CCC" in csv.columns:
-            csv_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
-        else:
-            raise ValueError(f"Could not interpret data format of {ang_path}")
-        from scipy.spatial.transform import Rotation
-        mol = Molecules(pos=mod*scale, rot=Rotation.from_euler("ZXZ", csv_data, degrees=True))
-        _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
-    
-    @File.PEET.wraps
-    @set_options(save_path={"mode": "d"})
-    def Save_monomer(self, 
-                     save_path: Path,
-                     layer: MonomerLayer):
-        """
-        Save monomer angles in PEET format.
-
-        Parameters
-        ----------
-        save_path : Path
-            Saving path.
-        layer : Points
-            Select the Vectors layer to save.
-        """        
-        mol: Molecules = layer.metadata[MOLECULES]
-        from .ext.etomo import save_mod
-        save_mod(save_path, mol.pos[:, ::-1])
-        
         return None
     
     @View.wraps
@@ -2104,3 +2127,27 @@ def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name):
         vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
         name=name + " Z-axis",
         )
+
+def _read_angle(ang_path: str) -> np.ndarray:
+    csv = pd.read_csv(ang_path)
+    
+    if csv.shape[1] == 3:
+        try:
+            header = np.array(csv.columns).astype(np.float64)
+            csv_data = np.concatenate([header.reshape(1, 3), csv.values], axis=0)
+        except ValueError:
+            csv_data = csv.values
+    elif "CCC" in csv.columns:
+        csv_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
+    else:
+        raise ValueError(f"Could not interpret data format of {ang_path}")
+    return csv_data
+
+def _read_shift_and_angle(path: str) -> np.ndarray:
+    csv = pd.read_csv(path)
+    if "CCC" in csv.columns:
+        ang_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
+        shifts_data = csv[["zOffset", "yOffset", "xOffset"]].values
+    else:
+        raise ValueError(f"Could not interpret data format of {path}")
+    return shifts_data, ang_data

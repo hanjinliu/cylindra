@@ -19,10 +19,16 @@ class Molecules:
         if pos.shape[1] != 3:
             raise ValueError("Shape of pos must be (N, 3).")
         elif pos.shape[0] != len(rot):
-            raise ValueError("Length mismatch.")
+            raise ValueError(
+                f"Length mismatch. There are {pos.shape[0]} molecules but {len(rot)} "
+                "rotation were given."
+                )
         
         self._pos = pos
         self._rotator = rot
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(n={len(self)})"
     
     @classmethod
     def from_axes(cls, 
@@ -138,8 +144,7 @@ class Molecules:
             Euler angles.
         """
         seq = EulerAxes(seq).value
-        table = str.maketrans({"x": "z", "z": "x", "X": "Z", "Z": "X"})
-        seq = seq.translate(table)
+        seq = _translate_euler(seq)
         return self._rotator.as_euler(seq, degrees=degrees)
     
     
@@ -258,7 +263,8 @@ class Molecules:
             Instance with updated orientation.
         """
         from scipy.spatial.transform import Rotation
-        rotator = Rotation.from_euler(EulerAxes(seq).value, angles, degrees)
+        seq = _translate_euler(EulerAxes(seq).value)
+        rotator = Rotation.from_euler(seq, angles, degrees)
         return self.rotate_by(rotator, copy)
     
     
@@ -301,6 +307,10 @@ def _extract_orthogonal(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Extract component of b orthogonal to a."""
     a_norm = _normalize(a)
     return b - np.sum(a_norm * b, axis=1)[:, np.newaxis] * a_norm
+
+def _translate_euler(seq: str) -> str:
+    table = str.maketrans({"x": "z", "z": "x", "X": "Z", "Z": "X"})
+    return seq.translate(table)
 
 def _vector_to_rotation_matrix(ds: np.ndarray):
     n = ds.shape[0]
