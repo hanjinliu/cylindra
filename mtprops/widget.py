@@ -1,6 +1,6 @@
 from functools import wraps
 import pandas as pd
-from typing import Any, Callable, Iterable, NewType, Union
+from typing import Any, Callable, Iterable, NewType, Union, Tuple
 import os
 import numpy as np
 import warnings
@@ -692,7 +692,7 @@ class MTPropsWidget(MagicTemplate):
                          splError: nm = GVar.splError,
                          inner: float = GVar.inner,
                          outer: float = GVar.outer,
-                         daskChunk: int = GVar.daskChunk):
+                         daskChunk: Tuple[int, int, int] = GVar.daskChunk):
         """
         Set global variables.
 
