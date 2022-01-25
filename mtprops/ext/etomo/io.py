@@ -15,7 +15,6 @@ class IMOD(SimpleNamespace):
     _3dmod = translate_command("3dmod")
     
 
-
 def read_mod(path: str, order: str | Order = "zyx") -> pd.DataFrame:
     """
     
@@ -76,4 +75,43 @@ def save_mod(path: str, data):
     np.savetxt(input_path, data, fmt="%.5f", delimiter="\t")
     IMOD.point2model(input=input_path, output=path)
     os.remove(input_path)
+    return None
+
+
+def save_angles(path: str, euler_angle: np.ndarray = None):
+    """Save angle data for PEET subtomogram averaging."""
+    euler_angle = np.asarray(euler_angle)
+    size = euler_angle.shape[0]
+    z1 = euler_angle[:, 0]
+    x2 = euler_angle[:, 1]
+    z3 = euler_angle[:, 2]
+    
+    columns = ["CCC", "reserved", "reserved", "pIndex", "wedgeWT", "NA", "NA", "NA", "NA",
+               "NA", "xOffset", "yOffset", "zOffset", "NA", "NA", "reserved", "EulerZ(1)", 
+               "EulerZ(3)", "EulerX(2)", "reserved"]
+    
+    data = {"CCC": np.ones(size, dtype=np.float32),
+            "reserved1": np.zeros(size, dtype=np.uint8),
+            "reserved2": np.zeros(size, dtype=np.uint8),
+            "pIndex": np.arange(1, size+1, dtype=np.uint16),
+            "wedgeWT": np.zeros(size, dtype=np.uint8),
+            "NA1": np.zeros(size, dtype=np.uint8),
+            "NA2": np.zeros(size, dtype=np.uint8),
+            "NA3": np.zeros(size, dtype=np.uint8),
+            "NA4": np.zeros(size, dtype=np.uint8),
+            "NA5": np.zeros(size, dtype=np.uint8),
+            "xOffset": np.zeros(size, dtype=np.float32),
+            "yOffset": np.zeros(size, dtype=np.float32),
+            "zOffset": np.zeros(size, dtype=np.float32),
+            "NA6": np.zeros(size, dtype=np.uint8),
+            "NA7": np.zeros(size, dtype=np.uint8),
+            "reserved": np.zeros(size, dtype=np.uint8),
+            "EulerZ(1)": z1,
+            "EulerZ(3)": x2,
+            "EulerX(2)": z3,
+            "reserved3": np.zeros(size, dtype=np.uint8),
+            }
+    df = pd.DataFrame(data)
+    df.columns = columns
+    df.to_csv(path, float_format="%.3f", index=False)
     return None

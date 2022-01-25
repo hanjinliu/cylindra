@@ -8,7 +8,7 @@ import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
 from napari._qt.qthreading import GeneratorWorker, FunctionWorker
-from napari.layers import Points, Layer, Image, Labels
+from napari.layers import Points, Image, Labels
 from pathlib import Path
 
 import impy as ip
@@ -54,21 +54,9 @@ SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
 MOLECULES = "Molecules"
 
-import macrokit as mkit
 import magicgui
 from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
-
-mkit.register_type(np.ndarray, lambda arr: str(arr.tolist()))
-_mkit_viewer = mkit.Symbol.var("viewer")
-
-@mkit.register_type(Layer)
-def _get_layer_macro(layer: Layer):
-    expr = mkit.Expr("getitem", 
-                     [mkit.Expr("getattr", [_mkit_viewer, "layers"]),
-                      layer.name]
-                     )
-    return expr
 
 MonomerLayer = NewType("MonomerLayer", Points)
 Worker = Union[FunctionWorker, GeneratorWorker]
@@ -99,7 +87,7 @@ def run_worker_function(worker: Worker):
 
 def dispatch_worker(f: Callable[[Any], Worker]) -> Callable[[Any], None]:
     @wraps(f)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: "MTPropsWidget", *args, **kwargs):
         worker = f(self, *args, **kwargs)
         if self[f.__name__].running:
             self._connect_worker(worker)
@@ -116,7 +104,7 @@ class WorkerControl(MagicTemplate):
     # A widget that has a napari worker object and appears as buttons in the activity dock 
     # while running.
     
-    info = field(str, record=False)
+    info = vfield(str, record=False)
     
     def __post_init__(self):
         self.paused = False
@@ -138,12 +126,12 @@ class WorkerControl(MagicTemplate):
         if self.paused:
             self.worker.resume()
             self["Pause"].text = "Pause"
-            self.info.value = self._last_info
+            self.info = self._last_info
         else:
             self.worker.pause()
             self["Pause"].text = "Resume"
-            self._last_info = self.info.value
-            self.info.value = "Pausing"
+            self._last_info = self.info
+            self.info = "Pausing"
         self.paused = not self.paused
         
     def Interrupt(self):
@@ -373,9 +361,9 @@ class PEET(MagicTemplate):
         scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
         save_dir = Path(save_dir)
         mol: Molecules = layer.metadata[MOLECULES]
-        from .ext.etomo import save_mod
+        from .ext.etomo import save_mod, save_angles
         save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/scale)
-        np.savetxt(save_dir/"angles.txt", mol.euler_angle(EulerAxes.ZXZ, degrees=True), delimiter="\t")
+        save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
         return None
     
     @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
@@ -696,7 +684,7 @@ class MTPropsWidget(MagicTemplate):
         @worker.yielded.connect
         def _on_yield(out):
             if isinstance(out, str):
-                self._worker_control.info.value = out
+                self._worker_control.info = out
                 self._update_splines_in_images()
             
         @worker.returned.connect
@@ -710,7 +698,7 @@ class MTPropsWidget(MagicTemplate):
             if global_props:
                 self._globalprops_to_table(tomo.global_ft_params())
         self._last_ft_size = ft_size
-        self._worker_control.info.value = "Spline fitting"
+        self._worker_control.info = "Spline fitting"
         return worker
     
     @toolbar.wraps
@@ -904,7 +892,7 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.active_tomogram
         worker = create_worker(tomo.load_json, path, _progress={"total": 0, "desc": "Running"})
         worker.returned.connect(self._load_tomogram_results)
-        self._worker_control.info.value = f"Loading {os.path.basename(path)}"
+        self._worker_control.info = f"Loading {os.path.basename(path)}"
         return worker
     
     @File.wraps
@@ -998,7 +986,7 @@ class MTPropsWidget(MagicTemplate):
                     )
                 return np.percentile(self.layer_image.data, [1, 97])
         worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
-        self._worker_control.info.value = "Low-pass filtering"
+        self._worker_control.info = "Low-pass filtering"
 
         @worker.returned.connect
         def _on_return(contrast_limits):
@@ -1063,7 +1051,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(out: ip.ImgArray):
             self.parent_viewer.add_image(out, scale=out.scale)
         
-        self._worker_control.info.value = f"Straightening spline No. {i}"
+        self._worker_control.info = f"Straightening spline No. {i}"
         
         return worker
     
@@ -1173,7 +1161,7 @@ class MTPropsWidget(MagicTemplate):
                                )
         worker.returned.connect(self._init_layers)
         worker.returned.connect(self._update_splines_in_images)
-        self._worker_control.info.value = "Spline Fitting"
+        self._worker_control.info = "Spline Fitting"
 
         return worker
     
@@ -1219,7 +1207,7 @@ class MTPropsWidget(MagicTemplate):
                                _progress={"total": 0, "desc": "Running"}
                                )
         
-        self._worker_control.info.value = "Measuring Radius"
+        self._worker_control.info = "Measuring Radius"
 
         return worker
     
@@ -1252,7 +1240,7 @@ class MTPropsWidget(MagicTemplate):
         
         worker.finished.connect(self._update_splines_in_images)
 
-        self._worker_control.info.value = "Refining splines ..."
+        self._worker_control.info = "Refining splines ..."
         
         self._init_widget_params()
         self._init_figures()
@@ -1280,7 +1268,7 @@ class MTPropsWidget(MagicTemplate):
         
         worker.finished.connect(self._update_splines_in_images)
 
-        self._worker_control.info.value = "Refining splines with MAO..."
+        self._worker_control.info = "Refining splines with MAO..."
         
         self._init_widget_params()
         self._init_figures()
@@ -1312,7 +1300,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(df):
             self._load_tomogram_results()
         self._last_ft_size = ft_size
-        self._worker_control.info.value = "Local Fourier transform ..."
+        self._worker_control.info = "Local Fourier transform ..."
         return worker
         
     @Analysis.wraps
@@ -1324,7 +1312,7 @@ class MTPropsWidget(MagicTemplate):
                                _progress={"total": 0, "desc": "Running"})
         worker.returned.connect(self._globalprops_to_table)
         
-        self._worker_control.info.value = f"Global Fourier transform ..."
+        self._worker_control.info = f"Global Fourier transform ..."
         
         return worker
     
@@ -1372,7 +1360,7 @@ class MTPropsWidget(MagicTemplate):
                 out = -out
             _show_reconstruction(out, name=f"MT-{i} reconstruction")
         
-        self._worker_control.info.value = f"Reconstruction ..."
+        self._worker_control.info = f"Reconstruction ..."
         return worker
     
     @Analysis.Reconstruction.wraps
@@ -1415,7 +1403,7 @@ class MTPropsWidget(MagicTemplate):
                 out = -out
             _show_reconstruction(out, name=f"MT-{i} cylindric reconstruction")
             
-        self._worker_control.info.value = f"Cylindric reconstruction ..."
+        self._worker_control.info = f"Cylindric reconstruction ..."
         return worker
     
     @Analysis.wraps
@@ -1437,7 +1425,7 @@ class MTPropsWidget(MagicTemplate):
                 mol = spl.cylindrical_to_world_vector(coords.spline)
                 _add_molecules(self.parent_viewer, mol, f"Monomers-{i}")
                 
-        self._worker_control.info.value = "Monomer mapping ..."
+        self._worker_control.info = "Monomer mapping ..."
         return worker
 
     @Analysis.wraps
@@ -1738,7 +1726,7 @@ class MTPropsWidget(MagicTemplate):
                                cutoff=cutoff,
                                _progress={"total": 0, "desc": "Reading Image"})
 
-        self._worker_control.info.value = \
+        self._worker_control.info = \
             f"Loading with {binsize}x{binsize} binned size: {tuple(s//binsize for s in img.shape)}"
         
         @worker.returned.connect
@@ -2124,7 +2112,7 @@ def _iter_run(tomo: MtTomogram,
         yield "Local Fourier transformation ..."
         tomo.local_ft_params(ft_size=ft_size)
     if global_props:
-        yield "Local Fourier transformation ..."
+        yield "Global Fourier transformation ..."
         tomo.global_ft_params()
     yield "Finishing ..."
     return tomo

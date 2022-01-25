@@ -46,6 +46,7 @@ def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray,
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
     """
+    # TODO: inefficient if using cupy
     z, y, x = pos
     rz, ry, rx = [(s-1)/2 for s in shape]
     sizez, sizey, sizex = img.sizesof("zyx")
