@@ -107,8 +107,8 @@ def save_angles(path: str, euler_angle: np.ndarray = None):
             "NA7": np.zeros(size, dtype=np.uint8),
             "reserved": np.zeros(size, dtype=np.uint8),
             "EulerZ(1)": z1,
-            "EulerZ(3)": x2,
-            "EulerX(2)": z3,
+            "EulerZ(3)": z3,
+            "EulerX(2)": x2,
             "reserved3": np.zeros(size, dtype=np.uint8),
             }
     df = pd.DataFrame(data)

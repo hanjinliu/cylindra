@@ -324,9 +324,10 @@ class SplineFitter(MagicTemplate):
 @magicmenu
 class PEET(MagicTemplate):
     """PEET extension."""
-    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "*.mod"},
-                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
-    def Read_monomers(self, mod_path: Path, ang_path: Path):
+    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "Model files (*.mod);;All files (*.txt;*.csv)"},
+                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"},
+                 shift_mol={"label": "Apply shifts to monomers if offsets are available."})
+    def Read_monomers(self, mod_path: Path, ang_path: Path, shift_mol: bool = True):
         """
         Read monomer coordinates and angles from PEET-format files.
 
@@ -336,12 +337,18 @@ class PEET(MagicTemplate):
             Path to the mod file that contains monomer coordinates.
         ang_path : Path
             Path to the text file that contains monomer angles in Euler angles.
+        shift_mol : bool, default is True
+            In PEET output csv there may be xOffset, yOffset, zOffset columns that can be directly applied to
+            the molecule coordinates.
         """        
         from .ext.etomo import read_mod
         scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
         mod = read_mod(mod_path).values
-        csv_data = _read_angle(ang_path)
-        mol = Molecules.from_euler(pos=mod*scale, angles=csv_data, degrees=True)
+        shifts, angs = _read_shift_and_angle(ang_path)
+        mol = Molecules.from_euler(pos=mod*scale, angles=angs, degrees=True)
+        if shift_mol:
+            mol.translate(shifts*scale, copy=False)
+        
         _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
     
     @set_options(save_dir={"mode": "d"})
@@ -387,7 +394,7 @@ class PEET(MagicTemplate):
                 vector_layer.data = vector_data
             else:
                 self.parent_viewer.add_vectors(
-                    vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
+                    vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
                     name=vector_layer_name,
                     )
             layer.metadata[MOLECULES] = mol_shifted
@@ -991,7 +998,8 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(contrast_limits):
             self.layer_image.contrast_limits = contrast_limits
-            proj = self.layer_image.data.proj("z")
+            with no_verbose():
+                proj = self.layer_image.data.proj("z")
             self.Panels.overview.image = proj
             self.Panels.overview.contrast_limits = contrast_limits
         
@@ -1450,7 +1458,7 @@ class MTPropsWidget(MagicTemplate):
             points_layer.shading = "spherical"
             
             self.parent_viewer.add_vectors(
-                ndim=3, edge_width=0.8, edge_color="crimson", length=2.4,
+                ndim=3, edge_width=0.3, edge_color="crimson", length=2.4,
                 name=layer_name + " Z-axis",
                 )
         
@@ -2127,7 +2135,7 @@ def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name):
     
     vector_data = np.stack([mol.pos, mol.z], axis=1)
     viewer.add_vectors(
-        vector_data, edge_width=0.8, edge_color="crimson", length=2.4,
+        vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
         name=name + " Z-axis",
         )
 
@@ -2154,11 +2162,12 @@ def _read_angle(ang_path: str) -> np.ndarray:
     return csv_data
 
 
-def _read_shift_and_angle(path: str) -> np.ndarray:
+def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
     csv = pd.read_csv(path)
     if "CCC" in csv.columns:
         ang_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
         shifts_data = csv[["zOffset", "yOffset", "xOffset"]].values
     else:
-        raise ValueError(f"Could not interpret data format of {path}:\n{csv.head(5)}")
+        ang_data = _read_angle(path)
+        shifts_data = None
     return shifts_data, ang_data
