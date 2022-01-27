@@ -481,7 +481,7 @@ class MtTomogram:
         return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
     
     
-    def summerize_localprops(self, i: int|Iterable[int] = None, 
+    def summerize_localprops(self, i: int | Iterable[int] = None, 
                              by: str | list[str] = "SplineID", 
                              functions: Callable|list[Callable] = None) -> pd.DataFrame:
         """
@@ -545,6 +545,7 @@ class MtTomogram:
             *, 
             max_interval: nm = 30.0,
             degree_precision: float = 0.2,
+            cutoff: float = 0.35,
             dense_mode: bool = False,
             dense_mode_sigma: nm = 2.0,
             ) -> MtTomogram:
@@ -564,6 +565,9 @@ class MtTomogram:
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.
+        cutoff : float, default is 0.35
+            The cutoff frequency of lowpass filter that will applied to subtomogram 
+            before alignment-based fitting. 
         dense_mode : bool, default is False
             If True, fitting will be executed in the dense-microtubule mode.
         dense_mode_sigma : nm, default is 2.0
@@ -581,6 +585,8 @@ class MtTomogram:
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
         subtomograms -= subtomograms.mean()
+        if 0 < cutoff < 0.866:
+            subtomograms = subtomograms.lowpass_filter(cutoff)
         
         if dense_mode:
             # mask XY-region outside the microtubules with sigmoid function.
@@ -659,6 +665,7 @@ class MtTomogram:
                i = None,
                *, 
                max_interval: nm = 30.0,
+               cutoff: float = 0.35,
                projection: bool = True,
                corr_allowed: float = 0.9,
                ) -> MtTomogram:
@@ -673,6 +680,9 @@ class MtTomogram:
             Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
+        cutoff : float, default is 0.35
+            The cutoff frequency of lowpass filter that will applied to subtomogram 
+            before alignment-based fitting. 
         projection: bool, default is True
             If true, 2-D images of projection along the longitudinal axis are used for boosting
             correlation calculation. Otherwise 3-D images will be used.
@@ -694,8 +704,10 @@ class MtTomogram:
         npoints = len(spl)
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i)
-        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean() # normalize
-        
+        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()  # normalize
+        if 0 < cutoff < 0.866:
+            subtomograms = subtomograms.lowpass_filter(cutoff)
+            
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
@@ -1396,7 +1408,7 @@ class MtTomogram:
                      *, 
                      offsets: tuple[nm, float] = None) -> Coordinates:
         """
-        Map coordinates of tubulin monomers in world coordinate.
+        Map coordinates of monomers in world coordinate.
 
         Parameters
         ----------
@@ -1419,7 +1431,10 @@ class MtTomogram:
         radius = spl.radius
         
         # Calculate reconstruction in cylindric coodinate system
-        rec_cyl = self.cylindric_reconstruct(i, rot_ave=True, y_length=0).proj("r")
+        rec_cyl_3d: ip.ImgArray = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
+        sigma = rec_cyl_3d.shape.y/8
+        rec_cyl_3d.value[:] = ndi.gaussian_filter(rec_cyl_3d.value, sigma=sigma, mode=Mode.grid_wrap)
+        rec_cyl = rec_cyl_3d.proj("r")
         
         # Find monomer peak
         argpeak = np.argmin if self.light_background else np.argmax

@@ -175,7 +175,7 @@ class SplineFitter(MagicTemplate):
         @magicclass(layout="horizontal")
         class frame:
             nPF = field(10, options={"min": 1, "max": 48, "tooltip": "Number of protofilament (if nPF=12, rotational average will be calculated by summing up every 30° rotated images)."}, record=False)
-            cutoff = field(0.2, options={"min": 0.0, "max": 0.5, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass filter."}, record=False)
+            cutoff = field(0.2, options={"min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass filter."}, record=False)
             def Average(self): ...
     
     def _get_shifts(self, _=None):
@@ -204,7 +204,7 @@ class SplineFitter(MagicTemplate):
         with no_verbose():
             img = self.find_ancestor(MTPropsWidget)._current_cartesian_img(i, j)
             cutoff = self.Rotational_averaging.frame.cutoff.value
-            if 0 < cutoff < 0.5:
+            if 0 < cutoff < 0.866:
                 img = img.lowpass_filter(cutoff=cutoff)
             proj = Projections(img)
             proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
@@ -840,7 +840,7 @@ class MTPropsWidget(MagicTemplate):
         subtomo_width = vfield(44.0, record=False, options={"label": "subtomogram width (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The diameter of subtomogram."})
         light_background = vfield(True, record=False, options={"label": "light background", "tooltip": "Check if background is bright."})
         use_lowpass = vfield(False, record=False, options={"label": "Apply low-pass filter","tooltip": "Check if images need prefilter."})
-        cutoff_freq = vfield(0.2, record=False, options={"label": "Cutoff frequency (1/px)", "visible": False, "min": 0.0, "max": 0.5, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.5."})
+        cutoff_freq = vfield(0.2, record=False, options={"label": "Cutoff frequency (1/px)", "visible": False, "min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.866."})
         
         @use_lowpass.connect
         def _enable_freq_option(self):
@@ -1738,7 +1738,7 @@ class MTPropsWidget(MagicTemplate):
         
         def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
             with no_verbose():
-                if 0 < cutoff < 0.5:
+                if 0 < cutoff < 0.866:
                     img.tiled_lowpass_filter(cutoff, update=True)
                     img.release()
                 imgb = img.binning(binsize, check_edges=False).compute()
