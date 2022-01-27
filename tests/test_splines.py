@@ -91,6 +91,19 @@ def test_coordinate_transformation():
     assert rmax == 1
     assert amin < img_tr.shape[-1]/2
     
+def test_invert():
+    spl = Spline3D()
+    coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
+    spl.fit(coords)
+    spl.make_anchors(n=5)
     
+    spl_inv = spl.invert()
+    spl_inv_inv = spl_inv.invert()
     
+    assert_allclose(spl(), spl_inv()[::-1])
+    assert_allclose(spl(der=1), -spl_inv(der=1)[::-1])
+    
+    assert_allclose(spl(), spl_inv_inv())
+    assert_allclose(spl(der=1), spl_inv_inv(der=1))
+    assert_allclose(spl(der=2), spl_inv_inv(der=2))
     

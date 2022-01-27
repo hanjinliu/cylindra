@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Iterable, TypedDict
+from typing import Callable, Iterable, TypedDict
 import warnings
 import numpy as np
 import numba as nb
@@ -37,18 +37,43 @@ class Spline3D:
       https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
     """    
     # global cache will be re-initialized every time spline curve is updated.
-    _global_cache = []
+    _global_cache: tuple[str] = ()
     
     # local cache will be re-initialized every time spline curve is updated or anchor
     # is changed.
-    _local_cache = []
+    _local_cache: tuple[str] = ()
     
-    def __init__(self, scale: float = 1, k: int = 3):
+    def __init__(self, scale: float = 1.0, k: int = 3):
         self._tck = None
         self._u = None
         self.scale = scale
         self._k = k
         self._anchors = None
+    
+    def copy(self, copy_cache: bool = True) -> Spline3D:
+        """
+        Copy Spline3D object.
+
+        Parameters
+        ----------
+        copy_cache : bool, default is True
+            Also copy cached properties if true.
+
+        Returns
+        -------
+        Spline3D
+            Copied object.
+        """
+        new = self.__class__(self.scale, self.k)
+        new._tck = self._tck
+        new._u = self._u
+        self._anchors = self._anchors
+        
+        if copy_cache:
+            for name in self._global_cache + self._local_cache:
+                setattr(new, name, getattr(self, name, None))
+        
+        return new
     
     @property
     def tck(self) -> tuple[np.ndarray, list[np.ndarray], int]:
@@ -275,6 +300,23 @@ class Spline3D:
         dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
 
+    def invert(self) -> Spline3D:
+        """
+        Invert direction of spline.
+
+        Returns
+        -------
+        Spline3D
+            Inverted object
+        """
+        anchors = self.anchors
+        inverted = self.copy()
+        inverted._u = 1.0 - inverted._u[::-1]
+        old_tck = inverted.tck
+        new_c = [c[::-1] for c in old_tck[1]]
+        inverted._tck = (old_tck[0], new_c, old_tck[2])
+        inverted.anchors = 1 - anchors[::-1]
+        return inverted
     
     def curvature(self, u: Iterable[float] = None) -> np.ndarray:
         """
@@ -766,6 +808,7 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
                      vectors: nb.float32[_S,_D],
                      ) -> nb.float32[_V,_S,_H,_D]:
     maps = np.ascontiguousarray(maps)
+    ax_coords = np.ascontiguousarray(ax_coords)
     vectors = np.ascontiguousarray(vectors)
     
     coords = np.empty((maps.shape[0],
