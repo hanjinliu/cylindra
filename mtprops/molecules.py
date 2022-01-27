@@ -207,6 +207,18 @@ class Molecules:
         return out
     
     
+    def rot180(self, axis: str = "z", copy: bool = True) -> Molecules:
+        if axis == "x":
+            quat = [0., 0., 0., 1.]
+        elif axis == "y":
+            quat = [0., 0., 1., 0.]
+        elif axis == "z":
+            quat = [0., 1., 0., 0.]
+        else:
+            raise ValueError("'axis' must be 'x', 'y' or 'z'.")
+        mol = self.rotate_by_quaternion(np.array(quat), copy=copy)
+        return mol
+    
     def rotate_by_matrix(self, matrix: ArrayLike, copy: bool = True) -> Molecules:
         """
         Rotate molecules using rotation matrices, **with their position unchanged**.

@@ -13,6 +13,8 @@ class IMOD(SimpleNamespace):
     model2point = translate_command("model2point")
     point2model = translate_command("point2model")
     _3dmod = translate_command("3dmod")
+    calcFSC = translate_command("calcFSC")
+    
     
 
 def read_mod(path: str, order: str | Order = "zyx") -> pd.DataFrame:
@@ -115,3 +117,15 @@ def save_angles(path: str, euler_angle: np.ndarray = None):
     df.columns = columns
     df.to_csv(path, float_format="%.3f", index=False)
     return None
+
+
+def calc_fsc(prm: str, scale: float) -> pd.DataFrame:
+    path = str(prm)
+    root = os.path.dirname(path)
+    IMOD.calcFSC(path)
+    result_path = os.path.join(root, "arrFSCC.txt")
+    df = pd.read_csv(result_path, sep="\s+", header=None)
+    
+    df["freq"] = np.linspace(0, 0.5, len(df)+1)[1:]
+    df["resolution"] = scale/df["freq"]
+    return df
