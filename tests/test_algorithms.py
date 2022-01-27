@@ -85,16 +85,3 @@ def test_result_io():
     assert_allclose(tomo.collect_localprops(0), tomo2.collect_localprops(0))
     assert_allclose(tomo.collect_radii(0), tomo2.collect_radii(0))
     assert_allclose(tomo.global_ft_params(0), tomo2.global_ft_params(0))
-    
-    
-def test_intensity_scalability():
-    ...
-
-def test_image_size_scalability():
-    ...
-    
-def test_image_scale_scalability():
-    ...
-    
-def test_spline_robustness():
-    ...

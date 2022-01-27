@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 import numpy as np
 from numpy.typing import ArrayLike
 from .const import EulerAxes
@@ -111,6 +111,20 @@ class Molecules:
         """Vectors of z-axis."""
         return self._rotator.apply([1., 0., 0.])
 
+    @classmethod
+    def concat(cls, moles: Iterable[Molecules]) -> Molecules:
+        """Concatenate Molecules objects."""
+        pos: list[np.ndarray] = []
+        quat: list[np.ndarray] = []
+        for mol in moles:
+            pos.append(mol.pos)
+            quat.append(mol.quaternion())
+        
+        all_pos = np.concatenate(pos, axis=0)
+        all_quat = np.concatenate(quat, axis=0)
+        
+        from scipy.spatial.transform import Rotation
+        return cls(all_pos, Rotation(all_quat))
         
     def matrix(self) -> np.ndarray:
         """

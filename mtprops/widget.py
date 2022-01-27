@@ -374,6 +374,27 @@ class PEET(MagicTemplate):
         save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
         return None
     
+    @set_options(save_dir={"label": "Save at", "mode": "d"})
+    def Save_all_monomers(self, 
+                          save_dir: Path):
+        """
+        Save monomer angles in PEET format.
+
+        Parameters
+        ----------
+        save_dir : Path
+            Saving path.
+        layer : Points
+            Select the Vectors layer to save.
+        """        
+        save_dir = Path(save_dir)
+        layers = get_monomer_layers(self)
+        mol = Molecules.concat([l.metadata[MOLECULES] for l in layers])
+        from .ext.etomo import save_mod, save_angles
+        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
+        save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
+        return None
+    
     @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
     def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
         mol: Molecules = layer.metadata[MOLECULES]
@@ -901,14 +922,13 @@ class MTPropsWidget(MagicTemplate):
         
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
-    @dispatch_worker
     def Load_json(self, path: Path):
         """Choose a json file and load it."""        
         tomo = self.active_tomogram
-        worker = create_worker(tomo.load_json, path, _progress={"total": 0, "desc": "Running"})
-        worker.returned.connect(self._load_tomogram_results)
-        self._worker_control.info = f"Loading {os.path.basename(path)}"
-        return worker
+        tomo.load_json(path)
+        self._update_splines_in_images()
+        self._load_tomogram_results()
+        return None
     
     @File.wraps
     @set_design(text="Save results as json")
@@ -1811,16 +1831,23 @@ class MTPropsWidget(MagicTemplate):
     def _load_tomogram_results(self):
         self._spline_fitter.close()
         tomo = self.active_tomogram
-        ori = tomo.splines[0].orientation
+        spl = tomo.splines[0]
+        ori = spl.orientation
         
         # initialize GUI
         self._init_widget_params()
-        self.mt.mtlabel.max = tomo.n_splines - 1
-        self.mt.pos.max = len(tomo.splines[0].anchors) - 1
-        
         self._init_layers()
-                        
         self.layer_work.mode = "pan_zoom"
+        self.mt.mtlabel.max = tomo.n_splines - 1
+        
+        if spl.localprops is not None:
+            n_anc = len(spl.localprops)
+        elif spl._anchors is not None:
+            n_anc = len(spl._anchors)
+        else:
+            return
+        
+        self.mt.pos.max = n_anc - 1
         
         self.Profiles.orientation_choice = ori
         self._update_mtpath()
