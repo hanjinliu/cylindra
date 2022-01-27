@@ -99,10 +99,10 @@ def json_encoder(obj):
 
 class MtSpline(Spline3D):
     """
-    A spline object with info related to MT.
+    A spline object with information related to MT.
     """    
-    _local_cache = [K.localprops]
-    _global_cache = [K.globalprops, K.radius, K.orientation, K.cart_stimg, K.cyl_stimg]
+    _local_cache = (K.localprops,)
+    _global_cache = (K.globalprops, K.radius, K.orientation, K.cart_stimg, K.cyl_stimg)
     
     def __init__(self, scale: float = 1.0, k: int = 3):
         """
@@ -122,6 +122,18 @@ class MtSpline(Spline3D):
         self.globalprops: pd.Series = None
         self.cart_stimg: ip.ImgArray = None
         self.cyl_stimg: ip.ImgArray = None
+    
+    def invert(self) -> MtSpline:
+        inverted: MtSpline = super().invert()
+        if inverted.orientation == Ori.PlusToMinus:
+            inverted.orientation = Ori.MinusToPlus
+        elif inverted.orientation == Ori.MinusToPlus:
+            inverted.orientation = Ori.PlusToMinus
+        inverted.localprops = None
+        inverted.cart_stimg = None
+        inverted.cyl_stimg = None
+        return inverted
+            
         
     @property
     def orientation(self) -> Ori:
@@ -384,6 +396,32 @@ class MtTomogram:
         self._splines[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
         return None
     
+    
+    def align_to_polarity(self, orientation: Ori | str = Ori.MinusToPlus) -> MtTomogram:
+        """
+        Align all the splines in the direction parallel to microtubule polarity.
+
+        Parameters
+        ----------
+        orientation : Ori or str, default is Ori.MinusToPlus
+            To which direction splines will be aligned.
+
+        Returns
+        -------
+        MtTomogram
+            Same object with updated splines.
+        """
+        orientation = Ori(orientation)
+        if orientation == Ori.none:
+            raise ValueError("Must be PlusToMinus or MinusToPlus.")
+        for i, spl in enumerate(self.splines):
+            if spl.orientation != orientation:
+                try:
+                    self.splines[i] = spl.invert()
+                except Exception as e:
+                    raise type(e)(f"Cannot invert spline-{i}: {e}")
+        return self
+        
     
     def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
         """
@@ -732,76 +770,6 @@ class MtTomogram:
                               [-sin, cos]], dtype=np.float32)
             shifts[i] = shift @ zxrot
 
-        # Update spline parameters
-        sqsum = GVar.splError**2 * npoints # unit: nm^2
-        spl.shift_fit(shifts=shifts, s=sqsum)
-        return self
-    
-    @batch_process
-    def fit_mao(self, i = None, *, max_interval: nm = 30.0) -> MtTomogram:
-        """
-        Fit i-th spline to MT, using Minimum Angular Oscillation method.
-        The amplitude at y=0, theta=1 in Fourier space is large when spline is not
-        centered. Thus, MT centering can be achieved by a standard minimization
-        algorithm. Because we are only interested in the y=0 plane of Fourier space,
-        optimization procedure becomes faster by using projection-slicing theorem.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to fit.
-        max_interval : nm, default is 24.0
-            Maximum interval of sampling points in nm unit.
-            
-        Returns
-        -------
-        MtTomogram
-            Same object with updated MtSpline objects.
-        """        
-        spl = self.splines[i]
-        if spl.radius is None:
-            spl.make_anchors(n=3)
-            self.measure_radius(i=i)
-        spl.make_anchors(max_interval=max_interval)
-        npoints = len(spl)
-        subtomograms = self._sample_subtomograms(i)
-        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean() # normalize
-        subtomo_proj = subtomograms.proj("y")["x=::-1"] # axes = pzx
-        offset = np.array(subtomo_proj.sizesof("zx"))/2 - 0.5
-        
-        from .spline import _polar_coords_2d
-        from scipy.optimize import minimize
-        
-        radius_px = spl.radius/self.scale
-        
-        def _func(center, img):
-            center = center + offset
-            map_ = _polar_coords_2d(radius_px*GVar.inner, radius_px*GVar.outer, center)
-            map_ = np.moveaxis(map_, -1, 0)
-            
-            out = ndi.map_coordinates(img, map_, prefilter=True, mode=Mode.reflect)
-            out = ip.asarray(out, axes="ra", dtype=np.float32)
-            pw = out.local_power_spectra(f"a=1:3", dims="ra").proj("r")
-            return pw[0] / (pw[0] + pw[1])
-        
-        shifts = np.zeros((npoints, 2))
-        
-        initial_guess = np.array([[-2, -2], [-2, 0], [-2, 2], 
-                                  [ 0, -2], [ 0, 0], [ 0, 2],
-                                  [ 2, -2], [ 2, 0], [ 2, 2]],
-                                  dtype=np.float32)
-        dc = 1.0
-        for i in range(npoints):
-            img = subtomo_proj[i]
-            osc = [_func(yx, img) for yx in initial_guess]
-            center = initial_guess[np.argmin(osc)]
-            res = minimize(_func, center, args=(img,),
-                           bounds=((center[0] - dc, center[0] + dc), 
-                                   (center[1] - dc, center[1] + dc))
-                           )
-            shift = res.x
-            shifts[i] = shift
-        
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
         spl.shift_fit(shifts=shifts, s=sqsum)
