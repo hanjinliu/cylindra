@@ -1,6 +1,6 @@
 from functools import wraps
 import pandas as pd
-from typing import Any, Callable, Iterable, NewType, Union, Tuple
+from typing import Any, Callable, Iterable, NewType, Union, Tuple, List
 import os
 import numpy as np
 import warnings
@@ -25,9 +25,9 @@ from magicclass import (
     Bound,
     MagicTemplate,
     bind_key,
-    build_help,
+    build_help
     )
-from magicclass.widgets import TupleEdit, Separator, ListWidget, Table
+from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, Figure
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
 
@@ -61,13 +61,16 @@ from napari.utils._magicgui import find_viewer_ancestor
 MonomerLayer = NewType("MonomerLayer", Points)
 Worker = Union[FunctionWorker, GeneratorWorker]
 
-def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
+def get_monomer_layers(gui: CategoricalWidget) -> List[Points]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
     return [x for x in viewer.layers if isinstance(x, Points) and MOLECULES in x.metadata]
 
 magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
+
+from macrokit import register_type
+register_type(np.ndarray, lambda arr: str(arr.tolist()))
 
 def run_worker_function(worker: Worker):
     try:
@@ -209,7 +212,7 @@ class SplineFitter(MagicTemplate):
     
     
     def __post_init__(self):
-        self.shifts: list[np.ndarray] = None
+        self.shifts: List[np.ndarray] = None
         self.canvas.min_height = 160
         self.fit_done = True
         self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
@@ -342,16 +345,15 @@ class PEET(MagicTemplate):
             the molecule coordinates.
         """        
         from .ext.etomo import read_mod
-        scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
         mod = read_mod(mod_path).values
         shifts, angs = _read_shift_and_angle(ang_path)
-        mol = Molecules.from_euler(pos=mod*scale, angles=angs, degrees=True)
+        mol = Molecules.from_euler(pos=mod*self.scale, angles=angs, degrees=True)
         if shift_mol:
-            mol.translate(shifts*scale, copy=False)
+            mol.translate(shifts*self.scale, copy=False)
         
         _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
     
-    @set_options(save_dir={"mode": "d"})
+    @set_options(save_dir={"label": "Save at", "mode": "d"})
     def Save_monomers(self, 
                       save_dir: Path,
                       layer: MonomerLayer):
@@ -365,20 +367,18 @@ class PEET(MagicTemplate):
         layer : Points
             Select the Vectors layer to save.
         """        
-        scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
         save_dir = Path(save_dir)
         mol: Molecules = layer.metadata[MOLECULES]
         from .ext.etomo import save_mod, save_angles
-        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/scale)
+        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
         save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
         return None
     
     @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
     def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
-        scale = self.find_ancestor(MTPropsWidget).active_tomogram.scale
         mol: Molecules = layer.metadata[MOLECULES]
         shifts, angs = _read_shift_and_angle(ang_path)
-        mol_shifted = mol.translate(shifts*scale)
+        mol_shifted = mol.translate(shifts*self.scale)
         mol_shifted = Molecules.from_euler(pos=mol_shifted.pos, angles=angs, degrees=True)
         
         vector_data = np.stack([mol_shifted.pos, mol_shifted.z], axis=1)
@@ -400,6 +400,10 @@ class PEET(MagicTemplate):
             layer.metadata[MOLECULES] = mol_shifted
         else:
             _add_molecules(self.parent_viewer, mol_shifted, "Molecules from PEET")
+    
+    @property
+    def scale(self) -> float:
+        return self.find_ancestor(MTPropsWidget).active_tomogram.scale
 
 ### The main widget ###
     
@@ -425,8 +429,8 @@ class MTPropsWidget(MagicTemplate):
         PEET = PEET
 
     @magicmenu
-    class View(MagicTemplate):
-        """Visualization."""
+    class Image(MagicTemplate):
+        """Image processing and visualization"""
         def Apply_lowpass_to_reference_image(self): ...
         sep0 = field(Separator)
         def show_current_ft(self): ...
@@ -434,7 +438,7 @@ class MTPropsWidget(MagicTemplate):
         def show_r_proj(self): ...
         def show_global_r_proj(self): ...
         sep1 = field(Separator)
-        def Show_splines(self): ...
+        def Sample_subtomograms(self): ...
         def Show_results_in_a_table_widget(self): ...
         def Show_straightened_image(self): ...
         def Paint_MT(self): ...
@@ -442,18 +446,22 @@ class MTPropsWidget(MagicTemplate):
         focus = field(False, options={"text": "Focus"}, record=False)
     
     @magicmenu
-    class Analysis(MagicTemplate):
-        """Analysis of tomograms."""        
+    class Splines(MagicTemplate):
+        """Spline fitting and operations."""
+        def Show_splines(self): ...
+        def Align_to_polarity(self): ...
         def Fit_splines(self): ...
-        def Fit_splines_manually(self): ...                
+        def Fit_splines_manually(self): ...
         def Add_anchors(self): ...
-        def Measure_radius(self): ...
         def Refine_splines(self): ...
-        def Refine_splines_with_MAO(self): ...
-        sep0 = field(Separator)
+
+    @magicmenu
+    class Analysis(MagicTemplate):
+        """Analysis of tomograms."""
+        def Measure_radius(self): ...
         def Local_FT_analysis(self): ...
         def Global_FT_analysis(self): ...
-        sep1 = field(Separator)
+        sep0 = field(Separator)
         @magicmenu
         class Reconstruction(MagicTemplate):
             def Reconstruct_MT(self): ...
@@ -489,7 +497,7 @@ class MTPropsWidget(MagicTemplate):
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
         """MT sub-regions"""
-        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."}, name="MTLabel", record=False)
+        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."}, name="MTLabel")
         pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Pos", record=False)
     
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
@@ -497,8 +505,8 @@ class MTPropsWidget(MagicTemplate):
     @magicclass(widget_type="collapsible")
     class Profiles(MagicTemplate):
         """Local profiles."""
-        txt = field(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result")    
-        orientation_choice = field(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
+        txt = vfield(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result")    
+        orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
         plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True, "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
@@ -981,7 +989,7 @@ class MTPropsWidget(MagicTemplate):
         np.savetxt(save_path, arr, delimiter=str(separator))
         return None
     
-    @View.wraps
+    @Image.wraps
     @dispatch_worker
     def Apply_lowpass_to_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
@@ -1007,12 +1015,12 @@ class MTPropsWidget(MagicTemplate):
                     
     @mt.mtlabel.connect
     @mt.pos.connect
-    @View.focus.connect
+    @Image.focus.connect
     def _focus_on(self):
         """Change camera focus to the position of current MT fragment."""
         if self.layer_paint is None:
             return None
-        if not self.View.focus.value:
+        if not self.Image.focus.value:
             self.layer_paint.show_selected_label = False
             return None
         
@@ -1037,14 +1045,20 @@ class MTPropsWidget(MagicTemplate):
         self.layer_paint.selected_label = j_offset + j + 1
         return None
     
-    @View.wraps
+    @Image.wraps
+    def Sample_subtomograms(self):
+        """Sample subtomograms at the anchor points on splines"""
+        self._load_tomogram_results()
+        return None
+    
+    @Image.wraps
     def Show_results_in_a_table_widget(self):
         """Show result table."""
         self.Panels.table.value = self.active_tomogram.collect_localprops()
         self.Panels.current_index = 2
         return None
     
-    @View.wraps
+    @Image.wraps
     @dispatch_worker
     def Show_straightened_image(self, i: Bound(mt.mtlabel)):
         """Send straightened image of the current MT to the viewer."""        
@@ -1063,7 +1077,7 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    @View.wraps
+    @Image.wraps
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
         """Show radial projection of cylindrical image around the current MT fragment."""
@@ -1078,7 +1092,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @View.wraps
+    @Image.wraps
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
@@ -1093,7 +1107,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @View.wraps
+    @Image.wraps
     @set_design(text="2D-FT")
     def show_current_ft(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
         """View Fourier space of local cylindrical coordinate system at current position."""        
@@ -1112,7 +1126,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @View.wraps
+    @Image.wraps
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound(mt.mtlabel)):
         """View Fourier space along current MT."""  
@@ -1131,7 +1145,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @View.wraps
+    @Splines.wraps
     def Show_splines(self):
         """Show 3D spline paths of microtubule center axes as a layer."""        
         paths = [r.partition(100) for r in self.active_tomogram.splines]
@@ -1139,8 +1153,27 @@ class MTPropsWidget(MagicTemplate):
         self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
                                       translate=self.layer_image.translate)
         return None
-    
-    @Analysis.wraps
+
+    @Splines.wraps
+    @set_options(orientation={"choices": ["MinusToPlus", "PlusToMinus"]})
+    def Align_to_polarity(self, orientation: Ori = "MinusToPlus"):
+        """
+        Align all the splines in the direction parallel to microtubule polarity.
+
+        Parameters
+        ----------
+        orientation : Ori, default is Ori.MinusToPlus
+            To which direction splines will be aligned.
+        """
+        need_resample = self.canvas[0].image is not None
+        self.active_tomogram.align_to_polarity(orientation=orientation)
+        self._update_splines_in_images()
+        self._init_widget_params()
+        self._init_figures()
+        if need_resample:
+            self.Sample_subtomograms()
+        
+    @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
     @dispatch_worker
     def Fit_splines(self, 
@@ -1173,7 +1206,7 @@ class MTPropsWidget(MagicTemplate):
 
         return worker
     
-    @Analysis.wraps
+    @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
     def Fit_splines_manually(self, max_interval: nm = 50.0):
         """
@@ -1188,7 +1221,7 @@ class MTPropsWidget(MagicTemplate):
         self._spline_fitter.show()
         return None
     
-    @Analysis.wraps
+    @Splines.wraps
     @set_options(interval={"label": "Interval between anchors (nm)"})
     def Add_anchors(self, interval: nm = 25.0):
         """
@@ -1219,7 +1252,7 @@ class MTPropsWidget(MagicTemplate):
 
         return worker
     
-    @Analysis.wraps
+    @Splines.wraps
     @set_options(max_interval={"label": "Maximum interval (nm)"},
                  corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1})
     @dispatch_worker
@@ -1249,34 +1282,6 @@ class MTPropsWidget(MagicTemplate):
         worker.finished.connect(self._update_splines_in_images)
 
         self._worker_control.info = "Refining splines ..."
-        
-        self._init_widget_params()
-        self._init_figures()
-        return worker
-
-    
-    @Analysis.wraps
-    @set_options(max_interval={"label": "Maximum interval (nm)"})
-    @dispatch_worker
-    def Refine_splines_with_MAO(self, max_interval: nm = 30):
-        """
-        Refine splines using Minimum Angular Oscillation.
-        
-        Parameters
-        ----------
-        max_interval : nm, default is 30
-            Maximum interval between anchors.
-        """
-        tomo = self.active_tomogram
-        
-        worker = create_worker(tomo.fit_mao,
-                               max_interval=max_interval,
-                               _progress={"total": 0, 
-                                          "desc": "Running"})
-        
-        worker.finished.connect(self._update_splines_in_images)
-
-        self._worker_control.info = "Refining splines with MAO..."
         
         self._init_widget_params()
         self._init_figures()
@@ -1324,7 +1329,7 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    def _globalprops_to_table(self, out: list[pd.Series]):
+    def _globalprops_to_table(self, out: List[pd.Series]):
         df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
         self.Panels.table.value = df
         self.Panels.current_index = 2
@@ -1419,7 +1424,7 @@ class MTPropsWidget(MagicTemplate):
     def Map_monomers(self):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
-        """        
+        """
         tomo = self.active_tomogram
         
         worker = create_worker(tomo.map_monomers,
@@ -1427,7 +1432,7 @@ class MTPropsWidget(MagicTemplate):
                                )
         
         @worker.returned.connect
-        def _on_return(out: list[Coordinates]):
+        def _on_return(out: List[Coordinates]):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
                 mol = spl.cylindrical_to_world_vector(coords.spline)
@@ -1441,6 +1446,18 @@ class MTPropsWidget(MagicTemplate):
                  y_offset={"widget_type": "FloatSlider", "max": 5, "step": 0.1, "label": "y offset (nm)"},
                  theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"})
     def Map_monomers_manually(self, i: Bound(mt.mtlabel), y_offset: nm = 0, theta_offset: float = 0):
+        """
+        Map points to monomer molecules with parameter sweeping.
+
+        Parameters
+        ----------
+        i : int
+            ID of microtubule.
+        y_offset : nm, optional
+            Offset in y-direction
+        theta_offset : float, optional
+            Offset of angle.
+        """
         theta_offset = np.deg2rad(theta_offset)
         tomo = self.active_tomogram
         tomo.global_ft_params(i)
@@ -1544,7 +1561,7 @@ class MTPropsWidget(MagicTemplate):
             change_viewer_focus(self.parent_viewer, points[last_i], self.layer_work.data[last_i])
         return None
     
-    @View.wraps
+    @Image.wraps
     def Paint_MT(self):
         """
         Paint microtubule fragments by its pitch length.
@@ -1556,7 +1573,7 @@ class MTPropsWidget(MagicTemplate):
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
-        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
+        color: dict[int, List[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         tomo = self.active_tomogram
         ft_size = self._last_ft_size
@@ -1654,7 +1671,7 @@ class MTPropsWidget(MagicTemplate):
         self._update_colormap()
         return None
     
-    @View.wraps
+    @Image.wraps
     @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
                  end={"widget_type": TupleEdit, "options": {"step": 0.1}},
                  limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
@@ -1794,6 +1811,8 @@ class MTPropsWidget(MagicTemplate):
     def _load_tomogram_results(self):
         self._spline_fitter.close()
         tomo = self.active_tomogram
+        ori = tomo.splines[0].orientation
+        
         # initialize GUI
         self._init_widget_params()
         self.mt.mtlabel.max = tomo.n_splines - 1
@@ -1803,6 +1822,7 @@ class MTPropsWidget(MagicTemplate):
                         
         self.layer_work.mode = "pan_zoom"
         
+        self.Profiles.orientation_choice = ori
         self._update_mtpath()
         
         return None
@@ -1814,7 +1834,7 @@ class MTPropsWidget(MagicTemplate):
         self.mt.pos.value = 0
         self.mt.pos.min = 0
         self.mt.pos.max = 0
-        self.Profiles.txt.value = ""
+        self.Profiles.txt = ""
         return None
     
     def _init_figures(self):
@@ -1929,7 +1949,7 @@ class MTPropsWidget(MagicTemplate):
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
             self.layer_paint.scale = self.layer_image.scale
-        self.Profiles.orientation_choice.value = Ori.none
+        self.Profiles.orientation_choice = Ori.none
         return None
     
     @mt.pos.connect
@@ -1950,7 +1970,7 @@ class MTPropsWidget(MagicTemplate):
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
-            self.Profiles.txt.value = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
+            self.Profiles.txt = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
 
         binsize = self.active_tomogram.metadata["binsize"]
         with no_verbose():
@@ -1987,7 +2007,7 @@ class MTPropsWidget(MagicTemplate):
     @Profiles.orientation_choice.connect
     def _update_note(self):
         i = self.mt.mtlabel.value
-        self.active_tomogram.splines[i].orientation = self.Profiles.orientation_choice.value
+        self.active_tomogram.splines[i].orientation = self.Profiles.orientation_choice
         return None
     
     @mt.mtlabel.connect
@@ -2009,17 +2029,25 @@ class MTPropsWidget(MagicTemplate):
         
         spl.scale /= binsize
         
-        projections: list[Projections] = []
-        for img, npf in zip(out, spl.localprops[H.nPF]):    
+        # Rotational average should be calculated using local nPF if possible.
+        # If not available, use global nPF
+        projections: List[Projections] = []
+        if spl.localprops is not None:
+            npf_list = spl.localprops[H.nPF]
+        elif spl.globalprops is not None:
+            npf_list = [spl.globalprops[H.nPF]] * tomo.splines[i].anchors.size
+        else:
+            return None
+        
+        for img, npf in zip(out, npf_list):    
             proj = Projections(img)
             proj.rotational_average(npf)
             projections.append(proj)
         
         self.projections = projections
         
-        self.mt.pos.max = len(tomo.splines[i].localprops) - 1
-        note = tomo.splines[i].orientation
-        self.Profiles.orientation_choice.value = Ori(note)
+        self.mt.pos.max = tomo.splines[i].anchors.size - 1
+        self.Profiles.orientation_choice = Ori(tomo.splines[i].orientation)
         self._plot_properties()
         self._imshow_all()
         self.mt.mtlabel.enabled = True
