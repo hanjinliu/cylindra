@@ -926,6 +926,9 @@ class MTPropsWidget(MagicTemplate):
         """Choose a json file and load it."""        
         tomo = self.active_tomogram
         tomo.load_json(path)
+
+        self._last_ft_size = tomo.metadata.get("ft_size", self._last_ft_size)
+            
         self._update_splines_in_images()
         self._load_tomogram_results()
         return None
@@ -2076,7 +2079,8 @@ class MTPropsWidget(MagicTemplate):
         self.mt.pos.max = tomo.splines[i].anchors.size - 1
         self.Profiles.orientation_choice = Ori(tomo.splines[i].orientation)
         self._plot_properties()
-        self._imshow_all()
+        if spl.localprops is not None:
+            self._imshow_all()
         self.mt.mtlabel.enabled = True
         return None
     

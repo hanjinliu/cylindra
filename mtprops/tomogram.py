@@ -1406,6 +1406,8 @@ class MtTomogram:
     def map_monomers(self, 
                      i = None,
                      *, 
+                     length: nm | None = None,
+                     ranges: tuple[int, int] = None,
                      offsets: tuple[nm, float] = None) -> Coordinates:
         """
         Map coordinates of monomers in world coordinate.
@@ -1414,6 +1416,15 @@ class MtTomogram:
         ----------
         i : int or iterable of int, optional
             Spline ID that mapping will be calculated.
+        length : nm, optional
+            If given, only map monomer coordinates in this length of range from the starting 
+            point of spline. Cannot use this if ``ranges`` is set.
+        ranges : tuple of int, optional
+            If given, only map monomer coordinates in this range. (0, 1) corresponds to the
+            full range. Cannot use this if ``length`` is set.
+        offsets : tuple of float, optional
+            The offset of origin of oblique coordinate system to map monomers. If not given
+            this parameter will be determined by cylindric reconstruction.
 
         Returns
         -------
@@ -1422,6 +1433,16 @@ class MtTomogram:
         """
         spl = self._splines[i]
         
+        # dispatch input
+        if ranges is None and length is not None:
+            raise TypeError("Cannot specify both 'ranges' and 'length'.")
+        elif length is None:
+            if ranges is None:
+                ranges = (0, 1)
+            length = spl.length(*ranges)
+        else:
+            length = min(spl.length(), length)
+            
         # Get structural parameters
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
@@ -1430,16 +1451,7 @@ class MtTomogram:
         npf = int(props[H.nPF])
         radius = spl.radius
         
-        # Calculate reconstruction in cylindric coodinate system
-        rec_cyl_3d: ip.ImgArray = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
-        sigma = rec_cyl_3d.shape.y/8
-        rec_cyl_3d.value[:] = ndi.gaussian_filter(rec_cyl_3d.value, sigma=sigma, mode=Mode.grid_wrap)
-        rec_cyl = rec_cyl_3d.proj("r")
-        
-        # Find monomer peak
-        argpeak = np.argmin if self.light_background else np.argmax
-        ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
-        ny = roundint(spl.length()/pitch) # number of monomers in y-direction
+        ny = roundint(length/pitch) # number of monomers in y-direction
         tan_rise = tandg(rise)
         
         # Construct meshgrid
@@ -1450,7 +1462,17 @@ class MtTomogram:
         tilts = [np.deg2rad(skew)/(4*np.pi)*npf,
                  roundint(-tan_rise*2*np.pi*radius/pitch)/npf]
         intervals = [pitch, 2*np.pi/npf]
+        
         if offsets is None:
+            # Calculate reconstruction in cylindric coodinate system
+            rec_cyl_3d: ip.ImgArray = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
+            sigma = rec_cyl_3d.shape.y/8
+            rec_cyl_3d.value[:] = ndi.gaussian_filter(rec_cyl_3d.value, sigma=sigma, mode=Mode.grid_wrap)
+            rec_cyl = rec_cyl_3d.proj("r")
+            
+            # Find monomer peak
+            argpeak = np.argmin if self.light_background else np.argmax
+            ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
             offsets = [ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi]
         
         mesh = oblique_meshgrid(shape, tilts, intervals, offsets).reshape(-1, 2)
