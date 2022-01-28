@@ -1466,13 +1466,20 @@ class MTPropsWidget(MagicTemplate):
     
     @Analysis.wraps
     @dispatch_worker
-    def Map_monomers(self):
+    def Map_monomers(self, length: nm = 0):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
+        
+        Parameters
+        ----------
+        length : nm, optional
+            Set this value if you'd like to specify the length of region to map monomers.
         """
         tomo = self.active_tomogram
-        
+        if length < 0:
+            length = None
         worker = create_worker(tomo.map_monomers,
+                               length=length,
                                _progress={"total": 0, "desc": "Running"}
                                )
         
