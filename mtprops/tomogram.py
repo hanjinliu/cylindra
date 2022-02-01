@@ -1434,7 +1434,7 @@ class MtTomogram:
         spl = self._splines[i]
         
         # dispatch input
-        if ranges is None and length is not None:
+        if ranges is not None and length is not None:
             raise TypeError("Cannot specify both 'ranges' and 'length'.")
         elif length is None:
             if ranges is None:

@@ -27,7 +27,7 @@ from magicclass import (
     bind_key,
     build_help
     )
-from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, Figure
+from magicclass.widgets import TupleEdit, Separator, ListWidget, Table
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
 
@@ -877,7 +877,7 @@ class MTPropsWidget(MagicTemplate):
         @path.connect
         def _read_scale(self):
             img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
-            self.scale = f"{img.scale.x:.3f}"
+            self.scale = f"{img.scale.x:.4f}"
         
         def load_tomogram(self): ...
     
@@ -1466,20 +1466,12 @@ class MTPropsWidget(MagicTemplate):
     
     @Analysis.wraps
     @dispatch_worker
-    def Map_monomers(self, length: nm = 0):
+    def Map_monomers(self):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
-        
-        Parameters
-        ----------
-        length : nm, optional
-            Set this value if you'd like to specify the length of region to map monomers.
         """
         tomo = self.active_tomogram
-        if length < 0:
-            length = None
         worker = create_worker(tomo.map_monomers,
-                               length=length,
                                _progress={"total": 0, "desc": "Running"}
                                )
         
@@ -2023,14 +2015,16 @@ class MTPropsWidget(MagicTemplate):
             ylen = 25/binsize/tomo.scale
         else:
             ylen = self._last_ft_size/2/binsize/tomo.scale
-            
-        ymin, ymax = ly/2 - ylen, ly/2 + ylen
+        
+        # draw a square in YX-view
+        ymin, ymax = ly/2 - ylen - 0.5, ly/2 + ylen + 0.5
         r_px = spl.radius/tomo.scale/binsize
         r = r_px*GVar.outer
-        xmin, xmax = -r + lx/2, r + lx/2
+        xmin, xmax = -r + lx/2 - 0.5, r + lx/2 + 0.5
         self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
                                  [ymin, ymax, ymax, ymin, ymin], color="lime")
-    
+
+        # draw two circles in ZX-view
         theta = np.linspace(0, 2*np.pi, 360)
         r = r_px * GVar.inner
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
