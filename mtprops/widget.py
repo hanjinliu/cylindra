@@ -27,7 +27,7 @@ from magicclass import (
     bind_key,
     build_help
     )
-from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, Figure
+from magicclass.widgets import TupleEdit, Separator, ListWidget, Table
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
 
@@ -384,11 +384,11 @@ class PEET(MagicTemplate):
         ----------
         save_dir : Path
             Saving path.
-        layer : Points
-            Select the Vectors layer to save.
         """        
         save_dir = Path(save_dir)
         layers = get_monomer_layers(self)
+        if len(layers) == 0:
+            raise ValueError("No monomer found.")
         mol = Molecules.concat([l.metadata[MOLECULES] for l in layers])
         from .ext.etomo import save_mod, save_angles
         save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
@@ -471,9 +471,10 @@ class MTPropsWidget(MagicTemplate):
         """Spline fitting and operations."""
         def Show_splines(self): ...
         def Align_to_polarity(self): ...
+        def Add_anchors(self): ...
+        sep = field(Separator)
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...
-        def Add_anchors(self): ...
         def Refine_splines(self): ...
 
     @magicmenu
@@ -571,7 +572,7 @@ class MTPropsWidget(MagicTemplate):
             worker.start()
             
             if tomo.splines:
-                worker.finished.connect(self._load_tomogram_results)
+                worker.finished.connect(self.Sample_subtomograms)
             else:
                 worker.finished.connect(self._init_layers)
                 worker.finished.connect(self._init_widget_params)
@@ -727,7 +728,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(tomo: MtTomogram):
             self._update_splines_in_images()
             if local_props:
-                self._load_tomogram_results()
+                self.Sample_subtomograms()
                 if paint:
                     self.Paint_MT()
             tomo.metadata["ft_size"] = self._last_ft_size
@@ -876,7 +877,7 @@ class MTPropsWidget(MagicTemplate):
         @path.connect
         def _read_scale(self):
             img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
-            self.scale = f"{img.scale.x:.3f}"
+            self.scale = f"{img.scale.x:.4f}"
         
         def load_tomogram(self): ...
     
@@ -926,8 +927,11 @@ class MTPropsWidget(MagicTemplate):
         """Choose a json file and load it."""        
         tomo = self.active_tomogram
         tomo.load_json(path)
+
+        self._last_ft_size = tomo.metadata.get("ft_size", self._last_ft_size)
+            
         self._update_splines_in_images()
-        self._load_tomogram_results()
+        self.Sample_subtomograms()
         return None
     
     @File.wraps
@@ -1068,7 +1072,28 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     def Sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
-        self._load_tomogram_results()
+        self._spline_fitter.close()
+        tomo = self.active_tomogram
+        spl = tomo.splines[0]
+        ori = spl.orientation
+        
+        # initialize GUI
+        self._init_widget_params()
+        self._init_layers()
+        self.layer_work.mode = "pan_zoom"
+        self.mt.mtlabel.max = tomo.n_splines - 1
+        
+        if spl.localprops is not None:
+            n_anc = len(spl.localprops)
+        elif spl._anchors is not None:
+            n_anc = len(spl._anchors)
+        else:
+            return
+        
+        self.mt.pos.max = n_anc - 1
+        
+        self.Profiles.orientation_choice = ori
+        self._update_mtpath()
         return None
     
     @Image.wraps
@@ -1331,7 +1356,7 @@ class MTPropsWidget(MagicTemplate):
                                )
         @worker.returned.connect
         def _on_return(df):
-            self._load_tomogram_results()
+            self.Sample_subtomograms()
         self._last_ft_size = ft_size
         self._worker_control.info = "Local Fourier transform ..."
         return worker
@@ -1446,7 +1471,6 @@ class MTPropsWidget(MagicTemplate):
         Map points to tubulin molecules using the results of global Fourier transformation.
         """
         tomo = self.active_tomogram
-        
         worker = create_worker(tomo.map_monomers,
                                _progress={"total": 0, "desc": "Running"}
                                )
@@ -1828,32 +1852,6 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    def _load_tomogram_results(self):
-        self._spline_fitter.close()
-        tomo = self.active_tomogram
-        spl = tomo.splines[0]
-        ori = spl.orientation
-        
-        # initialize GUI
-        self._init_widget_params()
-        self._init_layers()
-        self.layer_work.mode = "pan_zoom"
-        self.mt.mtlabel.max = tomo.n_splines - 1
-        
-        if spl.localprops is not None:
-            n_anc = len(spl.localprops)
-        elif spl._anchors is not None:
-            n_anc = len(spl._anchors)
-        else:
-            return
-        
-        self.mt.pos.max = n_anc - 1
-        
-        self.Profiles.orientation_choice = ori
-        self._update_mtpath()
-        
-        return None
-    
     def _init_widget_params(self):
         self.mt.mtlabel.value = 0
         self.mt.mtlabel.min = 0
@@ -1991,9 +1989,6 @@ class MTPropsWidget(MagicTemplate):
             i = 0
         spl = tomo.splines[i]
         
-        if self._last_ft_size is None:
-            raise ValueError("Local structural parameters have not been determined yet.")
-        
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
@@ -2016,14 +2011,20 @@ class MTPropsWidget(MagicTemplate):
             return None
         lz, ly, lx = np.array(proj.shape)
         
-        ylen = self._last_ft_size/2/binsize/tomo.scale
-        ymin, ymax = ly/2 - ylen, ly/2 + ylen
+        if self._last_ft_size is None:
+            ylen = 25/binsize/tomo.scale
+        else:
+            ylen = self._last_ft_size/2/binsize/tomo.scale
+        
+        # draw a square in YX-view
+        ymin, ymax = ly/2 - ylen - 0.5, ly/2 + ylen + 0.5
         r_px = spl.radius/tomo.scale/binsize
         r = r_px*GVar.outer
-        xmin, xmax = -r + lx/2, r + lx/2
+        xmin, xmax = -r + lx/2 - 0.5, r + lx/2 + 0.5
         self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
                                  [ymin, ymax, ymax, ymin, ymin], color="lime")
-    
+
+        # draw two circles in ZX-view
         theta = np.linspace(0, 2*np.pi, 360)
         r = r_px * GVar.inner
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
