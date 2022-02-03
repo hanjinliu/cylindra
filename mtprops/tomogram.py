@@ -847,6 +847,8 @@ class MtTomogram:
     def local_ft_params(self, i = None, ft_size: nm = 32.0) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
+        To determine the peaks upsampled discrete Fourier transformation is used
+        for every subtomogram.
 
         Parameters
         ----------
@@ -893,6 +895,44 @@ class MtTomogram:
         
         return spl.localprops
     
+    @batch_process
+    def local_cft(self, i = None, ft_size: nm = 32.0) -> ip.ImgArray:
+        """
+        Calculate non-upsampled local cylindric Fourier transormation along spline. 
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        ft_size : nm, default is 32.0
+            Length of subtomogram for calculation of local parameters.
+
+        Returns
+        -------
+        ip.ImgArray
+            FT images stacked along "p" axis.
+        """
+        spl = self.splines[i]
+        if spl.radius is None:
+            raise ValueError("Radius has not been determined yet.")
+        
+        ylen = self.nm2pixel(ft_size)
+        rmin = spl.radius*GVar.inner/self.scale
+        rmax = spl.radius*GVar.outer/self.scale
+        out: list[ip.ImgArray] = []
+        with no_verbose():
+            for anc in spl.anchors:
+                coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
+                coords = np.moveaxis(coords, -1, 0)
+                polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
+                polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
+                polar.set_scale(r=self.scale, y=self.scale, a=self.scale)
+                polar.scale_unit = self.image.scale_unit
+                polar -= np.mean(polar)
+                out.append(polar.fft(dims="rya"))
+        
+        return np.stack(out, axis="p")
+        
     @batch_process
     def global_ft_params(self, i = None) -> pd.Series:
         """

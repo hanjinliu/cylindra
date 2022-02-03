@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import lru_cache
 from typing import Callable, Iterable, TypedDict
 import warnings
 import numpy as np
@@ -822,7 +823,7 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
         coords[:, i] = slice_out + y
     return coords
 
-
+@lru_cache(maxsize=12)
 def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
     n_angle = roundint((r_start + r_stop) * np.pi)
     n_radius = roundint(r_stop - r_start)
