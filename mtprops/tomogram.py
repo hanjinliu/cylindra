@@ -965,6 +965,29 @@ class MtTomogram:
         
         spl.globalprops = series
         return series
+    
+    @batch_process
+    def global_cft(self, i = None) -> ip.ImgArray:
+        img_st: ip.ImgArray = self.cylindric_straighten(i)
+        img_st -= np.mean(img_st)
+        return img_st.fft(dims="rya")
+    
+    # @batch_process
+    # def get_offset(self, i = None):
+    #     img_st: ip.ImgArray = self.cylindric_straighten(i).proj("r")
+    #     img_st -= np.mean(img_st)
+    #     params = self.global_ft_params(i)
+    #     npf = int(params[H.nPF])
+    #     y_pitch = params[H.yPitch]
+    #     y_freq_px = 2.0/y_pitch*self.scale * img_st.shape.y
+    #     skew =params[H.skewAngle]
+    #     npfrange = ceilint(npf/2)
+    #     y_factor = abs(self.splines[i].radius/y_pitch/npf*img_st.shape.y/4)
+    #     dy_min = ceilint(tandg(skew)*y_factor) - 1
+    #     dy_max = max(ceilint(tandg(skew)*y_factor), dy_min+1)
+        
+    #     # around y peak
+    #     img_st.local_dft(f"y={y_freq_px-1}:{y_freq_px+2};a={npf}:{npf+1}", dims="rya")
 
     @batch_process
     def straighten(self, 
