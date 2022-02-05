@@ -343,7 +343,7 @@ def _extract_orthogonal(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 def _translate_euler(seq: str) -> str:
     table = str.maketrans({"x": "z", "z": "x", "X": "Z", "Z": "X"})
-    return seq.translate(table)
+    return seq[::-1].translate(table)
 
 def _vector_to_rotation_matrix(ds: np.ndarray):
     n = ds.shape[0]
