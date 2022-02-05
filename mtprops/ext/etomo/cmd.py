@@ -83,9 +83,9 @@ def save_angles(path: str, euler_angle: np.ndarray = None):
     """Save angle data for PEET subtomogram averaging."""
     euler_angle = np.asarray(euler_angle)
     size = euler_angle.shape[0]
-    z1 = euler_angle[:, 0]
-    x2 = euler_angle[:, 1]
-    z3 = euler_angle[:, 2]
+    z1 = -euler_angle[:, 0]
+    x2 = -euler_angle[:, 1]
+    z3 = -euler_angle[:, 2]
     
     columns = ["CCC", "reserved", "reserved", "pIndex", "wedgeWT", "NA", "NA", "NA", "NA",
                "NA", "xOffset", "yOffset", "zOffset", "NA", "NA", "reserved", "EulerZ(1)", 

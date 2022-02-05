@@ -85,7 +85,7 @@ class Molecules:
                    seq: str | EulerAxes = EulerAxes.ZXZ, degrees: bool = False):
         from scipy.spatial.transform import Rotation
         seq = _translate_euler(EulerAxes(seq).value)
-        rotator = Rotation.from_euler(seq, angles, degrees)
+        rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
         return cls(pos, rotator)
 
     def __len__(self) -> int:
@@ -166,7 +166,7 @@ class Molecules:
         """
         seq = EulerAxes(seq).value
         seq = _translate_euler(seq)
-        return self._rotator.as_euler(seq, degrees=degrees)
+        return self._rotator.as_euler(seq, degrees=degrees)[..., ::-1]
     
     
     def quaternion(self) -> np.ndarray:
@@ -297,7 +297,7 @@ class Molecules:
         """
         from scipy.spatial.transform import Rotation
         seq = _translate_euler(EulerAxes(seq).value)
-        rotator = Rotation.from_euler(seq, angles, degrees)
+        rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
         return self.rotate_by(rotator, copy)
     
     

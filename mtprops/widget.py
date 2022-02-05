@@ -2212,16 +2212,17 @@ def _read_angle(ang_path: str) -> np.ndarray:
         except ValueError:
             csv_data = csv.values
     elif "CCC" in csv.columns:
-        csv_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
+        csv_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
     else:
         raise ValueError(f"Could not interpret data format of {ang_path}:\n{csv.head(5)}")
     return csv_data
 
 
 def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
+    """Read offsets and angles from PEET project"""
     csv = pd.read_csv(path)
     if "CCC" in csv.columns:
-        ang_data = csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
+        ang_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
         shifts_data = csv[["zOffset", "yOffset", "xOffset"]].values
     else:
         ang_data = _read_angle(path)
