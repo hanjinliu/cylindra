@@ -27,7 +27,7 @@ from magicclass import (
     bind_key,
     build_help
     )
-from magicclass.widgets import TupleEdit, Separator, ListWidget, Table
+from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdit
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
 
@@ -73,6 +73,7 @@ from macrokit import register_type
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
 
 def run_worker_function(worker: Worker):
+    """Emulate worker execution."""
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("always")
@@ -89,6 +90,11 @@ def run_worker_function(worker: Worker):
 
 
 def dispatch_worker(f: Callable[[Any], Worker]) -> Callable[[Any], None]:
+    """
+    Open a progress bar and start worker in a parallel thread if function is called from GUI.
+    Otherwise (if function is called from script), the worker will be executed as if the 
+    function is directly called.
+    """
     @wraps(f)
     def wrapper(self: "MTPropsWidget", *args, **kwargs):
         worker = f(self, *args, **kwargs)
@@ -1716,25 +1722,31 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @set_options(start={"widget_type": TupleEdit, "options": {"step": 0.1}}, 
-                 end={"widget_type": TupleEdit, "options": {"step": 0.1}},
-                 limit={"widget_type": TupleEdit, "options": {"step": 0.02}, "label": "limit (nm)"})
-    def Set_colormap(self, start=(0.0, 0.0, 1.0), end=(1.0, 0.0, 0.0), limit=(4.00, 4.24)):
+    @set_options(start={"widget_type": ColorEdit},
+                 end={"widget_type": ColorEdit},
+                 limit={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
+                 color_by={"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]},
+                 auto_call=True)
+    def Set_colormap(self,
+                     start=(0, 0, 1, 1), 
+                     end=(1, 0, 0, 1), 
+                     limit=(4.00, 4.24), 
+                     color_by: str = H.yPitch):
         """
         Set the color-map for painting microtubules.
         
         Parameters
         ----------
-        start : tuple, default is (0.0, 0.0, 1.0)
+        start : tuple, default is "blue"
             RGB color that corresponds to the most compacted microtubule.
-        end : tuple, default is (1.0, 0.0, 0.0)
+        end : tuple, default is "red"
             RGB color that corresponds to the most expanded microtubule.
         limit : tuple, default is (4.00, 4.24)
             Color limit (nm).
         """        
-        self.label_colormap = Colormap([start+(1,), end+(1,)], name="PitchLength")
+        self.label_colormap = Colormap([start, end], name="PitchLength")
         self.label_colorlimit = limit
-        self._update_colormap()
+        self._update_colormap(prop=color_by)
         return None
     
     
