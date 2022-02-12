@@ -83,12 +83,14 @@ class Molecules:
     @classmethod
     def from_euler(cls, pos: np.ndarray, angles: np.ndarray, 
                    seq: str | EulerAxes = EulerAxes.ZXZ, degrees: bool = False):
+        """Create molecules from Euler angles."""
         from scipy.spatial.transform import Rotation
         seq = _translate_euler(EulerAxes(seq).value)
         rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
         return cls(pos, rotator)
 
     def __len__(self) -> int:
+        """Return the number of molecules."""
         return self._pos.shape[0]
     
     @property
@@ -125,6 +127,30 @@ class Molecules:
         
         from scipy.spatial.transform import Rotation
         return cls(all_pos, Rotation(all_quat))
+    
+    def subset(self, sl: slice | list[int] | np.ndarray) -> Molecules:
+        """
+        Create a subset of molecules by slicing.
+        
+        Any slicing supported in ``numpy.ndarray``, except for integer, can be used here.
+        Molecule positions and angles are sliced at the same time.
+
+        Parameters
+        ----------
+        sl : slice, list of int, or ndarray
+            Slicing key.
+
+        Returns
+        -------
+        Molecules
+            Molecule subset.
+        """
+        if isinstance(sl, int):
+            raise TypeError("Cannot create subset of molecules using an integer.")
+        pos = self.pos[sl]
+        quat = self._rotator.as_quat()[sl]
+        from scipy.spatial.transform import Rotation
+        return self.__class__(pos, Rotation(quat))
         
     def matrix(self) -> np.ndarray:
         """

@@ -7,7 +7,7 @@ import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
 from napari._qt.qthreading import GeneratorWorker, FunctionWorker
-from napari.layers import Points, Image, Labels
+from napari.layers import Points, Image, Labels, Vectors
 from pathlib import Path
 
 import impy as ip
@@ -52,6 +52,7 @@ WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
 MOLECULES = "Molecules"
+SOURCE = "Source"
 
 import magicgui
 from magicgui.widgets._bases import CategoricalWidget
@@ -356,12 +357,13 @@ class PEET(MagicTemplate):
         if shift_mol:
             mol.translate(shifts*self.scale, copy=False)
         
-        _add_molecules(self.parent_viewer, mol, "Molecules from PEET")
+        _add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
     
     @set_options(save_dir={"label": "Save at", "mode": "d"})
     def Save_monomers(self, 
                       save_dir: Path,
-                      layer: MonomerLayer):
+                      layer: MonomerLayer,
+                      save_protofilaments_separately: bool = False):
         """
         Save monomer angles in PEET format.
 
@@ -371,12 +373,23 @@ class PEET(MagicTemplate):
             Saving path.
         layer : Points
             Select the Vectors layer to save.
+        save_protofilaments_separately : bool, default is False
+            Check if you want to save monomers on each protofilament in separate files.
         """        
         save_dir = Path(save_dir)
         mol: Molecules = layer.metadata[MOLECULES]
         from .ext.etomo import save_mod, save_angles
-        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
-        save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
+        if save_protofilaments_separately:
+            spl: MtSpline = layer.metadata[SOURCE]
+            npf = roundint(spl.globalprops[H.nPF])
+            
+            for pf in range(npf):
+                sl = slice(pf, None, npf)
+                save_mod(save_dir/f"coordinates-PF{pf:0>2}.mod", mol.pos[sl, ::-1]/self.scale)
+                save_angles(save_dir/f"angles-PF{pf:0>2}.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True)[sl])
+        else:
+            save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
+            save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
         return None
     
     @set_options(save_dir={"label": "Save at", "mode": "d"})
@@ -402,6 +415,18 @@ class PEET(MagicTemplate):
     
     @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
     def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
+        """
+        Shift monomer coordinates in PEET format.
+
+        Parameters
+        ----------
+        ang_path : Path
+            Path of offset file.
+        layer : MonomerLayer
+            Points layer of target monomers.
+        update : bool, default is False
+            Check if update monomer coordinates in place.
+        """       
         mol: Molecules = layer.metadata[MOLECULES]
         shifts, angs = _read_shift_and_angle(ang_path)
         mol_shifted = mol.translate(shifts*self.scale)
@@ -425,7 +450,8 @@ class PEET(MagicTemplate):
                     )
             layer.metadata[MOLECULES] = mol_shifted
         else:
-            _add_molecules(self.parent_viewer, mol_shifted, "Molecules from PEET")
+            _add_molecules(self.parent_viewer, mol_shifted, 
+                           "Molecules from PEET", source=layer.metadata.get(SOURCE, None))
     
     @property
     def scale(self) -> float:
@@ -541,7 +567,7 @@ class MTPropsWidget(MagicTemplate):
         """Panels for output."""
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
         image2D = field(QtImageCanvas, options={"tooltip": "2-D image viewer."})
-        table = field(Table, name="Table", options={"tooltip": "Result table"})
+        table = field(Table, name="Table", options={"tooltip": "Result table"}, record=False)
     
     ### methods ###
         
@@ -694,15 +720,17 @@ class MTPropsWidget(MagicTemplate):
     @_runner.wraps
     @set_design(text="Run")
     @dispatch_worker
-    def run_mtprops(self,
-                    interval: Bound(_runner.params2.interval),
-                    ft_size: Bound(_runner.params2.ft_size),
-                    n_refine: Bound(_runner.n_refine),
-                    dense_mode: Bound(_runner.dense_mode),
-                    dense_mode_sigma: Bound(_runner.params1.dense_mode_sigma),
-                    local_props: Bound(_runner.local_props),
-                    global_props: Bound(_runner.global_props),
-                    paint: Bound(_runner.params2.paint)):
+    def run_mtprops(
+        self,
+        interval: Bound(_runner.params2.interval),
+        ft_size: Bound(_runner.params2.ft_size),
+        n_refine: Bound(_runner.n_refine),
+        dense_mode: Bound(_runner.dense_mode),
+        dense_mode_sigma: Bound(_runner.params1.dense_mode_sigma),
+        local_props: Bound(_runner.local_props),
+        global_props: Bound(_runner.global_props),
+        paint: Bound(_runner.params2.paint)
+    ):
         """Run MTProps"""
         self._runner.close()
         if self.layer_work.data.size > 0:
@@ -1470,13 +1498,15 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     @Analysis.wraps
+    @set_options(step={"min": 1, "max": 10})
     @dispatch_worker
-    def Map_monomers(self):
+    def Map_monomers(self, length: nm = 0.0, step: int = 1):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
         """
         tomo = self.active_tomogram
         worker = create_worker(tomo.map_monomers,
+                               length=length,
                                _progress={"total": 0, "desc": "Running"}
                                )
         
@@ -1485,7 +1515,11 @@ class MTPropsWidget(MagicTemplate):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
                 mol = spl.cylindrical_to_world_vector(coords.spline)
-                _add_molecules(self.parent_viewer, mol, f"Monomers-{i}")
+                if step > 1:
+                    npf = roundint(spl.globalprops[H.nPF])
+                    _mol_spec = ((np.arange(len(mol)) // npf) % step) == 0
+                    mol = mol.subset(_mol_spec)
+                _add_molecules(self.parent_viewer, mol, f"Monomers-{i}", source=spl)
                 
         self._worker_control.info = "Monomer mapping ..."
         return worker
@@ -1493,8 +1527,16 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.wraps
     @set_options(auto_call=True, 
                  y_offset={"widget_type": "FloatSlider", "max": 5, "step": 0.1, "label": "y offset (nm)"},
-                 theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"})
-    def Map_monomers_manually(self, i: Bound(mt.mtlabel), y_offset: nm = 0, theta_offset: float = 0):
+                 theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"},
+                 step={"min": 1, "max": 10})
+    def Map_monomers_manually(
+        self, 
+        i: Bound(mt.mtlabel),
+        y_offset: nm = 0, 
+        theta_offset: float = 0,
+        length: nm = 0.0, 
+        step: int = 1
+    ):
         """
         Map points to monomer molecules with parameter sweeping.
 
@@ -1510,9 +1552,15 @@ class MTPropsWidget(MagicTemplate):
         theta_offset = np.deg2rad(theta_offset)
         tomo = self.active_tomogram
         tomo.global_ft_params(i)
-        coords = tomo.map_monomers(i, offsets=(y_offset, theta_offset))
+        coords = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
         spl = tomo.splines[i]
         mol = spl.cylindrical_to_world_vector(coords.spline)
+        
+        if step > 1:
+            npf = roundint(spl.globalprops[H.nPF])
+            _mol_spec = ((np.arange(len(mol)) // npf) % step) == 0
+            mol = mol.subset(_mol_spec)
+        
         viewer = self.parent_viewer
         layer_name = f"Monomers-{i}"
         if layer_name not in viewer.layers:
@@ -1528,9 +1576,11 @@ class MTPropsWidget(MagicTemplate):
                 name=layer_name + " Z-axis",
                 )
         
-        points_layer = viewer.layers[layer_name]
-        points_layer.data = coords.world
-        vector_layer = viewer.layers[layer_name + " Z-axis"]
+        points_layer: Points = viewer.layers[layer_name]
+        points_layer.data = mol.pos
+        points_layer.selected_data = set()
+        points_layer.metadata[SOURCE] = mol
+        vector_layer: Vectors = viewer.layers[layer_name + " Z-axis"]
         vector_layer.data = np.stack([mol.pos, mol.z], axis=1)
         
     @toolbar.wraps
@@ -2192,10 +2242,13 @@ def _iter_run(tomo: MtTomogram,
     yield "Finishing ..."
     return tomo
 
-def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name):
+def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name, source: MtSpline = None):
+    metadata ={MOLECULES: mol}
+    if source is not None:
+        metadata.update({SOURCE: source})
     points_layer = viewer.add_points(
         mol.pos, size=3, face_color="lime", edge_color="lime",
-        n_dimensional=True, name=name, metadata={MOLECULES: mol}
+        n_dimensional=True, name=name, metadata=metadata
         )
     
     points_layer.shading = "spherical"
@@ -2231,7 +2284,7 @@ def _read_angle(ang_path: str) -> np.ndarray:
 
 def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
     """Read offsets and angles from PEET project"""
-    csv = pd.read_csv(path)
+    csv: pd.DataFrame = pd.read_csv(path)
     if "CCC" in csv.columns:
         ang_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
         shifts_data = csv[["zOffset", "yOffset", "xOffset"]].values

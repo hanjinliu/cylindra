@@ -1551,7 +1551,7 @@ class MtTomogram:
         """
         spl = self._splines[i]
         
-        if length is None:
+        if length is None or length == 0:
             length = spl.length()
             
         # Get structural parameters
