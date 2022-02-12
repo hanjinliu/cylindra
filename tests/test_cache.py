@@ -46,7 +46,7 @@ def test_cache_in_tomogram():
     assert spl.cart_stimg is None
     assert spl.cyl_stimg is None
     tomo.measure_radius(0)
-    tomo.cylindric_straighten(0)
+    tomo.straighten_cylindric(0)
     
     assert spl.cart_stimg is None
     assert spl.cyl_stimg is not None

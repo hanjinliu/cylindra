@@ -1,7 +1,6 @@
-from __future__ import annotations
 from functools import wraps
 import pandas as pd
-from typing import Any, Callable, Iterable, NewType, Union
+from typing import Any, Callable, Iterable, NewType, Union, Tuple, List
 import numpy as np
 import warnings
 import napari
@@ -61,7 +60,7 @@ from napari.utils._magicgui import find_viewer_ancestor
 MonomerLayer = NewType("MonomerLayer", Points)
 Worker = Union[FunctionWorker, GeneratorWorker]
 
-def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
+def get_monomer_layers(gui: CategoricalWidget) -> List[Points]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
@@ -218,7 +217,7 @@ class SplineFitter(MagicTemplate):
     
     
     def __post_init__(self):
-        self.shifts: list[np.ndarray] = None
+        self.shifts: List[np.ndarray] = None
         self.canvas.min_height = 160
         self.fit_done = True
         self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
@@ -793,7 +792,7 @@ class MTPropsWidget(MagicTemplate):
                          splError: nm = GVar.splError,
                          inner: float = GVar.inner,
                          outer: float = GVar.outer,
-                         daskChunk: tuple[int, int, int] = GVar.daskChunk):
+                         daskChunk: Tuple[int, int, int] = GVar.daskChunk):
         """
         Set global variables.
 
@@ -1149,7 +1148,7 @@ class MTPropsWidget(MagicTemplate):
         """Show radial projection of cylindrical image along current MT."""        
         i = self.mt.mtlabel.value
         with no_verbose():
-            polar = self.active_tomogram.cylindric_straighten(i).proj("r")
+            polar = self.active_tomogram.straighten_cylindric(i).proj("r")
         self.Panels.image2D.image = polar.value
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         # move to center
@@ -1182,7 +1181,7 @@ class MTPropsWidget(MagicTemplate):
     def show_global_ft(self, i: Bound(mt.mtlabel)):
         """View Fourier space along current MT."""  
         with no_verbose():
-            polar = self.active_tomogram.cylindric_straighten(i)
+            polar = self.active_tomogram.straighten_cylindric(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             
@@ -1380,7 +1379,7 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    def _globalprops_to_table(self, out: list[pd.Series]):
+    def _globalprops_to_table(self, out: List[pd.Series]):
         df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
         self.Panels.table.value = df
         self.Panels.current_index = 2
@@ -1452,7 +1451,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         tomo = self.active_tomogram
         
-        worker = create_worker(tomo.cylindric_reconstruct, 
+        worker = create_worker(tomo.reconstruct_cylindric, 
                                i=i,
                                rot_ave=rot_ave, 
                                seam_offset="find" if find_seam else None,
@@ -1482,7 +1481,7 @@ class MTPropsWidget(MagicTemplate):
                                )
         
         @worker.returned.connect
-        def _on_return(out: list[Coordinates]):
+        def _on_return(out: List[Coordinates]):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
                 mol = spl.cylindrical_to_world_vector(coords.spline)
@@ -1623,7 +1622,7 @@ class MTPropsWidget(MagicTemplate):
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
-        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
+        color: dict[int, List[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         tomo = self.active_tomogram
         ft_size = self._last_ft_size
@@ -2071,7 +2070,7 @@ class MTPropsWidget(MagicTemplate):
         
         # Rotational average should be calculated using local nPF if possible.
         # If not available, use global nPF
-        projections: list[Projections] = []
+        projections: List[Projections] = []
         if spl.localprops is not None:
             npf_list = spl.localprops[H.nPF]
         elif spl.globalprops is not None:
@@ -2230,7 +2229,7 @@ def _read_angle(ang_path: str) -> np.ndarray:
     return csv_data
 
 
-def _read_shift_and_angle(path: str) -> tuple[np.ndarray | None, np.ndarray]:
+def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
     """Read offsets and angles from PEET project"""
     csv = pd.read_csv(path)
     if "CCC" in csv.columns:

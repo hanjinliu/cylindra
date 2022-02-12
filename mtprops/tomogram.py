@@ -1008,15 +1008,8 @@ class MtTomogram:
         if spl.globalprops is not None:
             return spl.globalprops
         
-        img_st = self.cylindric_straighten(i)
-        results = _local_dft_params(img_st, spl.radius)
-        series = pd.Series([], dtype=np.float32)
-        series[H.riseAngle] = results[0]
-        series[H.yPitch] = results[1]
-        series[H.skewAngle] = results[2]
-        series[H.nPF] = np.round(results[3])
-        series[H.start] = results[4]
-        
+        img_st = self.straighten_cylindric(i)
+        series = _local_dft_params_pd(img_st, spl.radius)
         spl.globalprops = series
         return series
     
@@ -1036,7 +1029,7 @@ class MtTomogram:
         ip.ImgArray
             Complex image.
         """
-        img_st: ip.ImgArray = self.cylindric_straighten(i)
+        img_st: ip.ImgArray = self.straighten_cylindric(i)
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
     
@@ -1063,7 +1056,7 @@ class MtTomogram:
                    *,
                    size: nm | tuple[nm, nm] = None,
                    range_: tuple[float, float] = (0.0, 1.0), 
-                   chunkwise: bool = True) -> ip.ImgArray:
+                   chunk_length: nm = 72.0) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -1076,9 +1069,9 @@ class MtTomogram:
             Vertical/horizontal box size.
         range_ : tuple[float, float], default is (0.0, 1.0)
             Range of spline domain.
-        chunkwise : bool, default is True
-            If True, spline is first split into chunks and all the straightened images are
-            concatenated afterward, in order to avoid loading entire image into memory.
+        chunk_length : nm, default is 72.0
+            If spline is longer than this, it will be first split into chunks, straightened respectively and
+            all the straightened images are concatenated afterward, to avoid loading entire image into memory.
 
         Returns
         -------
@@ -1089,14 +1082,13 @@ class MtTomogram:
         spl = self.splines[i]
         if try_cache and spl.cart_stimg is not None:
             return spl.cart_stimg
-            
-        chunk_length: nm = 72.0
+        
         length = self._splines[i].length(nknots=512)
         
-        if chunkwise and length > chunk_length:
+        if length > chunk_length:
             transformed = self._chunked_straighten(
-                i, length, range_,
-                self.straighten, size=size
+                i, length, range_, function=self.straighten, 
+                chunk_length=chunk_length, size=size
             )
             
         else:
@@ -1125,12 +1117,12 @@ class MtTomogram:
         return transformed
 
     @batch_process
-    def cylindric_straighten(self, 
+    def straighten_cylindric(self, 
                              i = None, 
                              *,
                              radii: tuple[nm, nm] = None,
                              range_: tuple[float, float] = (0.0, 1.0), 
-                             chunkwise: bool = True) -> ip.ImgArray:
+                             chunk_length: nm = 72.0) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -1143,9 +1135,9 @@ class MtTomogram:
             Lower/upper limit of radius.
         range_ : tuple[float, float], default is (0.0, 1.0)
             Range of spline domain.
-        chunkwise : bool, default is True
-            If True, spline is first split into chunks and all the straightened images are
-            concatenated afterward, in order to avoid loading entire image into memory.
+        chunk_length : nm, default is 72.0
+            If spline is longer than this, it will be first split into chunks, straightened respectively and
+            all the straightened images are concatenated afterward, to avoid loading entire image into memory.
 
         Returns
         -------
@@ -1160,15 +1152,13 @@ class MtTomogram:
         
         if try_cache and spl.cyl_stimg is not None:
             return spl.cyl_stimg
-            
-        chunk_length: nm = 72.0
+        
         length = self._splines[i].length(nknots=512)
         
-        if chunkwise and length > chunk_length:
+        if length > chunk_length:
             transformed = self._chunked_straighten(
-                i, length, range_, 
-                function=self.cylindric_straighten,
-                radii=radii
+                i, length, range_, function=self.straighten_cylindric, 
+                chunk_length=chunk_length, radii=radii
                 )
             
         else:
@@ -1198,10 +1188,9 @@ class MtTomogram:
         return transformed
     
     def _chunked_straighten(self, i: int, length: nm, range_: tuple[float, float],
-                            function: Callable, **kwargs):
+                            function: Callable, chunk_length: nm = 72.0, **kwargs):
         out = []
         current_distance: nm = 0.0
-        chunk_length: nm = 72.0
         start, end = range_
         spl = self.splines[i]
         while current_distance < length:
@@ -1217,7 +1206,7 @@ class MtTomogram:
                 break
             
             sub_range = (start, min(stop, end))
-            img_st = function(i, range_=sub_range, chunkwise=False, **kwargs)
+            img_st = function(i, range_=sub_range, chunk_length=np.inf, **kwargs)
             
             out.append(img_st)
             
@@ -1394,7 +1383,7 @@ class MtTomogram:
         return out
     
     @batch_process
-    def cylindric_reconstruct(self, 
+    def reconstruct_cylindric(self, 
                               i = None,
                               *,
                               rot_ave: bool = False, 
@@ -1420,7 +1409,7 @@ class MtTomogram:
             Reconstructed image.
         """        
         # Cartesian transformation along spline.
-        img_open = self.cylindric_straighten(i, radii=radii)
+        img_open = self.straighten_cylindric(i, radii=radii)
         scale = img_open.scale.y
         total_length: nm = img_open.shape.y*scale
         
@@ -1534,11 +1523,13 @@ class MtTomogram:
         return np.concatenate(outlist, axis="y")
     
     @batch_process
-    def map_monomers(self, 
-                     i = None,
-                     *, 
-                     length: nm | None = None,
-                     offsets: tuple[nm, float] = None) -> Coordinates:
+    def map_monomers(
+        self, 
+        i = None,
+        *, 
+        length: nm | None = None,
+        offsets: tuple[nm, float] = None
+    ) -> Coordinates:
         """
         Map coordinates of monomers in world coordinate.
 
@@ -1560,7 +1551,6 @@ class MtTomogram:
         """
         spl = self._splines[i]
         
-        # dispatch input
         if length is None:
             length = spl.length()
             
@@ -1586,7 +1576,7 @@ class MtTomogram:
         
         if offsets is None:
             # Calculate reconstruction in cylindric coodinate system
-            rec_cyl_3d: ip.ImgArray = self.cylindric_reconstruct(i, rot_ave=True, y_length=0)
+            rec_cyl_3d: ip.ImgArray = self.reconstruct_cylindric(i, rot_ave=True, y_length=0)
             sigma = rec_cyl_3d.shape.y/8
             rec_cyl_3d.value[:] = ndi.gaussian_filter(rec_cyl_3d.value, sigma=sigma, mode=Mode.grid_wrap)
             rec_cyl = rec_cyl_3d.proj("r")
@@ -1625,7 +1615,7 @@ class MtTomogram:
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         npf = int(props[H.nPF])
-        imgst = self.cylindric_straighten(i).proj("r")
+        imgst = self.straighten_cylindric(i).proj("r")
         tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
         with no_verbose():
             img_shear = imgst.affine(np.array([[1, 0, 0], [tilt, 1, 0], [0, 0, 1]]), 
@@ -1700,7 +1690,7 @@ class MtTomogram:
         float
             Angle offset of seam in degree.
         """   
-        rec = self.cylindric_reconstruct(i, y_length=0)
+        rec = self.reconstruct_cylindric(i, y_length=0)
         return self._find_seam_offset(i, rec)
 
     
@@ -1831,7 +1821,16 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
                      amaxp_f/up_a,
                      abs(start)], 
                     dtype=np.float32)
-    
+
+def _local_dft_params_pd(img: ip.ImgArray, radius: nm):
+    results = _local_dft_params(img, radius)
+    series = pd.Series([], dtype=np.float32)
+    series[H.riseAngle] = results[0]
+    series[H.yPitch] = results[1]
+    series[H.skewAngle] = results[2]
+    series[H.nPF] = np.round(results[3])
+    series[H.start] = results[4]
+    return series
 
 def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm):
     polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)

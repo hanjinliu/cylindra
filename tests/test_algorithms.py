@@ -1,4 +1,5 @@
 from mtprops import start, MtTomogram
+from mtprops.utils import no_verbose
 from mtprops.const import H
 from pathlib import Path
 import napari
@@ -49,6 +50,32 @@ def test_run_all():
                                 layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",
                            layer=viewer.layers['Monomers-0'], rotation_axes="ZXZ", in_degree=True, separator=",")
+
+def test_chunked_straightening():
+    path = Path(__file__).parent / "14pf_MT.tif"
+    tomo = MtTomogram.imread(path, light_background=False)
+    
+    # the length of spline is ~80 nm
+    tomo.add_spline(np.array([[21.97, 123.1, 32.98],
+                              [21.97, 83.3, 40.5],
+                              [21.97, 17.6, 64.96]]))
+    tomo.fit()
+    tomo.refine()
+    tomo.make_anchors(n=3)
+    tomo.measure_radius()
+    
+    st0 = tomo.straighten_cylindric(i=0, chunk_length=200) 
+    st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
+    
+    from mtprops.tomogram import _local_dft_params_pd
+    
+    spl = tomo.splines[0]
+    with no_verbose():
+        prop0 = _local_dft_params_pd(st0, spl.radius)
+        prop1 = _local_dft_params_pd(st1, spl.radius)
+    
+    assert abs(prop0[H.yPitch] - prop1[H.yPitch]) < 1e-6
+    assert abs(prop0[H.skewAngle] - prop1[H.skewAngle]) < 1e-6
     
 
 def test_result_io():
