@@ -1,7 +1,7 @@
+from __future__ import annotations
 from functools import wraps
 import pandas as pd
-from typing import Any, Callable, Iterable, NewType, Union, Tuple, List
-import os
+from typing import Any, Callable, Iterable, NewType, Union
 import numpy as np
 import warnings
 import napari
@@ -61,7 +61,7 @@ from napari.utils._magicgui import find_viewer_ancestor
 MonomerLayer = NewType("MonomerLayer", Points)
 Worker = Union[FunctionWorker, GeneratorWorker]
 
-def get_monomer_layers(gui: CategoricalWidget) -> List[Points]:
+def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
@@ -218,7 +218,7 @@ class SplineFitter(MagicTemplate):
     
     
     def __post_init__(self):
-        self.shifts: List[np.ndarray] = None
+        self.shifts: list[np.ndarray] = None
         self.canvas.min_height = 160
         self.fit_done = True
         self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
@@ -793,7 +793,7 @@ class MTPropsWidget(MagicTemplate):
                          splError: nm = GVar.splError,
                          inner: float = GVar.inner,
                          outer: float = GVar.outer,
-                         daskChunk: Tuple[int, int, int] = GVar.daskChunk):
+                         daskChunk: tuple[int, int, int] = GVar.daskChunk):
         """
         Set global variables.
 
@@ -1380,7 +1380,7 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    def _globalprops_to_table(self, out: List[pd.Series]):
+    def _globalprops_to_table(self, out: list[pd.Series]):
         df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
         self.Panels.table.value = df
         self.Panels.current_index = 2
@@ -1482,7 +1482,7 @@ class MTPropsWidget(MagicTemplate):
                                )
         
         @worker.returned.connect
-        def _on_return(out: List[Coordinates]):
+        def _on_return(out: list[Coordinates]):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
                 mol = spl.cylindrical_to_world_vector(coords.spline)
@@ -1623,7 +1623,7 @@ class MTPropsWidget(MagicTemplate):
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
-        color: dict[int, List[float]] = {0: [0, 0, 0, 0]}
+        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         tomo = self.active_tomogram
         ft_size = self._last_ft_size
@@ -2071,7 +2071,7 @@ class MTPropsWidget(MagicTemplate):
         
         # Rotational average should be calculated using local nPF if possible.
         # If not available, use global nPF
-        projections: List[Projections] = []
+        projections: list[Projections] = []
         if spl.localprops is not None:
             npf_list = spl.localprops[H.nPF]
         elif spl.globalprops is not None:
@@ -2230,7 +2230,7 @@ def _read_angle(ang_path: str) -> np.ndarray:
     return csv_data
 
 
-def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
+def _read_shift_and_angle(path: str) -> tuple[np.ndarray | None, np.ndarray]:
     """Read offsets and angles from PEET project"""
     csv = pd.read_csv(path)
     if "CCC" in csv.columns:
