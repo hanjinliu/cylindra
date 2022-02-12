@@ -1,5 +1,12 @@
 from __future__ import annotations
-from typing import Callable, Iterable, Any, NamedTuple
+
+import sys
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpecKwargs
+else:
+    from typing import ParamSpecKwargs
+    
+from typing import Callable, Iterable, Any, NamedTuple, TypeVar, overload, Protocol
 import json
 from functools import partial, wraps
 import numpy as np
@@ -43,8 +50,34 @@ def tandg(x):
     """Tangent in degree."""
     return np.tan(np.deg2rad(x))
 
-def batch_process(func: Callable):
+_KW = ParamSpecKwargs("_KW")
+_RETURN = TypeVar("_RETURN")
+
+class BatchCallable(Protocol[_RETURN]):
+    """
+    This protocol enables static type checking of methods decorated with ``@batch_process``.
+    The parameter specifier ``_KW`` does not add any information but currently there is not 
+    quick solution.
+    """
+    @overload
+    def __call__(self, **kwargs: _KW) -> list[_RETURN]:
+        ...
+        
+    @overload
+    def __call__(self, i: int, **kwargs: _KW) -> _RETURN:
+        ...
+        
+    @overload
+    def __call__(self, i: Iterable[int] | None, **kwargs: _KW) -> list[_RETURN]:
+        ...
+
+    def __call__(self, i, **kwargs):
+        ...
+
+
+def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCallable[_RETURN]:
     """Enable running function for every splines."""
+    
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
@@ -84,9 +117,11 @@ def batch_process(func: Callable):
                     out.append(result)
             
         return out
+
     return _func  
 
-def json_encoder(obj):
+
+def json_encoder(obj: Any):
     """Enable Enum and pandas encoding."""
     if isinstance(obj, Ori):
         return obj.name
@@ -277,11 +312,13 @@ class MtTomogram:
         return None
     
     
-    def clear_cache(self, loc: bool = True, glob: bool = True):
+    def clear_cache(self, loc: bool = True, glob: bool = True) -> None:
+        """Clear caches of registered splines."""
         for spl in self.splines:
             spl.clear_cache(loc, glob)
+        return None
     
-    def save_json(self, path: str):
+    def save_json(self, path: str) -> None:
         """
         Save splines with its local properties as a json file.
 
@@ -341,7 +378,7 @@ class MtTomogram:
         return self
     
     
-    def add_spline(self, coords: ArrayLike):
+    def add_spline(self, coords: ArrayLike) -> None:
         """
         Add MtSpline path to tomogram.
 
@@ -365,8 +402,15 @@ class MtTomogram:
         self._splines.append(spl)
         return None
     
+    @overload
+    def nm2pixel(self, value: nm) -> int:
+        ...
+        
+    @overload
+    def nm2pixel(self, value: Iterable[nm]) -> np.ndarray:
+        ...
     
-    def nm2pixel(self, value: Iterable[nm] | nm) -> np.ndarray | int:
+    def nm2pixel(self, value):
         """
         Convert nm float value into pixel value. Useful for conversion from 
         coordinate to pixel position.
@@ -382,14 +426,19 @@ class MtTomogram:
         return pix
     
     @batch_process
-    def make_anchors(self, i = None, interval: nm = None, n: int = None, max_interval: nm = None):
+    def make_anchors(self, i = None, *, interval: nm = None, n: int = None, max_interval: nm = None):
         """
         Make anchors on MtSpline object(s).
 
         Parameters
         ----------
-        interval : nm
+        interval : nm, optional
             Anchor intervals.
+        n : int, optional
+            Number of anchors
+        max_interval : nm, optional
+            Maximum interval between anchors.
+        
         """        
         if interval is None and n is None:
             interval = 24.0
@@ -481,9 +530,12 @@ class MtTomogram:
         return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
     
     
-    def summerize_localprops(self, i: int | Iterable[int] = None, 
-                             by: str | list[str] = "SplineID", 
-                             functions: Callable|list[Callable] = None) -> pd.DataFrame:
+    def summerize_localprops(
+        self, 
+        i: int | Iterable[int] = None, 
+        by: str | list[str] = "SplineID", 
+        functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
+    ) -> pd.DataFrame:
         """
         Simple summerize of local properties.
         """
@@ -496,7 +548,7 @@ class MtTomogram:
         return df.groupby(by=by).agg(functions)
     
     
-    def collect_radii(self, i: int|Iterable[int] = None) -> np.ndarray:
+    def collect_radii(self, i: int | Iterable[int] = None) -> np.ndarray:
         """
         Collect all the radius into a single array.
 
@@ -517,9 +569,11 @@ class MtTomogram:
         return np.array([self._splines[i_].radius for i_ in i])
     
     
-    def _sample_subtomograms(self, 
-                             i: int,
-                             rotate: bool = True) -> ip.ImgArray:
+    def _sample_subtomograms(
+        self, 
+        i: int,
+        rotate: bool = True
+    ) -> ip.ImgArray:
         spl = self._splines[i]
         length_px = self.nm2pixel(self.subtomo_length)
         width_px = self.nm2pixel(self.subtomo_width)
@@ -968,6 +1022,20 @@ class MtTomogram:
     
     @batch_process
     def global_cft(self, i = None) -> ip.ImgArray:
+        """
+        Calculate global cylindrical fast Fourier tranformation.
+        
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        
+        
+        Returns
+        -------
+        ip.ImgArray
+            Complex image.
+        """
         img_st: ip.ImgArray = self.cylindric_straighten(i)
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
@@ -1470,7 +1538,6 @@ class MtTomogram:
                      i = None,
                      *, 
                      length: nm | None = None,
-                     ranges: tuple[int, int] = None,
                      offsets: tuple[nm, float] = None) -> Coordinates:
         """
         Map coordinates of monomers in world coordinate.
@@ -1482,9 +1549,6 @@ class MtTomogram:
         length : nm, optional
             If given, only map monomer coordinates in this length of range from the starting 
             point of spline. Cannot use this if ``ranges`` is set.
-        ranges : tuple of int, optional
-            If given, only map monomer coordinates in this range. (0, 1) corresponds to the
-            full range. Cannot use this if ``length`` is set.
         offsets : tuple of float, optional
             The offset of origin of oblique coordinate system to map monomers. If not given
             this parameter will be determined by cylindric reconstruction.
@@ -1497,14 +1561,8 @@ class MtTomogram:
         spl = self._splines[i]
         
         # dispatch input
-        if ranges is not None and length is not None:
-            raise TypeError("Cannot specify both 'ranges' and 'length'.")
-        elif length is None:
-            if ranges is None:
-                ranges = (0, 1)
-            length = spl.length(*ranges)
-        else:
-            length = min(spl.length(), length)
+        if length is None:
+            length = spl.length()
             
         # Get structural parameters
         props = self.global_ft_params(i)
