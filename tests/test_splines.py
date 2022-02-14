@@ -100,10 +100,30 @@ def test_invert():
     spl_inv = spl.invert()
     spl_inv_inv = spl_inv.invert()
     
+    assert_allclose(spl_inv._lims, (1, 0))
+    assert_allclose(spl_inv_inv._lims, (0, 1))
+    
     assert_allclose(spl(), spl_inv()[::-1])
     assert_allclose(spl(der=1), -spl_inv(der=1)[::-1])
+    assert_allclose(spl(der=2), spl_inv(der=2)[::-1])
+    assert_allclose(spl(der=3), -spl_inv(der=3)[::-1])
     
     assert_allclose(spl(), spl_inv_inv())
     assert_allclose(spl(der=1), spl_inv_inv(der=1))
     assert_allclose(spl(der=2), spl_inv_inv(der=2))
+    assert_allclose(spl(der=3), spl_inv_inv(der=3))
+
+def test_clip():
+    spl = Spline3D()
+    coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
+    spl.fit(coords)
+    spl_c0 = spl.clip(0.2, 0.7)
+    spl_c1 = spl_c0.clip(0.6, 0.4)
+    
+    assert_allclose(spl_c0._lims, (0.2, 0.7))
+    assert_allclose(spl_c1._lims, (0.5, 0.4))
+    
+    assert_allclose(spl([0.2, 0.5, 0.7]), spl_c0([0.0, 0.6, 1.0]))
+    assert_allclose(spl_c0([0.4, 0.5, 0.6]), spl_c1([1.0, 0.5, 0.0]))
+    assert_allclose(spl([0.4, 0.45, 0.5]), spl_c1([1.0, 0.5, 0.0]))
     

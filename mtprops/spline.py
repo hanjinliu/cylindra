@@ -44,12 +44,18 @@ class Spline3D:
     # is changed.
     _local_cache: tuple[str] = ()
     
-    def __init__(self, scale: float = 1.0, k: int = 3):
+    def __init__(self, scale: float = 1.0, k: int = 3, lims: tuple[float, float] = (0, 1)):
         self._tck = None
         self._u = None
         self.scale = scale
         self._k = k
         self._anchors = None
+        
+        # check lims
+        _min, _max = lims
+        if _min < 0 or _max > 1:
+            raise ValueError(f"'lims' must fit in range of [0, 1] but got {list(lims)!r}.")
+        self._lims = lims
     
     def copy(self, copy_cache: bool = True) -> Spline3D:
         """
@@ -65,10 +71,10 @@ class Spline3D:
         Spline3D
             Copied object.
         """
-        new = self.__class__(self.scale, self.k)
+        new = self.__class__(self.scale, self.k, lims=self._lims)
         new._tck = self._tck
         new._u = self._u
-        self._anchors = self._anchors
+        new._anchors = self._anchors
         
         if copy_cache:
             for name in self._global_cache + self._local_cache:
@@ -183,10 +189,19 @@ class Spline3D:
     
 
     def __len__(self) -> int:
+        # TODO: this method should be deleted. Check if it is ready to be deleted.
         if self._anchors is None:
             return 0
         else:
             return self._anchors.size
+    
+    def clip(self, start: float, stop: float) -> Spline3D:
+        u0 = _linear_conversion(start, *self._lims)
+        u1 = _linear_conversion(stop, *self._lims)
+        new = self.__class__(self.scale, self.k, lims=(u0, u1))
+        new._tck = self._tck
+        new._u = self._u
+        return new
     
 
     def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline3D:
@@ -279,13 +294,19 @@ class Spline3D:
         """        
         if u is None:
             u = self.anchors
+        u0, u1 = self._lims
         if np.isscalar(u):
-            coord = splev([u], self._tck, der=der)
-            return np.concatenate(coord).astype(np.float32)
+            u_tr = _linear_conversion(np.array([u]), u0, u1)
+            coord = splev(u_tr, self._tck, der=der)
+            out = np.concatenate(coord).astype(np.float32)
         else:
-            coords = splev(u, self._tck, der=der)
-            return np.stack(coords, axis=1).astype(np.float32)
-
+            u_tr = _linear_conversion(np.asarray(u), u0, u1)
+            coords = splev(u_tr, self._tck, der=der)
+            out = np.stack(coords, axis=1).astype(np.float32)
+        
+        if u0 > u1 and der % 2 == 1:
+            out = -out
+        return out
 
     def partition(self, n: int, der: int = 0):
         u = np.linspace(0, 1, n)
@@ -298,7 +319,8 @@ class Spline3D:
         the spline with 'nknots' knots. nknots=256 is large enough for most cases.
         """
         u = np.linspace(start, stop, nknots)
-        dz, dy, dx = map(np.diff, splev(u, self._tck, der=0))
+        u_tr = _linear_conversion(u, *self._lims)
+        dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
 
     def invert(self) -> Spline3D:
@@ -311,11 +333,7 @@ class Spline3D:
             Inverted object
         """
         anchors = self.anchors
-        inverted = self.copy()
-        inverted._u = 1.0 - inverted._u[::-1]
-        old_tck = inverted.tck
-        new_c = [c[::-1] for c in old_tck[1]]
-        inverted._tck = (old_tck[0], new_c, old_tck[2])
+        inverted = self.clip(1., 0.)
         inverted.anchors = 1 - anchors[::-1]
         return inverted
     
@@ -758,8 +776,9 @@ class Spline3D:
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
-    
-        
+
+def _linear_conversion(u, start: float, stop: float):
+    return (1 - u) * start + u * stop
 
 _V = slice(None) # vertical dimension
 _S = slice(None) # longitudinal dimension along spline curve

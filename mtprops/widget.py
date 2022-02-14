@@ -158,7 +158,7 @@ class SplineFitter(MagicTemplate):
     class mt(MagicTemplate):
         """MT sub-regions"""
         mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT"}, 
-                        name="MTLabel", record=False)
+                        name="Spline No.", record=False)
         pos = field(int, options={"max": 0, "tooltip": "Position in a MT"},
                     name="Pos", record=False)
         def Fit(self): ...
@@ -473,11 +473,12 @@ class MTPropsWidget(MagicTemplate):
         """File I/O."""  
         def Open_image(self): ...
         def Load_json(self): ...
+        sep0 = field(Separator)
         def Save_results_as_json(self): ...
         def Save_results_as_csv(self): ...
         def Save_monomer_coordinates(self): ...
         def Save_monomer_angles(self): ...
-        sep0 = field(Separator)
+        sep1 = field(Separator)
         PEET = PEET
 
     @magicmenu
@@ -550,7 +551,7 @@ class MTPropsWidget(MagicTemplate):
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
         """MT sub-regions"""
-        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."}, name="MTLabel")
+        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."}, name="Spline No.")
         pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Pos", record=False)
     
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
