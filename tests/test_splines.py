@@ -1,12 +1,12 @@
 from mtprops.utils import map_coordinates
-from mtprops.spline import Spline3D
+from mtprops.tomogram import MtSpline
 import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip
 
 
 def test_inverse_mapping():
-    spl = Spline3D()
+    spl = MtSpline()
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
     spl.fit(coords)
     coords = np.array([[1, 1.5, 0], 
@@ -41,7 +41,7 @@ def test_inverse_mapping():
 
 
 def test_coordinate_transformation():
-    spl = Spline3D()
+    spl = MtSpline()
     coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
     spl.fit(coords)
     
@@ -92,16 +92,20 @@ def test_coordinate_transformation():
     assert amin < img_tr.shape[-1]/2
     
 def test_invert():
-    spl = Spline3D()
+    spl = MtSpline()
+   
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
     spl.fit(coords)
     spl.make_anchors(n=5)
+    spl.orientation = "PlusToMinus"
     
     spl_inv = spl.invert()
     spl_inv_inv = spl_inv.invert()
     
     assert_allclose(spl_inv._lims, (1, 0))
     assert_allclose(spl_inv_inv._lims, (0, 1))
+    assert spl_inv.orientation == "MinusToPlus"
+    assert spl_inv_inv.orientation == "PlusToMinus"
     
     assert_allclose(spl(), spl_inv()[::-1])
     assert_allclose(spl(der=1), -spl_inv(der=1)[::-1])
@@ -114,11 +118,17 @@ def test_invert():
     assert_allclose(spl(der=3), spl_inv_inv(der=3))
 
 def test_clip():
-    spl = Spline3D()
+    spl = MtSpline()
+    spl.orientation = "PlusToMinus"
+    
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
     spl.fit(coords)
+    spl.orientation = "PlusToMinus"
+    
     spl_c0 = spl.clip(0.2, 0.7)
     spl_c1 = spl_c0.clip(0.6, 0.4)
+    assert spl_c0.orientation == "PlusToMinus"
+    assert spl_c1.orientation == "MinusToPlus"
     
     assert_allclose(spl_c0._lims, (0.2, 0.7))
     assert_allclose(spl_c1._lims, (0.5, 0.4))

@@ -44,7 +44,7 @@ class Spline3D:
     # is changed.
     _local_cache: tuple[str] = ()
     
-    def __init__(self, scale: float = 1.0, k: int = 3, lims: tuple[float, float] = (0, 1)):
+    def __init__(self, scale: float = 1.0, k: int = 3, *, lims: tuple[float, float] = (0., 1.)):
         self._tck = None
         self._u = None
         self.scale = scale
@@ -196,6 +196,23 @@ class Spline3D:
             return self._anchors.size
     
     def clip(self, start: float, stop: float) -> Spline3D:
+        """
+        Clip spline and generate a new one.
+        
+        This method does not convert spline bases. ``_lims`` is updated instead.
+
+        Parameters
+        ----------
+        start : float
+            New starting position.
+        stop : float
+            New stopping position.
+
+        Returns
+        -------
+        Spline3D
+            Clipped spline.
+        """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
         new = self.__class__(self.scale, self.k, lims=(u0, u1))
@@ -325,7 +342,7 @@ class Spline3D:
 
     def invert(self) -> Spline3D:
         """
-        Invert direction of spline.
+        Invert the direction of spline.
 
         Returns
         -------

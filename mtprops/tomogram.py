@@ -139,7 +139,7 @@ class MtSpline(Spline3D):
     _local_cache = (K.localprops,)
     _global_cache = (K.globalprops, K.radius, K.orientation, K.cart_stimg, K.cyl_stimg)
     
-    def __init__(self, scale: float = 1.0, k: int = 3):
+    def __init__(self, scale: float = 1.0, k: int = 3, *, lims: tuple[float, float] = (0., 1.)):
         """
         Spline object for MT.
         
@@ -150,7 +150,7 @@ class MtSpline(Spline3D):
         k : int, default is 3
             Spline order.
         """        
-        super().__init__(scale=scale, k=k)
+        super().__init__(scale=scale, k=k, lims=lims)
         self.orientation = Ori.none
         self.radius: nm = None
         self.localprops: pd.DataFrame = None
@@ -159,15 +159,50 @@ class MtSpline(Spline3D):
         self.cyl_stimg: ip.ImgArray = None
     
     def invert(self) -> MtSpline:
+        """
+        Invert the direction of spline. Also invert orientation if exists.
+
+        Returns
+        -------
+        Spline3D
+            Inverted object
+        """
         inverted: MtSpline = super().invert()
-        if inverted.orientation == Ori.PlusToMinus:
-            inverted.orientation = Ori.MinusToPlus
-        elif inverted.orientation == Ori.MinusToPlus:
-            inverted.orientation = Ori.PlusToMinus
         inverted.localprops = None
         inverted.cart_stimg = None
         inverted.cyl_stimg = None
         return inverted
+    
+    def clip(self, start: float, stop: float) -> MtSpline:
+        """
+        Clip spline and generate a new one.
+        
+        This method does not convert spline bases. ``_lims`` is updated instead.
+        For instance, if you want to clip spline at 20% to 80% position, call
+        ``spl.clip(0.2, 0.8)``. If ``stop < start``, the orientation of spline
+        will be inverted, thus the ``orientation`` attribute will also be inverted.
+
+        Parameters
+        ----------
+        start : float
+            New starting position.
+        stop : float
+            New stopping position.
+
+        Returns
+        -------
+        MtSpline
+            Clipped spline.
+        """
+        clipped = super().clip(start, stop)
+        if start > stop:
+            if self.orientation == Ori.PlusToMinus:
+                clipped.orientation = Ori.MinusToPlus
+            elif self.orientation == Ori.MinusToPlus:
+                clipped.orientation = Ori.PlusToMinus
+        else:
+            clipped.orientation = self.orientation
+        return clipped
             
         
     @property
@@ -210,7 +245,7 @@ class MtSpline(Spline3D):
         else:
             self.globalprops = pd.Series(globalprops)
         return self
-
+        
 
 class MtTomogram:
     """
