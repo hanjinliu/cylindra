@@ -16,7 +16,7 @@ setup(
     author="Hanjin Liu",
     author_email="liuhanjin-sc@g.ecc.u-tokyo.ac.jp",
     license="BSD 3-Clause",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     install_requires=[
         "impy-array>=1.25.1",
         "magic-class>=0.5.20",
