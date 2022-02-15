@@ -69,24 +69,42 @@ def test_map_coordinates():
     img = ip.random.normal(size=(100, 100))
     
     def isclose(coords):
-        return np.allclose(ndi.map_coordinates(img, coords, order=3),
-                           utils.map_coordinates(img, coords, order=3))
+        return assert_allclose(ndi.map_coordinates(img.value, coords, order=3),
+                               utils.map_coordinates(img, coords, order=3))
     
     coords = np.array([[[10, 13], [11, 16], [12, 19]],
-                       [[3, 32], [7, 26], [10, 18]]])
+                       [[3.4, 32], [7, 26], [10, 18]]])
     
-    assert isclose(coords)
-    
-    coords = np.array([[[-3, 10], [0, 2], [3, -6]],
+    isclose(coords)
+        
+    coords = np.array([[[-3, 10], [0.9, 2], [3, -6]],
                        [[63, 28], [10, -1], [-20, -12]]])
     
-    assert isclose(coords)
+    isclose(coords)
     
-    coords = np.array([[[-3, -6], [50, 60], [110, 120]],
+    coords = np.array([[[-3, -6], [50, 60.2], [110, 120]],
                        [[120, 108], [10, 40], [-20, -12]]])
     
-    assert isclose(coords)
+    isclose(coords)
     
+    np.random.seed(None)
+
+def test_multi_map_coordinates():
+    from scipy import ndimage as ndi
+    np.random.seed(0)
+    img = ip.random.normal(size=(100, 100))
+    
+    coords = np.array([[[10, 13], [11, 16], [12, 19]],
+                       [[3.4, 32], [7, 26], [10, 18]]])
+    all_coords = np.stack([coords+i*0.5 for i in range(20)], axis=0)
+    
+    out0 = [ndi.map_coordinates(img.value, crds, order=3) for crds in all_coords]
+    out1 = utils.multi_map_coordinates(img, all_coords, order=3, chunksize=3)
+    for a, b in zip(out0, out1):
+        assert_allclose(a, b)
+    out1 = utils.multi_map_coordinates(img, all_coords, order=3, chunksize=5)
+    for a, b in zip(out0, out1):
+        assert_allclose(a, b)
     np.random.seed(None)
 
 def test_mirror_pcc():

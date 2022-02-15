@@ -164,28 +164,76 @@ def map_coordinates(input: ip.ImgArray | ip.LazyImgArray,
     coordinates = coordinates.copy()
     shape = input.shape
     sl = []
-    
     for i in range(input.ndim):
-        imin = int(np.min(coordinates[i]))
-        imax = int(np.max(coordinates[i])) + 2
+        imin = int(np.min(coordinates[i])) - order
+        imax = ceilint(np.max(coordinates[i])) + order + 1
         _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
         sl.append(_sl)
         coordinates[i] -= _sl.start
-        
-    sl = tuple(sl)
-    img = input[sl]
+    
+    img = input[tuple(sl)]
     if isinstance(img, ip.LazyImgArray):
         img = img.compute()
     if callable(cval):
         cval = cval(img)
     
-    return ndi.map_coordinates(img.value,
-                               coordinates,
-                               order=order,
-                               mode=mode, 
-                               cval=cval,
-                               prefilter=order>1
-                               )
+    return ndi.map_coordinates(
+        img.value,
+        coordinates=coordinates,
+        order=order,
+        mode=mode, 
+        cval=cval,
+        prefilter=order>1
+    )
+
+def multi_map_coordinates(
+    input: ip.ImgArray | ip.LazyImgArray, 
+    coordinates: np.ndarray,
+    order: int = 3, 
+    mode: str = Mode.constant,
+    cval: float | Callable[[ip.ImgArray], float] = 0.0,
+    chunksize: int = 1,
+) -> list[np.ndarray]:
+    """
+    Crop image at the edges of coordinates before calling map_coordinates to avoid
+    loading entire array into memory.
+    """    
+    shape = input.shape
+    
+    out: list[np.ndarray] = []
+    chunk_offset = 0
+    while chunk_offset < coordinates.shape[0]:
+        crds = coordinates[chunk_offset : chunk_offset+chunksize].copy()
+        sl = []
+        for i in range(input.ndim):
+            imin = int(np.min(crds[:, i])) - order
+            imax = ceilint(np.max(crds[:, i])) + order + 1
+            _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
+            sl.append(_sl)
+            crds[:, i] -= _sl.start
+        
+        img = input[tuple(sl)]
+        if isinstance(img, ip.LazyImgArray):
+            img = img.compute()
+        if callable(cval):
+            cval = cval(img)
+        input_img = img.value
+        
+        for each_crds in crds:
+            out.append(
+                ndi.map_coordinates(
+                    input_img,
+                    coordinates=each_crds,
+                    order=order,
+                    mode=mode, 
+                    cval=cval,
+                    prefilter=order>1
+                )
+            )
+        
+        chunk_offset += chunksize
+    
+    return out
 
 
 def oblique_meshgrid(shape: tuple[int, int], 
