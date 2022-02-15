@@ -1515,7 +1515,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(out: List[Coordinates]):
             for i, coords in enumerate(out):
                 spl = tomo.splines[i]
-                mol = spl.cylindrical_to_world_vector(coords.spline)
+                mol = spl.cylindrical_to_molecules(coords.spline)
                 if step > 1:
                     npf = roundint(spl.globalprops[H.nPF])
                     _mol_spec = ((np.arange(len(mol)) // npf) % step) == 0
@@ -1555,7 +1555,7 @@ class MTPropsWidget(MagicTemplate):
         tomo.global_ft_params(i)
         coords = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
         spl = tomo.splines[i]
-        mol = spl.cylindrical_to_world_vector(coords.spline)
+        mol = spl.cylindrical_to_molecules(coords.spline)
         
         if step > 1:
             npf = roundint(spl.globalprops[H.nPF])

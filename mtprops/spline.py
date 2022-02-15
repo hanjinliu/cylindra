@@ -540,7 +540,7 @@ class Spline3D:
                           map_func: Callable[[tuple], np.ndarray],
                           map_params: tuple, 
                           u: np.ndarray, 
-                          n_pixels:int):
+                          n_pixels: int):
         if u is None:
             u = self.anchors
         ds = self(u, 1).astype(np.float32)
@@ -603,42 +603,6 @@ class Spline3D:
             dimensional axis.
         """   
         return self._get_coords(_polar_coords_2d, r_range, s_range)
-
-
-    def oblique_cylindrical(self,
-                            r_range: tuple[int, int],
-                            s_range: tuple[float, float] = (0, 1),
-                            rise_per_px: float = 0.0,
-                            skew_per_px: float = 0.0
-                            ) -> np.ndarray:
-        s0, s1 = s_range
-        length = self.length(start=s0, stop=s1)
-        stop_length, n_segs = interval_divmod(length, self.scale)
-        n_pixels = n_segs + 1
-        s2 = (s1 - s0) * stop_length/length + s0
-        if n_pixels < 2:
-            raise ValueError("Too short. Change 's_range'.")
-        u = np.linspace(s0, s2, n_pixels)
-        y_ax_coords = self(u)/self.scale # world coordinates of y-axis in spline coords system
-        dslist = self(u, 1).astype(np.float32)
-        map_ = _polar_coords_2d(*r_range)
-        zeros = np.zeros(map_.shape[:-1], dtype=np.float32)
-        ones = np.ones(map_.shape[:-1], dtype=np.float32)
-        map_slice = np.stack([map_[..., 0], 
-                              zeros,
-                              map_[..., 1],
-                              ones
-                              ], axis=2) # V, S, H, D
-        # (WIP)
-        # TODO: each slice must be rotated separately, with different skew
-        mtx = np.array([[1.0,         0.0, 0.0, 0.0],
-                        [0.0,         1.0, 0.0, 0.0],
-                        [0.0, rise_per_px, 1.0, 0.0],
-                        [0.0,         0.0, 0.0, 1.0]], 
-                       dtype=np.float32)
-        
-        map_slice = map_slice @ mtx
-        return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
 
     def cartesian_to_world(self, coords: np.ndarray) -> np.ndarray:
@@ -720,9 +684,9 @@ class Spline3D:
         valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
 
 
-    def cartesian_to_world_vector(self, coords: np.ndarray) -> Molecules:
+    def cartesian_to_molecules(self, coords: np.ndarray) -> Molecules:
         """
-        Convert coordinates of points near the spline to normal vectors.
+        Convert coordinates of points near the spline to ``Molecules`` instance.
         
         Coordinates of points must be those in spline Cartesian coordinate system.
 
@@ -746,9 +710,9 @@ class Spline3D:
         return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
 
 
-    def cylindrical_to_world_vector(self, coords: np.ndarray) -> Molecules:
+    def cylindrical_to_molecules(self, coords: np.ndarray) -> Molecules:
         """
-        Convert coordinates of points near the spline to normal vectors.
+        Convert coordinates of points near the spline to ``Molecules`` instance.
         
         Coordinates of points must be those in spline cylindrical coordinate system.
 
@@ -788,7 +752,7 @@ class Spline3D:
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
         u = np.linspace(s0, s2, n_pixels)
-        y_ax_coords = self(u)/self.scale # world coordinates of y-axis in spline coords system
+        y_ax_coords = self(u)/self.scale  # world coordinates of y-axis in spline coords system
         dslist = self(u, 1).astype(np.float32)
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
@@ -796,6 +760,16 @@ class Spline3D:
 
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop
+
+def build_local_cartesian(shape: tuple[int, int, int], ds: np.ndarray, center: np.ndarray):
+    len_ds = np.sqrt(sum(ds**2))
+    lenz, leny, lenx = shape
+    dy = ds.reshape(-1, 1)/len_ds * np.linspace(-leny/2 + 0.5, leny/2 - 0.5, leny)
+    y_ax_coords = center.reshape(1, -1) + dy.T
+    dslist = np.stack([ds]*leny, axis=0)
+    map_ = _cartesian_coords_2d(lenz, lenx)
+    map_slice = _stack_coords(map_)
+    return _rot_with_vector(map_slice, y_ax_coords, dslist)
 
 _V = slice(None) # vertical dimension
 _S = slice(None) # longitudinal dimension along spline curve

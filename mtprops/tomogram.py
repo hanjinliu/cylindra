@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpecKwargs
 else:
@@ -17,6 +18,7 @@ from scipy import ndimage as ndi
 from dask import array as da, delayed
 
 import impy as ip
+from .molecules import Molecules
 from .const import nm, H, K, Ori, Mode, GVar
 from .spline import Spline3D
 from .utils import (
@@ -39,6 +41,10 @@ class Coordinates(NamedTuple):
     world: np.ndarray
     spline: np.ndarray
 
+# class ReconstructionResult(NamedTuple):
+#     """Averaged image and updated centers."""
+#     average: ip.ImgArray
+#     molecules: Molecules
 
 if ip.Const["RESOURCE"] == "cupy":
     SCHEDULER = "single-threaded"
@@ -1699,6 +1705,7 @@ class MtTomogram:
                     sl_j = np.arange(sj, sj+l) % a_size
                     ft1 = img_shear[:, :, sl_j].fft(dims="rya")
                     shift = ip.ft_pcc_maximum(ft0, ft1)
+                    # TODO: l_dimer is not scaled?
                     opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] + slope*a_size/npf*(j-i)) % l_dimer
         
         std_list: list[float] = []
@@ -1761,6 +1768,32 @@ class MtTomogram:
         crds = Coordinates(world = spl.cylindrical_to_world(coords=coords),
                            spline = coords)
         return crds
+    
+    @batch_process
+    def fine_reconstruction(
+        self, 
+        i = None, 
+        *, 
+        mole: Molecules,
+        template: ip.ImgArray = None, 
+        mask: ip.ImgArray = None
+    ) -> tuple[ip.ImgArray, Molecules]:
+        from . import recon
+        spl = self.splines[i]
+        mole = spl.cylindrical_to_molecules()
+        
+        aligned_mole = recon.align_subtomograms(
+            self.image, mole, template=template, mask=mask, scale=self.scale
+        )
+        
+        subtomo = recon.get_subtomograms(
+            self.image, aligned_mole, template.shape, self.scale
+        )
+        
+        averaged_image = np.mean(subtomo, axis="p")
+        
+        return averaged_image, aligned_mole
+        
 
 
 def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):

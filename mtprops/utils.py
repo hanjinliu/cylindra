@@ -8,7 +8,6 @@ from mtprops.const import Mode
 
 if TYPE_CHECKING:
     from .spline import Spline3D
-    from dask import array as da
 
 def roundint(a: float):
     return int(round(a))
@@ -153,7 +152,7 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None):
     return ip.ft_pcc_maximum(ft0, ft1, mask) + 1
     
 
-def map_coordinates(input: np.ndarray | "da.core.Array", 
+def map_coordinates(input: ip.ImgArray | ip.LazyImgArray, 
                     coordinates: np.ndarray,
                     order: int = 3, 
                     mode: str = Mode.constant,
