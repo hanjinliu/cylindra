@@ -210,7 +210,7 @@ class Molecules:
         center = np.array(shape) / 2 - 0.5
         vec_x = self.x
         vec_y = self.y
-        vec_z = np.cross(vec_x, vec_y, axis=1)
+        vec_z = np.cross(vec_y, vec_x, axis=1)
         ind_z, ind_y, ind_x = [np.arange(s) - c for s, c in zip(shape, center)]
         
         chunk_offset = 0
@@ -219,7 +219,7 @@ class Molecules:
             sl = slice(chunk_offset, chunk_offset + chunksize, None)
             x_ax = vec_x[sl, :, np.newaxis] * ind_x
             y_ax = vec_y[sl, :, np.newaxis] * ind_y
-            z_ax = -vec_z[sl, :, np.newaxis] * ind_z
+            z_ax = vec_z[sl, :, np.newaxis] * ind_z
             coords = (
                 z_ax[:, :, :, np.newaxis, np.newaxis]
                 + y_ax[:, :, np.newaxis, :, np.newaxis] 
