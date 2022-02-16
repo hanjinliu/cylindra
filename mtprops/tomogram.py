@@ -1769,30 +1769,30 @@ class MtTomogram:
                            spline = coords)
         return crds
     
-    @batch_process
-    def fine_reconstruction(
-        self, 
-        i = None, 
-        *, 
-        mole: Molecules,
-        template: ip.ImgArray = None, 
-        mask: ip.ImgArray = None
-    ) -> tuple[ip.ImgArray, Molecules]:
-        from . import recon
-        spl = self.splines[i]
-        mole = spl.cylindrical_to_molecules()
+    # @batch_process
+    # def fine_reconstruction(
+    #     self, 
+    #     i = None, 
+    #     *, 
+    #     mole: Molecules,
+    #     template: ip.ImgArray = None, 
+    #     mask: ip.ImgArray = None
+    # ) -> tuple[ip.ImgArray, Molecules]:
+    #     from .averaging import SubtomogramSampler
+    #     spl = self.splines[i]
+    #     mole = spl.cylindrical_to_molecules()
         
-        aligned_mole = recon.align_subtomograms(
-            self.image, mole, template=template, mask=mask, scale=self.scale
-        )
+    #     aligned_mole = averaging.align_subtomograms(
+    #         self.image, mole, template=template, mask=mask, scale=self.scale
+    #     )
         
-        subtomo = recon.get_subtomograms(
-            self.image, aligned_mole, template.shape, self.scale
-        )
+    #     subtomo = averaging.get_subtomograms(
+    #         self.image, aligned_mole, template.shape, self.scale
+    #     )
         
-        averaged_image = np.mean(subtomo, axis="p")
+    #     averaged_image = np.mean(subtomo, axis="p")
         
-        return averaged_image, aligned_mole
+    #     return averaged_image, aligned_mole
         
 
 

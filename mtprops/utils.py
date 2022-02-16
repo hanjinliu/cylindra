@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Iterable
 
 from mtprops.const import Mode
 
@@ -188,22 +188,27 @@ def map_coordinates(input: ip.ImgArray | ip.LazyImgArray,
 
 def multi_map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray, 
-    coordinates: np.ndarray,
+    iterable: Iterable[np.ndarray],
     order: int = 3, 
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
-    chunksize: int = 1,
 ) -> list[np.ndarray]:
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
-    """    
+    """
     shape = input.shape
     
     out: list[np.ndarray] = []
-    chunk_offset = 0
-    while chunk_offset < coordinates.shape[0]:
-        crds = coordinates[chunk_offset : chunk_offset+chunksize].copy()
+    
+    for crds in iterable:
+        if crds.ndim != input.ndim + 2:
+            if crds.ndim == input.ndim + 1:
+                crds = crds[np.newaxis]
+            else:
+                raise ValueError(
+                    f"Coordinates have wrong dimension: {crds.shape}."
+                    )
         sl = []
         for i in range(input.ndim):
             imin = int(np.min(crds[:, i])) - order
@@ -230,8 +235,6 @@ def multi_map_coordinates(
                     prefilter=order>1
                 )
             )
-        
-        chunk_offset += chunksize
     
     return out
 

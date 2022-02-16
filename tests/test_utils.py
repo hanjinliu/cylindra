@@ -99,10 +99,10 @@ def test_multi_map_coordinates():
     all_coords = np.stack([coords+i*0.5 for i in range(20)], axis=0)
     
     out0 = [ndi.map_coordinates(img.value, crds, order=3) for crds in all_coords]
-    out1 = utils.multi_map_coordinates(img, all_coords, order=3, chunksize=3)
+    out1 = utils.multi_map_coordinates(img, np.split(all_coords, 4), order=3)
     for a, b in zip(out0, out1):
         assert_allclose(a, b)
-    out1 = utils.multi_map_coordinates(img, all_coords, order=3, chunksize=5)
+    out1 = utils.multi_map_coordinates(img, np.split(all_coords, [3, 4, 5, 5, 3]), order=3)
     for a, b in zip(out0, out1):
         assert_allclose(a, b)
     np.random.seed(None)
