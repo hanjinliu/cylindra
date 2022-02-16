@@ -25,7 +25,7 @@ class SplineInfo(TypedDict):
     scale: float
 
 
-class Spline3D:
+class Spline:
     """
     3D spline curve model with coordinate system. Anchor points can be set via ``anchor``
     property. Every time spline parameters or anchors are updated, hash value of Spline3D
@@ -57,7 +57,7 @@ class Spline3D:
             raise ValueError(f"'lims' must fit in range of [0, 1] but got {list(lims)!r}.")
         self._lims = lims
     
-    def copy(self, copy_cache: bool = True) -> Spline3D:
+    def copy(self, copy_cache: bool = True) -> Spline:
         """
         Copy Spline3D object.
 
@@ -94,7 +94,7 @@ class Spline3D:
     def k(self) -> int:
         return self._k
     
-    def __eq__(self, other: Spline3D):
+    def __eq__(self, other: Spline):
         if not isinstance(other, self.__class__):
             return False
         t0, c0, k0 = self.tck
@@ -195,7 +195,7 @@ class Spline3D:
         else:
             return self._anchors.size
     
-    def clip(self, start: float, stop: float) -> Spline3D:
+    def clip(self, start: float, stop: float) -> Spline:
         """
         Clip spline and generate a new one.
         
@@ -221,7 +221,7 @@ class Spline3D:
         return new
     
 
-    def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline3D:
+    def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline:
         """
         Fit spline model using a list of coordinates.
 
@@ -245,7 +245,7 @@ class Spline3D:
         return self
     
 
-    def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray = None, s: float = None) -> Spline3D:
+    def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray = None, s: float = None) -> Spline:
         """
         Fit spline model using a list of shifts in XZ-plane.
 
@@ -340,7 +340,7 @@ class Spline3D:
         dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
 
-    def invert(self) -> Spline3D:
+    def invert(self) -> Spline:
         """
         Invert the direction of spline.
 
@@ -666,7 +666,7 @@ class Spline3D:
     def world_to_cylindrical(self, 
                              coords: np.ndarray,
                              precision: float = 1e-3,
-                             angle_tol: float = 1e-2) -> Spline3D:
+                             angle_tol: float = 1e-2) -> Spline:
         # WIP
         u = np.linspace(0, 1, 1/precision)
         sample_points = self(u) # (N, 3)
@@ -761,16 +761,6 @@ class Spline3D:
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop
 
-def build_local_cartesian(shape: tuple[int, int, int], ds: np.ndarray, center: np.ndarray):
-    len_ds = np.sqrt(sum(ds**2))
-    lenz, leny, lenx = shape
-    dy = ds.reshape(-1, 1)/len_ds * np.linspace(-leny/2 + 0.5, leny/2 - 0.5, leny)
-    y_ax_coords = center.reshape(1, -1) + dy.T
-    dslist = np.stack([ds]*leny, axis=0)
-    map_ = _cartesian_coords_2d(lenz, lenx)
-    map_slice = _stack_coords(map_)
-    return _rot_with_vector(map_slice, y_ax_coords, dslist)
-
 _V = slice(None) # vertical dimension
 _S = slice(None) # longitudinal dimension along spline curve
 _H = slice(None) # horizontal dimension
@@ -855,6 +845,7 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
     return coords
     
 
+@lru_cache(maxsize=12)
 def _cartesian_coords_2d(lenv: int, lenh: int):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= lenv/2 - 0.5

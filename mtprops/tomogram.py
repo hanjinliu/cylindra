@@ -20,7 +20,7 @@ from dask import array as da, delayed
 import impy as ip
 from .molecules import Molecules
 from .const import nm, H, K, Ori, Mode, GVar
-from .spline import Spline3D
+from .spline import Spline
 from .utils import (
     load_a_subtomogram,
     centroid,
@@ -138,7 +138,7 @@ def json_encoder(obj: Any):
     else:
         raise TypeError(f"{obj!r} is not JSON serializable")
 
-class MtSpline(Spline3D):
+class MtSpline(Spline):
     """
     A spline object with information related to MT.
     """    

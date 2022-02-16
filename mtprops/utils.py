@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Callable, Iterable
 from mtprops.const import Mode
 
 if TYPE_CHECKING:
-    from .spline import Spline3D
+    from .spline import Spline
 
 def roundint(a: float):
     return int(round(a))
@@ -64,7 +64,7 @@ def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray,
     return reg
 
 
-def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl: "Spline3D", u):
+def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl: "Spline", u):
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
@@ -78,7 +78,7 @@ def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl:
 
 
 def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, width_px: int,
-                          spl: "Spline3D"):
+                          spl: "Spline"):
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []
@@ -183,7 +183,7 @@ def map_coordinates(input: ip.ImgArray | ip.LazyImgArray,
         order=order,
         mode=mode, 
         cval=cval,
-        prefilter=order>1
+        prefilter=order > 1,
     )
 
 def multi_map_coordinates(
@@ -193,10 +193,6 @@ def multi_map_coordinates(
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
 ) -> list[np.ndarray]:
-    """
-    Crop image at the edges of coordinates before calling map_coordinates to avoid
-    loading entire array into memory.
-    """
     shape = input.shape
     
     out: list[np.ndarray] = []
@@ -225,6 +221,7 @@ def multi_map_coordinates(
         input_img = img.value
         
         for each_crds in crds:
+            # TODO: this for loop can be removed.
             out.append(
                 ndi.map_coordinates(
                     input_img,
@@ -232,7 +229,7 @@ def multi_map_coordinates(
                     order=order,
                     mode=mode, 
                     cval=cval,
-                    prefilter=order>1
+                    prefilter=order > 1,
                 )
             )
     

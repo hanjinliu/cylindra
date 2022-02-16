@@ -40,6 +40,7 @@ def test_matrix(zvec, yvec, mat):
     assert_allclose(mol.y[0], yvec)
     out = mol.matrix()
     assert_allclose(out, mat, rtol=1e-6, atol=1e-6)
+    assert_allclose(np.cross(mol.x, mol.y, axis=0), mol.z)
 
 
 def test_euler_const():

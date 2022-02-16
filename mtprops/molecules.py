@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Iterator
 import numpy as np
 from numpy.typing import ArrayLike
-from .const import EulerAxes
+from dask import array as da
+from .const import EulerAxes, nm
 
 if TYPE_CHECKING:
     from scipy.spatial.transform import Rotation
@@ -128,7 +129,7 @@ class Molecules:
         from scipy.spatial.transform import Rotation
         return cls(all_pos, Rotation(all_quat))
     
-    def subset(self, sl: slice | list[int] | np.ndarray) -> Molecules:
+    def subset(self, spec: slice | list[int] | np.ndarray) -> Molecules:
         """
         Create a subset of molecules by slicing.
         
@@ -137,20 +138,57 @@ class Molecules:
 
         Parameters
         ----------
-        sl : slice, list of int, or ndarray
-            Slicing key.
+        spec : slice, list of int, or ndarray
+            Specifier that defines which molecule will be used. Any objects that numpy
+            slicing are defined are supported. For instance, ``[2, 3, 5]`` means the 2nd,
+            3rd and 5th molecules will be used (zero-indexed), and ``slice(10, 20)``
+            means the 10th to 19th molecules will be used.
 
         Returns
         -------
         Molecules
             Molecule subset.
         """
-        if isinstance(sl, int):
+        if isinstance(spec, int):
             raise TypeError("Cannot create subset of molecules using an integer.")
-        pos = self.pos[sl]
-        quat = self._rotator.as_quat()[sl]
+        pos = self.pos[spec]
+        quat = self._rotator.as_quat()[spec]
         from scipy.spatial.transform import Rotation
         return self.__class__(pos, Rotation(quat))
+
+    def cartesian(self, shape: tuple[int, int, int], scale: nm) -> np.ndarray:
+        it = self.iter_cartesian(shape, scale, chunksize=len(self))
+        return next(it)
+        
+    def iter_cartesian(
+        self, 
+        shape: tuple[int, int, int], 
+        scale: nm,
+        chunksize: int = 100,
+    ) -> Iterator[np.ndarray]:
+        # TODO: Inversed!!!!
+        center = np.array(shape) / 2 - 0.5
+        vec_x = self.x
+        vec_y = self.y
+        vec_z = np.cross(vec_x, vec_y, axis=1)
+        ind_z, ind_y, ind_x = [np.arange(s) - c for s, c in zip(shape, center)]
+        
+        chunk_offset = 0
+        nmole = len(self)
+        while chunk_offset < nmole:
+            sl = slice(chunk_offset, chunk_offset + chunksize, None)
+            x_ax = vec_x[sl, :, np.newaxis] * ind_x
+            y_ax = vec_y[sl, :, np.newaxis] * ind_y
+            z_ax = vec_z[sl, :, np.newaxis] * ind_z
+            coords = (
+                z_ax[:, :, :, np.newaxis, np.newaxis]
+                + y_ax[:, :, np.newaxis, :, np.newaxis] 
+                + x_ax[:, :, np.newaxis, np.newaxis, :]
+                )
+            shifts = self.pos[sl] / scale
+            coords += shifts[:, :, np.newaxis, np.newaxis, np.newaxis]  # unit: pixel
+            yield coords
+            chunk_offset += chunksize
         
     def matrix(self) -> np.ndarray:
         """
