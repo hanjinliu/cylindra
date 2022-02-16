@@ -31,7 +31,7 @@ from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiIm
 from magicclass.utils import show_messagebox, to_clipboard
 
 from .molecules import Molecules
-from .tomogram import Coordinates, MtSpline, MtTomogram, angle_corr, dask_affine, centroid
+from .tomogram import MtSpline, MtTomogram, angle_corr, dask_affine, centroid
 from .utils import (
     Projections,
     load_a_subtomogram,
@@ -43,7 +43,7 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
+from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order, Coordinates
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.

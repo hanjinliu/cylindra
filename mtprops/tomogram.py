@@ -7,7 +7,7 @@ if sys.version_info < (3, 10):
 else:
     from typing import ParamSpecKwargs
     
-from typing import Callable, Iterable, Any, NamedTuple, TypeVar, overload, Protocol
+from typing import Callable, Iterable, Any, NamedTuple, TypeVar, overload, Protocol, TYPE_CHECKING
 import json
 from functools import partial, wraps
 import numpy as np
@@ -19,8 +19,9 @@ from dask import array as da, delayed
 
 import impy as ip
 from .molecules import Molecules
-from .const import nm, H, K, Ori, Mode, GVar
+from .const import nm, H, K, Ori, Mode, GVar, Coordinates
 from .spline import Spline
+from .averaging import SubtomogramLoader
 from .utils import (
     load_a_subtomogram,
     centroid,
@@ -34,17 +35,8 @@ from .utils import (
     mirror_ft_pcc,
     )
 
+
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
-
-class Coordinates(NamedTuple):
-    """Coordinates in world coodinate system and spline coordinate system."""
-    world: np.ndarray
-    spline: np.ndarray
-
-# class ReconstructionResult(NamedTuple):
-#     """Averaged image and updated centers."""
-#     average: ip.ImgArray
-#     molecules: Molecules
 
 if ip.Const["RESOURCE"] == "cupy":
     SCHEDULER = "single-threaded"
@@ -1768,6 +1760,9 @@ class MtTomogram:
         crds = Coordinates(world = spl.cylindrical_to_world(coords=coords),
                            spline = coords)
         return crds
+    
+    def get_subtomogram_loader(self, mole: Molecules, output_shape, chunksize: int = 560) -> SubtomogramLoader:
+        return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     
     # @batch_process
     # def fine_reconstruction(

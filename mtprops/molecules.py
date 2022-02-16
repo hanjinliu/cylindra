@@ -157,6 +157,25 @@ class Molecules:
         return self.__class__(pos, Rotation(quat))
 
     def cartesian(self, shape: tuple[int, int, int], scale: nm) -> np.ndarray:
+        """
+        Return all the rotated Cartesian coordinate systems defined around each molecule.
+        
+        If number of molecules is very large, this method could raise memory error. To avoid it,
+        ``iter_cartesian`` could be an alternative.
+
+        Parameters
+        ----------
+        shape : tuple[int, int, int]
+            Shape of output coordinates.
+        scale : nm
+            Scale of coordinates. Same as the pixel size of the tomogram.
+
+        Yields
+        ------
+        np.ndarray
+            An array of shape (N, D, Lz, Ly, Lx), where N is the chunk size, D is
+            the number of dimensions (=3) and rests are length along each dimension.
+        """
         it = self.iter_cartesian(shape, scale, chunksize=len(self))
         return next(it)
         
@@ -166,7 +185,28 @@ class Molecules:
         scale: nm,
         chunksize: int = 100,
     ) -> Iterator[np.ndarray]:
-        # TODO: Inversed!!!!
+        """
+        Iterate over all the rotated Cartesian coordinate systems defined around each molecule.
+        
+        Coordinates are split by ``chunksize`` because this method usually creates very large
+        arrays but they will not be used at the same time. To get whole list of coordinates, use
+        ``cartesian`` method.
+
+        Parameters
+        ----------
+        shape : tuple[int, int, int]
+            Shape of output coordinates.
+        scale : nm
+            Scale of coordinates. Same as the pixel size of the tomogram.
+        chunksize : int, default is 100
+            Chunk size of the iterator.
+
+        Yields
+        ------
+        Iterator[np.ndarray]
+            Every yield is an array of shape (N, D, Lz, Ly, Lx), where N is the chunk size, D is
+            the number of dimensions (=3) and rests are length along each dimension.
+        """
         center = np.array(shape) / 2 - 0.5
         vec_x = self.x
         vec_y = self.y
@@ -179,7 +219,7 @@ class Molecules:
             sl = slice(chunk_offset, chunk_offset + chunksize, None)
             x_ax = vec_x[sl, :, np.newaxis] * ind_x
             y_ax = vec_y[sl, :, np.newaxis] * ind_y
-            z_ax = vec_z[sl, :, np.newaxis] * ind_z
+            z_ax = -vec_z[sl, :, np.newaxis] * ind_z
             coords = (
                 z_ax[:, :, :, np.newaxis, np.newaxis]
                 + y_ax[:, :, np.newaxis, :, np.newaxis] 

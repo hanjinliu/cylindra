@@ -433,7 +433,7 @@ class Spline:
                         center: Iterable[float] = None, 
                         inverse: bool = False) -> np.ndarray:
         """
-        Calculate list of Affine transformation matrix along spline, which correcpond to
+        Calculate list of Affine transformation matrix along spline, which correspond to
         the orientation of spline curve.
 
         Parameters

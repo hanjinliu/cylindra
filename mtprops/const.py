@@ -1,8 +1,9 @@
 from enum import Enum
 import numpy as np
+from typing import NamedTuple
 from types import SimpleNamespace
 
-nm = float # type alias for clearer annotation.
+nm = float  # type alias for clearer annotation.
 
 class strEnum(Enum):
     def __str__(self):
@@ -16,6 +17,7 @@ class strEnum(Enum):
 
 class Ori(strEnum):
     """Microtubule orientation values."""
+    
     none = "none"
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
@@ -23,6 +25,7 @@ class Ori(strEnum):
 
 class H(SimpleNamespace):
     """Header names for result table of local properties."""
+    
     splDistance = "splDistance"
     splPosition = "splPosition"
     riseAngle = "riseAngle"
@@ -34,6 +37,7 @@ class H(SimpleNamespace):
 
 class K(SimpleNamespace):
     """Keys of spline attributes."""
+    
     radius = "radius"
     orientation = "orientation"
     localprops = "localprops"
@@ -44,6 +48,7 @@ class K(SimpleNamespace):
 
 class Mode(SimpleNamespace):
     """Padding mode used in scipy.ndimage."""
+    
     grid_wrap = "grid-wrap"
     reflect = "reflect"
     mirror = "mirror"
@@ -53,6 +58,7 @@ class Mode(SimpleNamespace):
 
 class Sep(strEnum):
     """Separator character."""
+    
     Comma = ","
     Tab = "\t"
     Space = " "
@@ -60,17 +66,20 @@ class Sep(strEnum):
 
 class Unit(strEnum):
     """Unit of length."""
+    
     pixel = "pixel"
     nm = "nm"
     angstrom = "angstrom"
 
 class Order(strEnum):
     """Order of dimensions"""
+    
     zyx = "zyx"
     xyz = "xyz"
     
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
+    
     xyz = "xyz"
     yzx = "yzx"
     zxy = "zxy"
@@ -98,9 +107,8 @@ class EulerAxes(strEnum):
 
 
 class GVar:
-    """
-    Global variables
-    """    
+    """Global variables"""
+        
     nPFmin: int = 11
     nPFmax: int = 17
     splOrder: int = 3
@@ -123,3 +131,9 @@ class GVar:
             if not hasattr(cls, k):
                 pass
             setattr(cls, k, v)
+
+class Coordinates(NamedTuple):
+    """Coordinates in world coodinate system and spline coordinate system."""
+    
+    world: np.ndarray
+    spline: np.ndarray

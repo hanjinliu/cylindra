@@ -1,14 +1,14 @@
 from __future__ import annotations
-from typing import Any, Callable, Iterable, Iterator
+from typing import Any, Callable, Iterator
 import random
 import warnings
 import weakref
 import numpy as np
 import impy as ip
 from dask import array as da
-from .utils import multi_map_coordinates
+from .utils import multi_map_coordinates, no_verbose
 from .molecules import Molecules
-from .utils import no_verbose
+from .const import nm
 
 
 class SubtomogramLoader:
@@ -25,7 +25,6 @@ class SubtomogramLoader:
         Shape of output subtomograms.
     chunksize : int, optional
         Chunk size used when loading subtomograms.
-
     """
     
     def __init__(
@@ -68,6 +67,10 @@ class SubtomogramLoader:
     def image_ref(self, image: ip.ImgArray | ip.LazyImgArray):
         """Set tomogram as a weak reference."""
         self._image_ref = weakref.ref(image)
+    
+    @property
+    def scale(self) -> nm:
+        return self.image_ref.scale.x
     
     def __iter__(self) -> Iterator[ip.ImgArray]:  # axes: zyx
         """Generate each subtomogram."""
@@ -145,6 +148,7 @@ class SubtomogramLoader:
                 n += 1
                 callback(self)
         self.image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
+        self.image_avg.set_scale(xyz=self.scale)
         return self.image_avg
         
     def align(
@@ -170,7 +174,6 @@ class SubtomogramLoader:
         if callback is None:
             callback = lambda x: None
         
-        scale = self.image_ref.scale.x
         shifts: list[np.ndarray] = []
         pre_alignment = np.zeros_like(template.value)
         
@@ -182,9 +185,9 @@ class SubtomogramLoader:
                 pre_alignment += subvol
                 callback(self)
         
-        mole_aligned = self.molecules.translate(np.stack(shifts, axis=0)*scale)
+        mole_aligned = self.molecules.translate(np.stack(shifts, axis=0)*self.scale)
         pre_alignment = ip.asarray(pre_alignment/len(shifts), axes="zyx", name="Avg")
-        pre_alignment.set_scale(xyz=scale)
+        pre_alignment.set_scale(xyz=self.scale)
         
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         self.image_avg = pre_alignment
