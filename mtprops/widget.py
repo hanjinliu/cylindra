@@ -1706,7 +1706,7 @@ class MTPropsWidget(MagicTemplate):
                     domains.append(domain)
                     
                 cylinders.append(domains)
-                matrices.append(spl.rotation_matrix(center=center))
+                matrices.append(spl.affine_matrix(center=center))
             
             cylinders = np.concatenate(cylinders, axis=0)
             matrices = np.concatenate(matrices, axis=0)

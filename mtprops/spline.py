@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
-from typing import Callable, Iterable, TypedDict
+from typing import Callable, Iterable, TypedDict, TYPE_CHECKING
 import warnings
 import numpy as np
 import numba as nb
@@ -9,7 +9,10 @@ from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
 from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
-from .molecules import Molecules
+from .molecules import Molecules, axes_to_rotator
+
+if TYPE_CHECKING:
+    from scipy.spatial.transform import Rotation
 
 class Coords3D(TypedDict):
     z: list[float]
@@ -262,14 +265,9 @@ class Spline:
             Total variation , by default None
         """        
         coords = self(u)
-        mtxs = self.rotation_matrix(u)
-        for i in range(coords.shape[0]):
-            shiftz, shiftx = shifts[i]
-            shift = np.array([shiftz, 0, shiftx])
-            
-            shift = shift @ mtxs[i][:3, :3]
-            coords[i] += shift * self.scale
-        
+        rot = self.get_rotator(u)
+        shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
+        coords += rot.apply(shifts) * self.scale
         self.fit(coords, s=s)
         return self
 
@@ -430,10 +428,10 @@ class Spline:
         return None
     
 
-    def rotation_matrix(self, 
-                        u: Iterable[float] = None,
-                        center: Iterable[float] = None, 
-                        inverse: bool = False) -> np.ndarray:
+    def affine_matrix(self, 
+                      u: Iterable[float] = None,
+                      center: Iterable[float] = None, 
+                      inverse: bool = False) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
         the orientation of spline curve.
@@ -459,7 +457,6 @@ class Spline:
         ds = self(u, 1)
         
         if np.isscalar(u):
-            # Molecules.from_axes()
             out = _vector_to_rotation_matrix(ds)
         else:
             out = np.stack([_vector_to_rotation_matrix(ds0) for ds0 in ds], axis=0)
@@ -483,6 +480,37 @@ class Spline:
                                      dtype=np.float32)
             
             out = translation_0 @ out @ translation_1
+        
+        return out
+    
+    def get_rotator(
+        self, 
+        u: Iterable[float] = None,
+        inverse: bool = False
+    ) -> "Rotation":
+        """
+        Calculate list of Affine transformation matrix along spline, which correspond to
+        the orientation of spline curve.
+
+        Parameters
+        ----------
+        u : array-like, (N, )
+            Positions. Between 0 and 1.
+        inverse : bool, default is False
+            If True, rotation matrix will be inversed.
+            
+        Returns
+        -------
+        Rotation
+            Rotation object at each anchor.
+        """        
+        if u is None:
+            u = self.anchors
+        ds = self(u, 1)
+        out = axes_to_rotator(None, -ds)
+        
+        if inverse:
+            out = out.inv()
         
         return out
 

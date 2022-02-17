@@ -89,8 +89,8 @@ def test_save_and_load_euler_angle():
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
     euler = mol.euler_angle(degrees=True)
     mol2 = Molecules.from_euler(pos, euler, degrees=True)
-    assert_allclose(mol.x, mol2.x)
-    assert_allclose(mol.y, mol2.y)
-    assert_allclose(mol.z, mol2.z)
+    assert_allclose(mol2.x, mol.x, rtol=1e-8, atol=1e-8)
+    assert_allclose(mol2.y, mol.y, rtol=1e-8, atol=1e-8)
+    assert_allclose(mol2.z, mol.z, rtol=1e-8, atol=1e-8)
 
 # TODO: test from_axes using x=...

@@ -426,8 +426,7 @@ def _translate_euler(seq: str) -> str:
 
 
 def axes_to_rotator(z, y) -> "Rotation":
-    vec = _normalize(np.atleast_2d(z))
-    ref = np.atleast_2d(_normalize(_extract_orthogonal(vec, y)))
+    ref = _normalize(np.atleast_2d(y))
     
     n = ref.shape[0]
     xy = np.arctan2(-ref[:, 2], ref[:, 1])
@@ -460,6 +459,12 @@ def axes_to_rotator(z, y) -> "Rotation":
     from scipy.spatial.transform import Rotation
     
     rot1 = Rotation.from_matrix(rotation_yx) * Rotation.from_matrix(rotation_zy)
+    
+    if z is None:
+        return rot1
+    
+    vec = _normalize(np.atleast_2d(_extract_orthogonal(ref, z)))
+    
     vec_trans = rot1.apply(vec, inverse=True)   # in zx-plane
     
     thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
