@@ -424,10 +424,14 @@ def _translate_euler(seq: str) -> str:
     table = str.maketrans({"x": "z", "z": "x", "X": "Z", "Z": "X"})
     return seq[::-1].translate(table)
 
-def _vector_to_rotation_matrix(ds: np.ndarray):
-    n = ds.shape[0]
-    xy = np.arctan2(ds[:, 2], -ds[:, 1])
-    zy = np.arctan(-ds[:, 0]/np.abs(ds[:, 1]))
+
+def axes_to_rotator(z, y) -> "Rotation":
+    vec = _normalize(np.atleast_2d(z))
+    ref = np.atleast_2d(_normalize(_extract_orthogonal(vec, y)))
+    
+    n = ref.shape[0]
+    xy = np.arctan2(-ref[:, 2], ref[:, 1])
+    zy = np.arctan(ref[:, 0]/np.abs(ref[:, 1]))
     
     # In YX plane, rotation matrix should be
     # [[1.,  0.,  0.],
@@ -452,53 +456,21 @@ def _vector_to_rotation_matrix(ds: np.ndarray):
     rotation_zy[:, 0, 0] = rotation_zy[:, 1, 1] = cos
     rotation_zy[:, 1, 0] = -sin
     rotation_zy[:, 0, 1] = sin
-
-    return np.einsum("ijk,ikl->ijl", rotation_yx, rotation_zy)
-
-def axes_to_rotator(z, y) -> "Rotation":
-    vec = _normalize(np.atleast_2d(z))
-    ref = np.atleast_2d(_normalize(_extract_orthogonal(vec, y)))
-    
-    mat1 = _vector_to_rotation_matrix(-ref)
-    
-    vec_trans = np.einsum("ij,ijk->ik", vec, mat1) # in zx-plane
-    
-    mat2 = []
-    thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
-    for theta in thetas:
-        cos = np.cos(theta)
-        sin = np.sin(theta)
-        rotation_zx = np.array([[ cos, 0., sin],
-                                [  0., 1.,  0.],
-                                [-sin, 0., cos]])
-        mat2.append(rotation_zx)
-        
-    mat2 = np.stack(mat2)
-    mat = np.einsum("ijk,ikl->ijl", mat1, mat2)
     
     from scipy.spatial.transform import Rotation
-    return Rotation.from_matrix(mat)
-
-# def axes_to_rotator(z, y) -> "Rotation":
-#     vec = _normalize(np.atleast_2d(z))
-#     ref = np.atleast_2d(_normalize(_extract_orthogonal(vec, y)))
     
-#     mat1 = _vector_to_rotation_matrix(-ref)
+    rot1 = Rotation.from_matrix(rotation_yx) * Rotation.from_matrix(rotation_zy)
+    vec_trans = rot1.apply(vec, inverse=True)   # in zx-plane
     
-#     from scipy.spatial.transform import Rotation
+    thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
     
-#     rot1 = Rotation.from_matrix(mat1) 
-#     vec_trans = rot1.apply(vec)   # in zx-plane
-    
-#     mat2 = []
-#     thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
-#     for theta in thetas:
-#         cos = np.cos(theta)
-#         sin = np.sin(theta)
-#         rotation_zx = np.array([[ cos, 0., sin],
-#                                 [  0., 1.,  0.],
-#                                 [-sin, 0., cos]])
-#         mat2.append(rotation_zx)
+    cos = np.cos(thetas)
+    sin = np.sin(thetas)
+    mat2 = np.zeros((vec_trans.shape[0], 3, 3), dtype=np.float32)
+    mat2[:, 1, 1] = 1.
+    mat2[:, 0, 0] = mat2[:, 2, 2] = cos
+    mat2[:, 2, 0] = -sin
+    mat2[:, 0, 2] = sin
         
-#     rot2 = Rotation.from_matrix(np.stack(mat2))
-#     return rot1 * rot2
+    rot2 = Rotation.from_matrix(np.stack(mat2))
+    return rot1 * rot2

@@ -189,7 +189,7 @@ class SplineFitter(MagicTemplate):
         return self.shifts[i]
     
     @mt.wraps
-    def Fit(self, shifts: Bound(_get_shifts), i: Bound(mt.mtlabel)):
+    def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.mtlabel]):
         """Fit current spline."""        
         shifts = np.asarray(shifts)
         spl = self.splines[i]
@@ -665,7 +665,7 @@ class MTPropsWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"add_spline.png")
     @bind_key("F1")
-    def register_path(self, coords: Bound(_get_spline_coordinates) = None):
+    def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a MT path."""        
         if coords is None:
             coords = self.layer_work.data
@@ -723,14 +723,14 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def run_mtprops(
         self,
-        interval: Bound(_runner.params2.interval),
-        ft_size: Bound(_runner.params2.ft_size),
-        n_refine: Bound(_runner.n_refine),
-        dense_mode: Bound(_runner.dense_mode),
-        dense_mode_sigma: Bound(_runner.params1.dense_mode_sigma),
-        local_props: Bound(_runner.local_props),
-        global_props: Bound(_runner.global_props),
-        paint: Bound(_runner.params2.paint)
+        interval: Bound[_runner.params2.interval],
+        ft_size: Bound[_runner.params2.ft_size],
+        n_refine: Bound[_runner.n_refine],
+        dense_mode: Bound[_runner.dense_mode],
+        dense_mode_sigma: Bound[_runner.params1.dense_mode_sigma],
+        local_props: Bound[_runner.local_props],
+        global_props: Bound[_runner.global_props],
+        paint: Bound[_runner.params2.paint]
     ):
         """Run MTProps"""
         self._runner.close()
@@ -919,13 +919,13 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="OK")
     @dispatch_worker
     def load_tomogram(self, 
-                      path: Bound(_loader.path),
-                      scale: Bound(_loader.scale),
-                      bin_size: Bound(_loader.bin_size),
-                      light_background: Bound(_loader.light_background),
-                      cutoff: Bound(_loader._get_cutoff_freq),
-                      subtomo_length: Bound(_loader.subtomo_length),
-                      subtomo_width: Bound(_loader.subtomo_width)
+                      path: Bound[_loader.path],
+                      scale: Bound[_loader.scale],
+                      bin_size: Bound[_loader.bin_size],
+                      light_background: Bound[_loader.light_background],
+                      cutoff: Bound[_loader._get_cutoff_freq],
+                      subtomo_length: Bound[_loader.subtomo_length],
+                      subtomo_width: Bound[_loader.subtomo_width]
                       ):
         """Start loading image."""
         try:
@@ -1139,7 +1139,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @dispatch_worker
-    def Show_straightened_image(self, i: Bound(mt.mtlabel)):
+    def Show_straightened_image(self, i: Bound[mt.mtlabel]):
         """Send straightened image of the current MT to the viewer."""        
         tomo = self.active_tomogram
         
@@ -1158,7 +1158,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="R-projection")
-    def show_r_proj(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
+    def show_r_proj(self, i: Bound[mt.mtlabel], j: Bound[mt.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
         with no_verbose():
             polar = self._current_cylindrical_img().proj("r")
@@ -1188,7 +1188,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT")
-    def show_current_ft(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
+    def show_current_ft(self, i: Bound[mt.mtlabel], j: Bound[mt.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
         with no_verbose():
             polar = self._current_cylindrical_img()
@@ -1207,7 +1207,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT (Global)")
-    def show_global_ft(self, i: Bound(mt.mtlabel)):
+    def show_global_ft(self, i: Bound[mt.mtlabel]):
         """View Fourier space along current MT."""  
         with no_verbose():
             polar = self.active_tomogram.straighten_cylindric(i)
@@ -1420,7 +1420,7 @@ class MTPropsWidget(MagicTemplate):
                  niter={"label": "Iteration", "max": 3},
                  y_length={"label": "Longitudinal length (nm)"})
     @dispatch_worker
-    def Reconstruct_MT(self, i: Bound(mt.mtlabel), rot_ave=False, find_seam=False, niter=1, y_length=50.0):
+    def Reconstruct_MT(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, y_length=50.0):
         """
         Coarse reconstruction of MT.
 
@@ -1462,7 +1462,7 @@ class MTPropsWidget(MagicTemplate):
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
     @dispatch_worker
-    def cylindric_reconstruction(self, i: Bound(mt.mtlabel), rot_ave=False, find_seam=False, niter=1, 
+    def cylindric_reconstruction(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, 
                                  y_length=50.0):
         """
         Cylindric reconstruction of MT.
@@ -1532,7 +1532,7 @@ class MTPropsWidget(MagicTemplate):
                  step={"min": 1, "max": 10})
     def Map_monomers_manually(
         self, 
-        i: Bound(mt.mtlabel),
+        i: Bound[mt.mtlabel],
         y_offset: nm = 0, 
         theta_offset: float = 0,
         length: nm = 0.0, 
