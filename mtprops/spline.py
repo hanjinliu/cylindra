@@ -459,6 +459,7 @@ class Spline:
         ds = self(u, 1)
         
         if np.isscalar(u):
+            # Molecules.from_axes()
             out = _vector_to_rotation_matrix(ds)
         else:
             out = np.stack([_vector_to_rotation_matrix(ds0) for ds0 in ds], axis=0)

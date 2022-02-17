@@ -1765,7 +1765,12 @@ class MtTomogram:
                            spline = coords)
         return crds
     
-    def get_subtomogram_loader(self, mole: Molecules, output_shape, chunksize: int = 560) -> SubtomogramLoader:
+    def get_subtomogram_loader(
+        self,
+        mole: Molecules,
+        output_shape, 
+        chunksize: int = 560,
+    ) -> SubtomogramLoader:
         return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     
     # @batch_process
