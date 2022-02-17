@@ -3,8 +3,8 @@ import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
 from typing import TYPE_CHECKING, Callable, Iterable
-
-from mtprops.const import Mode
+import time
+from .const import Mode
 
 if TYPE_CHECKING:
     from .spline import Spline
@@ -152,11 +152,13 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None):
     return ip.ft_pcc_maximum(ft0, ft1, mask) + 1
     
 
-def map_coordinates(input: ip.ImgArray | ip.LazyImgArray, 
-                    coordinates: np.ndarray,
-                    order: int = 3, 
-                    mode: str = Mode.constant,
-                    cval: float | Callable[[ip.ImgArray], float] = 0.0) -> np.ndarray:
+def map_coordinates(
+    input: ip.ImgArray | ip.LazyImgArray,
+    coordinates: np.ndarray,
+    order: int = 3, 
+    mode: str = Mode.constant,
+    cval: float | Callable[[ip.ImgArray], float] = 0.0
+) -> np.ndarray:
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
@@ -219,20 +221,18 @@ def multi_map_coordinates(
         if callable(cval):
             cval = cval(img)
         input_img = img.value
-        
-        for each_crds in crds:
-            # TODO: this for loop can be removed.
-            out.append(
-                ndi.map_coordinates(
+        all_coords = np.concatenate(list(crds), axis=1)  # D, Z, Y, X
+        all_img = ndi.map_coordinates(
                     input_img,
-                    coordinates=each_crds,
+                    coordinates=all_coords,
                     order=order,
                     mode=mode, 
                     cval=cval,
                     prefilter=order > 1,
                 )
-            )
-    
+        indices = np.cumsum([c.shape[1] for c in crds[:-1]])
+        out.extend(np.split(all_img, indices, axis=0))
+        
     return out
 
 

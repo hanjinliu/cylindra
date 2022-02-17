@@ -86,14 +86,22 @@ class SubtomogramLoader:
             for subvol in subvols:
                 yield subvol
     
-    def iter_chunks(self) -> Iterator[ip.ImgArray]:  # axes: pzyx
+    def iter_subtomograms(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
+        for subvols in self.iter_chunks(order=order):
+            for subvol in subvols:
+                yield subvol
+    
+    def iter_chunks(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
         """Generate subtomogram list chunk-wise."""
         image = self.image_ref
         scale = image.scale.x
         
         with no_verbose():
             for coords in self.molecules.iter_cartesian(self.output_shape, scale, self.chunksize):
-                subvols = np.stack(multi_map_coordinates(image, coords, cval=np.mean), axis=0)
+                subvols = np.stack(
+                    multi_map_coordinates(image, coords, order=order, cval=np.mean),
+                    axis=0,
+                    )
                 subvols = ip.asarray(subvols, axes="pzyx")
                 subvols.set_scale(xyz=scale)
                 yield subvols
@@ -125,6 +133,31 @@ class SubtomogramLoader:
         mole = self.molecules.subset(spec)
         return self.__class__(self.image_ref, mole, self.output_shape, self.chunksize)
 
+    def average_fast(
+        self,
+        *,
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ) -> ip.ImgArray:
+        """
+        Faster version of the ``average`` method.
+        
+        For visualization purpose. This method is faster than ``average`` because linear interpolation
+        is used instead of bicubic interpolation. Averaged image will NOT stored in ``image_ave``
+        attribute.
+
+        Parameters
+        ----------
+        callback : callable, optional
+            If given, ``callback(self)`` will be called for each iteration of subtomogram loading.
+
+        Returns
+        -------
+        ImgArray
+            Averaged image.
+        """
+        return self._average(callback, order=1)
+        
+        
     def average(
         self,
         *,
@@ -146,18 +179,25 @@ class SubtomogramLoader:
         ImgArray
             Averaged image.
         """
+        self.image_avg = self._average(callback, order=3)
+        return self.image_avg
+    
+    
+    def _average(self, callback: Callable, order: int):
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
         if callback is None:
             callback = lambda x: None
         with no_verbose():
-            for subvol in self:
+            for subvol in self.iter_subtomograms(order=order):
                 aligned += subvol.value
                 n += 1
                 callback(self)
-        self.image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
-        self.image_avg.set_scale(xyz=self.scale)
-        return self.image_avg
+        image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
+        image_avg.set_scale(xyz=self.scale)
+        image_avg.scale_unit = "nm"
+        return image_avg
+        
         
     def align(
         self,
@@ -222,6 +262,8 @@ class SubtomogramLoader:
         mask: ip.ImgArray | None = None,
         seed: int | float | str | bytes | bytearray | None = 0,
         ) -> np.ndarray:
+        
+        # WIP!
         random.seed(seed)
         
         if mask is None:
