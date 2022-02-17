@@ -174,23 +174,27 @@ class SubtomogramLoader:
         if callback is None:
             callback = lambda x: None
         
-        shifts: list[np.ndarray] = []
+        local_shifts: list[np.ndarray] = []  # shift in local Cartesian
         pre_alignment = np.zeros_like(template.value)
         
         with no_verbose():
             template_ft = (template * mask).fft()
             for subvol in self:
                 shift = ip.ft_pcc_maximum((subvol*mask).fft(), template_ft, max_shifts=max_shifts)
-                shifts.append(shift)
-                pre_alignment += subvol
+                local_shifts.append(shift)
+                if self.image_avg is None:
+                    pre_alignment += subvol
                 callback(self)
-        
-        mole_aligned = self.molecules.translate(np.stack(shifts, axis=0)*self.scale)
-        pre_alignment = ip.asarray(pre_alignment/len(shifts), axes="zyx", name="Avg")
-        pre_alignment.set_scale(xyz=self.scale)
-        
+                
+        shifts = self.molecules._rotator.apply(np.stack(local_shifts, axis=0)*self.scale)
+        mole_aligned = self.molecules.translate(shifts)
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
-        self.image_avg = pre_alignment
+        
+        if self.image_avg is None:
+            pre_alignment = ip.asarray(pre_alignment/len(shifts), axes="zyx", name="Avg")
+            pre_alignment.set_scale(xyz=self.scale)
+            self.image_avg = pre_alignment
+        
         return out
 
     def fsc(

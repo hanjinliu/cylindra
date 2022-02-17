@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable, Iterator
 import numpy as np
 from numpy.typing import ArrayLike
-from dask import array as da
 from .const import EulerAxes, nm
 
 if TYPE_CHECKING:
