@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Iterable, Union
 import random
 import warnings
 import weakref
@@ -9,6 +9,14 @@ from dask import array as da
 from .utils import multi_map_coordinates, no_verbose
 from .molecules import Molecules
 from .const import nm
+
+RangeLike = Union[
+    list[float],
+    np.ndarray,
+    tuple[float, float, int],
+]
+
+SearchRange = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]
 
 
 class SubtomogramLoader:
@@ -156,9 +164,13 @@ class SubtomogramLoader:
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
         max_shifts: int | tuple[int, int, int] = 4,
+        rotations: SearchRange | None = None,
+        cutoff: float = 0.5,
         *,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> SubtomogramLoader:
+        
+        # normalize input
         if template is None:
             raise NotImplementedError("Template image is needed.")
         if mask is not None:
@@ -168,9 +180,11 @@ class SubtomogramLoader:
                 f"'output_shape' of {self.__class__.__name__} object {self.output_shape!r} "
                 f"differs from the shape of template image {template.shape!r}. 'output_shape' "
                 "is updated.",
-                UserWarning
+                UserWarning,
             )
             self.output_shape = template.shape
+        if rotations is not None:
+            raise NotImplementedError
         if callback is None:
             callback = lambda x: None
         
@@ -178,15 +192,21 @@ class SubtomogramLoader:
         pre_alignment = np.zeros_like(template.value)
         
         with no_verbose():
-            template_ft = (template * mask).fft()
+            template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft(shift=False)
             for subvol in self:
-                shift = ip.ft_pcc_maximum((subvol*mask).fft(), template_ft, max_shifts=max_shifts)
+                input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                shift = ip.ft_pcc_maximum(
+                    input_subvol.fft(shift=False),
+                    template_ft, 
+                    upsample_factor=20, 
+                    max_shifts=max_shifts
+                )
                 local_shifts.append(shift)
                 if self.image_avg is None:
                     pre_alignment += subvol
                 callback(self)
                 
-        shifts = self.molecules._rotator.apply(np.stack(local_shifts, axis=0)*self.scale)
+        shifts = self.molecules._rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
         mole_aligned = self.molecules.translate(shifts)
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         
@@ -227,4 +247,9 @@ class SubtomogramLoader:
         fsc = ip.fsc(ip.asarray(sum_images[0], axes="zyx"),
                      ip.asarray(sum_images[1], axes="zyx"),
                      mask=mask)
+        
+        if self.image_avg is None:
+            self.image_avg = ip.asarray(sum_images[0] + sum_images[1], axes="zyx", name="Avg")
+            self.image_avg.set_scale(xyz=self.scale)
+            
         return np.asarray(fsc)

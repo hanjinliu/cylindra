@@ -131,7 +131,7 @@ class Spline:
         return self._anchors
     
     @anchors.setter
-    def anchors(self, positions: float | Iterable[float]):
+    def anchors(self, positions: float | Iterable[float]) -> None:
         positions = np.atleast_1d(np.asarray(positions, dtype=np.float32))
         if positions.ndim != 1:
             raise TypeError(f"Could not convert positions into 1D array.")
@@ -141,12 +141,13 @@ class Spline:
             warnings.warn(msg, UserWarning)
         self._anchors = positions
         self.clear_cache(loc=True, glob=False)
+        return None
     
     @anchors.deleter
-    def anchors(self):
+    def anchors(self) -> None:
         self._anchors = None
         self.clear_cache(loc=True, glob=False)
-    
+        return None
 
     def make_anchors(self, 
                      interval: nm = None,
@@ -349,9 +350,10 @@ class Spline:
         Spline3D
             Inverted object
         """
-        anchors = self.anchors
+        anchors = self._anchors
         inverted = self.clip(1., 0.)
-        inverted.anchors = 1 - anchors[::-1]
+        if anchors is not None:
+            inverted.anchors = 1 - anchors[::-1]
         return inverted
     
     def curvature(self, u: Iterable[float] = None) -> np.ndarray:

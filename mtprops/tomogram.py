@@ -120,6 +120,7 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
 
 
 def json_encoder(obj: Any):
+    
     """Enable Enum and pandas encoding."""
     if isinstance(obj, Ori):
         return obj.name
@@ -129,6 +130,7 @@ def json_encoder(obj: Any):
         return obj.to_dict()
     else:
         raise TypeError(f"{obj!r} is not JSON serializable")
+
 
 class MtSpline(Spline):
     """
@@ -166,6 +168,8 @@ class MtSpline(Spline):
             Inverted object
         """
         inverted: MtSpline = super().invert()
+        inverted.radius = self.radius
+        inverted.globalprops = self.globalprops
         inverted.localprops = None
         inverted.cart_stimg = None
         inverted.cyl_stimg = None

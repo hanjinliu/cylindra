@@ -42,14 +42,16 @@ class Molecules:
         if sum((_ax is not None) for _ax in [z, y, x]) != 2:
             raise TypeError("You must specify two out of z, y, and x.")
         
+        # NOTE: np.cross assumes vectors are in xyz order. However, all the arrays here are defined
+        # in zyx order. To build right-handed coordinates, we must invert signs when using np.cross.
         if z is None:
             x = np.atleast_2d(x)
             y = np.atleast_2d(y)
-            z = np.cross(x, y, axis=0)
+            z = -np.cross(x, y, axis=1)
         elif y is None:
             z = np.atleast_2d(z)
             x = np.atleast_2d(x)
-            y = np.cross(z, x, axis=0)
+            y = -np.cross(z, x, axis=1)
         
         vec = _normalize(np.atleast_2d(z))
         ref = np.atleast_2d(_normalize(_extract_orthogonal(vec, y)))
@@ -209,7 +211,7 @@ class Molecules:
         center = np.array(shape) / 2 - 0.5
         vec_x = self.x
         vec_y = self.y
-        vec_z = np.cross(vec_y, vec_x, axis=1)
+        vec_z = -np.cross(vec_x, vec_y, axis=1)
         ind_z, ind_y, ind_x = [np.arange(s) - c for s, c in zip(shape, center)]
         
         chunk_offset = 0
