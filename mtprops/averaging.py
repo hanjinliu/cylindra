@@ -192,11 +192,11 @@ class SubtomogramLoader:
         pre_alignment = np.zeros_like(template.value)
         
         with no_verbose():
-            template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft(shift=False)
+            template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
             for subvol in self:
                 input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
                 shift = ip.ft_pcc_maximum(
-                    input_subvol.fft(shift=False),
+                    input_subvol.fft(),
                     template_ft, 
                     upsample_factor=20, 
                     max_shifts=max_shifts
@@ -234,14 +234,14 @@ class SubtomogramLoader:
             if next_set == 0:
                 random.shuffle(subsets)
                 lc = len(subsets) // 2
-                sum_images[0] += sum(subsets[:lc])
-                sum_images[1] += sum(subsets[lc:])
+                sum_images[0][:] += sum(subsets[:lc])
+                sum_images[1][:] += sum(subsets[lc:])
         
         if next_set == 1:
             random.shuffle(subsets)
             lc = len(subsets) // 2
-            sum_images[0] += sum(subsets[:lc])
-            sum_images[1] += sum(subsets[lc:])
+            sum_images[0][:] += sum(subsets[:lc])
+            sum_images[1][:] += sum(subsets[lc:])
             
         random.seed(None)
         fsc = ip.fsc(ip.asarray(sum_images[0], axes="zyx"),

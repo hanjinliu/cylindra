@@ -7,7 +7,7 @@ if sys.version_info < (3, 10):
 else:
     from typing import ParamSpecKwargs
     
-from typing import Callable, Iterable, Any, NamedTuple, TypeVar, overload, Protocol, TYPE_CHECKING
+from typing import Callable, Iterable, Any, TypeVar, overload, Protocol
 import json
 from functools import partial, wraps
 import numpy as np
@@ -18,6 +18,7 @@ from scipy import ndimage as ndi
 from dask import array as da, delayed
 
 import impy as ip
+
 from .molecules import Molecules
 from .const import nm, H, K, Ori, Mode, GVar, Coordinates
 from .spline import Spline
