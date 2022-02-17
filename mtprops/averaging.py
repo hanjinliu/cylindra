@@ -224,6 +224,13 @@ class SubtomogramLoader:
         ) -> np.ndarray:
         random.seed(seed)
         
+        if mask is None:
+            mask = 1
+        elif mask.shape != self.output_shape:
+            raise ValueError(
+                f"Shape mismatch between subtomograms {self.output_shape!r} and mask {mask.shape!r}."
+            )
+        
         subsets: list[np.ndarray] = []
         sum_images = (np.zeros(self.output_shape, dtype=np.float32),
                       np.zeros(self.output_shape, dtype=np.float32))
@@ -244,9 +251,9 @@ class SubtomogramLoader:
             sum_images[1][:] += sum(subsets[lc:])
             
         random.seed(None)
-        fsc = ip.fsc(ip.asarray(sum_images[0], axes="zyx"),
-                     ip.asarray(sum_images[1], axes="zyx"),
-                     mask=mask)
+        fsc = ip.fsc(ip.asarray(sum_images[0] * mask, axes="zyx"),
+                     ip.asarray(sum_images[1] * mask, axes="zyx"),
+                     )
         
         if self.image_avg is None:
             self.image_avg = ip.asarray(sum_images[0] + sum_images[1], axes="zyx", name="Avg")
