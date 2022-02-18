@@ -189,7 +189,7 @@ class SplineFitter(MagicTemplate):
         return self.shifts[i]
     
     @mt.wraps
-    def Fit(self, shifts: Bound(_get_shifts), i: Bound(mt.mtlabel)):
+    def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.mtlabel]):
         """Fit current spline."""        
         shifts = np.asarray(shifts)
         spl = self.splines[i]
@@ -522,6 +522,10 @@ class MTPropsWidget(MagicTemplate):
             def cylindric_reconstruction(self): ...
         def Map_monomers(self): ...
         def Map_monomers_manually(self): ...
+        @magicmenu
+        class Subtomogram_averaging(MagicTemplate):
+            def Average_all(self): ...
+            def Average_subset(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
@@ -665,7 +669,7 @@ class MTPropsWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"add_spline.png")
     @bind_key("F1")
-    def register_path(self, coords: Bound(_get_spline_coordinates) = None):
+    def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a MT path."""        
         if coords is None:
             coords = self.layer_work.data
@@ -723,14 +727,14 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def run_mtprops(
         self,
-        interval: Bound(_runner.params2.interval),
-        ft_size: Bound(_runner.params2.ft_size),
-        n_refine: Bound(_runner.n_refine),
-        dense_mode: Bound(_runner.dense_mode),
-        dense_mode_sigma: Bound(_runner.params1.dense_mode_sigma),
-        local_props: Bound(_runner.local_props),
-        global_props: Bound(_runner.global_props),
-        paint: Bound(_runner.params2.paint)
+        interval: Bound[_runner.params2.interval],
+        ft_size: Bound[_runner.params2.ft_size],
+        n_refine: Bound[_runner.n_refine],
+        dense_mode: Bound[_runner.dense_mode],
+        dense_mode_sigma: Bound[_runner.params1.dense_mode_sigma],
+        local_props: Bound[_runner.local_props],
+        global_props: Bound[_runner.global_props],
+        paint: Bound[_runner.params2.paint]
     ):
         """Run MTProps"""
         self._runner.close()
@@ -911,7 +915,14 @@ class MTPropsWidget(MagicTemplate):
         @path.connect
         def _read_scale(self):
             img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
-            self.scale = f"{img.scale.x:.4f}"
+            scale = img.scale.x
+            self.scale = f"{scale:.4f}"
+            if scale > 0.96:
+                self.bin_size = 1
+            elif scale > 0.48:
+                self.bin_size = 2
+            else:
+                self.bin_size = 4
         
         def load_tomogram(self): ...
     
@@ -919,13 +930,13 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="OK")
     @dispatch_worker
     def load_tomogram(self, 
-                      path: Bound(_loader.path),
-                      scale: Bound(_loader.scale),
-                      bin_size: Bound(_loader.bin_size),
-                      light_background: Bound(_loader.light_background),
-                      cutoff: Bound(_loader._get_cutoff_freq),
-                      subtomo_length: Bound(_loader.subtomo_length),
-                      subtomo_width: Bound(_loader.subtomo_width)
+                      path: Bound[_loader.path],
+                      scale: Bound[_loader.scale],
+                      bin_size: Bound[_loader.bin_size],
+                      light_background: Bound[_loader.light_background],
+                      cutoff: Bound[_loader._get_cutoff_freq],
+                      subtomo_length: Bound[_loader.subtomo_length],
+                      subtomo_width: Bound[_loader.subtomo_width]
                       ):
         """Start loading image."""
         try:
@@ -1139,7 +1150,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @dispatch_worker
-    def Show_straightened_image(self, i: Bound(mt.mtlabel)):
+    def Show_straightened_image(self, i: Bound[mt.mtlabel]):
         """Send straightened image of the current MT to the viewer."""        
         tomo = self.active_tomogram
         
@@ -1158,7 +1169,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="R-projection")
-    def show_r_proj(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
+    def show_r_proj(self, i: Bound[mt.mtlabel], j: Bound[mt.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
         with no_verbose():
             polar = self._current_cylindrical_img().proj("r")
@@ -1188,7 +1199,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT")
-    def show_current_ft(self, i: Bound(mt.mtlabel), j: Bound(mt.pos)):
+    def show_current_ft(self, i: Bound[mt.mtlabel], j: Bound[mt.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
         with no_verbose():
             polar = self._current_cylindrical_img()
@@ -1207,7 +1218,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT (Global)")
-    def show_global_ft(self, i: Bound(mt.mtlabel)):
+    def show_global_ft(self, i: Bound[mt.mtlabel]):
         """View Fourier space along current MT."""  
         with no_verbose():
             polar = self.active_tomogram.straighten_cylindric(i)
@@ -1420,7 +1431,7 @@ class MTPropsWidget(MagicTemplate):
                  niter={"label": "Iteration", "max": 3},
                  y_length={"label": "Longitudinal length (nm)"})
     @dispatch_worker
-    def Reconstruct_MT(self, i: Bound(mt.mtlabel), rot_ave=False, find_seam=False, niter=1, y_length=50.0):
+    def Reconstruct_MT(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, y_length=50.0):
         """
         Coarse reconstruction of MT.
 
@@ -1462,7 +1473,7 @@ class MTPropsWidget(MagicTemplate):
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
     @dispatch_worker
-    def cylindric_reconstruction(self, i: Bound(mt.mtlabel), rot_ave=False, find_seam=False, niter=1, 
+    def cylindric_reconstruction(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, 
                                  y_length=50.0):
         """
         Cylindric reconstruction of MT.
@@ -1532,7 +1543,7 @@ class MTPropsWidget(MagicTemplate):
                  step={"min": 1, "max": 10})
     def Map_monomers_manually(
         self, 
-        i: Bound(mt.mtlabel),
+        i: Bound[mt.mtlabel],
         y_offset: nm = 0, 
         theta_offset: float = 0,
         length: nm = 0.0, 
@@ -1583,6 +1594,92 @@ class MTPropsWidget(MagicTemplate):
         points_layer.metadata[SOURCE] = mol
         vector_layer: Vectors = viewer.layers[layer_name + " Z-axis"]
         vector_layer.data = np.stack([mol.pos, mol.z], axis=1)
+    
+    @Analysis.Subtomogram_averaging.wraps
+    @set_options(
+        shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
+        chunk_size={"min": 1, "max": 3600},
+    )
+    def Average_all(
+        self,
+        layer: MonomerLayer,
+        shape: tuple[nm, nm, nm] = (18., 18., 18.),
+        chunk_size: int = 546,
+    ):
+        """
+        Subtomogram averaging using all the subvolumes.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        shape : tuple[nm, nm, nm], default is (18., 18., 18.)
+            Shape of subtomograms.
+        chunk_size : int, default is 546
+            How many subtomograms will be loaded at the same time.
+        """
+        molecules = layer.metadata[MOLECULES]
+        loader = self.active_tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        ave = loader.average()
+        if self.active_tomogram.light_background:
+            ave = -ave
+        _show_reconstruction(ave, f"Subtomogram average (n={len(molecules)})")
+        return None
+    
+    @Analysis.Subtomogram_averaging.wraps
+    @set_options(
+        shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
+        method={"choices": ["steps", "first", "last", "random"]},
+    )
+    def Average_subset(
+        self,
+        layer: MonomerLayer,
+        shape: tuple[nm, nm, nm] = (18., 18., 18.),
+        method="steps", 
+        number: int = 64
+    ):
+        """
+        Subtomogram averaging using a subset of subvolumes.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        shape : tuple[nm, nm, nm], default is (18., 18., 18.)
+            Shape of subtomograms.
+        method : str, optional
+            How to choose subtomogram subset. 
+            (1) steps: Each 'steps' subtomograms from the tip of spline. 
+            (2) first: First subtomograms.
+            (3) last: Last subtomograms.
+            (4) random: choose randomly.
+        number : int, default is 64
+            Number of subtomograms to use.
+            
+        """
+        molecules = layer.metadata[MOLECULES]
+        nmole = len(molecules)
+        if nmole < number:
+            raise ValueError(f"There are only {nmole} subtomograms.")
+        if method == "steps":
+            step = nmole//number
+            sl = slice(0, step * number, step)
+        elif method == "first":
+            sl = slice(0, number)
+        elif method == "last":
+            sl = slice(-number, -1)
+        elif method == "random":
+            sl_all = np.arange(nmole, dtype=np.uint32)
+            sl = np.random.shuffle(sl_all)[:number]
+        else:
+            raise NotImplementedError(method)
+        mole = molecules.subset(sl)
+        loader = self.active_tomogram.get_subtomogram_loader(mole, shape)
+        ave = loader.average()
+        if self.active_tomogram.light_background:
+            ave = -ave
+        _show_reconstruction(ave, f"Subtomogram average (n={len(mole)})")
+        return None
         
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")
@@ -1706,7 +1803,7 @@ class MTPropsWidget(MagicTemplate):
                     domains.append(domain)
                     
                 cylinders.append(domains)
-                matrices.append(spl.rotation_matrix(center=center))
+                matrices.append(spl.affine_matrix(center=center))
             
             cylinders = np.concatenate(cylinders, axis=0)
             matrices = np.concatenate(matrices, axis=0)
@@ -2211,7 +2308,8 @@ def _show_reconstruction(img: ip.ImgArray, name):
     viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
     viewer.scale_bar.visible = True
     viewer.scale_bar.unit = "nm"
-    viewer.add_image(img, scale=img.scale, name=name)
+    with no_verbose():
+        viewer.add_image(img.rescale_intensity(), scale=img.scale, name=name)
 
 def _iter_run(tomo: MtTomogram, 
               interval: nm,

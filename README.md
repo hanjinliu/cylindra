@@ -11,8 +11,7 @@ Quantify local/global properties of microtubule (or other cylindrically periodic
 - Coordinate transformation along splines. Straightening and opening are included.
 - Determination of microtubule polarity by seeing projection images along splines.
 - Monomer mapping.
-- Rough Reconstruction.
-- Findind seam position (WIP).
+- Subtomogram averaging and alignment. 
 
 ## Usage
 

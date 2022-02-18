@@ -136,4 +136,13 @@ def test_clip():
     assert_allclose(spl([0.2, 0.5, 0.7]), spl_c0([0.0, 0.6, 1.0]))
     assert_allclose(spl_c0([0.4, 0.5, 0.6]), spl_c1([1.0, 0.5, 0.0]))
     assert_allclose(spl([0.4, 0.45, 0.5]), spl_c1([1.0, 0.5, 0.0]))
-    
+
+def test_shift_fit():
+    spl = MtSpline()
+   
+    coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
+    spl.fit(coords)
+    spl.make_anchors(n=4)
+    spl.shift_fit(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
+    spl.make_anchors(n=4)
+    assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))

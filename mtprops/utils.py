@@ -78,8 +78,12 @@ def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl:
     return out
 
 
-def load_rot_subtomograms(img: ip.ImgArray | ip.LazyImgArray, length_px: int, width_px: int,
-                          spl: "Spline"):
+def load_rot_subtomograms(
+    img: ip.ImgArray | ip.LazyImgArray,
+    length_px: int,
+    width_px: int,
+    spl: "Spline"
+) -> ip.ImgArray:
     plane_shape = (width_px, width_px)
     axial_size = length_px
     out = []

@@ -53,33 +53,7 @@ class Molecules:
             x = np.atleast_2d(x)
             y = -np.cross(z, x, axis=1)
         
-        vec = _normalize(np.atleast_2d(z))
-        ref = np.atleast_2d(_normalize(_extract_orthogonal(vec, y)))
-        
-        if not (pos.shape == vec.shape == ref.shape):
-            raise ValueError(f"Mismatch in shapes: {pos.shape}, {vec.shape}, {ref.shape}.")
-        if pos.ndim != 2 or pos.shape[1] != 3:
-            raise ValueError(f"Shape of the input arrays must be (N, 3).")
-        
-        mat1 = _vector_to_rotation_matrix(-ref)
-        
-        vec_trans = np.einsum("ij,ijk->ik", vec, mat1) # in zx-plane
-        
-        mat2 = []
-        thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
-        for theta in thetas:
-            cos = np.cos(theta)
-            sin = np.sin(theta)
-            rotation_zx = np.array([[ cos, 0., sin],
-                                    [  0., 1.,  0.],
-                                    [-sin, 0., cos]])
-            mat2.append(rotation_zx)
-            
-        mat2 = np.stack(mat2)
-        mat = np.einsum("ijk,ikl->ijl", mat1, mat2)
-        
-        from scipy.spatial.transform import Rotation
-        rotator = Rotation.from_matrix(mat)
+        rotator = axes_to_rotator(z, y)
         return cls(pos, rotator)
 
     @classmethod
@@ -94,6 +68,9 @@ class Molecules:
     def __len__(self) -> int:
         """Return the number of molecules."""
         return self._pos.shape[0]
+    
+    def __getitem__(self, key: int | slice | list[int] | np.ndarray) -> Molecules:
+        return self.subset(key)
     
     @property
     def pos(self) -> np.ndarray:
@@ -130,7 +107,7 @@ class Molecules:
         from scipy.spatial.transform import Rotation
         return cls(all_pos, Rotation(all_quat))
     
-    def subset(self, spec: slice | list[int] | np.ndarray) -> Molecules:
+    def subset(self, spec: int | slice | list[int] | np.ndarray) -> Molecules:
         """
         Create a subset of molecules by slicing.
         
@@ -139,7 +116,7 @@ class Molecules:
 
         Parameters
         ----------
-        spec : slice, list of int, or ndarray
+        spec : int ,slice, list of int, or ndarray
             Specifier that defines which molecule will be used. Any objects that numpy
             slicing are defined are supported. For instance, ``[2, 3, 5]`` means the 2nd,
             3rd and 5th molecules will be used (zero-indexed), and ``slice(10, 20)``
@@ -151,7 +128,7 @@ class Molecules:
             Molecule subset.
         """
         if isinstance(spec, int):
-            raise TypeError("Cannot create subset of molecules using an integer.")
+            spec = slice(spec, spec+1)
         pos = self.pos[spec]
         quat = self._rotator.as_quat()[spec]
         from scipy.spatial.transform import Rotation
@@ -287,7 +264,7 @@ class Molecules:
         return self._rotator.as_quat()
 
 
-    def rot_vector(self) -> np.ndarray:
+    def rotvec(self) -> np.ndarray:
         """
         Calculate rotation vectors that transforms a source vector to vectors that 
         belong to the object.
@@ -406,7 +383,7 @@ class Molecules:
         return self.rotate_by(rotator, copy)
     
     
-    def rotate_by_rot_vector(self, vector: ArrayLike, copy: bool = True) -> Molecules:
+    def rotate_by_rotvec(self, vector: ArrayLike, copy: bool = True) -> Molecules:
         """
         Rotate molecules using rotation vectors, **with their position unchanged**.
 
@@ -450,33 +427,37 @@ def _translate_euler(seq: str) -> str:
     table = str.maketrans({"x": "z", "z": "x", "X": "Z", "Z": "X"})
     return seq[::-1].translate(table)
 
-def _vector_to_rotation_matrix(ds: np.ndarray):
-    n = ds.shape[0]
-    xy = np.arctan2(ds[:, 2], -ds[:, 1])
-    zy = np.arctan(-ds[:, 0]/np.abs(ds[:, 1]))
-    
-    # In YX plane, rotation matrix should be
-    # [[1.,  0.,  0.],
-    #  [0., cos, sin],
-    #  [0.,-sin, cos]]
-    cos = np.cos(xy)
-    sin = np.sin(xy)
-    rotation_yx = np.zeros((n, 3, 3), dtype=np.float32)
-    rotation_yx[:, 0, 0] = 1.
-    rotation_yx[:, 1, 1] = rotation_yx[:, 2, 2] = cos
-    rotation_yx[:, 2, 1] = -sin
-    rotation_yx[:, 1, 2] = sin
-    
-    # In ZY plane, rotation matrix should be
-    # [[1.,  0.,  0.],
-    #  [0., cos, sin],
-    #  [0.,-sin, cos]]
-    cos = np.cos(zy)
-    sin = np.sin(zy)
-    rotation_zy = np.zeros((n, 3, 3), dtype=np.float32)
-    rotation_zy[:, 2, 2] = 1.
-    rotation_zy[:, 0, 0] = rotation_zy[:, 1, 1] = cos
-    rotation_zy[:, 1, 0] = -sin
-    rotation_zy[:, 0, 1] = sin
 
-    return np.einsum("ijk,ikl->ijl", rotation_yx, rotation_zy)
+def axes_to_rotator(z, y) -> "Rotation":
+    from scipy.spatial.transform import Rotation
+    
+    ref = _normalize(np.atleast_2d(y))
+    
+    n = ref.shape[0]
+    yx = np.arctan2(ref[:, 2], ref[:, 1])
+    zy = np.arctan(-ref[:, 0]/np.abs(ref[:, 1]))
+    
+    rot_vec_yx = np.zeros((n, 3))
+    rot_vec_yx[:, 0] = yx
+    rot_yx = Rotation.from_rotvec(rot_vec_yx)
+    
+    rot_vec_zy = np.zeros((n, 3))
+    rot_vec_zy[:, 2] = zy
+    rot_zy = Rotation.from_rotvec(rot_vec_zy)
+    
+    rot1 = rot_yx * rot_zy
+    
+    if z is None:
+        return rot1
+    
+    vec = _normalize(np.atleast_2d(_extract_orthogonal(ref, z)))
+    
+    vec_trans = rot1.apply(vec, inverse=True)   # in zx-plane
+    
+    thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
+    
+    rot_vec_zx = np.zeros((n, 3))
+    rot_vec_zx[:, 1] = thetas
+    rot2 = Rotation.from_rotvec(rot_vec_zx)
+    
+    return rot1 * rot2

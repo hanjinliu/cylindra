@@ -16,9 +16,6 @@ RangeLike = Union[
     tuple[float, float, int],
 ]
 
-SearchRange = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]
-
-
 class SubtomogramLoader:
     """
     A class for efficient loading of subtomograms.
@@ -103,7 +100,7 @@ class SubtomogramLoader:
                     axis=0,
                     )
                 subvols = ip.asarray(subvols, axes="pzyx")
-                subvols.set_scale(xyz=scale)
+                subvols.set_scale(image)
                 yield subvols
     
     def to_stack(self) -> ip.ImgArray:
@@ -193,20 +190,18 @@ class SubtomogramLoader:
                 aligned += subvol.value
                 n += 1
                 callback(self)
-        image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
-        image_avg.set_scale(xyz=self.scale)
-        image_avg.scale_unit = "nm"
-        return image_avg
-        
+        self.image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
+        self.image_avg.set_scale(self.image_ref)
+        return self.image_avg
         
     def align(
         self,
+        *,
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
         max_shifts: int | tuple[int, int, int] = 4,
-        rotations: SearchRange | None = None,
+        rotations: RangeLike | None = None,
         cutoff: float = 0.5,
-        *,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> SubtomogramLoader:
         
@@ -224,7 +219,13 @@ class SubtomogramLoader:
             )
             self.output_shape = template.shape
         if rotations is not None:
-            raise NotImplementedError
+            if isinstance(rotations, tuple):
+                start, stop, step = rotations
+                num, res = divmod((stop - start), step)
+                rotations = np.linspace(start + res/2, stop-res/2, num)
+            else:
+                rotations = np.asarray(rotations)
+                
         if callback is None:
             callback = lambda x: None
         
@@ -252,7 +253,7 @@ class SubtomogramLoader:
         
         if self.image_avg is None:
             pre_alignment = ip.asarray(pre_alignment/len(shifts), axes="zyx", name="Avg")
-            pre_alignment.set_scale(xyz=self.scale)
+            pre_alignment.set_scale(self.image_ref)
             self.image_avg = pre_alignment
         
         return out
@@ -299,6 +300,6 @@ class SubtomogramLoader:
         
         if self.image_avg is None:
             self.image_avg = ip.asarray(sum_images[0] + sum_images[1], axes="zyx", name="Avg")
-            self.image_avg.set_scale(xyz=self.scale)
+            self.image_avg.set_scale(self.image_ref)
             
         return np.asarray(fsc)

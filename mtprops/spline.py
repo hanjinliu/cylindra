@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
-from typing import Callable, Iterable, TypedDict
+from typing import Callable, Iterable, TypedDict, TYPE_CHECKING
 import warnings
 import numpy as np
 import numba as nb
@@ -9,7 +9,10 @@ from scipy.interpolate import splprep, splev
 from skimage.transform._warps import _linear_polar_mapping
 from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
-from .molecules import Molecules
+from .molecules import Molecules, axes_to_rotator
+
+if TYPE_CHECKING:
+    from scipy.spatial.transform import Rotation
 
 class Coords3D(TypedDict):
     z: list[float]
@@ -262,14 +265,9 @@ class Spline:
             Total variation , by default None
         """        
         coords = self(u)
-        mtxs = self.rotation_matrix(u)
-        for i in range(coords.shape[0]):
-            shiftz, shiftx = shifts[i]
-            shift = np.array([shiftz, 0, shiftx])
-            
-            shift = shift @ mtxs[i][:3, :3]
-            coords[i] += shift * self.scale
-        
+        rot = self.get_rotator(u)
+        shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
+        coords += rot.apply(shifts) * self.scale
         self.fit(coords, s=s)
         return self
 
@@ -430,10 +428,10 @@ class Spline:
         return None
     
 
-    def rotation_matrix(self, 
-                        u: Iterable[float] = None,
-                        center: Iterable[float] = None, 
-                        inverse: bool = False) -> np.ndarray:
+    def affine_matrix(self, 
+                      u: Iterable[float] = None,
+                      center: Iterable[float] = None, 
+                      inverse: bool = False) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
         the orientation of spline curve.
@@ -482,6 +480,37 @@ class Spline:
                                      dtype=np.float32)
             
             out = translation_0 @ out @ translation_1
+        
+        return out
+    
+    def get_rotator(
+        self, 
+        u: Iterable[float] = None,
+        inverse: bool = False
+    ) -> "Rotation":
+        """
+        Calculate list of Affine transformation matrix along spline, which correspond to
+        the orientation of spline curve.
+
+        Parameters
+        ----------
+        u : array-like, (N, )
+            Positions. Between 0 and 1.
+        inverse : bool, default is False
+            If True, rotation matrix will be inversed.
+            
+        Returns
+        -------
+        Rotation
+            Rotation object at each anchor.
+        """        
+        if u is None:
+            u = self.anchors
+        ds = self(u, 1)
+        out = axes_to_rotator(None, -ds)
+        
+        if inverse:
+            out = out.inv()
         
         return out
 
@@ -665,51 +694,60 @@ class Spline:
         return self.cartesian_to_world(cart_coords)
 
     
-    def world_to_cylindrical(self, 
-                             coords: np.ndarray,
-                             precision: float = 1e-3,
-                             angle_tol: float = 1e-2) -> Spline:
-        # WIP
-        u = np.linspace(0, 1, 1/precision)
-        sample_points = self(u) # (N, 3)
-        vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3) # (S, N, 3)
-        dist2_map = np.sum(vector_map**2, axis=2)
-        argmins = np.argmin(dist2_map, axis=0).tolist()
-        argmin_pos = u[argmins]
-        s = self(argmin_pos)
-        ds = self(argmin_pos, der=1)
-        norm_vector = coords - s
-        inner = np.tensordot(ds, norm_vector, [(1,), (1,)])
-        theta = np.arccos(
-            inner/np.sqrt(np.sum(ds**2, axis=1)*np.sum(norm_vector**2, axis=1))
-            )
-        valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
+    # def world_to_cylindrical(self, 
+    #                          coords: np.ndarray,
+    #                          precision: float = 1e-3,
+    #                          angle_tol: float = 1e-2) -> Spline:
+    #     # WIP
+    #     u = np.linspace(0, 1, 1/precision)
+    #     sample_points = self(u) # (N, 3)
+    #     vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3) # (S, N, 3)
+    #     dist2_map = np.sum(vector_map**2, axis=2)
+    #     argmins = np.argmin(dist2_map, axis=0).tolist()
+    #     argmin_pos = u[argmins]
+    #     s = self(argmin_pos)
+    #     ds = self(argmin_pos, der=1)
+    #     norm_vector = coords - s
+    #     inner = np.tensordot(ds, norm_vector, [(1,), (1,)])
+    #     theta = np.arccos(
+    #         inner/np.sqrt(np.sum(ds**2, axis=1)*np.sum(norm_vector**2, axis=1))
+    #         )
+    #     valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
 
 
-    def cartesian_to_molecules(self, coords: np.ndarray) -> Molecules:
+    def anchors_to_molecules(
+        self, 
+        u: Iterable[float] | None,
+        rotation: Iterable[float] | None = None
+    ) -> Molecules:
         """
-        Convert coordinates of points near the spline to ``Molecules`` instance.
+        Convert coordinates of anchors to ``Molecules`` instance.
         
-        Coordinates of points must be those in spline Cartesian coordinate system.
+        Coordinates of anchors must be in range from 0 to 1. The y-direction of
+        ``Molecules`` always points at the direction of spline and the z-
+        direction always in the plane orthogonal to YX-plane.
 
         Parameters
         ----------
-        coords : (N, 3) array
-            Spline Cartesian coordinates of points.
+        u : Iterable[float] | None
+            Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
         -------
         Molecules
             Molecules object of points.
-        """        
-        world_coords = self.cartesian_to_world(coords)
-        
-        # world coordinates of the projection point of coords onto the spline
-        u = coords[:, 1]/self.length()
-        ycoords = self(u)
-        zvec = world_coords - ycoords
+        """
+        if u is None:
+            u = self.anchors
+        pos = self(u)
         yvec = self(u, der=1)
-        return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
+        rot = axes_to_rotator(None, yvec)
+        if rotation is not None:
+            rotvec = np.zeros((len(rot), 3), dtype=np.float32)
+            rotvec[:, 1] = rotation
+            from scipy.spatial.transform import Rotation
+            rot = rot * Rotation.from_rotvec(rotvec)
+        return Molecules(pos=pos, rot=rot)
 
 
     def cylindrical_to_molecules(self, coords: np.ndarray) -> Molecules:
@@ -759,6 +797,7 @@ class Spline:
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
+
 
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop

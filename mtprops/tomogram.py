@@ -1070,23 +1070,6 @@ class MtTomogram:
         img_st: ip.ImgArray = self.straighten_cylindric(i)
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
-    
-    # @batch_process
-    # def get_offset(self, i = None):
-    #     img_st: ip.ImgArray = self.cylindric_straighten(i).proj("r")
-    #     img_st -= np.mean(img_st)
-    #     params = self.global_ft_params(i)
-    #     npf = int(params[H.nPF])
-    #     y_pitch = params[H.yPitch]
-    #     y_freq_px = 2.0/y_pitch*self.scale * img_st.shape.y
-    #     skew =params[H.skewAngle]
-    #     npfrange = ceilint(npf/2)
-    #     y_factor = abs(self.splines[i].radius/y_pitch/npf*img_st.shape.y/4)
-    #     dy_min = ceilint(tandg(skew)*y_factor) - 1
-    #     dy_max = max(ceilint(tandg(skew)*y_factor), dy_min+1)
-        
-    #     # around y peak
-    #     img_st.local_dft(f"y={y_freq_px-1}:{y_freq_px+2};a={npf}:{npf+1}", dims="rya")
 
     @batch_process
     def straighten(self, 
@@ -1261,7 +1244,6 @@ class MtTomogram:
                     i = None,
                     *, 
                     rot_ave: bool = False,
-                    seam_offset: float | str = None,
                     erase_corner: bool = True,
                     niter: int = 1,
                     y_length: nm = 50.0) -> ip.ImgArray:
@@ -1274,9 +1256,6 @@ class MtTomogram:
             Spline ID that you want to reconstruct.
         rot_ave : bool, default is False
             If true, rotational averaging is applied to the reconstruction to remove missing wedge.
-        seam_offset : float or "find", optional
-            Angle offset of seam position in degree. If given and rot_ave is True, reconstruction 
-            will be executed considering seam.
         erase_corner : bool, default is True
             Substitute four corners with median of non-corner domain. This option is useful for iso
             threshold visualization.
@@ -1363,44 +1342,6 @@ class MtTomogram:
                 mtx = trs1 @ rot @ trs0
                 out.value[:] += input_.affine(mtx, mode=Mode.grid_wrap)
             
-            if seam_offset == "find":
-                seam_offset = self.seam_offset(i)
-                
-            if seam_offset is not None:
-                if self.light_background:
-                    missing = out.max()
-                    extrema = np.minimum
-                else:
-                    missing = out.min()
-                    extrema = np.maximum
-                
-                z, x = np.indices(out.sizesof("zx"))
-                angle = np.rad2deg(np.arctan2(z-center[0], x-center[2]))
-                eps = 2.0
-                # TODO: do not work when seam_offset ~ 0??
-                sl_zx = (seam_offset - 360/npf - eps <= angle) & (angle <= seam_offset + eps)
-                sl = np.stack([sl_zx]*out.shape.y, axis=1)
-                
-                # image only contains one protofilament just before seam.
-                base: ip.ImgArray = ip.empty(out.shape, dtype=np.float32, axes="zyx")
-                base[:] = missing
-                base[sl] = out[sl]
-                out[:] = base[:]
-                
-                for pf in range(1, npf):
-                    ang = 2*np.pi*pf/npf
-                    dy = -2*np.pi*pf/npf*radius*slope/self.scale
-                    cos = np.cos(ang)
-                    sin = np.sin(ang)
-                    rot = np.array([[cos, 0.,-sin, 0.],
-                                    [ 0., 1.,  0., dy],
-                                    [sin, 0., cos, 0.],
-                                    [ 0., 0.,  0., 1.]],
-                                    dtype=np.float32)
-                    mtx = trs1 @ rot @ trs0
-                    rot_img = base.affine(mtx, mode=Mode.grid_wrap)
-                    out.value[:] = extrema(out, rot_img)
-                
         # stack images for better visualization
         dup = ceilint(y_length/lp)
         outlist = [out]
@@ -1425,7 +1366,6 @@ class MtTomogram:
                               i = None,
                               *,
                               rot_ave: bool = False, 
-                              seam_offset: float | str = None,
                               radii: tuple[nm, nm] = None,
                               niter: int = 1,
                               y_length: nm = 50.0) -> ip.ImgArray:
@@ -1520,35 +1460,6 @@ class MtTomogram:
                                           dims="ya", mode=Mode.grid_wrap)
                 out.value[:] += rot_input
             
-            if seam_offset == "find":
-                seam_offset = self._find_seam_offset(i, input_)
-                
-            if seam_offset is not None:
-                if self.light_background:
-                    missing = out.max()
-                    extrema = np.minimum
-                else:
-                    missing = out.min()
-                    extrema = np.maximum
-                    
-                len_pf = out.shape.a/npf
-                seam_px = seam_offset/360*a_size
-                sl_temp = np.arange(int(seam_px - len_pf), ceilint(seam_px)) % a_size
-                
-                # image only contains one protofilament just before seam.
-                base: ip.ImgArray = ip.empty(out.shape, dtype=np.float32, axes="rya")
-                base[:] = missing
-                base[:, :, sl_temp] = out[:, :, sl_temp]
-                out[:] = base[:]
-                
-                slope = tandg(rise)
-                da = a_size/npf * np.arange(npf)
-                dy = 2*np.pi/npf*radius*slope/self.scale * np.arange(npf)
-                for pf in range(1, npf):
-                    shift = [-dy[pf], -da[pf]]
-                    rot_img = base.affine(translation=shift, dims="ya", mode=Mode.grid_wrap)
-                    out.value[:] = extrema(out, rot_img)
-                    
         # stack images for better visualization
         dup = ceilint(y_length/lp)
         outlist = [out]
@@ -1634,106 +1545,6 @@ class MtTomogram:
         return crds
     
     @batch_process
-    def pf_offsets(self, i = None) -> np.ndarray:
-        """
-        Calculate pixel offsets of protofilament origins.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that offsets will be calculated.
-
-        Returns
-        -------
-        np.ndarray
-            Float angle offsets in degree. If MT has N protofilaments, this array will be (N,).
-        """
-        spl = self._splines[i]
-        props = self.global_ft_params(i)
-        pitch = props[H.yPitch]
-        skew = props[H.skewAngle]
-        npf = int(props[H.nPF])
-        imgst = self.straighten_cylindric(i).proj("r")
-        tilt = -np.deg2rad(skew) * spl.radius / pitch / 2
-        with no_verbose():
-            img_shear = imgst.affine(np.array([[1, 0, 0], [tilt, 1, 0], [0, 0, 1]]), 
-                                     mode=Mode.grid_wrap, dims="ya")
-            line = img_shear.proj("y")
-        
-        if self.light_background:
-            line = -line
-            
-        offset = np.rad2deg(np.angle(line.fft(dims="a", shift=False)[npf]))
-        return (np.arange(npf)*360/npf + offset) % 360
-    
-    def _find_seam_offset(self, i, rec: ip.ImgArray):
-        spl = self._splines[i]
-        props = self.global_ft_params(i)
-        pitch = props[H.yPitch]
-        skew = props[H.skewAngle]
-        rise = props[H.riseAngle]
-        npf = roundint(props[H.nPF])
-        a_size = rec.shape.a
-        tilt = np.deg2rad(skew) * spl.radius / pitch / 2
-        with no_verbose():
-            mtx = np.array([[1.,   0., 0., 0.],
-                            [0.,   1., 0., 0.],
-                            [0., tilt, 1., 0.],
-                            [0.,   0., 0., 1.]],
-                           dtype=np.float32)
-            img_shear = rec.affine(mtx, mode=Mode.grid_wrap, dims="rya")
-            line = img_shear.proj("ry")
-        
-        # "offset" means the peak of monomer     
-        offset_rad = np.angle(np.fft.fft(line.value)[npf]) % (2 * np.pi)
-        offset_px: float = offset_rad / 2 / np.pi * a_size
-        l = roundint(a_size/npf)
-        l_dimer = pitch*2
-        slope = tandg(rise)
-        opt_y_mat = np.zeros((npf, npf), dtype=np.float32)
-        with no_verbose():
-            # TODO: This is not efficient.
-            for i in range(npf):
-                si = roundint(a_size/npf*i - offset_px - l/2)
-                sl_i = np.arange(si, si+l) % a_size
-                ft0 = img_shear[:, :, sl_i].fft(dims="rya")
-                for j in range(i, npf):
-                    sj = roundint(a_size/npf*j - offset_px - l/2)
-                    sl_j = np.arange(sj, sj+l) % a_size
-                    ft1 = img_shear[:, :, sl_j].fft(dims="rya")
-                    shift = ip.ft_pcc_maximum(ft0, ft1)
-                    # TODO: l_dimer is not scaled?
-                    opt_y_mat[i, j] = opt_y_mat[j, i] = (shift[1] + slope*a_size/npf*(j-i)) % l_dimer
-        
-        std_list: list[float] = []
-        for seam in range(npf):
-            cl0 = np.cos(opt_y_mat[:seam, :seam]/l_dimer*2*np.pi)
-            cl1 = np.cos(opt_y_mat[seam:, seam:]/l_dimer*2*np.pi)
-            std_list.append(np.std(np.concatenate([cl0.ravel(), cl1.ravel()])))
-        
-        seampos = np.argmin(std_list)
-        return np.rad2deg(seampos / len(std_list) * 2 * np.pi + offset_rad) % 360
-    
-    @batch_process
-    def seam_offset(self, i = None) -> float:
-        """
-        Find seam position using cylindrical recunstruction.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that seam offset will be calculated.
-
-        Returns
-        -------
-        float
-            Angle offset of seam in degree.
-        """   
-        rec = self.reconstruct_cylindric(i, y_length=0)
-        return self._find_seam_offset(i, rec)
-
-    
-    @batch_process
     def map_pf_line(self, i = None, *, angle_offset: float = 0) -> Coordinates:
         """
         Calculate mapping of protofilament line at an angle offset.
@@ -1766,7 +1577,13 @@ class MtTomogram:
                            spline = coords)
         return crds
     
-    def get_subtomogram_loader(self, mole: Molecules, output_shape, chunksize: int = 560) -> SubtomogramLoader:
+    def get_subtomogram_loader(
+        self,
+        mole: Molecules,
+        shape: tuple[nm, nm, nm], 
+        chunksize: int = 560,
+    ) -> SubtomogramLoader:
+        output_shape = tuple(self.nm2pixel(np.asarray(shape) / self.scale))
         return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     
     # @batch_process
