@@ -426,39 +426,23 @@ def _translate_euler(seq: str) -> str:
 
 
 def axes_to_rotator(z, y) -> "Rotation":
+    from scipy.spatial.transform import Rotation
+    
     ref = _normalize(np.atleast_2d(y))
     
     n = ref.shape[0]
-    xy = np.arctan2(-ref[:, 2], ref[:, 1])
-    zy = np.arctan(ref[:, 0]/np.abs(ref[:, 1]))
+    yx = np.arctan2(ref[:, 2], ref[:, 1])
+    zy = np.arctan(-ref[:, 0]/np.abs(ref[:, 1]))
     
-    # In YX plane, rotation matrix should be
-    # [[1.,  0.,  0.],
-    #  [0., cos, sin],
-    #  [0.,-sin, cos]]
-    cos = np.cos(xy)
-    sin = np.sin(xy)
-    rotation_yx = np.zeros((n, 3, 3), dtype=np.float32)
-    rotation_yx[:, 0, 0] = 1.
-    rotation_yx[:, 1, 1] = rotation_yx[:, 2, 2] = cos
-    rotation_yx[:, 2, 1] = -sin
-    rotation_yx[:, 1, 2] = sin
+    rot_vec_yx = np.zeros((n, 3))
+    rot_vec_yx[:, 0] = yx
+    rot_yx = Rotation.from_rotvec(rot_vec_yx)
     
-    # In ZY plane, rotation matrix should be
-    # [[1.,  0.,  0.],
-    #  [0., cos, sin],
-    #  [0.,-sin, cos]]
-    cos = np.cos(zy)
-    sin = np.sin(zy)
-    rotation_zy = np.zeros((n, 3, 3), dtype=np.float32)
-    rotation_zy[:, 2, 2] = 1.
-    rotation_zy[:, 0, 0] = rotation_zy[:, 1, 1] = cos
-    rotation_zy[:, 1, 0] = -sin
-    rotation_zy[:, 0, 1] = sin
+    rot_vec_zy = np.zeros((n, 3))
+    rot_vec_zy[:, 2] = zy
+    rot_zy = Rotation.from_rotvec(rot_vec_zy)
     
-    from scipy.spatial.transform import Rotation
-    
-    rot1 = Rotation.from_matrix(rotation_yx) * Rotation.from_matrix(rotation_zy)
+    rot1 = rot_yx * rot_zy
     
     if z is None:
         return rot1
