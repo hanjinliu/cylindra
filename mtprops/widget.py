@@ -912,6 +912,12 @@ class MTPropsWidget(MagicTemplate):
         def _read_scale(self):
             img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
             self.scale = f"{img.scale.x:.4f}"
+            if self.scale > 0.96:
+                self.bin_size = 1
+            elif self.scale > 0.48:
+                self.bin_size = 2
+            else:
+                self.bin_size = 4
         
         def load_tomogram(self): ...
     

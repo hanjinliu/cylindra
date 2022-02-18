@@ -261,7 +261,7 @@ class Molecules:
         return self._rotator.as_quat()
 
 
-    def rot_vector(self) -> np.ndarray:
+    def rotvec(self) -> np.ndarray:
         """
         Calculate rotation vectors that transforms a source vector to vectors that 
         belong to the object.
@@ -380,7 +380,7 @@ class Molecules:
         return self.rotate_by(rotator, copy)
     
     
-    def rotate_by_rot_vector(self, vector: ArrayLike, copy: bool = True) -> Molecules:
+    def rotate_by_rotvec(self, vector: ArrayLike, copy: bool = True) -> Molecules:
         """
         Rotate molecules using rotation vectors, **with their position unchanged**.
 

@@ -73,13 +73,13 @@ def test_rotvec():
     zvec = np.array([1, 0, 0])
     yvec = np.array([0, 1/Sq2, 1/Sq2])
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
-    assert_allclose(mol.rot_vector(), [[np.pi/4, 0, 0]])
+    assert_allclose(mol.rotvec(), [[np.pi/4, 0, 0]])
     
     pos = np.array([0, 0, 0])
     zvec = np.array([0, 0, -1])
     yvec = np.array([0, 1, 0])
     mol = Molecules.from_axes(pos, z=zvec, y=yvec)
-    assert_allclose(mol.rot_vector(), [[0, np.pi/2, 0]])
+    assert_allclose(mol.rotvec(), [[0, np.pi/2, 0]])
 
 
 def test_save_and_load_euler_angle():
