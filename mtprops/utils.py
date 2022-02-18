@@ -8,6 +8,7 @@ from .const import Mode
 
 if TYPE_CHECKING:
     from .spline import Spline
+    from .molecules import Molecules
 
 def roundint(a: float):
     return int(round(a))
@@ -320,4 +321,14 @@ class Projections:
     def rotational_average(self, npf: int):
         self.zx_ave = rotational_average(self.zx, fold=int(npf))
         return self.zx_ave
-    
+
+
+def dimer_candidates(mole: "Molecules", npf: int):
+    molecules = []
+    for resid in [0, 1]:
+        for pf in range(npf):
+            _id = np.arange(mole.pos.shape[0])
+            res = ((_id - pf) // npf)
+            choose = (res % 2 == resid)
+            molecules.append(mole.subset(choose))
+    return molecules
