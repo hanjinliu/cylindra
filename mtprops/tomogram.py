@@ -27,6 +27,7 @@ from .utils import (
     load_a_subtomogram,
     centroid,
     map_coordinates,
+    multi_map_coordinates,
     roundint,
     load_rot_subtomograms,
     ceilint,
@@ -34,6 +35,7 @@ from .utils import (
     no_verbose,
     mirror_pcc,
     mirror_ft_pcc,
+    angle_uniform_filter,
     )
 
 
@@ -263,7 +265,7 @@ class MtTomogram:
                  *,
                  subtomogram_length: nm = 48.0,
                  subtomogram_width: nm = 40.0,
-                 light_background: bool = True,
+                 light_background: bool = False,
                  ):
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
@@ -636,8 +638,8 @@ class MtTomogram:
             i = None,
             *, 
             max_interval: nm = 30.0,
-            degree_precision: float = 0.2,
-            cutoff: float = 0.35,
+            degree_precision: float = 0.5,
+            cutoff: float = 0.2,
             dense_mode: bool = False,
             dense_mode_sigma: nm = 2.0,
             ) -> MtTomogram:
@@ -677,6 +679,7 @@ class MtTomogram:
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
         subtomograms -= subtomograms.mean()
+        subtomograms: ip.ImgArray
         if 0 < cutoff < 0.866:
             subtomograms = subtomograms.lowpass_filter(cutoff)
         
@@ -688,8 +691,8 @@ class MtTomogram:
             xr = xx - xc
             for i, ds in enumerate(spl(der=1)):
                 _, vy, vx = ds
-                distance: nm = np.abs(-xr*vy + yr*vx)/np.sqrt(vx**2 + vy**2) * self.scale
-                distance_cutoff = self.subtomo_width/2
+                distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * self.scale
+                distance_cutoff = self.subtomo_width / 2
                 if dense_mode_sigma == 0:
                     mask_yx = (distance > distance_cutoff).astype(np.float32)
                 else:
@@ -702,13 +705,14 @@ class MtTomogram:
         nrots = roundint(14/degree_precision) + 1
 
         # Angular correlation
-        out = dask_angle_corr(subtomograms[1:-1], yx_tilt, nrots=nrots)
-        refined_tilt = np.array([0] + list(out) + [0])
+        out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
+        refined_tilt = np.array(out)
         size = 2*roundint(48.0/interval) + 1
         if size > 1:
-            # Mirror-mode padding is "a b c d | c b a", thus edge values will be substituted
-            # with the adjucent values respectively.
-            refined_tilt = ndi.median_filter(refined_tilt, size=size, mode=Mode.mirror)
+            # Mirror-mode padding is "a b c d | c b a".
+            refined_tilt = np.rad2deg(
+                angle_uniform_filter(np.deg2rad(refined_tilt), size=size, mode=Mode.mirror)
+                )
         
         # Rotate subtomograms            
         for i, img in enumerate(subtomograms):
@@ -791,14 +795,11 @@ class MtTomogram:
         if spl.radius is None:
             spl.make_anchors(n=3)
             self.measure_radius(i=i)
+            
         props = self.global_ft_params(i)
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
-        subtomograms = self._sample_subtomograms(i)
-        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()  # normalize
-        if 0 < cutoff < 0.866:
-            subtomograms = subtomograms.lowpass_filter(cutoff)
             
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
@@ -811,34 +812,44 @@ class MtTomogram:
         pf_ang = 360/npf
         skew_angles %= pf_ang
         skew_angles[skew_angles > pf_ang/2] -= pf_ang
+        
+        length_px = self.nm2pixel(self.subtomo_length)
+        width_px = self.nm2pixel(self.subtomo_width)
+        
+        images: list[ip.ImgArray] = []
+        mole = spl.anchors_to_molecules(rotation=np.deg2rad(skew_angles))
+        
+        # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
+        chunksize = max(int(self.subtomo_length*2/interval), 1)
+        for coords in mole.iter_cartesian((width_px, length_px, width_px), 
+                                          self.scale, chunksize=chunksize):
+            _subtomo = multi_map_coordinates(self.image, coords, order=1, cval=np.mean)
+            images.extend(_subtomo)
+        
+        subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
+        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()  # normalize
+        if 0 < cutoff < 0.866:
+            subtomograms = subtomograms.lowpass_filter(cutoff)
 
         # prepare input images according to the options.
         if projection:
             inputs = subtomograms.proj("y")["x=::-1"]
         else:
             inputs = subtomograms["x=::-1"]
-
-        # Rotate subtomograms at skew angles. All the subtomograms should look "similar"
-        # after this rotation.
-        imgs_rot_list: list[ip.ImgArray] = []
-        for i, ang in enumerate(skew_angles):
-            rotimg = inputs[i].rotate(-ang, dims="zx", mode=Mode.constant, cval=0)
-            imgs_rot_list.append(rotimg)
         
-        imgs_rot: ip.ImgArray = np.stack(imgs_rot_list, axis="p")
-        imgs_rot_ft = imgs_rot.fft(dims=imgs_rot_list[0].axes)
+        inputs_ft = inputs.fft(dims=inputs["p=0"].axes)
         
         # Coarsely align skew-corrected images
-        shape = imgs_rot_ft[0].shape
+        shape = inputs["p=0"].shape
         
         # prepare a mask image for PCC calculation
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
             
-        imgs_aligned: ip.ImgArray = ip.empty(imgs_rot.shape, dtype=np.float32, axes=imgs_rot.axes)
+        imgs_aligned: ip.ImgArray = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
         
         for i in range(npoints):
-            img: ip.ImgArray = imgs_rot[i]
-            ft = imgs_rot_ft[i]
+            img: ip.ImgArray = inputs[i]
+            ft = inputs_ft[i]
             shift = mirror_ft_pcc(ft, mask=mask) / 2
             if not projection:
                 shift[1] = 0
@@ -850,7 +861,7 @@ class MtTomogram:
             threshold = np.quantile(corrs, 1 - corr_allowed)
             indices: np.ndarray = np.where(corrs >= threshold)[0]
             imgs_aligned = imgs_aligned[indices.tolist()]
-            
+        
         # Make template using coarse aligned images.
         imgcory: ip.ImgArray = imgs_aligned.proj("p")
         center_shift = mirror_pcc(imgcory, mask=mask) / 2
@@ -860,7 +871,7 @@ class MtTomogram:
         # Align skew-corrected images to the template
         shifts = np.zeros((npoints, 2))
         for i in range(npoints):
-            ft = imgs_rot_ft[i]
+            ft = inputs_ft[i]
             shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
             
             if not projection:

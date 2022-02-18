@@ -710,7 +710,7 @@ class Spline:
 
     def anchors_to_molecules(
         self, 
-        u: Iterable[float] | None,
+        u: Iterable[float] | None = None,
         rotation: Iterable[float] | None = None
     ) -> Molecules:
         """

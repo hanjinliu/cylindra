@@ -3,7 +3,6 @@ import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
 from typing import TYPE_CHECKING, Callable, Iterable
-import time
 from .const import Mode
 
 if TYPE_CHECKING:
@@ -131,7 +130,7 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     return value - res, int(n_segs)
 
 
-def mirror_pcc(img0: ip.ImgArray, mask=None):
+def mirror_pcc(img0: ip.ImgArray, mask=None, max_shifts=None):
     """
     Phase cross correlation of an image and its mirror image.
     Identical to ``ip.pcc_maximum(img0, img0[::-1, ::-1])``
@@ -139,10 +138,10 @@ def mirror_pcc(img0: ip.ImgArray, mask=None):
     """    
     ft0 = img0.fft()
     
-    return mirror_ft_pcc(ft0, mask)
+    return mirror_ft_pcc(ft0, mask=mask, max_shifts=max_shifts)
 
 
-def mirror_ft_pcc(ft0: ip.ImgArray, mask=None):
+def mirror_ft_pcc(ft0: ip.ImgArray, mask=None, max_shifts=None):
     """
     Phase cross correlation of an image and its mirror image.
     Identical to ``ip.ft_pcc_maximum(img0, img0[::-1, ::-1])``
@@ -154,7 +153,7 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None):
     weight = np.exp(1j*2*np.pi*phase)
     
     ft1 = weight*ft0.conj()
-    return ip.ft_pcc_maximum(ft0, ft1, mask) + 1
+    return ip.ft_pcc_maximum(ft0, ft1, mask=mask, max_shifts=max_shifts) + 1
     
 
 def map_coordinates(
@@ -283,6 +282,11 @@ def oblique_meshgrid(shape: tuple[int, int],
     out[:, :, 0] = out[:, :, 0] * d0 + c0
     out[:, :, 1] = out[:, :, 1] * d1 + c1
     return out
+
+def angle_uniform_filter(input, size, mode=Mode.constant, cval=0):
+    phase = np.exp(1j*input)
+    out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
+    return np.angle(out)
 
 
 class Projections:
