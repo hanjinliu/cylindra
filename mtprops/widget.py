@@ -522,6 +522,10 @@ class MTPropsWidget(MagicTemplate):
             def cylindric_reconstruction(self): ...
         def Map_monomers(self): ...
         def Map_monomers_manually(self): ...
+        @magicmenu
+        class Subtomogram_averaging(MagicTemplate):
+            def Average_all(self): ...
+            def Average_subset(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
@@ -911,10 +915,11 @@ class MTPropsWidget(MagicTemplate):
         @path.connect
         def _read_scale(self):
             img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
-            self.scale = f"{img.scale.x:.4f}"
-            if self.scale > 0.96:
+            scale = img.scale.x
+            self.scale = f"{scale:.4f}"
+            if scale > 0.96:
                 self.bin_size = 1
-            elif self.scale > 0.48:
+            elif scale > 0.48:
                 self.bin_size = 2
             else:
                 self.bin_size = 4
@@ -1589,6 +1594,92 @@ class MTPropsWidget(MagicTemplate):
         points_layer.metadata[SOURCE] = mol
         vector_layer: Vectors = viewer.layers[layer_name + " Z-axis"]
         vector_layer.data = np.stack([mol.pos, mol.z], axis=1)
+    
+    @Analysis.Subtomogram_averaging.wraps
+    @set_options(
+        shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
+        chunk_size={"min": 1, "max": 3600},
+    )
+    def Average_all(
+        self,
+        layer: MonomerLayer,
+        shape: tuple[nm, nm, nm] = (18., 18., 18.),
+        chunk_size: int = 546,
+    ):
+        """
+        Subtomogram averaging using all the subvolumes.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        shape : tuple[nm, nm, nm], default is (18., 18., 18.)
+            Shape of subtomograms.
+        chunk_size : int, default is 546
+            How many subtomograms will be loaded at the same time.
+        """
+        molecules = layer.metadata[MOLECULES]
+        loader = self.active_tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        ave = loader.average()
+        if self.active_tomogram.light_background:
+            ave = -ave
+        _show_reconstruction(ave, f"Subtomogram average (n={len(molecules)})")
+        return None
+    
+    @Analysis.Subtomogram_averaging.wraps
+    @set_options(
+        shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
+        method={"choices": ["steps", "first", "last", "random"]},
+    )
+    def Average_subset(
+        self,
+        layer: MonomerLayer,
+        shape: tuple[nm, nm, nm] = (18., 18., 18.),
+        method="steps", 
+        number: int = 64
+    ):
+        """
+        Subtomogram averaging using a subset of subvolumes.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        shape : tuple[nm, nm, nm], default is (18., 18., 18.)
+            Shape of subtomograms.
+        method : str, optional
+            How to choose subtomogram subset. 
+            (1) steps: Each 'steps' subtomograms from the tip of spline. 
+            (2) first: First subtomograms.
+            (3) last: Last subtomograms.
+            (4) random: choose randomly.
+        number : int, default is 64
+            Number of subtomograms to use.
+            
+        """
+        molecules = layer.metadata[MOLECULES]
+        nmole = len(molecules)
+        if nmole < number:
+            raise ValueError(f"There are only {nmole} subtomograms.")
+        if method == "steps":
+            step = nmole//number
+            sl = slice(0, step * number, step)
+        elif method == "first":
+            sl = slice(0, number)
+        elif method == "last":
+            sl = slice(-number, -1)
+        elif method == "random":
+            sl_all = np.arange(nmole, dtype=np.uint32)
+            sl = np.random.shuffle(sl_all)[:number]
+        else:
+            raise NotImplementedError(method)
+        mole = molecules.subset(sl)
+        loader = self.active_tomogram.get_subtomogram_loader(mole, shape)
+        ave = loader.average()
+        if self.active_tomogram.light_background:
+            ave = -ave
+        _show_reconstruction(ave, f"Subtomogram average (n={len(mole)})")
+        return None
         
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")
@@ -2217,7 +2308,8 @@ def _show_reconstruction(img: ip.ImgArray, name):
     viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
     viewer.scale_bar.visible = True
     viewer.scale_bar.unit = "nm"
-    viewer.add_image(img, scale=img.scale, name=name)
+    with no_verbose():
+        viewer.add_image(img.rescale_intensity(), scale=img.scale, name=name)
 
 def _iter_run(tomo: MtTomogram, 
               interval: nm,

@@ -694,51 +694,60 @@ class Spline:
         return self.cartesian_to_world(cart_coords)
 
     
-    def world_to_cylindrical(self, 
-                             coords: np.ndarray,
-                             precision: float = 1e-3,
-                             angle_tol: float = 1e-2) -> Spline:
-        # WIP
-        u = np.linspace(0, 1, 1/precision)
-        sample_points = self(u) # (N, 3)
-        vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3) # (S, N, 3)
-        dist2_map = np.sum(vector_map**2, axis=2)
-        argmins = np.argmin(dist2_map, axis=0).tolist()
-        argmin_pos = u[argmins]
-        s = self(argmin_pos)
-        ds = self(argmin_pos, der=1)
-        norm_vector = coords - s
-        inner = np.tensordot(ds, norm_vector, [(1,), (1,)])
-        theta = np.arccos(
-            inner/np.sqrt(np.sum(ds**2, axis=1)*np.sum(norm_vector**2, axis=1))
-            )
-        valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
+    # def world_to_cylindrical(self, 
+    #                          coords: np.ndarray,
+    #                          precision: float = 1e-3,
+    #                          angle_tol: float = 1e-2) -> Spline:
+    #     # WIP
+    #     u = np.linspace(0, 1, 1/precision)
+    #     sample_points = self(u) # (N, 3)
+    #     vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3) # (S, N, 3)
+    #     dist2_map = np.sum(vector_map**2, axis=2)
+    #     argmins = np.argmin(dist2_map, axis=0).tolist()
+    #     argmin_pos = u[argmins]
+    #     s = self(argmin_pos)
+    #     ds = self(argmin_pos, der=1)
+    #     norm_vector = coords - s
+    #     inner = np.tensordot(ds, norm_vector, [(1,), (1,)])
+    #     theta = np.arccos(
+    #         inner/np.sqrt(np.sum(ds**2, axis=1)*np.sum(norm_vector**2, axis=1))
+    #         )
+    #     valid = np.abs(np.abs(theta) - np.pi/2) < angle_tol
 
 
-    def cartesian_to_molecules(self, coords: np.ndarray) -> Molecules:
+    def anchors_to_molecules(
+        self, 
+        u: Iterable[float] | None,
+        rotation: Iterable[float] | None = None
+    ) -> Molecules:
         """
-        Convert coordinates of points near the spline to ``Molecules`` instance.
+        Convert coordinates of anchors to ``Molecules`` instance.
         
-        Coordinates of points must be those in spline Cartesian coordinate system.
+        Coordinates of anchors must be in range from 0 to 1. The y-direction of
+        ``Molecules`` always points at the direction of spline and the z-
+        direction always in the plane orthogonal to YX-plane.
 
         Parameters
         ----------
-        coords : (N, 3) array
-            Spline Cartesian coordinates of points.
+        u : Iterable[float] | None
+            Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
         -------
         Molecules
             Molecules object of points.
-        """        
-        world_coords = self.cartesian_to_world(coords)
-        
-        # world coordinates of the projection point of coords onto the spline
-        u = coords[:, 1]/self.length()
-        ycoords = self(u)
-        zvec = world_coords - ycoords
+        """
+        if u is None:
+            u = self.anchors
+        pos = self(u)
         yvec = self(u, der=1)
-        return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
+        rot = axes_to_rotator(None, yvec)
+        if rotation is not None:
+            rotvec = np.zeros((len(rot), 3), dtype=np.float32)
+            rotvec[:, 1] = rotation
+            from scipy.spatial.transform import Rotation
+            rot = rot * Rotation.from_rotvec(rotvec)
+        return Molecules(pos=pos, rot=rot)
 
 
     def cylindrical_to_molecules(self, coords: np.ndarray) -> Molecules:
@@ -788,6 +797,7 @@ class Spline:
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
         return _rot_with_vector(map_slice, y_ax_coords, dslist)
+
 
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop

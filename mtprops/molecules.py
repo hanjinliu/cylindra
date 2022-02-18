@@ -69,6 +69,9 @@ class Molecules:
         """Return the number of molecules."""
         return self._pos.shape[0]
     
+    def __getitem__(self, key: int | slice | list[int] | np.ndarray) -> Molecules:
+        return self.subset(key)
+    
     @property
     def pos(self) -> np.ndarray:
         """Positions of molecules."""
@@ -104,7 +107,7 @@ class Molecules:
         from scipy.spatial.transform import Rotation
         return cls(all_pos, Rotation(all_quat))
     
-    def subset(self, spec: slice | list[int] | np.ndarray) -> Molecules:
+    def subset(self, spec: int | slice | list[int] | np.ndarray) -> Molecules:
         """
         Create a subset of molecules by slicing.
         
@@ -113,7 +116,7 @@ class Molecules:
 
         Parameters
         ----------
-        spec : slice, list of int, or ndarray
+        spec : int ,slice, list of int, or ndarray
             Specifier that defines which molecule will be used. Any objects that numpy
             slicing are defined are supported. For instance, ``[2, 3, 5]`` means the 2nd,
             3rd and 5th molecules will be used (zero-indexed), and ``slice(10, 20)``
@@ -125,7 +128,7 @@ class Molecules:
             Molecule subset.
         """
         if isinstance(spec, int):
-            raise TypeError("Cannot create subset of molecules using an integer.")
+            spec = slice(spec, spec+1)
         pos = self.pos[spec]
         quat = self._rotator.as_quat()[spec]
         from scipy.spatial.transform import Rotation

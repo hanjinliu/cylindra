@@ -1768,9 +1768,10 @@ class MtTomogram:
     def get_subtomogram_loader(
         self,
         mole: Molecules,
-        output_shape, 
+        shape: tuple[nm, nm, nm], 
         chunksize: int = 560,
     ) -> SubtomogramLoader:
+        output_shape = tuple(self.nm2pixel(np.asarray(shape) / self.scale))
         return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     
     # @batch_process
