@@ -190,11 +190,11 @@ class SplineFitter(MagicTemplate):
     
     @mt.wraps
     def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.mtlabel]):
-        """Fit current spline."""        
+        """Fit current spline."""
         shifts = np.asarray(shifts)
         spl = self.splines[i]
         sqsum = GVar.splError**2 * shifts.shape[0]
-        spl.shift_fit(shifts=shifts*self.binsize, s=sqsum)
+        spl.shift_fit(shifts=shifts*self.binsize*spl.scale, s=sqsum)
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()
@@ -1600,11 +1600,13 @@ class MTPropsWidget(MagicTemplate):
         shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
         chunk_size={"min": 1, "max": 3600},
     )
+    @dispatch_worker
     def Average_all(
         self,
         layer: MonomerLayer,
         shape: tuple[nm, nm, nm] = (18., 18., 18.),
         chunk_size: int = 546,
+        fast: bool = True,
     ):
         """
         Subtomogram averaging using all the subvolumes.
@@ -1619,18 +1621,29 @@ class MTPropsWidget(MagicTemplate):
             How many subtomograms will be loaded at the same time.
         """
         molecules = layer.metadata[MOLECULES]
+        nmole = len(molecules)
         loader = self.active_tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
-        ave = loader.average()
-        if self.active_tomogram.light_background:
-            ave = -ave
-        _show_reconstruction(ave, f"Subtomogram average (n={len(molecules)})")
-        return None
+        
+        worker = create_worker(loader.iter_average,
+                               order = 1 if fast else 3,
+                               _progress={"total": nmole, "desc": "Running"}
+                               )
+        
+        @worker.returned.connect
+        def _on_returned(img: ip.ImgArray):
+            if self.active_tomogram.light_background:
+                img = -img
+            _show_reconstruction(img, f"Subtomogram average (n={nmole})")
+        
+        self._worker_control.info = f"Subtomogram Averaging ..."
+        return worker
     
     @Analysis.Subtomogram_averaging.wraps
     @set_options(
         shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
         method={"choices": ["steps", "first", "last", "random"]},
     )
+    @dispatch_worker
     def Average_subset(
         self,
         layer: MonomerLayer,
@@ -1657,7 +1670,7 @@ class MTPropsWidget(MagicTemplate):
             Number of subtomograms to use.
             
         """
-        molecules = layer.metadata[MOLECULES]
+        molecules: Molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
         if nmole < number:
             raise ValueError(f"There are only {nmole} subtomograms.")
@@ -1670,16 +1683,27 @@ class MTPropsWidget(MagicTemplate):
             sl = slice(-number, -1)
         elif method == "random":
             sl_all = np.arange(nmole, dtype=np.uint32)
-            sl = np.random.shuffle(sl_all)[:number]
+            np.random.shuffle(sl_all)
+            sl = sl_all[:number]
         else:
             raise NotImplementedError(method)
         mole = molecules.subset(sl)
         loader = self.active_tomogram.get_subtomogram_loader(mole, shape)
-        ave = loader.average()
-        if self.active_tomogram.light_background:
-            ave = -ave
-        _show_reconstruction(ave, f"Subtomogram average (n={len(mole)})")
-        return None
+        
+        worker = create_worker(loader.iter_average,
+                               order = 1,
+                               _progress={"total": number, "desc": "Running"}
+                               )
+        
+        @worker.returned.connect
+        def _on_returned(img: ip.ImgArray):
+            if self.active_tomogram.light_background:
+                img = -img
+            _show_reconstruction(img, f"Subtomogram average (n={number})")
+        
+        self._worker_control.info = f"Subtomogram Averaging (subset) ..."
+
+        return worker
         
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")

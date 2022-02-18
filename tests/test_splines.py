@@ -138,7 +138,7 @@ def test_clip():
     assert_allclose(spl([0.4, 0.45, 0.5]), spl_c1([1.0, 0.5, 0.0]))
 
 def test_shift_fit():
-    spl = MtSpline()
+    spl = MtSpline(scale=0.5)
    
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
     spl.fit(coords)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import itertools
 from typing import Any, Callable, Iterator, Iterable, Union
 import random
 import warnings
@@ -79,9 +80,7 @@ class SubtomogramLoader:
     
     def __iter__(self) -> Iterator[ip.ImgArray]:  # axes: zyx
         """Generate each subtomogram."""
-        for subvols in self.iter_chunks():
-            for subvol in subvols:
-                yield subvol
+        return self.iter_subtomograms()
     
     def iter_subtomograms(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
         for subvols in self.iter_chunks(order=order):
@@ -193,6 +192,18 @@ class SubtomogramLoader:
         self.image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
         self.image_avg.set_scale(self.image_ref)
         return self.image_avg
+    
+    def iter_average(self, order: int = 3):
+        aligned = np.zeros(self.output_shape, dtype=np.float32)
+        n = 0
+        with no_verbose():
+            for subvol in self.iter_subtomograms(order=order):
+                aligned += subvol.value
+                n += 1
+                yield aligned
+        self.image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
+        self.image_avg.set_scale(self.image_ref)
+        return self.image_avg
         
     def align(
         self,
@@ -208,7 +219,7 @@ class SubtomogramLoader:
         # normalize input
         if template is None:
             raise NotImplementedError("Template image is needed.")
-        if mask is not None:
+        if mask is None:
             mask = 1
         self._use_template_shape(template)
         
@@ -228,18 +239,34 @@ class SubtomogramLoader:
         
         with no_verbose():
             template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
-            for subvol in self:
-                input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
-                shift = ip.ft_pcc_maximum(
-                    input_subvol.fft(),
-                    template_ft, 
-                    upsample_factor=20, 
-                    max_shifts=max_shifts
-                )
-                local_shifts.append(shift)
-                if self.image_avg is None:
-                    pre_alignment += subvol
-                callback(self)
+            if rotations is None:
+                for subvol in self.iter_subtomograms():
+                    input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                    shift = ip.ft_pcc_maximum(
+                        input_subvol.fft(),
+                        template_ft, 
+                        upsample_factor=20, 
+                        max_shifts=max_shifts
+                    )
+                    local_shifts.append(shift)
+                    if self.image_avg is None:
+                        pre_alignment += subvol
+                    callback(self)
+            else:
+                raise NotImplementedError
+                for r in rotations:
+                    for subvol in self.iter_subtomograms():
+                        input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                        shift = ip.ft_pcc_maximum(
+                            input_subvol.fft(),
+                            template_ft, 
+                            upsample_factor=20, 
+                            max_shifts=max_shifts
+                        )
+                        local_shifts.append(shift)
+                        if self.image_avg is None:
+                            pre_alignment += subvol
+                        callback(self)
                 
         shifts = self.molecules._rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
         mole_aligned = self.molecules.translate(shifts)

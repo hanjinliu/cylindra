@@ -190,14 +190,7 @@ class Spline:
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}<{hex(id(self))}>"
-    
 
-    def __len__(self) -> int:
-        # TODO: this method should be deleted. Check if it is ready to be deleted.
-        if self._anchors is None:
-            return 0
-        else:
-            return self._anchors.size
     
     def clip(self, start: float, stop: float) -> Spline:
         """
@@ -258,16 +251,16 @@ class Spline:
         u : Iterable[float], optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
-            Shift from center in pixel. Must be (N, 2).
+            Shift from center in nm. Must be (N, 2).
         w : np.ndarray, optional
             Weight of each coordinate.
         s : float, optional
-            Total variation , by default None
+            Total variation, by default None
         """        
         coords = self(u)
         rot = self.get_rotator(u)
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
-        coords += rot.apply(shifts) * self.scale
+        coords += rot.apply(shifts)
         self.fit(coords, s=s)
         return self
 

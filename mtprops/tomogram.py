@@ -673,7 +673,7 @@ class MtTomogram:
         """        
         spl = self._splines[i]
         spl.make_anchors(max_interval=max_interval)
-        npoints = len(spl)
+        npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
         subtomograms -= subtomograms.mean()
@@ -793,7 +793,7 @@ class MtTomogram:
             self.measure_radius(i=i)
         props = self.global_ft_params(i)
         spl.make_anchors(max_interval=max_interval)
-        npoints = len(spl)
+        npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i)
         subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()  # normalize
@@ -804,8 +804,6 @@ class MtTomogram:
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
         lp = props[H.yPitch] * 2
-        ylen = subtomograms.shape.y
-        dist = roundint(ylen*self.scale/lp) # this is for masking 8 nm peak
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
         
@@ -876,7 +874,7 @@ class MtTomogram:
 
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
-        spl.shift_fit(shifts=shifts, s=sqsum)
+        spl.shift_fit(shifts=shifts*self.scale, s=sqsum)
         return self
                 
     @batch_process
@@ -1583,7 +1581,7 @@ class MtTomogram:
         shape: tuple[nm, nm, nm], 
         chunksize: int = 560,
     ) -> SubtomogramLoader:
-        output_shape = tuple(self.nm2pixel(np.asarray(shape) / self.scale))
+        output_shape = tuple(self.nm2pixel(shape))
         return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     
     # @batch_process
