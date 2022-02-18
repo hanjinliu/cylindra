@@ -10,7 +10,8 @@ Quantify local/global properties of microtubule (or other cylindrically periodic
 - Calculating structural parameters (pitch length, skew angle, protofilament number and starting number like 13_3).
 - Coordinate transformation along splines. Straightening and opening are included.
 - Determination of microtubule polarity by seeing projection images along splines.
-- Monomer mapping and alignment.
+- Monomer mapping.
+- Subtomogram averaging and alignment. 
 
 ## Usage
 
