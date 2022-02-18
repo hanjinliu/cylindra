@@ -108,7 +108,7 @@ class SubtomogramLoader:
         images = list(self)
         return np.stack(images, axis="p")
 
-    def subset(self, spec: slice | list[int] | np.ndarray) -> SubtomogramLoader:
+    def subset(self, spec: int | slice | list[int] | np.ndarray) -> SubtomogramLoader:
         """
         Generate a new SubtomogramLoader object with a subset of subtomograms.
 
@@ -116,7 +116,7 @@ class SubtomogramLoader:
         
         Parameters
         ----------
-        spec : slice
+        spec : int, slice, list of int or np.ndarray
             Specifier that defines which subtomograms will be used. Any objects that numpy
             slicing are defined are supported. For instance, ``[2, 3, 5]`` means the 2nd,
             3rd and 5th subtomograms will be used (zero-indexed), and ``slice(10, 20)``
@@ -210,14 +210,8 @@ class SubtomogramLoader:
             raise NotImplementedError("Template image is needed.")
         if mask is not None:
             mask = 1
-        if template.shape != self.output_shape:
-            warnings.warn(
-                f"'output_shape' of {self.__class__.__name__} object {self.output_shape!r} "
-                f"differs from the shape of template image {template.shape!r}. 'output_shape' "
-                "is updated.",
-                UserWarning,
-            )
-            self.output_shape = template.shape
+        self._use_template_shape(template)
+        
         if rotations is not None:
             if isinstance(rotations, tuple):
                 start, stop, step = rotations
@@ -258,6 +252,32 @@ class SubtomogramLoader:
         
         return out
 
+    def try_all_seams(
+        self,
+        npf: int,
+        template: ip.ImgArray,
+        mask: ip.ImgArray | None = None
+    ):
+        averaged_images: list[ip.ImgArray] = []
+        corrs: list[float] = []
+        if mask is None:
+            mask = 1
+        
+        self._use_template_shape(template)
+        masked_template = template * mask
+        
+        with no_verbose():
+            for pf in range(2*npf):
+                _id = np.arange(npf*4)
+                res = ((_id - pf) // npf)
+                choose = (res % 2 == 0)
+                candidate = self.subset(choose)
+                image_ave = candidate.average()
+                averaged_images.append(image_ave)
+                corrs.append(ip.ncc(image_ave*mask, masked_template))
+                
+        return corrs, averaged_images
+    
     def fsc(
         self,
         mask: ip.ImgArray | None = None,
@@ -303,3 +323,14 @@ class SubtomogramLoader:
             self.image_avg.set_scale(self.image_ref)
             
         return np.asarray(fsc)
+    
+    def _use_template_shape(self, template: ip.ImgArray) -> None:
+        if template.shape != self.output_shape:
+            warnings.warn(
+                f"'output_shape' of {self.__class__.__name__} object {self.output_shape!r} "
+                f"differs from the shape of template image {template.shape!r}. 'output_shape' "
+                "is updated.",
+                UserWarning,
+            )
+            self.output_shape = template.shape
+        return None
