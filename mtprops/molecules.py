@@ -456,13 +456,8 @@ def axes_to_rotator(z, y) -> "Rotation":
     
     thetas = np.arctan2(vec_trans[..., 0], vec_trans[..., 2]) - np.pi/2
     
-    cos = np.cos(thetas)
-    sin = np.sin(thetas)
-    mat2 = np.zeros((vec_trans.shape[0], 3, 3), dtype=np.float32)
-    mat2[:, 1, 1] = 1.
-    mat2[:, 0, 0] = mat2[:, 2, 2] = cos
-    mat2[:, 2, 0] = -sin
-    mat2[:, 0, 2] = sin
-        
-    rot2 = Rotation.from_matrix(np.stack(mat2))
+    rot_vec_zx = np.zeros((n, 3))
+    rot_vec_zx[:, 1] = thetas
+    rot2 = Rotation.from_rotvec(rot_vec_zx)
+    
     return rot1 * rot2
