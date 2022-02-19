@@ -6,13 +6,11 @@ import numpy as np
 import numba as nb
 import json
 from scipy.interpolate import splprep, splev
+from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
 from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
 from .const import nm
 from .molecules import Molecules, axes_to_rotator
-
-if TYPE_CHECKING:
-    from scipy.spatial.transform import Rotation
 
 class Coords3D(TypedDict):
     z: list[float]
@@ -480,7 +478,7 @@ class Spline:
         self, 
         u: Iterable[float] = None,
         inverse: bool = False
-    ) -> "Rotation":
+    ) -> Rotation:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
         the orientation of spline curve.
@@ -738,7 +736,6 @@ class Spline:
         if rotation is not None:
             rotvec = np.zeros((len(rot), 3), dtype=np.float32)
             rotvec[:, 1] = rotation
-            from scipy.spatial.transform import Rotation
             rot = rot * Rotation.from_rotvec(rotvec)
         return Molecules(pos=pos, rot=rot)
 

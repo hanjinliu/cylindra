@@ -15,6 +15,7 @@ from numpy.typing import ArrayLike
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import ndimage as ndi
+from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
 import impy as ip
@@ -294,13 +295,15 @@ class MtTomogram:
         return len(self._splines)
     
     @classmethod
-    def imread(cls, 
-               path: str,
-               *, 
-               scale: float = None,
-               subtomogram_length: nm = 48.0,
-               subtomogram_width: nm = 40.0,
-               light_background: bool = True) -> MtTomogram:
+    def imread(
+        cls, 
+        path: str,
+        *, 
+        scale: float = None,
+        subtomogram_length: nm = 48.0,
+        subtomogram_width: nm = 40.0,
+        light_background: bool = True
+    ) -> MtTomogram:
         
         self = cls(subtomogram_length=subtomogram_length,
                    subtomogram_width=subtomogram_width,
@@ -634,15 +637,16 @@ class MtTomogram:
         return out
     
     @batch_process
-    def fit(self, 
-            i = None,
-            *, 
-            max_interval: nm = 30.0,
-            degree_precision: float = 0.5,
-            cutoff: float = 0.2,
-            dense_mode: bool = False,
-            dense_mode_sigma: nm = 2.0,
-            ) -> MtTomogram:
+    def fit(
+        self, 
+        i = None,
+        *, 
+        max_interval: nm = 30.0,
+        degree_precision: float = 0.5,
+        cutoff: float = 0.2,
+        dense_mode: bool = False,
+        dense_mode_sigma: nm = 2.0,
+    ) -> MtTomogram:
         """
         Roughly fit i-th spline to MT.
         
@@ -702,7 +706,8 @@ class MtTomogram:
         
         ds = spl(der=1)
         yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
-        nrots = roundint(14/degree_precision) + 1
+        degree_max = 14.0
+        nrots = roundint(degree_max/degree_precision) + 1
 
         # Angular correlation
         out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
@@ -738,15 +743,15 @@ class MtTomogram:
         # Because centers of subtomogram are on lattice points of pixel coordinate,
         # coordinates that will be shifted should be converted to integers. 
         coords_px = self.nm2pixel(spl()).astype(np.float32)
-        for i in range(npoints):
-            shiftz, shiftx = shifts[i]
-            shift = np.array([shiftz, 0, shiftx], dtype=np.float32)
-            rad = -np.deg2rad(refined_tilt[i])
-            cos, sin = np.cos(rad), np.sin(rad)
-            shift = shift @ [[1.,   0.,  0.],
-                             [0.,  cos, sin],
-                             [0., -sin, cos]]
-            coords_px[i] += shift
+        
+        shifts_3d = np.stack([shifts[:, 0],
+                              np.zeros(shifts.shape[0]), 
+                              shifts[:, 1]], 
+                             axis=1)
+        rotvec = np.zeros(shifts_3d.shape, dtype=np.float32)
+        rotvec[:, 0] = refined_tilt
+        rot = Rotation.from_rotvec(rotvec)
+        coords_px += rot.apply(shifts_3d)
             
         coords = coords_px * self.scale
         
@@ -1371,13 +1376,15 @@ class MtTomogram:
         return out
     
     @batch_process
-    def reconstruct_cylindric(self, 
-                              i = None,
-                              *,
-                              rot_ave: bool = False, 
-                              radii: tuple[nm, nm] = None,
-                              niter: int = 1,
-                              y_length: nm = 50.0) -> ip.ImgArray:
+    def reconstruct_cylindric(
+        self, 
+        i = None,
+        *,
+        rot_ave: bool = False, 
+        radii: tuple[nm, nm] = None,
+        niter: int = 1,
+        y_length: nm = 50.0
+    ) -> ip.ImgArray:
         """
         3D reconstruction of MT in cylindric coordinate system.
 
@@ -1592,6 +1599,7 @@ class MtTomogram:
         shape: tuple[nm, nm, nm], 
         chunksize: int = 560,
     ) -> SubtomogramLoader:
+        """Create a subtomogram loader from molecules."""
         output_shape = tuple(self.nm2pixel(shape))
         return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     

@@ -2,10 +2,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable, Iterator
 import numpy as np
 from numpy.typing import ArrayLike
-from .const import EulerAxes, nm
+from scipy.spatial.transform import Rotation
 
-if TYPE_CHECKING:
-    from scipy.spatial.transform import Rotation
+from .const import EulerAxes, nm
 
     
 class Molecules:
@@ -13,7 +12,7 @@ class Molecules:
     Object that represents multiple orientation and position of molecules. Orientation
     is represented by `scipy.spatial.transform.Rotation`. **All the vectors are zyx-order**.
     """
-    def __init__(self, pos: np.ndarray, rot: "Rotation"):
+    def __init__(self, pos: np.ndarray, rot: Rotation):
         pos = np.atleast_2d(pos)
         
         if pos.shape[1] != 3:
@@ -60,7 +59,6 @@ class Molecules:
     def from_euler(cls, pos: np.ndarray, angles: np.ndarray, 
                    seq: str | EulerAxes = EulerAxes.ZXZ, degrees: bool = False):
         """Create molecules from Euler angles."""
-        from scipy.spatial.transform import Rotation
         seq = _translate_euler(EulerAxes(seq).value)
         rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
         return cls(pos, rotator)
@@ -104,7 +102,6 @@ class Molecules:
         all_pos = np.concatenate(pos, axis=0)
         all_quat = np.concatenate(quat, axis=0)
         
-        from scipy.spatial.transform import Rotation
         return cls(all_pos, Rotation(all_quat))
     
     def subset(self, spec: int | slice | list[int] | np.ndarray) -> Molecules:
@@ -131,7 +128,6 @@ class Molecules:
             spec = slice(spec, spec+1)
         pos = self.pos[spec]
         quat = self._rotator.as_quat()[spec]
-        from scipy.spatial.transform import Rotation
         return self.__class__(pos, Rotation(quat))
 
     def cartesian(self, shape: tuple[int, int, int], scale: nm) -> np.ndarray:
@@ -331,7 +327,6 @@ class Molecules:
         Molecules
             Instance with updated orientation.
         """
-        from scipy.spatial.transform import Rotation
         rotator = Rotation.from_matrix(matrix)
         return self.rotate_by(rotator, copy)
     
@@ -352,7 +347,6 @@ class Molecules:
         Molecules
             Instance with updated orientation.
         """
-        from scipy.spatial.transform import Rotation
         rotator = Rotation.from_quat(quat)
         return self.rotate_by(rotator, copy)
     
@@ -377,7 +371,6 @@ class Molecules:
         Molecules
             Instance with updated orientation.
         """
-        from scipy.spatial.transform import Rotation
         seq = _translate_euler(EulerAxes(seq).value)
         rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
         return self.rotate_by(rotator, copy)
@@ -399,12 +392,11 @@ class Molecules:
         Molecules
             Instance with updated orientation.
         """
-        from scipy.spatial.transform import Rotation
         rotator = Rotation.from_rotvec(vector)
         return self.rotate_by(rotator, copy)
     
     
-    def rotate_by(self, rotator: "Rotation", copy: bool = True) -> Molecules:
+    def rotate_by(self, rotator: Rotation, copy: bool = True) -> Molecules:
         rot = self._rotator * rotator
         if copy:
             out = self.__class__(self._pos, rot)
@@ -428,9 +420,7 @@ def _translate_euler(seq: str) -> str:
     return seq[::-1].translate(table)
 
 
-def axes_to_rotator(z, y) -> "Rotation":
-    from scipy.spatial.transform import Rotation
-    
+def axes_to_rotator(z, y) -> Rotation:
     ref = _normalize(np.atleast_2d(y))
     
     n = ref.shape[0]
