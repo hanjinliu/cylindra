@@ -43,7 +43,7 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order, Coordinates
+from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
 
 # TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
 # should also be initialized.
@@ -1268,7 +1268,7 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def Fit_splines(self, 
                     max_interval: nm = 30,
-                    degree_precision: float = 0.2,
+                    degree_precision: float = 0.5,
                     dense_mode: bool = False,
                     ):
         """
@@ -1278,7 +1278,7 @@ class MTPropsWidget(MagicTemplate):
         ----------
         max_interval : nm, default is 30.0
             Maximum interval of sampling points in nm unit.
-        degree_precision : float, default is 0.2
+        degree_precision : float, default is 0.5
             Precision of MT xy-tilt degree in angular correlation.
         dense_mode : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
@@ -1523,10 +1523,9 @@ class MTPropsWidget(MagicTemplate):
                                )
         
         @worker.returned.connect
-        def _on_return(out: List[Coordinates]):
-            for i, coords in enumerate(out):
+        def _on_return(out: List[Molecules]):
+            for i, mol in enumerate(out):
                 spl = tomo.splines[i]
-                mol = spl.cylindrical_to_molecules(coords.spline)
                 if step > 1:
                     npf = roundint(spl.globalprops[H.nPF])
                     _mol_spec = ((np.arange(len(mol)) // npf) % step) == 0
@@ -1564,9 +1563,8 @@ class MTPropsWidget(MagicTemplate):
         theta_offset = np.deg2rad(theta_offset)
         tomo = self.active_tomogram
         tomo.global_ft_params(i)
-        coords = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
+        mol = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
         spl = tomo.splines[i]
-        mol = spl.cylindrical_to_molecules(coords.spline)
         
         if step > 1:
             npf = roundint(spl.globalprops[H.nPF])

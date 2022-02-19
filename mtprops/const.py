@@ -1,6 +1,5 @@
 from enum import Enum
 import numpy as np
-from typing import NamedTuple
 from types import SimpleNamespace
 
 nm = float  # type alias for clearer annotation.
@@ -131,9 +130,3 @@ class GVar:
             if not hasattr(cls, k):
                 pass
             setattr(cls, k, v)
-
-class Coordinates(NamedTuple):
-    """Coordinates in world coodinate system and spline coordinate system."""
-    
-    world: np.ndarray
-    spline: np.ndarray

@@ -21,7 +21,7 @@ from dask import array as da, delayed
 import impy as ip
 
 from .molecules import Molecules
-from .const import nm, H, K, Ori, Mode, GVar, Coordinates
+from .const import nm, H, K, Ori, Mode, GVar
 from .spline import Spline
 from .averaging import SubtomogramLoader
 from .utils import (
@@ -324,7 +324,7 @@ class MtTomogram:
         """Tomogram image data."""
         return self._image
     
-    def _set_image(self, img: ip.LazyImgArray) -> None:
+    def _set_image(self, img: ip.LazyImgArray | np.ndarray) -> None:
         if isinstance(img, ip.LazyImgArray):
             pass
         elif isinstance(img, np.ndarray):
@@ -711,18 +711,24 @@ class MtTomogram:
 
         # Angular correlation
         out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
-        refined_tilt = np.array(out)
+        refined_tilt_deg = np.array(out)
+        refined_tilt_rad = np.deg2rad(refined_tilt_deg)
+        
+        # If subtomograms are sampled at short intervals, angles should be smoothened to 
+        # avoid overfitting.
         size = 2*roundint(48.0/interval) + 1
         if size > 1:
             # Mirror-mode padding is "a b c d | c b a".
-            refined_tilt = np.rad2deg(
-                angle_uniform_filter(np.deg2rad(refined_tilt), size=size, mode=Mode.mirror)
+            refined_tilt_rad = angle_uniform_filter(
+                refined_tilt_rad, size=size, mode=Mode.mirror
                 )
+            refined_tilt_deg = np.rad2deg(refined_tilt_rad)
         
         # Rotate subtomograms            
         for i, img in enumerate(subtomograms):
-            angle = refined_tilt[i]
+            angle = refined_tilt_deg[i]
             img.rotate(-angle, cval=0, update=True)
+            
         # zx-shift correction by self-PCC
         subtomo_proj = subtomograms.proj("y")
         
@@ -749,7 +755,7 @@ class MtTomogram:
                               shifts[:, 1]], 
                              axis=1)
         rotvec = np.zeros(shifts_3d.shape, dtype=np.float32)
-        rotvec[:, 0] = refined_tilt
+        rotvec[:, 0] = -refined_tilt_rad
         rot = Rotation.from_rotvec(rotvec)
         coords_px += rot.apply(shifts_3d)
             
@@ -762,14 +768,15 @@ class MtTomogram:
         return self
     
     @batch_process
-    def refine(self, 
-               i = None,
-               *, 
-               max_interval: nm = 30.0,
-               cutoff: float = 0.35,
-               projection: bool = True,
-               corr_allowed: float = 0.9,
-               ) -> MtTomogram:
+    def refine(
+        self, 
+        i = None,
+        *, 
+        max_interval: nm = 30.0,
+        cutoff: float = 0.35,
+        projection: bool = True,
+        corr_allowed: float = 0.9,
+    ) -> MtTomogram:
         """
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
@@ -1494,7 +1501,7 @@ class MtTomogram:
         *, 
         length: nm | None = None,
         offsets: tuple[nm, float] = None
-    ) -> Coordinates:
+    ) -> Molecules:
         """
         Map coordinates of monomers in world coordinate.
 
@@ -1511,8 +1518,8 @@ class MtTomogram:
 
         Returns
         -------
-        Coordinates
-            Named tuple with monomer positions in world coordinates and spline coordinates.
+        Molecules
+            Object that represents monomer positions and angles.
         """
         spl = self._splines[i]
         
@@ -1555,13 +1562,10 @@ class MtTomogram:
         radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
         mesh = np.concatenate([radius_arr, mesh], axis=1)
 
-        # inverse mapping of monomer coordinates
-        crds = Coordinates(world = spl.cylindrical_to_world(coords=mesh),
-                           spline = mesh)
-        return crds
+        return spl.cylindrical_to_molecules(mesh)
     
     @batch_process
-    def map_pf_line(self, i = None, *, angle_offset: float = 0) -> Coordinates:
+    def map_pf_line(self, i = None, *, angle_offset: float = 0) -> Molecules:
         """
         Calculate mapping of protofilament line at an angle offset.
         This function is useful for visualizing seam or protofilament.
@@ -1575,8 +1579,8 @@ class MtTomogram:
 
         Returns
         -------
-        Coordinates
-            World coordinates and spline coordinates of protofilament.
+        Molecules
+            Object that represents protofilament positions and angles.
         """        
         props = self.global_ft_params(i)
         pitch = props[H.yPitch]
@@ -1589,9 +1593,7 @@ class MtTomogram:
         ycoords = np.arange(ny) * pitch
         acoords = np.arange(ny) * mono_skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
-        crds = Coordinates(world = spl.cylindrical_to_world(coords=coords),
-                           spline = coords)
-        return crds
+        return spl.cylindrical_to_molecules(coords)
     
     def get_subtomogram_loader(
         self,
