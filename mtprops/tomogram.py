@@ -1495,6 +1495,37 @@ class MtTomogram:
         return np.concatenate(outlist, axis="y")
     
     @batch_process
+    def map_centers(
+        self, 
+        i = None,
+        *, 
+        interval: nm | None = None,
+        length: nm | None = None,
+    ) -> Molecules:
+        
+        spl = self.splines[i]
+        props = self.global_ft_params(i)
+        
+        lp = props[H.yPitch] * 2
+        skew = props[H.skewAngle]
+        
+        # Set interval to the dimer length by default.
+        if interval is None:
+            interval = lp
+        
+        # Check length.
+        spl_length = spl.length()
+        if length is None:
+            length = spl_length
+        else:
+            length = min(length, spl_length)
+            
+        npoints = length / interval + 1
+        skew_angles = np.arange(npoints) * interval/lp * skew
+        u = np.arange(npoints) * interval / length
+        return spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
+    
+    @batch_process
     def map_monomers(
         self, 
         i = None,
@@ -1523,7 +1554,7 @@ class MtTomogram:
         """
         spl = self._splines[i]
         
-        if length is None or length == 0:
+        if length is None:
             length = spl.length()
             
         # Get structural parameters
@@ -1599,7 +1630,7 @@ class MtTomogram:
         self,
         mole: Molecules,
         shape: tuple[nm, nm, nm], 
-        chunksize: int = 560,
+        chunksize: int = 128,
     ) -> SubtomogramLoader:
         """Create a subtomogram loader from molecules."""
         output_shape = tuple(self.nm2pixel(shape))

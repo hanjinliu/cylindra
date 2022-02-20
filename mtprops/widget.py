@@ -22,13 +22,16 @@ from magicclass import (
     set_options,
     do_not_record,
     Bound,
+    Optional,
     MagicTemplate,
     bind_key,
     build_help
     )
-from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdit
+from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdit, ConsoleTextEdit
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
+
+from mtprops.averaging import SubtomogramLoader
 
 from .molecules import Molecules
 from .tomogram import MtSpline, MtTomogram, angle_corr, dask_affine, centroid
@@ -519,13 +522,19 @@ class MTPropsWidget(MagicTemplate):
         @magicmenu
         class Reconstruction(MagicTemplate):
             def Reconstruct_MT(self): ...
-            def cylindric_reconstruction(self): ...
-        def Map_monomers(self): ...
-        def Map_monomers_manually(self): ...
+            def Cylindric_reconstruction(self): ...
+        @magicmenu
+        class Mapping(MagicTemplate):
+            def Map_monomers(self): ...
+            def Map_monomers_manually(self): ...
+            def Map_centers(self): ...
         @magicmenu
         class Subtomogram_averaging(MagicTemplate):
+            def Align_all(self): ...
+            sep0 = field(Separator)
             def Average_all(self): ...
             def Average_subset(self): ...
+            
     
     @magicmenu
     class Others(MagicTemplate):
@@ -660,6 +669,13 @@ class MTPropsWidget(MagicTemplate):
         
         self.Panels.min_height = 300
 
+    def _get_splines(self, widget=None) -> list[int]:
+        """Get list of spline objects for categorical widgets."""
+        try:
+            tomo = self.active_tomogram
+            return [(str(spl), i) for i, spl in enumerate(tomo.splines)]
+        except Exception:
+            return []
 
     def _get_spline_coordinates(self, widget=None) -> np.ndarray:
         """Get coordinates of the manually picked spline."""
@@ -879,7 +895,10 @@ class MTPropsWidget(MagicTemplate):
                 f"magicclass: {mcls.__version__}\n"\
                 f"napari: {napari.__version__}\n"\
                 f"dask: {dask.__version__}\n"
-        show_messagebox(title="MTProps info", text=value, parent=self.native)
+        w = ConsoleTextEdit(value=value)
+        w.read_only = True
+        w.native.setParent(self.native, w.native.windowFlags())
+        w.show()
         return None
     
     @Others.wraps
@@ -1264,10 +1283,12 @@ class MTPropsWidget(MagicTemplate):
             self.Sample_subtomograms()
         
     @Splines.wraps
-    @set_options(max_interval={"label": "Max interval (nm)"})
+    @set_options(max_interval={"label": "Max interval (nm)"},
+                 cutoff={"options": {"max": 1.0, "step": 0.05}})
     @dispatch_worker
     def Fit_splines(self, 
                     max_interval: nm = 30,
+                    cutoff: Optional[float] = None,
                     degree_precision: float = 0.5,
                     dense_mode: bool = False,
                     ):
@@ -1286,6 +1307,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         worker = create_worker(self.active_tomogram.fit,
                                max_interval=max_interval,
+                               cutoff=cutoff,
                                degree_precision=degree_precision,
                                dense_mode=dense_mode,
                                _progress={"total": 0, "desc": "Running"}
@@ -1473,7 +1495,7 @@ class MTPropsWidget(MagicTemplate):
                  y_length={"label": "Longitudinal length (nm)"})
     @set_design(text="Reconstruct MT (cylindric)")
     @dispatch_worker
-    def cylindric_reconstruction(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, 
+    def Cylindric_reconstruction(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, 
                                  y_length=50.0):
         """
         Cylindric reconstruction of MT.
@@ -1509,15 +1531,28 @@ class MTPropsWidget(MagicTemplate):
         self._worker_control.info = f"Cylindric reconstruction ..."
         return worker
     
-    @Analysis.wraps
-    @set_options(step={"min": 1, "max": 10})
+    @Analysis.Mapping.wraps
+    @set_options(splines={"widget_type": "Select", "choices": _get_splines},
+                 length={"text": "Use full length"})
     @dispatch_worker
-    def Map_monomers(self, length: nm = 0.0, step: int = 1):
+    def Map_monomers(
+        self,
+        splines: Iterable[int],
+        length: Optional[nm] = None,
+    ):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
+        
+        Parameters
+        ----------
+        splines : iterable of int
+            Select splines to map monomers.
+        length : nm, optional
+            Length from the tip where monomers will be mapped.
         """
         tomo = self.active_tomogram
         worker = create_worker(tomo.map_monomers,
+                               i=splines,
                                length=length,
                                _progress={"total": 0, "desc": "Running"}
                                )
@@ -1526,27 +1561,23 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(out: List[Molecules]):
             for i, mol in enumerate(out):
                 spl = tomo.splines[i]
-                if step > 1:
-                    npf = roundint(spl.globalprops[H.nPF])
-                    _mol_spec = ((np.arange(len(mol)) // npf) % step) == 0
-                    mol = mol.subset(_mol_spec)
                 _add_molecules(self.parent_viewer, mol, f"Monomers-{i}", source=spl)
                 
         self._worker_control.info = "Monomer mapping ..."
         return worker
 
-    @Analysis.wraps
+    @Analysis.Mapping.wraps
     @set_options(auto_call=True, 
                  y_offset={"widget_type": "FloatSlider", "max": 5, "step": 0.1, "label": "y offset (nm)"},
                  theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"},
+                 length={"text": "Use full length"},
                  step={"min": 1, "max": 10})
     def Map_monomers_manually(
         self, 
         i: Bound[mt.mtlabel],
         y_offset: nm = 0, 
         theta_offset: float = 0,
-        length: nm = 0.0, 
-        step: int = 1
+        length: Optional[nm] = 0.0,
     ):
         """
         Map points to monomer molecules with parameter sweeping.
@@ -1559,17 +1590,13 @@ class MTPropsWidget(MagicTemplate):
             Offset in y-direction
         theta_offset : float, optional
             Offset of angle.
+        length : nm, optional
+            Length from the tip where monomers will be mapped.
         """
         theta_offset = np.deg2rad(theta_offset)
         tomo = self.active_tomogram
         tomo.global_ft_params(i)
         mol = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
-        spl = tomo.splines[i]
-        
-        if step > 1:
-            npf = roundint(spl.globalprops[H.nPF])
-            _mol_spec = ((np.arange(len(mol)) // npf) % step) == 0
-            mol = mol.subset(_mol_spec)
         
         viewer = self.parent_viewer
         layer_name = f"Monomers-{i}"
@@ -1592,10 +1619,75 @@ class MTPropsWidget(MagicTemplate):
         points_layer.metadata[SOURCE] = mol
         vector_layer: Vectors = viewer.layers[layer_name + " Z-axis"]
         vector_layer.data = np.stack([mol.pos, mol.z], axis=1)
+
+    @Analysis.Mapping.wraps
+    @set_options(splines={"widget_type": "Select", "choices": _get_splines},
+                 interval={"text": "Set to dimer length"},
+                 length={"text": "Use full length"})
+    def Map_centers(
+        self,
+        splines: Iterable[int],
+        interval: Optional[nm] = None,
+        length: Optional[nm] = None,
+    ):
+        """
+        Map molecules along splines. Each molecule is rotated by skew angle.
+        
+        Parameters
+        ----------
+        splines : iterable of int
+            Select splines to map monomers.
+        interval : nm, otional
+            Interval between molecules.
+        length : nm, optional
+            Length from the tip where monomers will be mapped.
+        """
+        tomo = self.active_tomogram
+        mols = tomo.map_centers(i=splines, interval=interval, length=length)
+        for i, mol in enumerate(mols):
+            _add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
+    
+    @set_options(cutoff={"options": {"max": 1.0, "step": 0.05}})
+    @dispatch_worker
+    def Align_all(
+        self,
+        layer: MonomerLayer,
+        template_path: Optional[Path] = None,
+        mask_path: Optional[Path] = None,
+        max_shifts: tuple[int, int, int] = (4, 4, 4),
+        cutoff: Optional[float] = 0.5,
+        chunk_size: int = 64,
+    ):
+        molecules = layer.metadata[MOLECULES]
+        source = layer.metadata.get(SOURCE, None)
+        template = ip.imread(template_path)
+        mask = ip.imread(mask_path)
+        shape = template.shape
+        nmole = len(molecules)
+        loader = self.active_tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        worker = create_worker(loader.iter_align,
+                               template=template, 
+                               mask=mask,
+                               max_shifts=max_shifts,
+                               cutoff=cutoff,
+                               _progress={"total": nmole, "desc": "Running"}
+                               )
+        
+        @worker.returned.connect
+        def _on_return(aligned_loader: SubtomogramLoader):
+            _add_molecules(self.parent_viewer, 
+                           aligned_loader.molecules,
+                           layer.name+"-aligned",
+                           source=source
+                           )
+            
+                
+        self._worker_control.info = f"Aligning subtomograms (n={nmole}) ..."
+        return worker
     
     @Analysis.Subtomogram_averaging.wraps
     @set_options(
-        shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
+        shape={"widget_type": TupleEdit, "options": {"min": 0., "max": 100., "step": 1.0}, "label": "Subtomogram shape (nm)"},
         chunk_size={"min": 1, "max": 3600},
     )
     @dispatch_worker
@@ -1603,7 +1695,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         shape: tuple[nm, nm, nm] = (18., 18., 18.),
-        chunk_size: int = 546,
+        chunk_size: int = 64,
         fast: bool = True,
     ):
         """
@@ -1615,7 +1707,7 @@ class MTPropsWidget(MagicTemplate):
             Layer of subtomogram positions and angles.
         shape : tuple[nm, nm, nm], default is (18., 18., 18.)
             Shape of subtomograms.
-        chunk_size : int, default is 546
+        chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
         """
         molecules = layer.metadata[MOLECULES]
@@ -1638,7 +1730,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Analysis.Subtomogram_averaging.wraps
     @set_options(
-        shape={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "Subtomogram shape (nm)"},
+        shape={"widget_type": TupleEdit, "options": {"min": 0., "max": 100., "step": 1.0}, "label": "Subtomogram shape (nm)"},
         method={"choices": ["steps", "first", "last", "random"]},
     )
     @dispatch_worker

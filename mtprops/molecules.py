@@ -90,6 +90,10 @@ class Molecules:
         """Vectors of z-axis."""
         return self._rotator.apply([1., 0., 0.])
 
+    @property
+    def rotator(self) -> Rotation:
+        return self._rotator
+    
     @classmethod
     def concat(cls, moles: Iterable[Molecules]) -> Molecules:
         """Concatenate Molecules objects."""
