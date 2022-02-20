@@ -899,25 +899,6 @@ class MtTomogram:
         sqsum = GVar.splError**2 * npoints # unit: nm^2
         spl.shift_fit(shifts=shifts*self.scale, s=sqsum)
         return self
-                
-    @batch_process
-    def get_subtomograms(self, i = None) -> ip.ImgArray:
-        """
-        Get subtomograms at anchors. All the subtomograms are rotated to oriented
-        to the spline.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to load samples.
-
-        Returns
-        -------
-        ip.ImgArray
-            Subtomograms stacked along "p" axis.
-        """        
-        subtomograms = self._sample_subtomograms(i)
-        return subtomograms
     
     @batch_process
     def measure_radius(self, i = None) -> nm:

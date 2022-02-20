@@ -64,19 +64,6 @@ def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray,
     return reg
 
 
-def load_a_rot_subtomogram(img: ip.ImgArray, length_px: int, width_px: int, spl: "Spline", u):
-    plane_shape = (width_px, width_px)
-    axial_size = length_px
-    out = []
-    with no_verbose():
-        coords = spl.local_cartesian(plane_shape, axial_size, u)
-        coords = np.moveaxis(coords, -1, 0)
-        out = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
-    out = ip.asarray(out, axes="zyx")
-    out.set_scale(img)
-    return out
-
-
 def load_rot_subtomograms(
     img: ip.ImgArray | ip.LazyImgArray,
     length_px: int,
@@ -90,7 +77,7 @@ def load_rot_subtomograms(
         for u in spl.anchors:
             coords = spl.local_cartesian(plane_shape, axial_size, u)
             coords = np.moveaxis(coords, -1, 0)
-            out.append(map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean))
+            out.append(map_coordinates(img, coords, order=1, mode=Mode.constant, cval=np.mean))
     out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
     out.set_scale(img)
     return out
