@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Iterable, Iterator
+from typing import Iterable, Iterator
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
@@ -59,8 +59,7 @@ class Molecules:
     def from_euler(cls, pos: np.ndarray, angles: np.ndarray, 
                    seq: str | EulerAxes = EulerAxes.ZXZ, degrees: bool = False):
         """Create molecules from Euler angles."""
-        seq = _translate_euler(EulerAxes(seq).value)
-        rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
+        rotator = from_euler(angles, seq, degrees)
         return cls(pos, rotator)
 
     def __len__(self) -> int:
@@ -375,8 +374,7 @@ class Molecules:
         Molecules
             Instance with updated orientation.
         """
-        seq = _translate_euler(EulerAxes(seq).value)
-        rotator = Rotation.from_euler(seq, angles[..., ::-1], degrees)
+        rotator = from_euler(angles, seq, degrees)
         return self.rotate_by(rotator, copy)
     
     
@@ -423,6 +421,15 @@ def _translate_euler(seq: str) -> str:
     table = str.maketrans({"x": "z", "z": "x", "X": "Z", "Z": "X"})
     return seq[::-1].translate(table)
 
+
+def from_euler(
+    angles: np.ndarray,
+    seq: str | EulerAxes = EulerAxes.ZXZ,
+    degrees: bool = False
+) -> Rotation:
+    """Create a rotator from Euler angles using zyx-coordinate system."""
+    seq = _translate_euler(EulerAxes(seq).value)
+    return Rotation.from_euler(seq, angles[..., ::-1], degrees)
 
 def axes_to_rotator(z, y) -> Rotation:
     ref = _normalize(np.atleast_2d(y))

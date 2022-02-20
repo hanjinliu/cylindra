@@ -31,8 +31,7 @@ from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdi
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import show_messagebox, to_clipboard
 
-from mtprops.averaging import SubtomogramLoader
-
+from .averaging import SubtomogramLoader
 from .molecules import Molecules
 from .tomogram import MtSpline, MtTomogram, angle_corr, dask_affine, centroid
 from .utils import (
@@ -572,7 +571,7 @@ class MTPropsWidget(MagicTemplate):
     @magicclass(widget_type="collapsible")
     class Profiles(MagicTemplate):
         """Local profiles."""
-        txt = vfield(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result")    
+        txt = vfield(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result", record=False)    
         orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
         plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True, "tooltip": "Plot of local properties"})
 
@@ -1647,18 +1646,27 @@ class MTPropsWidget(MagicTemplate):
         for i, mol in enumerate(mols):
             _add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
     
+    @Analysis.Subtomogram_averaging.wraps
     @set_options(
-        cutoff={"options": {"max": 1.0, "step": 0.05}},
+        cutoff={"max": 1.0, "step": 0.05},
+        mask_path={"text": "Do not use mask"},
+        max_shifts={"widget_type": TupleEdit, "options": {"max": 32}},
+        z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
+        y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
+        x_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     )
     @dispatch_worker
     def Align_all(
         self,
         layer: MonomerLayer,
-        template_path: Optional[Path] = None,
+        template_path: Path,
         mask_path: Optional[Path] = None,
-        max_shifts: tuple[int, int, int] = (4, 4, 4),
-        cutoff: Optional[float] = 0.5,
+        max_shifts: Tuple[int, int, int] = (4, 4, 4),
+        z_rotation: Tuple[float, float] = (0., 0.),
+        y_rotation: Tuple[float, float] = (0., 0.),
+        x_rotation: Tuple[float, float] = (0., 0.),
+        cutoff: float = 0.5,
         chunk_size: int = 64,
         interpolation: int = 1,
     ):
@@ -1673,11 +1681,12 @@ class MTPropsWidget(MagicTemplate):
                                template=template, 
                                mask=mask,
                                max_shifts=max_shifts,
+                               rotations=(z_rotation, y_rotation, x_rotation),
                                cutoff=cutoff,
                                order=interpolation,
                                _progress={"total": nmole, "desc": "Running"}
                                )
-        
+                    
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
             _add_molecules(self.parent_viewer, 
@@ -1686,7 +1695,7 @@ class MTPropsWidget(MagicTemplate):
                            source=source
                            )            
                 
-        self._worker_control.info = f"Aligning subtomograms (n={nmole}) ..."
+        self._worker_control.info = f"Aligning subtomograms (n={nmole})"
         return worker
     
     @Analysis.Subtomogram_averaging.wraps

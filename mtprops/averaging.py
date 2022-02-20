@@ -1,6 +1,6 @@
 from __future__ import annotations
 import itertools
-from typing import Any, Callable, Iterator, Iterable, Union
+from typing import Any, Callable, Generator, Iterator, Iterable, Union
 import random
 import warnings
 import weakref
@@ -9,14 +9,25 @@ import numpy as np
 import impy as ip
 from dask import array as da
 from .utils import multi_map_coordinates, no_verbose
-from .molecules import Molecules
+from .molecules import Molecules, from_euler
 from .const import nm
 
-RangeLike = Union[
-    list[float],
-    np.ndarray,
-    tuple[float, float, int],
-]
+RangeLike = tuple[float, int]
+Ranges = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]
+
+def _normalize_a_range(rng: RangeLike) -> tuple[float, int]:
+    if len(rng) != 2:
+        raise TypeError("Range must be defined by (float, int).")
+    max_rot, step = rng
+    return float(max_rot), float(step)
+        
+def _normalize_ranges(rng: Ranges) -> tuple[tuple[float, int], tuple[float, int], tuple[float, int]]:
+    if isinstance(rng, tuple) and isinstance(rng[0], tuple):
+        return tuple(_normalize_a_range(r) for r in rng)
+    else:
+        rng = _normalize_a_range(rng)
+        return (rng,) * 3
+
 
 class SubtomogramLoader:
     """
@@ -79,16 +90,29 @@ class SubtomogramLoader:
     def scale(self) -> nm:
         return self.image_ref.scale.x
     
+    def __len__(self) -> int:
+        """Return the number of subtomograms."""
+        return self.molecules.pos.shape[0]
+    
     def __iter__(self) -> Iterator[ip.ImgArray]:  # axes: zyx
         """Generate each subtomogram."""
         return self.iter_subtomograms()
     
-    def iter_subtomograms(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
-        for subvols in self.iter_chunks(order=order):
+    def iter_subtomograms(
+        self,
+        rotators: Iterable[Rotation] | None = None,
+        order: int = 3
+    ) -> Iterator[ip.ImgArray]:  # axes: zyx or azyx
+        if rotators is None:
+            iterator = self._iter_chunks(order=order)
+        else:
+            iterator = self._iter_chunks_with_rotation(rotators=rotators, order=order)
+            
+        for subvols in iterator:
             for subvol in subvols:
                 yield subvol
     
-    def iter_chunks(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
+    def _iter_chunks(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
         """Generate subtomogram list chunk-wise."""
         image = self.image_ref
         scale = image.scale.x
@@ -103,10 +127,36 @@ class SubtomogramLoader:
                 subvols.set_scale(image)
                 yield subvols
     
+    def _iter_chunks_with_rotation(
+        self, 
+        rotators: Iterable[Rotation], 
+        order: int = 3
+    ) -> Iterator[ip.ImgArray]:  # axes: pazyx
+        image = self.image_ref
+        scale = image.scale.x
+        mole_list = [self.molecules.rotate_by(rot) for rot in rotators]
+        nrot = len(rotators)
+        chunksize = max(self.chunksize//nrot, 1)
+        iterators = [mole.iter_cartesian(self.output_shape, scale, chunksize) for mole in mole_list]
+        
+        with no_verbose():
+            for coords_list in zip(*iterators):
+                coords = np.concatenate(coords_list, axis=0)
+                subvols = np.stack(
+                    multi_map_coordinates(image, coords, order=order, cval=np.mean),
+                    axis=0,
+                    )
+                subvols = subvols.reshape((-1, nrot) + self.output_shape)
+                subvols = ip.asarray(subvols, axes="pazyx")
+                subvols.set_scale(image)
+                yield subvols
+    
+    
     def to_stack(self) -> ip.ImgArray:
         """Create a 4D image stack of all the subtomograms."""
         images = list(self)
         return np.stack(images, axis="p")
+
 
     def subset(self, spec: int | slice | list[int] | np.ndarray) -> SubtomogramLoader:
         """
@@ -130,7 +180,7 @@ class SubtomogramLoader:
         mole = self.molecules.subset(spec)
         return self.__class__(self.image_ref, mole, self.output_shape, self.chunksize)
 
-    def iter_average(self, order: int = 3) -> Iterator[ip.ImgArray]:
+    def iter_average(self, order: int = 3) -> Generator[ip.ImgArray, None, ip.ImgArray]:
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
         with no_verbose():
@@ -181,7 +231,7 @@ class SubtomogramLoader:
         rotations: RangeLike | None = None,
         cutoff: float = 0.5,
         order: int = 1,
-    ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
         if template is None:
             raise NotImplementedError("Template image is needed.")
         if mask is None:
@@ -189,20 +239,37 @@ class SubtomogramLoader:
         self._use_template_shape(template)
         
         if rotations is not None:
-            if isinstance(rotations, tuple):
-                start, stop, step = rotations
-                num, res = divmod((stop - start), step)
-                rotations = np.linspace(start + res/2, stop-res/2, num)
+            # rotation must be converted into quaternions.
+            rotations = _normalize_ranges(rotations)
+            angles = []
+            for max_rot, step in rotations:
+                if step == 0:
+                    angles.append(np.zeros(1))
+                else:
+                    n = int(max_rot / step)
+                    angles.append(np.linspace(-n*step, n*step, 2*n + 1))
+            
+            quat: list[np.ndarray] = []
+            for angs in itertools.product(*angles):
+                quat.append(from_euler(np.array(angs), "zyx", degrees=True).as_quat())
+            if len(quat) == 1:
+                rotations = None
             else:
-                rotations = np.asarray(rotations)
+                rotations = np.stack(quat, axis=0)
         
         pre_alignment = np.zeros_like(template.value)
-        count = 0
+        
+        # shift in local Cartesian
+        local_shifts = np.zeros((len(self), 3))
+        
+        # rotation (quaternion) in local Cartesian
+        local_rot = np.zeros((len(self), 4))
+        local_rot[:, 3] = 1  # identity map in quaternion
         
         with no_verbose():
             template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
             if rotations is None:
-                for subvol in self.iter_subtomograms():
+                for i, subvol in enumerate(self.iter_subtomograms(order=order)):
                     input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
                     shift = ip.ft_pcc_maximum(
                         input_subvol.fft(),
@@ -210,15 +277,20 @@ class SubtomogramLoader:
                         upsample_factor=20, 
                         max_shifts=max_shifts
                     )
-                    rotation = np.array([0, 0, 0])
                     if self.image_avg is None:
                         pre_alignment += subvol
-                    count += 1
-                    yield shift, rotation
+                    local_shifts[i, :] = shift
+                    
+                    yield local_shifts[i, :], local_rot[i, :]
+                    
             else:
-                raise NotImplementedError
-                for r in rotations:
-                    for subvol in self.iter_subtomograms(order=order):
+                rotators = [Rotation.from_quat(r) for r in rotations]
+                iterator = self.iter_subtomograms(rotators=rotators, order=order)
+                for i, subvol_set in enumerate(iterator):
+                    corrs: list[float] = []
+                    all_shifts: list[np.ndarray] = []
+                    for subvol in subvol_set:
+                        subvol: ip.ImgArray
                         input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
                         shift = ip.ft_pcc_maximum(
                             input_subvol.fft(),
@@ -226,16 +298,34 @@ class SubtomogramLoader:
                             upsample_factor=20, 
                             max_shifts=max_shifts
                         )
-                        local_shifts.append(shift)
-                        if self.image_avg is None:
-                            pre_alignment += subvol
-                        callback(self)
+                        all_shifts.append(shift)
+                        shifted_subvol = input_subvol.affine(translation=shift)
+                        corr = ip.ncc(shifted_subvol*mask, template*mask)
+                        corrs.append(corr)
+                    
+                    if self.image_avg is None:
+                        pre_alignment += subvol_set[0]
+                    
+                    iopt = np.argmax(corrs)
+                    local_shifts[i, :] = all_shifts[iopt]
+                    local_rot[i, :] = rotations[iopt]
+                    
+                    yield local_shifts[i, :], local_rot[i, :]
         
-        if count == 0:
-            return
-        pre_alignment = ip.asarray(pre_alignment/count, axes="zyx", name="Avg")
-        pre_alignment.set_scale(self.image_ref)
-        self.image_avg = pre_alignment
+        if self.image_avg is None:
+            pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
+            pre_alignment.set_scale(self.image_ref)
+            self.image_avg = pre_alignment
+        
+        shifts = self.molecules.rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
+        if rotations is None:
+            mole_aligned = self.molecules.translate(shifts)
+        else:
+            rot = self.molecules.rotator * Rotation.from_quat(local_rot)
+            mole_aligned = self.molecules.translate(shifts).rotate_by(rot)
+            
+        out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
+        return out
         
     def align(
         self,
@@ -261,24 +351,14 @@ class SubtomogramLoader:
             order=order,
         )
         
-        local_shifts: list[np.ndarray] = []  # shift in local Cartesian
-        local_rot: list[np.ndarray] = []  # rotation in local Cartesian
-        pre_alignment = np.zeros_like(template.value)
+        while True:
+            try:
+                next(align_iter)
+                callback(self)
+            except StopIteration as mole_aligned:
+                break
         
-        for shift, rotation in align_iter:
-            local_shifts.append(shift)
-            local_rot.append(rotation)
-            callback(self)
-        
-        shifts = self.molecules.rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
-        rotations = self.molecules.rotator * Rotation.from_euler("zyx", rotation, degrees=False)
-        mole_aligned = self.molecules.translate(shifts).rotate_by(rotations)
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
-        
-        if self.image_avg is None:
-            pre_alignment = ip.asarray(pre_alignment/len(shifts), axes="zyx", name="Avg")
-            pre_alignment.set_scale(self.image_ref)
-            self.image_avg = pre_alignment
         
         return out
 
@@ -328,7 +408,7 @@ class SubtomogramLoader:
         sum_images = (np.zeros(self.output_shape, dtype=np.float32),
                       np.zeros(self.output_shape, dtype=np.float32))
         next_set = 0
-        for subvols in self.iter_chunks():
+        for subvols in self._iter_chunks():
             subsets.extend(list(subvols.value))
             next_set = 1 - next_set
             if next_set == 0:
