@@ -1647,7 +1647,10 @@ class MTPropsWidget(MagicTemplate):
         for i, mol in enumerate(mols):
             _add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
     
-    @set_options(cutoff={"options": {"max": 1.0, "step": 0.05}})
+    @set_options(
+        cutoff={"options": {"max": 1.0, "step": 0.05}},
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+    )
     @dispatch_worker
     def Align_all(
         self,
@@ -1657,6 +1660,7 @@ class MTPropsWidget(MagicTemplate):
         max_shifts: tuple[int, int, int] = (4, 4, 4),
         cutoff: Optional[float] = 0.5,
         chunk_size: int = 64,
+        interpolation: int = 1,
     ):
         molecules = layer.metadata[MOLECULES]
         source = layer.metadata.get(SOURCE, None)
@@ -1670,6 +1674,7 @@ class MTPropsWidget(MagicTemplate):
                                mask=mask,
                                max_shifts=max_shifts,
                                cutoff=cutoff,
+                               order=interpolation,
                                _progress={"total": nmole, "desc": "Running"}
                                )
         
@@ -1679,8 +1684,7 @@ class MTPropsWidget(MagicTemplate):
                            aligned_loader.molecules,
                            layer.name+"-aligned",
                            source=source
-                           )
-            
+                           )            
                 
         self._worker_control.info = f"Aligning subtomograms (n={nmole}) ..."
         return worker
@@ -1689,6 +1693,8 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         shape={"widget_type": TupleEdit, "options": {"min": 0., "max": 100., "step": 1.0}, "label": "Subtomogram shape (nm)"},
         chunk_size={"min": 1, "max": 3600},
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        save_at={"text": "Do not save the result.", "options": {"mode": "w", "filter": "*.mrc;*.tif"}},
     )
     @dispatch_worker
     def Average_all(
@@ -1696,7 +1702,8 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         shape: tuple[nm, nm, nm] = (18., 18., 18.),
         chunk_size: int = 64,
-        fast: bool = True,
+        interpolation: int = 1,
+        save_at: Optional[Path] = None,
     ):
         """
         Subtomogram averaging using all the subvolumes.
@@ -1712,10 +1719,11 @@ class MTPropsWidget(MagicTemplate):
         """
         molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
+        
         loader = self.active_tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
         
         worker = create_worker(loader.iter_average,
-                               order = 1 if fast else 3,
+                               order=interpolation,
                                _progress={"total": nmole, "desc": "Running"}
                                )
         
@@ -1724,6 +1732,8 @@ class MTPropsWidget(MagicTemplate):
             if self.active_tomogram.light_background:
                 img = -img
             _show_reconstruction(img, f"Subtomogram average (n={nmole})")
+            if save_at is not None:
+                img.imsave(save_at)
         
         self._worker_control.info = f"Subtomogram Averaging ..."
         return worker

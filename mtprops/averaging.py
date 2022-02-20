@@ -130,63 +130,6 @@ class SubtomogramLoader:
         mole = self.molecules.subset(spec)
         return self.__class__(self.image_ref, mole, self.output_shape, self.chunksize)
 
-    def average_fast(
-        self,
-        *,
-        callback: Callable[[SubtomogramLoader], Any] = None,
-    ) -> ip.ImgArray:
-        """
-        Faster version of the ``average`` method.
-        
-        For visualization purpose. This method is faster than ``average`` because linear interpolation
-        is used instead of bicubic interpolation. Averaged image will NOT stored in ``image_ave``
-        attribute.
-
-        Parameters
-        ----------
-        callback : callable, optional
-            If given, ``callback(self)`` will be called for each iteration of subtomogram loading.
-
-        Returns
-        -------
-        ImgArray
-            Averaged image.
-        """
-        return self._average(callback, order=1)
-        
-        
-    def average(
-        self,
-        *,
-        callback: Callable[[SubtomogramLoader], Any] = None,
-    ) -> ip.ImgArray:
-        """
-        Average all the subtomograms.
-        
-        The averaged image will be stored in ``self.averaged_image``. The size of subtomograms
-        is determined by the ``self.output_shape`` attribute.
-
-        Parameters
-        ----------
-        callback : callable, optional
-            If given, ``callback(self)`` will be called for each iteration of subtomogram loading.
-
-        Returns
-        -------
-        ImgArray
-            Averaged image.
-        """
-        self.image_avg = self._average(callback, order=3)
-        return self.image_avg
-    
-    
-    def _average(self, callback: Callable, order: int):
-        if callback is None:
-            callback = lambda x: None
-        for i in self.iter_average(order=order):
-            callback(self)
-        return self.image_avg
-    
     def iter_average(self, order: int = 3) -> Iterator[ip.ImgArray]:
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
@@ -199,6 +142,36 @@ class SubtomogramLoader:
         self.image_avg.set_scale(self.image_ref)
         return self.image_avg
     
+    def average(
+        self,
+        *,
+        order: int = 1,
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ) -> ip.ImgArray:
+        """
+        Average all the subtomograms.
+        
+        The averaged image will be stored in ``self.averaged_image``. The size of subtomograms
+        is determined by the ``self.output_shape`` attribute.
+
+        Parameters
+        ----------
+        order : int, default is 1
+            Order of interpolation. See ``scipy.ndimage.map_coordinates``.
+        callback : callable, optional
+            If given, ``callback(self)`` will be called for each iteration of subtomogram loading.
+
+        Returns
+        -------
+        ImgArray
+            Averaged image.
+        """
+        if callback is None:
+            callback = lambda x: None
+        for i in self.iter_average(order=order):
+            callback(self)
+        return self.image_avg
+    
     def iter_align(
         self,
         *,
@@ -207,6 +180,7 @@ class SubtomogramLoader:
         max_shifts: int | tuple[int, int, int] = 4,
         rotations: RangeLike | None = None,
         cutoff: float = 0.5,
+        order: int = 1,
     ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
         if template is None:
             raise NotImplementedError("Template image is needed.")
@@ -244,7 +218,7 @@ class SubtomogramLoader:
             else:
                 raise NotImplementedError
                 for r in rotations:
-                    for subvol in self.iter_subtomograms():
+                    for subvol in self.iter_subtomograms(order=order):
                         input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
                         shift = ip.ft_pcc_maximum(
                             input_subvol.fft(),
@@ -271,6 +245,7 @@ class SubtomogramLoader:
         max_shifts: int | tuple[int, int, int] = 4,
         rotations: RangeLike | None = None,
         cutoff: float = 0.5,
+        order: int = 1,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> SubtomogramLoader:
         
@@ -282,7 +257,8 @@ class SubtomogramLoader:
             mask=mask,
             max_shifts=max_shifts,
             rotations=rotations,
-            cutoff=cutoff
+            cutoff=cutoff,
+            order=order,
         )
         
         local_shifts: list[np.ndarray] = []  # shift in local Cartesian
