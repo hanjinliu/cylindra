@@ -232,14 +232,15 @@ class SubtomogramLoader:
         cutoff: float = 0.5,
         order: int = 1,
     ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
+        
         if template is None:
             raise NotImplementedError("Template image is needed.")
         if mask is None:
             mask = 1
         self._use_template_shape(template)
         
+        # Convert rotations into quaternion if given.
         if rotations is not None:
-            # rotation must be converted into quaternions.
             rotations = _normalize_ranges(rotations)
             angles = []
             for max_rot, step in rotations:
@@ -337,7 +338,36 @@ class SubtomogramLoader:
         cutoff: float = 0.5,
         order: int = 1,
         callback: Callable[[SubtomogramLoader], Any] = None,
-    ) -> SubtomogramLoader:
+    ) -> SubtomogramLoader:        
+        """
+        Align subtomograms to a template to get high-resolution image.
+        
+        This method conduct so called "subtomogram averaging". Only shifts and rotations
+        are calculated in this method. To get averaged image, you'll have run "average"
+        method using the resulting SubtomogramLoader instance.
+        
+        Parameters
+        ----------
+        template : ip.ImgArray, optional
+            Template image.
+        mask : ip.ImgArray, optional
+            Mask image. Must in the same shae as the template.
+        max_shifts : int or tuple of int, default is (4, 4, 4)
+            Maximum shift between subtomograms and template.
+        rotations : RangeLike | None, optional
+            Rotation between subtomograms and template in external Euler angles.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        order : int, default is 1
+            Interpolation order.
+        callback : Callable[[SubtomogramLoader], Any], optional
+            Callback function that will get called after each iteration.
+
+        Returns
+        -------
+        SubtomogramLoader
+            Refined molecule object is bound.
+        """        
         
         if callback is None:
             callback = lambda x: None

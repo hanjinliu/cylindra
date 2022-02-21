@@ -535,14 +535,6 @@ class MTPropsWidget(MagicTemplate):
             def Average_subset(self): ...
             
     
-    @magicmenu
-    class Others(MagicTemplate):
-        """Other menus."""
-        def Create_macro(self): ...
-        def Global_variables(self): ...
-        def Clear_cache(self): ...
-        def MTProps_info(self): ...
-        def Open_help(self): ...
         
     @magictoolbar(labels=False)
     class toolbar(MagicTemplate):
@@ -568,11 +560,39 @@ class MTPropsWidget(MagicTemplate):
     
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
     
+    orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
+        
     @magicclass(widget_type="collapsible")
-    class Profiles(MagicTemplate):
+    class Local_Properties(MagicTemplate):
         """Local profiles."""
-        txt = vfield(str, options={"enabled": False, "tooltip": "Structural parameters at current MT position."}, name="result", record=False)    
-        orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
+        @magicclass(widget_type="groupbox", layout="horizontal", labels=False, name="structural parameters")
+        class params(MagicTemplate):
+            """Structural parameters at the current position"""
+            @magicclass(labels=False)
+            class pitch(MagicTemplate):
+                """Longitudinal pitch length (interval between monomers)"""
+                lbl = field("pitch", widget_type="Label")
+                txt = vfield("", enabled=False)
+            @magicclass(labels=False)
+            class skew(MagicTemplate):
+                """Skew angle """
+                lbl = field("skew angle", widget_type="Label")
+                txt = vfield("", enabled=False)
+            @magicclass(labels=False)
+            class structure(MagicTemplate):
+                lbl = field("structure", widget_type="Label")
+                txt = vfield("", enabled=False)
+            
+            def _init_text(self):
+                self.pitch.txt = " -- nm"
+                self.skew.txt = " -- °"
+                self.structure.txt = " -- "
+                
+            def _set_text(self, pitch, skew, npf, start):
+                self.pitch.txt = f" {pitch:.2f} nm"
+                self.skew.txt = f" {skew:.2f}°"
+                self.structure.txt = f" {int(npf)}_{start:.1f}"
+
         plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True, "tooltip": "Plot of local properties"})
 
     @magicclass(widget_type="tabbed")
@@ -642,7 +662,7 @@ class MTPropsWidget(MagicTemplate):
             
         tomograms.height = 160
         tomograms.max_height = 160
-        self.min_width = 395
+        self.min_width = 400
         
         # Initialize multi-image canvas
         self.canvas.min_height = 200
@@ -654,18 +674,19 @@ class MTPropsWidget(MagicTemplate):
         self.canvas[2].lock_contrast_limits = True
         self.canvas[2].title = "Rot. average"
         
-        self.Profiles.collapsed = False
+        self.Local_Properties.collapsed = False
         
         # Initialize multi-plot canvas
-        self.Profiles.plot.min_height = 240
-        self.Profiles.plot[0].ylabel = "pitch (nm)"
-        self.Profiles.plot[0].legend.visible = False
-        self.Profiles.plot[0].border = [1, 1, 1, 0.2]
-        self.Profiles.plot[1].xlabel = "position (nm)"
-        self.Profiles.plot[1].ylabel = "skew (deg)"
-        self.Profiles.plot[1].legend.visible = False
-        self.Profiles.plot[1].border = [1, 1, 1, 0.2]
+        self.Local_Properties.plot.min_height = 240
+        self.Local_Properties.plot[0].ylabel = "pitch (nm)"
+        self.Local_Properties.plot[0].legend.visible = False
+        self.Local_Properties.plot[0].border = [1, 1, 1, 0.2]
+        self.Local_Properties.plot[1].xlabel = "position (nm)"
+        self.Local_Properties.plot[1].ylabel = "skew (deg)"
+        self.Local_Properties.plot[1].legend.visible = False
+        self.Local_Properties.plot[1].border = [1, 1, 1, 0.2]
         
+        self.Local_Properties.params._init_text()
         self.Panels.min_height = 300
 
     def _get_splines(self, widget=None) -> list[int]:
@@ -700,6 +721,8 @@ class MTPropsWidget(MagicTemplate):
         # draw path
         self._add_spline_to_images(spl)
         self.layer_work.data = []
+        
+        self.reset_choices()
         return None
     
     @magicclass(name="Run MTProps")
@@ -809,8 +832,25 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.overview.layers.clear()
         self._init_figures()
         self.active_tomogram.clear_cache()
-        self.active_tomogram._splines.clear()
-        
+        self.active_tomogram.splines.clear()
+        self.reset_choices()
+        return None
+    
+    @magicmenu
+    class Others(MagicTemplate):
+        """Other menus."""
+        def Open_help(self): ...
+        def Create_macro(self): ...
+        def Global_variables(self): ...
+        def Clear_cache(self): ...
+        def MTProps_info(self): ...
+
+    @Others.wraps
+    @do_not_record
+    def Open_help(self):
+        """Open a help window."""
+        help = build_help(self)
+        help.show()
         return None
     
     @Others.wraps
@@ -898,14 +938,6 @@ class MTPropsWidget(MagicTemplate):
         w.read_only = True
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
-        return None
-    
-    @Others.wraps
-    @do_not_record
-    def Open_help(self):
-        """Open a help window."""
-        help = build_help(self)
-        help.show()
         return None
     
     @magicclass
@@ -1155,7 +1187,7 @@ class MTPropsWidget(MagicTemplate):
         
         self.mt.pos.max = n_anc - 1
         
-        self.Profiles.orientation_choice = ori
+        self.orientation_choice = ori
         self._update_mtpath()
         return None
     
@@ -1673,7 +1705,10 @@ class MTPropsWidget(MagicTemplate):
         molecules = layer.metadata[MOLECULES]
         source = layer.metadata.get(SOURCE, None)
         template = ip.imread(template_path)
-        mask = ip.imread(mask_path)
+        if mask_path is not None:
+            mask = ip.imread(mask_path)
+        else:
+            mask = None
         shape = template.shape
         nmole = len(molecules)
         loader = self.active_tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
@@ -1742,7 +1777,8 @@ class MTPropsWidget(MagicTemplate):
                 img = -img
             _show_reconstruction(img, f"Subtomogram average (n={nmole})")
             if save_at is not None:
-                img.imsave(save_at)
+                with no_verbose():
+                    img.imsave(save_at)
         
         self._worker_control.info = f"Subtomogram Averaging ..."
         return worker
@@ -2053,13 +2089,13 @@ class MTPropsWidget(MagicTemplate):
         pitch_color = "lime"
         skew_color = "gold"
         
-        self.Profiles.plot[0].layers.clear()
-        self.Profiles.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
+        self.Local_Properties.plot[0].layers.clear()
+        self.Local_Properties.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
         
-        self.Profiles.plot[1].layers.clear()
-        self.Profiles.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
+        self.Local_Properties.plot[1].layers.clear()
+        self.Local_Properties.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
 
-        self.Profiles.plot.xlim = (x[0] - 2, x[-1] + 2)
+        self.Local_Properties.plot.xlim = (x[0] - 2, x[-1] + 2)
         return None
         
     def _get_process_image_worker(self, img: ip.LazyImgArray, binsize: int, light_bg: bool, 
@@ -2151,7 +2187,7 @@ class MTPropsWidget(MagicTemplate):
         self.mt.pos.value = 0
         self.mt.pos.min = 0
         self.mt.pos.max = 0
-        self.Profiles.txt = ""
+        self.Local_Properties.params._init_text()
         return None
     
     def _init_figures(self):
@@ -2160,7 +2196,7 @@ class MTPropsWidget(MagicTemplate):
             self.canvas[i].layers.clear()
             self.canvas[i].text_overlay.text = ""
         for i in range(2):
-            self.Profiles.plot[i].layers.clear()
+            self.Local_Properties.plot[i].layers.clear()
         return None
     
     def _check_path(self) -> str:
@@ -2266,7 +2302,7 @@ class MTPropsWidget(MagicTemplate):
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
             self.layer_paint.scale = self.layer_image.scale
-        self.Profiles.orientation_choice = Ori.none
+        self.orientation_choice = Ori.none
         return None
     
     @mt.pos.connect
@@ -2284,7 +2320,7 @@ class MTPropsWidget(MagicTemplate):
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
-            self.Profiles.txt = f"{pitch:.2f} nm / {skew:.2f}°/ {int(npf)}_{start:.1f}"
+            self.Local_Properties.params._set_text(pitch, skew, npf, start)
 
         binsize = self.active_tomogram.metadata["binsize"]
         with no_verbose():
@@ -2324,10 +2360,10 @@ class MTPropsWidget(MagicTemplate):
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
                 
     
-    @Profiles.orientation_choice.connect
+    @orientation_choice.connect
     def _update_note(self):
         i = self.mt.mtlabel.value
-        self.active_tomogram.splines[i].orientation = self.Profiles.orientation_choice
+        self.active_tomogram.splines[i].orientation = self.orientation_choice
         return None
     
     @mt.mtlabel.connect
@@ -2367,7 +2403,7 @@ class MTPropsWidget(MagicTemplate):
         self.projections = projections
         
         self.mt.pos.max = tomo.splines[i].anchors.size - 1
-        self.Profiles.orientation_choice = Ori(tomo.splines[i].orientation)
+        self.orientation_choice = Ori(tomo.splines[i].orientation)
         self._plot_properties()
         self._imshow_all()
         self.mt.mtlabel.enabled = True

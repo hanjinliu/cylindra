@@ -83,6 +83,8 @@ class Spline:
         
         return new
     
+    __copy__ = copy
+    
     @property
     def tck(self) -> tuple[np.ndarray, list[np.ndarray], int]:
         return self._tck
@@ -150,10 +152,12 @@ class Spline:
         self.clear_cache(loc=True, glob=False)
         return None
 
-    def make_anchors(self, 
-                     interval: nm = None,
-                     n: int = None,
-                     max_interval: nm = None) -> None:
+    def make_anchors(
+        self, 
+        interval: nm | None = None,
+        n: int | None = None,
+        max_interval: nm | None = None
+    ) -> None:
         """
         Make anchor points at constant intervals. Either interval, number of anchor or the 
         maximum interval between anchors can be specified.
@@ -186,8 +190,12 @@ class Spline:
         return None
 
 
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}<{hex(id(self))}>"
+    def __repr__(self) -> str:
+        """Use start/end points to describe a spline."""
+        start, end = self(self._lims)
+        start = "({:.1f}, {:.1f}, {:.1f})".format(*start)
+        end = "({:.1f}, {:.1f}, {:.1f})".format(*end)
+        return f"{self.__class__.__name__}({start} to {end})"
 
     
     def clip(self, start: float, stop: float) -> Spline:
