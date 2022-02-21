@@ -26,7 +26,7 @@ from magicclass import (
     MagicTemplate,
     bind_key,
     build_help,
-    no_gui
+    nogui
     )
 from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdit, ConsoleTextEdit, Figure
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
@@ -1690,8 +1690,9 @@ class MTPropsWidget(MagicTemplate):
     
     @Analysis.Subtomogram_averaging.wraps
     @set_options(
+        template_path={"filter": "*.mrc;*.tif"},
         cutoff={"max": 1.0, "step": 0.05},
-        mask_path={"text": "Do not use mask"},
+        mask_path={"text": "Do not use mask", "options": {"filter": "*.mrc;*.tif"}},
         max_shifts={"widget_type": TupleEdit, "options": {"max": 32}},
         z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
@@ -1870,6 +1871,7 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.Subtomogram_averaging.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        mask_path={"options": {"filter": "*.mrc;*.tif"}},
     )
     @dispatch_worker
     def Calculate_FSC(
@@ -1897,6 +1899,9 @@ class MTPropsWidget(MagicTemplate):
         def _on_returned(fsc: np.ndarray):
             plt = Figure(style="dark_background")
             plt.plot(np.linspace(0, 0.5, fsc.size), fsc, color="darkblue")
+            plt.xlabel("Frequency")
+            plt.ylabel("FSC")
+            plt.title(f"Fourier Shell Correlation of {layer.name}")
             plt.show()
         
         self._worker_control.info = f"Calculating FSC ..."
@@ -1905,6 +1910,8 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.Subtomogram_averaging.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        template_path={"filter": "*.mrc;*.tif"},
+        load_all={"label": "Load all the subtomograms in memory for better performance."}
     )
     @dispatch_worker
     def Seam_search(
@@ -1913,24 +1920,28 @@ class MTPropsWidget(MagicTemplate):
         template_path: Path,
         mask_path: Optional[Path] = None,
         interpolation: int = 1,
+        load_all: bool = False,
     ):
         molecules: Molecules = layer.metadata[MOLECULES]
         source: MtSpline = layer.metadata[SOURCE]
         template = ip.imread(template_path)
         shape = template.shape
         loader = self.tomogram.get_subtomogram_loader(molecules, shape)
-        npf = source.globalprops[H.nPF]
+        npf = roundint(source.globalprops[H.nPF])
         if mask_path is not None:
             mask = ip.imread(mask_path)
         else:
             mask = None
+        
+        total = 0 if load_all else 2*npf
             
         worker = create_worker(loader.iter_each_seam,
                                npf=npf,
                                template=template,
                                mask=mask,
+                               load_all=load_all,
                                order=interpolation,
-                               _progress={"total": 2*npf, "desc": "Running"}
+                               _progress={"total": total, "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -2165,12 +2176,12 @@ class MTPropsWidget(MagicTemplate):
         self._update_colormap(prop=color_by)
         return None
     
-    @no_gui
+    @nogui
     def get_molecules(self, name: str):
+        """Retrieve Molecules object from layer list."""
         return self.parent_viewer.layers[name].metadata[MOLECULES]
     
     def _update_colormap(self, prop: str = H.yPitch):
-        # TODO: color by other properties
         if self.layer_paint is None:
             return None
         color = {0: np.array([0., 0., 0., 0.], dtype=np.float32),

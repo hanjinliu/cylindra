@@ -395,6 +395,7 @@ class SubtomogramLoader:
         npf: int,
         template: ip.ImgArray,
         mask: ip.ImgArray | None = None,
+        load_all: bool = False,
         order: int = 1,
     ) -> Generator[tuple[float, ip.ImgArray, Molecules],
                    None,
@@ -410,12 +411,19 @@ class SubtomogramLoader:
         masked_template = template * mask
         
         with no_verbose():
+            if load_all:
+                subtomograms = np.stack(list(self.iter_subtomograms(order=order)), axis="p")
+                
             for pf in range(2*npf):
                 _id = np.arange(len(self.molecules))
                 res = (_id - pf) // npf
-                candidate = self.subset(res % 2 == 0)
+                sl = res % 2 == 0
+                candidate = self.subset(sl)
                 candidates.append(candidate)
-                image_ave = candidate.average(order=order)
+                if not load_all:
+                    image_ave = candidate.average(order=order)
+                else:
+                    image_ave = np.mean(subtomograms[sl], axis=0)
                 averaged_images.append(image_ave)
                 corr = ip.zncc(image_ave*mask, masked_template)
                 corrs.append(corr)
@@ -428,6 +436,7 @@ class SubtomogramLoader:
         npf: int,
         template: ip.ImgArray,
         mask: ip.ImgArray | None = None,
+        load_all: bool = False,
         order: int = 1,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> tuple[np.ndarray, ip.ImgArray, list[Molecules]]:
@@ -438,6 +447,7 @@ class SubtomogramLoader:
             npf=npf,
             template=template, 
             mask=mask,
+            load_all=load_all,
             order=order,
         )
         
