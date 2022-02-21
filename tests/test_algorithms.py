@@ -45,7 +45,7 @@ def test_run_all():
     assert spl.globalprops[H.skewAngle] < -0.25 # 14-pf MT has negative skew (Atherton et al., 2019)
     
     # map monomer coordinates and save them.
-    ui.Map_monomers()
+    ui.Map_monomers(splines=[0])
     ui.Average_subset(ui.parent_viewer.layers[-2])
     ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
                                 layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")

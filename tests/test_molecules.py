@@ -93,4 +93,16 @@ def test_save_and_load_euler_angle():
     assert_allclose(mol2.y, mol.y, rtol=1e-8, atol=1e-8)
     assert_allclose(mol2.z, mol.z, rtol=1e-8, atol=1e-8)
 
-# TODO: test from_axes using x=...
+def test_rotate():
+    from scipy.spatial.transform import Rotation
+    pos = np.array([0, 0, 0])
+    zvec = np.array([1, 0.4, 0.1])
+    yvec = np.array([0, 1.1, 2])
+    mol = Molecules.from_axes(pos, z=zvec, y=yvec)
+    
+    rot = Rotation.from_rotvec([0.1, 0.3, -0.2])
+    mol2 = mol.rotate_by(rot)
+    
+    assert_allclose(rot.apply(mol.z), mol2.z, rtol=1e-8, atol=1e-8)
+    assert_allclose(rot.apply(mol.y), mol2.y, rtol=1e-8, atol=1e-8)
+    assert_allclose(rot.apply(mol.x), mol2.x, rtol=1e-8, atol=1e-8)

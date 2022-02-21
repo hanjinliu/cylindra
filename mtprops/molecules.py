@@ -399,7 +399,28 @@ class Molecules:
     
     
     def rotate_by(self, rotator: Rotation, copy: bool = True) -> Molecules:
-        rot = self._rotator * rotator
+        """
+        Rotate molecule with a ``Rotation`` object.
+        
+        Note that ``Rotation`` object satisfies following equation.
+        
+        .. code-block::python
+        
+            rot1.apply(rot2.apply(v)) == (rot1*rot2).apply(v)
+
+        Parameters
+        ----------
+        rotator : Rotation
+            Molecules will be rotated by this object.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated orientation.
+        """
+        rot = rotator * self._rotator
         if copy:
             out = self.__class__(self._pos, rot)
         else:
