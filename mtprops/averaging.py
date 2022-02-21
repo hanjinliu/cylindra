@@ -515,7 +515,7 @@ class SubtomogramLoader:
         fsc = ip.fsc(img0*mask,
                      img1*mask,
                      nbin=nbin,
-                     r_max=min(self.output_shape)*self.scale/2,
+                     r_max=min(self.output_shape)/self.scale/2,
                      )
         
         if self.image_avg is None:

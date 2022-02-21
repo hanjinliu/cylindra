@@ -1,12 +1,9 @@
-from functools import wraps
-import pandas as pd
-from typing import Any, Callable, Iterable, NewType, Union, Tuple, List
+from typing import Iterable, Union, Tuple, List
 import numpy as np
-import warnings
+import pandas as pd
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
-from napari._qt.qthreading import GeneratorWorker, FunctionWorker
 from napari.layers import Points, Image, Labels, Vectors
 from pathlib import Path
 
@@ -30,9 +27,7 @@ from magicclass import (
     )
 from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdit, ConsoleTextEdit, Figure
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
-from magicclass.utils import show_messagebox, to_clipboard
-
-from mtprops.spline import Spline
+from magicclass.utils import to_clipboard
 
 from .averaging import SubtomogramLoader
 from .molecules import Molecules
@@ -49,109 +44,14 @@ from .utils import (
     no_verbose
     )
 from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
+from .types import MOLECULES, MonomerLayer, get_monomer_layers
+from .worker import WorkerControl, dispatch_worker, Worker
 
-# TODO: when anchor is updated (especially, "Fit splines manually" is clicked), spinbox and slider
-# should also be initialized.
 
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
-MOLECULES = "Molecules"
 SOURCE = "Source"
-
-import magicgui
-from magicgui.widgets._bases import CategoricalWidget
-from napari.utils._magicgui import find_viewer_ancestor
-
-MonomerLayer = NewType("MonomerLayer", Points)
-Worker = Union[FunctionWorker, GeneratorWorker]
-
-def get_monomer_layers(gui: CategoricalWidget) -> List[Points]:
-    viewer = find_viewer_ancestor(gui.native)
-    if not viewer:
-        return []
-    return [x for x in viewer.layers if isinstance(x, Points) and MOLECULES in x.metadata]
-
-magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
-
-from macrokit import register_type
-register_type(np.ndarray, lambda arr: str(arr.tolist()))
-
-def run_worker_function(worker: Worker):
-    """Emulate worker execution."""
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("always")
-            warnings.showwarning = lambda *w: worker.warned.emit(w)
-            result = worker.work()
-        if isinstance(result, Exception):
-            raise result
-        worker.returned.emit(result)
-    except Exception as exc:
-        worker.errored.emit(exc)
-    worker._running = False
-    worker.finished.emit()
-    worker._finished.emit(worker)
-
-
-def dispatch_worker(f: Callable[[Any], Worker]) -> Callable[[Any], None]:
-    """
-    Open a progress bar and start worker in a parallel thread if function is called from GUI.
-    Otherwise (if function is called from script), the worker will be executed as if the 
-    function is directly called.
-    """
-    @wraps(f)
-    def wrapper(self: "MTPropsWidget", *args, **kwargs):
-        worker = f(self, *args, **kwargs)
-        if self[f.__name__].running:
-            self._connect_worker(worker)
-            worker.start()
-        else:
-            run_worker_function(worker)
-        return None
-    return wrapper
-    
-### Child widgets ###
-
-@magicclass(layout="horizontal", labels=False, error_mode="stderr")
-class WorkerControl(MagicTemplate):
-    # A widget that has a napari worker object and appears as buttons in the activity dock 
-    # while running.
-    
-    info = vfield(str, record=False)
-    
-    def __post_init__(self):
-        self.paused = False
-        self.worker: Worker = None
-        self._last_info = ""
-    
-    def _set_worker(self, worker):
-        self.worker = worker
-        @worker.errored.connect
-        def _(e):
-            # In some environments, errors raised in workers are completely hidden.
-            # We have to re-raise it here.
-            show_messagebox("error", title=e.__class__.__name__, text=str(e), parent=self.native)
-        
-    def Pause(self):
-        """Pause/Resume thread."""        
-        if not isinstance(self.worker, GeneratorWorker):
-            return
-        if self.paused:
-            self.worker.resume()
-            self["Pause"].text = "Pause"
-            self.info = self._last_info
-        else:
-            self.worker.pause()
-            self["Pause"].text = "Resume"
-            self._last_info = self.info
-            self.info = "Pausing"
-        self.paused = not self.paused
-        
-    def Interrupt(self):
-        """Interrupt thread."""
-        self.worker.quit()
-
 
 @magicclass
 class SplineFitter(MagicTemplate):
