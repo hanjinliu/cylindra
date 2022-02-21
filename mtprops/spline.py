@@ -195,7 +195,7 @@ class Spline:
         start, end = self(self._lims)
         start = "({:.1f}, {:.1f}, {:.1f})".format(*start)
         end = "({:.1f}, {:.1f}, {:.1f})".format(*end)
-        return f"{self.__class__.__name__}({start} to {end})"
+        return f"{self.__class__.__name__}({start}~{end})"
 
     
     def clip(self, start: float, stop: float) -> Spline:

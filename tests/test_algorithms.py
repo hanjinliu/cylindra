@@ -19,7 +19,7 @@ def test_run_all():
                              [18.97,  35.2, 79.90]])
     ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, dense_mode_sigma=0.2, 
                    local_props=True, global_props=True, paint=True)
-    spl = ui.active_tomogram.splines[0]
+    spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
     assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has pitch length in this range
@@ -35,7 +35,7 @@ def test_run_all():
                              [21.97, 17.6, 64.96]])
     ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, dense_mode_sigma=0.2, 
                    local_props=True, global_props=True, paint=True)
-    spl = ui.active_tomogram.splines[0]
+    spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
     assert 4.075 < ypitch_glob < 4.105 # GDP-bound microtubule has pitch length in this range

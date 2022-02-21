@@ -990,7 +990,7 @@ class MtTomogram:
         return spl.localprops
     
     @batch_process
-    def local_cft(self, i = None, ft_size: nm = 32.0) -> ip.ImgArray:
+    def local_cft(self, *, i = None, ft_size: nm = 32.0, pos: int | None = None) -> ip.ImgArray:
         """
         Calculate non-upsampled local cylindric Fourier transormation along spline. 
 
@@ -1000,6 +1000,8 @@ class MtTomogram:
             Spline ID that you want to analyze.
         ft_size : nm, default is 32.0
             Length of subtomogram for calculation of local parameters.
+        pos : int, optional
+            Only calculate at ``pos``-th anchor if given.
 
         Returns
         -------
@@ -1015,7 +1017,11 @@ class MtTomogram:
         rmax = spl.radius*GVar.outer/self.scale
         out: list[ip.ImgArray] = []
         with no_verbose():
-            for anc in spl.anchors:
+            if pos is None:
+                anchors = spl.anchors
+            else:
+                anchors = [spl.anchors[pos]]
+            for anc in anchors:
                 coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
                 coords = np.moveaxis(coords, -1, 0)
                 polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)

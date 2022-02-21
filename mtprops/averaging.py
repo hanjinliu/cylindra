@@ -237,7 +237,7 @@ class SubtomogramLoader:
             raise NotImplementedError("Template image is needed.")
         if mask is None:
             mask = 1
-        self._use_template_shape(template)
+        self._check_shape(template)
         
         # Convert rotations into quaternion if given.
         if rotations is not None:
@@ -301,7 +301,7 @@ class SubtomogramLoader:
                         )
                         all_shifts.append(shift)
                         shifted_subvol = input_subvol.affine(translation=shift)
-                        corr = ip.ncc(shifted_subvol*mask, template*mask)
+                        corr = ip.zncc(shifted_subvol*mask, template*mask)
                         corrs.append(corr)
                     
                     if self.image_avg is None:
@@ -390,18 +390,23 @@ class SubtomogramLoader:
         
         return out
 
-    def try_all_seams(
+    def iter_each_seam(
         self,
         npf: int,
         template: ip.ImgArray,
-        mask: ip.ImgArray | None = None
-    ):
+        mask: ip.ImgArray | None = None,
+        order: int = 1,
+    ) -> Generator[tuple[float, ip.ImgArray, Molecules],
+                   None,
+                   tuple[np.ndarray, ip.ImgArray, list[Molecules]]]:
         averaged_images: list[ip.ImgArray] = []
         corrs: list[float] = []
+        candidates: list[Molecules] = []
+        
         if mask is None:
             mask = 1
         
-        self._use_template_shape(template)
+        self._check_shape(template)
         masked_template = template * mask
         
         with no_verbose():
@@ -409,34 +414,56 @@ class SubtomogramLoader:
                 _id = np.arange(len(self.molecules))
                 res = (_id - pf) // npf
                 candidate = self.subset(res % 2 == 0)
-                image_ave = candidate.average()
+                candidates.append(candidate)
+                image_ave = candidate.average(order=order)
                 averaged_images.append(image_ave)
-                corrs.append(ip.ncc(image_ave*mask, masked_template))
+                corr = ip.zncc(image_ave*mask, masked_template)
+                corrs.append(corr)
+                yield corr, image_ave, candidate
                 
-        return corrs, averaged_images
+        return np.array(corrs), np.stack(averaged_images, axis="p"), candidates
     
-    def fsc(
+    def try_all_seams(
         self,
+        npf: int,
+        template: ip.ImgArray,
         mask: ip.ImgArray | None = None,
+        order: int = 1,
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ) -> tuple[np.ndarray, ip.ImgArray, list[Molecules]]:
+        if callback is None:
+            callback = lambda x: None
+        
+        seam_iter = self.iter_each_seam(
+            npf=npf,
+            template=template, 
+            mask=mask,
+            order=order,
+        )
+        
+        while True:
+            try:
+                next(seam_iter)
+                callback(self)
+            except StopIteration as results:
+                break
+        
+        return results
+    
+    
+    def average_split(
+        self, 
+        *,
         seed: int | float | str | bytes | bytearray | None = 0,
-        nbin: int = 16,
-        ) -> np.ndarray:
-        
-        # WIP!
+        order: int = 1,
+    ) -> tuple[ip.ImgArray, ip.ImgArray]:
         random.seed(seed)
-        
-        if mask is None:
-            mask = 1
-        elif mask.shape != self.output_shape:
-            raise ValueError(
-                f"Shape mismatch between subtomograms {self.output_shape!r} and mask {mask.shape!r}."
-            )
-        
+            
         subsets: list[np.ndarray] = []
         sum_images = (np.zeros(self.output_shape, dtype=np.float32),
                       np.zeros(self.output_shape, dtype=np.float32))
         next_set = 0
-        for subvols in self._iter_chunks():
+        for subvols in self._iter_chunks(order=order):
             subsets.extend(list(subvols.value))
             next_set = 1 - next_set
             if next_set == 0:
@@ -452,23 +479,46 @@ class SubtomogramLoader:
             sum_images[1][:] += sum(subsets[lc:])
             
         random.seed(None)
-        fsc = ip.fsc(ip.asarray(sum_images[0] * mask, axes="zyx"),
-                     ip.asarray(sum_images[1] * mask, axes="zyx"),
+        img0 = ip.asarray(sum_images[0], axes="zyx")
+        img1 = ip.asarray(sum_images[1], axes="zyx")
+        img0.set_scale(self.image_ref)
+        img1.set_scale(self.image_ref)
+        return img0, img1
+        
+    
+    def fsc(
+        self,
+        mask: ip.ImgArray | None = None,
+        seed: int | float | str | bytes | bytearray | None = 0,
+        order: int = 1,
+        nbin: int = 16,
+        ) -> np.ndarray:
+        
+        # WIP!
+        if mask is None:
+            mask = 1
+        else:
+            self._check_shape(mask, "mask")
+        
+        img0, img1 = self.average_split(seed=seed, order=order)
+            
+        fsc = ip.fsc(img0*mask,
+                     img1*mask,
                      nbin=nbin,
                      r_max=min(self.output_shape)*self.scale/2,
                      )
         
         if self.image_avg is None:
-            self.image_avg = ip.asarray(sum_images[0] + sum_images[1], axes="zyx", name="Avg")
+            self.image_avg = img0 + img1
             self.image_avg.set_scale(self.image_ref)
             
         return np.asarray(fsc)
     
-    def _use_template_shape(self, template: ip.ImgArray) -> None:
+    def _check_shape(self, template: ip.ImgArray, name: str = "template") -> None:
         if template.shape != self.output_shape:
             warnings.warn(
                 f"'output_shape' of {self.__class__.__name__} object {self.output_shape!r} "
-                f"differs from the shape of template image {template.shape!r}. 'output_shape' "
+                f"differs from the shape of {name} image {template.shape!r}. 'output_shape' "
                 "is updated.",
                 UserWarning,
             )
