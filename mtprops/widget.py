@@ -541,14 +541,18 @@ class MTPropsWidget(MagicTemplate):
         """Frequently used operations."""        
         def register_path(self): ...
         def open_runner(self): ...
+        sep0 = field(Separator)
         def pick_next(self): ...
         def auto_center(self): ...
+        @magicmenu(icon_path=ICON_DIR/"adjust_intervals.png")
+        class Adjust(MagicTemplate):
+            stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
+        sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
-        stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
         
-    @magicclass(widget_type="collapsible")
-    class Tomogram_List(MagicTemplate):
+    @magicclass(widget_type="collapsible", name="Tomogram List")
+    class tomogram_list(MagicTemplate):
         """List of tomograms that have loaded to the widget."""        
         tomograms = ListWidget(name="Tomogram List")
     
@@ -615,7 +619,7 @@ class MTPropsWidget(MagicTemplate):
         self.Set_colormap()
         self.mt.pos.min_width = 70
         
-        tomograms = self.Tomogram_List.tomograms
+        tomograms = self.tomogram_list.tomograms
         
         @tomograms.register_callback(MtTomogram)
         def open_tomogram(tomo: MtTomogram, i: int):
@@ -1855,7 +1859,7 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def pick_next(self):
         """Automatically pick MT center using previous two points."""        
-        stride_nm = self.toolbar.stride.value
+        stride_nm = self.toolbar.Adjust.stride.value
         imgb = self.layer_image.data
         try:
             # orientation is point0 -> point1
@@ -2172,7 +2176,7 @@ class MTPropsWidget(MagicTemplate):
                 
                 tomo._set_image(img)
                 self.active_tomogram = tomo
-                self.Tomogram_List.tomograms.append(tomo)
+                self.tomogram_list.tomograms.append(tomo)
                 
                 self.clear_all()
             

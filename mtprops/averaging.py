@@ -319,11 +319,9 @@ class SubtomogramLoader:
             self.image_avg = pre_alignment
         
         shifts = self.molecules.rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
-        if rotations is None:
-            mole_aligned = self.molecules.translate(shifts)
-        else:
-            rot = self.molecules.rotator * Rotation.from_quat(local_rot)
-            mole_aligned = self.molecules.translate(shifts).rotate_by(rot)
+        mole_aligned = self.molecules.translate(shifts)
+        if rotations is not None:
+            mole_aligned = mole_aligned.rotate_by_quaternion(local_rot)
             
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         return out
@@ -408,10 +406,9 @@ class SubtomogramLoader:
         
         with no_verbose():
             for pf in range(2*npf):
-                _id = np.arange(npf*4)
-                res = ((_id - pf) // npf)
-                choose = (res % 2 == 0)
-                candidate = self.subset(choose)
+                _id = np.arange(len(self.molecules))
+                res = (_id - pf) // npf
+                candidate = self.subset(res % 2 == 0)
                 image_ave = candidate.average()
                 averaged_images.append(image_ave)
                 corrs.append(ip.ncc(image_ave*mask, masked_template))
@@ -422,6 +419,7 @@ class SubtomogramLoader:
         self,
         mask: ip.ImgArray | None = None,
         seed: int | float | str | bytes | bytearray | None = 0,
+        nbin: int = 16,
         ) -> np.ndarray:
         
         # WIP!
@@ -456,8 +454,8 @@ class SubtomogramLoader:
         random.seed(None)
         fsc = ip.fsc(ip.asarray(sum_images[0] * mask, axes="zyx"),
                      ip.asarray(sum_images[1] * mask, axes="zyx"),
-                     nbin=32,
-                     r_max=min(self.output_shape)*self.scale,
+                     nbin=nbin,
+                     r_max=min(self.output_shape)*self.scale/2,
                      )
         
         if self.image_avg is None:
