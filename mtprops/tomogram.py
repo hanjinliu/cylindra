@@ -829,7 +829,7 @@ class MtTomogram:
         width_px = self.nm2pixel(self.subtomo_width)
         
         images: list[ip.ImgArray] = []
-        mole = spl.anchors_to_molecules(rotation=np.deg2rad(skew_angles))
+        mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
         chunksize = max(int(self.subtomo_length*2/interval), 1)
