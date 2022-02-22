@@ -1,3 +1,5 @@
+"""Widgets and functions that deal with napari's workers."""
+
 from __future__ import annotations
 from typing import Union, Callable, Any, TYPE_CHECKING
 import warnings
@@ -47,8 +49,7 @@ def dispatch_worker(f: Callable[[Any], Worker]) -> Callable[[Any], None]:
             run_worker_function(worker)
         return None
     return wrapper
-    
-### Child widgets ###
+
 
 @magicclass(layout="horizontal", labels=False, error_mode="stderr")
 class WorkerControl(MagicTemplate):

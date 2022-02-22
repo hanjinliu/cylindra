@@ -1,5 +1,5 @@
 from mtprops.utils import map_coordinates
-from mtprops.tomogram import MtSpline
+from mtprops.components.tomogram import MtSpline
 import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip

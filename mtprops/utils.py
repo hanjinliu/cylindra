@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, Callable, Iterable
 from .const import Mode
 
 if TYPE_CHECKING:
-    from .spline import Spline
-    from .molecules import Molecules
+    from .components import Spline, Molecules
 
 def roundint(a: float):
     return int(round(a))

@@ -68,7 +68,7 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200) 
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
     
-    from mtprops.tomogram import _local_dft_params_pd
+    from mtprops.components.tomogram import _local_dft_params_pd
     
     spl = tomo.splines[0]
     with no_verbose():

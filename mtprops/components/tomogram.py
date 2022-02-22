@@ -21,10 +21,10 @@ from dask import array as da, delayed
 import impy as ip
 
 from .molecules import Molecules
-from .const import nm, H, K, Ori, Mode, GVar
+from ..const import nm, H, K, Ori, Mode, GVar
 from .spline import Spline
-from .averaging import SubtomogramLoader
-from .utils import (
+from .loader import SubtomogramLoader
+from ..utils import (
     load_a_subtomogram,
     centroid,
     map_coordinates,
@@ -377,7 +377,7 @@ class MtTomogram:
             spl_dict = spl.to_dict()
             all_results[i] = spl_dict
         
-        from .__init__ import __version__
+        from .. import __version__
         metadata = self.metadata.copy()
         metadata["light_background"] = self.light_background
         metadata["version"] = __version__

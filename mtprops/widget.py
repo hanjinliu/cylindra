@@ -25,13 +25,21 @@ from magicclass import (
     build_help,
     nogui
     )
-from magicclass.widgets import TupleEdit, Separator, ListWidget, Table, ColorEdit, ConsoleTextEdit, Figure
+from magicclass.widgets import (
+    TupleEdit,
+    Separator,
+    ListWidget,
+    Table,
+    ColorEdit,
+    ConsoleTextEdit,
+    Figure,
+    DraggableContainer
+    )
 from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
 from magicclass.utils import to_clipboard
 
-from .averaging import SubtomogramLoader
-from .molecules import Molecules
-from .tomogram import MtSpline, MtTomogram, angle_corr, dask_affine, centroid
+from .components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
+from .components.tomogram import angle_corr, dask_affine, centroid
 from .utils import (
     Projections,
     load_a_subtomogram,
@@ -1849,12 +1857,26 @@ class MTPropsWidget(MagicTemplate):
             corrs, img_ave, moles = result
             iopt = np.argmax(corrs)
             viewer = _show_reconstruction(img_ave, "All reconstructions")
-            plt = Figure(style="dark_background")
-            plt.plot(corrs)
-            plt.xlabel("Seam position")
-            plt.ylabel("Correlation")
-            plt.title("Seam search result")
-            viewer.window.add_dock_widget(plt, name="Seam search", area="bottom")
+            # plot all the correlation
+            plt1 = Figure(style="dark_background")
+            plt1.plot(corrs)
+            plt1.xlabel("Seam position")
+            plt1.ylabel("Correlation")
+            plt1.title("Seam search result")
+            
+            # plot the score
+            corr1, corr2 = np.split(corrs, [npf, npf])
+            if corr1.max() < corr2.max():
+                score = corr2 - corr1
+            else:
+                score = corr1 - corr2
+            plt2 = Figure(style="dark_background")
+            plt2.plot(score)
+            plt2.xlabel("PF position")
+            plt2.ylabel("ΔCorr")
+            plt2.title("Score")
+            wdt = DraggableContainer(widgets=[plt1, plt2], labels=False)
+            viewer.window.add_dock_widget(wdt, name="Seam search", area="bottom")
             _add_molecules(self.parent_viewer, moles[iopt], layer.name + "-opt", source=source)
             
         self._worker_control.info = "Seam search ... "

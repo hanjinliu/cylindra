@@ -1,4 +1,4 @@
-from mtprops.molecules import Molecules
+from mtprops.components.molecules import Molecules
 from mtprops.const import EulerAxes
 import numpy as np
 from numpy.testing import assert_allclose

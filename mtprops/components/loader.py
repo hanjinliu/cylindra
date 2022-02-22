@@ -8,9 +8,9 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import impy as ip
 from dask import array as da
-from .utils import multi_map_coordinates, no_verbose
+from ..utils import multi_map_coordinates, no_verbose
 from .molecules import Molecules, from_euler
-from .const import nm
+from ..const import nm
 
 RangeLike = tuple[float, int]
 Ranges = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]

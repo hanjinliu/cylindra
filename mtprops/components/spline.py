@@ -8,8 +8,8 @@ import json
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
-from .utils import ceilint, interval_divmod, oblique_meshgrid, roundint
-from .const import nm
+from ..utils import ceilint, interval_divmod, oblique_meshgrid, roundint
+from ..const import nm
 from .molecules import Molecules, axes_to_rotator
 
 class Coords3D(TypedDict):
