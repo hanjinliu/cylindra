@@ -1632,7 +1632,7 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        shape={"widget_type": TupleEdit, "options": {"min": 0., "max": 100., "step": 1.0}, "label": "Subtomogram shape (nm)"},
+        size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
         chunk_size={"min": 1, "max": 128},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         save_at={"text": "Do not save the result.", "options": {"mode": "w", "filter": "*.mrc;*.tif"}},
@@ -1641,6 +1641,7 @@ class MTPropsWidget(MagicTemplate):
     def Average_all(
         self,
         layer: MonomerLayer,
+        size: Optional[nm] = None,
         chunk_size: int = 64,
         interpolation: int = 1,
         save_at: Optional[Path] = None,
@@ -1657,14 +1658,17 @@ class MTPropsWidget(MagicTemplate):
         ----------
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
-        shape : tuple[nm, nm, nm], default is (18., 18., 18.)
-            Shape of subtomograms.
+        size : nm, optional
+            Size of subtomograms. Use template size by default.
         chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
         """
         molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        if size is None:
+            shape = self._subtomogram_averaging._get_shape_in_nm()
+        else:
+            shape = (size,) * 3
         loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
         
         worker = create_worker(loader.iter_average,
@@ -1686,6 +1690,7 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
+        size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
         method={"choices": ["steps", "first", "last", "random"]},
         chunk_size={"min": 1, "max": 128},
     )
@@ -1693,6 +1698,7 @@ class MTPropsWidget(MagicTemplate):
     def Average_subset(
         self,
         layer: MonomerLayer,
+        size: Optional[nm] = None,
         method="steps", 
         number: int = 64
     ):
@@ -1705,6 +1711,8 @@ class MTPropsWidget(MagicTemplate):
         ----------
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
+        size : nm, optional
+            Size of subtomograms. Use template size by default.
         method : str, optional
             How to choose subtomogram subset. 
             (1) steps: Each 'steps' subtomograms from the tip of spline. 
@@ -1717,7 +1725,10 @@ class MTPropsWidget(MagicTemplate):
         """
         molecules: Molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        if size is None:
+            shape = self._subtomogram_averaging._get_shape_in_nm()
+        else:
+            shape = (size,) * 3
         if nmole < number:
             raise ValueError(f"There are only {nmole} subtomograms.")
         if method == "steps":

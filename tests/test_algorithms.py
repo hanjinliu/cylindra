@@ -38,15 +38,15 @@ def test_run_all():
     spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
-    assert 4.075 < ypitch_glob < 4.105 # GDP-bound microtubule has pitch length in this range
+    assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has pitch length in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.013
     assert all(spl.localprops[H.nPF] == 14)
     assert all(spl.localprops[H.riseAngle] > 7.5)
-    assert spl.globalprops[H.skewAngle] < -0.25 # 14-pf MT has negative skew (Atherton et al., 2019)
+    assert spl.globalprops[H.skewAngle] < -0.25  # 14-pf MT has negative skew (Atherton et al., 2019)
     
     # map monomer coordinates and save them.
     ui.Map_monomers(splines=[0])
-    ui.Average_subset(ui.parent_viewer.layers[-2])
+    ui.Average_subset(ui.parent_viewer.layers[-2], size=18.)
     ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
                                 layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",
