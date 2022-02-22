@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import NewType
 import numpy as np
+import impy as ip
 import magicgui
 from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
@@ -19,3 +20,4 @@ magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
 
 from macrokit import register_type
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
+register_type(ip.ImgArray, lambda img: f"<image from {img.dirpath}>")

@@ -197,6 +197,12 @@ class Molecules:
             x_ax = vec_x[sl, :, np.newaxis] * ind_x
             y_ax = vec_y[sl, :, np.newaxis] * ind_y
             z_ax = vec_z[sl, :, np.newaxis] * ind_z
+            
+            # There will be many points so data type should be converted into 32-bit
+            x_ax = x_ax.astype(np.float32)
+            y_ax = y_ax.astype(np.float32)
+            z_ax = z_ax.astype(np.float32)
+            
             coords = (
                 z_ax[:, :, :, np.newaxis, np.newaxis]
                 + y_ax[:, :, np.newaxis, :, np.newaxis] 

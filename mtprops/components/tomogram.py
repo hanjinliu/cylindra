@@ -1247,239 +1247,239 @@ class MtTomogram:
         transformed = np.concatenate(out, axis="y")
         return transformed
     
-    @batch_process
-    def reconstruct(self, 
-                    i = None,
-                    *, 
-                    rot_ave: bool = False,
-                    erase_corner: bool = True,
-                    niter: int = 1,
-                    y_length: nm = 50.0) -> ip.ImgArray:
-        """
-        3D reconstruction of MT.
+    # @batch_process
+    # def reconstruct(self, 
+    #                 i = None,
+    #                 *, 
+    #                 rot_ave: bool = False,
+    #                 erase_corner: bool = True,
+    #                 niter: int = 1,
+    #                 y_length: nm = 50.0) -> ip.ImgArray:
+    #     """
+    #     3D reconstruction of MT.
 
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to reconstruct.
-        rot_ave : bool, default is False
-            If true, rotational averaging is applied to the reconstruction to remove missing wedge.
-        erase_corner : bool, default is True
-            Substitute four corners with median of non-corner domain. This option is useful for iso
-            threshold visualization.
-        y_length : nm, default is 100.0
-            Longitudinal length of reconstruction.
+    #     Parameters
+    #     ----------
+    #     i : int or iterable of int, optional
+    #         Spline ID that you want to reconstruct.
+    #     rot_ave : bool, default is False
+    #         If true, rotational averaging is applied to the reconstruction to remove missing wedge.
+    #     erase_corner : bool, default is True
+    #         Substitute four corners with median of non-corner domain. This option is useful for iso
+    #         threshold visualization.
+    #     y_length : nm, default is 100.0
+    #         Longitudinal length of reconstruction.
 
-        Returns
-        -------
-        ip.ImgArray
-            Reconstructed image.
-        """                
-        # Cartesian transformation along spline.
-        img_st = self.straighten(i)
-        scale = img_st.scale.y
-        total_length: nm = img_st.shape.y*scale
+    #     Returns
+    #     -------
+    #     ip.ImgArray
+    #         Reconstructed image.
+    #     """                
+    #     # Cartesian transformation along spline.
+    #     img_st = self.straighten(i)
+    #     scale = img_st.scale.y
+    #     total_length: nm = img_st.shape.y*scale
         
-        # Calculate Fourier parameters by cylindrical transformation along spline.
-        props = self.global_ft_params(i)
-        lp = props[H.yPitch] * 2
-        skew = props[H.skewAngle]
-        rise = props[H.riseAngle]
-        npf = int(props[H.nPF])
-        radius = self.splines[i].radius
+    #     # Calculate Fourier parameters by cylindrical transformation along spline.
+    #     props = self.global_ft_params(i)
+    #     lp = props[H.yPitch] * 2
+    #     skew = props[H.skewAngle]
+    #     rise = props[H.riseAngle]
+    #     npf = int(props[H.nPF])
+    #     radius = self.splines[i].radius
         
-        # Determine how to split image into tubulin dimer fragments
-        dl, resl = divmod(total_length, lp)
-        borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
-        skew_angles = np.arange(borders.size - 1) * skew
+    #     # Determine how to split image into tubulin dimer fragments
+    #     dl, resl = divmod(total_length, lp)
+    #     borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
+    #     skew_angles = np.arange(borders.size - 1) * skew
         
-        # Rotate fragment with skew angle
-        imgs: list[ip.ImgArray] = []
-        ylen = 99999
+    #     # Rotate fragment with skew angle
+    #     imgs: list[ip.ImgArray] = []
+    #     ylen = 99999
     
-        # Split image into dimers along y-direction
-        for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
-            start = self.nm2pixel(start)
-            stop = self.nm2pixel(stop)
-            imgs.append(img_st[:, start:stop].rotate(ang, dims="zx", mode=Mode.reflect))
-            ylen = min(ylen, stop-start)
+    #     # Split image into dimers along y-direction
+    #     for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
+    #         start = self.nm2pixel(start)
+    #         stop = self.nm2pixel(stop)
+    #         imgs.append(img_st[:, start:stop].rotate(ang, dims="zx", mode=Mode.reflect))
+    #         ylen = min(ylen, stop-start)
         
-        # Make image sizes same and prepare FT images.
-        imgs = [img[f"y=:{ylen}"] for img in imgs]
-        ft_imgs = [img.fft() for img in imgs]
+    #     # Make image sizes same and prepare FT images.
+    #     imgs = [img[f"y=:{ylen}"] for img in imgs]
+    #     ft_imgs = [img.fft() for img in imgs]
 
-        # align each fragment
-        ref = imgs[0]
-        shape = ref.shape
-        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        imgs_aligned: list[ip.ImgArray] = []
-        for _ in range(niter):
-            ft_ref = ref.fft()
-            imgs_aligned.clear()
-            for k in range(len(imgs)):
-                img = imgs[k]
-                ft_img = ft_imgs[k]
-                shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
-                imgs_aligned.append(
-                    img.affine(translation=shift, mode=Mode.grid_wrap)
-                    )
+    #     # align each fragment
+    #     ref = imgs[0]
+    #     shape = ref.shape
+    #     mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+    #     imgs_aligned: list[ip.ImgArray] = []
+    #     for _ in range(niter):
+    #         ft_ref = ref.fft()
+    #         imgs_aligned.clear()
+    #         for k in range(len(imgs)):
+    #             img = imgs[k]
+    #             ft_img = ft_imgs[k]
+    #             shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
+    #             imgs_aligned.append(
+    #                 img.affine(translation=shift, mode=Mode.grid_wrap)
+    #                 )
 
-            out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
-            ref = out
+    #         out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
+    #         ref = out
                     
-        # rotational averaging
-        center = np.array(out.shape)/2 - 0.5
+    #     # rotational averaging
+    #     center = np.array(out.shape)/2 - 0.5
         
-        if rot_ave:
-            input_ = out.copy()
-            trs0 = np.eye(4, dtype=np.float32)
-            trs1 = np.eye(4, dtype=np.float32)
-            trs0[:3, 3] = -center
-            trs1[:3, 3] = center
-            slope = tandg(rise)
-            for pf in range(1, npf):
-                ang = -2*np.pi*pf/npf
-                dy = 2*np.pi*pf/npf*radius*slope/self.scale
-                cos = np.cos(ang)
-                sin = np.sin(ang)
-                rot = np.array([[cos, 0.,-sin, 0.],
-                                [ 0., 1.,  0., dy],
-                                [sin, 0., cos, 0.],
-                                [ 0., 0.,  0., 1.]],
-                                dtype=np.float32)
-                mtx = trs1 @ rot @ trs0
-                out.value[:] += input_.affine(mtx, mode=Mode.grid_wrap)
+    #     if rot_ave:
+    #         input_ = out.copy()
+    #         trs0 = np.eye(4, dtype=np.float32)
+    #         trs1 = np.eye(4, dtype=np.float32)
+    #         trs0[:3, 3] = -center
+    #         trs1[:3, 3] = center
+    #         slope = tandg(rise)
+    #         for pf in range(1, npf):
+    #             ang = -2*np.pi*pf/npf
+    #             dy = 2*np.pi*pf/npf*radius*slope/self.scale
+    #             cos = np.cos(ang)
+    #             sin = np.sin(ang)
+    #             rot = np.array([[cos, 0.,-sin, 0.],
+    #                             [ 0., 1.,  0., dy],
+    #                             [sin, 0., cos, 0.],
+    #                             [ 0., 0.,  0., 1.]],
+    #                             dtype=np.float32)
+    #             mtx = trs1 @ rot @ trs0
+    #             out.value[:] += input_.affine(mtx, mode=Mode.grid_wrap)
             
-        # stack images for better visualization
-        dup = ceilint(y_length/lp)
-        outlist = [out]
-        if dup > 0:
-            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                outlist.append(out.rotate(-ang, dims="zx", mode=Mode.reflect))
+    #     # stack images for better visualization
+    #     dup = ceilint(y_length/lp)
+    #     outlist = [out]
+    #     if dup > 0:
+    #         for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+    #             outlist.append(out.rotate(-ang, dims="zx", mode=Mode.reflect))
         
-        out = np.concatenate(outlist, axis="y")
+    #     out = np.concatenate(outlist, axis="y")
         
-        if erase_corner:
-            # This option is needed because padding mode is "grid-wrap".
-            z, x = np.indices(out.sizesof("zx"))
-            r = min(out.sizesof("zx")) / 2 - 0.5
-            corner = (z-center[0])**2 + (x-center[2])**2 > r**2
-            sl = np.stack([corner]*out.shape.y, axis=1)
-            out.value[sl] = np.median(out.value[~sl])
+    #     if erase_corner:
+    #         # This option is needed because padding mode is "grid-wrap".
+    #         z, x = np.indices(out.sizesof("zx"))
+    #         r = min(out.sizesof("zx")) / 2 - 0.5
+    #         corner = (z-center[0])**2 + (x-center[2])**2 > r**2
+    #         sl = np.stack([corner]*out.shape.y, axis=1)
+    #         out.value[sl] = np.median(out.value[~sl])
             
-        return out
+    #     return out
     
-    @batch_process
-    def reconstruct_cylindric(
-        self, 
-        i = None,
-        *,
-        rot_ave: bool = False, 
-        radii: tuple[nm, nm] = None,
-        niter: int = 1,
-        y_length: nm = 50.0
-    ) -> ip.ImgArray:
-        """
-        3D reconstruction of MT in cylindric coordinate system.
+    # @batch_process
+    # def reconstruct_cylindric(
+    #     self, 
+    #     i = None,
+    #     *,
+    #     rot_ave: bool = False, 
+    #     radii: tuple[nm, nm] = None,
+    #     niter: int = 1,
+    #     y_length: nm = 50.0
+    # ) -> ip.ImgArray:
+    #     """
+    #     3D reconstruction of MT in cylindric coordinate system.
 
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to reconstruct.
-        rot_ave : bool, default is False
-            If true, rotational averaging is applied to the reconstruction to remove missing wedge.
-        y_length : nm, default is 100.0
-            Longitudinal length of reconstruction.
+    #     Parameters
+    #     ----------
+    #     i : int or iterable of int, optional
+    #         Spline ID that you want to reconstruct.
+    #     rot_ave : bool, default is False
+    #         If true, rotational averaging is applied to the reconstruction to remove missing wedge.
+    #     y_length : nm, default is 100.0
+    #         Longitudinal length of reconstruction.
 
-        Returns
-        -------
-        ip.ImgArray
-            Reconstructed image.
-        """        
-        # Cartesian transformation along spline.
-        img_open = self.straighten_cylindric(i, radii=radii)
-        scale = img_open.scale.y
-        total_length: nm = img_open.shape.y*scale
+    #     Returns
+    #     -------
+    #     ip.ImgArray
+    #         Reconstructed image.
+    #     """        
+    #     # Cartesian transformation along spline.
+    #     img_open = self.straighten_cylindric(i, radii=radii)
+    #     scale = img_open.scale.y
+    #     total_length: nm = img_open.shape.y*scale
         
-        # Calculate Fourier parameters by cylindrical transformation along spline.
-        props = self.global_ft_params(i)
-        pitch = props[H.yPitch]
-        lp = pitch * 2
-        skew = props[H.skewAngle]
-        rise = props[H.riseAngle]
-        npf = roundint(props[H.nPF])
-        radius = self.splines[i].radius
+    #     # Calculate Fourier parameters by cylindrical transformation along spline.
+    #     props = self.global_ft_params(i)
+    #     pitch = props[H.yPitch]
+    #     lp = pitch * 2
+    #     skew = props[H.skewAngle]
+    #     rise = props[H.riseAngle]
+    #     npf = roundint(props[H.nPF])
+    #     radius = self.splines[i].radius
         
-        # Determine how to split image into tubulin dimer fragments
-        dl, resl = divmod(total_length, lp)
-        borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
-        skew_angles = np.arange(borders.size - 1) * skew
+    #     # Determine how to split image into tubulin dimer fragments
+    #     dl, resl = divmod(total_length, lp)
+    #     borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
+    #     skew_angles = np.arange(borders.size - 1) * skew
         
-        # Rotate fragment with skew angle
-        imgs: list[ip.ImgArray] = []
-        ylen = 99999
+    #     # Rotate fragment with skew angle
+    #     imgs: list[ip.ImgArray] = []
+    #     ylen = 99999
     
-        # Split image into dimers along y-direction
-        for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
-            start = self.nm2pixel(start)
-            stop = self.nm2pixel(stop)
-            shift = -ang/360*img_open.shape.a
-            imgs.append(
-                img_open[:, start:stop].affine(translation=[0, shift],
-                                               dims="ya", mode=Mode.grid_wrap,
-                                               order=3)
-                )
-            ylen = min(ylen, stop-start)
+    #     # Split image into dimers along y-direction
+    #     for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
+    #         start = self.nm2pixel(start)
+    #         stop = self.nm2pixel(stop)
+    #         shift = -ang/360*img_open.shape.a
+    #         imgs.append(
+    #             img_open[:, start:stop].affine(translation=[0, shift],
+    #                                            dims="ya", mode=Mode.grid_wrap,
+    #                                            order=3)
+    #             )
+    #         ylen = min(ylen, stop-start)
         
-        # Make image sizes same and prepare FT images.
-        imgs = [img[f"y=:{ylen}"] for img in imgs]
-        ft_imgs = [img.fft(dims="rya") for img in imgs]
+    #     # Make image sizes same and prepare FT images.
+    #     imgs = [img[f"y=:{ylen}"] for img in imgs]
+    #     ft_imgs = [img.fft(dims="rya") for img in imgs]
         
-        # align each fragment
-        ref = imgs[0]
-        shape = ref.shape
-        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        imgs_aligned: list[ip.ImgArray] = []
-        for _ in range(niter):
-            ft_ref = ref.fft(dims="rya")
-            imgs_aligned.clear()
-            for k in range(len(imgs)):
-                img = imgs[k]
-                ft_img = ft_imgs[k]
-                shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
-                imgs_aligned.append(
-                    img.affine(translation=shift, 
-                               dims="rya", mode=Mode.grid_wrap,
-                               order=3)
-                    )
+    #     # align each fragment
+    #     ref = imgs[0]
+    #     shape = ref.shape
+    #     mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+    #     imgs_aligned: list[ip.ImgArray] = []
+    #     for _ in range(niter):
+    #         ft_ref = ref.fft(dims="rya")
+    #         imgs_aligned.clear()
+    #         for k in range(len(imgs)):
+    #             img = imgs[k]
+    #             ft_img = ft_imgs[k]
+    #             shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
+    #             imgs_aligned.append(
+    #                 img.affine(translation=shift, 
+    #                            dims="rya", mode=Mode.grid_wrap,
+    #                            order=3)
+    #                 )
 
-            out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
-            ref = out
+    #         out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
+    #         ref = out
         
-        # rotational averaging
-        if rot_ave:
-            input_ = out.copy()
-            a_size = out.shape.a
-            slope = tandg(rise)
-            for pf in range(1, npf):
-                dy = 2*np.pi*pf/npf*radius*slope/self.scale
-                shift_a = a_size/npf*pf
-                shift = [dy, shift_a]
+    #     # rotational averaging
+    #     if rot_ave:
+    #         input_ = out.copy()
+    #         a_size = out.shape.a
+    #         slope = tandg(rise)
+    #         for pf in range(1, npf):
+    #             dy = 2*np.pi*pf/npf*radius*slope/self.scale
+    #             shift_a = a_size/npf*pf
+    #             shift = [dy, shift_a]
                 
-                rot_input = input_.affine(translation=shift, 
-                                          dims="ya", mode=Mode.grid_wrap)
-                out.value[:] += rot_input
+    #             rot_input = input_.affine(translation=shift, 
+    #                                       dims="ya", mode=Mode.grid_wrap)
+    #             out.value[:] += rot_input
             
-        # stack images for better visualization
-        dup = ceilint(y_length/lp)
-        outlist = [out]
-        if dup > 0:
-            for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-                shift = ang/360*img_open.shape.a
-                outlist.append(out.affine(translation=[0, -shift], 
-                                          dims="ya", mode=Mode.grid_wrap))
+    #     # stack images for better visualization
+    #     dup = ceilint(y_length/lp)
+    #     outlist = [out]
+    #     if dup > 0:
+    #         for ang in skew_angles[:min(dup, len(skew_angles))-1]:
+    #             shift = ang/360*img_open.shape.a
+    #             outlist.append(out.affine(translation=[0, -shift], 
+    #                                       dims="ya", mode=Mode.grid_wrap))
     
-        return np.concatenate(outlist, axis="y")
+    #     return np.concatenate(outlist, axis="y")
     
     @batch_process
     def map_centers(
@@ -1531,8 +1531,7 @@ class MtTomogram:
             If given, only map monomer coordinates in this length of range from the starting 
             point of spline. Cannot use this if ``ranges`` is set.
         offsets : tuple of float, optional
-            The offset of origin of oblique coordinate system to map monomers. If not given
-            this parameter will be determined by cylindric reconstruction.
+            The offset of origin of oblique coordinate system to map monomers.
 
         Returns
         -------
@@ -1565,16 +1564,7 @@ class MtTomogram:
         intervals = [pitch, 2*np.pi/npf]
         
         if offsets is None:
-            # Calculate reconstruction in cylindric coodinate system
-            rec_cyl_3d: ip.ImgArray = self.reconstruct_cylindric(i, rot_ave=True, y_length=0)
-            sigma = rec_cyl_3d.shape.y/8
-            rec_cyl_3d.value[:] = ndi.gaussian_filter(rec_cyl_3d.value, sigma=sigma, mode=Mode.grid_wrap)
-            rec_cyl = rec_cyl_3d.proj("r")
-            
-            # Find monomer peak
-            argpeak = np.argmin if self.light_background else np.argmax
-            ymax, amax = np.unravel_index(argpeak(rec_cyl), rec_cyl.shape)
-            offsets = [ymax*self.scale, amax/rec_cyl.shape.a*2*np.pi]
+            offsets = [0., 0.]
         
         mesh = oblique_meshgrid(shape, tilts, intervals, offsets).reshape(-1, 2)
         radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)

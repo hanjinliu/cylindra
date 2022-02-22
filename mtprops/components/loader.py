@@ -364,7 +364,7 @@ class SubtomogramLoader:
         *,
         template: ip.ImgArray,
         mask: ip.ImgArray | None = None,
-        inv = False
+        cutoff: float = 0.5,
     ) -> SubtomogramLoader:
         """
         Align averaged image at current positions and rotations to the template image.
@@ -388,9 +388,8 @@ class SubtomogramLoader:
         if self.image_avg is None:
             self.average()
         with no_verbose():
-            rot, shift = align_image_to_template(self.image_avg, template, mask)
-        if inv:
-            rot = -rot
+            img = self.image_avg.lowpass_filter(cutoff=cutoff)
+            rot, shift = align_image_to_template(img, template, mask)
         shift = self.molecules.rotator.apply(shift * self.scale)
         rotator = Rotation.from_rotvec([0, rot, 0])
         mole = self.molecules.rotate_by(rotator).translate(rotator.apply(shift))
