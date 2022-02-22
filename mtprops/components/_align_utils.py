@@ -75,4 +75,5 @@ def normalize_rotations(rotations):
             rotations = None
         else:
             rotations = np.stack(quat, axis=0)
-    return None
+        
+    return rotations

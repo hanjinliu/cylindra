@@ -431,10 +431,6 @@ class MTPropsWidget(MagicTemplate):
         def Global_FT_analysis(self): ...
         sep0 = field(Separator)
         @magicmenu
-        class Reconstruction(MagicTemplate):
-            def Reconstruct_MT(self): ...
-            def Cylindric_reconstruction(self): ...
-        @magicmenu
         class Mapping(MagicTemplate):
             def Map_monomers(self): ...
             def Map_centers(self): ...
@@ -1391,90 +1387,6 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.table.value = df
         self.Panels.current_index = 2
         return None
-        
-    @Analysis.Reconstruction.wraps
-    @set_options(rot_ave={"label": "Rotational averaging"},
-                 find_seam={"label": "Find seam position"},
-                 niter={"label": "Iteration", "max": 3},
-                 y_length={"label": "Longitudinal length (nm)"})
-    @dispatch_worker
-    def Reconstruct_MT(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, y_length=50.0):
-        """
-        Coarse reconstruction of MT.
-
-        Parameters
-        ----------
-        rot_ave : bool, default is False
-            Check to run rotational averaging after reconstruction.
-        find_seam : bool, default is False
-            Check to find seam position while rotational averaging.
-        niter : int, default is 1
-            Number of iteration
-        y_length : nm, default is 50.0
-            Longitudinal length (nm) of reconstructed image.
-        """        
-        tomo = self.tomogram
-        
-        worker = create_worker(tomo.reconstruct, 
-                               i=i,
-                               rot_ave=rot_ave, 
-                               seam_offset="find" if find_seam else None,
-                               niter=niter,
-                               y_length=y_length,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
-        
-        @worker.returned.connect
-        def _on_return(out: ip.ImgArray):
-            if tomo.light_background:
-                out = -out
-            _show_reconstruction(out, name=f"MT-{i} reconstruction")
-        
-        self._worker_control.info = f"Reconstruction ..."
-        return worker
-    
-    @Analysis.Reconstruction.wraps
-    @set_options(rot_ave={"label": "Rotational averaging"},
-                 find_seam={"label": "Find seam position"},
-                 niter={"label": "Iteration", "max": 3},
-                 y_length={"label": "Longitudinal length (nm)"})
-    @set_design(text="Reconstruct MT (cylindric)")
-    @dispatch_worker
-    def Cylindric_reconstruction(self, i: Bound[mt.mtlabel], rot_ave=False, find_seam=False, niter=1, 
-                                 y_length=50.0):
-        """
-        Cylindric reconstruction of MT.
-
-        Parameters
-        ----------
-        rot_ave : bool, default is False
-            Check to run rotational averaging after reconstruction.
-        find_seam : bool, default is False
-            Check to find seam position while rotational averaging.
-        niter : int, default is 1
-            Number of iteration
-        y_length : nm, default is 48.0
-            Longitudinal length (nm) of reconstructed image.
-        """        
-        tomo = self.tomogram
-        
-        worker = create_worker(tomo.reconstruct_cylindric, 
-                               i=i,
-                               rot_ave=rot_ave, 
-                               seam_offset="find" if find_seam else None,
-                               niter=niter,
-                               y_length=y_length,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
-        
-        @worker.returned.connect
-        def _on_return(out: ip.ImgArray):
-            if tomo.light_background:
-                out = -out
-            _show_reconstruction(out, name=f"MT-{i} cylindric reconstruction")
-            
-        self._worker_control.info = f"Cylindric reconstruction ..."
-        return worker
     
     @Analysis.Mapping.wraps
     @set_options(splines={"widget_type": "Select", "choices": _get_splines},
@@ -1626,8 +1538,12 @@ class MTPropsWidget(MagicTemplate):
             self.params.visible = (v == "Use blurred template as a mask")
             self.mask_path.visible = (v == "Supply a image")
         
-        def _get_template(self, _=None) -> ip.ImgArray:
-            img = ip.imread(self.template_path)
+        def _get_template(self, path: Union[str, None] = None) -> ip.ImgArray:
+            if path is None:
+                path = self.template_path
+            else:
+                self.template_path = path
+            img = ip.imread(path)
             if img.ndim != 3:
                 raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
             scale_ratio = img.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
@@ -1637,40 +1553,61 @@ class MTPropsWidget(MagicTemplate):
             self._template = img
             return img
         
-        def _get_shape_in_nm(self, _=None) -> Tuple[int, ...]:
+        def _get_shape_in_nm(self) -> Tuple[int, ...]:
             if self._template is None:
                 self._get_template()
             
             return tuple(s * self._template.scale.x for s in self._template.shape)
         
-        def _get_mask(self, _=None) -> Union[ip.ImgArray, None]:
+        def _get_mask_params(self, params=None) -> Union[str, Tuple[int, float], None]:
             v = self.mask
             if v == "No mask":
-                return None
+                params = None
             elif v == "Use blurred template as a mask":
                 if self._template is None:
                     self._get_template()
-                kwargs = dict(sigma=self.params.sigma, dilate_radius=self.params.dilate_radius)
-                return self._template.threshold().smooth_mask(**kwargs)
+                params = (self.params.sigma, self.params.dilate_radius)
             else:
-                mask = ip.imread(self.mask_path.mask_path)
-                if mask.ndim != 3:
-                    raise TypeError(f"Mask image must be 3-D, got {mask.ndim}-D.")
-                scale_ratio = mask.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
-                if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                    with no_verbose():
-                        mask = mask.rescale(scale_ratio)
-                return mask
+                params = self.mask_path.mask_path
+            return params
         
-        def _show_reconstruction(self, image: ip.ImgArray, name: str):
+        _sentinel = object()
+        
+        def _get_mask(self, params: Union[str, Tuple[int, float], None] = _sentinel) -> Union[ip.ImgArray, None]:
+            if params is self._sentinel:
+                params = self._get_mask_params()
+            else:
+                if params is None:
+                    self.mask = "No mask"
+                elif isinstance(params, tuple):
+                    self.mask = "Use blurred template as a mask"
+                else:
+                    self.mask_path.mask_path = params
+            
+            if params is None:
+                return None
+            elif isinstance(params, tuple):
+                mask_image = self._template.threshold().smooth_mask(sigma=params[0], dilate_radius=params[1])
+            else:
+                mask_image = ip.imread(self.mask_path.mask_path)
+            
+            if mask_image.ndim != 3:
+                raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
+            scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
+            if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                with no_verbose():
+                    mask_image = mask_image.rescale(scale_ratio)
+            return mask_image
+        
+        def _show_reconstruction(self, image: ip.ImgArray, name: str) -> napari.Viewer:
             if self._viewer is not None:
                 try:
-                    self._viewer.show()
+                    # This line will raise RuntimeError if viewer window had been closed by user.
+                    self._viewer.window.activate()
                 except RuntimeError:
                     self._viewer = None
             self._viewer = _show_reconstruction(image, name=name, viewer=self._viewer)
-            
-            
+            return self._viewer
         
         @do_not_record
         def Show_template(self):
@@ -1681,25 +1618,22 @@ class MTPropsWidget(MagicTemplate):
             self._show_reconstruction(self._get_mask(), name="Mask image")
         
         @magicmenu
-        class Average(MagicTemplate):
+        class Subtomogram_analysis(MagicTemplate):
             def Average_all(self): ...
             def Average_subset(self): ...
-        
-        @magicmenu
-        class Align(MagicTemplate):
-            def Align_averaged(self): ...
-            def Align_all(self): ...
-        
-        @magicmenu
-        class Tools(MagicTemplate):
             def Calculate_FSC(self): ...
             def Seam_search(self): ...
         
+        @magicmenu
+        class Refinement(MagicTemplate):
+            def Align_averaged(self): ...
+            def Align_all(self): ...
+        
     
-    @_subtomogram_averaging.Average.wraps
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         shape={"widget_type": TupleEdit, "options": {"min": 0., "max": 100., "step": 1.0}, "label": "Subtomogram shape (nm)"},
-        chunk_size={"min": 1, "max": 3600},
+        chunk_size={"min": 1, "max": 128},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         save_at={"text": "Do not save the result.", "options": {"mode": "w", "filter": "*.mrc;*.tif"}},
     )
@@ -1750,9 +1684,10 @@ class MTPropsWidget(MagicTemplate):
         self._worker_control.info = f"Subtomogram averaging of {layer.name} ..."
         return worker
     
-    @_subtomogram_averaging.Average.wraps
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         method={"choices": ["steps", "first", "last", "random"]},
+        chunk_size={"min": 1, "max": 128},
     )
     @dispatch_worker
     def Average_subset(
@@ -1816,13 +1751,16 @@ class MTPropsWidget(MagicTemplate):
 
         return worker
     
-    @_subtomogram_averaging.Align.wraps
-    @set_options(cutoff={"max": 1.0, "step": 0.05})
+    @_subtomogram_averaging.Refinement.wraps
+    @set_options(
+        cutoff={"max": 1.0, "step": 0.05},
+        chunk_size={"min": 1, "max": 128},
+    )
     @dispatch_worker
     def Align_averaged(
         self,
-        template: Bound[_subtomogram_averaging._get_template],
-        mask: Bound[_subtomogram_averaging._get_mask],
+        template_path: Bound[_subtomogram_averaging.template_path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
         layer: MonomerLayer,
         cutoff: float = 0.5,
         chunk_size: int = 64,
@@ -1832,9 +1770,9 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        template : Bound[_subtomogram_averaging._get_template]
+        template : str
             Template image.
-        mask : ip.ImgArray
+        mask_params : str, (int, float), optional
             Mask image
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
@@ -1844,6 +1782,8 @@ class MTPropsWidget(MagicTemplate):
             How many subtomograms will be loaded at the same time.
         """        
         molecules: Molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
         nmole = len(molecules)
         source = layer.metadata.get(SOURCE, None)
         shape = self._subtomogram_averaging._get_shape_in_nm()
@@ -1863,7 +1803,7 @@ class MTPropsWidget(MagicTemplate):
             shifted_image = image_avg.affine(translation=shift)
             shift = molecules.rotator.apply(shift * self.tomogram.scale)
             rotator = Rotation.from_rotvec([0, rot, 0])
-            mole = molecules.rotate_by(rotator).translate(rotator.apply(shift))
+            mole = molecules.rotate_by(rotator.inv()).translate(rotator.apply(shift))
             _add_molecules(self.parent_viewer, 
                            mole,
                            layer.name+"-ALN",
@@ -1875,21 +1815,22 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     
-    @_subtomogram_averaging.Align.wraps
+    @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"widget_type": TupleEdit, "options": {"max": 32}},
         z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         x_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
+        chunk_size={"min": 1, "max": 128},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     )
     @dispatch_worker
     def Align_all(
         self,
-        template: Bound[_subtomogram_averaging._get_template],
-        mask: Bound[_subtomogram_averaging._get_mask],
         layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
         max_shifts: Tuple[int, int, int] = (4, 4, 4),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -1899,6 +1840,8 @@ class MTPropsWidget(MagicTemplate):
         interpolation: int = 1,
     ):
         molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
         source = layer.metadata.get(SOURCE, None)
         shape = self._subtomogram_averaging._get_shape_in_nm()
         nmole = len(molecules)
@@ -1925,7 +1868,7 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
 
-    @_subtomogram_averaging.Tools.wraps
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         mask_path={"options": {"filter": "*.mrc;*.tif"}},
@@ -1934,12 +1877,13 @@ class MTPropsWidget(MagicTemplate):
     def Calculate_FSC(
         self,
         layer: MonomerLayer,
-        mask: Bound[_subtomogram_averaging._get_mask],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
         shape: Optional[tuple[nm, nm, nm]] = (18., 18., 18.),
         seed: Optional[int] = 0,
         interpolation: int = 1,
     ):
         mole: Molecules = layer.metadata[MOLECULES]
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if shape is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(mole, shape)
@@ -1962,43 +1906,45 @@ class MTPropsWidget(MagicTemplate):
         self._worker_control.info = f"Calculating FSC ..."
         return worker
     
-    @_subtomogram_averaging.Tools.wraps
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        template_path={"filter": "*.mrc;*.tif"},
         load_all={"label": "Load all the subtomograms in memory for better performance."}
     )
     @dispatch_worker
     def Seam_search(
         self,
         layer: MonomerLayer,
-        template: Bound[_subtomogram_averaging._get_template],
-        mask: Bound[_subtomogram_averaging._get_mask],
+        template_path: Bound[_subtomogram_averaging.template_path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
         interpolation: int = 1,
         load_all: bool = False,
     ):
         molecules: Molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
         source: MtSpline = layer.metadata[SOURCE]
-        shape = template.shape
+        shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(molecules, shape)
         npf = roundint(source.globalprops[H.nPF])
         
         total = 0 if load_all else 2*npf
             
-        worker = create_worker(loader.iter_each_seam,
-                               npf=npf,
-                               template=template,
-                               mask=mask,
-                               load_all=load_all,
-                               order=interpolation,
-                               _progress={"total": total, "desc": "Running"}
-                               )
+        worker = create_worker(
+            loader.iter_each_seam,
+            npf=npf,
+            template=template,
+            mask=mask,
+            load_all=load_all,
+            order=interpolation,
+            _progress={"total": total, "desc": "Running"}
+        )
         
         @worker.returned.connect
-        def _on_returned(result):
+        def _on_returned(result: Tuple[np.ndarray, ip.ImgArray, list[Molecules]]):
             corrs, img_ave, moles = result
             iopt = np.argmax(corrs)
-            viewer =  self._subtomogram_averaging._show_reconstruction(img_ave, "All reconstructions")
+            viewer = self._subtomogram_averaging._show_reconstruction(img_ave, "All reconstructions")
             # plot all the correlation
             plt1 = Figure(style="dark_background")
             plt1.plot(corrs)
@@ -2007,7 +1953,7 @@ class MTPropsWidget(MagicTemplate):
             plt1.title("Seam search result")
             
             # plot the score
-            corr1, corr2 = np.split(corrs, [npf, npf])
+            corr1, corr2 = corrs[:npf], corrs[npf:]
             if corr1.max() < corr2.max():
                 score = corr2 - corr1
             else:
