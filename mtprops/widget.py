@@ -1633,7 +1633,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
-        chunk_size={"min": 1, "max": 128},
+        chunk_size={"min": 1, "max": 512},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         save_at={"text": "Do not save the result.", "options": {"mode": "w", "filter": "*.mrc;*.tif"}},
     )
@@ -1692,7 +1692,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
         method={"choices": ["steps", "first", "last", "random"]},
-        chunk_size={"min": 1, "max": 128},
+        chunk_size={"min": 1, "max": 512},
     )
     @dispatch_worker
     def Average_subset(
@@ -1765,7 +1765,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
-        chunk_size={"min": 1, "max": 128},
+        chunk_size={"min": 1, "max": 512},
     )
     @dispatch_worker
     def Align_averaged(
@@ -1833,7 +1833,7 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         x_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
-        chunk_size={"min": 1, "max": 128},
+        chunk_size={"min": 1, "max": 512},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     )
     @dispatch_worker
