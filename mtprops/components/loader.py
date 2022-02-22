@@ -1,6 +1,5 @@
 from __future__ import annotations
-import itertools
-from typing import Any, Callable, Generator, Iterator, Iterable, Union
+from typing import Any, Callable, Generator, Iterator, Iterable
 import random
 import warnings
 import weakref
@@ -8,25 +7,11 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import impy as ip
 from dask import array as da
+
+from ._align_utils import normalize_rotations, align_image_to_template, Ranges
+from .molecules import Molecules
 from ..utils import multi_map_coordinates, no_verbose
-from .molecules import Molecules, from_euler
 from ..const import nm
-
-RangeLike = tuple[float, int]
-Ranges = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]
-
-def _normalize_a_range(rng: RangeLike) -> tuple[float, int]:
-    if len(rng) != 2:
-        raise TypeError("Range must be defined by (float, int).")
-    max_rot, step = rng
-    return float(max_rot), float(step)
-        
-def _normalize_ranges(rng: Ranges) -> tuple[tuple[float, int], tuple[float, int], tuple[float, int]]:
-    if isinstance(rng, tuple) and isinstance(rng[0], tuple):
-        return tuple(_normalize_a_range(r) for r in rng)
-    else:
-        rng = _normalize_a_range(rng)
-        return (rng,) * 3
 
 
 class SubtomogramLoader:
@@ -228,7 +213,7 @@ class SubtomogramLoader:
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
         max_shifts: int | tuple[int, int, int] = 4,
-        rotations: RangeLike | None = None,
+        rotations: Ranges | None = None,
         cutoff: float = 0.5,
         order: int = 1,
     ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
@@ -240,23 +225,7 @@ class SubtomogramLoader:
         self._check_shape(template)
         
         # Convert rotations into quaternion if given.
-        if rotations is not None:
-            rotations = _normalize_ranges(rotations)
-            angles = []
-            for max_rot, step in rotations:
-                if step == 0:
-                    angles.append(np.zeros(1))
-                else:
-                    n = int(max_rot / step)
-                    angles.append(np.linspace(-n*step, n*step, 2*n + 1))
-            
-            quat: list[np.ndarray] = []
-            for angs in itertools.product(*angles):
-                quat.append(from_euler(np.array(angs), "zyx", degrees=True).as_quat())
-            if len(quat) == 1:
-                rotations = None
-            else:
-                rotations = np.stack(quat, axis=0)
+        rots = normalize_rotations(rotations)
         
         pre_alignment = np.zeros_like(template.value)
         
@@ -269,7 +238,7 @@ class SubtomogramLoader:
         
         with no_verbose():
             template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
-            if rotations is None:
+            if rots is None:
                 for i, subvol in enumerate(self.iter_subtomograms(order=order)):
                     input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
                     shift = ip.ft_pcc_maximum(
@@ -285,7 +254,7 @@ class SubtomogramLoader:
                     yield local_shifts[i, :], local_rot[i, :]
                     
             else:
-                rotators = [Rotation.from_quat(r) for r in rotations]
+                rotators = [Rotation.from_quat(r) for r in rots]
                 iterator = self.iter_subtomograms(rotators=rotators, order=order)
                 for i, subvol_set in enumerate(iterator):
                     corrs: list[float] = []
@@ -309,7 +278,7 @@ class SubtomogramLoader:
                     
                     iopt = np.argmax(corrs)
                     local_shifts[i, :] = all_shifts[iopt]
-                    local_rot[i, :] = rotations[iopt]
+                    local_rot[i, :] = rots[iopt]
                     
                     yield local_shifts[i, :], local_rot[i, :]
         
@@ -320,7 +289,7 @@ class SubtomogramLoader:
         
         shifts = self.molecules.rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
         mole_aligned = self.molecules.translate(shifts)
-        if rotations is not None:
+        if rots is not None:
             mole_aligned = mole_aligned.rotate_by_quaternion(local_rot)
             
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
@@ -332,7 +301,7 @@ class SubtomogramLoader:
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
         max_shifts: int | tuple[int, int, int] = 4,
-        rotations: RangeLike | None = None,
+        rotations: Ranges | None = None,
         cutoff: float = 0.5,
         order: int = 1,
         callback: Callable[[SubtomogramLoader], Any] = None,
@@ -389,6 +358,44 @@ class SubtomogramLoader:
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         
         return out
+    
+    def align_averaged(
+        self,
+        *,
+        template: ip.ImgArray,
+        mask: ip.ImgArray | None = None,
+        inv = False
+    ) -> SubtomogramLoader:
+        """
+        Align averaged image at current positions and rotations to the template image.
+        
+        Calculated shift and rotation will be applied to all the molecules. This method
+        is useful to roughly align subtomograms to template image. Molecules must be
+        generated from ``map_monomers`` method.
+
+        Parameters
+        ----------
+        template : ip.ImgArray
+            Template image.
+        mask : ip.ImgArray, optional
+            Mask image.
+
+        Returns
+        -------
+        SubtomogramLoader
+            Instance with updated molecules.
+        """
+        if self.image_avg is None:
+            self.average()
+        with no_verbose():
+            rot, shift = align_image_to_template(self.image_avg, template, mask)
+        if inv:
+            rot = -rot
+        shift = self.molecules.rotator.apply(shift * self.scale)
+        rotator = Rotation.from_rotvec([0, rot, 0])
+        mole = self.molecules.rotate_by(rotator).translate(rotator.apply(shift))
+        
+        return self.__class__(self.image_ref, mole, self.output_shape, self.chunksize)
 
     def iter_each_seam(
         self,
