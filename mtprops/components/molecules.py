@@ -133,6 +133,21 @@ class Molecules:
         quat = self._rotator.as_quat()[spec]
         return self.__class__(pos, Rotation(quat))
 
+    def affine_matrix(self, center):
+        nmole = len(self)
+        mat = self.matrix()
+        rot_mat = np.zeros((nmole, 4, 4), dtype=np.float32)
+        rot_mat[:, 3, 3] = 1.
+        rot_mat[:, :3, :3] = mat
+        
+        translation_0 = np.stack([np.eye(4, dtype=np.float32)] * nmole, axis=0)
+        translation_1 = np.stack([np.eye(4, dtype=np.float32)] * nmole, axis=0)
+        translation_0[:, :3, 3] = center
+        translation_1[:, :3, 3] = -center
+        
+        return np.einsum("nij,njk,nkl->nil", translation_0, rot_mat, translation_1)
+        
+
     def cartesian(self, shape: tuple[int, int, int], scale: nm) -> np.ndarray:
         """
         Return all the rotated Cartesian coordinate systems defined around each molecule.

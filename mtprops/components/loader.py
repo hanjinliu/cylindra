@@ -86,7 +86,7 @@ class SubtomogramLoader:
     def iter_subtomograms(
         self,
         rotators: Iterable[Rotation] | None = None,
-        order: int = 3
+        order: int = 1
     ) -> Iterator[ip.ImgArray]:  # axes: zyx or azyx
         if rotators is None:
             iterator = self._iter_chunks(order=order)

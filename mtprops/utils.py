@@ -1,12 +1,13 @@
 from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
+from dask import array as da, delayed
 import impy as ip
-from typing import TYPE_CHECKING, Callable, Iterable
+from typing import TYPE_CHECKING, Callable
 from .const import Mode
 
 if TYPE_CHECKING:
-    from .components import Spline, Molecules
+    from .components import Spline
 
 def roundint(a: float):
     return int(round(a))
@@ -178,53 +179,72 @@ def map_coordinates(
         prefilter=order > 1,
     )
 
+
+@delayed
+def lazy_map_coordinates(
+    input: np.ndarray,
+    coordinates: np.ndarray,
+    order: int = 3, 
+    mode: str = Mode.constant,
+    cval: float | Callable[[ip.ImgArray], float] = 0.0
+) -> np.ndarray:
+    return ndi.map_coordinates(
+        input,
+        coordinates=coordinates,
+        order=order,
+        mode=mode, 
+        cval=cval,
+        prefilter=order > 1,
+    )
+
 def multi_map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray, 
-    iterable: Iterable[np.ndarray],
+    coords: np.ndarray,
     order: int = 3, 
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
 ) -> list[np.ndarray]:
     shape = input.shape
+    coords = coords.copy()
     
-    out: list[np.ndarray] = []
-    
-    for crds in iterable:
-        if crds.ndim != input.ndim + 2:
-            if crds.ndim == input.ndim + 1:
-                crds = crds[np.newaxis]
-            else:
-                raise ValueError(
-                    f"Coordinates have wrong dimension: {crds.shape}."
-                    )
-        sl = []
-        for i in range(input.ndim):
-            imin = int(np.min(crds[:, i])) - order
-            imax = ceilint(np.max(crds[:, i])) + order + 1
-            _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
-            sl.append(_sl)
-            crds[:, i] -= _sl.start
-        
-        img = input[tuple(sl)]
-        if isinstance(img, ip.LazyImgArray):
-            img = img.compute()
-        if callable(cval):
-            cval = cval(img)
-        input_img = img.value
-        all_coords = np.concatenate(list(crds), axis=1)  # D, Z, Y, X
-        all_img = ndi.map_coordinates(
-                    input_img,
-                    coordinates=all_coords,
-                    order=order,
-                    mode=mode, 
-                    cval=cval,
-                    prefilter=order > 1,
+    if coords.ndim != input.ndim + 2:
+        if coords.ndim == input.ndim + 1:
+            coords = coords[np.newaxis]
+        else:
+            raise ValueError(
+                f"Coordinates have wrong dimension: {coords.shape}."
                 )
-        indices = np.cumsum([c.shape[1] for c in crds[:-1]])
-        out.extend(np.split(all_img, indices, axis=0))
+    
+    sl = []
+    for i in range(coords.shape[1]):
+        imin = int(np.min(coords[:, i])) - order
+        imax = ceilint(np.max(coords[:, i])) + order + 1
+        _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
+        sl.append(_sl)
+        coords[:, i] -= _sl.start
+    
+    img = input[tuple(sl)]
+    if isinstance(img, ip.LazyImgArray):
+        img = img.compute()
+    if callable(cval):
+        cval = cval(img)
+    input_img = img.value
+    
+    tasks = []
+    for crds in coords:
+        mapped = lazy_map_coordinates(
+            input_img,
+            coordinates=crds,
+            order=order,
+            mode=mode, 
+            cval=cval,
+        )
         
-    return out
+        tasks.append(da.from_delayed(mapped, coords.shape[2:], dtype=np.float32))
+    
+    out = da.compute(tasks)[0]
 
+    return np.stack(out, axis=0)
 
 def oblique_meshgrid(shape: tuple[int, int], 
                      tilts: tuple[float, float] = (0., 0.),
@@ -315,14 +335,3 @@ class Projections:
     def rotational_average(self, npf: int):
         self.zx_ave = rotational_average(self.zx, fold=int(npf))
         return self.zx_ave
-
-
-def dimer_candidates(mole: "Molecules", npf: int):
-    molecules = []
-    for resid in [0, 1]:
-        for pf in range(npf):
-            _id = np.arange(mole.pos.shape[0])
-            res = ((_id - pf) // npf)
-            choose = (res % 2 == resid)
-            molecules.append(mole.subset(choose))
-    return molecules

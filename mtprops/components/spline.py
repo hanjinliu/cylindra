@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
-from typing import Callable, Iterable, TypedDict, TYPE_CHECKING
+from typing import Callable, Iterable, TypedDict
 import warnings
 import numpy as np
 import numba as nb
