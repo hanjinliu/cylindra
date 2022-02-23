@@ -521,13 +521,12 @@ class SubtomogramLoader:
         fsc = ip.fsc(img0*mask,
                      img1*mask,
                      nbin=nbin,
-                     r_max=min(self.output_shape)/self.scale/2,
                      )
         
         if self.image_avg is None:
             self.image_avg = img0 + img1
             self.image_avg.set_scale(self.image_ref)
-            
+        
         return np.asarray(fsc)
     
     def _check_shape(self, template: ip.ImgArray, name: str = "template") -> None:

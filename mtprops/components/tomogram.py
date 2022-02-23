@@ -1247,240 +1247,6 @@ class MtTomogram:
         transformed = np.concatenate(out, axis="y")
         return transformed
     
-    # @batch_process
-    # def reconstruct(self, 
-    #                 i = None,
-    #                 *, 
-    #                 rot_ave: bool = False,
-    #                 erase_corner: bool = True,
-    #                 niter: int = 1,
-    #                 y_length: nm = 50.0) -> ip.ImgArray:
-    #     """
-    #     3D reconstruction of MT.
-
-    #     Parameters
-    #     ----------
-    #     i : int or iterable of int, optional
-    #         Spline ID that you want to reconstruct.
-    #     rot_ave : bool, default is False
-    #         If true, rotational averaging is applied to the reconstruction to remove missing wedge.
-    #     erase_corner : bool, default is True
-    #         Substitute four corners with median of non-corner domain. This option is useful for iso
-    #         threshold visualization.
-    #     y_length : nm, default is 100.0
-    #         Longitudinal length of reconstruction.
-
-    #     Returns
-    #     -------
-    #     ip.ImgArray
-    #         Reconstructed image.
-    #     """                
-    #     # Cartesian transformation along spline.
-    #     img_st = self.straighten(i)
-    #     scale = img_st.scale.y
-    #     total_length: nm = img_st.shape.y*scale
-        
-    #     # Calculate Fourier parameters by cylindrical transformation along spline.
-    #     props = self.global_ft_params(i)
-    #     lp = props[H.yPitch] * 2
-    #     skew = props[H.skewAngle]
-    #     rise = props[H.riseAngle]
-    #     npf = int(props[H.nPF])
-    #     radius = self.splines[i].radius
-        
-    #     # Determine how to split image into tubulin dimer fragments
-    #     dl, resl = divmod(total_length, lp)
-    #     borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
-    #     skew_angles = np.arange(borders.size - 1) * skew
-        
-    #     # Rotate fragment with skew angle
-    #     imgs: list[ip.ImgArray] = []
-    #     ylen = 99999
-    
-    #     # Split image into dimers along y-direction
-    #     for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
-    #         start = self.nm2pixel(start)
-    #         stop = self.nm2pixel(stop)
-    #         imgs.append(img_st[:, start:stop].rotate(ang, dims="zx", mode=Mode.reflect))
-    #         ylen = min(ylen, stop-start)
-        
-    #     # Make image sizes same and prepare FT images.
-    #     imgs = [img[f"y=:{ylen}"] for img in imgs]
-    #     ft_imgs = [img.fft() for img in imgs]
-
-    #     # align each fragment
-    #     ref = imgs[0]
-    #     shape = ref.shape
-    #     mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-    #     imgs_aligned: list[ip.ImgArray] = []
-    #     for _ in range(niter):
-    #         ft_ref = ref.fft()
-    #         imgs_aligned.clear()
-    #         for k in range(len(imgs)):
-    #             img = imgs[k]
-    #             ft_img = ft_imgs[k]
-    #             shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
-    #             imgs_aligned.append(
-    #                 img.affine(translation=shift, mode=Mode.grid_wrap)
-    #                 )
-
-    #         out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
-    #         ref = out
-                    
-    #     # rotational averaging
-    #     center = np.array(out.shape)/2 - 0.5
-        
-    #     if rot_ave:
-    #         input_ = out.copy()
-    #         trs0 = np.eye(4, dtype=np.float32)
-    #         trs1 = np.eye(4, dtype=np.float32)
-    #         trs0[:3, 3] = -center
-    #         trs1[:3, 3] = center
-    #         slope = tandg(rise)
-    #         for pf in range(1, npf):
-    #             ang = -2*np.pi*pf/npf
-    #             dy = 2*np.pi*pf/npf*radius*slope/self.scale
-    #             cos = np.cos(ang)
-    #             sin = np.sin(ang)
-    #             rot = np.array([[cos, 0.,-sin, 0.],
-    #                             [ 0., 1.,  0., dy],
-    #                             [sin, 0., cos, 0.],
-    #                             [ 0., 0.,  0., 1.]],
-    #                             dtype=np.float32)
-    #             mtx = trs1 @ rot @ trs0
-    #             out.value[:] += input_.affine(mtx, mode=Mode.grid_wrap)
-            
-    #     # stack images for better visualization
-    #     dup = ceilint(y_length/lp)
-    #     outlist = [out]
-    #     if dup > 0:
-    #         for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-    #             outlist.append(out.rotate(-ang, dims="zx", mode=Mode.reflect))
-        
-    #     out = np.concatenate(outlist, axis="y")
-        
-    #     if erase_corner:
-    #         # This option is needed because padding mode is "grid-wrap".
-    #         z, x = np.indices(out.sizesof("zx"))
-    #         r = min(out.sizesof("zx")) / 2 - 0.5
-    #         corner = (z-center[0])**2 + (x-center[2])**2 > r**2
-    #         sl = np.stack([corner]*out.shape.y, axis=1)
-    #         out.value[sl] = np.median(out.value[~sl])
-            
-    #     return out
-    
-    # @batch_process
-    # def reconstruct_cylindric(
-    #     self, 
-    #     i = None,
-    #     *,
-    #     rot_ave: bool = False, 
-    #     radii: tuple[nm, nm] = None,
-    #     niter: int = 1,
-    #     y_length: nm = 50.0
-    # ) -> ip.ImgArray:
-    #     """
-    #     3D reconstruction of MT in cylindric coordinate system.
-
-    #     Parameters
-    #     ----------
-    #     i : int or iterable of int, optional
-    #         Spline ID that you want to reconstruct.
-    #     rot_ave : bool, default is False
-    #         If true, rotational averaging is applied to the reconstruction to remove missing wedge.
-    #     y_length : nm, default is 100.0
-    #         Longitudinal length of reconstruction.
-
-    #     Returns
-    #     -------
-    #     ip.ImgArray
-    #         Reconstructed image.
-    #     """        
-    #     # Cartesian transformation along spline.
-    #     img_open = self.straighten_cylindric(i, radii=radii)
-    #     scale = img_open.scale.y
-    #     total_length: nm = img_open.shape.y*scale
-        
-    #     # Calculate Fourier parameters by cylindrical transformation along spline.
-    #     props = self.global_ft_params(i)
-    #     pitch = props[H.yPitch]
-    #     lp = pitch * 2
-    #     skew = props[H.skewAngle]
-    #     rise = props[H.riseAngle]
-    #     npf = roundint(props[H.nPF])
-    #     radius = self.splines[i].radius
-        
-    #     # Determine how to split image into tubulin dimer fragments
-    #     dl, resl = divmod(total_length, lp)
-    #     borders = np.linspace(0, total_length - resl, int((total_length - resl)/lp)+1)
-    #     skew_angles = np.arange(borders.size - 1) * skew
-        
-    #     # Rotate fragment with skew angle
-    #     imgs: list[ip.ImgArray] = []
-    #     ylen = 99999
-    
-    #     # Split image into dimers along y-direction
-    #     for start, stop, ang in zip(borders[:-1], borders[1:], skew_angles):
-    #         start = self.nm2pixel(start)
-    #         stop = self.nm2pixel(stop)
-    #         shift = -ang/360*img_open.shape.a
-    #         imgs.append(
-    #             img_open[:, start:stop].affine(translation=[0, shift],
-    #                                            dims="ya", mode=Mode.grid_wrap,
-    #                                            order=3)
-    #             )
-    #         ylen = min(ylen, stop-start)
-        
-    #     # Make image sizes same and prepare FT images.
-    #     imgs = [img[f"y=:{ylen}"] for img in imgs]
-    #     ft_imgs = [img.fft(dims="rya") for img in imgs]
-        
-    #     # align each fragment
-    #     ref = imgs[0]
-    #     shape = ref.shape
-    #     mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-    #     imgs_aligned: list[ip.ImgArray] = []
-    #     for _ in range(niter):
-    #         ft_ref = ref.fft(dims="rya")
-    #         imgs_aligned.clear()
-    #         for k in range(len(imgs)):
-    #             img = imgs[k]
-    #             ft_img = ft_imgs[k]
-    #             shift = ip.ft_pcc_maximum(ft_img, ft_ref, mask=mask)
-    #             imgs_aligned.append(
-    #                 img.affine(translation=shift, 
-    #                            dims="rya", mode=Mode.grid_wrap,
-    #                            order=3)
-    #                 )
-
-    #         out: ip.ImgArray = np.stack(imgs_aligned, axis="p").proj("p")
-    #         ref = out
-        
-    #     # rotational averaging
-    #     if rot_ave:
-    #         input_ = out.copy()
-    #         a_size = out.shape.a
-    #         slope = tandg(rise)
-    #         for pf in range(1, npf):
-    #             dy = 2*np.pi*pf/npf*radius*slope/self.scale
-    #             shift_a = a_size/npf*pf
-    #             shift = [dy, shift_a]
-                
-    #             rot_input = input_.affine(translation=shift, 
-    #                                       dims="ya", mode=Mode.grid_wrap)
-    #             out.value[:] += rot_input
-            
-    #     # stack images for better visualization
-    #     dup = ceilint(y_length/lp)
-    #     outlist = [out]
-    #     if dup > 0:
-    #         for ang in skew_angles[:min(dup, len(skew_angles))-1]:
-    #             shift = ang/360*img_open.shape.a
-    #             outlist.append(out.affine(translation=[0, -shift], 
-    #                                       dims="ya", mode=Mode.grid_wrap))
-    
-    #     return np.concatenate(outlist, axis="y")
-    
     @batch_process
     def map_centers(
         self, 
@@ -1573,10 +1339,19 @@ class MtTomogram:
         return spl.cylindrical_to_molecules(mesh)
     
     @batch_process
-    def map_pf_line(self, i = None, *, angle_offset: float = 0) -> Molecules:
+    def map_pf_line(
+        self,
+        i = None,
+        *,
+        interval: nm | None = None,
+        angle_offset: float = 0.0,
+    ) -> Molecules:
         """
-        Calculate mapping of protofilament line at an angle offset.
-        This function is useful for visualizing seam or protofilament.
+        Mapping molecules along a protofilament line.
+        
+        This method is useful when you want to visualize seam or protofilament, or 
+        assign molecules for subtomogram averaging of seam binding protein or doublet
+        microtubule.
 
         Parameters
         ----------
@@ -1591,15 +1366,18 @@ class MtTomogram:
             Object that represents protofilament positions and angles.
         """        
         props = self.global_ft_params(i)
-        pitch = props[H.yPitch]
+        lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
         spl = self._splines[i]
-        ny = roundint(spl.length()/pitch)
-        mono_skew_rad = np.deg2rad(skew) / 2
+        
+        if interval is None:
+            interval = lp
+        ny = roundint(spl.length()/interval)
+        skew_rad = np.deg2rad(skew) * interval / lp
         
         rcoords = np.full(ny, spl.radius)
-        ycoords = np.arange(ny) * pitch
-        acoords = np.arange(ny) * mono_skew_rad + np.deg2rad(angle_offset)
+        ycoords = np.arange(ny) * interval
+        acoords = np.arange(ny) * skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
         return spl.cylindrical_to_molecules(coords)
     

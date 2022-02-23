@@ -410,6 +410,7 @@ class MTPropsWidget(MagicTemplate):
         def Show_straightened_image(self): ...
         def Paint_MT(self): ...
         def Set_colormap(self): ...
+        def Show_colormap(self): ...
         focus = field(False, options={"text": "Focus"}, record=False)
     
     @magicmenu
@@ -434,6 +435,11 @@ class MTPropsWidget(MagicTemplate):
         class Mapping(MagicTemplate):
             def Map_monomers(self): ...
             def Map_centers(self): ...
+            def Map_along_PF(self): ...
+        @magicmenu
+        class Molecule_features(MagicTemplate):
+            def Monomer_intervals(self): ...
+            def Set_feature_color(self): ...
         def Open_subtomogram_analyzer(self): ...
     
         
@@ -1388,6 +1394,10 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 2
         return None
     
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    #   Monomer mapping methods
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    
     @Analysis.Mapping.wraps
     @set_options(splines={"widget_type": "Select", "choices": _get_splines},
                  length={"text": "Use full length"})
@@ -1461,7 +1471,7 @@ class MTPropsWidget(MagicTemplate):
         if layer_name not in viewer.layers:
             points_layer = self.parent_viewer.add_points(
                 ndim=3, size=3, face_color="lime", edge_color="lime",
-                n_dimensional=True, name=layer_name, metadata={MOLECULES: mol}
+                out_of_slice_display=True, name=layer_name, metadata={MOLECULES: mol}
                 )
             
             points_layer.shading = "spherical"
@@ -1504,10 +1514,87 @@ class MTPropsWidget(MagicTemplate):
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
         for i, mol in enumerate(mols):
             _add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
+
+    @Analysis.Mapping.wraps
+    @set_options(splines={"widget_type": "Select", "choices": _get_splines},
+                 interval={"text": "Set to dimer length"},
+                 length={"text": "Use full length"})
+    def Map_along_PF(
+        self,
+        splines: Iterable[int],
+        interval: Optional[nm] = None,
+        angle_offset: float = 0.0,
+    ):
+        """
+        Map molecules along splines. Each molecule is rotated by skew angle.
+        
+        Parameters
+        ----------
+        splines : iterable of int
+            Select splines to map monomers.
+        interval : nm, otional
+            Interval between molecules.
+        angle_offset : float, default is 0.0
+            Offset of PF angle in radian.
+        """
+        tomo = self.tomogram
+        mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
+        for i, mol in enumerate(mols):
+            _add_molecules(self.parent_viewer, mol, f"PF line-{i}", source=mol)
+
+    @Analysis.Molecule_features.wraps
+    @set_options(spline_precision={"max": 2.0, "step": 0.01})
+    def Monomer_intervals(
+        self,
+        layer: MonomerLayer,
+        spline_precision: nm = 0.2
+    ):
+        ndim = 3
+        mole: Molecules = layer.metadata[MOLECULES]
+        spl: MtSpline = layer.metadata[SOURCE]
+        
+        npf = roundint(spl.globalprops[H.nPF])
+        try:
+            pos = mole.pos.reshape(-1, npf, ndim)
+        except ValueError as e:
+            msg = (
+                f"Reshaping failed. Molecules represented by layer {layer.name} may not "
+                f"be a tubular shaped."
+            )
+            e.args = (msg,)
+            raise e
+        
+        pitch_vec = np.diff(pos, axis=0, append=0)
+        u = spl.world_to_y(mole.pos, precision=spline_precision)
+        spl_vec = spl(u, der=1)
+        spl_vec_norm = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
+        spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)
+        y_dist = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
+        # TODO: filter here?
+        properties = y_dist.ravel()
+        _interval = "interval"
+        _clim = [GVar.yPitchMin, GVar.yPitchMax]
+        
+        # Update features
+        features = layer.features
+        features[_interval] = properties
+        layer.features = features
+        
+        # Set colormap
+        layer.face_color = layer.edge_color = _interval
+        layer.face_colormap = layer.edge_colormap = self.label_colormap
+        layer.face_contrast_limits = layer.edge_contrast_limits = _clim
+        layer.refresh()
+        return None
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    #   Subtomogram averaging methods
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
     @Analysis.wraps
     @do_not_record
     def Open_subtomogram_analyzer(self):
+        """Open the subtomogram analyzer dock widget."""
         self._subtomogram_averaging.show()
     
     @magicclass(name="Subtomogram averaging")
@@ -1587,7 +1674,12 @@ class MTPropsWidget(MagicTemplate):
             if params is None:
                 return None
             elif isinstance(params, tuple):
-                mask_image = self._template.threshold().smooth_mask(sigma=params[0], dilate_radius=params[1])
+                with no_verbose():
+                    thr = self._template.threshold()
+                    mask_image = thr.smooth_mask(
+                        sigma=params[0], 
+                        dilate_radius=params[1]
+                    )
             else:
                 mask_image = ip.imread(self.mask_path.mask_path)
             
@@ -1811,7 +1903,8 @@ class MTPropsWidget(MagicTemplate):
             with no_verbose():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
                 rot, shift = align_image_to_template(img, template, mask)
-            shifted_image = image_avg.affine(translation=shift)
+            with no_verbose():
+                shifted_image = image_avg.affine(translation=shift, cval=np.min(image_avg))
             shift = molecules.rotator.apply(shift * self.tomogram.scale)
             rotator = Rotation.from_rotvec([0, rot, 0])
             mole = molecules.rotate_by(rotator.inv()).translate(rotator.apply(shift))
@@ -2170,16 +2263,20 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @set_options(start={"widget_type": ColorEdit},
-                 end={"widget_type": ColorEdit},
-                 limit={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
-                 color_by={"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]},
-                 auto_call=True)
-    def Set_colormap(self,
-                     start=(0, 0, 1, 1), 
-                     end=(1, 0, 0, 1), 
-                     limit=(4.00, 4.24), 
-                     color_by: str = H.yPitch):
+    @set_options(
+        start={"widget_type": ColorEdit},
+        end={"widget_type": ColorEdit},
+        limit={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
+        color_by={"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]},
+        auto_call=True
+    )
+    def Set_colormap(
+        self,
+        start=(0, 0, 1, 1), 
+        end=(1, 0, 0, 1), 
+        limit=(4.00, 4.24), 
+        color_by: str = H.yPitch
+    ):
         """
         Set the color-map for painting microtubules.
         
@@ -2195,6 +2292,15 @@ class MTPropsWidget(MagicTemplate):
         self.label_colormap = Colormap([start, end], name="PitchLength")
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
+        return None
+    
+    @Image.wraps
+    def Show_colorbar(self):
+        """Create a colorbar from the current colormap."""
+        arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
+        plt = Figure()
+        plt.imshow(arr)
+        plt.show()
         return None
     
     @nogui
@@ -2398,7 +2504,7 @@ class MTPropsWidget(MagicTemplate):
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer
         
-        common_properties = dict(ndim=3, n_dimensional=True, size=8)
+        common_properties = dict(ndim=3, out_of_slice_display=True, size=8)
         if self.layer_prof in self.parent_viewer.layers:
             viewer.layers.remove(self.layer_prof)
     
@@ -2641,7 +2747,7 @@ def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name, source: MtSpli
         metadata.update({SOURCE: source})
     points_layer = viewer.add_points(
         mol.pos, size=3, face_color="lime", edge_color="lime",
-        n_dimensional=True, name=name, metadata=metadata
+        out_of_slice_display=True, name=name, metadata=metadata
         )
     
     points_layer.shading = "spherical"
