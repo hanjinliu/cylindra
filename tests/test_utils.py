@@ -65,15 +65,17 @@ def test_interval_divmod():
 
 def test_map_coordinates():
     from scipy import ndimage as ndi
-    np.random.seed(0)
-    img = ip.random.normal(size=(100, 100))
+    yy, xx = np.indices((100, 100))
+    img = ip.asarray(np.sin(yy/4)*np.sin(xx/3))
     
     def isclose(coords):
-        return assert_allclose(ndi.map_coordinates(img.value, coords, order=3),
-                               utils.map_coordinates(img, coords, order=3))
+        return assert_allclose(
+            ndi.map_coordinates(img.value, coords, order=3),
+            utils.map_coordinates(img, coords, order=3)
+        )
     
     coords = np.array([[[10, 13], [11, 16], [12, 19]],
-                       [[3.4, 32], [7, 26], [10, 18]]])
+                       [[3, 32], [7, 26], [10, 18]]])
     
     isclose(coords)
         
@@ -86,28 +88,29 @@ def test_map_coordinates():
                        [[120, 108], [10, 40], [-20, -12]]])
     
     isclose(coords)
-    
-    np.random.seed(None)
 
 def test_multi_map_coordinates():
     from scipy import ndimage as ndi
-    np.random.seed(0)
-    img = ip.random.normal(size=(100, 100))
+    yy, xx = np.indices((100, 100))
+    img = np.sin(yy/4)*np.sin(xx/3)
     
     coords = np.array([[[10, 13], [11, 16], [12, 19]],
-                       [[3.4, 32], [7, 26], [10, 18]]])
-    all_coords = np.stack([coords+i*0.5 for i in range(20)], axis=0)
+                       [[3, 32], [7, 26], [10, 18]]], dtype=np.float64
+                      )
+    all_coords = np.stack([coords + i for i in range(20)], axis=0)
     
-    out0 = [ndi.map_coordinates(img.value, crds, order=3) for crds in all_coords]
+    out0 = [ndi.map_coordinates(img, crds, order=3) for crds in all_coords]
+    
     out1 = sum([list(utils.multi_map_coordinates(img, crds, order=3))
                for crds in np.split(all_coords, 4)], start=[])
     for a, b in zip(out0, out1):
         assert_allclose(a, b)
+    
     out1 = sum([list(utils.multi_map_coordinates(img, crds, order=3))
-               for crds in np.split(all_coords, [3, 4, 5, 5, 3])], start=[])
+               for crds in np.split(all_coords, [3, 7, 12, 17])], start=[])
     for a, b in zip(out0, out1):
         assert_allclose(a, b)
-    np.random.seed(None)
+    
 
 def test_mirror_pcc():
     np.random.seed(1234)

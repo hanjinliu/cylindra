@@ -28,19 +28,21 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
         z0_pad = -z0
         z0 = 0
     elif size < z0:
-        raise ValueError(f"Out of bound: {z0}:{z1}")
+        raise ValueError(f"Specified size is {size} but need to slice at {z0}:{z1}.")
     
     if size < z1:
         z1_pad = z1 - size
         z1 = size
     elif z1 < 0:
-        raise ValueError(f"Out of bound: {z0}:{z1}")
+        raise ValueError(f"Specified size is {size} but need to slice at {z0}:{z1}.")
     
     return slice(z0, z1), (z0_pad, z1_pad)
 
-def load_a_subtomogram(img: ip.ImgArray | ip.LazyImgArray, 
-                       pos,
-                       shape: tuple[int, int, int]):
+def load_a_subtomogram(
+    img: ip.ImgArray | ip.LazyImgArray, 
+    pos,
+    shape: tuple[int, int, int]
+) -> ip.ImgArray:
     """
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
@@ -171,7 +173,7 @@ def map_coordinates(
         cval = cval(img)
     
     return ndi.map_coordinates(
-        img.value,
+        np.asarray(img),
         coordinates=coordinates,
         order=order,
         mode=mode, 
@@ -188,6 +190,7 @@ def lazy_map_coordinates(
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0
 ) -> np.ndarray:
+    """Delayed version of ndi.map_coordinates."""
     return ndi.map_coordinates(
         input,
         coordinates=coordinates,
@@ -199,39 +202,39 @@ def lazy_map_coordinates(
 
 def multi_map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray, 
-    coords: np.ndarray,
+    coordinates: np.ndarray,
     order: int = 3, 
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
 ) -> list[np.ndarray]:
     shape = input.shape
-    coords = coords.copy()
+    coordinates = coordinates.copy()
     
-    if coords.ndim != input.ndim + 2:
-        if coords.ndim == input.ndim + 1:
-            coords = coords[np.newaxis]
+    if coordinates.ndim != input.ndim + 2:
+        if coordinates.ndim == input.ndim + 1:
+            coordinates = coordinates[np.newaxis]
         else:
             raise ValueError(
-                f"Coordinates have wrong dimension: {coords.shape}."
+                f"Coordinates have wrong dimension: {coordinates.shape}."
                 )
     
     sl = []
-    for i in range(coords.shape[1]):
-        imin = int(np.min(coords[:, i])) - order
-        imax = ceilint(np.max(coords[:, i])) + order + 1
+    for i in range(coordinates.shape[1]):
+        imin = int(np.min(coordinates[:, i])) - order
+        imax = ceilint(np.max(coordinates[:, i])) + order + 1
         _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
         sl.append(_sl)
-        coords[:, i] -= _sl.start
+        coordinates[:, i] -= _sl.start
     
     img = input[tuple(sl)]
     if isinstance(img, ip.LazyImgArray):
         img = img.compute()
     if callable(cval):
         cval = cval(img)
-    input_img = img.value
+    input_img = np.asarray(img)
     
     tasks = []
-    for crds in coords:
+    for crds in coordinates:
         mapped = lazy_map_coordinates(
             input_img,
             coordinates=crds,
@@ -240,16 +243,18 @@ def multi_map_coordinates(
             cval=cval,
         )
         
-        tasks.append(da.from_delayed(mapped, coords.shape[2:], dtype=np.float32))
+        tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
     
     out = da.compute(tasks)[0]
 
     return np.stack(out, axis=0)
 
-def oblique_meshgrid(shape: tuple[int, int], 
-                     tilts: tuple[float, float] = (0., 0.),
-                     intervals: tuple[float, float] = (0., 0.),
-                     offsets: tuple[float, float] = (0., 0.)) -> np.ndarray:
+def oblique_meshgrid(
+    shape: tuple[int, int], 
+    tilts: tuple[float, float] = (0., 0.),
+    intervals: tuple[float, float] = (0., 0.),
+    offsets: tuple[float, float] = (0., 0.)
+) -> np.ndarray:
     """
     Construct 2-D meshgrid in oblique coordinate system.
 
