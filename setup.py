@@ -18,12 +18,12 @@ setup(
     license="BSD 3-Clause",
     packages=find_packages(exclude=["tests", "tests.*"]),
     install_requires=[
-        "impy-array>=1.25.1",
-        "magic-class>=0.5.20",
+        "impy-array>=1.25.2",
+        "magic-class>=0.5.22",
         "numba>=0.54",
         "pyqtgraph>=0.12",
         "mrcfile>=1.3.0",
-        "napari>=0.4.13",  # point shading
+        "napari>=0.4.14",  # point shading
     ],
     python_requires=">=3.8",
     )

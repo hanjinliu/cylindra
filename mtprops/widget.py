@@ -2300,6 +2300,9 @@ class MTPropsWidget(MagicTemplate):
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         plt = Figure()
         plt.imshow(arr)
+        xmin, xmax = self.label_colorlimit
+        plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
+        plt.yticks([], [])
         plt.show()
         return None
     

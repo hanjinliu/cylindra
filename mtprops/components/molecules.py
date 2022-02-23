@@ -170,6 +170,41 @@ class Molecules:
         """
         it = self.iter_cartesian(shape, scale, chunksize=len(self))
         return next(it)
+    
+    def cartesian_dask(
+        self, 
+        shape: tuple[int, int, int], 
+        scale: nm,
+        chunksize: int = 64,
+    ):
+        center = np.array(shape) / 2 - 0.5
+        vec_x = self.x
+        vec_y = self.y
+        vec_z = -np.cross(vec_x, vec_y, axis=1)
+        ind_z, ind_y, ind_x = [np.arange(s) - c for s, c in zip(shape, center)]
+        
+        x_ax = vec_x[:, :, np.newaxis] * ind_x
+        y_ax = vec_y[:, :, np.newaxis] * ind_y
+        z_ax = vec_z[:, :, np.newaxis] * ind_z
+        
+        # There will be many points so data type should be converted into 32-bit
+        x_ax = x_ax.astype(np.float32)
+        y_ax = y_ax.astype(np.float32)
+        z_ax = z_ax.astype(np.float32)
+        
+        from dask import array as da
+        x_ax = da.from_array(x_ax, chunks=(chunksize,) + x_ax.shape[1:])
+        x_ax = da.from_array(y_ax, chunks=(chunksize,) + y_ax.shape[1:])
+        x_ax = da.from_array(z_ax, chunks=(chunksize,) + z_ax.shape[1:])
+        
+        coords = (
+            z_ax[:, :, :, np.newaxis, np.newaxis]
+            + y_ax[:, :, np.newaxis, :, np.newaxis] 
+            + x_ax[:, :, np.newaxis, np.newaxis, :]
+            )
+        shifts = self.pos / scale
+        coords += shifts[:, :, np.newaxis, np.newaxis, np.newaxis]  # unit: pixel
+        return coords
         
     def iter_cartesian(
         self, 
