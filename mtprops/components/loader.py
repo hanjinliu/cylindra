@@ -362,43 +362,6 @@ class SubtomogramLoader:
         
         return out
     
-    def align_averaged(
-        self,
-        *,
-        template: ip.ImgArray,
-        mask: ip.ImgArray | None = None,
-        cutoff: float = 0.5,
-    ) -> SubtomogramLoader:
-        """
-        Align averaged image at current positions and rotations to the template image.
-        
-        Calculated shift and rotation will be applied to all the molecules. This method
-        is useful to roughly align subtomograms to template image. Molecules must be
-        generated from ``map_monomers`` method.
-
-        Parameters
-        ----------
-        template : ip.ImgArray
-            Template image.
-        mask : ip.ImgArray, optional
-            Mask image.
-
-        Returns
-        -------
-        SubtomogramLoader
-            Instance with updated molecules.
-        """
-        if self.image_avg is None:
-            self.average()
-        with no_verbose():
-            img = self.image_avg.lowpass_filter(cutoff=cutoff)
-            rot, shift = align_image_to_template(img, template, mask)
-        shift = self.molecules.rotator.apply(shift * self.scale, inv=True)
-        rotator = Rotation.from_rotvec([0, rot, 0])
-        mole = self.molecules.rotate_by(rotator).translate(rotator.apply(shift))
-        
-        return self.__class__(self.image_ref, mole, self.output_shape, self.chunksize)
-
     def iter_each_seam(
         self,
         npf: int,

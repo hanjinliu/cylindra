@@ -10,7 +10,8 @@ from .molecules import from_euler
 def align_image_to_template(
     image_avg: ip.ImgArray,
     template: ip.ImgArray,
-    mask: ip.ImgArray = None
+    mask: ip.ImgArray = None,
+    max_shifts = None,
 ) -> tuple[float, np.ndarray]:
     if image_avg.shape != template.shape:
         raise ValueError("Shape mismatch")
@@ -24,7 +25,7 @@ def align_image_to_template(
     for yrot in rots:
         img_rot = image_avg.rotate(yrot, cval=0, dims="zx")
         img_rot_ft = img_rot.fft()
-        shift = ip.ft_pcc_maximum(img_rot_ft, template_ft)
+        shift = ip.ft_pcc_maximum(img_rot_ft, template_ft, max_shifts=max_shifts)
         shifts.append(shift)
         img_rot_shift = img_rot.affine(translation=shift)
         corr = ip.zncc(img_rot_shift*mask, masked_template)

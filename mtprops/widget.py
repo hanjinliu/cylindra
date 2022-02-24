@@ -61,6 +61,7 @@ WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
 SOURCE = "Source"
+ALN_SUFFIX = "ALN"
 
 @magicclass
 class SplineFitter(MagicTemplate):
@@ -894,15 +895,16 @@ class MTPropsWidget(MagicTemplate):
     @_loader.wraps
     @set_design(text="OK")
     @dispatch_worker
-    def load_tomogram(self, 
-                      path: Bound[_loader.path],
-                      scale: Bound[_loader.scale],
-                      bin_size: Bound[_loader.bin_size],
-                      light_background: Bound[_loader.light_background],
-                      cutoff: Bound[_loader._get_cutoff_freq],
-                      subtomo_length: Bound[_loader.subtomo_length],
-                      subtomo_width: Bound[_loader.subtomo_width]
-                      ):
+    def load_tomogram(
+        self, 
+        path: Bound[_loader.path],
+        scale: Bound[_loader.scale],
+        bin_size: Bound[_loader.bin_size],
+        light_background: Bound[_loader.light_background],
+        cutoff: Bound[_loader._get_cutoff_freq],
+        subtomo_length: Bound[_loader.subtomo_length],
+        subtomo_width: Bound[_loader.subtomo_width]
+    ):
         """Start loading image."""
         try:
             scale = float(scale)
@@ -1609,7 +1611,7 @@ class MTPropsWidget(MagicTemplate):
             self._viewer: Union[napari.Viewer, None] = None
             self.mask = "No mask"
             
-        template_path = vfield(Path, options={"label": "Template", "filter": "*.mrc;*.tif"}, record=False)
+        template_path = vfield(Path, options={"label": "Template", "filter": "*.mrc;*.tif"})
         
         mask = vfield(RadioButtons, options={"label": "Mask", "choices": ["No mask", "Use blurred template as a mask", "Supply a image"]}, record=False)
         
@@ -1923,14 +1925,22 @@ class MTPropsWidget(MagicTemplate):
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         nmole = len(molecules)
-        source = layer.metadata.get(SOURCE, None)
+        spl: MtSpline = layer.metadata.get(SOURCE, None)
         shape = self._subtomogram_averaging._get_shape_in_nm()
+        
+        pitch = spl.globalprops[H.yPitch]
+        radius = spl.radius
+        npf = spl.globalprops[H.nPF]
         
         if use_binned_image:
             loader = self._get_binned_loader(molecules, shape, chunk_size)
+            _scale = self.layer_image.data.scale.x
         else:
             loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            _scale = self.tomogram.scale
             
+        # max_shifts = tuple(np.ceil(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale))
+        max_shifts = ceilint(pitch/_scale)
         worker = create_worker(loader.iter_average,
                                order = 1,
                                _progress={"total": nmole, "desc": "Running"}
@@ -1942,16 +1952,20 @@ class MTPropsWidget(MagicTemplate):
             from scipy.spatial.transform import Rotation
             with no_verbose():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
-                rot, shift = align_image_to_template(img, template, mask)
-            with no_verbose():
+                rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
                 shifted_image = image_avg.affine(translation=shift, cval=np.min(image_avg))
-            shift = molecules.rotator.apply(shift * self.tomogram.scale)
-            rotator = Rotation.from_rotvec([0, rot, 0])
-            mole = molecules.rotate_by(rotator.inv()).translate(rotator.apply(shift))
+            dx = shift[-1]
+            dtheta = dx/radius
+            skew_rotator = Rotation.from_rotvec(molecules.y * dtheta)
+            shift = molecules.rotator.apply(shift * self.tomogram.scale)  # TODO: minus?
+            internal_rotator = Rotation.from_rotvec([0, rot, 0])
+            mole = molecules.rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
+            # mole = molecules.rotate_by(internal_rotator.inv()).rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
+            
             _add_molecules(self.parent_viewer, 
                            mole,
-                           layer.name+"-ALN",
-                           source=source
+                           _coerce_aligned_name(layer.name),
+                           source=spl
                            )
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned average image")
                 
@@ -2010,7 +2024,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(aligned_loader: SubtomogramLoader):
             _add_molecules(self.parent_viewer, 
                            aligned_loader.molecules,
-                           layer.name+"-ALN",
+                           _coerce_aligned_name(layer.name),
                            source=source
                            )            
                 
@@ -2812,7 +2826,6 @@ def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name, source: MtSpli
         name=name + " Z-axis",
         )
 
-
 def _read_angle(ang_path: str) -> np.ndarray:
     line1 = str(pd.read_csv(ang_path, nrows=1).values[0, 0])  # determine sep
     if "\t" in line1:
@@ -2834,7 +2847,6 @@ def _read_angle(ang_path: str) -> np.ndarray:
         raise ValueError(f"Could not interpret data format of {ang_path}:\n{csv.head(5)}")
     return csv_data
 
-
 def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
     """Read offsets and angles from PEET project"""
     csv: pd.DataFrame = pd.read_csv(path)
@@ -2845,3 +2857,15 @@ def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarra
         ang_data = _read_angle(path)
         shifts_data = None
     return shifts_data, ang_data
+
+import re
+
+def _coerce_aligned_name(name: str):
+    num = 1
+    if re.match(fr".*-{ALN_SUFFIX}(\d)+", name):
+        try:
+            *_, suf = name.split(ALN_SUFFIX)
+            num = int(suf) + 1
+        except Exception:
+            num = 1
+    return name + f"-{ALN_SUFFIX}{num}"
