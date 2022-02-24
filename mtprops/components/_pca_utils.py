@@ -110,8 +110,7 @@ class PcaClassifier:
         """
         output: list[ip.ImgArray] = []
         for i in range(self.n_clusters):
-            img0 = self._image[self._labels == i]
-            img0.axes = self._image.axes
+            img0 = self._image[self._labels == i]  # TODO: this needs impy update
             img0.set_scale(self._image)
             output.append(img0)
         return output

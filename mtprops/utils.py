@@ -61,7 +61,7 @@ def load_a_subtomogram(
     with no_verbose():
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
-            reg = reg.pad(pads, dims="zyx", constant_values=np.mean(reg))
+            reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
     
     return reg
 

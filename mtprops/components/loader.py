@@ -395,7 +395,7 @@ class SubtomogramLoader:
                 if not load_all:
                     image_ave = candidate.average(order=order)
                 else:
-                    image_ave = np.mean(subtomograms[sl], axis=0)
+                    image_ave = np.mean(subtomograms[sl], axis="p")  # TODO: this needs impy update
                 averaged_images.append(image_ave)
                 corr = ip.zncc(image_ave*mask, masked_template)
                 corrs.append(corr)

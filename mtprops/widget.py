@@ -1658,7 +1658,7 @@ class MTPropsWidget(MagicTemplate):
             elif v == "Use blurred template as a mask":
                 if self._template is None:
                     self._get_template()
-                params = (self.params.sigma, self.params.dilate_radius)
+                params = (self.params.dilate_radius, self.params.sigma)
             else:
                 params = self.mask_path.mask_path
             return params
@@ -1682,8 +1682,8 @@ class MTPropsWidget(MagicTemplate):
                 with no_verbose():
                     thr = self._template.threshold()
                     mask_image = thr.smooth_mask(
-                        sigma=params[0], 
-                        dilate_radius=params[1]
+                        sigma=params[1], 
+                        dilate_radius=params[0]
                     )
             else:
                 mask_image = ip.imread(self.mask_path.mask_path)
@@ -1910,7 +1910,9 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        template : str
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        template_path : str
             Template image.
         mask_params : str, (int, float), optional
             Mask image
@@ -1922,8 +1924,10 @@ class MTPropsWidget(MagicTemplate):
             How many subtomograms will be loaded at the same time.
         """        
         molecules: Molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
+        mask: ip.ImgArray = self._subtomogram_averaging._get_mask(params=mask_params)
+        if template.shape != mask.shape:
+            raise ValueError("Shape mismatch between template and mask.")
         nmole = len(molecules)
         spl: MtSpline = layer.metadata.get(SOURCE, None)
         shape = self._subtomogram_averaging._get_shape_in_nm()
@@ -1935,6 +1939,10 @@ class MTPropsWidget(MagicTemplate):
         if use_binned_image:
             loader = self._get_binned_loader(molecules, shape, chunk_size)
             _scale = self.layer_image.data.scale.x
+            binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
+            with no_verbose():
+                template = template.binning(binsize, check_edges=False)
+                mask = mask.binning(binsize, check_edges=False)
         else:
             loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
             _scale = self.tomogram.scale
@@ -1952,15 +1960,18 @@ class MTPropsWidget(MagicTemplate):
             from scipy.spatial.transform import Rotation
             with no_verbose():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
+                if use_binned_image and img.shape != template.shape:
+                    sl = tuple(slice(0, s) for s in template.shape)
+                    img = img[sl]
+                    
                 rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
                 shifted_image = image_avg.affine(translation=shift, cval=np.min(image_avg))
             dx = shift[-1]
             dtheta = dx/radius
             skew_rotator = Rotation.from_rotvec(molecules.y * dtheta)
-            shift = molecules.rotator.apply(shift * self.tomogram.scale)  # TODO: minus?
+            shift = molecules.rotator.apply(-shift * self.tomogram.scale)
             internal_rotator = Rotation.from_rotvec([0, rot, 0])
             mole = molecules.rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
-            # mole = molecules.rotate_by(internal_rotator.inv()).rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
             
             _add_molecules(self.parent_viewer, 
                            mole,
@@ -1998,6 +2009,31 @@ class MTPropsWidget(MagicTemplate):
         use_binned_image: bool = False,
         chunk_size: int = 64,
     ):
+        """
+        Align all the molecules for subtomogram averaging.
+        
+        Parameters
+        ----------
+        template_path : ip.ImgArray, optional
+            Template image.
+        mask_params : ip.ImgArray, optional
+            Mask image. Must in the same shape as the template.
+        max_shifts : int or tuple of int, default is (4, 4, 4)
+            Maximum shift between subtomograms and template.
+        z_rotation : tuple of float, optional
+            Rotation in external degree around z-axis.
+        y_rotation : tuple of float, optional
+            Rotation in external degree around y-axis.
+        x_rotation : tuple of float, optional
+            Rotation in external degree around x-axis.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        interpolation : int, default is 1
+            Interpolation order.
+        chunk_size : int, default is 64
+            How many subtomograms will be loaded at the same time.
+        """
+        
         molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
@@ -2864,8 +2900,9 @@ def _coerce_aligned_name(name: str):
     num = 1
     if re.match(fr".*-{ALN_SUFFIX}(\d)+", name):
         try:
-            *_, suf = name.split(ALN_SUFFIX)
+            *pre, suf = name.split(ALN_SUFFIX)
             num = int(suf) + 1
+            name = "".join(pre)
         except Exception:
             num = 1
     return name + f"-{ALN_SUFFIX}{num}"

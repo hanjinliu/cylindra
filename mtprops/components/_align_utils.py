@@ -14,7 +14,10 @@ def align_image_to_template(
     max_shifts = None,
 ) -> tuple[float, np.ndarray]:
     if image_avg.shape != template.shape:
-        raise ValueError("Shape mismatch")
+        raise ValueError(
+            f"Shape mismatch. Shape of Average image is {tuple(image_avg.shape)} while "
+            f"shape of template image is {tuple(template.shape)}"
+        )
     if mask is None:
         mask = 1
     corrs: list[float] = []
