@@ -410,7 +410,6 @@ class MTPropsWidget(MagicTemplate):
         def Show_straightened_image(self): ...
         def Paint_MT(self): ...
         def Set_colormap(self): ...
-        def Show_colormap(self): ...
         focus = field(False, options={"text": "Focus"}, record=False)
     
     @magicmenu
@@ -434,12 +433,12 @@ class MTPropsWidget(MagicTemplate):
         @magicmenu
         class Mapping(MagicTemplate):
             def Map_monomers(self): ...
+            def Map_monomers_manually(self): ...
             def Map_centers(self): ...
             def Map_along_PF(self): ...
         @magicmenu
         class Molecule_features(MagicTemplate):
             def Monomer_intervals(self): ...
-            def Set_feature_color(self): ...
         def Open_subtomogram_analyzer(self): ...
     
         
@@ -612,7 +611,7 @@ class MTPropsWidget(MagicTemplate):
     def _get_spline_coordinates(self, widget=None) -> np.ndarray:
         """Get coordinates of the manually picked spline."""
         coords = self.layer_work.data
-        return coords
+        return np.round(coords, 3)
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"add_spline.png")
@@ -1489,9 +1488,11 @@ class MTPropsWidget(MagicTemplate):
         vector_layer.data = np.stack([mol.pos, mol.z], axis=1)
 
     @Analysis.Mapping.wraps
-    @set_options(splines={"widget_type": "Select", "choices": _get_splines},
-                 interval={"text": "Set to dimer length"},
-                 length={"text": "Use full length"})
+    @set_options(
+        splines={"widget_type": "Select", "choices": _get_splines},
+        interval={"text": "Set to dimer length"},
+        length={"text": "Use full length"}
+    )
     def Map_centers(
         self,
         splines: Iterable[int],
@@ -1516,9 +1517,11 @@ class MTPropsWidget(MagicTemplate):
             _add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
 
     @Analysis.Mapping.wraps
-    @set_options(splines={"widget_type": "Select", "choices": _get_splines},
-                 interval={"text": "Set to dimer length"},
-                 length={"text": "Use full length"})
+    @set_options(
+        splines={"widget_type": "Select", "choices": _get_splines},
+        interval={"text": "Set to dimer length"},
+        angle_offset={"max": 360}
+    )
     def Map_along_PF(
         self,
         splines: Iterable[int],
@@ -1543,11 +1546,11 @@ class MTPropsWidget(MagicTemplate):
             _add_molecules(self.parent_viewer, mol, f"PF line-{i}", source=mol)
 
     @Analysis.Molecule_features.wraps
-    @set_options(spline_precision={"max": 2.0, "step": 0.01})
+    @set_options(spline_precision={"max": 2.0, "step": 0.01, "label": "spline precision (nm)"})
     def Monomer_intervals(
         self,
         layer: MonomerLayer,
-        spline_precision: nm = 0.2
+        spline_precision: nm = 0.2,
     ):
         ndim = 3
         mole: Molecules = layer.metadata[MOLECULES]
@@ -1570,7 +1573,7 @@ class MTPropsWidget(MagicTemplate):
         spl_vec_norm = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
         spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)
         y_dist = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
-        # TODO: filter here?
+        
         properties = y_dist.ravel()
         _interval = "interval"
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
@@ -1606,9 +1609,9 @@ class MTPropsWidget(MagicTemplate):
             self._viewer: Union[napari.Viewer, None] = None
             self.mask = "No mask"
             
-        template_path = vfield(Path, options={"filter": "*.mrc;*.tif"}, record=False)
+        template_path = vfield(Path, options={"label": "Template", "filter": "*.mrc;*.tif"}, record=False)
         
-        mask = vfield(RadioButtons, options={"choices": ["No mask", "Use blurred template as a mask", "Supply a image"]}, record=False)
+        mask = vfield(RadioButtons, options={"label": "Mask", "choices": ["No mask", "Use blurred template as a mask", "Supply a image"]}, record=False)
         
         @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
         class params(MagicTemplate):
@@ -1703,10 +1706,12 @@ class MTPropsWidget(MagicTemplate):
         
         @do_not_record
         def Show_template(self):
+            """Load and show template image."""
             self._show_reconstruction(self._get_template(), name="Template image")
         
         @do_not_record
         def Show_mask(self):
+            """Load and show mask image."""
             self._show_reconstruction(self._get_mask(), name="Mask image")
         
         @magicmenu
@@ -1720,7 +1725,21 @@ class MTPropsWidget(MagicTemplate):
         class Refinement(MagicTemplate):
             def Align_averaged(self): ...
             def Align_all(self): ...
-        
+    
+    def _get_binned_loader(
+        self, 
+        molecules: Molecules,
+        shape: tuple[nm, ...], 
+        chunk_size: int
+    ) -> SubtomogramLoader:
+        """Called when a method has to use subtomogram loader with binned image."""
+        imgb: ip.ImgArray = self.layer_image.data
+        tomo = self.tomogram
+        binsize = roundint(imgb.scale.x/tomo.scale)
+        tr = -(binsize - 1)/2*tomo.scale
+        mole = molecules.translate([tr, tr, tr])
+        shape = tuple(roundint(s/imgb.scale.x) for s in shape)
+        return SubtomogramLoader(imgb, mole, shape, chunksize=chunk_size)
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -1736,12 +1755,13 @@ class MTPropsWidget(MagicTemplate):
         size: Optional[nm] = None,
         chunk_size: int = 64,
         interpolation: int = 1,
+        use_binned_image: bool = False,
         save_at: Optional[Path] = None,
     ):
         """
         Subtomogram averaging using all the subvolumes.
 
-        .. code-block::python
+        .. code-block:: python
         
             loader = ui.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
             averaged = ui.tomogram
@@ -1754,14 +1774,25 @@ class MTPropsWidget(MagicTemplate):
             Size of subtomograms. Use template size by default.
         chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
+        interpolation : int, default is 1
+            Interpolation order used in ``ndi.map_coordinates``.
+        use_binned_image : bool, default is False
+            Check if you want to use binned image (reference image in the viewer) to boost image
+            analysis.
+        save_at : str, optional
+            If given, save the averaged image at the specified location.
         """
-        molecules = layer.metadata[MOLECULES]
+        molecules: Molecules = layer.metadata[MOLECULES]
+        tomo = self.tomogram
         nmole = len(molecules)
         if size is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
         else:
             shape = (size,) * 3
-        loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        if use_binned_image:
+            loader = self._get_binned_loader(molecules, shape, chunk_size)
+        else:
+            loader = tomo.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
         
         worker = create_worker(loader.iter_average,
                                order=interpolation,
@@ -1784,7 +1815,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
         method={"choices": ["steps", "first", "last", "random"]},
-        chunk_size={"min": 1, "max": 512},
     )
     @dispatch_worker
     def Average_subset(
@@ -1792,7 +1822,8 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         size: Optional[nm] = None,
         method="steps", 
-        number: int = 64
+        number: int = 64,
+        use_binned_image: bool = False,
     ):
         """
         Subtomogram averaging using a subset of subvolumes.
@@ -1837,7 +1868,10 @@ class MTPropsWidget(MagicTemplate):
         else:
             raise NotImplementedError(method)
         mole = molecules.subset(sl)
-        loader = self.tomogram.get_subtomogram_loader(mole, shape)
+        if use_binned_image:
+            loader = self._get_binned_loader(mole, shape, chunk_size=1)
+        else:
+            loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=1)
         
         worker = create_worker(loader.iter_average,
                                order = 1,
@@ -1862,10 +1896,11 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def Align_averaged(
         self,
+        layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        layer: MonomerLayer,
         cutoff: float = 0.5,
+        use_binned_image: bool = False,
         chunk_size: int = 64,
     ):
         """
@@ -1890,7 +1925,12 @@ class MTPropsWidget(MagicTemplate):
         nmole = len(molecules)
         source = layer.metadata.get(SOURCE, None)
         shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        
+        if use_binned_image:
+            loader = self._get_binned_loader(molecules, shape, chunk_size)
+        else:
+            loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            
         worker = create_worker(loader.iter_average,
                                order = 1,
                                _progress={"total": nmole, "desc": "Running"}
@@ -1940,8 +1980,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        chunk_size: int = 64,
         interpolation: int = 1,
+        use_binned_image: bool = False,
+        chunk_size: int = 64,
     ):
         molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -1949,7 +1990,12 @@ class MTPropsWidget(MagicTemplate):
         source = layer.metadata.get(SOURCE, None)
         shape = self._subtomogram_averaging._get_shape_in_nm()
         nmole = len(molecules)
-        loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        
+        if use_binned_image:
+            loader = self._get_binned_loader(molecules, shape, chunk_size)
+        else:
+            loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            
         worker = create_worker(loader.iter_align,
                                template=template, 
                                mask=mask,
@@ -1975,7 +2021,6 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        mask_path={"options": {"filter": "*.mrc;*.tif"}},
     )
     @dispatch_worker
     def Calculate_FSC(
@@ -2090,9 +2135,8 @@ class MTPropsWidget(MagicTemplate):
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
         tomo = self.tomogram
-        binsize = roundint(self.layer_image.scale[0]/tomo.scale) # scale of binned reference image
+        binsize = roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
         
-        # shape = tomo.nm2pixel(np.array(tomo.box_size)/binsize)
         length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
         
@@ -2310,6 +2354,13 @@ class MTPropsWidget(MagicTemplate):
     def get_molecules(self, name: str):
         """Retrieve Molecules object from layer list."""
         return self.parent_viewer.layers[name].metadata[MOLECULES]
+    
+    @nogui
+    def get_loader(self, name: str, chunksize: int = 64):
+        mole = self.get_molecules(name)
+        shape = self._subtomogram_averaging._get_shape_in_nm()
+        loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize)
+        return loader
     
     def _update_colormap(self, prop: str = H.yPitch):
         if self.layer_paint is None:

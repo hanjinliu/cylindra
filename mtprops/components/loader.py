@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Generator, Iterator, Iterable
+from typing import Any, Callable, Generator, Iterator, Iterable, TYPE_CHECKING
 import random
 import warnings
 import weakref
@@ -13,6 +13,8 @@ from .molecules import Molecules
 from ..utils import multi_map_coordinates, no_verbose
 from ..const import nm
 
+if TYPE_CHECKING:
+    from ._pca_utils import PcaClassifier
 
 class SubtomogramLoader:
     """
@@ -73,6 +75,7 @@ class SubtomogramLoader:
     
     @property
     def scale(self) -> nm:
+        """Get the scale (nm/px) of tomogram."""
         return self.image_ref.scale.x
     
     def __len__(self) -> int:
@@ -390,7 +393,7 @@ class SubtomogramLoader:
         with no_verbose():
             img = self.image_avg.lowpass_filter(cutoff=cutoff)
             rot, shift = align_image_to_template(img, template, mask)
-        shift = self.molecules.rotator.apply(shift * self.scale)
+        shift = self.molecules.rotator.apply(shift * self.scale, inv=True)
         rotator = Rotation.from_rotvec([0, rot, 0])
         mole = self.molecules.rotate_by(rotator).translate(rotator.apply(shift))
         
@@ -528,6 +531,24 @@ class SubtomogramLoader:
             self.image_avg.set_scale(self.image_ref)
         
         return np.asarray(fsc)
+    
+    def get_classifier(
+        self,
+        mask: ip.ImgArray | None = None,
+        n_components: int = 2,
+        n_clusters: int = 2,
+        seed: int | None = 0,
+    ) -> PcaClassifier:
+        image_stack = self.to_stack()
+        from ._pca_utils import PcaClassifier
+        clf = PcaClassifier(
+            image_stack,
+            mask_image=mask, 
+            n_components=n_components,
+            n_clusters=n_clusters,
+            seed=seed,
+        )
+        return clf
     
     def _check_shape(self, template: ip.ImgArray, name: str = "template") -> None:
         if template.shape != self.output_shape:
