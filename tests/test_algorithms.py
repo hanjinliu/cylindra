@@ -63,7 +63,7 @@ def test_chunked_straightening():
     tomo.fit()
     tomo.refine()
     tomo.make_anchors(n=3)
-    tomo.measure_radius()
+    tomo.set_radius()
     
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200) 
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
@@ -96,7 +96,7 @@ def test_result_io():
     assert tomo2.splines[0].localprops is None
     assert tomo2.splines[0].globalprops is None
     
-    tomo.measure_radius()
+    tomo.set_radius()
     tomo.local_ft_params()
     tomo.save_json(save_path)
     tomo2 = MtTomogram()

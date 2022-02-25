@@ -25,12 +25,11 @@ from ..const import nm, H, K, Ori, Mode, GVar
 from .spline import Spline
 from .loader import SubtomogramLoader
 from ..utils import (
-    load_a_subtomogram,
+    crop_tomogram,
     centroid,
     map_coordinates,
     multi_map_coordinates,
     roundint,
-    load_rot_subtomograms,
     ceilint,
     oblique_meshgrid,
     no_verbose,
@@ -518,129 +517,6 @@ class MtTomogram:
                     raise type(e)(f"Cannot invert spline-{i}: {e}")
         return self
         
-    
-    def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
-        """
-        Collect all the anchor coordinates into a single np.ndarray.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        np.ndarray
-            Coordinates in shape (N, 3).
-        """        
-        if i is None:
-            i = range(self.n_splines)
-        elif isinstance(i, int):
-            i = [i]
-        return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
-    
-    
-    def collect_localprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
-        """
-        Collect all the local properties into a single pd.DataFrame.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        pd.DataFrame
-            Concatenated data frame.
-        """        
-        if i is None:
-            i = range(self.n_splines)
-        elif isinstance(i, int):
-            i = [i]
-        df = pd.concat([self._splines[i_].localprops for i_ in i], 
-                        keys=list(i)
-                       )
-        
-        df.index = df.index.rename(["SplineID", "PosID"])
-        return df
-    
-    
-    def plot_localprops(self, i: int | Iterable[int] = None,
-                        x=None, y=None, hue=None, **kwargs):
-        """
-        Simple plot function for visualizing local properties.
-        """        
-        import seaborn as sns
-        df = self.collect_localprops(i)
-        data = df.reset_index()
-        return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
-    
-    
-    def summerize_localprops(
-        self, 
-        i: int | Iterable[int] = None, 
-        by: str | list[str] = "SplineID", 
-        functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
-    ) -> pd.DataFrame:
-        """
-        Simple summerize of local properties.
-        """
-        df = self.collect_localprops(i).reset_index()
-        if functions is None:
-            def se(x): return np.std(x)/np.sqrt(len(x))
-            def n(x): return len(x)
-            functions = [np.mean, np.std, se, n]
-            
-        return df.groupby(by=by).agg(functions)
-    
-    
-    def collect_radii(self, i: int | Iterable[int] = None) -> np.ndarray:
-        """
-        Collect all the radius into a single array.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        np.ndarray
-            Radius of each spline
-        """        
-        if i is None:
-            i = range(self.n_splines)
-        elif isinstance(i, int):
-            i = [i]
-        return np.array([self._splines[i_].radius for i_ in i])
-    
-    
-    def _sample_subtomograms(
-        self, 
-        i: int,
-        rotate: bool = True
-    ) -> ip.ImgArray:
-        spl = self._splines[i]
-        length_px = self.nm2pixel(self.subtomo_length)
-        width_px = self.nm2pixel(self.subtomo_width)
-        
-        if rotate:
-            out = load_rot_subtomograms(self.image, length_px, width_px, spl)
-            
-        else:
-            # If subtomogram region is rotated by 45 degree, its XY-width will be
-            # sqrt(2) * (length + width)
-            center_px = self.nm2pixel(spl())
-            size_px = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
-            
-            out = np.stack(
-                [load_a_subtomogram(self._image, c, size_px) for c in center_px],
-                axis="p"
-            )
-
-        return out
-    
     @batch_process
     def fit(
         self, 
@@ -686,7 +562,20 @@ class MtTomogram:
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
-        subtomograms = self._sample_subtomograms(i, rotate=False)
+        spl = self._splines[i]
+        length_px = self.nm2pixel(self.subtomo_length)
+        width_px = self.nm2pixel(self.subtomo_width)
+        
+        # If subtomogram region is rotated by 45 degree, its XY-width will be
+        # sqrt(2) * (length + width)
+        center_px = self.nm2pixel(spl())
+        size_px = (width_px,) + (roundint((width_px + length_px)/1.41),)*2
+        
+        subtomograms: ip.ImgArray = np.stack(
+            [crop_tomogram(self._image, c, size_px) for c in center_px],
+            axis="p"
+        )
+        
         subtomograms[:] -= subtomograms.mean()
 
         if 0 < cutoff < 0.866:
@@ -812,7 +701,7 @@ class MtTomogram:
         spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
-            self.measure_radius(i=i)
+            self.set_radius(i=i)
             
         props = self.global_ft_params(i)
         spl.make_anchors(max_interval=max_interval)
@@ -907,9 +796,9 @@ class MtTomogram:
         return self
     
     @batch_process
-    def measure_radius(self, i: int = None) -> nm:
+    def set_radius(self, i: int = None, *, radius: nm | None = None) -> nm:
         """
-        Measure MT radius using radial profile from the center.
+        Set radius or measure radius using radial profile from the center.
 
         Parameters
         ----------
@@ -922,10 +811,28 @@ class MtTomogram:
             MT radius.
         """        
         spl = self.splines[i]
+        
+        if radius is not None:
+            spl.radius = float(radius)
+            return spl.radius
+
         if spl._anchors is None:
             spl.make_anchors(n=3)
             
-        subtomograms = self._sample_subtomograms(i)
+        length_px = self.nm2pixel(self.subtomo_length)
+        width_px = self.nm2pixel(self.subtomo_width)
+        
+        mole = spl.anchors_to_molecules()
+        images: list[ip.ImgArray] = []
+        
+        for coords in mole.iter_cartesian((width_px, length_px, width_px), 
+                                          self.scale, chunksize=1):
+            _subtomo = map_coordinates(self.image, coords[0], order=1, cval=np.mean)
+            images.append(_subtomo)
+        
+        subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
+        subtomograms[:] -= subtomograms.mean()  # normalize
+        
         r_max = self.subtomo_width / 2
         nbin = roundint(r_max/self.scale/2)
         img2d = subtomograms.proj("py")
@@ -1401,31 +1308,102 @@ class MtTomogram:
         output_shape = tuple(self.nm2pixel(shape))
         return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
     
-    # @batch_process
-    # def fine_reconstruction(
-    #     self, 
-    #     i = None, 
-    #     *, 
-    #     mole: Molecules,
-    #     template: ip.ImgArray = None, 
-    #     mask: ip.ImgArray = None
-    # ) -> tuple[ip.ImgArray, Molecules]:
-    #     from .averaging import SubtomogramSampler
-    #     spl = self.splines[i]
-    #     mole = spl.cylindrical_to_molecules()
+    
+    def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
+        """
+        Collect all the anchor coordinates into a single np.ndarray.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to collect.
+
+        Returns
+        -------
+        np.ndarray
+            Coordinates in shape (N, 3).
+        """        
+        if i is None:
+            i = range(self.n_splines)
+        elif isinstance(i, int):
+            i = [i]
+        return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
+    
+    
+    def collect_localprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
+        """
+        Collect all the local properties into a single pd.DataFrame.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to collect.
+
+        Returns
+        -------
+        pd.DataFrame
+            Concatenated data frame.
+        """        
+        if i is None:
+            i = range(self.n_splines)
+        elif isinstance(i, int):
+            i = [i]
+        df = pd.concat([self._splines[i_].localprops for i_ in i], 
+                        keys=list(i)
+                       )
         
-    #     aligned_mole = averaging.align_subtomograms(
-    #         self.image, mole, template=template, mask=mask, scale=self.scale
-    #     )
-        
-    #     subtomo = averaging.get_subtomograms(
-    #         self.image, aligned_mole, template.shape, self.scale
-    #     )
-        
-    #     averaged_image = np.mean(subtomo, axis="p")
-        
-    #     return averaged_image, aligned_mole
-        
+        df.index = df.index.rename(["SplineID", "PosID"])
+        return df
+    
+    
+    def plot_localprops(self, i: int | Iterable[int] = None,
+                        x=None, y=None, hue=None, **kwargs):
+        """
+        Simple plot function for visualizing local properties.
+        """        
+        import seaborn as sns
+        df = self.collect_localprops(i)
+        data = df.reset_index()
+        return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
+    
+    
+    def summerize_localprops(
+        self, 
+        i: int | Iterable[int] = None, 
+        by: str | list[str] = "SplineID", 
+        functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
+    ) -> pd.DataFrame:
+        """
+        Simple summerize of local properties.
+        """
+        df = self.collect_localprops(i).reset_index()
+        if functions is None:
+            def se(x): return np.std(x)/np.sqrt(len(x))
+            def n(x): return len(x)
+            functions = [np.mean, np.std, se, n]
+            
+        return df.groupby(by=by).agg(functions)
+    
+    
+    def collect_radii(self, i: int | Iterable[int] = None) -> np.ndarray:
+        """
+        Collect all the radius into a single array.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to collect.
+
+        Returns
+        -------
+        np.ndarray
+            Radius of each spline
+        """        
+        if i is None:
+            i = range(self.n_splines)
+        elif isinstance(i, int):
+            i = [i]
+        return np.array([self._splines[i_].radius for i_ in i])
 
 
 def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):

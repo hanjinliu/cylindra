@@ -38,7 +38,7 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
     
     return slice(z0, z1), (z0_pad, z1_pad)
 
-def load_a_subtomogram(
+def crop_tomogram(
     img: ip.ImgArray | ip.LazyImgArray, 
     pos,
     shape: tuple[int, int, int]

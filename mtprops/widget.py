@@ -43,7 +43,7 @@ from .components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
 from .components.tomogram import angle_corr, dask_affine, centroid
 from .utils import (
     Projections,
-    load_a_subtomogram,
+    crop_tomogram,
     make_slice_and_pad,
     map_coordinates,
     mirror_pcc, 
@@ -427,7 +427,7 @@ class MTPropsWidget(MagicTemplate):
     @magicmenu
     class Analysis(MagicTemplate):
         """Analysis of tomograms."""
-        def Measure_radius(self): ...
+        def Set_radius(self): ...
         def Local_FT_analysis(self): ...
         def Global_FT_analysis(self): ...
         sep0 = field(Separator)
@@ -1301,10 +1301,12 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Analysis.wraps
+    @set_options(radius={"text": "Measure radii by radial profile."})
     @dispatch_worker
-    def Measure_radius(self):
+    def Set_radius(self, radius: Optional[nm]):
         """Measure MT radius for each spline path."""        
-        worker = create_worker(self.tomogram.measure_radius,
+        worker = create_worker(self.tomogram.set_radius,
+                               radius=radius,
                                _progress={"total": 0, "desc": "Running"}
                                )
         
@@ -1363,7 +1365,7 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         if tomo.splines[0].radius is None:
-            self.Measure_radius()
+            self.Set_radius()
         self.Add_anchors(interval=interval)
         worker = create_worker(tomo.local_ft_params,
                                ft_size=ft_size,
@@ -2204,7 +2206,7 @@ class MTPropsWidget(MagicTemplate):
         
         with no_verbose():
             orientation = point1[1:] - point0[1:]
-            img = load_a_subtomogram(imgb, point1, shape)
+            img = crop_tomogram(imgb, point1, shape)
             center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
             angle_deg = angle_corr(img, ang_center=center, drot=25, nrots=25)
             angle_rad = np.deg2rad(angle_deg)
@@ -2213,7 +2215,7 @@ class MTPropsWidget(MagicTemplate):
                 point2 = point1 + dr
             else:
                 point2 = point1 - dr
-            img_next = load_a_subtomogram(imgb, point2, shape)
+            img_next = crop_tomogram(imgb, point2, shape)
             centering(img_next, point2, angle_deg)
             
         next_data = point2 * imgb.scale.x
@@ -2246,7 +2248,7 @@ class MTPropsWidget(MagicTemplate):
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
-                img_input = load_a_subtomogram(imgb, point, shape)
+                img_input = crop_tomogram(imgb, point, shape)
                 angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=19)
                 centering(img_input, point, angle_deg, drot=5, nrots=7)
                 last_i = i
@@ -2826,7 +2828,7 @@ def _iter_run(tomo: MtTomogram,
               global_props):
     
     tomo.fit(dense_mode=dense_mode, dense_mode_sigma=dense_mode_sigma)
-    tomo.measure_radius()
+    tomo.set_radius()
     
     for i in range(n_refine):
         if n_refine == 1:
@@ -2834,7 +2836,7 @@ def _iter_run(tomo: MtTomogram,
         else:
             yield f"Spline refinement (iteration {i+1}/{n_refine}) ..."
         tomo.refine(max_interval=max(interval, 30))
-        tomo.measure_radius()
+        tomo.set_radius()
         
     tomo.make_anchors(interval=interval)
     if local_props:

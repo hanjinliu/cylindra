@@ -16,7 +16,7 @@ def test_cache_in_tomogram():
     assert spl.globalprops is None
     assert spl.orientation == Ori.none
     
-    tomo.measure_radius(0)
+    tomo.set_radius(0)
     tomo.local_ft_params(0)
     tomo.global_ft_params(0)
     
@@ -45,7 +45,7 @@ def test_cache_in_tomogram():
     # test straightening
     assert spl.cart_stimg is None
     assert spl.cyl_stimg is None
-    tomo.measure_radius(0)
+    tomo.set_radius(0)
     tomo.straighten_cylindric(0)
     
     assert spl.cart_stimg is None

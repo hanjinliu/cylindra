@@ -32,7 +32,7 @@ def test_load_a_subtomogram():
     zz, yy, xx = np.indices((40, 50, 50), dtype=np.float32)
     img = ip.asarray(zz*1e4 + yy*1e2 + xx, axes="zyx")
     
-    sub = utils.load_a_subtomogram(img, (20, 25, 25), (3, 3, 3))
+    sub = utils.crop_tomogram(img, (20, 25, 25), (3, 3, 3))
     assert_allclose(sub[0], np.array([[192424, 192425, 192426],
                                       [192524, 192525, 192526], 
                                       [192624, 192625, 192626]]))
@@ -43,7 +43,7 @@ def test_load_a_subtomogram():
                                       [212524, 212525, 212526], 
                                       [212624, 212625, 212626]]))
     
-    sub = utils.load_a_subtomogram(img, (1, 1, 1), (5, 5, 5))
+    sub = utils.crop_tomogram(img, (1, 1, 1), (5, 5, 5))
     c = np.mean(sub)
     assert_allclose(sub[0], np.full((5, 5), c))
     assert_allclose(sub[1], np.array([[c,   c,   c,   c,   c],
