@@ -215,6 +215,7 @@ class MtSpline(Spline):
         
     @property
     def orientation(self) -> Ori:
+        """Orientation of spline."""
         return self._orientation
     
     @orientation.setter
@@ -264,6 +265,7 @@ class MtTomogram:
     ones.
     """
     _image: ip.LazyImgArray
+
     def __init__(self, 
                  *,
                  subtomogram_length: nm = 48.0,
@@ -632,10 +634,11 @@ class MtTomogram:
             center_px = self.nm2pixel(spl())
             size_px = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
             
-            out = np.stack([load_a_subtomogram(self._image, c, size_px) 
-                            for c in center_px],
-                            axis="p")
-                
+            out = np.stack(
+                [load_a_subtomogram(self._image, c, size_px) for c in center_px],
+                axis="p"
+            )
+
         return out
     
     @batch_process
@@ -684,8 +687,8 @@ class MtTomogram:
         npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
         subtomograms = self._sample_subtomograms(i, rotate=False)
-        subtomograms -= subtomograms.mean()
-        subtomograms: ip.ImgArray
+        subtomograms[:] -= subtomograms.mean()
+
         if 0 < cutoff < 0.866:
             subtomograms = subtomograms.lowpass_filter(cutoff)
         
@@ -728,6 +731,7 @@ class MtTomogram:
         
         # Rotate subtomograms            
         for i, img in enumerate(subtomograms):
+            img: ip.ImgArray
             angle = refined_tilt_deg[i]
             img.rotate(-angle, cval=0, update=True)
             
@@ -841,7 +845,7 @@ class MtTomogram:
             images.extend(_subtomo)
         
         subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
-        subtomograms: ip.ImgArray = subtomograms - subtomograms.mean()  # normalize
+        subtomograms[:] -= subtomograms.mean()  # normalize
         if 0 < cutoff < 0.866:
             subtomograms = subtomograms.lowpass_filter(cutoff)
 
@@ -859,7 +863,7 @@ class MtTomogram:
         # prepare a mask image for PCC calculation
         mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
             
-        imgs_aligned: ip.ImgArray = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
+        imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
         
         for i in range(npoints):
             img: ip.ImgArray = inputs[i]
@@ -917,8 +921,9 @@ class MtTomogram:
         float (nm)
             MT radius.
         """        
-        if self.splines[i]._anchors is None:
-            self.splines[i].make_anchors(n=3)
+        spl = self.splines[i]
+        if spl._anchors is None:
+            spl.make_anchors(n=3)
             
         subtomograms = self._sample_subtomograms(i)
         r_max = self.subtomo_width / 2
@@ -936,7 +941,7 @@ class MtTomogram:
         # prof[0] is radial profile at r=0.5 (not r=0.0)
         r_peak_sub = (imax_sub + 0.5) / nbin * r_max
         
-        self._splines[i].radius = r_peak_sub
+        spl.radius = r_peak_sub
         return r_peak_sub
     
     @batch_process
@@ -966,8 +971,8 @@ class MtTomogram:
             raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(ft_size)
-        rmin = spl.radius*GVar.inner/self.scale
-        rmax = spl.radius*GVar.outer/self.scale
+        rmin = spl.radius * GVar.inner / self.scale
+        rmax = spl.radius * GVar.outer / self.scale
         tasks = []
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
