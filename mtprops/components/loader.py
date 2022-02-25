@@ -8,7 +8,7 @@ import numpy as np
 import impy as ip
 from dask import array as da
 
-from ._align_utils import normalize_rotations, align_image_to_template, Ranges
+from ._align_utils import normalize_rotations, Ranges
 from .molecules import Molecules
 from ..utils import multi_map_coordinates, no_verbose
 from ..const import nm
@@ -215,7 +215,7 @@ class SubtomogramLoader:
         *,
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
-        max_shifts: int | tuple[int, int, int] = 4,
+        max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         order: int = 1,
@@ -239,6 +239,7 @@ class SubtomogramLoader:
         local_rot = np.zeros((len(self), 4))
         local_rot[:, 3] = 1  # identity map in quaternion
         
+        _max_shifts_px = np.asarray(max_shifts) / self.scale
         with no_verbose():
             template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
             if rots is None:
@@ -248,7 +249,7 @@ class SubtomogramLoader:
                         input_subvol.fft(),
                         template_ft, 
                         upsample_factor=20, 
-                        max_shifts=max_shifts
+                        max_shifts=_max_shifts_px
                     )
                     if self.image_avg is None:
                         pre_alignment += subvol
@@ -269,7 +270,7 @@ class SubtomogramLoader:
                             input_subvol.fft(),
                             template_ft, 
                             upsample_factor=20, 
-                            max_shifts=max_shifts
+                            max_shifts=_max_shifts_px
                         )
                         all_shifts.append(shift)
                         shifted_subvol = input_subvol.affine(translation=shift)
@@ -303,7 +304,7 @@ class SubtomogramLoader:
         *,
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
-        max_shifts: int | tuple[int, int, int] = 4,
+        max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         order: int = 1,
@@ -395,7 +396,7 @@ class SubtomogramLoader:
                 if not load_all:
                     image_ave = candidate.average(order=order)
                 else:
-                    image_ave = np.mean(subtomograms[sl], axis="p")  # TODO: this needs impy update
+                    image_ave = np.mean(subtomograms[sl], axis="p")
                 averaged_images.append(image_ave)
                 corr = ip.zncc(image_ave*mask, masked_template)
                 corrs.append(corr)
@@ -473,7 +474,7 @@ class SubtomogramLoader:
         mask: ip.ImgArray | None = None,
         seed: int | float | str | bytes | bytearray | None = 0,
         order: int = 1,
-        nbin: int = 16,
+        dfreq: float = 0.05,
         ) -> np.ndarray:
         
         # WIP!
@@ -484,10 +485,7 @@ class SubtomogramLoader:
         
         img0, img1 = self.average_split(seed=seed, order=order)
             
-        fsc = ip.fsc(img0*mask,
-                     img1*mask,
-                     nbin=nbin,
-                     )
+        fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
         
         if self.image_avg is None:
             self.image_avg = img0 + img1
@@ -498,7 +496,7 @@ class SubtomogramLoader:
     def get_classifier(
         self,
         mask: ip.ImgArray | None = None,
-        n_components: int = 2,
+        n_components: int = 5,
         n_clusters: int = 2,
         seed: int | None = 0,
     ) -> PcaClassifier:

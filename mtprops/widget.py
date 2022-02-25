@@ -1703,8 +1703,14 @@ class MTPropsWidget(MagicTemplate):
                     self._viewer.window.activate()
                 except RuntimeError:
                     self._viewer = None
-            self._viewer = _show_reconstruction(image, name=name, viewer=self._viewer)
-            return self._viewer
+            if viewer is None:
+                viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
+            viewer.scale_bar.visible = True
+            viewer.scale_bar.unit = "nm"
+            with no_verbose():
+                viewer.add_image(image.rescale_intensity(), scale=image.scale, name=name)
+            self._viewer = viewer
+            return viewer
         
         @do_not_record
         def Show_template(self):
@@ -1947,8 +1953,8 @@ class MTPropsWidget(MagicTemplate):
             loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
             _scale = self.tomogram.scale
             
-        # max_shifts = tuple(np.ceil(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale))
-        max_shifts = ceilint(pitch/_scale)
+        max_shifts = tuple(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale)
+        # max_shifts = ceilint(pitch/_scale)
         worker = create_worker(loader.iter_average,
                                order = 1,
                                _progress={"total": nmole, "desc": "Running"}
@@ -1969,7 +1975,7 @@ class MTPropsWidget(MagicTemplate):
             dx = shift[-1]
             dtheta = dx/radius
             skew_rotator = Rotation.from_rotvec(molecules.y * dtheta)
-            shift = molecules.rotator.apply(-shift * self.tomogram.scale)
+            shift = molecules.rotator.apply(-shift * self.tomogram.scale)  # Verified
             internal_rotator = Rotation.from_rotvec([0, rot, 0])
             mole = molecules.rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
             
@@ -1987,7 +1993,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"widget_type": TupleEdit, "options": {"max": 32}},
+        max_shifts={"widget_type": TupleEdit, "options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
         z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
         x_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
@@ -2000,7 +2006,7 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        max_shifts: Tuple[int, int, int] = (4, 4, 4),
+        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
@@ -2018,8 +2024,8 @@ class MTPropsWidget(MagicTemplate):
             Template image.
         mask_params : ip.ImgArray, optional
             Mask image. Must in the same shape as the template.
-        max_shifts : int or tuple of int, default is (4, 4, 4)
-            Maximum shift between subtomograms and template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
             Rotation in external degree around z-axis.
         y_rotation : tuple of float, optional
@@ -2143,12 +2149,15 @@ class MTPropsWidget(MagicTemplate):
         def _on_returned(result: Tuple[np.ndarray, ip.ImgArray, list[Molecules]]):
             corrs, img_ave, moles = result
             iopt = np.argmax(corrs)
-            viewer = self._subtomogram_averaging._show_reconstruction(img_ave, "All reconstructions")
+            viewer: napari.Viewer = self._subtomogram_averaging._show_reconstruction(
+                img_ave, "All reconstructions"
+            )
             # plot all the correlation
             plt1 = Figure(style="dark_background")
             plt1.plot(corrs)
             plt1.xlabel("Seam position")
             plt1.ylabel("Correlation")
+            plt1.xticks(np.arange(0, 2*npf+1, 4))
             plt1.title("Seam search result")
             
             # plot the score
@@ -2161,9 +2170,10 @@ class MTPropsWidget(MagicTemplate):
             plt2.plot(score)
             plt2.xlabel("PF position")
             plt2.ylabel("ΔCorr")
+            plt1.xticks(np.arange(0, npf+1, 2))
             plt2.title("Score")
             wdt = DraggableContainer(widgets=[plt1, plt2], labels=False)
-            viewer.window.add_dock_widget(wdt, name="Seam search", area="bottom")
+            viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
             _add_molecules(self.parent_viewer, moles[iopt], layer.name + "-OPT", source=source)
             
         self._worker_control.info = "Seam search ... "
@@ -2806,15 +2816,6 @@ def change_viewer_focus(viewer: "napari.Viewer", next_center: Iterable[float],
     viewer.camera.zoom = zoom
     viewer.dims.current_step = list(next_coord.astype(np.int64))
 
-def _show_reconstruction(img: ip.ImgArray, name, viewer: Union[napari.Viewer, None] = None) -> napari.Viewer:
-    if viewer is None:
-        viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
-    viewer.scale_bar.visible = True
-    viewer.scale_bar.unit = "nm"
-    with no_verbose():
-        viewer.add_image(img.rescale_intensity(), scale=img.scale, name=name)
-    return viewer
-
 def _iter_run(tomo: MtTomogram, 
               interval: nm,
               ft_size,
@@ -2905,4 +2906,4 @@ def _coerce_aligned_name(name: str):
             name = "".join(pre)
         except Exception:
             num = 1
-    return name + f"-{ALN_SUFFIX}{num}"
+    return name + f"{ALN_SUFFIX}{num}"
