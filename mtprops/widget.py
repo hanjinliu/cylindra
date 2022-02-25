@@ -1703,14 +1703,14 @@ class MTPropsWidget(MagicTemplate):
                     self._viewer.window.activate()
                 except RuntimeError:
                     self._viewer = None
-            if viewer is None:
-                viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
-            viewer.scale_bar.visible = True
-            viewer.scale_bar.unit = "nm"
+            if self._viewer is None:
+                self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
+            self._viewer.scale_bar.visible = True
+            self._viewer.scale_bar.unit = "nm"
             with no_verbose():
-                viewer.add_image(image.rescale_intensity(), scale=image.scale, name=name)
-            self._viewer = viewer
-            return viewer
+                self._viewer.add_image(image.rescale_intensity(), scale=image.scale, name=name)
+            
+            return self._viewer
         
         @do_not_record
         def Show_template(self):

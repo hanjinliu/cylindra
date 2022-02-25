@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
-from typing import Callable, Iterable, TypedDict
+from typing import Callable, Iterable, TypedDict, TYPE_CHECKING
 import warnings
 import numpy as np
 import numba as nb
@@ -8,17 +8,24 @@ import json
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
-from ..utils import ceilint, interval_divmod, oblique_meshgrid, roundint
+from ..utils import ceilint, interval_divmod, roundint
 from ..const import nm
 from .molecules import Molecules, axes_to_rotator
 
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
 class Coords3D(TypedDict):
+    """3D coordinates in list used in json."""
+    
     z: list[float]
     y: list[float]
     x: list[float]
 
     
 class SplineInfo(TypedDict):
+    """Spline parameters used in json."""
+    
     t: list[float]
     c: Coords3D
     k: int
@@ -45,7 +52,13 @@ class Spline:
     # is changed.
     _local_cache: tuple[str] = ()
     
-    def __init__(self, scale: float = 1.0, k: int = 3, *, lims: tuple[float, float] = (0., 1.)):
+    def __init__(
+        self, 
+        scale: float = 1.0, 
+        k: int = 3, 
+        *, 
+        lims: tuple[float, float] = (0., 1.)
+    ):
         self._tck = None
         self._u = None
         self.scale = scale
@@ -58,7 +71,7 @@ class Spline:
             raise ValueError(f"'lims' must fit in range of [0, 1] but got {list(lims)!r}.")
         self._lims = lims
     
-    def copy(self, copy_cache: bool = True) -> Spline:
+    def copy(self, copy_cache: bool = True) -> Self:
         """
         Copy Spline3D object.
 
@@ -97,7 +110,7 @@ class Spline:
     def k(self) -> int:
         return self._k
     
-    def __eq__(self, other: Spline):
+    def __eq__(self: Self, other: Self) -> bool:
         if not isinstance(other, self.__class__):
             return False
         t0, c0, k0 = self.tck
@@ -198,7 +211,7 @@ class Spline:
         return f"{self.__class__.__name__}({start}~{end})"
 
     
-    def clip(self, start: float, stop: float) -> Spline:
+    def clip(self, start: float, stop: float) -> Self:
         """
         Clip spline and generate a new one.
         
@@ -224,7 +237,7 @@ class Spline:
         return new
     
 
-    def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Spline:
+    def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Self:
         """
         Fit spline model using a list of coordinates.
 
@@ -248,7 +261,12 @@ class Spline:
         return self
     
 
-    def shift_fit(self, u: Iterable[float] = None, shifts: np.ndarray = None, s: float = None) -> Spline:
+    def shift_fit(
+        self,
+        u: Iterable[float] | None = None,
+        shifts: np.ndarray | None = None,
+        s: float = None
+    ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
 
@@ -323,7 +341,7 @@ class Spline:
             out = -out
         return out
 
-    def partition(self, n: int, der: int = 0):
+    def partition(self, n: int, der: int = 0) -> np.ndarray:
         u = np.linspace(0, 1, n)
         return self(u, der)
 
@@ -338,7 +356,7 @@ class Spline:
         dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
 
-    def invert(self) -> Spline:
+    def invert(self) -> Self:
         """
         Invert the direction of spline.
 
@@ -400,7 +418,7 @@ class Spline:
                 }
     
     @classmethod
-    def from_dict(cls, d: SplineInfo):
+    def from_dict(cls, d: SplineInfo) -> Self:
         self = cls(d["scale"], d["k"])
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]

@@ -7,7 +7,7 @@ if sys.version_info < (3, 10):
 else:
     from typing import ParamSpecKwargs
     
-from typing import Callable, Iterable, Any, TypeVar, overload, Protocol
+from typing import Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING
 import json
 from functools import partial, wraps
 import numpy as np
@@ -39,6 +39,8 @@ from ..utils import (
     angle_uniform_filter,
     )
 
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
@@ -120,7 +122,7 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
             
         return out
 
-    return _func  
+    return _func
 
 
 def json_encoder(obj: Any):
@@ -234,7 +236,7 @@ class MtSpline(Spline):
         return d
         
     @classmethod
-    def from_dict(cls, d: dict):
+    def from_dict(cls, d: dict) -> Self:
         self = super().from_dict(d)
         localprops = d.get(K.localprops, None)
         if localprops is not None and H.splPosition in localprops:
@@ -303,7 +305,7 @@ class MtTomogram:
         subtomogram_length: nm = 48.0,
         subtomogram_width: nm = 40.0,
         light_background: bool = True
-    ) -> MtTomogram:
+    ) -> Self:
         
         self = cls(subtomogram_length=subtomogram_length,
                    subtomogram_width=subtomogram_width,
@@ -388,7 +390,7 @@ class MtTomogram:
         return None
     
     
-    def load_json(self, file_path: str) -> MtTomogram:
+    def load_json(self, file_path: str) -> Self:
         """
         Load splines from a json file.
 
@@ -489,7 +491,7 @@ class MtTomogram:
         return None
     
     
-    def align_to_polarity(self, orientation: Ori | str = Ori.MinusToPlus) -> MtTomogram:
+    def align_to_polarity(self, orientation: Ori | str = Ori.MinusToPlus) -> Self:
         """
         Align all the splines in the direction parallel to microtubule polarity.
 
@@ -515,7 +517,7 @@ class MtTomogram:
         return self
         
     
-    def collect_anchor_coords(self, i: int|Iterable[int] = None) -> np.ndarray:
+    def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
         """
         Collect all the anchor coordinates into a single np.ndarray.
 
@@ -639,14 +641,14 @@ class MtTomogram:
     @batch_process
     def fit(
         self, 
-        i = None,
+        i: int = None,
         *, 
         max_interval: nm = 30.0,
         degree_precision: float = 0.5,
         cutoff: float = 0.2,
         dense_mode: bool = False,
         dense_mode_sigma: nm = 2.0,
-    ) -> MtTomogram:
+    ) -> Self:
         """
         Roughly fit i-th spline to MT.
         
@@ -770,13 +772,13 @@ class MtTomogram:
     @batch_process
     def refine(
         self, 
-        i = None,
+        i: int = None,
         *, 
         max_interval: nm = 30.0,
         cutoff: float = 0.35,
         projection: bool = True,
         corr_allowed: float = 0.9,
-    ) -> MtTomogram:
+    ) -> Self:
         """
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
@@ -901,7 +903,7 @@ class MtTomogram:
         return self
     
     @batch_process
-    def measure_radius(self, i = None) -> nm:
+    def measure_radius(self, i: int = None) -> nm:
         """
         Measure MT radius using radial profile from the center.
 
@@ -938,7 +940,7 @@ class MtTomogram:
         return r_peak_sub
     
     @batch_process
-    def local_ft_params(self, i = None, ft_size: nm = 32.0) -> pd.DataFrame:
+    def local_ft_params(self, i: int = None, ft_size: nm = 32.0) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
         To determine the peaks upsampled discrete Fourier transformation is used
@@ -990,7 +992,7 @@ class MtTomogram:
         return spl.localprops
     
     @batch_process
-    def local_cft(self, *, i = None, ft_size: nm = 32.0, pos: int | None = None) -> ip.ImgArray:
+    def local_cft(self, *, i: int = None, ft_size: nm = 32.0, pos: int | None = None) -> ip.ImgArray:
         """
         Calculate non-upsampled local cylindric Fourier transormation along spline. 
 
@@ -1034,7 +1036,7 @@ class MtTomogram:
         return np.stack(out, axis="p")
         
     @batch_process
-    def global_ft_params(self, i = None) -> pd.Series:
+    def global_ft_params(self, i: int = None) -> pd.Series:
         """
         Calculate MT global structural parameters from cylindrical Fourier space along 
         spline. This function calls ``straighten`` beforehand, so that Fourier space is 
@@ -1060,7 +1062,7 @@ class MtTomogram:
         return series
     
     @batch_process
-    def global_cft(self, i = None) -> ip.ImgArray:
+    def global_cft(self, i: int = None) -> ip.ImgArray:
         """
         Calculate global cylindrical fast Fourier tranformation.
         
@@ -1080,12 +1082,13 @@ class MtTomogram:
         return img_st.fft(dims="rya")
 
     @batch_process
-    def straighten(self, 
-                   i = None, 
-                   *,
-                   size: nm | tuple[nm, nm] = None,
-                   range_: tuple[float, float] = (0.0, 1.0), 
-                   chunk_length: nm = 72.0) -> ip.ImgArray:
+    def straighten(
+        self, 
+        i: int = None, 
+        *,
+        size: nm | tuple[nm, nm] = None,
+        range_: tuple[float, float] = (0.0, 1.0), 
+        chunk_length: nm = 72.0) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -1146,12 +1149,14 @@ class MtTomogram:
         return transformed
 
     @batch_process
-    def straighten_cylindric(self, 
-                             i = None, 
-                             *,
-                             radii: tuple[nm, nm] = None,
-                             range_: tuple[float, float] = (0.0, 1.0), 
-                             chunk_length: nm = 72.0) -> ip.ImgArray:
+    def straighten_cylindric(
+        self, 
+        i: int = None, 
+        *,
+        radii: tuple[nm, nm] = None,
+        range_: tuple[float, float] = (0.0, 1.0), 
+        chunk_length: nm = 72.0
+    ) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -1250,7 +1255,7 @@ class MtTomogram:
     @batch_process
     def map_centers(
         self, 
-        i = None,
+        i: int = None,
         *, 
         interval: nm | None = None,
         length: nm | None = None,
@@ -1281,7 +1286,7 @@ class MtTomogram:
     @batch_process
     def map_monomers(
         self, 
-        i = None,
+        i: int = None,
         *, 
         length: nm | None = None,
         offsets: tuple[nm, float] = None
@@ -1341,7 +1346,7 @@ class MtTomogram:
     @batch_process
     def map_pf_line(
         self,
-        i = None,
+        i: int = None,
         *,
         interval: nm | None = None,
         angle_offset: float = 0.0,
