@@ -33,8 +33,8 @@ class SplineFitter(MagicTemplate):
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
         """MT sub-regions"""
-        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT"}, 
-                        name="Spline No.", record=False)
+        num = field(int, options={"max": 0, "tooltip": "Number of MT"}, 
+                    name="Spline No.", record=False)
         pos = field(int, options={"max": 0, "tooltip": "Position in a MT"},
                     name="Pos", record=False)
         def Fit(self): ...
@@ -61,11 +61,11 @@ class SplineFitter(MagicTemplate):
             def Average(self): ...
     
     def _get_shifts(self, _=None):
-        i = self.mt.mtlabel.value
+        i = self.mt.num.value
         return self.shifts[i]
     
     @mt.wraps
-    def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.mtlabel]):
+    def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.num]):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         spl = self.splines[i]
@@ -80,7 +80,7 @@ class SplineFitter(MagicTemplate):
     @do_not_record
     def Average(self):
         """Show rotatinal averaged image."""        
-        i = self.mt.mtlabel.value
+        i = self.mt.num.value
         j = self.mt.pos.value
                 
         with no_verbose():
@@ -120,7 +120,7 @@ class SplineFitter(MagicTemplate):
         return self.find_ancestor(MTPropsWidget)
     
     def _update_cross(self, x: float, z: float):
-        i = self.mt.mtlabel.value
+        i = self.mt.num.value
         j = self.mt.pos.value
         
         itemv = self.canvas.layers[0]
@@ -159,13 +159,13 @@ class SplineFitter(MagicTemplate):
             
         self.shifts = [None] * tomo.n_splines
         self.binsize = tomo.metadata["binsize"]
-        self.mt.mtlabel.max = tomo.n_splines - 1
-        self.mt.mtlabel.value = 0
+        self.mt.num.max = tomo.n_splines - 1
+        self.mt.num.value = 0
         self._mt_changed()
         
-    @mt.mtlabel.connect
+    @mt.num.connect
     def _mt_changed(self):
-        i = self.mt.mtlabel.value
+        i = self.mt.num.value
         self.mt.pos.value = 0
         parent = self._get_parent()
         imgb = parent.layer_image.data
@@ -199,7 +199,7 @@ class SplineFitter(MagicTemplate):
     
     @mt.pos.connect
     def _position_changed(self):
-        i = self.mt.mtlabel.value
+        i = self.mt.num.value
         j = self.mt.pos.value
         self.canvas.image = self.subtomograms[j]
         if self.shifts is not None and self.shifts[i] is not None:

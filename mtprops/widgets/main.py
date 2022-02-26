@@ -652,12 +652,7 @@ class MTPropsWidget(MagicTemplate):
         spl = tomo.splines[i]
         pos = spl.anchors[j]
         next_center = spl(pos) / tomo.scale
-        viewer.dims.current_step = list(next_center.astype(np.int64))
-        
-        viewer.camera.center = next_center
-        zoom = viewer.camera.zoom
-        viewer.camera.events.zoom() # Here events are emitted and zoom changes automatically.
-        viewer.camera.zoom = zoom
+        change_viewer_focus(viewer, next_center, tomo.scale)
         
         self.layer_paint.show_selected_label = True
         
@@ -1493,7 +1488,7 @@ class MTPropsWidget(MagicTemplate):
         molecules: Molecules = layer.metadata[MOLECULES]
         template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
         mask: ip.ImgArray = self._subtomogram_averaging._get_mask(params=mask_params)
-        if template.shape != mask.shape:
+        if mask is not None and template.shape != mask.shape:
             raise ValueError("Shape mismatch between template and mask.")
         nmole = len(molecules)
         spl: MtSpline = layer.metadata.get(SOURCE, None)
@@ -1786,7 +1781,7 @@ class MTPropsWidget(MagicTemplate):
         if msg:
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
-        change_viewer_focus(self.parent_viewer, point2, scale=imgb.scale.x)
+        change_viewer_focus(self.parent_viewer, point2, imgb.scale.x)
         return None
     
     @toolbar.wraps
@@ -1817,7 +1812,7 @@ class MTPropsWidget(MagicTemplate):
         
         self.layer_work.data = points * imgb.scale.x
         if len(selected) == 1:
-            change_viewer_focus(self.parent_viewer, points[last_i], scale=imgb.scale.x)
+            change_viewer_focus(self.parent_viewer, points[last_i], imgb.scale.x)
         return None
     
     @Image.wraps
@@ -2063,7 +2058,7 @@ class MTPropsWidget(MagicTemplate):
             # update viewer dimensions
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
-            change_viewer_focus(viewer, np.asarray(imgb.shape)*imgb.scale.x/2, imgb.scale.x)
+            change_viewer_focus(viewer, np.asarray(imgb.shape)/2, imgb.scale.x)
             
             # update labels layer
             if self.layer_paint is not None:

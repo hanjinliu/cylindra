@@ -130,7 +130,8 @@ class SplineControl(MagicTemplate):
         r = r_px * GVar.outer
         xmin, xmax = -r + lx/2 - 0.5, r + lx/2 + 0.5
         self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
-                                 [ymin, ymax, ymax, ymin, ymin], color="lime")
+                                 [ymin, ymax, ymax, ymin, ymin], 
+                                 color="lime")
 
         # draw two circles in ZX-view
         theta = np.linspace(0, 2*np.pi, 360)
@@ -140,9 +141,11 @@ class SplineControl(MagicTemplate):
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
         
         # update pyqtgraph
-        if parent.LocalProperties._y_pitch is not None:
+        if spl.localprops is not None:
             x = spl.localprops[H.splDistance][j]
             parent.LocalProperties._plot_spline_position(x)
+        else:
+            parent.LocalProperties._init_plot()
         return None
     
     def _reset_contrast_limits(self):

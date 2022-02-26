@@ -65,11 +65,20 @@ class LocalPropertiesWidget(MagicTemplate):
         self.params.pitch.txt = " -- nm"
         self.params.skew.txt = " -- °"
         self.params.structure.txt = " -- "
+        return None
         
     def _set_text(self, pitch, skew, npf, start):
         self.params.pitch.txt = f" {pitch:.2f} nm"
         self.params.skew.txt = f" {skew:.2f}°"
         self.params.structure.txt = f" {int(npf)}_{start:.1f}"
+        return None
+    
+    def _init_plot(self):
+        self.plot[0].layers.clear()
+        self.plot[1].layers.clear()
+        self._y_pitch = None
+        self._skew_angle = None
+        return None
     
     def _plot_properties(self, props: "pd.DataFrame"):
         if props is None:
@@ -78,18 +87,17 @@ class LocalPropertiesWidget(MagicTemplate):
         pitch_color = "lime"
         skew_color = "gold"
         
+        self._init_plot()
+        
         self._y_pitch = props[H.yPitch]
         self._skew_angle = props[H.skewAngle]
         
-        self.plot[0].layers.clear()
         self.plot[0].add_curve(x, self._y_pitch, color=pitch_color)
-        
-        self.plot[1].layers.clear()
         self.plot[1].add_curve(x, self._skew_angle, color=skew_color)
 
         self.plot[0].xlim = (x[0] - 2, x[-1] + 2)
-        self.plot[0].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.6], lw=2)
-        self.plot[1].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.6], lw=2)
+        self.plot[0].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.3], lw=2)
+        self.plot[1].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.3], lw=2)
         self._plot_spline_position(x[0])
         return None
     
@@ -153,6 +161,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         self.params.params1.structure.txt = " -- "
         self.params.params2.radius.txt = " -- nm"
         self.params.params2.polarity.pol = Ori.none
+        return None
         
     def _set_text(self, pitch, skew, npf, start, radius, pol):
         self.params.params1.pitch.txt = f" {pitch:.2f} nm"
@@ -160,11 +169,15 @@ class GlobalPropertiesWidget(MagicTemplate):
         self.params.params1.structure.txt = f" {int(npf)}_{start:.1f}"
         self.params.params2.radius.txt = f" {radius:.2f} nm"
         self.params.params2.polarity.pol = pol
+        return None
     
     @params.params2.polarity.pol.connect
     def _update_polarity_of_spline(self):
         from .main import MTPropsWidget
         parent = self.find_ancestor(MTPropsWidget)
         i = parent.SplineControl.num.value
+        if parent.tomogram is None or i is None:
+            return None
         spl = parent.tomogram.splines[i]
         spl.orientation = self.params.params2.polarity.pol
+        return None

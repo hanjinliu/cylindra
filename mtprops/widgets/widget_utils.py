@@ -20,14 +20,14 @@ def add_molecules(viewer: napari.Viewer, mol: Molecules, name, source: MtSpline 
 
 
 def change_viewer_focus(
-    viewer: "napari.Viewer", 
-    next_center: Iterable[float], 
-    scale: float,
+    viewer: "napari.Viewer",
+    center: Iterable[float],
+    scale: float = 1.0,
 ) -> None:
-    viewer.camera.center = next_center
+    center = np.asarray(center)
+    viewer.camera.center = center * scale
     zoom = viewer.camera.zoom
     viewer.camera.events.zoom()
     viewer.camera.zoom = zoom
-    step = np.asarray(next_center)/scale
-    viewer.dims.current_step = list(step.astype(int))
+    viewer.dims.current_step = list(center.astype(int))
     return None

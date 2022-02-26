@@ -26,6 +26,11 @@ def test_run_all():
     assert abs(ypitch_glob - ypitch_mean) < 0.013
     assert all(spl.localprops[H.nPF] == 13)
     assert all(spl.localprops[H.riseAngle] > 8.3)
+    ui.GlobalProperties.params.params2.polarity.pol = "PlusToMinus"
+    ui.GlobalProperties.params.params2.polarity[1].changed.emit()
+    ui.Align_to_polarity(orientation="MinusToPlus")
+    assert ui.GlobalProperties.params.params2.polarity.pol == "MinusToPlus"
+    assert ui.LocalProperties.params.pitch.txt == " -- nm"
     
     path = Path(__file__).parent / "14pf_MT.tif"
     ui.load_tomogram(path=path, scale='1.052', bin_size=1, light_background=False, cutoff=0.0,
@@ -35,7 +40,13 @@ def test_run_all():
                              [21.97, 17.6, 64.96]])
     ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, dense_mode_sigma=0.2, 
                    local_props=True, global_props=True, paint=True)
+    
+    ui.SplineControl.pos.value = 1
     spl = ui.tomogram.splines[0]
+    assert ui.SplineControl.canvas[0].image is not None
+    assert ui.LocalProperties.params.pitch.txt == f" {spl.localprops[H.yPitch][1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == f" {spl.globalprops[H.yPitch]:.2f} nm"
+
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
     assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has pitch length in this range
@@ -53,6 +64,10 @@ def test_run_all():
                                 layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",
                            layer=viewer.layers['Monomers-0'], rotation_axes="ZXZ", in_degree=True, separator=",")
+    ui.clear_all()
+    assert ui.SplineControl.canvas[0].image is None
+    assert ui.LocalProperties.params.pitch.txt == " -- nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == f" -- nm"
 
 def test_chunked_straightening():
     path = Path(__file__).parent / "14pf_MT.tif"
