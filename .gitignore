@@ -1,5 +1,8 @@
 .vscode/
 
+tests/*.txt
+tests/*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
