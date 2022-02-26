@@ -28,6 +28,9 @@ class LocalPropertiesWidget(MagicTemplate):
         self.plot[1].border = [1, 1, 1, 0.2]
         
         self._init_text()
+        
+        self._y_pitch = None
+        self._skew_angle = None
     
     @magicclass(widget_type="groupbox", layout="horizontal", labels=False, name="lattice parameters")
     class params(MagicTemplate):
@@ -75,14 +78,30 @@ class LocalPropertiesWidget(MagicTemplate):
         pitch_color = "lime"
         skew_color = "gold"
         
+        self._y_pitch = props[H.yPitch]
+        self._skew_angle = props[H.skewAngle]
+        
         self.plot[0].layers.clear()
-        self.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
+        self.plot[0].add_curve(x, self._y_pitch, color=pitch_color)
         
         self.plot[1].layers.clear()
-        self.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
+        self.plot[1].add_curve(x, self._skew_angle, color=skew_color)
 
-        self.plot.xlim = (x[0] - 2, x[-1] + 2)
+        self.plot[0].xlim = (x[0] - 2, x[-1] + 2)
+        self.plot[0].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.6], lw=2)
+        self.plot[1].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.6], lw=2)
+        self._plot_spline_position(x[0])
         return None
+    
+    def _plot_spline_position(self, x: float):
+        self.plot[0].layers[-1].pos = [x, 0]
+        self.plot[1].layers[-1].pos = [x, 0]
+        xmin, xmax = self.plot[0].xlim
+        if x < xmin or xmax < x:
+            dx = xmax - xmin
+            self.plot[0].xlim = (x - dx/2, x + dx/2)
+        return None
+            
 
 @magicclass(widget_type="collapsible")
 class GlobalPropertiesWidget(MagicTemplate):

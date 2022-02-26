@@ -5,6 +5,7 @@ from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from ..const import GVar, H
 from ..utils import no_verbose, load_rot_subtomograms, Projections
 
+
 @magicclass(widget_type="groupbox", name="Spline Control")
 class SplineControl(MagicTemplate):
     """MT sub-regions"""
@@ -50,7 +51,6 @@ class SplineControl(MagicTemplate):
         else:
             self.pos.value = 0
             self.pos.max = 0
-            print("no anchor found")
             return
         
         self.pos.max = n_anc - 1
@@ -64,7 +64,6 @@ class SplineControl(MagicTemplate):
         elif spl.globalprops is not None:
             npf_list = [spl.globalprops[H.nPF]] * spl.anchors.size
         else:
-            print("no pf found")
             return None
 
         binsize = tomo.metadata["binsize"]
@@ -139,6 +138,11 @@ class SplineControl(MagicTemplate):
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
         r = r_px * GVar.outer
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        
+        # update pyqtgraph
+        if parent.Local_Properties._y_pitch is not None:
+            x = spl.localprops[H.splDistance][j]
+            parent.Local_Properties._plot_spline_position(x)
         return None
     
     def _reset_contrast_limits(self):

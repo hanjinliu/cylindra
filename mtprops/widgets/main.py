@@ -672,9 +672,6 @@ class MTPropsWidget(MagicTemplate):
     def Sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
         self._spline_fitter.close()
-        # tomo = self.tomogram
-        # spl = tomo.splines[0]
-        # ori = spl.orientation
         
         # initialize GUI
         self.SplineControl.num.changed.emit()
@@ -2237,49 +2234,6 @@ class MTPropsWidget(MagicTemplate):
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
             self.Local_Properties._set_text(pitch, skew, npf, start)
         return None
-    
-    # @SplineControl.num.connect
-    # def _update_canvas(self):
-    #     i = self.SplineControl.num.value
-    #     tomo = self.tomogram
-    #     if i >= len(tomo.splines):
-    #         return
-    #     spl = tomo.splines[i]
-    #     if spl._anchors is None:
-    #         return
-        
-    #     # calculate projection
-    #     binsize = tomo.metadata["binsize"]
-    #     imgb = self.layer_image.data
-        
-    #     # Rotational average should be calculated using local nPF if possible.
-    #     # If not available, use global nPF
-    #     projections: List[Projections] = []
-    #     if spl.localprops is not None:
-    #         npf_list = spl.localprops[H.nPF]
-    #     elif spl.globalprops is not None:
-    #         npf_list = [spl.globalprops[H.nPF]] * tomo.splines[i].anchors.size
-    #     else:
-    #         return None
-        
-    #     spl.scale *= binsize
-        
-    #     length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
-    #     width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
-    #     out = load_rot_subtomograms(imgb, length_px, width_px, spl)
-        
-    #     spl.scale /= binsize
-        
-    #     for img, npf in zip(out, npf_list):    
-    #         proj = Projections(img)
-    #         proj.rotational_average(npf)
-    #         projections.append(proj)
-        
-    #     self.projections = projections
-        
-    #     self._plot_properties()
-    #     self._imshow_all()
-    #     return None
     
     def _connect_worker(self, worker: Worker):
         self._worker_control._set_worker(worker)
