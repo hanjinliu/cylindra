@@ -6,9 +6,9 @@ import magicgui
 from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
 from napari.layers import Points
+from .const import MOLECULES
 
 MonomerLayer = NewType("MonomerLayer", Points)
-MOLECULES = "Molecules"
 
 def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
     viewer = find_viewer_ancestor(gui.native)

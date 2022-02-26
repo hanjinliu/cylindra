@@ -4,4 +4,4 @@ __email__ = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp"
 
 from .core import start
 from .components.tomogram import MtTomogram
-from .widget import MTPropsWidget
+from .widgets import MTPropsWidget

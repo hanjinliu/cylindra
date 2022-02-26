@@ -475,7 +475,7 @@ class SubtomogramLoader:
         seed: int | float | str | bytes | bytearray | None = 0,
         order: int = 1,
         dfreq: float = 0.05,
-        ) -> np.ndarray:
+        ) -> tuple[np.ndarray, np.ndarray]:
         
         # WIP!
         if mask is None:
@@ -485,13 +485,13 @@ class SubtomogramLoader:
         
         img0, img1 = self.average_split(seed=seed, order=order)
             
-        fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+        freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
         
         if self.image_avg is None:
             self.image_avg = img0 + img1
             self.image_avg.set_scale(self.image_ref)
         
-        return np.asarray(fsc)
+        return freq, fsc
     
     def get_classifier(
         self,

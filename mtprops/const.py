@@ -1,8 +1,16 @@
 from enum import Enum
 import numpy as np
 from types import SimpleNamespace
+from pathlib import Path
 
 nm = float  # type alias for clearer annotation.
+
+WORKING_LAYER_NAME = "Working Layer"
+SELECTION_LAYER_NAME = "Selected MTs"
+MOLECULES = "Molecules"
+SOURCE = "Source"
+ALN_SUFFIX = "ALN"
+
 
 class strEnum(Enum):
     def __str__(self):

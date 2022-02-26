@@ -11,7 +11,7 @@ from magicclass import magicclass, vfield, MagicTemplate
 from magicclass.gui._message_box import QtErrorMessageBox
 
 if TYPE_CHECKING:
-    from .widget import MTPropsWidget
+    from .main import MTPropsWidget
 
 Worker = Union[FunctionWorker, GeneratorWorker]
 

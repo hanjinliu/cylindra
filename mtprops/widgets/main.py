@@ -1,4 +1,4 @@
-import os.path
+import re
 from typing import Iterable, Union, Tuple, List
 from pathlib import Path
 import numpy as np
@@ -36,12 +36,11 @@ from magicclass.widgets import (
     Figure,
     DraggableContainer
     )
-from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiPlotCanvas, QtMultiImageCanvas
-from magicclass.utils import to_clipboard
+from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiImageCanvas
 
-from .components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
-from .components.tomogram import angle_corr, dask_affine, centroid
-from .utils import (
+from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
+from ..components.tomogram import angle_corr, dask_affine
+from ..utils import (
     Projections,
     crop_tomogram,
     make_slice_and_pad,
@@ -52,325 +51,18 @@ from .utils import (
     load_rot_subtomograms,
     no_verbose
     )
-from .const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
-from .types import MOLECULES, MonomerLayer, get_monomer_layers
+from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
+from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
+from ..types import MonomerLayer
+
+from .localprops import LocalProperties
+from .spline_fitter import SplineFitter
+from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
+from .widget_utils import add_molecules
+from ..ext.etomo import PEET
 
-
-WORKING_LAYER_NAME = "Working Layer"
-SELECTION_LAYER_NAME = "Selected MTs"
 ICON_DIR = Path(__file__).parent / "icons"
-SOURCE = "Source"
-ALN_SUFFIX = "ALN"
-
-@magicclass
-class SplineFitter(MagicTemplate):
-    # Manually fit MT with spline curve using longitudinal projections
-    
-    canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
-        
-    @magicclass(layout="horizontal")
-    class mt(MagicTemplate):
-        """MT sub-regions"""
-        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT"}, 
-                        name="Spline No.", record=False)
-        pos = field(int, options={"max": 0, "tooltip": "Position in a MT"},
-                    name="Pos", record=False)
-        def Fit(self): ...
-        
-        @bind_key("Up")
-        @do_not_record
-        def _next_pos(self):
-            self.pos.value = min(self.pos.value + 1, self.pos.max)
-        
-        @bind_key("Down")
-        @do_not_record
-        def _prev_pos(self):
-            self.pos.value = max(self.pos.value - 1, self.pos.min)
-            
-    
-    @magicclass(widget_type="collapsible")
-    class Rotational_averaging(MagicTemplate):
-        canvas_rot = field(QtImageCanvas, options={"lock_contrast_limits": True})
-
-        @magicclass(layout="horizontal")
-        class frame:
-            nPF = field(10, options={"min": 1, "max": 48, "tooltip": "Number of protofilament (if nPF=12, rotational average will be calculated by summing up every 30° rotated images)."}, record=False)
-            cutoff = field(0.2, options={"min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass filter."}, record=False)
-            def Average(self): ...
-    
-    def _get_shifts(self, _=None):
-        i = self.mt.mtlabel.value
-        return self.shifts[i]
-    
-    @mt.wraps
-    def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.mtlabel]):
-        """Fit current spline."""
-        shifts = np.asarray(shifts)
-        spl = self.splines[i]
-        sqsum = GVar.splError**2 * shifts.shape[0]
-        spl.shift_fit(shifts=shifts*self.binsize*spl.scale, s=sqsum)
-        spl.make_anchors(max_interval=self.max_interval)
-        self.fit_done = True
-        self._mt_changed()
-        self.find_ancestor(MTPropsWidget)._update_splines_in_images()
-    
-    @Rotational_averaging.frame.wraps
-    @do_not_record
-    def Average(self):
-        """Show rotatinal averaged image."""        
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
-                
-        with no_verbose():
-            img = self.find_ancestor(MTPropsWidget)._current_cartesian_img(i, j)
-            cutoff = self.Rotational_averaging.frame.cutoff.value
-            if 0 < cutoff < 0.866:
-                img = img.lowpass_filter(cutoff=cutoff)
-            proj = Projections(img)
-            proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
-        self.Rotational_averaging.canvas_rot.image = proj.zx_ave
-    
-    
-    def __post_init__(self):
-        self.shifts: List[np.ndarray] = None
-        self.canvas.min_height = 160
-        self.fit_done = True
-        self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
-        self.canvas.add_infline(pos=[0, 0], angle=0, color="lime", lw=2)
-        theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
-        cos = np.cos(theta)
-        sin = np.sin(theta)
-        self.canvas.add_curve(cos, sin, color="lime", lw=2, ls="--")
-        self.canvas.add_curve(2*cos, 2*sin, color="lime", lw=2, ls="--")
-        self.mt.max_height = 50
-        self.mt.height = 50
-        
-        @self.canvas.mouse_click_callbacks.append
-        def _(e):
-            if "left" not in e.buttons():
-                return
-            self.fit_done = False
-            x, z = e.pos()
-            self._update_cross(x, z)
-    
-    def _update_cross(self, x: float, z: float):
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
-        
-        itemv = self.canvas.layers[0]
-        itemh = self.canvas.layers[1]
-        item_circ_inner = self.canvas.layers[2]
-        item_circ_outer = self.canvas.layers[3]
-        itemv.pos = [x, z]
-        itemh.pos = [x, z]
-        
-        tomo = self.find_ancestor(MTPropsWidget).tomogram
-        r_max: nm = tomo.subtomo_width/2
-        nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
-        prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
-        if tomo.light_background:
-            prof = -prof
-        imax = np.argmax(prof)
-        imax_sub = centroid(prof, imax-5, imax+5)
-        r_peak = (imax_sub+0.5)/nbin*r_max/tomo.scale/self.binsize
-        
-        theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
-        item_circ_inner.xdata = r_peak * GVar.inner * np.cos(theta) + x
-        item_circ_inner.ydata = r_peak * GVar.inner * np.sin(theta) + z
-        item_circ_outer.xdata = r_peak * GVar.outer * np.cos(theta) + x
-        item_circ_outer.ydata = r_peak * GVar.outer * np.sin(theta) + z
-        
-        lz, lx = self.subtomograms.sizesof("zx")
-        self.shifts[i][j, :] = z - lz/2 + 0.5, x - lx/2 + 0.5
-        return None
-    
-    def _load_parent_state(self, max_interval: nm):
-        self.max_interval = max_interval
-        tomo = self.find_ancestor(MTPropsWidget).tomogram
-        for i in range(tomo.n_splines):
-            spl = tomo.splines[i]
-            spl.make_anchors(max_interval=self.max_interval)
-            
-        self.shifts = [None] * tomo.n_splines
-        self.binsize = tomo.metadata["binsize"]
-        self.mt.mtlabel.max = tomo.n_splines - 1
-        self.mt.mtlabel.value = 0
-        self._mt_changed()
-        
-    @mt.mtlabel.connect
-    def _mt_changed(self):
-        i = self.mt.mtlabel.value
-        self.mt.pos.value = 0
-        parent = self.find_ancestor(MTPropsWidget)
-        imgb = parent.layer_image.data
-        tomo: MtTomogram = parent.tomogram
-        
-        spl = tomo.splines[i]
-        self.splines = tomo.splines
-        npos = spl.anchors.size
-        self.shifts[i] = np.zeros((npos, 2))
-        
-        spl.scale *= self.binsize
-        length_px = tomo.nm2pixel(tomo.subtomo_length/self.binsize)
-        width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
-        
-        with no_verbose():
-            out = load_rot_subtomograms(imgb, length_px, width_px, spl)
-            self.subtomograms = out.proj("y")["x=::-1"]
-            
-        # Restore spline scale.
-        spl.scale /= self.binsize
-        self.canvas.image = self.subtomograms[0]
-        self.mt.pos.max = npos - 1
-        self.canvas.xlim = (0, self.canvas.image.shape[1])
-        self.canvas.ylim = (0, self.canvas.image.shape[0])
-        lz, lx = self.subtomograms.sizesof("zx")
-        self._update_cross(lx/2 - 0.5, lz/2 - 0.5)
-        
-        del self.Rotational_averaging.canvas_rot.image # to avoid confusion
-        
-        return None
-    
-    @mt.pos.connect
-    def _position_changed(self):
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
-        self.canvas.image = self.subtomograms[j]
-        if self.shifts is not None and self.shifts[i] is not None:
-            y, x = self.shifts[i][j]
-        else:
-            y = x = 0
-        lz, lx = self.subtomograms.shape[-2:]
-        self._update_cross(x + lx/2 - 0.5, y + lz/2 - 0.5)
-
-
-@magicmenu
-class PEET(MagicTemplate):
-    """PEET extension."""
-    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "Model files (*.mod);;All files (*.txt;*.csv)"},
-                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"},
-                 shift_mol={"label": "Apply shifts to monomers if offsets are available."})
-    def Read_monomers(self, mod_path: Path, ang_path: Path, shift_mol: bool = True):
-        """
-        Read monomer coordinates and angles from PEET-format files.
-
-        Parameters
-        ----------
-        mod_path : Path
-            Path to the mod file that contains monomer coordinates.
-        ang_path : Path
-            Path to the text file that contains monomer angles in Euler angles.
-        shift_mol : bool, default is True
-            In PEET output csv there may be xOffset, yOffset, zOffset columns that can be directly applied to
-            the molecule coordinates.
-        """        
-        from .ext.etomo import read_mod
-        mod = read_mod(mod_path).values
-        shifts, angs = _read_shift_and_angle(ang_path)
-        mol = Molecules.from_euler(pos=mod*self.scale, angles=angs, degrees=True)
-        if shift_mol:
-            mol.translate(shifts*self.scale, copy=False)
-        
-        _add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
-    
-    @set_options(save_dir={"label": "Save at", "mode": "d"})
-    def Save_monomers(self, 
-                      save_dir: Path,
-                      layer: MonomerLayer,
-                      save_protofilaments_separately: bool = False):
-        """
-        Save monomer angles in PEET format.
-
-        Parameters
-        ----------
-        save_dir : Path
-            Saving path.
-        layer : Points
-            Select the Vectors layer to save.
-        save_protofilaments_separately : bool, default is False
-            Check if you want to save monomers on each protofilament in separate files.
-        """        
-        save_dir = Path(save_dir)
-        mol: Molecules = layer.metadata[MOLECULES]
-        from .ext.etomo import save_mod, save_angles
-        if save_protofilaments_separately:
-            spl: MtSpline = layer.metadata[SOURCE]
-            npf = roundint(spl.globalprops[H.nPF])
-            
-            for pf in range(npf):
-                sl = slice(pf, None, npf)
-                save_mod(save_dir/f"coordinates-PF{pf:0>2}.mod", mol.pos[sl, ::-1]/self.scale)
-                save_angles(save_dir/f"angles-PF{pf:0>2}.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True)[sl])
-        else:
-            save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
-            save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
-        return None
-    
-    @set_options(save_dir={"label": "Save at", "mode": "d"})
-    def Save_all_monomers(self, 
-                          save_dir: Path):
-        """
-        Save monomer angles in PEET format.
-
-        Parameters
-        ----------
-        save_dir : Path
-            Saving path.
-        """        
-        save_dir = Path(save_dir)
-        layers = get_monomer_layers(self)
-        if len(layers) == 0:
-            raise ValueError("No monomer found.")
-        mol = Molecules.concat([l.metadata[MOLECULES] for l in layers])
-        from .ext.etomo import save_mod, save_angles
-        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
-        save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
-        return None
-    
-    @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
-    def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
-        """
-        Shift monomer coordinates in PEET format.
-
-        Parameters
-        ----------
-        ang_path : Path
-            Path of offset file.
-        layer : MonomerLayer
-            Points layer of target monomers.
-        update : bool, default is False
-            Check if update monomer coordinates in place.
-        """       
-        mol: Molecules = layer.metadata[MOLECULES]
-        shifts, angs = _read_shift_and_angle(ang_path)
-        mol_shifted = mol.translate(shifts*self.scale)
-        mol_shifted = Molecules.from_euler(pos=mol_shifted.pos, angles=angs, degrees=True)
-        
-        vector_data = np.stack([mol_shifted.pos, mol_shifted.z], axis=1)
-        if update:
-            layer.data = mol_shifted.pos
-            vector_layer = None
-            vector_layer_name = layer.name + " Z-axis"
-            for l in self.parent_viewer.layers:
-                if l.name == vector_layer_name:
-                    vector_layer = l
-                    break
-            if vector_layer is not None:
-                vector_layer.data = vector_data
-            else:
-                self.parent_viewer.add_vectors(
-                    vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
-                    name=vector_layer_name,
-                    )
-            layer.metadata[MOLECULES] = mol_shifted
-        else:
-            _add_molecules(self.parent_viewer, mol_shifted, 
-                           "Molecules from PEET", source=layer.metadata.get(SOURCE, None))
-    
-    @property
-    def scale(self) -> float:
-        return self.find_ancestor(MTPropsWidget).tomogram.scale
 
 ### The main widget ###
     
@@ -440,6 +132,7 @@ class MTPropsWidget(MagicTemplate):
             def Map_along_PF(self): ...
         @magicmenu
         class Molecule_features(MagicTemplate):
+            def Molecule_orientation(self): ...
             def Monomer_intervals(self): ...
         def Open_subtomogram_analyzer(self): ...
     
@@ -458,81 +151,8 @@ class MTPropsWidget(MagicTemplate):
         sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
-        
-    @magicclass(widget_type="scrollable", labels=False)
-    class _Tomogram_list(MagicTemplate):
-        """List of tomograms that have loaded to the widget."""        
-        _tomogram_list: List[MtTomogram]
-        
-        def __init__(self):
-            self._tomogram_list = []
-            
-        def _get_tomograms(self, widget=None) -> List[Tuple[str, int]]:
-            out: List[Tuple[str, int]] = []
-            for i, tomo in enumerate(self._tomogram_list):
-                try:
-                    d, name0 = os.path.split(tomo.metadata["source"])
-                    _, name1 = os.path.split(d)
-                    name = os.path.join(name1, name0)
-                except Exception:
-                    name = f"Tomogram<{hex(id(tomo))}>"
-                out.append((name, i))
-            return out
-        
-        @magictoolbar
-        class Tools(MagicTemplate):
-            def Load(self): ...
-            def Copy_path(self): ...
-            def Delete(self): ...
-        
-        tomograms = field(int, widget_type="RadioButtons", options={"choices": _get_tomograms})
-        
-        @Tools.wraps
-        def Load(self, i: Bound[tomograms]):
-            """Load selected tomogram into the viewer."""
-            parent = self.find_ancestor(MTPropsWidget)
-            tomo: MtTomogram = self._tomogram_list[i]
-            if tomo is parent.tomogram:
-                return None
-            parent.tomogram = tomo
-            
-            # Load dask again. Here, lowpass filter is already applied so that cutoff frequency
-            # should be set to 0.
-            worker = parent._get_process_image_worker(
-                tomo.image, 
-                binsize=tomo.metadata["binsize"], 
-                light_bg=tomo.light_background, 
-                cutoff=tomo.metadata["cutoff"],
-                length=tomo.subtomo_length,
-                width=tomo.subtomo_width,
-                new=False
-                )
-            parent._last_ft_size = tomo.metadata.get("ft_size", None)
-            parent._connect_worker(worker)
-            worker.start()
-            
-            if tomo.splines:
-                worker.finished.connect(parent._init_figures)
-                worker.finished.connect(parent.Sample_subtomograms)
-            else:
-                worker.finished.connect(parent._init_layers)
-                worker.finished.connect(parent._init_widget_params)
-                worker.finished.connect(parent.Panels.overview.layers.clear)
-            
-            return None
-        
-        @Tools.wraps
-        def Copy_path(self, i: Bound[tomograms]):
-            """Copy the path to the image file of the selected tomogram."""
-            tomo: MtTomogram = self._tomogram_list[i]
-            if "source" in tomo.metadata:
-                to_clipboard(tomo.metadata["source"])
-                
-        @Tools.wraps
-        def Delete(self, i: Bound[tomograms]):
-            """Delete selected tomogram from the list."""
-            tomo = self._tomogram_list.pop(i)
-            del tomo
+    
+    _Tomogram_list = TomogramList
     
     @magicclass(widget_type="groupbox")
     class Spline_control(MagicTemplate):
@@ -564,40 +184,9 @@ class MTPropsWidget(MagicTemplate):
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
     
     orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
-        
-    @magicclass(widget_type="collapsible")
-    class Local_Properties(MagicTemplate):
-        """Local profiles."""
-        @magicclass(widget_type="groupbox", layout="horizontal", labels=False, name="structural parameters")
-        class params(MagicTemplate):
-            """Structural parameters at the current position"""
-            @magicclass(labels=False)
-            class pitch(MagicTemplate):
-                """Longitudinal pitch length (interval between monomers)"""
-                lbl = field("pitch", widget_type="Label")
-                txt = vfield("", enabled=False)
-            @magicclass(labels=False)
-            class skew(MagicTemplate):
-                """Skew angle """
-                lbl = field("skew angle", widget_type="Label")
-                txt = vfield("", enabled=False)
-            @magicclass(labels=False)
-            class structure(MagicTemplate):
-                lbl = field("structure", widget_type="Label")
-                txt = vfield("", enabled=False)
-            
-            def _init_text(self):
-                self.pitch.txt = " -- nm"
-                self.skew.txt = " -- °"
-                self.structure.txt = " -- "
-                
-            def _set_text(self, pitch, skew, npf, start):
-                self.pitch.txt = f" {pitch:.2f} nm"
-                self.skew.txt = f" {skew:.2f}°"
-                self.structure.txt = f" {int(npf)}_{start:.1f}"
-
-        plot = field(QtMultiPlotCanvas, name="Plot", options={"nrows": 2, "ncols": 1, "sharex": True, "tooltip": "Plot of local properties"})
-
+    
+    Local_Properties = LocalProperties
+    
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
         """Panels for output."""
@@ -884,7 +473,7 @@ class MTPropsWidget(MagicTemplate):
         """Show information of dependencies."""
         import napari
         import magicgui
-        from .__init__ import __version__
+        from .. import __version__
         import magicclass as mcls
         import dask
         
@@ -1480,7 +1069,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(out: List[Molecules]):
             for i, mol in enumerate(out):
                 spl = tomo.splines[i]
-                _add_molecules(self.parent_viewer, mol, f"Monomers-{i}", source=spl)
+                add_molecules(self.parent_viewer, mol, f"Monomers-{i}", source=spl)
                 
         self._worker_control.info = "Monomer mapping ..."
         return worker
@@ -1567,7 +1156,7 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
         for i, mol in enumerate(mols):
-            _add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
+            add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
 
     @Analysis.Mapping.wraps
     @set_options(
@@ -1596,8 +1185,26 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
         for i, mol in enumerate(mols):
-            _add_molecules(self.parent_viewer, mol, f"PF line-{i}", source=mol)
+            add_molecules(self.parent_viewer, mol, f"PF line-{i}", source=mol)
 
+    @Analysis.Molecule_features.wraps
+    @set_options(orientation={"choices": ["x", "y", "z"]})
+    def Molecule_orientation(
+        self,
+        layer: MonomerLayer,
+        orientation: str = "z"
+    ):
+        mol: Molecules = layer.metadata[MOLECULES]
+        name = f"{layer.name} {orientation.upper()}-axis"
+        
+        vector_data = np.stack([mol.pos, getattr(mol, orientation)], axis=1)
+        
+        self.parent_viewer.add_vectors(
+            vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
+            name=name,
+            )
+        return None
+        
     @Analysis.Molecule_features.wraps
     @set_options(spline_precision={"max": 2.0, "step": 0.01, "label": "spline precision (nm)"})
     def Monomer_intervals(
@@ -2013,7 +1620,7 @@ class MTPropsWidget(MagicTemplate):
                 
         @worker.returned.connect
         def _on_return(image_avg: ip.ImgArray):
-            from .components._align_utils import align_image_to_template
+            from ..components._align_utils import align_image_to_template
             from scipy.spatial.transform import Rotation
             with no_verbose():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
@@ -2030,7 +1637,7 @@ class MTPropsWidget(MagicTemplate):
             internal_rotator = Rotation.from_rotvec([0, rot, 0])
             mole = molecules.rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
             
-            _add_molecules(self.parent_viewer, 
+            add_molecules(self.parent_viewer, 
                            mole,
                            _coerce_aligned_name(layer.name),
                            source=spl
@@ -2115,7 +1722,7 @@ class MTPropsWidget(MagicTemplate):
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
-            _add_molecules(self.parent_viewer, 
+            add_molecules(self.parent_viewer, 
                            aligned_loader.molecules,
                            _coerce_aligned_name(layer.name),
                            source=source
@@ -2128,13 +1735,14 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        shape={"widget_type": TupleEdit, "text": "Use template shape"}
     )
     @dispatch_worker
     def Calculate_FSC(
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        shape: Optional[tuple[nm, nm, nm]] = (18., 18., 18.),
+        shape: Optional[tuple[nm, nm, nm]] = None,
         seed: Optional[int] = 0,
         interpolation: int = 1,
     ):
@@ -2151,9 +1759,10 @@ class MTPropsWidget(MagicTemplate):
                                )
         
         @worker.returned.connect
-        def _on_returned(fsc: np.ndarray):
+        def _on_returned(out: tuple[np.ndarray, np.ndarray]):
+            freq, fsc = out
             plt = Figure(style="dark_background")
-            plt.plot(np.linspace(0, 0.5, fsc.size), fsc, color="darkblue")
+            plt.plot(freq, fsc, color="darkblue")
             plt.xlabel("Frequency")
             plt.ylabel("FSC")
             plt.title(f"Fourier Shell Correlation of {layer.name}")
@@ -2225,7 +1834,7 @@ class MTPropsWidget(MagicTemplate):
             plt2.title("Score")
             wdt = DraggableContainer(widgets=[plt1, plt2], labels=False)
             viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
-            _add_molecules(self.parent_viewer, moles[iopt], layer.name + "-OPT", source=source)
+            add_molecules(self.parent_viewer, moles[iopt], layer.name + "-OPT", source=source)
             
         self._worker_control.info = "Seam search ... "
 
@@ -2912,64 +2521,14 @@ def _iter_run(tomo: MtTomogram,
     yield "Finishing ..."
     return tomo
 
-def _add_molecules(viewer: "napari.Viewer", mol: Molecules, name, source: MtSpline = None):
-    metadata ={MOLECULES: mol}
-    if source is not None:
-        metadata.update({SOURCE: source})
-    points_layer = viewer.add_points(
-        mol.pos, size=3, face_color="lime", edge_color="lime",
-        out_of_slice_display=True, name=name, metadata=metadata
-        )
-    
-    points_layer.shading = "spherical"
-    
-    vector_data = np.stack([mol.pos, mol.z], axis=1)
-    viewer.add_vectors(
-        vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
-        name=name + " Z-axis",
-        )
-
-def _read_angle(ang_path: str) -> np.ndarray:
-    line1 = str(pd.read_csv(ang_path, nrows=1).values[0, 0])  # determine sep
-    if "\t" in line1:
-        sep = "\t"
-    else:
-        sep = ","
-    
-    csv = pd.read_csv(ang_path, sep=sep)
-    
-    if csv.shape[1] == 3:
-        try:
-            header = np.array(csv.columns).astype(np.float64)
-            csv_data = np.concatenate([header.reshape(1, 3), csv.values], axis=0)
-        except ValueError:
-            csv_data = csv.values
-    elif "CCC" in csv.columns:
-        csv_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
-    else:
-        raise ValueError(f"Could not interpret data format of {ang_path}:\n{csv.head(5)}")
-    return csv_data
-
-def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
-    """Read offsets and angles from PEET project"""
-    csv: pd.DataFrame = pd.read_csv(path)
-    if "CCC" in csv.columns:
-        ang_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
-        shifts_data = csv[["zOffset", "yOffset", "xOffset"]].values
-    else:
-        ang_data = _read_angle(path)
-        shifts_data = None
-    return shifts_data, ang_data
-
-import re
 
 def _coerce_aligned_name(name: str):
     num = 1
     if re.match(fr".*-{ALN_SUFFIX}(\d)+", name):
         try:
-            *pre, suf = name.split(ALN_SUFFIX)
+            *pre, suf = name.split(f"-{ALN_SUFFIX}")
             num = int(suf) + 1
             name = "".join(pre)
         except Exception:
             num = 1
-    return name + f"{ALN_SUFFIX}{num}"
+    return name + f"-{ALN_SUFFIX}{num}"
