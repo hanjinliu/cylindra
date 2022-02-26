@@ -36,7 +36,7 @@ from magicclass.widgets import (
     Figure,
     DraggableContainer
     )
-from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiImageCanvas
+from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
 from ..components.tomogram import angle_corr, dask_affine
@@ -55,7 +55,8 @@ from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer
 
-from .localprops import LocalProperties
+from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
+from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
@@ -100,10 +101,9 @@ class MTPropsWidget(MagicTemplate):
         def show_global_r_proj(self): ...
         sep1 = field(Separator)
         def Sample_subtomograms(self): ...
-        def Show_results_in_a_table_widget(self): ...
-        def Show_straightened_image(self): ...
         def Paint_MT(self): ...
         def Set_colormap(self): ...
+        def Show_colorbar(self): ...
         focus = field(False, options={"text": "Focus"}, record=False)
     
     @magicmenu
@@ -153,46 +153,15 @@ class MTPropsWidget(MagicTemplate):
         def clear_all(self): ...
     
     _Tomogram_list = TomogramList
-    
-    @magicclass(widget_type="groupbox")
-    class Spline_control(MagicTemplate):
-        """MT sub-regions"""
-        def _get_splines(self, widget=None) -> list[int]:
-            """Get list of spline objects for categorical widgets."""
-            try:
-                tomo = self.find_ancestor(MTPropsWidget).tomogram
-            except Exception:
-                return []
-            if tomo is None:
-                return []
-            return [(str(spl), i) for i, spl in enumerate(tomo.splines)]
-        
-        num = field(int, widget_type="ComboBox", options={"choices": _get_splines}, name="Spline No.", record=False)
-        pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Position", record=False)
-        
-        @num.connect
-        def _num_changed(self):
-            i = self.num.value
-            tomo = self.find_ancestor(MTPropsWidget).tomogram
-            spl = tomo.splines[i]
-            if spl._anchors is not None:
-                self.pos.max = spl.anchors.size - 1
-            else:
-                self.pos.value = 0
-                self.pos.max = 0
-        
-    canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
-    
-    orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
-    
-    Local_Properties = LocalProperties
+    SplineControl = SplineControl
+    Local_Properties = LocalPropertiesWidget
+    Global_Properties = GlobalPropertiesWidget
     
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
         """Panels for output."""
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
         image2D = field(QtImageCanvas, options={"tooltip": "2-D image viewer."})
-        table = field(Table, name="Table", options={"tooltip": "Result table"}, record=False)
     
     ### methods ###
     
@@ -207,32 +176,9 @@ class MTPropsWidget(MagicTemplate):
         
     def __post_init__(self):
         self.Set_colormap()
-        self.Spline_control.pos.min_width = 70
         self.min_width = 400
-        
-        # Initialize multi-image canvas
-        self.canvas.min_height = 200
-        self.canvas.max_height = 230
-        self.canvas[0].lock_contrast_limits = True
-        self.canvas[0].title = "XY-Projection"
-        self.canvas[1].lock_contrast_limits = True
-        self.canvas[1].title = "XZ-Projection"
-        self.canvas[2].lock_contrast_limits = True
-        self.canvas[2].title = "Rot. average"
-        
         self.Local_Properties.collapsed = False
-        
-        # Initialize multi-plot canvas
-        self.Local_Properties.plot.min_height = 240
-        self.Local_Properties.plot[0].ylabel = "pitch (nm)"
-        self.Local_Properties.plot[0].legend.visible = False
-        self.Local_Properties.plot[0].border = [1, 1, 1, 0.2]
-        self.Local_Properties.plot[1].xlabel = "position (nm)"
-        self.Local_Properties.plot[1].ylabel = "skew (deg)"
-        self.Local_Properties.plot[1].legend.visible = False
-        self.Local_Properties.plot[1].border = [1, 1, 1, 0.2]
-        
-        self.Local_Properties.params._init_text()
+        self.Global_Properties.collapsed = False
         self.Panels.min_height = 300
 
     def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
@@ -354,7 +300,7 @@ class MTPropsWidget(MagicTemplate):
                     self.Paint_MT()
             tomo.metadata["ft_size"] = self._last_ft_size
             if global_props:
-                self._globalprops_to_table(tomo.global_ft_params())
+                self._update_global_properties_in_widget()
         self._last_ft_size = ft_size
         self._worker_control.info = "Spline fitting"
         return worker
@@ -372,10 +318,9 @@ class MTPropsWidget(MagicTemplate):
     @set_design(icon_path=ICON_DIR/"clear_all.png")
     def clear_all(self, _="Are you sure to clear all?"):
         """Clear all the splines and results."""
-        self._init_widget_params()
+        self._init_widget_state()
         self._init_layers()
         self.Panels.overview.layers.clear()
-        self._init_figures()
         self.tomogram.clear_cache()
         self.tomogram.splines.clear()
         self.reset_choices()
@@ -549,12 +494,12 @@ class MTPropsWidget(MagicTemplate):
         
         worker = self._get_process_image_worker(
             img, 
-            path,
-            bin_size,
-            light_background,
-            cutoff, 
-            subtomo_length,
-            subtomo_width
+            path=path,
+            binsize=bin_size,
+            light_bg=light_background,
+            cutoff=cutoff, 
+            length=subtomo_length,
+            width=subtomo_width,
             )
         
         self._loader.close()
@@ -691,8 +636,8 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
                     
-    @Spline_control.num.connect
-    @Spline_control.pos.connect
+    @SplineControl.num.connect
+    @SplineControl.pos.connect
     @Image.focus.connect
     def _focus_on(self):
         """Change camera focus to the position of current MT fragment."""
@@ -703,8 +648,8 @@ class MTPropsWidget(MagicTemplate):
             return None
         
         viewer = self.parent_viewer
-        i = self.Spline_control.num.value
-        j = self.Spline_control.pos.value
+        i = self.SplineControl.num.value
+        j = self.SplineControl.pos.value
         
         tomo = self.tomogram
         spl = tomo.splines[i]
@@ -727,61 +672,25 @@ class MTPropsWidget(MagicTemplate):
     def Sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
         self._spline_fitter.close()
-        tomo = self.tomogram
-        spl = tomo.splines[0]
-        ori = spl.orientation
+        # tomo = self.tomogram
+        # spl = tomo.splines[0]
+        # ori = spl.orientation
         
         # initialize GUI
-        self._init_widget_params()
-        self._init_layers()
+        self.SplineControl.num.changed.emit()
         self.layer_work.mode = "pan_zoom"
         
-        if spl.localprops is not None:
-            n_anc = len(spl.localprops)
-        elif spl._anchors is not None:
-            n_anc = len(spl._anchors)
-        else:
-            return
+        # self.SplineControl
+        self._update_local_properties_in_widget()
+        self._update_global_properties_in_widget()
         
-        self.Spline_control.pos.max = n_anc - 1
-        
-        self.orientation_choice = ori
-        self._update_spline()
-        for i in range(3):
-            img = self.canvas[i].image
-            if img is not None:
-                self.canvas[i].contrast_limits = [img.min(), img.max()]
+        # reset contrast limits
+        self.SplineControl._reset_contrast_limits()
         return None
-    
-    @Image.wraps
-    def Show_results_in_a_table_widget(self):
-        """Show result table."""
-        self.Panels.table.value = self.tomogram.collect_localprops()
-        self.Panels.current_index = 2
-        return None
-    
-    @Image.wraps
-    @dispatch_worker
-    def Show_straightened_image(self, i: Bound[Spline_control.num]):
-        """Send straightened image of the current MT to the viewer."""        
-        tomo = self.tomogram
-        
-        worker = create_worker(tomo.straighten, 
-                               i=i, 
-                               _progress={"total": 0, "desc": "Running"}
-                               )
-        
-        @worker.returned.connect
-        def _on_return(out: ip.ImgArray):
-            self.parent_viewer.add_image(out, scale=out.scale)
-        
-        self._worker_control.info = f"Straightening spline No. {i}"
-        
-        return worker
     
     @Image.wraps
     @set_design(text="R-projection")
-    def show_r_proj(self, i: Bound[Spline_control.num], j: Bound[Spline_control.pos]):
+    def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
         with no_verbose():
             polar = self._current_cylindrical_img().proj("r")
@@ -798,7 +707,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
-        i = self.Spline_control.num.value
+        i = self.SplineControl.num.value
         with no_verbose():
             polar = self.tomogram.straighten_cylindric(i).proj("r")
         self.Panels.image2D.image = polar.value
@@ -811,7 +720,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT")
-    def show_current_ft(self, i: Bound[Spline_control.num], j: Bound[Spline_control.pos]):
+    def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
         with no_verbose():
             polar = self._current_cylindrical_img()
@@ -830,7 +739,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT (Global)")
-    def show_global_ft(self, i: Bound[Spline_control.num]):
+    def show_global_ft(self, i: Bound[SplineControl.num]):
         """View Fourier space along current MT."""  
         with no_verbose():
             polar = self.tomogram.straighten_cylindric(i)
@@ -867,11 +776,10 @@ class MTPropsWidget(MagicTemplate):
         orientation : Ori, default is Ori.MinusToPlus
             To which direction splines will be aligned.
         """
-        need_resample = self.canvas[0].image is not None
+        need_resample = self.SplineControl.canvas[0].image is not None
         self.tomogram.align_to_polarity(orientation=orientation)
         self._update_splines_in_images()
-        self._init_widget_params()
-        self._init_figures()
+        self._init_widget_state()
         if need_resample:
             self.Sample_subtomograms()
         
@@ -990,8 +898,7 @@ class MTPropsWidget(MagicTemplate):
 
         self._worker_control.info = "Refining splines ..."
         
-        self._init_widget_params()
-        self._init_figures()
+        self._init_widget_state()
         return worker
     
     @Analysis.wraps
@@ -1019,6 +926,7 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(df):
             self.Sample_subtomograms()
+            self._update_local_properties_in_widget()
         self._last_ft_size = ft_size
         self._worker_control.info = "Local Fourier transform ..."
         return worker
@@ -1030,17 +938,11 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         worker = create_worker(tomo.global_ft_params,
                                _progress={"total": 0, "desc": "Running"})
-        worker.returned.connect(self._globalprops_to_table)
+        worker.returned.connect(lambda e: self._update_global_properties_in_widget())
         
         self._worker_control.info = f"Global Fourier transform ..."
         
         return worker
-    
-    def _globalprops_to_table(self, out: List[pd.Series]):
-        df = pd.DataFrame({f"MT-{k}": v for k, v in enumerate(out)})
-        self.Panels.table.value = df
-        self.Panels.current_index = 2
-        return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1090,7 +992,7 @@ class MTPropsWidget(MagicTemplate):
     )
     def Map_monomers_manually(
         self, 
-        i: Bound[Spline_control.num],
+        i: Bound[SplineControl.num],
         y_offset: nm = 0, 
         theta_offset: float = 0,
         length: Optional[nm] = None,
@@ -2102,24 +2004,6 @@ class MTPropsWidget(MagicTemplate):
         self.layer_paint.color = color
         return None
 
-
-    def _plot_properties(self):
-        i = self.Spline_control.num.value
-        props = self.tomogram.splines[i].localprops
-        if props is None:
-            return None
-        x = np.asarray(props[H.splDistance])
-        pitch_color = "lime"
-        skew_color = "gold"
-        
-        self.Local_Properties.plot[0].layers.clear()
-        self.Local_Properties.plot[0].add_curve(x, props[H.yPitch], color=pitch_color)
-        
-        self.Local_Properties.plot[1].layers.clear()
-        self.Local_Properties.plot[1].add_curve(x, props[H.skewAngle], color=skew_color)
-
-        self.Local_Properties.plot.xlim = (x[0] - 2, x[-1] + 2)
-        return None
         
     def _get_process_image_worker(
         self,
@@ -2221,18 +2105,15 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    def _init_widget_params(self):
-        self.Spline_control.pos.value = 0
-        self.Spline_control.pos.max = 0
-        self.projections: List[Projections] = []
-        self.Local_Properties.params._init_text()
-        return None
+    def _init_widget_state(self):
+        self.SplineControl.pos.value = 0
+        self.SplineControl.pos.max = 0
+        self.Local_Properties._init_text()
     
-    def _init_figures(self):
         for i in range(3):
-            del self.canvas[i].image
-            self.canvas[i].layers.clear()
-            self.canvas[i].text_overlay.text = ""
+            del self.SplineControl.canvas[i].image
+            self.SplineControl.canvas[i].layers.clear()
+            self.SplineControl.canvas[i].text_overlay.text = ""
         for i in range(2):
             self.Local_Properties.plot[i].layers.clear()
         return None
@@ -2256,8 +2137,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return local Cartesian image at the current position
         """        
-        i = i or self.Spline_control.num.value
-        j = j or self.Spline_control.pos.value
+        i = i or self.SplineControl.num.value
+        j = j or self.SplineControl.pos.value
         tomo = self.tomogram
         spl = tomo._splines[i]
         
@@ -2277,8 +2158,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return cylindric-transformed image at the current position
         """        
-        i = i or self.Spline_control.num.value
-        j = j or self.Spline_control.pos.value
+        i = i or self.SplineControl.num.value
+        j = j or self.SplineControl.pos.value
         tomo = self.tomogram
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
@@ -2328,111 +2209,77 @@ class MTPropsWidget(MagicTemplate):
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
             self.layer_paint.scale = self.layer_image.scale
-        self.orientation_choice = Ori.none
+        self.Global_Properties._init_text()
         return None
     
-    @Spline_control.pos.connect
-    def _imshow_all(self):
+    @SplineControl.num.connect
+    def _update_global_properties_in_widget(self):
+        i = self.SplineControl.num.value
+        spl = self.tomogram.splines[i]
+        if spl.globalprops is not None:
+            headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
+            pitch, skew, npf, start = spl.globalprops[headers]
+            radius = spl.radius
+            ori = spl.orientation
+            self.Global_Properties._set_text(pitch, skew, npf, start, radius, ori)
+    
+    @SplineControl.num.connect
+    @SplineControl.pos.connect
+    def _update_local_properties_in_widget(self):
+        i = self.SplineControl.num.value
         tomo = self.tomogram
-        i = self.Spline_control.num.value
-        j = self.Spline_control.pos.value
-        npaths = len(tomo.splines)
-        if 0 == npaths:
+        if i >= len(tomo.splines):
             return
-        if 0 < npaths <= i:
-            i = 0
+        j = self.SplineControl.pos.value
         spl = tomo.splines[i]
-        
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
-            self.Local_Properties.params._set_text(pitch, skew, npf, start)
-        
-        binsize = self.tomogram.metadata["binsize"]
-        with no_verbose():
-            proj = self.projections[j]
-            for ic in range(3):
-                self.canvas[ic].layers.clear()
-            self.canvas[0].image = proj.yx
-            self.canvas[1].image = proj.zx
-            self.canvas[2].image = proj.zx_ave
-        
-        # Update text overlay
-        self.canvas[0].text_overlay.text = f"{i}-{j}"
-        self.canvas[0].text_overlay.color = "lime"
-        
-        if spl.radius is None:
-            return None
-        lz, ly, lx = np.array(proj.shape)
-        
-        if self._last_ft_size is None:
-            ylen = 25/binsize/tomo.scale
-        else:
-            ylen = self._last_ft_size/2/binsize/tomo.scale
-        
-        # draw a square in YX-view
-        ymin, ymax = ly/2 - ylen - 0.5, ly/2 + ylen + 0.5
-        r_px = spl.radius/tomo.scale/binsize
-        r = r_px * GVar.outer
-        xmin, xmax = -r + lx/2 - 0.5, r + lx/2 + 0.5
-        self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
-                                 [ymin, ymax, ymax, ymin, ymin], color="lime")
-
-        # draw two circles in ZX-view
-        theta = np.linspace(0, 2*np.pi, 360)
-        r = r_px * GVar.inner
-        self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = r_px * GVar.outer
-        self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+            self.Local_Properties._set_text(pitch, skew, npf, start)
         return None
     
-    @orientation_choice.connect
-    def _update_note(self):
-        i = self.Spline_control.num.value
-        self.tomogram.splines[i].orientation = self.orientation_choice
-        return None
-    
-    @Spline_control.num.connect
-    def _update_spline(self):
-        i = self.Spline_control.num.value
-        tomo = self.tomogram
-        spl = tomo.splines[i]
-        if spl._anchors is None:
-            return
+    # @SplineControl.num.connect
+    # def _update_canvas(self):
+    #     i = self.SplineControl.num.value
+    #     tomo = self.tomogram
+    #     if i >= len(tomo.splines):
+    #         return
+    #     spl = tomo.splines[i]
+    #     if spl._anchors is None:
+    #         return
         
-        # calculate projection
-        binsize = tomo.metadata["binsize"]
-        imgb = self.layer_image.data
+    #     # calculate projection
+    #     binsize = tomo.metadata["binsize"]
+    #     imgb = self.layer_image.data
         
-        # Rotational average should be calculated using local nPF if possible.
-        # If not available, use global nPF
-        projections: List[Projections] = []
-        if spl.localprops is not None:
-            npf_list = spl.localprops[H.nPF]
-        elif spl.globalprops is not None:
-            npf_list = [spl.globalprops[H.nPF]] * tomo.splines[i].anchors.size
-        else:
-            return None
+    #     # Rotational average should be calculated using local nPF if possible.
+    #     # If not available, use global nPF
+    #     projections: List[Projections] = []
+    #     if spl.localprops is not None:
+    #         npf_list = spl.localprops[H.nPF]
+    #     elif spl.globalprops is not None:
+    #         npf_list = [spl.globalprops[H.nPF]] * tomo.splines[i].anchors.size
+    #     else:
+    #         return None
         
-        spl.scale *= binsize
+    #     spl.scale *= binsize
         
-        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
-        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
-        out = load_rot_subtomograms(imgb, length_px, width_px, spl)
+    #     length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
+    #     width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+    #     out = load_rot_subtomograms(imgb, length_px, width_px, spl)
         
-        spl.scale /= binsize
+    #     spl.scale /= binsize
         
-        for img, npf in zip(out, npf_list):    
-            proj = Projections(img)
-            proj.rotational_average(npf)
-            projections.append(proj)
+    #     for img, npf in zip(out, npf_list):    
+    #         proj = Projections(img)
+    #         proj.rotational_average(npf)
+    #         projections.append(proj)
         
-        self.projections = projections
+    #     self.projections = projections
         
-        self.orientation_choice = Ori(tomo.splines[i].orientation)
-        self._plot_properties()
-        self._imshow_all()
-        return None
+    #     self._plot_properties()
+    #     self._imshow_all()
+    #     return None
     
     def _connect_worker(self, worker: Worker):
         self._worker_control._set_worker(worker)
@@ -2467,8 +2314,14 @@ class MTPropsWidget(MagicTemplate):
             if spl._anchors is None:
                 continue
             coords = spl()
-            self.Panels.overview.add_scatter(coords[:, 2]/scale, coords[:, 1]/scale,
-                                             color="lime", symbol="x", lw=1, size=10)
+            self.Panels.overview.add_scatter(
+                coords[:, 2]/scale, 
+                coords[:, 1]/scale,
+                color="lime", 
+                symbol="x",
+                lw=1,
+                size=10
+            )
         
 
 def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5, 

@@ -735,6 +735,7 @@ class MtTomogram:
         
         subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
+        subtomograms.set_scale(self.image)
         if 0 < cutoff < 0.866:
             subtomograms = subtomograms.lowpass_filter(cutoff)
 
@@ -832,6 +833,7 @@ class MtTomogram:
         
         subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
+        subtomograms.set_scale(self.image)
         
         r_max = self.subtomo_width / 2
         nbin = roundint(r_max/self.scale/2)
@@ -842,12 +844,12 @@ class MtTomogram:
         if self.light_background:
             prof = -prof
         
-        imax = np.argmax(prof)
+        imax = np.nanargmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
-        
+
         # prof[0] is radial profile at r=0.5 (not r=0.0)
         r_peak_sub = (imax_sub + 0.5) / nbin * r_max
-        
+
         spl.radius = r_peak_sub
         return r_peak_sub
     
