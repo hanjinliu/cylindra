@@ -46,8 +46,9 @@ def test_run_all():
     
     # map monomer coordinates and save them.
     ui.Map_monomers(splines=[0])
-    ui.Average_subset(ui.parent_viewer.layers[-2], size=18.)
-    ui.Calculate_FSC()
+    ui.Average_subset(ui.parent_viewer.layers['Monomers-0'], size=18.)
+    ui.Calculate_FSC(ui.parent_viewer.layers['Monomers-0'], mask_params=None, shape=(18., 18., 18.),
+                     seed=0, interpolation=1)
     ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
                                 layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",

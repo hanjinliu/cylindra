@@ -12,6 +12,7 @@ from magicclass.gui._message_box import QtErrorMessageBox
 
 if TYPE_CHECKING:
     from .main import MTPropsWidget
+    from typing_extensions import ParamSpec
 
 Worker = Union[FunctionWorker, GeneratorWorker]
 
@@ -32,8 +33,9 @@ def run_worker_function(worker: Worker):
     worker.finished.emit()
     worker._finished.emit(worker)
 
+_P = ParamSpec("_P")
 
-def dispatch_worker(f: Callable[[Any], Worker]) -> Callable[[Any], None]:
+def dispatch_worker(f: Callable[_P, Worker]) -> Callable[_P, None]:
     """
     Open a progress bar and start worker in a parallel thread if function is called from GUI.
     Otherwise (if function is called from script), the worker will be executed as if the 

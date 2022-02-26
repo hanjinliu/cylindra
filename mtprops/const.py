@@ -1,7 +1,6 @@
 from enum import Enum
 import numpy as np
 from types import SimpleNamespace
-from pathlib import Path
 
 nm = float  # type alias for clearer annotation.
 
