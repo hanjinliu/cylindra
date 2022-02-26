@@ -59,7 +59,7 @@ from .localprops import LocalProperties
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
-from .widget_utils import add_molecules
+from .widget_utils import add_molecules, change_viewer_focus
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -636,12 +636,14 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_angles(self, 
-                            save_path: Path,
-                            layer: MonomerLayer, 
-                            rotation_axes = EulerAxes.ZXZ,
-                            in_degree: bool = True,
-                            separator = Sep.Comma):
+    def Save_monomer_angles(
+        self, 
+        save_path: Path,
+        layer: MonomerLayer, 
+        rotation_axes = EulerAxes.ZXZ,
+        in_degree: bool = True,
+        separator = Sep.Comma
+    ):
         """
         Save monomer angles in Euler angles.
 
@@ -745,6 +747,10 @@ class MTPropsWidget(MagicTemplate):
         
         self.orientation_choice = ori
         self._update_spline()
+        for i in range(3):
+            img = self.canvas[i].image
+            if img is not None:
+                self.canvas[i].contrast_limits = [img.min(), img.max()]
         return None
     
     @Image.wraps
@@ -1762,8 +1768,9 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_returned(out: tuple[np.ndarray, np.ndarray]):
             freq, fsc = out
+            ind = (freq <= 0.5)
             plt = Figure(style="dark_background")
-            plt.plot(freq, fsc, color="darkblue")
+            plt.plot(freq[ind], fsc[ind], color="darkblue")
             plt.xlabel("Frequency")
             plt.ylabel("FSC")
             plt.title(f"Fourier Shell Correlation of {layer.name}")
@@ -1847,7 +1854,7 @@ class MTPropsWidget(MagicTemplate):
     def pick_next(self):
         """Automatically pick MT center using previous two points."""        
         stride_nm = self.toolbar.Adjust.stride.value
-        imgb = self.layer_image.data
+        imgb: ip.ImgArray = self.layer_image.data
         try:
             # orientation is point0 -> point1
             point0: np.ndarray = self.layer_work.data[-2]/imgb.scale.x  # unit: pixel
@@ -1883,7 +1890,7 @@ class MTPropsWidget(MagicTemplate):
         if msg:
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
-        change_viewer_focus(self.parent_viewer, point2, next_data)
+        change_viewer_focus(self.parent_viewer, point2, scale=imgb.scale.x)
         return None
     
     @toolbar.wraps
@@ -1914,7 +1921,7 @@ class MTPropsWidget(MagicTemplate):
         
         self.layer_work.data = points * imgb.scale.x
         if len(selected) == 1:
-            change_viewer_focus(self.parent_viewer, points[last_i], self.layer_work.data[last_i])
+            change_viewer_focus(self.parent_viewer, points[last_i], scale=imgb.scale.x)
         return None
     
     @Image.wraps
@@ -2178,7 +2185,7 @@ class MTPropsWidget(MagicTemplate):
             # update viewer dimensions
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
-            viewer.dims.set_current_step(0, imgb.shape[0]//2)
+            change_viewer_focus(viewer, np.asarray(imgb.shape)*imgb.scale.x/2, imgb.scale.x)
             
             # update labels layer
             if self.layer_paint is not None:
@@ -2483,13 +2490,6 @@ def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5,
                      [0., -sin, cos]]
     point += shift
 
-def change_viewer_focus(viewer: "napari.Viewer", next_center: Iterable[float], 
-                        next_coord: np.ndarray):
-    viewer.camera.center = next_center
-    zoom = viewer.camera.zoom
-    viewer.camera.events.zoom()
-    viewer.camera.zoom = zoom
-    viewer.dims.current_step = list(next_coord.astype(np.int64))
 
 def _iter_run(tomo: MtTomogram, 
               interval: nm,

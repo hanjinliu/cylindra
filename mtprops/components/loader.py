@@ -484,8 +484,9 @@ class SubtomogramLoader:
             self._check_shape(mask, "mask")
         
         img0, img1 = self.average_split(seed=seed, order=order)
-            
-        freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+        
+        with no_verbose():
+            freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
         
         if self.image_avg is None:
             self.image_avg = img0 + img1
