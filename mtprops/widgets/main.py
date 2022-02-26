@@ -29,7 +29,6 @@ from magicclass import (
 from magicclass.widgets import (
     TupleEdit,
     Separator,
-    Table,
     RadioButtons,
     ColorEdit,
     ConsoleTextEdit,
@@ -41,14 +40,12 @@ from magicclass.ext.pyqtgraph import QtImageCanvas
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
 from ..components.tomogram import angle_corr, dask_affine
 from ..utils import (
-    Projections,
     crop_tomogram,
     make_slice_and_pad,
     map_coordinates,
     mirror_pcc, 
     roundint,
     ceilint,
-    load_rot_subtomograms,
     no_verbose
     )
 from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
@@ -152,10 +149,10 @@ class MTPropsWidget(MagicTemplate):
         def clear_current(self): ...
         def clear_all(self): ...
     
-    _Tomogram_list = TomogramList
+    _TomogramList = TomogramList
     SplineControl = SplineControl
-    Local_Properties = LocalPropertiesWidget
-    Global_Properties = GlobalPropertiesWidget
+    LocalProperties = LocalPropertiesWidget
+    GlobalProperties = GlobalPropertiesWidget
     
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
@@ -177,8 +174,8 @@ class MTPropsWidget(MagicTemplate):
     def __post_init__(self):
         self.Set_colormap()
         self.min_width = 400
-        self.Local_Properties.collapsed = False
-        self.Global_Properties.collapsed = False
+        self.LocalProperties.collapsed = False
+        self.GlobalProperties.collapsed = False
         self.Panels.min_height = 300
 
     def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
@@ -515,7 +512,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @do_not_record
     def Open_tomogram_list(self):
-        self._Tomogram_list.show()
+        self._TomogramList.show()
         return None
         
     @File.wraps
@@ -2092,7 +2089,7 @@ class MTPropsWidget(MagicTemplate):
                 if self._last_ft_size is not None:
                     tomo.metadata["ft_size"] = self._last_ft_size
                 self.tomogram = tomo
-                tomo_list_widget = self._Tomogram_list
+                tomo_list_widget = self._TomogramList
                 tomo_list_widget._tomogram_list.append(tomo)
                 tomo_list_widget.reset_choices()  # Next line of code needs updated choices
                 tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
@@ -2105,14 +2102,14 @@ class MTPropsWidget(MagicTemplate):
     def _init_widget_state(self):
         self.SplineControl.pos.value = 0
         self.SplineControl.pos.max = 0
-        self.Local_Properties._init_text()
+        self.LocalProperties._init_text()
     
         for i in range(3):
             del self.SplineControl.canvas[i].image
             self.SplineControl.canvas[i].layers.clear()
             self.SplineControl.canvas[i].text_overlay.text = ""
         for i in range(2):
-            self.Local_Properties.plot[i].layers.clear()
+            self.LocalProperties.plot[i].layers.clear()
         return None
     
     def _check_path(self) -> str:
@@ -2206,7 +2203,7 @@ class MTPropsWidget(MagicTemplate):
         if self.layer_paint is not None:
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
             self.layer_paint.scale = self.layer_image.scale
-        self.Global_Properties._init_text()
+        self.GlobalProperties._init_text()
         return None
     
     @SplineControl.num.connect
@@ -2218,7 +2215,7 @@ class MTPropsWidget(MagicTemplate):
             pitch, skew, npf, start = spl.globalprops[headers]
             radius = spl.radius
             ori = spl.orientation
-            self.Global_Properties._set_text(pitch, skew, npf, start, radius, ori)
+            self.GlobalProperties._set_text(pitch, skew, npf, start, radius, ori)
     
     @SplineControl.num.connect
     @SplineControl.pos.connect
@@ -2232,7 +2229,7 @@ class MTPropsWidget(MagicTemplate):
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
-            self.Local_Properties._set_text(pitch, skew, npf, start)
+            self.LocalProperties._set_text(pitch, skew, npf, start)
         return None
     
     def _connect_worker(self, worker: Worker):

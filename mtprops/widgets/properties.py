@@ -12,7 +12,7 @@ from ..const import Ori, H
 if TYPE_CHECKING:
     import pandas as pd
 
-@magicclass(widget_type="collapsible")
+@magicclass(widget_type="collapsible", name="Local Properties")
 class LocalPropertiesWidget(MagicTemplate):
     """Local properties."""
     
@@ -103,7 +103,7 @@ class LocalPropertiesWidget(MagicTemplate):
         return None
             
 
-@magicclass(widget_type="collapsible")
+@magicclass(widget_type="collapsible", name="Global Properties")
 class GlobalPropertiesWidget(MagicTemplate):
     
     def __post_init__(self):

@@ -14,7 +14,7 @@ from magicclass.utils import to_clipboard
 from ..components import MtTomogram
 
 
-@magicclass(widget_type="scrollable", labels=False)
+@magicclass(widget_type="scrollable", labels=False, name="Tomogram List")
 class TomogramList(MagicTemplate):
     """List of tomograms that have been loaded to the widget."""        
     _tomogram_list: List[MtTomogram]

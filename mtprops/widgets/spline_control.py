@@ -56,7 +56,7 @@ class SplineControl(MagicTemplate):
         self.pos.max = n_anc - 1
         
         # update plots in pyqtgraph
-        parent.Local_Properties._plot_properties(spl.localprops)
+        parent.LocalProperties._plot_properties(spl.localprops)
         
         # calculate projection
         if spl.localprops is not None:
@@ -140,9 +140,9 @@ class SplineControl(MagicTemplate):
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
         
         # update pyqtgraph
-        if parent.Local_Properties._y_pitch is not None:
+        if parent.LocalProperties._y_pitch is not None:
             x = spl.localprops[H.splDistance][j]
-            parent.Local_Properties._plot_spline_position(x)
+            parent.LocalProperties._plot_spline_position(x)
         return None
     
     def _reset_contrast_limits(self):
