@@ -1,7 +1,12 @@
 """Widgets and functions that deal with napari's workers."""
 
 from __future__ import annotations
-from typing import Union, Callable, Any, TYPE_CHECKING
+import sys
+from typing import Union, Callable, TYPE_CHECKING
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec
+else:
+    from typing import ParamSpec
 import warnings
 from functools import wraps
 
@@ -12,7 +17,6 @@ from magicclass.gui._message_box import QtErrorMessageBox
 
 if TYPE_CHECKING:
     from .main import MTPropsWidget
-    from typing_extensions import ParamSpec
 
 Worker = Union[FunctionWorker, GeneratorWorker]
 
@@ -65,10 +69,10 @@ class WorkerControl(MagicTemplate):
         self.worker: Worker = None
         self._last_info = ""
     
-    def _set_worker(self, worker):
+    def _set_worker(self, worker: Worker):
         self.worker = worker
         @worker.errored.connect
-        def _(e):
+        def _(e=None):
             # In some environments, errors raised in workers are completely hidden.
             # We have to re-raise it here.
             QtErrorMessageBox.raise_(e, parent=self.native)

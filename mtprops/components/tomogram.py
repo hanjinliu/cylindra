@@ -39,7 +39,7 @@ from ..utils import (
     )
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Literal
 
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
@@ -63,7 +63,7 @@ class BatchCallable(Protocol[_RETURN]):
     quick solution.
     """
     @overload
-    def __call__(self, **kwargs: _KW) -> list[_RETURN]:
+    def __call__(self, i: Literal[None], **kwargs: _KW) -> list[_RETURN]:
         ...
         
     @overload
@@ -927,8 +927,8 @@ class MtTomogram:
             raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(ft_size)
-        rmin = spl.radius*GVar.inner/self.scale
-        rmax = spl.radius*GVar.outer/self.scale
+        rmin = spl.radius * GVar.inner / self.scale
+        rmax = spl.radius * GVar.outer / self.scale
         out: list[ip.ImgArray] = []
         with no_verbose():
             if pos is None:
@@ -942,10 +942,32 @@ class MtTomogram:
                 polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
                 polar.set_scale(r=self.scale, y=self.scale, a=self.scale)
                 polar.scale_unit = self.image.scale_unit
-                polar -= np.mean(polar)
+                polar[:] -= np.mean(polar)
                 out.append(polar.fft(dims="rya"))
         
         return np.stack(out, axis="p")
+    
+    @batch_process
+    def local_cps(self, *, i: int = None, ft_size: nm = 32.0, pos: int | None = None) -> ip.ImgArray:
+        """
+        Calculate non-upsampled local cylindric power spectra along spline.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        ft_size : nm, default is 32.0
+            Length of subtomogram for calculation of local parameters.
+        pos : int, optional
+            Only calculate at ``pos``-th anchor if given.
+
+        Returns
+        -------
+        ip.ImgArray
+            FT images stacked along "p" axis.
+        """
+        cft = self.local_cft(i=i, ft_size=ft_size, pos=pos)
+        return cft.real ** 2 + cft.imag ** 2
         
     @batch_process
     def global_ft_params(self, i: int = None) -> pd.Series:

@@ -549,6 +549,7 @@ class MTPropsWidget(MagicTemplate):
         
         worker = self._get_process_image_worker(
             img, 
+            path,
             bin_size,
             light_background,
             cutoff, 
@@ -706,7 +707,7 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         spl = tomo.splines[i]
         pos = spl.anchors[j]
-        next_center = spl(pos)
+        next_center = spl(pos) / tomo.scale
         viewer.dims.current_step = list(next_center.astype(np.int64))
         
         viewer.camera.center = next_center
@@ -2116,6 +2117,7 @@ class MTPropsWidget(MagicTemplate):
     def _get_process_image_worker(
         self,
         img: ip.LazyImgArray,
+        path: str,
         binsize: int,
         light_bg: bool, 
         cutoff: float,
@@ -2176,7 +2178,7 @@ class MTPropsWidget(MagicTemplate):
             # update viewer dimensions
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
-            viewer.dims.set_current_step(0, imgb.shape[0]*img.scale.x)
+            viewer.dims.set_current_step(0, imgb.shape[0]//2)
             
             # update labels layer
             if self.layer_paint is not None:
@@ -2196,7 +2198,6 @@ class MTPropsWidget(MagicTemplate):
                                   light_background=light_bg)
                 # metadata for GUI
                 tomo._set_image(img)
-                path = Path(tomo.image.dirpath)/tomo.image.name
                 tomo.metadata["source"] = str(path)
                 tomo.metadata["binsize"] = binsize
                 tomo.metadata["cutoff"] = cutoff
@@ -2205,7 +2206,7 @@ class MTPropsWidget(MagicTemplate):
                 self.tomogram = tomo
                 tomo_list_widget = self._Tomogram_list
                 tomo_list_widget._tomogram_list.append(tomo)
-                tomo_list_widget.reset_choices()
+                tomo_list_widget.reset_choices()  # Next line of code needs updated choices
                 tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
                 self.clear_all()
             
@@ -2339,7 +2340,7 @@ class MTPropsWidget(MagicTemplate):
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
             self.Local_Properties.params._set_text(pitch, skew, npf, start)
-
+        
         binsize = self.tomogram.metadata["binsize"]
         with no_verbose():
             proj = self.projections[j]
@@ -2376,7 +2377,7 @@ class MTPropsWidget(MagicTemplate):
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
         r = r_px * GVar.outer
         self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-                
+        return None
     
     @orientation_choice.connect
     def _update_note(self):
@@ -2396,14 +2397,6 @@ class MTPropsWidget(MagicTemplate):
         binsize = tomo.metadata["binsize"]
         imgb = self.layer_image.data
         
-        spl.scale *= binsize
-        
-        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
-        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
-        out = load_rot_subtomograms(imgb, length_px, width_px, spl)
-        
-        spl.scale /= binsize
-        
         # Rotational average should be calculated using local nPF if possible.
         # If not available, use global nPF
         projections: List[Projections] = []
@@ -2414,6 +2407,14 @@ class MTPropsWidget(MagicTemplate):
         else:
             return None
         
+        spl.scale *= binsize
+        
+        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
+        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        out = load_rot_subtomograms(imgb, length_px, width_px, spl)
+        
+        spl.scale /= binsize
+        
         for img, npf in zip(out, npf_list):    
             proj = Projections(img)
             proj.rotational_average(npf)
@@ -2421,7 +2422,6 @@ class MTPropsWidget(MagicTemplate):
         
         self.projections = projections
         
-        # self.mt.pos.max = tomo.splines[i].anchors.size - 1
         self.orientation_choice = Ori(tomo.splines[i].orientation)
         self._plot_properties()
         self._imshow_all()

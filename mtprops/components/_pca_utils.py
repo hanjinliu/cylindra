@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 import numpy as np
 import impy as ip
 
@@ -64,7 +64,7 @@ class PcaClassifier:
             _input = self._image
         return _input.value.reshape(self._n_image, -1)
     
-    def get_transform(self) -> np.ndarray:
+    def get_transform(self, labels: Iterable[int] | None = None) -> np.ndarray:
         """
         Get the transformed vectors from the input images.
         
@@ -74,15 +74,27 @@ class PcaClassifier:
             Transormed vectors. If input image stack P images, then
             (P, n_components) array will be returned.
         """
-        transformed = self._pca.transform(self._image_flat(mask=True))
+        if labels is None:
+            flat = self._image_flat(mask=True)
+        else:
+            if not isinstance(labels, list):
+                labels = list(labels)
+            flat = self._image_flat(mask=True)[labels]
+        transformed = self._pca.transform(flat)
         return transformed
     
-    def plot_transform(self, ax=None) -> "Axes":
+    def plot_transform(
+        self,
+        labels: Iterable[int] | None = None,
+        bases: tuple[int, int] = (0, 1),
+        ax=None
+    ) -> "Axes":
+        ax0, ax1 = bases
         import matplotlib.pyplot as plt
-        transformed = self.get_transform()
+        transformed = self.get_transform(labels)
         if ax is None:
             ax = plt.gca()
-        ax.scatter(transformed[:, 0], transformed[:, 1])
+        ax.scatter(transformed[:, ax0], transformed[:, ax1])
         return ax
         
     def get_bases(self) -> ip.ImgArray:

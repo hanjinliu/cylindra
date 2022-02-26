@@ -16,7 +16,7 @@ from ..components import MtTomogram
 
 @magicclass(widget_type="scrollable", labels=False)
 class TomogramList(MagicTemplate):
-    """List of tomograms that have loaded to the widget."""        
+    """List of tomograms that have been loaded to the widget."""        
     _tomogram_list: List[MtTomogram]
     
     def __init__(self):
@@ -40,7 +40,7 @@ class TomogramList(MagicTemplate):
         def Copy_path(self): ...
         def Delete(self): ...
     
-    tomograms = field(int, widget_type="RadioButtons", options={"choices": _get_tomograms})
+    tomograms = field(int, widget_type="RadioButtons", options={"choices": _get_tomograms}, record=False)
     
     @Tools.wraps
     def Load(self, i: Bound[tomograms]):
@@ -56,6 +56,7 @@ class TomogramList(MagicTemplate):
         # should be set to 0.
         worker = parent._get_process_image_worker(
             tomo.image, 
+            path=tomo.metadata["source"],
             binsize=tomo.metadata["binsize"], 
             light_bg=tomo.light_background, 
             cutoff=tomo.metadata["cutoff"],
@@ -87,5 +88,11 @@ class TomogramList(MagicTemplate):
     @Tools.wraps
     def Delete(self, i: Bound[tomograms]):
         """Delete selected tomogram from the list."""
+        from .main import MTPropsWidget
+        parent = self.find_ancestor(MTPropsWidget)
+        tomo: MtTomogram = self._tomogram_list[i]
+        if tomo is parent.tomogram:
+            raise ValueError("Tomogram is active now so cannot be deleted.")
         tomo = self._tomogram_list.pop(i)
         del tomo
+        self.tomograms.reset_choices()
