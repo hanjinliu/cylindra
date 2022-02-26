@@ -1,11 +1,12 @@
+import os.path
 from typing import Iterable, Union, Tuple, List
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
 from napari.layers import Points, Image, Labels, Vectors
-from pathlib import Path
 
 import impy as ip
 
@@ -28,7 +29,6 @@ from magicclass import (
 from magicclass.widgets import (
     TupleEdit,
     Separator,
-    ListWidget,
     Table,
     RadioButtons,
     ColorEdit,
@@ -387,6 +387,7 @@ class MTPropsWidget(MagicTemplate):
     class File(MagicTemplate):
         """File I/O."""  
         def Open_image(self): ...
+        def Open_tomogram_list(self): ...
         def Load_json(self): ...
         sep0 = field(Separator)
         def Save_results_as_json(self): ...
@@ -458,17 +459,108 @@ class MTPropsWidget(MagicTemplate):
         def clear_current(self): ...
         def clear_all(self): ...
         
-    @magicclass(widget_type="collapsible", name="Tomogram List")
-    class tomogram_list(MagicTemplate):
+    @magicclass(widget_type="scrollable", labels=False)
+    class _Tomogram_list(MagicTemplate):
         """List of tomograms that have loaded to the widget."""        
-        tomograms = ListWidget(name="Tomogram List")
+        _tomogram_list: List[MtTomogram]
+        
+        def __init__(self):
+            self._tomogram_list = []
+            
+        def _get_tomograms(self, widget=None) -> List[Tuple[str, int]]:
+            out: List[Tuple[str, int]] = []
+            for i, tomo in enumerate(self._tomogram_list):
+                try:
+                    d, name0 = os.path.split(tomo.metadata["source"])
+                    _, name1 = os.path.split(d)
+                    name = os.path.join(name1, name0)
+                except Exception:
+                    name = f"Tomogram<{hex(id(tomo))}>"
+                out.append((name, i))
+            return out
+        
+        @magictoolbar
+        class Tools(MagicTemplate):
+            def Load(self): ...
+            def Copy_path(self): ...
+            def Delete(self): ...
+        
+        tomograms = field(int, widget_type="RadioButtons", options={"choices": _get_tomograms})
+        
+        @Tools.wraps
+        def Load(self, i: Bound[tomograms]):
+            """Load selected tomogram into the viewer."""
+            parent = self.find_ancestor(MTPropsWidget)
+            tomo: MtTomogram = self._tomogram_list[i]
+            if tomo is parent.tomogram:
+                return None
+            parent.tomogram = tomo
+            
+            # Load dask again. Here, lowpass filter is already applied so that cutoff frequency
+            # should be set to 0.
+            worker = parent._get_process_image_worker(
+                tomo.image, 
+                binsize=tomo.metadata["binsize"], 
+                light_bg=tomo.light_background, 
+                cutoff=tomo.metadata["cutoff"],
+                length=tomo.subtomo_length,
+                width=tomo.subtomo_width,
+                new=False
+                )
+            parent._last_ft_size = tomo.metadata.get("ft_size", None)
+            parent._connect_worker(worker)
+            worker.start()
+            
+            if tomo.splines:
+                worker.finished.connect(parent._init_figures)
+                worker.finished.connect(parent.Sample_subtomograms)
+            else:
+                worker.finished.connect(parent._init_layers)
+                worker.finished.connect(parent._init_widget_params)
+                worker.finished.connect(parent.Panels.overview.layers.clear)
+            
+            return None
+        
+        @Tools.wraps
+        def Copy_path(self, i: Bound[tomograms]):
+            """Copy the path to the image file of the selected tomogram."""
+            tomo: MtTomogram = self._tomogram_list[i]
+            if "source" in tomo.metadata:
+                to_clipboard(tomo.metadata["source"])
+                
+        @Tools.wraps
+        def Delete(self, i: Bound[tomograms]):
+            """Delete selected tomogram from the list."""
+            tomo = self._tomogram_list.pop(i)
+            del tomo
     
-    @magicclass(layout="horizontal")
-    class mt(MagicTemplate):
+    @magicclass(widget_type="groupbox")
+    class Spline_control(MagicTemplate):
         """MT sub-regions"""
-        mtlabel = field(int, options={"max": 0, "tooltip": "Number of MT."}, name="Spline No.")
-        pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Pos", record=False)
-    
+        def _get_splines(self, widget=None) -> list[int]:
+            """Get list of spline objects for categorical widgets."""
+            try:
+                tomo = self.find_ancestor(MTPropsWidget).tomogram
+            except Exception:
+                return []
+            if tomo is None:
+                return []
+            return [(str(spl), i) for i, spl in enumerate(tomo.splines)]
+        
+        num = field(int, widget_type="ComboBox", options={"choices": _get_splines}, name="Spline No.", record=False)
+        pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Position", record=False)
+        
+        @num.connect
+        def _num_changed(self):
+            i = self.num.value
+            tomo = self.find_ancestor(MTPropsWidget).tomogram
+            spl = tomo.splines[i]
+            if spl._anchors is not None:
+                self.pos.max = spl.anchors.size - 1
+            else:
+                self.pos.value = 0
+                self.pos.max = 0
+        
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
     
     orientation_choice = vfield(Ori.none, name="Orientation: ", options={"tooltip": "MT polarity."})
@@ -526,55 +618,7 @@ class MTPropsWidget(MagicTemplate):
         
     def __post_init__(self):
         self.Set_colormap()
-        self.mt.pos.min_width = 70
-        
-        tomograms = self.tomogram_list.tomograms
-        
-        @tomograms.register_callback(MtTomogram)
-        def open_tomogram(tomo: MtTomogram, i: int):
-            if tomo is self.tomogram:
-                return None
-            self.tomogram = tomo
-            
-            # Load dask again. Here, lowpass filter is already applied so that cutoff frequency
-            # should be set to 0.
-            worker = self._get_process_image_worker(
-                tomo.image, tomo.metadata["binsize"], 
-                tomo.light_background, tomo.metadata["cutoff"],
-                tomo.subtomo_length, tomo.subtomo_width,
-                new=False
-                )
-            self._last_ft_size = tomo.metadata.get("ft_size", None)
-            self._connect_worker(worker)
-            worker.start()
-            
-            if tomo.splines:
-                worker.finished.connect(self.Sample_subtomograms)
-            else:
-                worker.finished.connect(self._init_layers)
-                worker.finished.connect(self._init_widget_params)
-                worker.finished.connect(self.Panels.overview.layers.clear)
-        
-        @tomograms.register_contextmenu(MtTomogram)
-        def Load_tomogram(tomo: MtTomogram, i: int):
-            open_tomogram(tomo, i)
-        
-        @tomograms.register_contextmenu(MtTomogram)
-        def Remove_tomogram_from_list(tomo: MtTomogram, i: int):
-            tomograms.pop(i)
-            
-        @tomograms.register_contextmenu(MtTomogram)
-        def Copy_path(tomo: MtTomogram, i: int):
-            if "source" in tomo.metadata:
-                to_clipboard(tomo.metadata["source"])
-        
-        @tomograms.register_tooltip(MtTomogram)
-        def _tooltip(tomo: MtTomogram):
-            gb = tomo.image.gb
-            return f"{gb:.3g} GB"
-            
-        tomograms.height = 160
-        tomograms.max_height = 160
+        self.Spline_control.pos.min_width = 70
         self.min_width = 400
         
         # Initialize multi-image canvas
@@ -602,7 +646,7 @@ class MTPropsWidget(MagicTemplate):
         self.Local_Properties.params._init_text()
         self.Panels.min_height = 300
 
-    def _get_splines(self, widget=None) -> list[int]:
+    def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         tomo = self.tomogram
         if tomo is None:
@@ -932,6 +976,12 @@ class MTPropsWidget(MagicTemplate):
         """Open an image and add to viewer."""
         self._loader.show()
         return None
+    
+    @File.wraps
+    @do_not_record
+    def Open_tomogram_list(self):
+        self._Tomogram_list.show()
+        return None
         
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
@@ -1049,8 +1099,8 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
                     
-    @mt.mtlabel.connect
-    @mt.pos.connect
+    @Spline_control.num.connect
+    @Spline_control.pos.connect
     @Image.focus.connect
     def _focus_on(self):
         """Change camera focus to the position of current MT fragment."""
@@ -1061,8 +1111,8 @@ class MTPropsWidget(MagicTemplate):
             return None
         
         viewer = self.parent_viewer
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
+        i = self.Spline_control.num.value
+        j = self.Spline_control.pos.value
         
         tomo = self.tomogram
         spl = tomo.splines[i]
@@ -1093,7 +1143,6 @@ class MTPropsWidget(MagicTemplate):
         self._init_widget_params()
         self._init_layers()
         self.layer_work.mode = "pan_zoom"
-        self.mt.mtlabel.max = tomo.n_splines - 1
         
         if spl.localprops is not None:
             n_anc = len(spl.localprops)
@@ -1102,10 +1151,10 @@ class MTPropsWidget(MagicTemplate):
         else:
             return
         
-        self.mt.pos.max = n_anc - 1
+        self.Spline_control.pos.max = n_anc - 1
         
         self.orientation_choice = ori
-        self._update_mtpath()
+        self._update_spline()
         return None
     
     @Image.wraps
@@ -1117,7 +1166,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @dispatch_worker
-    def Show_straightened_image(self, i: Bound[mt.mtlabel]):
+    def Show_straightened_image(self, i: Bound[Spline_control.num]):
         """Send straightened image of the current MT to the viewer."""        
         tomo = self.tomogram
         
@@ -1136,7 +1185,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="R-projection")
-    def show_r_proj(self, i: Bound[mt.mtlabel], j: Bound[mt.pos]):
+    def show_r_proj(self, i: Bound[Spline_control.num], j: Bound[Spline_control.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
         with no_verbose():
             polar = self._current_cylindrical_img().proj("r")
@@ -1153,7 +1202,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
-        i = self.mt.mtlabel.value
+        i = self.Spline_control.num.value
         with no_verbose():
             polar = self.tomogram.straighten_cylindric(i).proj("r")
         self.Panels.image2D.image = polar.value
@@ -1166,7 +1215,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT")
-    def show_current_ft(self, i: Bound[mt.mtlabel], j: Bound[mt.pos]):
+    def show_current_ft(self, i: Bound[Spline_control.num], j: Bound[Spline_control.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
         with no_verbose():
             polar = self._current_cylindrical_img()
@@ -1185,7 +1234,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="2D-FT (Global)")
-    def show_global_ft(self, i: Bound[mt.mtlabel]):
+    def show_global_ft(self, i: Bound[Spline_control.num]):
         """View Fourier space along current MT."""  
         with no_verbose():
             polar = self.tomogram.straighten_cylindric(i)
@@ -1303,7 +1352,7 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.wraps
     @set_options(radius={"text": "Measure radii by radial profile."})
     @dispatch_worker
-    def Set_radius(self, radius: Optional[nm]):
+    def Set_radius(self, radius: Optional[nm] = None):
         """Measure MT radius for each spline path."""        
         worker = create_worker(self.tomogram.set_radius,
                                radius=radius,
@@ -1445,7 +1494,7 @@ class MTPropsWidget(MagicTemplate):
     )
     def Map_monomers_manually(
         self, 
-        i: Bound[mt.mtlabel],
+        i: Bound[Spline_control.num],
         y_offset: nm = 0, 
         theta_offset: float = 0,
         length: Optional[nm] = None,
@@ -2438,7 +2487,7 @@ class MTPropsWidget(MagicTemplate):
 
 
     def _plot_properties(self):
-        i = self.mt.mtlabel.value
+        i = self.Spline_control.num.value
         props = self.tomogram.splines[i].localprops
         if props is None:
             return None
@@ -2455,8 +2504,17 @@ class MTPropsWidget(MagicTemplate):
         self.Local_Properties.plot.xlim = (x[0] - 2, x[-1] + 2)
         return None
         
-    def _get_process_image_worker(self, img: ip.LazyImgArray, binsize: int, light_bg: bool, 
-                                  cutoff: float, length: nm, width: nm, *, new: bool = True):
+    def _get_process_image_worker(
+        self,
+        img: ip.LazyImgArray,
+        binsize: int,
+        light_bg: bool, 
+        cutoff: float,
+        length: nm,
+        width: nm,
+        *, 
+        new: bool = True
+    ):
         """
         When an image is opened, we have to (1) prepare binned image for reference, (2) apply 
         low-pass filter if needed, (3) change existing layer scales if needed, (4) construct
@@ -2487,6 +2545,8 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(imgb: ip.ImgArray):
             tr = (binsize - 1)/2*img.scale.x
             rendering = "minip" if light_bg else "mip"
+            
+            # update image layer
             if self.layer_image not in viewer.layers:
                 self.layer_image = viewer.add_image(
                     imgb, 
@@ -2495,7 +2555,7 @@ class MTPropsWidget(MagicTemplate):
                     translate=[tr, tr, tr],
                     contrast_limits=[np.min(imgb), np.max(imgb)],
                     rendering=rendering
-                    )
+                )
             else:
                 self.layer_image.data = imgb
                 self.layer_image.scale = imgb.scale
@@ -2503,14 +2563,19 @@ class MTPropsWidget(MagicTemplate):
                 self.layer_image.translate = [tr, tr, tr]
                 self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
                 self.layer_image.rendering = rendering
-                
+            
+            # update viewer dimensions
             viewer.scale_bar.unit = img.scale_unit
             viewer.dims.axis_labels = ("z", "y", "x")
+            viewer.dims.set_current_step(0, imgb.shape[0]*img.scale.x)
             
+            # update labels layer
             if self.layer_paint is not None:
+                self.layer_paint.data = np.zeros(imgb.shape, dtype=np.uint8)
                 self.layer_paint.scale = imgb.scale
                 self.layer_paint.translate = [tr, tr, tr]
             
+            # update overview
             with no_verbose():
                 proj = imgb.proj("z")
             self.Panels.overview.image = proj
@@ -2521,16 +2586,18 @@ class MTPropsWidget(MagicTemplate):
                                   subtomogram_width=width, 
                                   light_background=light_bg)
                 # metadata for GUI
-                tomo.metadata["source"] = str(self._loader.path)
+                tomo._set_image(img)
+                path = Path(tomo.image.dirpath)/tomo.image.name
+                tomo.metadata["source"] = str(path)
                 tomo.metadata["binsize"] = binsize
                 tomo.metadata["cutoff"] = cutoff
                 if self._last_ft_size is not None:
                     tomo.metadata["ft_size"] = self._last_ft_size
-                
-                tomo._set_image(img)
                 self.tomogram = tomo
-                self.tomogram_list.tomograms.append(tomo)
-                
+                tomo_list_widget = self._Tomogram_list
+                tomo_list_widget._tomogram_list.append(tomo)
+                tomo_list_widget.reset_choices()
+                tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
                 self.clear_all()
             
             return None
@@ -2538,12 +2605,9 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     def _init_widget_params(self):
-        self.mt.mtlabel.value = 0
-        self.mt.mtlabel.min = 0
-        self.mt.mtlabel.max = 0
-        self.mt.pos.value = 0
-        self.mt.pos.min = 0
-        self.mt.pos.max = 0
+        self.Spline_control.pos.value = 0
+        self.Spline_control.pos.max = 0
+        self.projections: List[Projections] = []
         self.Local_Properties.params._init_text()
         return None
     
@@ -2575,8 +2639,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return local Cartesian image at the current position
         """        
-        i = i or self.mt.mtlabel.value
-        j = j or self.mt.pos.value
+        i = i or self.Spline_control.num.value
+        j = j or self.Spline_control.pos.value
         tomo = self.tomogram
         spl = tomo._splines[i]
         
@@ -2596,8 +2660,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return cylindric-transformed image at the current position
         """        
-        i = i or self.mt.mtlabel.value
-        j = j or self.mt.pos.value
+        i = i or self.Spline_control.num.value
+        j = j or self.Spline_control.pos.value
         tomo = self.tomogram
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
@@ -2650,11 +2714,11 @@ class MTPropsWidget(MagicTemplate):
         self.orientation_choice = Ori.none
         return None
     
-    @mt.pos.connect
+    @Spline_control.pos.connect
     def _imshow_all(self):
         tomo = self.tomogram
-        i = self.mt.mtlabel.value
-        j = self.mt.pos.value
+        i = self.Spline_control.num.value
+        j = self.Spline_control.pos.value
         npaths = len(tomo.splines)
         if 0 == npaths:
             return
@@ -2692,7 +2756,7 @@ class MTPropsWidget(MagicTemplate):
         # draw a square in YX-view
         ymin, ymax = ly/2 - ylen - 0.5, ly/2 + ylen + 0.5
         r_px = spl.radius/tomo.scale/binsize
-        r = r_px*GVar.outer
+        r = r_px * GVar.outer
         xmin, xmax = -r + lx/2 - 0.5, r + lx/2 + 0.5
         self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
                                  [ymin, ymax, ymax, ymin, ymin], color="lime")
@@ -2707,21 +2771,22 @@ class MTPropsWidget(MagicTemplate):
     
     @orientation_choice.connect
     def _update_note(self):
-        i = self.mt.mtlabel.value
+        i = self.Spline_control.num.value
         self.tomogram.splines[i].orientation = self.orientation_choice
         return None
     
-    @mt.mtlabel.connect
-    def _update_mtpath(self):
-        self.mt.mtlabel.enabled = False
-        i = self.mt.mtlabel.value
+    @Spline_control.num.connect
+    def _update_spline(self):
+        i = self.Spline_control.num.value
         tomo = self.tomogram
+        spl = tomo.splines[i]
+        if spl._anchors is None:
+            return
         
         # calculate projection
         binsize = tomo.metadata["binsize"]
         imgb = self.layer_image.data
         
-        spl = tomo.splines[i]
         spl.scale *= binsize
         
         length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
@@ -2747,11 +2812,10 @@ class MTPropsWidget(MagicTemplate):
         
         self.projections = projections
         
-        self.mt.pos.max = tomo.splines[i].anchors.size - 1
+        # self.mt.pos.max = tomo.splines[i].anchors.size - 1
         self.orientation_choice = Ori(tomo.splines[i].orientation)
         self._plot_properties()
         self._imshow_all()
-        self.mt.mtlabel.enabled = True
         return None
     
     def _connect_worker(self, worker: Worker):
