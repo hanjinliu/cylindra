@@ -1,17 +1,18 @@
 from typing import List
 import numpy as np
-from magicclass import magicclass, MagicTemplate, field
+from magicclass import magicclass, MagicTemplate, field, vfield, Bound, set_options
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from ..const import GVar, H
 from ..utils import no_verbose, load_rot_subtomograms, Projections
 
+from ..components.tomogram import MtSpline
+from ..const import Ori, H
 
-@magicclass(widget_type="groupbox", name="Spline Control")
+@magicclass(widget_type="groupbox")
 class SplineControl(MagicTemplate):
     """MT sub-regions"""
     def __post_init__(self):
         self.projections: List[Projections] = []
-        self.pos.min_width = 70
         self.canvas.min_height = 200
         self.canvas.max_height = 230
         self.canvas[0].lock_contrast_limits = True
@@ -32,14 +33,50 @@ class SplineControl(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
-    num = field(int, widget_type="ComboBox", options={"choices": _get_splines}, name="Spline No.", record=False)
-    pos = field(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Position", record=False)
+    num = vfield(int, widget_type="ComboBox", options={"choices": _get_splines, "tooltip": "Spline in current tomogram."}, name="Spline No.", record=False)
+    pos = vfield(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Position", record=False)
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
+    
+    @magicclass(layout="horizontal")
+    class footer(MagicTemplate):
+        focus = vfield(False, options={"text": "focus on", "tooltip": "Keep focus of viewer camera on the current spline position"}, record=False)
+        def set_pf_number(self): ...
+        def set_orientation(self): ...
+    
+    @footer.wraps
+    @set_options(labels=False)
+    def set_pf_number(self, i: Bound[num], npf: int = 13):
+        """Manually update protofilament number."""
+        from .main import MTPropsWidget
+        parent = self.find_ancestor(MTPropsWidget)
+        if parent.tomogram is None or i is None:
+            return None
+        spl: MtSpline = parent.tomogram.splines[i]
+        if spl.localprops is not None:
+            spl.localprops[H.nPF].values[:] = npf
+            parent._update_local_properties_in_widget()
+        if spl.globalprops is not None:
+            spl.globalprops[H.nPF] = npf
+            parent._update_global_properties_in_widget()
+        return None
+        
+    @footer.wraps
+    @set_options(labels=False, orientation={"widget_type": "RadioButtons"})
+    def set_orientation(self, i: Bound[num], orientation: Ori = Ori.none):
+        """Manually set polarity."""
+        from .main import MTPropsWidget
+        parent = self.find_ancestor(MTPropsWidget)
+        if parent.tomogram is None or i is None:
+            return None
+        spl: MtSpline = parent.tomogram.splines[i]
+        spl.orientation = orientation
+        parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
+        return None
     
     @num.connect
     def _num_changed(self):
         from .main import MTPropsWidget
-        i = self.num.value
+        i = self.num
         parent = self.find_ancestor(MTPropsWidget)
         tomo = parent.tomogram
         spl = tomo.splines[i]
@@ -49,13 +86,24 @@ class SplineControl(MagicTemplate):
         elif spl._anchors is not None:
             n_anc = len(spl._anchors)
         else:
-            self.pos.value = 0
-            self.pos.max = 0
+            self.pos = 0
+            self._set_pos_limit(0)
             return
         
-        self.pos.max = n_anc - 1
+        self._set_pos_limit(n_anc-1)
         
-        # update plots in pyqtgraph
+        self._load_projection()
+        self._update_canvas()
+        return None
+    
+    def _load_projection(self):
+        from .main import MTPropsWidget
+        i = self.num
+        parent = self.find_ancestor(MTPropsWidget)
+        tomo = parent.tomogram
+        spl = tomo.splines[i]
+        
+        # update plots in pyqtgraph, if properties exist
         parent.LocalProperties._plot_properties(spl.localprops)
         
         # calculate projection
@@ -64,7 +112,8 @@ class SplineControl(MagicTemplate):
         elif spl.globalprops is not None:
             npf_list = [spl.globalprops[H.nPF]] * spl.anchors.size
         else:
-            return None
+            npf_list = [0] * spl.anchors.size
+            # return None
 
         binsize = tomo.metadata["binsize"]
         imgb = parent.layer_image.data
@@ -81,35 +130,34 @@ class SplineControl(MagicTemplate):
         projections = []
         for img, npf in zip(out, npf_list):    
             proj = Projections(img)
-            proj.rotational_average(npf)
+            if npf > 1:
+                proj.rotational_average(npf)
             projections.append(proj)
         
         self.projections = projections
-        self._pos_changed()
         return None
 
     @pos.connect
-    def _pos_changed(self):
+    def _update_canvas(self):
         from .main import MTPropsWidget
         parent = self.find_ancestor(MTPropsWidget)
         tomo = parent.tomogram
-        i = self.num.value
-        j = self.pos.value
-        npaths = len(tomo.splines)
-        if 0 == npaths:
-            return
-        if 0 < npaths <= i:
-            i = 0
-        spl = tomo.splines[i]
+        binsize = tomo.metadata["binsize"]
+        i = self.num
+        j = self.pos
         
-        binsize = parent.tomogram.metadata["binsize"]
+        if not self.projections:
+            return
+        spl = tomo.splines[i]
+        # Set projections
         with no_verbose():
             proj = self.projections[j]
             for ic in range(3):
                 self.canvas[ic].layers.clear()
             self.canvas[0].image = proj.yx
             self.canvas[1].image = proj.zx
-            self.canvas[2].image = proj.zx_ave
+            if proj.zx_ave is not None:
+                self.canvas[2].image = proj.zx_ave
         
         # Update text overlay
         self.canvas[0].text_overlay.text = f"{i}-{j}"
@@ -146,7 +194,6 @@ class SplineControl(MagicTemplate):
             parent.LocalProperties._plot_spline_position(x)
         else:
             parent.LocalProperties._init_plot()
-        return None
     
     def _reset_contrast_limits(self):
         for i in range(3):
@@ -154,3 +201,6 @@ class SplineControl(MagicTemplate):
             if img is not None:
                 self.canvas[i].contrast_limits = [img.min(), img.max()]
         return None
+    
+    def _set_pos_limit(self, max: int):
+        self[1].max = max

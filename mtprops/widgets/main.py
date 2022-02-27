@@ -70,8 +70,9 @@ class MTPropsWidget(MagicTemplate):
     
     ### widgets ###
     
-    _worker_control = field(WorkerControl)
-    _spline_fitter = field(SplineFitter)
+    _WorkerControl = field(WorkerControl)
+    _SplineFitter = field(SplineFitter)
+    _TomogramList = field(TomogramList)
     
     @magicmenu
     class File(MagicTemplate):
@@ -101,7 +102,6 @@ class MTPropsWidget(MagicTemplate):
         def Paint_MT(self): ...
         def Set_colormap(self): ...
         def Show_colorbar(self): ...
-        focus = field(False, options={"text": "Focus"}, record=False)
     
     @magicmenu
     class Splines(MagicTemplate):
@@ -149,7 +149,6 @@ class MTPropsWidget(MagicTemplate):
         def clear_current(self): ...
         def clear_all(self): ...
     
-    _TomogramList = TomogramList
     SplineControl = SplineControl
     LocalProperties = LocalPropertiesWidget
     GlobalProperties = GlobalPropertiesWidget
@@ -285,7 +284,7 @@ class MTPropsWidget(MagicTemplate):
         @worker.yielded.connect
         def _on_yield(out):
             if isinstance(out, str):
-                self._worker_control.info = out
+                self._WorkerControl.info = out
                 self._update_splines_in_images()
             
         @worker.returned.connect
@@ -299,7 +298,7 @@ class MTPropsWidget(MagicTemplate):
             if global_props:
                 self._update_global_properties_in_widget()
         self._last_ft_size = ft_size
-        self._worker_control.info = "Spline fitting"
+        self._WorkerControl.info = "Spline fitting"
         return worker
     
     @toolbar.wraps
@@ -621,7 +620,7 @@ class MTPropsWidget(MagicTemplate):
                     )
                 return np.percentile(self.layer_image.data, [1, 97])
         worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
-        self._worker_control.info = "Low-pass filtering"
+        self._WorkerControl.info = "Low-pass filtering"
 
         @worker.returned.connect
         def _on_return(contrast_limits):
@@ -635,18 +634,18 @@ class MTPropsWidget(MagicTemplate):
                     
     @SplineControl.num.connect
     @SplineControl.pos.connect
-    @Image.focus.connect
+    @SplineControl.footer.focus.connect
     def _focus_on(self):
         """Change camera focus to the position of current MT fragment."""
         if self.layer_paint is None:
             return None
-        if not self.Image.focus.value:
+        if not self.SplineControl.footer.focus:
             self.layer_paint.show_selected_label = False
             return None
         
         viewer = self.parent_viewer
-        i = self.SplineControl.num.value
-        j = self.SplineControl.pos.value
+        i = self.SplineControl.num
+        j = self.SplineControl.pos
         
         tomo = self.tomogram
         spl = tomo.splines[i]
@@ -663,10 +662,13 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     def Sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
-        self._spline_fitter.close()
+        self._SplineFitter.close()
         
         # initialize GUI
-        self.SplineControl.num.changed.emit()
+        # self.SplineControl.num.changed.emit()
+        spl = self.tomogram.splines[0]
+        self.SplineControl._set_pos_limit(spl.anchors.size - 1)
+        self.SplineControl._num_changed()
         self.layer_work.mode = "pan_zoom"
         
         # self.SplineControl
@@ -696,7 +698,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
-        i = self.SplineControl.num.value
+        i = self.SplineControl.num
         with no_verbose():
             polar = self.tomogram.straighten_cylindric(i).proj("r")
         self.Panels.image2D.image = polar.value
@@ -804,7 +806,7 @@ class MTPropsWidget(MagicTemplate):
                                )
         worker.returned.connect(self._init_layers)
         worker.returned.connect(self._update_splines_in_images)
-        self._worker_control.info = "Spline Fitting"
+        self._WorkerControl.info = "Spline Fitting"
 
         return worker
     
@@ -819,8 +821,8 @@ class MTPropsWidget(MagicTemplate):
         max_interval : nm, default is 50.0
             Maximum interval between new anchors.
         """        
-        self._spline_fitter._load_parent_state(max_interval=max_interval)
-        self._spline_fitter.show()
+        self._SplineFitter._load_parent_state(max_interval=max_interval)
+        self._SplineFitter.show()
         return None
     
     @Splines.wraps
@@ -852,7 +854,7 @@ class MTPropsWidget(MagicTemplate):
                                _progress={"total": 0, "desc": "Running"}
                                )
         
-        self._worker_control.info = "Measuring Radius"
+        self._WorkerControl.info = "Measuring Radius"
 
         return worker
     
@@ -885,7 +887,7 @@ class MTPropsWidget(MagicTemplate):
         
         worker.finished.connect(self._update_splines_in_images)
 
-        self._worker_control.info = "Refining splines ..."
+        self._WorkerControl.info = "Refining splines ..."
         
         self._init_widget_state()
         return worker
@@ -917,7 +919,7 @@ class MTPropsWidget(MagicTemplate):
             self.Sample_subtomograms()
             self._update_local_properties_in_widget()
         self._last_ft_size = ft_size
-        self._worker_control.info = "Local Fourier transform ..."
+        self._WorkerControl.info = "Local Fourier transform ..."
         return worker
         
     @Analysis.wraps
@@ -929,7 +931,7 @@ class MTPropsWidget(MagicTemplate):
                                _progress={"total": 0, "desc": "Running"})
         worker.returned.connect(lambda e: self._update_global_properties_in_widget())
         
-        self._worker_control.info = f"Global Fourier transform ..."
+        self._WorkerControl.info = f"Global Fourier transform ..."
         
         return worker
     
@@ -969,7 +971,7 @@ class MTPropsWidget(MagicTemplate):
                 spl = tomo.splines[i]
                 add_molecules(self.parent_viewer, mol, f"Monomers-{i}", source=spl)
                 
-        self._worker_control.info = "Monomer mapping ..."
+        self._WorkerControl.info = "Monomer mapping ..."
         return worker
 
     @Analysis.Mapping.wraps
@@ -1372,7 +1374,7 @@ class MTPropsWidget(MagicTemplate):
                 with no_verbose():
                     img.imsave(save_at)
         
-        self._worker_control.info = f"Subtomogram averaging of {layer.name} ..."
+        self._WorkerControl.info = f"Subtomogram averaging of {layer.name} ..."
         return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -1448,7 +1450,7 @@ class MTPropsWidget(MagicTemplate):
                 img = -img
             self._subtomogram_averaging._show_reconstruction(img, f"Subtomogram average (n={number})")
         
-        self._worker_control.info = f"Subtomogram Averaging (subset) ..."
+        self._WorkerControl.info = f"Subtomogram Averaging (subset) ..."
 
         return worker
     
@@ -1542,7 +1544,7 @@ class MTPropsWidget(MagicTemplate):
                            )
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned average image")
                 
-        self._worker_control.info = f"Aligning averaged image (n={nmole}) to template"
+        self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         return worker
     
     
@@ -1626,7 +1628,7 @@ class MTPropsWidget(MagicTemplate):
                            source=source
                            )            
                 
-        self._worker_control.info = f"Aligning subtomograms (n={nmole})"
+        self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
     
 
@@ -1667,7 +1669,7 @@ class MTPropsWidget(MagicTemplate):
             plt.title(f"Fourier Shell Correlation of {layer.name}")
             plt.show()
         
-        self._worker_control.info = f"Calculating FSC ..."
+        self._WorkerControl.info = f"Calculating FSC ..."
         return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -1735,7 +1737,7 @@ class MTPropsWidget(MagicTemplate):
             viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
             add_molecules(self.parent_viewer, moles[iopt], layer.name + "-OPT", source=source)
             
-        self._worker_control.info = "Seam search ... "
+        self._WorkerControl.info = "Seam search ... "
 
         return worker
         
@@ -1981,6 +1983,12 @@ class MTPropsWidget(MagicTemplate):
         loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize)
         return loader
     
+    @nogui
+    def get_current_spline(self):
+        tomo = self.tomogram
+        i = self.SplineControl.num
+        return tomo.splines[i]
+    
     def _update_colormap(self, prop: str = H.yPitch):
         if self.layer_paint is None:
             return None
@@ -2029,7 +2037,7 @@ class MTPropsWidget(MagicTemplate):
                                cutoff=cutoff,
                                _progress={"total": 0, "desc": "Reading Image"})
 
-        self._worker_control.info = \
+        self._WorkerControl.info = \
             f"Loading with {binsize}x{binsize} binned size: {tuple(s//binsize for s in img.shape)}"
         
         @worker.returned.connect
@@ -2095,8 +2103,8 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     def _init_widget_state(self):
-        self.SplineControl.pos.value = 0
-        self.SplineControl.pos.max = 0
+        self.SplineControl.pos = 0
+        self.SplineControl._set_pos_limit(0)
         self.LocalProperties._init_text()
     
         for i in range(3):
@@ -2126,8 +2134,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return local Cartesian image at the current position
         """        
-        i = i or self.SplineControl.num.value
-        j = j or self.SplineControl.pos.value
+        i = i or self.SplineControl.num
+        j = j or self.SplineControl.pos
         tomo = self.tomogram
         spl = tomo._splines[i]
         
@@ -2147,8 +2155,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return cylindric-transformed image at the current position
         """        
-        i = i or self.SplineControl.num.value
-        j = j or self.SplineControl.pos.value
+        i = i or self.SplineControl.num
+        j = j or self.SplineControl.pos
         tomo = self.tomogram
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
@@ -2203,7 +2211,7 @@ class MTPropsWidget(MagicTemplate):
     
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self):
-        i = self.SplineControl.num.value
+        i = self.SplineControl.num
         spl = self.tomogram.splines[i]
         if spl.globalprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -2215,11 +2223,11 @@ class MTPropsWidget(MagicTemplate):
     @SplineControl.num.connect
     @SplineControl.pos.connect
     def _update_local_properties_in_widget(self):
-        i = self.SplineControl.num.value
+        i = self.SplineControl.num
         tomo = self.tomogram
         if i >= len(tomo.splines):
             return
-        j = self.SplineControl.pos.value
+        j = self.SplineControl.pos
         spl = tomo.splines[i]
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -2228,7 +2236,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     def _connect_worker(self, worker: Worker):
-        self._worker_control._set_worker(worker)
+        self._WorkerControl._set_worker(worker)
         viewer: napari.Viewer = self.parent_viewer
         viewer.window._status_bar._toggle_activity_dock(True)
         dialog = viewer.window._qt_window._activity_dialog
@@ -2236,9 +2244,9 @@ class MTPropsWidget(MagicTemplate):
         @worker.finished.connect
         def _on_finish(*args):
             viewer.window._status_bar._toggle_activity_dock(False)
-            dialog.layout().removeWidget(self._worker_control.native)
+            dialog.layout().removeWidget(self._WorkerControl.native)
 
-        dialog.layout().addWidget(self._worker_control.native)
+        dialog.layout().addWidget(self._WorkerControl.native)
         return None
         
     def _add_spline_to_images(self, spl: MtSpline):

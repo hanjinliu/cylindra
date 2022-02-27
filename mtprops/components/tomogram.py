@@ -305,7 +305,7 @@ class MtTomogram:
         scale: float = None,
         subtomogram_length: nm = 48.0,
         subtomogram_width: nm = 40.0,
-        light_background: bool = True
+        light_background: bool = False
     ) -> Self:
         
         self = cls(subtomogram_length=subtomogram_length,

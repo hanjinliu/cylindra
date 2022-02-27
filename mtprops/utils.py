@@ -338,5 +338,6 @@ class Projections:
         self.shape = image.shape
     
     def rotational_average(self, npf: int):
-        self.zx_ave = rotational_average(self.zx, fold=int(npf))
+        if npf > 1:
+            self.zx_ave = rotational_average(self.zx, fold=int(npf))
         return self.zx_ave
