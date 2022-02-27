@@ -3,6 +3,7 @@ from typing import Iterable, Union, Tuple, List
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from scipy import ndimage as ndi
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
@@ -38,7 +39,7 @@ from magicclass.widgets import (
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
-from ..components.tomogram import angle_corr, dask_affine
+from ..components.tomogram import angle_corr
 from ..utils import (
     crop_tomogram,
     make_slice_and_pad,
@@ -1861,11 +1862,11 @@ class MTPropsWidget(MagicTemplate):
                     domains.append(domain)
                     
                 cylinders.append(domains)
-                matrices.append(spl.affine_matrix(center=center))
+                matrices.append(spl.affine_matrix(center=center, inverse=True))
             
             cylinders = np.concatenate(cylinders, axis=0)
             matrices = np.concatenate(matrices, axis=0)
-            out = dask_affine(cylinders, matrices) > 0.3
+            out = _multi_affine(cylinders, matrices) > 0.3
             
         # paint roughly
         for i, crd in enumerate(tomo.collect_anchor_coords()):
@@ -2295,6 +2296,14 @@ def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5,
     point += shift
 
 
+def _multi_affine(images, matrices, cval: float = 0, order=1):
+    out = np.empty_like(images)
+    for i, (img, matrix) in enumerate(zip(images, matrices)):
+        out[i] = ndi.affine_transform(
+            img, matrix, order=order, cval=cval, prefilter=order>1
+        )
+    return out
+    
 def _iter_run(tomo: MtTomogram, 
               interval: nm,
               ft_size,

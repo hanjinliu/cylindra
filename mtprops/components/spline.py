@@ -3,7 +3,6 @@ from functools import lru_cache
 from typing import Callable, Iterable, TypedDict, TYPE_CHECKING
 import warnings
 import numpy as np
-import numba as nb
 import json
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
@@ -443,13 +442,12 @@ class Spline:
             json.dump(self.to_dict(), f, indent=4, separators=(", ", ": "))
         
         return None
-    
 
     def affine_matrix(
         self, 
         u: Iterable[float] = None,
         center: Iterable[float] = None, 
-        inverse: bool = False
+        inverse: bool = False,
     ) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
@@ -475,13 +473,14 @@ class Spline:
             u = self.anchors
         ds = self(u, 1)
         
-        if np.isscalar(u):
-            out = _vector_to_rotation_matrix(ds)
-        else:
-            out = np.stack([_vector_to_rotation_matrix(ds0) for ds0 in ds], axis=0)
-        
+        if ds.ndim == 1:
+            ds = ds[np.newaxis]
+        rot = axes_to_rotator(None, ds)
         if inverse:
-            out = np.linalg.inv(out)
+            rot = rot.inv()
+        out = np.zeros((len(rot), 4, 4), dtype=np.float32)
+        out[:, :3, :3] = rot.as_matrix()
+        out[:, 3, 3] = 1.
             
         if center is not None:
             dz, dy, dx = center
@@ -499,13 +498,14 @@ class Spline:
                                      dtype=np.float32)
             
             out = translation_0 @ out @ translation_1
-        
+        if np.isscalar(u):
+            out = out[0]
         return out
     
     def get_rotator(
         self, 
         u: Iterable[float] = None,
-        inverse: bool = False
+        inverse: bool = False,
     ) -> Rotation:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
@@ -847,72 +847,10 @@ class Spline:
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop
 
-_V = slice(None) # vertical dimension
-_S = slice(None) # longitudinal dimension along spline curve
-_H = slice(None) # horizontal dimension
-_D = slice(None, None, 1) # dimension of dimension (such as d=0: z, d=1: y,...)
-
-@nb.njit(cache=True)
-def _vector_to_rotation_matrix(ds: nb.float32[_D]) -> nb.float32[_D,_D]:
-    xy = np.arctan2(ds[2], -ds[1])
-    zy = np.arctan(-ds[0]/np.abs(ds[1]))
-    cos = np.cos(xy)
-    sin = np.sin(xy)
-    rotation_yx = np.array([[1.,  0.,   0., 0.],
-                            [0., cos, -sin, 0.],
-                            [0., sin,  cos, 0.],
-                            [0.,  0.,   0., 1.]],
-                            dtype=np.float32)
-    cos = np.cos(zy)
-    sin = np.sin(zy)
-    rotation_zy = np.array([[cos, -sin, 0., 0.],
-                            [sin,  cos, 0., 0.],
-                            [ 0.,   0., 1., 0.],
-                            [ 0.,   0., 0., 1.]],
-                            dtype=np.float32)
-
-    mx = rotation_zy.dot(rotation_yx)
-    mx[-1, :] = [0, 0, 0, 1]
-    return np.ascontiguousarray(mx)
-
-@nb.njit(cache=True)
-def _rot_point_with_vector(point: nb.float32[_V,_H,_D], 
-                           dr: nb.float32[_D]
-                           ) -> nb.float32[_V,_H,_D]:
-    """
-    Rotate 'point' with vector 'dr'.
-    """    
-    mx = _vector_to_rotation_matrix(dr)
-    
-    out = np.empty(point.shape[:2] + (3,), dtype=np.float32)
-    for i, p in enumerate(point):
-        out[i] = p.dot(mx)[:, :3]
-    return out
-
-@nb.njit(cache=True)
-def _rot_with_vector_old(maps: nb.float32[_V,_H,_D],
-                     ax_coords: nb.float32[_S,_D],
-                     vectors: nb.float32[_S,_D],
-                     ) -> nb.float32[_V,_S,_H,_D]:
-    maps = np.ascontiguousarray(maps)
-    ax_coords = np.ascontiguousarray(ax_coords)
-    vectors = np.ascontiguousarray(vectors)
-    
-    coords = np.empty((maps.shape[0],
-                       ax_coords.shape[0],
-                       maps.shape[1],
-                       3),
-                      dtype=np.float32
-                      )
-    for i, (y, dr) in enumerate(zip(ax_coords, vectors)):
-        slice_out = _rot_point_with_vector(maps, dr)
-        coords[:, i] = slice_out + y
-    return coords
 
 def _rot_with_vector(maps: np.ndarray, ax_coords: np.ndarray, vectors: np.ndarray):
     rot = axes_to_rotator(None, vectors)
     mat = rot.as_matrix()
-    maps = maps[..., :3]
     out = np.einsum("nij,vhj->vnhi", mat, maps)
     out += ax_coords[np.newaxis, :, np.newaxis]
     return out
@@ -951,10 +889,8 @@ def _cartesian_coords_2d(lenv: int, lenh: int):
 def _stack_coords(coords: np.ndarray): # V, H, D
     shape = coords.shape[:-1]
     zeros = np.zeros(shape, dtype=np.float32)
-    ones = np.ones(shape, dtype=np.float32)
     stacked = np.stack([coords[..., 0], 
                         zeros,
                         coords[..., 1],
-                        ones
                         ], axis=2) # V, S, H, D
     return stacked
