@@ -2142,7 +2142,6 @@ class MTPropsWidget(MagicTemplate):
         w = tomo.nm2pixel(tomo.subtomo_width)
         
         coords = spl.local_cartesian((w, w), l, spl.anchors[j])
-        coords = np.moveaxis(coords, -1, 0)
         img = tomo.image
         out = map_coordinates(img, coords, order=1)
         out = ip.asarray(out, axes="zyx")
@@ -2167,7 +2166,6 @@ class MTPropsWidget(MagicTemplate):
         rmax = tomo.nm2pixel(spl.radius*GVar.outer)
         
         coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
-        coords = np.moveaxis(coords, -1, 0)
         img = tomo.image
         polar = map_coordinates(img, coords, order=1)
         polar = ip.asarray(polar, axes="rya") # radius, y, angle

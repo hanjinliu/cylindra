@@ -885,7 +885,6 @@ class MtTomogram:
         tasks = []
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
-            coords = np.moveaxis(coords, -1, 0)
             tasks.append(
                 da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
                                 shape=(5,), 
@@ -939,7 +938,6 @@ class MtTomogram:
                 anchors = [spl.anchors[pos]]
             for anc in anchors:
                 coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
-                coords = np.moveaxis(coords, -1, 0)
                 polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
                 polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
                 polar.set_scale(r=self.scale, y=self.scale, a=self.scale)
@@ -1070,8 +1068,6 @@ class MtTomogram:
                     rz = rx = self.nm2pixel(size)
                     
             coords = spl.cartesian((rz, rx), s_range=range_)
-            coords = np.moveaxis(coords, -1, 0)
-            
             transformed = map_coordinates(self.image, coords, order=1)
             
             axes = "zyx"
@@ -1142,9 +1138,7 @@ class MtTomogram:
             if outer_radius <= inner_radius:
                 raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
             
-            coords = spl.cylindrical((inner_radius, outer_radius), s_range=range_)
-            coords = np.moveaxis(coords, -1, 0)
-            
+            coords = spl.cylindrical((inner_radius, outer_radius), s_range=range_)            
             transformed = map_coordinates(self.image, coords, order=3)
             
             axes = "rya"

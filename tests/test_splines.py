@@ -49,12 +49,10 @@ def test_coordinate_transformation():
     img = ip.array(np.arange(5*6*5).reshape(5, 6, 5), dtype=np.float32, axes="zyx")
     
     crds = spl.cartesian((3, 3))
-    crds = np.moveaxis(crds, -1, 0)
     img_tr = map_coordinates(img, crds)
     assert_allclose(img["z=1:4;y=1:5;x=1:4"], img_tr, rtol=1e-6, atol=1e-6)
     
     crds = spl.local_cartesian((3, 3), 4, u=0.5)
-    crds = np.moveaxis(crds, -1, 0)
     img_tr = map_coordinates(img, crds)
     assert_allclose(img["z=1:4;y=1:5;x=1:4"], img_tr, rtol=1e-6, atol=1e-6)
     
@@ -70,7 +68,6 @@ def test_coordinate_transformation():
     # 0  0  0  0  0 -> x
     
     crds = spl.cylindrical((1, 3))
-    crds = np.moveaxis(crds, -1, 0)
     img_tr = map_coordinates(img, crds)
     img_tr = ip.asarray(img_tr, axes="rya")
     rmax, ymax, amax = np.unravel_index(np.argmax(img_tr), img_tr.shape)
@@ -81,7 +78,6 @@ def test_coordinate_transformation():
     assert amin < img_tr.shape[-1]/2
     
     crds = spl.local_cylindrical((1, 3), 4, u=0.5)
-    crds = np.moveaxis(crds, -1, 0)
     img_tr = map_coordinates(img, crds)
     img_tr = ip.asarray(img_tr, axes="rya")
     rmax, ymax, amax = np.unravel_index(np.argmax(img_tr), img_tr.shape)

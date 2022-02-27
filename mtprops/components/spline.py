@@ -445,10 +445,12 @@ class Spline:
         return None
     
 
-    def affine_matrix(self, 
-                      u: Iterable[float] = None,
-                      center: Iterable[float] = None, 
-                      inverse: bool = False) -> np.ndarray:
+    def affine_matrix(
+        self, 
+        u: Iterable[float] = None,
+        center: Iterable[float] = None, 
+        inverse: bool = False
+    ) -> np.ndarray:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
         the orientation of spline curve.
@@ -531,11 +533,13 @@ class Spline:
         
         return out
 
-    
-    def local_cartesian(self,
-                        shape: tuple[int, int],
-                        n_pixels: int,
-                        u: float = None):
+    def local_cartesian(
+        self,
+        shape: tuple[int, int],
+        n_pixels: int,
+        u: float | Iterable[float] = None,
+        scale: nm | None = None,
+    ):
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -546,22 +550,32 @@ class Spline:
             Vertical and horizontal length of Cartesian coordinates. Corresponds to zx axes.
         n_pixels : int
             Length of y axis in pixels.
-        u : float
+        u : float, optional
             Position on the spline at which local Cartesian coordinates will be built.
-        
+        scale: nm, optional
+            Scale of coordinates. Spline's scale will be used if not given.
+            
         Returns
         -------
         np.ndarray
             (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
             dimensional axis.
-        """        
-        return self._get_local_coords(_cartesian_coords_2d, shape, u, n_pixels)
-
+        """
+        
+        mole = self.anchors_to_molecules(u)
+        if scale is None:
+            scale = self.scale
+        coords = mole.cartesian((shape[0], n_pixels, shape[1]), scale)
+        if np.isscalar(u):
+            coords = coords[0]
+        return coords
     
-    def local_cylindrical(self,
-                          r_range: tuple[float, float],
-                          n_pixels: int,
-                          u: float = None):
+    def local_cylindrical(
+        self,
+        r_range: tuple[float, float],
+        n_pixels: int,
+        u: float = None
+    ):
         """
         Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -581,7 +595,8 @@ class Spline:
             (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and 
             dimensional axis.
         """        
-        return self._get_local_coords(_polar_coords_2d, r_range, u, n_pixels)
+        out = self._get_local_coords(_polar_coords_2d, r_range, u, n_pixels)
+        return out
         
     
     def _get_local_coords(self,
@@ -598,13 +613,15 @@ class Spline:
         dslist = np.stack([ds]*n_pixels, axis=0)
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
-        return _rot_with_vector(map_slice, y_ax_coords, dslist)
+        out = _rot_with_vector(map_slice, y_ax_coords, dslist)
+        return np.moveaxis(out, -1, 0)
 
 
-    def cartesian(self, 
-                  shape: tuple[int, int], 
-                  s_range: tuple[float, float] = (0, 1)
-                  ) -> np.ndarray:
+    def cartesian(
+        self, 
+        shape: tuple[int, int], 
+        s_range: tuple[float, float] = (0, 1)
+    ) -> np.ndarray:
         """
         Generate a Cartesian coordinate system along spline that can be used for
         ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
@@ -670,19 +687,15 @@ class Spline:
         ncoords = coords.shape[0]
         u = coords[:, 1]/self.length()
         s = self(u)
-        ds = self(u, 1)
-        
-        coords_ext = np.stack([coords[:, 0], 
-                               np.zeros(ncoords, dtype=np.float32),
-                               coords[:, 2], 
-                               -np.zeros(ncoords, dtype=np.float32)],
-                              axis=1)
-        s_ext = np.concatenate([s, np.zeros((ncoords, 1), dtype=np.float32)], axis=1)
-        for crd, s0, ds0 in zip(coords_ext, s_ext, ds):
-            mtx = np.linalg.inv(_vector_to_rotation_matrix(ds0))
-            crd[:] = mtx.dot(crd) + s0
-        
-        return coords_ext[:, :3]
+        coords_ext = np.stack([
+            coords[:, 0], 
+            np.zeros(ncoords, dtype=np.float32),
+            coords[:, 2], 
+            ], axis=1)
+        rot = self.get_rotator(u, inverse=True)
+        out = rot.apply(coords_ext) + s
+                
+        return out
 
 
     def cylindrical_to_world(self, coords: np.ndarray) -> np.ndarray:
@@ -749,7 +762,7 @@ class Spline:
 
     def anchors_to_molecules(
         self, 
-        u: Iterable[float] | None = None,
+        u: float | Iterable[float] | None = None,
         rotation: Iterable[float] | None = None
     ) -> Molecules:
         """
@@ -827,7 +840,8 @@ class Spline:
         dslist = self(u, 1).astype(np.float32)
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
-        return _rot_with_vector(map_slice, y_ax_coords, dslist)
+        out = _rot_with_vector(map_slice, y_ax_coords, dslist)
+        return np.moveaxis(out, -1, 0)
 
 
 def _linear_conversion(u, start: float, stop: float):
@@ -876,7 +890,7 @@ def _rot_point_with_vector(point: nb.float32[_V,_H,_D],
     return out
 
 @nb.njit(cache=True)
-def _rot_with_vector(maps: nb.float32[_V,_H,_D],
+def _rot_with_vector_old(maps: nb.float32[_V,_H,_D],
                      ax_coords: nb.float32[_S,_D],
                      vectors: nb.float32[_S,_D],
                      ) -> nb.float32[_V,_S,_H,_D]:
@@ -894,6 +908,15 @@ def _rot_with_vector(maps: nb.float32[_V,_H,_D],
         slice_out = _rot_point_with_vector(maps, dr)
         coords[:, i] = slice_out + y
     return coords
+
+def _rot_with_vector(maps: np.ndarray, ax_coords: np.ndarray, vectors: np.ndarray):
+    rot = axes_to_rotator(None, vectors)
+    mat = rot.as_matrix()
+    maps = maps[..., :3]
+    out = np.einsum("nij,vhj->vnhi", mat, maps)
+    out += ax_coords[np.newaxis, :, np.newaxis]
+    return out
+    
 
 @lru_cache(maxsize=12)
 def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
@@ -931,7 +954,7 @@ def _stack_coords(coords: np.ndarray): # V, H, D
     ones = np.ones(shape, dtype=np.float32)
     stacked = np.stack([coords[..., 0], 
                         zeros,
-                        -coords[..., 1],
+                        coords[..., 1],
                         ones
                         ], axis=2) # V, S, H, D
     return stacked
