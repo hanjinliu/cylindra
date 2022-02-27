@@ -40,12 +40,12 @@ class SplineControl(MagicTemplate):
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):
         focus = vfield(False, options={"text": "focus on", "tooltip": "Keep focus of viewer camera on the current spline position"}, record=False)
-        def set_pf_number(self): ...
+        def set_PF_number(self): ...
         def set_orientation(self): ...
     
     @footer.wraps
     @set_options(labels=False)
-    def set_pf_number(self, i: Bound[num], npf: int = 13):
+    def set_PF_number(self, i: Bound[num], npf: int = 13):
         """Manually update protofilament number."""
         from .main import MTPropsWidget
         parent = self.find_ancestor(MTPropsWidget)
@@ -93,7 +93,7 @@ class SplineControl(MagicTemplate):
                 self._set_pos_limit(0)
                 return
             
-        self._set_pos_limit(n_anc-1)
+        self._set_pos_limit(n_anc - 1)
         
         self._load_projection()
         self._update_canvas()

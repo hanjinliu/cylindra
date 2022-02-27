@@ -276,6 +276,7 @@ def oblique_meshgrid(
     return out
 
 def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
+    """Uniform filter of angles."""
     phase = np.exp(1j*input)
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)

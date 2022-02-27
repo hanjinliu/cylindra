@@ -692,7 +692,7 @@ class Spline:
             np.zeros(ncoords, dtype=np.float32),
             coords[:, 2], 
             ], axis=1)
-        rot = self.get_rotator(u, inverse=True)
+        rot = self.get_rotator(u)
         out = rot.apply(coords_ext) + s
                 
         return out
