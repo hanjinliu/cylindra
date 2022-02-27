@@ -83,13 +83,16 @@ class SplineControl(MagicTemplate):
         
         if spl.localprops is not None:
             n_anc = len(spl.localprops)
-        elif spl._anchors is not None:
-            n_anc = len(spl._anchors)
         else:
-            self.pos = 0
-            self._set_pos_limit(0)
-            return
-        
+            parent.LocalProperties._init_text()
+            parent.LocalProperties._init_plot()
+            if spl._anchors is not None:
+                n_anc = len(spl._anchors)
+            else:
+                self.pos = 0
+                self._set_pos_limit(0)
+                return
+            
         self._set_pos_limit(n_anc-1)
         
         self._load_projection()

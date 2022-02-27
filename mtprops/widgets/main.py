@@ -252,14 +252,14 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def run_mtprops(
         self,
-        interval: Bound[_runner.params2.interval],
-        ft_size: Bound[_runner.params2.ft_size],
-        n_refine: Bound[_runner.n_refine],
-        dense_mode: Bound[_runner.dense_mode],
-        dense_mode_sigma: Bound[_runner.params1.dense_mode_sigma],
-        local_props: Bound[_runner.local_props],
-        global_props: Bound[_runner.global_props],
-        paint: Bound[_runner.params2.paint]
+        interval: Bound[_runner.params2.interval] = 32.0,
+        ft_size: Bound[_runner.params2.ft_size] = 32.0,
+        n_refine: Bound[_runner.n_refine] = 1,
+        dense_mode: Bound[_runner.dense_mode] = True,
+        dense_mode_sigma: Bound[_runner.params1.dense_mode_sigma] = 0.2,
+        local_props: Bound[_runner.local_props] = True,
+        global_props: Bound[_runner.global_props] = True,
+        paint: Bound[_runner.params2.paint] = True,
     ):
         """Run MTProps"""
         self._runner.close()
@@ -665,7 +665,6 @@ class MTPropsWidget(MagicTemplate):
         self._SplineFitter.close()
         
         # initialize GUI
-        # self.SplineControl.num.changed.emit()
         spl = self.tomogram.splines[0]
         self.SplineControl._set_pos_limit(spl.anchors.size - 1)
         self.SplineControl._num_changed()

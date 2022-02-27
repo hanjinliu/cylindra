@@ -47,7 +47,7 @@ def dispatch_worker(f: Callable[_P, Worker]) -> Callable[_P, None]:
     """
     @wraps(f)
     def wrapper(self: "MTPropsWidget", *args, **kwargs):
-        worker = f(self, *args, **kwargs)
+        worker: Worker = f(self, *args, **kwargs)
         if self[f.__name__].running:
             self._connect_worker(worker)
             worker.start()

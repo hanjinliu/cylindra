@@ -11,6 +11,7 @@ from magicclass import (
 
 from magicclass.utils import to_clipboard
 
+from .worker import run_worker_function
 from ..components import MtTomogram
 
 
@@ -65,16 +66,19 @@ class TomogramList(MagicTemplate):
             new=False
             )
         parent._last_ft_size = tomo.metadata.get("ft_size", None)
-        parent._connect_worker(worker)
-        worker.start()
         
+        worker.finished.connect(parent._init_layers)
+        worker.finished.connect(parent._init_widget_state)
         if tomo.splines:
-            worker.finished.connect(parent._init_figures)
             worker.finished.connect(parent.Sample_subtomograms)
         else:
-            worker.finished.connect(parent._init_layers)
-            worker.finished.connect(parent._init_widget_params)
             worker.finished.connect(parent.Panels.overview.layers.clear)
+        
+        if self["Load"].running:
+            parent._connect_worker(worker)
+            worker.start()
+        else:
+            run_worker_function(worker)
         
         return None
     
