@@ -134,11 +134,11 @@ def test_many_tomograms():
     spl1 = ui.get_current_spline()
     
     ui._TomogramList.Load(0)
-    time.sleep(0.2)  # canvas update needs some time
+    time.sleep(1)  # canvas update needs some time
     assert_canvas(ui, [False, False, False])
     assert ui.LocalProperties.params.pitch.txt == f" {spl0.localprops[H.yPitch][0]:.2f} nm"
     ui._TomogramList.Load(1)
-    time.sleep(0.2)  # canvas update needs some time
+    time.sleep(1)  # canvas update needs some time
     assert_canvas(ui, [False, False, False])
     assert ui.LocalProperties.params.pitch.txt == f" {spl1.localprops[H.yPitch][0]:.2f} nm"
     

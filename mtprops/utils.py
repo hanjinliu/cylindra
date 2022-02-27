@@ -66,25 +66,6 @@ def crop_tomogram(
     return reg
 
 
-def load_rot_subtomograms(
-    img: ip.ImgArray | ip.LazyImgArray,
-    length_px: int,
-    width_px: int,
-    spl: "Spline"
-) -> ip.ImgArray:
-    plane_shape = (width_px, width_px)
-    axial_size = length_px
-    out = []
-    with no_verbose():
-        for u in spl.anchors:
-            coords = spl.local_cartesian(plane_shape, axial_size, u)
-            coords = np.moveaxis(coords, -1, 0)
-            out.append(map_coordinates(img, coords, order=1, mode=Mode.constant, cval=np.mean))
-    out = ip.asarray(np.stack(out, axis=0), axes="pzyx")
-    out.set_scale(img)
-    return out
-
-
 def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
     """
     Calculate the centroid of arr between xmin and xmax, for detection of subpixel maxima.

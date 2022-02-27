@@ -15,7 +15,7 @@ from .worker import run_worker_function
 from ..components import MtTomogram
 
 
-@magicclass(widget_type="scrollable", labels=False, name="Tomogram List")
+@magicclass(widget_type="scrollable", labels=False)
 class TomogramList(MagicTemplate):
     """List of tomograms that have been loaded to the widget."""        
     _tomogram_list: List[MtTomogram]

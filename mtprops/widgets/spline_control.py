@@ -1,12 +1,12 @@
 from typing import List
 import numpy as np
+import impy as ip
 from magicclass import magicclass, MagicTemplate, field, vfield, Bound, set_options
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
-from ..const import GVar, H
-from ..utils import no_verbose, load_rot_subtomograms, Projections
 
+from ..const import GVar, Ori, H, Mode
+from ..utils import map_coordinates, no_verbose, Projections
 from ..components.tomogram import MtSpline
-from ..const import Ori, H
 
 @magicclass(widget_type="groupbox")
 class SplineControl(MagicTemplate):
@@ -121,21 +121,23 @@ class SplineControl(MagicTemplate):
         binsize = tomo.metadata["binsize"]
         imgb = parent.layer_image.data
         
-        # TODO: remove load_rot_subtomograms
-        spl.scale *= binsize
-        
         length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
-        out = load_rot_subtomograms(imgb, length_px, width_px, spl)
         
-        spl.scale /= binsize
+        mole = spl.anchors_to_molecules()
+        coords = mole.cartesian((width_px, length_px, width_px), spl.scale*binsize)
+        out: list[ip.ImgArray] = []
+        with no_verbose():
+            for crds in coords:
+                mapped = map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
+                out.append(ip.asarray(mapped, axes="zyx"))
         
-        projections = []
-        for img, npf in zip(out, npf_list):    
-            proj = Projections(img)
-            if npf > 1:
-                proj.rotational_average(npf)
-            projections.append(proj)
+            projections = []
+            for img, npf in zip(out, npf_list):
+                proj = Projections(img)
+                if npf > 1:
+                    proj.rotational_average(npf)
+                projections.append(proj)
         
         self.projections = projections
         return None

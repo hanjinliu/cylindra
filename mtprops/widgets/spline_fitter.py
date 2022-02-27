@@ -1,5 +1,6 @@
 from typing import List, TYPE_CHECKING
 import numpy as np
+import impy as ip
 
 from magicclass import (
     magicclass,
@@ -11,14 +12,8 @@ from magicclass import (
     )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
-from ..utils import (
-    Projections,
-    roundint,
-    load_rot_subtomograms,
-    no_verbose,
-    centroid
-    )
-from ..const import nm, GVar
+from ..utils import Projections, roundint, no_verbose, centroid, map_coordinates
+from ..const import nm, GVar, Mode
 
 if TYPE_CHECKING:
     from ..components import MtTomogram
@@ -176,16 +171,18 @@ class SplineFitter(MagicTemplate):
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
-        spl.scale *= self.binsize
         length_px = tomo.nm2pixel(tomo.subtomo_length/self.binsize)
         width_px = tomo.nm2pixel(tomo.subtomo_width/self.binsize)
         
+        mole = spl.anchors_to_molecules()
+        coords = mole.cartesian((width_px, length_px, width_px), spl.scale*self.binsize)
+        out: list[ip.ImgArray] = []
         with no_verbose():
-            out = load_rot_subtomograms(imgb, length_px, width_px, spl)
-            self.subtomograms = out.proj("y")["x=::-1"]
+            for crds in coords:
+                out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
+            subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+            self.subtomograms = subtomo.proj("y")["x=::-1"]
             
-        # Restore spline scale.
-        spl.scale /= self.binsize
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
         self.canvas.xlim = (0, self.canvas.image.shape[1])
