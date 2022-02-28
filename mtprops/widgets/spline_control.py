@@ -33,8 +33,8 @@ class SplineControl(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
-    num = vfield(int, widget_type="ComboBox", options={"choices": _get_splines, "tooltip": "Spline in current tomogram."}, name="Spline No.", record=False)
-    pos = vfield(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT."}, name="Position", record=False)
+    num = vfield(int, widget_type="ComboBox", options={"choices": _get_splines, "tooltip": "Spline in current tomogram.", "label": "Spline No."}, record=False)
+    pos = vfield(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT.", "label": "Position"}, record=False)
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
     
     @magicclass(layout="horizontal")

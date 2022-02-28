@@ -72,9 +72,9 @@ class MTPropsWidget(MagicTemplate):
     
     ### widgets ###
     
-    _WorkerControl = field(WorkerControl)
-    _SplineFitter = field(SplineFitter)
-    _TomogramList = field(TomogramList)
+    _WorkerControl = field(WorkerControl, name="Worker control")
+    _SplineFitter = field(SplineFitter, name="Spline fitter")
+    _TomogramList = field(TomogramList, name="Tomogram list")
     
     @magicmenu
     class File(MagicTemplate):
@@ -146,14 +146,16 @@ class MTPropsWidget(MagicTemplate):
         def auto_center(self): ...
         @magicmenu(icon_path=ICON_DIR/"adjust_intervals.png")
         class Adjust(MagicTemplate):
+            """Adjust auto picker"""
             stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
     
     SplineControl = SplineControl
-    LocalProperties = field(LocalPropertiesWidget)
-    GlobalProperties = field(GlobalPropertiesWidget)
+    SplineControl.__qualname__ = "MTPropsWidget.SplineControl"  # TODO: fix in magic-class side
+    LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
+    GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
     
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
@@ -405,9 +407,10 @@ class MTPropsWidget(MagicTemplate):
             Radius x outer will be the outer surface of MT.
         """        
         GVar.set_value(**locals())
-        for spl in self.tomogram.splines:
-            spl.localprops = None
-            spl.globalprops = None
+        if self.tomogram is not None:
+            for spl in self.tomogram.splines:
+                spl.localprops = None
+                spl.globalprops = None
     
     @Others.wraps
     def Clear_cache(self):
@@ -1203,7 +1206,9 @@ class MTPropsWidget(MagicTemplate):
             
             # check path
             if not os.path.exists(path):
-                raise FileNotFoundError(f"Path {path} does not exist.")
+                raise FileNotFoundError(f"Path {path!r} does not exist.")
+            if not os.path.isfile(path):
+                raise FileNotFoundError(f"Path {path!r} is not a file.")
             
             img = ip.imread(path)
             if img.ndim != 3:
@@ -1516,7 +1521,8 @@ class MTPropsWidget(MagicTemplate):
             binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
             with ip.silent():
                 template = template.binning(binsize, check_edges=False)
-                mask = mask.binning(binsize, check_edges=False)
+                if mask is not None:
+                    mask = mask.binning(binsize, check_edges=False)
         else:
             loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
             _scale = self.tomogram.scale

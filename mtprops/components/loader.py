@@ -242,20 +242,26 @@ class SubtomogramLoader:
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         with ip.silent():
             template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
+            import time
+            t0 = time.time()
             if rots is None:
+                print(time.time() - t0)
                 for i, subvol in enumerate(self.iter_subtomograms(order=order)):
                     with set_gpu():
+                        print("after load", time.time() - t0)
                         input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                        print("after lowpass", time.time() - t0)
                         shift = ip.ft_pcc_maximum(
                             input_subvol.fft(),
                             template_ft, 
                             upsample_factor=20, 
                             max_shifts=_max_shifts_px
                         )
+                        print("after PCC", time.time() - t0)
                     if self.image_avg is None:
                         pre_alignment += subvol
                     local_shifts[i, :] = shift
-                    
+                    print("after add/shift", time.time() - t0)
                     yield local_shifts[i, :], local_rot[i, :]
                     
             else:

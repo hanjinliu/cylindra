@@ -182,8 +182,8 @@ def lazy_map_coordinates(
     """Delayed version of ndi.map_coordinates."""
     return xp.asnumpy(
         xp.ndi.map_coordinates(
-            xp.asarray(input),
-            coordinates=xp.asarray(coordinates),
+            input,
+            coordinates=coordinates,
             order=order,
             mode=mode, 
             cval=cval,
@@ -225,19 +225,19 @@ def multi_map_coordinates(
     input_img = np.asarray(img)
     
     tasks = []
-    for crds in coordinates:
-        mapped = lazy_map_coordinates(
-            input_img,
-            coordinates=crds,
-            order=order,
-            mode=mode, 
-            cval=cval,
-        )
-        
-        tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
-    
     with set_gpu():
-        out = da.compute(tasks)[0]
+        for crds in coordinates:
+            mapped = lazy_map_coordinates(
+                xp.asarray(input_img),
+                coordinates=xp.asarray(crds),
+                order=order,
+                mode=mode, 
+                cval=cval,
+            )
+            
+            tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
+        
+        out = da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
 
     return np.stack(out, axis=0)
 

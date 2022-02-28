@@ -94,4 +94,7 @@ class WorkerControl(MagicTemplate):
         
     def Interrupt(self):
         """Interrupt thread."""
+        self.paused = False
+        self["Pause"].text = "Pause"
+        self.info = ""
         self.worker.quit()

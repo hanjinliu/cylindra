@@ -1,7 +1,7 @@
+import impy as ip
 from mtprops import start
-import napari
-import sys
 
 if __name__ == "__main__":
-    ui = start()
-    sys.exit(napari.run())
+    ui = start(ip.gui.viewer)
+    ui.parent_viewer.update_console({"ui": ui, "ip": ip})
+    ip.gui.viewer.show(block=True)

@@ -43,11 +43,6 @@ if TYPE_CHECKING:
 
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
-if ip.Const["RESOURCE"] == "cupy":
-    SCHEDULER = "single-threaded"
-else:
-    SCHEDULER = "threads"
-
 
 def tandg(x):
     """Tangent in degree."""
@@ -729,7 +724,7 @@ class MtTomogram:
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
-        chunksize = max(int(self.subtomo_length*2/interval), 1)
+        chunksize = max(int(self.subtomo_length/interval), 1)
         for coords in mole.iter_cartesian((width_px, length_px, width_px), 
                                           self.scale, chunksize=chunksize):
             _subtomo = multi_map_coordinates(self.image, coords, order=1, cval=np.mean)
@@ -895,7 +890,7 @@ class MtTomogram:
                                 )
                 )
         with set_gpu():
-            results = np.stack(da.compute(tasks, scheduler=SCHEDULER)[0], axis=0)
+            results = np.stack(da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0)
                 
         spl.localprops = pd.DataFrame([])
         spl.localprops[H.splPosition] = spl.anchors
@@ -1452,7 +1447,7 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
     tasks = []
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
-    return da.compute(tasks, scheduler=SCHEDULER)[0]
+    return da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
 
 
 def _local_dft_params(img: ip.ImgArray, radius: nm):
