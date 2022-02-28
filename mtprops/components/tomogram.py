@@ -573,69 +573,73 @@ class MtTomogram:
         
         subtomograms[:] -= subtomograms.mean()
 
-        if 0 < cutoff < 0.866:
-            with set_gpu():
-                subtomograms[:] = subtomograms.lowpass_filter(cutoff)
-        
-        if dense_mode:
-            # mask XY-region outside the microtubules with sigmoid function.
-            yy, xx = np.indices(subtomograms.sizesof("yx"))
-            yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
-            yr = yy - yc
-            xr = xx - xc
-            for i, ds in enumerate(spl(der=1)):
-                _, vy, vx = ds
-                distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * self.scale
-                distance_cutoff = self.subtomo_width / 2
-                if dense_mode_sigma == 0:
-                    mask_yx = (distance > distance_cutoff).astype(np.float32)
-                else:
-                    mask_yx = 1 / (1 + np.exp((distance - distance_cutoff)/dense_mode_sigma))
-                mask = np.stack([mask_yx]*subtomograms.shape.z, axis=0)
-                subtomograms[i] *= mask
-        
-        ds = spl(der=1)
-        yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
-        degree_max = 14.0
-        nrots = roundint(degree_max/degree_precision) + 1
-
-        # Angular correlation
         with set_gpu():
-            out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
-        refined_tilt_deg = np.array(out)
-        refined_tilt_rad = np.deg2rad(refined_tilt_deg)
+            if 0 < cutoff < 0.866:
+                # NOTE: to avoid memory error, FFT should not be calculated in parallel
+                for subtomo in subtomograms:
+                    subtomo: ip.ImgArray
+                    subtomo.value[:] = subtomo.lowpass_filter(cutoff)
         
-        # If subtomograms are sampled at short intervals, angles should be smoothened to 
-        # avoid overfitting.
-        size = 2*roundint(48.0/interval) + 1
-        if size > 1:
-            # Mirror-mode padding is "a b c d | c b a".
-            refined_tilt_rad = angle_uniform_filter(
-                refined_tilt_rad, size=size, mode=Mode.mirror
-                )
-            refined_tilt_deg = np.rad2deg(refined_tilt_rad)
-        
-        # Rotate subtomograms            
-        for i, img in enumerate(subtomograms):
-            img: ip.ImgArray
-            angle = refined_tilt_deg[i]
-            img.rotate(-angle, cval=0, update=True)
+            if dense_mode:
+                # mask XY-region outside the microtubules with sigmoid function.
+                yy, xx = np.indices(subtomograms.sizesof("yx"))
+                yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
+                yr = yy - yc
+                xr = xx - xc
+                for i, ds in enumerate(spl(der=1)):
+                    _, vy, vx = ds
+                    distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * self.scale
+                    distance_cutoff = self.subtomo_width / 2
+                    if dense_mode_sigma == 0:
+                        mask_yx = (distance > distance_cutoff).astype(np.float32)
+                    else:
+                        mask_yx = 1 / (1 + np.exp((distance - distance_cutoff)/dense_mode_sigma))
+                    mask = np.stack([mask_yx]*subtomograms.shape.z, axis=0)
+                    subtomograms[i] *= mask
             
-        # zx-shift correction by self-PCC
-        subtomo_proj = subtomograms.proj("y")
-        
-        if dense_mode:
-            # Regions outside the mask don't need to be considered.
-            xc = int(subtomo_proj.shape.x/2)
-            w = int((self.subtomo_width/self.scale)/2)
-            subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
+            ds = spl(der=1)
+            yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
+            degree_max = 14.0
+            nrots = roundint(degree_max/degree_precision) + 1
+            
+            # Angular correlation
+            with set_gpu():
+                out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
+            refined_tilt_deg = np.array(out)
+            refined_tilt_rad = np.deg2rad(refined_tilt_deg)
+            
+            # If subtomograms are sampled at short intervals, angles should be smoothened to 
+            # avoid overfitting.
+            size = 2*roundint(48.0/interval) + 1
+            if size > 1:
+                # Mirror-mode padding is "a b c d | c b a".
+                refined_tilt_rad = angle_uniform_filter(
+                    refined_tilt_rad, size=size, mode=Mode.mirror
+                    )
+                refined_tilt_deg = np.rad2deg(refined_tilt_rad)
+            
+            # Rotate subtomograms
+            for i, img in enumerate(subtomograms):
+                img: ip.ImgArray
+                angle = refined_tilt_deg[i]
+                img.rotate(-angle, cval=0, update=True)
+                
+            # zx-shift correction by self-PCC
+            subtomo_proj = subtomograms.proj("y")
+            
+            if dense_mode:
+                # Regions outside the mask don't need to be considered.
+                xc = int(subtomo_proj.shape.x/2)
+                w = int((self.subtomo_width/self.scale)/2)
+                subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
 
-        shape = subtomo_proj[0].shape
-        shifts = np.zeros((npoints, 2)) # zx-shift
-        mask_yx = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-        for i in range(npoints):
-            img = subtomo_proj[i]
-            shifts[i] = mirror_pcc(img, mask=mask_yx) / 2
+            shape = subtomo_proj[0].shape
+            shifts = np.zeros((npoints, 2)) # zx-shift
+            mask_yx = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+            
+            for i in range(npoints):
+                img = subtomo_proj[i]
+                shifts[i] = mirror_pcc(img, mask=mask_yx) / 2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -724,70 +728,73 @@ class MtTomogram:
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
-        chunksize = max(int(self.subtomo_length/interval), 1)
+        chunksize = max(int(self.subtomo_length*2/interval), 1)
         for coords in mole.iter_cartesian((width_px, length_px, width_px), 
                                           self.scale, chunksize=chunksize):
             _subtomo = multi_map_coordinates(self.image, coords, order=1, cval=np.mean)
             images.extend(_subtomo)
         
-        subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
-        subtomograms[:] -= subtomograms.mean()  # normalize
-        subtomograms.set_scale(self.image)
-        if 0 < cutoff < 0.866:
-            with set_gpu():
-                subtomograms[:] = subtomograms.lowpass_filter(cutoff)
+        with set_gpu():
+            subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
+            subtomograms[:] -= subtomograms.mean()  # normalize
+            subtomograms.set_scale(self.image)
+            if 0 < cutoff < 0.866:
+                # NOTE: to avoid memory error, FFT should not be calculated in parallel
+                for subtomo in subtomograms:
+                    subtomo: ip.ImgArray
+                    subtomo.value[:] = subtomo.lowpass_filter(cutoff)
 
-        # prepare input images according to the options.
-        if projection:
-            inputs = subtomograms.proj("y")["x=::-1"]
-        else:
-            inputs = subtomograms["x=::-1"]
-        
-        inputs_ft = inputs.fft(dims=inputs["p=0"].axes)
-        
-        # Coarsely align skew-corrected images
-        shape = inputs["p=0"].shape
-        
-        # prepare a mask image for PCC calculation
-        mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
+            # prepare input images according to the options.
+            if projection:
+                inputs = subtomograms.proj("y")["x=::-1"]
+            else:
+                inputs = subtomograms["x=::-1"]
             
-        imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
-        
-        for i in range(npoints):
-            img: ip.ImgArray = inputs[i]
-            ft = inputs_ft[i]
-            shift = mirror_ft_pcc(ft, mask=mask) / 2
-            if not projection:
-                shift[1] = 0
-            imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
+            inputs_ft = inputs.fft(dims=inputs["p=0"].axes)
             
-        if corr_allowed < 1:
-            # remove low correlation image from calculation of template image.
-            corrs = ip.zncc(imgs_aligned, imgs_aligned["z=::-1;x=::-1"])
-            threshold = np.quantile(corrs, 1 - corr_allowed)
-            indices: np.ndarray = np.where(corrs >= threshold)[0]
-            imgs_aligned = imgs_aligned[indices.tolist()]
-        
-        # Make template using coarse aligned images.
-        imgcory: ip.ImgArray = imgs_aligned.proj("p")
-        center_shift = mirror_pcc(imgcory, mask=mask) / 2
-        template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
-        template_ft = template.fft(dims=template.axes)
-        
-        # Align skew-corrected images to the template
-        shifts = np.zeros((npoints, 2))
-        for i in range(npoints):
-            ft = inputs_ft[i]
-            shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
+            # Coarsely align skew-corrected images
+            shape = inputs["p=0"].shape
             
-            if not projection:
-                shift = shift[[0, 2]]
+            # prepare a mask image for PCC calculation
+            mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
                 
-            rad = np.deg2rad(skew_angles[i])
-            cos, sin = np.cos(rad), np.sin(rad)
-            zxrot = np.array([[ cos, sin],
-                              [-sin, cos]], dtype=np.float32)
-            shifts[i] = shift @ zxrot
+            imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
+            
+            for i in range(npoints):
+                img: ip.ImgArray = inputs[i]
+                ft = inputs_ft[i]
+                shift = mirror_ft_pcc(ft, mask=mask) / 2
+                if not projection:
+                    shift[1] = 0
+                imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
+                
+            if corr_allowed < 1:
+                # remove low correlation image from calculation of template image.
+                corrs = ip.zncc(imgs_aligned, imgs_aligned["z=::-1;x=::-1"])
+                threshold = np.quantile(corrs, 1 - corr_allowed)
+                indices: np.ndarray = np.where(corrs >= threshold)[0]
+                imgs_aligned = imgs_aligned[indices.tolist()]
+            
+            # Make template using coarse aligned images.
+            imgcory: ip.ImgArray = imgs_aligned.proj("p")
+            center_shift = mirror_pcc(imgcory, mask=mask) / 2
+            template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
+            template_ft = template.fft(dims=template.axes)
+            
+            # Align skew-corrected images to the template
+            shifts = np.zeros((npoints, 2))
+            for i in range(npoints):
+                ft = inputs_ft[i]
+                shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
+                
+                if not projection:
+                    shift = shift[[0, 2]]
+                    
+                rad = np.deg2rad(skew_angles[i])
+                cos, sin = np.cos(rad), np.sin(rad)
+                zxrot = np.array([[ cos, sin],
+                                [-sin, cos]], dtype=np.float32)
+                shifts[i] = shift @ zxrot
 
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
@@ -1448,7 +1455,6 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
     return da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
-
 
 def _local_dft_params(img: ip.ImgArray, radius: nm):
     img = img - img.mean()

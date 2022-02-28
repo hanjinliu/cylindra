@@ -157,19 +157,14 @@ def map_coordinates(
     if callable(cval):
         cval = cval(img)
     
-    with set_gpu():
-        out = xp.asnumpy(
-            xp.ndi.map_coordinates(
-                xp.asarray(img.value),
-                coordinates=xp.asarray(coordinates),
-                order=order,
-                mode=mode, 
-                cval=cval,
-                prefilter=order > 1,
-            )
-        )
-    return out
-
+    return ndi.map_coordinates(
+        img.value,
+        coordinates=coordinates,
+        order=order,
+        mode=mode, 
+        cval=cval,
+        prefilter=order > 1,
+    )
 
 @delayed
 def lazy_map_coordinates(
@@ -180,15 +175,13 @@ def lazy_map_coordinates(
     cval: float | Callable[[ip.ImgArray], float] = 0.0
 ) -> np.ndarray:
     """Delayed version of ndi.map_coordinates."""
-    return xp.asnumpy(
-        xp.ndi.map_coordinates(
-            input,
-            coordinates=coordinates,
-            order=order,
-            mode=mode, 
-            cval=cval,
-            prefilter=order > 1,
-        )
+    return ndi.map_coordinates(
+        input,
+        coordinates=coordinates,
+        order=order,
+        mode=mode, 
+        cval=cval,
+        prefilter=order > 1,
     )
 
 def multi_map_coordinates(
@@ -225,19 +218,18 @@ def multi_map_coordinates(
     input_img = np.asarray(img)
     
     tasks = []
-    with set_gpu():
-        for crds in coordinates:
-            mapped = lazy_map_coordinates(
-                xp.asarray(input_img),
-                coordinates=xp.asarray(crds),
-                order=order,
-                mode=mode, 
-                cval=cval,
-            )
-            
-            tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
+    for crds in coordinates:
+        mapped = lazy_map_coordinates(
+            input_img,
+            coordinates=crds,
+            order=order,
+            mode=mode, 
+            cval=cval,
+        )
         
-        out = da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
+        tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
+    
+    out = da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
 
     return np.stack(out, axis=0)
 

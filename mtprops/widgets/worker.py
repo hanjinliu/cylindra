@@ -98,3 +98,6 @@ class WorkerControl(MagicTemplate):
         self["Pause"].text = "Pause"
         self.info = ""
         self.worker.quit()
+        dialog = self.parent_viewer.window._qt_window._activity_dialog
+        if self.native.parent() is dialog:
+            dialog.layout().removeWidget(self.native)
