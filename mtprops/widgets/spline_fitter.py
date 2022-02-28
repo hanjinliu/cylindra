@@ -12,7 +12,7 @@ from magicclass import (
     )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
-from ..utils import Projections, roundint, no_verbose, centroid, map_coordinates
+from ..utils import Projections, roundint, centroid, map_coordinates
 from ..const import nm, GVar, Mode
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ class SplineFitter(MagicTemplate):
         i = self.mt.num.value
         j = self.mt.pos.value
                 
-        with no_verbose():
+        with ip.silent():
             img = self._get_parent()._current_cartesian_img(i, j)
             cutoff = self.Rotational_averaging.frame.cutoff.value
             if 0 < cutoff < 0.866:
@@ -177,7 +177,7 @@ class SplineFitter(MagicTemplate):
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian((width_px, length_px, width_px), spl.scale*self.binsize)
         out: list[ip.ImgArray] = []
-        with no_verbose():
+        with ip.silent():
             for crds in coords:
                 out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
             subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")

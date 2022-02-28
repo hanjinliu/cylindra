@@ -126,6 +126,7 @@ class GVar:
     inner: float = 0.8
     outer: float = 1.3
     daskChunk: int = (128, 256, 256)
+    GPU: bool = True
     
     @classmethod
     def set_value(cls, **kwargs):

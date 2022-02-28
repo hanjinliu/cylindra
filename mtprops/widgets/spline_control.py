@@ -5,7 +5,7 @@ from magicclass import magicclass, MagicTemplate, field, vfield, Bound, set_opti
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
 from ..const import GVar, Ori, H, Mode
-from ..utils import map_coordinates, no_verbose, Projections
+from ..utils import map_coordinates, Projections
 from ..components.tomogram import MtSpline
 
 @magicclass(widget_type="groupbox")
@@ -127,7 +127,7 @@ class SplineControl(MagicTemplate):
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian((width_px, length_px, width_px), spl.scale*binsize)
         out: list[ip.ImgArray] = []
-        with no_verbose():
+        with ip.silent():
             for crds in coords:
                 mapped = map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
                 out.append(ip.asarray(mapped, axes="zyx"))
@@ -155,7 +155,7 @@ class SplineControl(MagicTemplate):
             return
         spl = tomo.splines[i]
         # Set projections
-        with no_verbose():
+        with ip.silent():
             proj = self.projections[j]
             for ic in range(3):
                 self.canvas[ic].layers.clear()

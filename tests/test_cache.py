@@ -1,6 +1,5 @@
 from mtprops import MtTomogram
 from mtprops.const import Ori
-import numpy as np
 from pathlib import Path
 
 def test_cache_in_tomogram():

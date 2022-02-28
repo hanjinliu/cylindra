@@ -71,7 +71,9 @@ def test_map_coordinates():
     def isclose(coords):
         return assert_allclose(
             ndi.map_coordinates(img.value, coords, order=3),
-            utils.map_coordinates(img, coords, order=3)
+            utils.map_coordinates(img, coords, order=3),
+            rtol=1e-6,
+            atol=1e-6,
         )
     
     coords = np.array([[[10, 13], [11, 16], [12, 19]],

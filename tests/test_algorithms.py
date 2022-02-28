@@ -1,8 +1,8 @@
 from mtprops import MtTomogram
-from mtprops.utils import no_verbose
 from mtprops.const import H
 from pathlib import Path
 import numpy as np
+import impy as ip
 from numpy.testing import assert_allclose
 import pytest
 
@@ -56,7 +56,7 @@ def test_chunked_straightening():
     from mtprops.components.tomogram import _local_dft_params_pd
     
     spl = tomo.splines[0]
-    with no_verbose():
+    with ip.silent():
         prop0 = _local_dft_params_pd(st0, spl.radius)
         prop1 = _local_dft_params_pd(st1, spl.radius)
     

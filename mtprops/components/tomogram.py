@@ -32,7 +32,7 @@ from ..utils import (
     roundint,
     ceilint,
     oblique_meshgrid,
-    no_verbose,
+    set_gpu,
     mirror_pcc,
     mirror_ft_pcc,
     angle_uniform_filter,
@@ -84,7 +84,7 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
-            with no_verbose():
+            with ip.silent():
                 out = func(self, i=i, **kwargs)
             return out
         
@@ -108,7 +108,7 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
         
         # Run function along each spline
         out = []
-        with no_verbose():
+        with ip.silent():
             for i_ in i_list:
                 try:
                     result = func(self, i=i_, **kwargs)
@@ -579,7 +579,8 @@ class MtTomogram:
         subtomograms[:] -= subtomograms.mean()
 
         if 0 < cutoff < 0.866:
-            subtomograms = subtomograms.lowpass_filter(cutoff)
+            with set_gpu():
+                subtomograms[:] = subtomograms.lowpass_filter(cutoff)
         
         if dense_mode:
             # mask XY-region outside the microtubules with sigmoid function.
@@ -604,7 +605,8 @@ class MtTomogram:
         nrots = roundint(degree_max/degree_precision) + 1
 
         # Angular correlation
-        out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
+        with set_gpu():
+            out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
         refined_tilt_deg = np.array(out)
         refined_tilt_rad = np.deg2rad(refined_tilt_deg)
         
@@ -737,7 +739,8 @@ class MtTomogram:
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(self.image)
         if 0 < cutoff < 0.866:
-            subtomograms = subtomograms.lowpass_filter(cutoff)
+            with set_gpu():
+                subtomograms[:] = subtomograms.lowpass_filter(cutoff)
 
         # prepare input images according to the options.
         if projection:
@@ -891,7 +894,8 @@ class MtTomogram:
                                 meta=np.array([], dtype=np.float32)
                                 )
                 )
-        results = np.stack(da.compute(tasks, scheduler=SCHEDULER)[0], axis=0)
+        with set_gpu():
+            results = np.stack(da.compute(tasks, scheduler=SCHEDULER)[0], axis=0)
                 
         spl.localprops = pd.DataFrame([])
         spl.localprops[H.splPosition] = spl.anchors
@@ -931,7 +935,7 @@ class MtTomogram:
         rmin = spl.radius * GVar.inner / self.scale
         rmax = spl.radius * GVar.outer / self.scale
         out: list[ip.ImgArray] = []
-        with no_verbose():
+        with ip.silent():
             if pos is None:
                 anchors = spl.anchors
             else:
@@ -1537,7 +1541,6 @@ def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm):
 
 
 lazy_ft_params = delayed(ft_params)
-lazy_ft_pcc = delayed(ip.ft_pcc_maximum)
 
 
 def _affine(img, matrix, mode: str, cval: float, order):

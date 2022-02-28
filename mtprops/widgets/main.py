@@ -47,7 +47,7 @@ from ..utils import (
     mirror_pcc, 
     roundint,
     ceilint,
-    no_verbose
+    set_gpu
     )
 from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
@@ -356,7 +356,8 @@ class MTPropsWidget(MagicTemplate):
         splError={"max": 5.0, "step": 0.1},
         inner={"step": 0.1},
         outer={"step": 0.1},
-        daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048, "step": 16}}
+        daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048, "step": 16}},
+        GPU={"label": "Use GPU if available"},
     )
     def Global_variables(
         self,
@@ -370,7 +371,8 @@ class MTPropsWidget(MagicTemplate):
         splError: nm = GVar.splError,
         inner: float = GVar.inner,
         outer: float = GVar.outer,
-        daskChunk: Tuple[int, int, int] = GVar.daskChunk
+        daskChunk: Tuple[int, int, int] = GVar.daskChunk,
+        GPU: bool = GVar.GPU,
     ):
         """
         Set global variables.
@@ -615,7 +617,7 @@ class MTPropsWidget(MagicTemplate):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
         def func():
-            with no_verbose():
+            with ip.silent(), set_gpu():
                 self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(
                     cutoff, chunks=(32, 128, 128)
                     )
@@ -626,7 +628,7 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(contrast_limits):
             self.layer_image.contrast_limits = contrast_limits
-            with no_verbose():
+            with ip.silent():
                 proj = self.layer_image.data.proj("z")
             self.Panels.overview.image = proj
             self.Panels.overview.contrast_limits = contrast_limits
@@ -685,7 +687,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
-        with no_verbose():
+        with ip.silent():
             polar = self._current_cylindrical_img().proj("r")
         
         self.Panels.image2D.image = polar.value
@@ -701,7 +703,7 @@ class MTPropsWidget(MagicTemplate):
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
         i = self.SplineControl.num
-        with no_verbose():
+        with ip.silent():
             polar = self.tomogram.straighten_cylindric(i).proj("r")
         self.Panels.image2D.image = polar.value
         self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
@@ -715,7 +717,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="2D-FT")
     def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
-        with no_verbose():
+        with ip.silent():
             polar = self._current_cylindrical_img()
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
@@ -734,7 +736,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound[SplineControl.num]):
         """View Fourier space along current MT."""  
-        with no_verbose():
+        with ip.silent():
             polar = self.tomogram.straighten_cylindric(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
@@ -1194,7 +1196,7 @@ class MTPropsWidget(MagicTemplate):
                 raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
             scale_ratio = img.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                with no_verbose():
+                with ip.silent():
                     img = img.rescale(scale_ratio)
             self._template = img
             return img
@@ -1233,7 +1235,7 @@ class MTPropsWidget(MagicTemplate):
             if params is None:
                 return None
             elif isinstance(params, tuple):
-                with no_verbose():
+                with ip.silent():
                     thr = self._template.threshold()
                     mask_image = thr.smooth_mask(
                         sigma=params[1], 
@@ -1246,7 +1248,7 @@ class MTPropsWidget(MagicTemplate):
                 raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
             scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                with no_verbose():
+                with ip.silent():
                     mask_image = mask_image.rescale(scale_ratio)
             return mask_image
         
@@ -1261,7 +1263,7 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
-            with no_verbose():
+            with ip.silent():
                 self._viewer.add_image(image.rescale_intensity(), scale=image.scale, name=name)
             
             return self._viewer
@@ -1366,7 +1368,7 @@ class MTPropsWidget(MagicTemplate):
                 img = -img
             self._subtomogram_averaging._show_reconstruction(img, f"Subtomogram average (n={nmole})")
             if save_at is not None:
-                with no_verbose():
+                with ip.silent():
                     img.imsave(save_at)
         
         self._WorkerControl.info = f"Subtomogram averaging of {layer.name} ..."
@@ -1498,7 +1500,7 @@ class MTPropsWidget(MagicTemplate):
             loader = self._get_binned_loader(molecules, shape, chunk_size)
             _scale = self.layer_image.data.scale.x
             binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
-            with no_verbose():
+            with ip.silent():
                 template = template.binning(binsize, check_edges=False)
                 mask = mask.binning(binsize, check_edges=False)
         else:
@@ -1516,7 +1518,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(image_avg: ip.ImgArray):
             from ..components._align_utils import align_image_to_template
             from scipy.spatial.transform import Rotation
-            with no_verbose():
+            with ip.silent():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
                 if use_binned_image and img.shape != template.shape:
                     sl = tuple(slice(0, s) for s in template.shape)
@@ -1777,7 +1779,7 @@ class MTPropsWidget(MagicTemplate):
         
         shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
-        with no_verbose():
+        with ip.silent():
             orientation = point1[1:] - point0[1:]
             img = crop_tomogram(imgb, point1, shape)
             center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
@@ -1817,7 +1819,7 @@ class MTPropsWidget(MagicTemplate):
         
         points = self.layer_work.data / imgb.scale.x
         last_i = -1
-        with no_verbose():
+        with ip.silent():
             for i, point in enumerate(points):
                 if i not in selected:
                     continue
@@ -1851,7 +1853,7 @@ class MTPropsWidget(MagicTemplate):
         lz, ly, lx = [int(r/bin_scale*1.4)*2 + 1 for r in [15, ft_size/2, 15]]
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = roundint(bin_scale/tomo.scale)
-        with no_verbose():
+        with ip.silent():
             center = np.array([lz, ly, lx])/2 + 0.5
             z, y, x = np.indices((lz, ly, lx))
             cylinders = []
@@ -2037,7 +2039,7 @@ class MTPropsWidget(MagicTemplate):
         img = img.as_float()
         
         def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
-            with no_verbose():
+            with ip.silent():
                 if 0 < cutoff < 0.866:
                     img.tiled_lowpass_filter(cutoff, update=True)
                     img.release()
@@ -2089,7 +2091,7 @@ class MTPropsWidget(MagicTemplate):
                 self.layer_paint.translate = [tr, tr, tr]
             
             # update overview
-            with no_verbose():
+            with ip.silent():
                 proj = imgb.proj("z")
             self.Panels.overview.image = proj
             self.Panels.overview.ylim = (0, proj.shape[0])

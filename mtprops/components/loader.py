@@ -10,7 +10,7 @@ from dask import array as da
 
 from ._align_utils import normalize_rotations, Ranges
 from .molecules import Molecules
-from ..utils import multi_map_coordinates, no_verbose
+from ..utils import multi_map_coordinates, set_gpu
 from ..const import nm
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ class SubtomogramLoader:
         image = self.image_ref
         scale = image.scale.x
         
-        with no_verbose():
+        with ip.silent():
             for coords in self.molecules.iter_cartesian(self.output_shape, scale, self.chunksize):
                 subvols = np.stack(
                     multi_map_coordinates(image, coords, order=order, cval=np.mean),
@@ -127,7 +127,7 @@ class SubtomogramLoader:
         chunksize = max(self.chunksize//nrot, 1)
         iterators = [mole.iter_cartesian(self.output_shape, scale, chunksize) for mole in mole_list]
         
-        with no_verbose():
+        with ip.silent():
             for coords_list in zip(*iterators):
                 coords = np.concatenate(coords_list, axis=0)
                 subvols = np.stack(
@@ -171,7 +171,7 @@ class SubtomogramLoader:
     def iter_average(self, order: int = 3) -> Generator[ip.ImgArray, None, ip.ImgArray]:
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
-        with no_verbose():
+        with ip.silent():
             for subvol in self.iter_subtomograms(order=order):
                 aligned += subvol.value
                 n += 1
@@ -240,17 +240,18 @@ class SubtomogramLoader:
         local_rot[:, 3] = 1  # identity map in quaternion
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
-        with no_verbose():
+        with ip.silent():
             template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
             if rots is None:
                 for i, subvol in enumerate(self.iter_subtomograms(order=order)):
-                    input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
-                    shift = ip.ft_pcc_maximum(
-                        input_subvol.fft(),
-                        template_ft, 
-                        upsample_factor=20, 
-                        max_shifts=_max_shifts_px
-                    )
+                    with set_gpu():
+                        input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                        shift = ip.ft_pcc_maximum(
+                            input_subvol.fft(),
+                            template_ft, 
+                            upsample_factor=20, 
+                            max_shifts=_max_shifts_px
+                        )
                     if self.image_avg is None:
                         pre_alignment += subvol
                     local_shifts[i, :] = shift
@@ -265,13 +266,14 @@ class SubtomogramLoader:
                     all_shifts: list[np.ndarray] = []
                     for subvol in subvol_set:
                         subvol: ip.ImgArray
-                        input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
-                        shift = ip.ft_pcc_maximum(
-                            input_subvol.fft(),
-                            template_ft, 
-                            upsample_factor=20, 
-                            max_shifts=_max_shifts_px
-                        )
+                        with set_gpu():
+                            input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                            shift = ip.ft_pcc_maximum(
+                                input_subvol.fft(),
+                                template_ft, 
+                                upsample_factor=20, 
+                                max_shifts=_max_shifts_px
+                            )
                         all_shifts.append(shift)
                         shifted_subvol = input_subvol.affine(translation=shift)
                         corr = ip.zncc(shifted_subvol*mask, template*mask)
@@ -383,7 +385,7 @@ class SubtomogramLoader:
         self._check_shape(template)
         masked_template = template * mask
         
-        with no_verbose():
+        with ip.silent():
             if load_all:
                 subtomograms = np.stack(list(self.iter_subtomograms(order=order)), axis="p")
                 
@@ -485,7 +487,7 @@ class SubtomogramLoader:
         
         img0, img1 = self.average_split(seed=seed, order=order)
         
-        with no_verbose():
+        with ip.silent():
             freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
         
         if self.image_avg is None:

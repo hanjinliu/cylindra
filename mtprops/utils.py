@@ -3,11 +3,10 @@ import numpy as np
 from scipy import ndimage as ndi
 from dask import array as da, delayed
 import impy as ip
-from typing import TYPE_CHECKING, Callable
-from .const import Mode
+from impy.array_api import xp
+from typing import Callable
+from .const import Mode, GVar
 
-if TYPE_CHECKING:
-    from .components import Spline
 
 def roundint(a: float):
     return int(round(a))
@@ -15,8 +14,11 @@ def roundint(a: float):
 def ceilint(a: float):
     return int(np.ceil(a))
 
-def no_verbose():
-    return ip.SetConst("SHOW_PROGRESS", False)
+def set_gpu():
+    if GVar.GPU:
+        return ip.use("cupy")
+    else:
+        return ip.use("numpy")
 
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
     """
@@ -58,7 +60,7 @@ def crop_tomogram(
     reg = img[sl_z, sl_y, sl_x]
     if isinstance(reg, ip.LazyImgArray):
         reg = reg.compute()
-    with no_verbose():
+    with ip.silent():
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
             reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
@@ -80,7 +82,7 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
 def rotational_average(img: ip.ImgArray, fold: int = 13):
     angles = np.arange(fold)*360/fold
     average_img = img.copy()
-    with no_verbose():
+    with ip.silent():
         for angle in angles[1:]:
             average_img.value[:] += img.rotate(angle, dims="zx", mode=Mode.nearest)
     average_img /= fold
@@ -123,8 +125,10 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None, max_shifts=None):
     weight = np.exp(1j*2*np.pi*phase)
     
     ft1 = weight*ft0.conj()
-    return ip.ft_pcc_maximum(ft0, ft1, mask=mask, max_shifts=max_shifts) + 1
     
+    with set_gpu():
+        shift = ip.ft_pcc_maximum(ft0, ft1, mask=mask, max_shifts=max_shifts) + 1
+    return shift
 
 def map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray,
@@ -153,14 +157,18 @@ def map_coordinates(
     if callable(cval):
         cval = cval(img)
     
-    return ndi.map_coordinates(
-        np.asarray(img),
-        coordinates=coordinates,
-        order=order,
-        mode=mode, 
-        cval=cval,
-        prefilter=order > 1,
-    )
+    with set_gpu():
+        out = xp.asnumpy(
+            xp.ndi.map_coordinates(
+                xp.asarray(img.value),
+                coordinates=xp.asarray(coordinates),
+                order=order,
+                mode=mode, 
+                cval=cval,
+                prefilter=order > 1,
+            )
+        )
+    return out
 
 
 @delayed
@@ -172,13 +180,15 @@ def lazy_map_coordinates(
     cval: float | Callable[[ip.ImgArray], float] = 0.0
 ) -> np.ndarray:
     """Delayed version of ndi.map_coordinates."""
-    return ndi.map_coordinates(
-        input,
-        coordinates=coordinates,
-        order=order,
-        mode=mode, 
-        cval=cval,
-        prefilter=order > 1,
+    return xp.asnumpy(
+        xp.ndi.map_coordinates(
+            xp.asarray(input),
+            coordinates=xp.asarray(coordinates),
+            order=order,
+            mode=mode, 
+            cval=cval,
+            prefilter=order > 1,
+        )
     )
 
 def multi_map_coordinates(
@@ -226,7 +236,8 @@ def multi_map_coordinates(
         
         tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
     
-    out = da.compute(tasks)[0]
+    with set_gpu():
+        out = da.compute(tasks)[0]
 
     return np.stack(out, axis=0)
 
@@ -312,7 +323,7 @@ class Projections:
     
     """
     def __init__(self, image: ip.ImgArray):
-        with no_verbose():
+        with ip.silent():
             self.yx = image.proj("z")
             self.zx = image.proj("y")["x=::-1"]
         self.zx_ave = None
