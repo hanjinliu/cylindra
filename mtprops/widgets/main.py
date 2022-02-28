@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Iterable, Union, Tuple, List
 from pathlib import Path
@@ -7,7 +8,7 @@ from scipy import ndimage as ndi
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
-from napari.layers import Points, Image, Labels, Vectors
+from napari.layers import Points, Image, Labels
 
 import impy as ip
 
@@ -34,7 +35,7 @@ from magicclass.widgets import (
     ColorEdit,
     ConsoleTextEdit,
     Figure,
-    DraggableContainer
+    Container,
     )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
@@ -151,8 +152,8 @@ class MTPropsWidget(MagicTemplate):
         def clear_all(self): ...
     
     SplineControl = SplineControl
-    LocalProperties = LocalPropertiesWidget
-    GlobalProperties = GlobalPropertiesWidget
+    LocalProperties = field(LocalPropertiesWidget)
+    GlobalProperties = field(GlobalPropertiesWidget)
     
     @magicclass(widget_type="tabbed")
     class Panels(MagicTemplate):
@@ -264,8 +265,11 @@ class MTPropsWidget(MagicTemplate):
     ):
         """Run MTProps"""
         self._runner.close()
+        
         if self.layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
+        if len(self.tomogram.splines) == 0:
+            raise ValueError("No spline found.")
         
         total = 1 + n_refine + int(local_props) + int(global_props)
         
@@ -447,7 +451,7 @@ class MTPropsWidget(MagicTemplate):
         
         @use_lowpass.connect
         def _enable_freq_option(self):
-            self[7].visible = self.use_lowpass
+            self["cutoff_freq"].visible = self.use_lowpass
         
         def _get_cutoff_freq(self, _=None):
             if self.use_lowpass:
@@ -669,13 +673,12 @@ class MTPropsWidget(MagicTemplate):
         
         # initialize GUI
         if len(self.tomogram.splines) == 0:
-            return None
+            raise ValueError("No spline found.")
         spl = self.tomogram.splines[0]
         self.SplineControl._set_pos_limit(spl.anchors.size - 1)
         self.SplineControl._num_changed()
         self.layer_work.mode = "pan_zoom"
         
-        # self.SplineControl
         self._update_local_properties_in_widget()
         self._update_global_properties_in_widget()
         
@@ -718,7 +721,7 @@ class MTPropsWidget(MagicTemplate):
     def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
         with ip.silent():
-            polar = self._current_cylindrical_img()
+            polar = self._current_cylindrical_img(i, j)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
         
@@ -944,8 +947,10 @@ class MTPropsWidget(MagicTemplate):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
     @Analysis.Mapping.wraps
-    @set_options(splines={"widget_type": "Select", "choices": _get_splines},
-                 length={"text": "Use full length"})
+    @set_options(
+        splines={"widget_type": "Select", "choices": _get_splines},
+        length={"text": "Use full length"}
+    )
     @dispatch_worker
     def Map_monomers(
         self,
@@ -963,6 +968,8 @@ class MTPropsWidget(MagicTemplate):
             Length from the tip where monomers will be mapped.
         """
         tomo = self.tomogram
+        if len(splines) == 0 and len(tomo.splines) > 0:
+            splines = tuple(range(len(tomo.splines)))
         worker = create_worker(tomo.map_monomers,
                                i=splines,
                                length=length,
@@ -987,7 +994,7 @@ class MTPropsWidget(MagicTemplate):
     )
     def Map_monomers_manually(
         self, 
-        i: Bound[SplineControl.num],
+        i: Bound[SplineControl.num] = 0,
         y_offset: nm = 0, 
         theta_offset: float = 0,
         length: Optional[nm] = None,
@@ -1024,7 +1031,7 @@ class MTPropsWidget(MagicTemplate):
         points_layer: Points = viewer.layers[layer_name]
         points_layer.data = mol.pos
         points_layer.selected_data = set()
-        points_layer.metadata[SOURCE] = mol
+        points_layer.metadata[SOURCE] = self.tomogram.splines[i]
         
     @Analysis.Mapping.wraps
     @set_options(
@@ -1034,7 +1041,7 @@ class MTPropsWidget(MagicTemplate):
     )
     def Map_centers(
         self,
-        splines: Iterable[int],
+        splines: Iterable[int] = (),
         interval: Optional[nm] = None,
         length: Optional[nm] = None,
     ):
@@ -1051,6 +1058,8 @@ class MTPropsWidget(MagicTemplate):
             Length from the tip where monomers will be mapped.
         """
         tomo = self.tomogram
+        if len(splines) == 0 and len(tomo.splines) > 0:
+            splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
         for i, mol in enumerate(mols):
             add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
@@ -1191,6 +1200,11 @@ class MTPropsWidget(MagicTemplate):
                 path = self.template_path
             else:
                 self.template_path = path
+            
+            # check path
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Path {path} does not exist.")
+            
             img = ip.imread(path)
             if img.ndim != 3:
                 raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
@@ -1747,9 +1761,9 @@ class MTPropsWidget(MagicTemplate):
             plt2.plot(score)
             plt2.xlabel("PF position")
             plt2.ylabel("ΔCorr")
-            plt1.xticks(np.arange(0, npf+1, 2))
+            plt2.xticks(np.arange(0, npf+1, 2))
             plt2.title("Score")
-            wdt = DraggableContainer(widgets=[plt1, plt2], labels=False)
+            wdt = Container(widgets=[plt1, plt2], labels=False)
             viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
             add_molecules(self.parent_viewer, moles[iopt], layer.name + "-OPT", source=source)
             
