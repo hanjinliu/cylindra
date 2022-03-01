@@ -107,10 +107,11 @@ class SubtomogramLoader:
         
         with ip.silent():
             for coords in self.molecules.iter_cartesian(self.output_shape, scale, self.chunksize):
-                subvols = np.stack(
-                    multi_map_coordinates(image, coords, order=order, cval=np.mean),
-                    axis=0,
-                    )
+                with set_gpu():
+                    subvols = np.stack(
+                        multi_map_coordinates(image, coords, order=order, cval=np.mean),
+                        axis=0,
+                        )
                 subvols = ip.asarray(subvols, axes="pzyx")
                 subvols.set_scale(image)
                 yield subvols
@@ -130,10 +131,11 @@ class SubtomogramLoader:
         with ip.silent():
             for coords_list in zip(*iterators):
                 coords = np.concatenate(coords_list, axis=0)
-                subvols = np.stack(
-                    multi_map_coordinates(image, coords, order=order, cval=np.mean),
-                    axis=0,
-                    )
+                with set_gpu():
+                    subvols = np.stack(
+                        multi_map_coordinates(image, coords, order=order, cval=np.mean),
+                        axis=0,
+                        )
                 subvols = subvols.reshape((-1, nrot) + self.output_shape)
                 subvols = ip.asarray(subvols, axes="pazyx")
                 subvols.set_scale(image)
@@ -241,7 +243,8 @@ class SubtomogramLoader:
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         with ip.silent():
-            template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
+            with set_gpu():
+                template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
             if rots is None:
                 for i, subvol in enumerate(self.iter_subtomograms(order=order)):
                     with set_gpu():
@@ -447,14 +450,15 @@ class SubtomogramLoader:
         sum_images = (np.zeros(self.output_shape, dtype=np.float32),
                       np.zeros(self.output_shape, dtype=np.float32))
         next_set = 0
-        for subvols in self._iter_chunks(order=order):
-            subsets.extend(list(subvols.value))
-            next_set = 1 - next_set
-            if next_set == 0:
-                random.shuffle(subsets)
-                lc = len(subsets) // 2
-                sum_images[0][:] += sum(subsets[:lc])
-                sum_images[1][:] += sum(subsets[lc:])
+        with set_gpu():
+            for subvols in self._iter_chunks(order=order):
+                subsets.extend(list(subvols.value))
+                next_set = 1 - next_set
+                if next_set == 0:
+                    random.shuffle(subsets)
+                    lc = len(subsets) // 2
+                    sum_images[0][:] += sum(subsets[:lc])
+                    sum_images[1][:] += sum(subsets[lc:])
         
         if next_set == 1:
             random.shuffle(subsets)

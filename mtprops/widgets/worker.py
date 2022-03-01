@@ -100,4 +100,5 @@ class WorkerControl(MagicTemplate):
         self.worker.quit()
         dialog = self.parent_viewer.window._qt_window._activity_dialog
         if self.native.parent() is dialog:
+            self.parent_viewer.window._status_bar._toggle_activity_dock(False)
             dialog.layout().removeWidget(self.native)

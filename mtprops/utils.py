@@ -157,31 +157,27 @@ def map_coordinates(
     if callable(cval):
         cval = cval(img)
     
-    return ndi.map_coordinates(
-        img.value,
+    return img.map_coordinates(
         coordinates=coordinates,
         order=order,
         mode=mode, 
         cval=cval,
-        prefilter=order > 1,
     )
 
 @delayed
 def lazy_map_coordinates(
-    input: np.ndarray,
+    input: ip.ImgArray,
     coordinates: np.ndarray,
     order: int = 3, 
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0
 ) -> np.ndarray:
     """Delayed version of ndi.map_coordinates."""
-    return ndi.map_coordinates(
-        input,
+    return input.map_coordinates(
         coordinates=coordinates,
         order=order,
         mode=mode, 
         cval=cval,
-        prefilter=order > 1,
     )
 
 def multi_map_coordinates(
@@ -191,6 +187,19 @@ def multi_map_coordinates(
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
 ) -> list[np.ndarray]:
+    """
+    Multiple map-coordinate in parallel.
+
+    Result of this function is identical to following code.
+    
+    .. code-block:: python
+    
+        outputs = []
+        for i in range(len(coordinates)):
+            out = ndi.map_coordinates(input, coordinates[i], ...)
+            outputs.append(out)
+            
+    """
     shape = input.shape
     coordinates = coordinates.copy()
     
@@ -215,7 +224,7 @@ def multi_map_coordinates(
         img = img.compute()
     if callable(cval):
         cval = cval(img)
-    input_img = np.asarray(img)
+    input_img = img
     
     tasks = []
     for crds in coordinates:

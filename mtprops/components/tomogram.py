@@ -729,12 +729,12 @@ class MtTomogram:
         
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
         chunksize = max(int(self.subtomo_length*2/interval), 1)
-        for coords in mole.iter_cartesian((width_px, length_px, width_px), 
-                                          self.scale, chunksize=chunksize):
-            _subtomo = multi_map_coordinates(self.image, coords, order=1, cval=np.mean)
-            images.extend(_subtomo)
-        
         with set_gpu():
+            for coords in mole.iter_cartesian((width_px, length_px, width_px), 
+                                            self.scale, chunksize=chunksize):
+                _subtomo = multi_map_coordinates(self.image, coords, order=1, cval=np.mean)
+                images.extend(_subtomo)
+        
             subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
             subtomograms[:] -= subtomograms.mean()  # normalize
             subtomograms.set_scale(self.image)
@@ -831,10 +831,11 @@ class MtTomogram:
         mole = spl.anchors_to_molecules()
         images: list[ip.ImgArray] = []
         
-        for coords in mole.iter_cartesian((width_px, length_px, width_px), 
-                                          self.scale, chunksize=1):
-            _subtomo = map_coordinates(self.image, coords[0], order=1, cval=np.mean)
-            images.append(_subtomo)
+        with set_gpu():
+            for coords in mole.iter_cartesian((width_px, length_px, width_px), 
+                                            self.scale, chunksize=1):
+                _subtomo = map_coordinates(self.image, coords[0], order=1, cval=np.mean)
+                images.append(_subtomo)
         
         subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
@@ -942,14 +943,15 @@ class MtTomogram:
                 anchors = spl.anchors
             else:
                 anchors = [spl.anchors[pos]]
-            for anc in anchors:
-                coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
-                polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
-                polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
-                polar.set_scale(r=self.scale, y=self.scale, a=self.scale)
-                polar.scale_unit = self.image.scale_unit
-                polar[:] -= np.mean(polar)
-                out.append(polar.fft(dims="rya"))
+            with set_gpu():
+                for anc in anchors:
+                    coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
+                    polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
+                    polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
+                    polar.set_scale(r=self.scale, y=self.scale, a=self.scale)
+                    polar.scale_unit = self.image.scale_unit
+                    polar[:] -= np.mean(polar)
+                    out.append(polar.fft(dims="rya"))
         
         return np.stack(out, axis="p")
     
@@ -1074,7 +1076,8 @@ class MtTomogram:
                     rz = rx = self.nm2pixel(size)
                     
             coords = spl.cartesian((rz, rx), s_range=range_)
-            transformed = map_coordinates(self.image, coords, order=1)
+            with set_gpu():
+                transformed = map_coordinates(self.image, coords, order=1)
             
             axes = "zyx"
             transformed = ip.asarray(transformed, axes=axes)
@@ -1145,7 +1148,9 @@ class MtTomogram:
                 raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
             
             coords = spl.cylindrical((inner_radius, outer_radius), s_range=range_)            
-            transformed = map_coordinates(self.image, coords, order=3)
+            
+            with set_gpu():
+                transformed = map_coordinates(self.image, coords, order=3)
             
             axes = "rya"
             transformed = ip.asarray(transformed, axes=axes)
