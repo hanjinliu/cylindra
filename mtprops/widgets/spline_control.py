@@ -77,6 +77,8 @@ class SplineControl(MagicTemplate):
     def _num_changed(self):
         from .main import MTPropsWidget
         i = self.num
+        if i is None:
+            return
         parent = self.find_ancestor(MTPropsWidget)
         tomo = parent.tomogram
         spl = tomo.splines[i]
@@ -90,11 +92,10 @@ class SplineControl(MagicTemplate):
                 n_anc = len(spl._anchors)
             else:
                 self.pos = 0
-                self._set_pos_limit(0)
+                self["pos"].max = 0
                 return
             
-        self._set_pos_limit(n_anc - 1)
-        
+        self["pos"].max = n_anc - 1
         self._load_projection()
         self._update_canvas()
         return None
@@ -151,7 +152,7 @@ class SplineControl(MagicTemplate):
         i = self.num
         j = self.pos
         
-        if not self.projections:
+        if not self.projections or i is None or j is None:
             return
         spl = tomo.splines[i]
         # Set projections
@@ -206,6 +207,3 @@ class SplineControl(MagicTemplate):
             if img is not None:
                 self.canvas[i].contrast_limits = [img.min(), img.max()]
         return None
-    
-    def _set_pos_limit(self, max: int):
-        self[1].max = max

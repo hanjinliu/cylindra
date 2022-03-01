@@ -153,7 +153,6 @@ class MTPropsWidget(MagicTemplate):
         def clear_all(self): ...
     
     SplineControl = SplineControl
-    SplineControl.__qualname__ = "MTPropsWidget.SplineControl"  # TODO: fix in magic-class side
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
     
@@ -678,7 +677,7 @@ class MTPropsWidget(MagicTemplate):
         if len(self.tomogram.splines) == 0:
             raise ValueError("No spline found.")
         spl = self.tomogram.splines[0]
-        self.SplineControl._set_pos_limit(spl.anchors.size - 1)
+        self.SplineControl["pos"].max = spl.anchors.size - 1
         self.SplineControl._num_changed()
         self.layer_work.mode = "pan_zoom"
         
@@ -1103,6 +1102,17 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         orientation: str = "z"
     ):
+        """
+        Show molecule orientations with a vectors layer.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        orientation : {"x", "y", "z"}, default is "z"
+            Which orientation will be shown. "z" is the spline-to-molecule direction,
+            "y" is parallel to the spline and "x" is defined by right-handedness.
+        """
         mol: Molecules = layer.metadata[MOLECULES]
         name = f"{layer.name} {orientation.upper()}-axis"
         
@@ -1139,9 +1149,9 @@ class MTPropsWidget(MagicTemplate):
         pitch_vec = np.diff(pos, axis=0, append=0)
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
-        spl_vec_norm = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
+        spl_vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
         spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)
-        y_dist = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
+        y_dist: np.ndarray = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
         
         properties = y_dist.ravel()
         _interval = "interval"
@@ -2140,7 +2150,7 @@ class MTPropsWidget(MagicTemplate):
     
     def _init_widget_state(self):
         self.SplineControl.pos = 0
-        self.SplineControl._set_pos_limit(0)
+        self.SplineControl["pos"].max = 0
         self.LocalProperties._init_text()
     
         for i in range(3):
@@ -2246,6 +2256,8 @@ class MTPropsWidget(MagicTemplate):
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self):
         i = self.SplineControl.num
+        if i is None:
+            return
         spl = self.tomogram.splines[i]
         if spl.globalprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -2257,9 +2269,9 @@ class MTPropsWidget(MagicTemplate):
     @SplineControl.num.connect
     @SplineControl.pos.connect
     def _update_local_properties_in_widget(self):
-        i = self.SplineControl.num
+        i: int = self.SplineControl.num
         tomo = self.tomogram
-        if i >= len(tomo.splines):
+        if i is None or i >= len(tomo.splines):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]

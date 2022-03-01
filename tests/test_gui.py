@@ -4,8 +4,6 @@ from mtprops.const import H
 from pathlib import Path
 import napari
 
-viewer = napari.Viewer()
-ui = start(viewer)
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
@@ -19,6 +17,8 @@ def assert_canvas(ui: MTPropsWidget, isnone):
             assert ui.SplineControl.canvas[i].image is not None, f"{i}-th canvas"
 
 def test_spline_switch():    
+    viewer = napari.Viewer()
+    ui = start(viewer)
     path = Path(__file__).parent / "13pf_MT.tif"
     ui.load_tomogram(path=path, scale='1.052', bin_size=2, light_background=False,
                      cutoff=0.0, subtomo_length=48.0, subtomo_width=44.0)
@@ -115,6 +115,8 @@ def test_spline_switch():
 
 
 def test_many_tomograms():
+    viewer = napari.Viewer()
+    ui = start(viewer)
     path = Path(__file__).parent / "13pf_MT.tif"
     ui.load_tomogram(path=path, scale='1.052', bin_size=2, light_background=False,
                      cutoff=0.0, subtomo_length=48.0, subtomo_width=44.0)
