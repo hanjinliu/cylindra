@@ -45,7 +45,8 @@ from ..utils import (
     crop_tomogram,
     make_slice_and_pad,
     map_coordinates,
-    mirror_pcc, 
+    mirror_pcc,
+    pad_template, 
     roundint,
     ceilint,
     set_gpu
@@ -109,9 +110,11 @@ class MTPropsWidget(MagicTemplate):
     class Splines(MagicTemplate):
         """Spline fitting and operations."""
         def Show_splines(self): ...
-        def Align_to_polarity(self): ...
         def Add_anchors(self): ...
-        sep = field(Separator)
+        sep0 = field(Separator)
+        def Align_to_polarity(self): ...
+        # def Clip_spline(self): ...
+        sep1 = field(Separator)
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...
         def Refine_splines(self): ...
@@ -135,6 +138,14 @@ class MTPropsWidget(MagicTemplate):
             def Monomer_intervals(self): ...
         def Open_subtomogram_analyzer(self): ...
     
+    @magicmenu
+    class Others(MagicTemplate):
+        """Other menus."""
+        def Open_help(self): ...
+        def Create_macro(self): ...
+        def Global_variables(self): ...
+        def Clear_cache(self): ...
+        def MTProps_info(self): ...
         
     @magictoolbar(labels=False)
     class toolbar(MagicTemplate):
@@ -296,8 +307,9 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(tomo: MtTomogram):
             self._update_splines_in_images()
-            if local_props:
+            if local_props or global_props:
                 self.Sample_subtomograms()
+            if local_props:
                 if paint:
                     self.Paint_MT()
             tomo.metadata["ft_size"] = self._last_ft_size
@@ -327,15 +339,6 @@ class MTPropsWidget(MagicTemplate):
         self.tomogram.splines.clear()
         self.reset_choices()
         return None
-    
-    @magicmenu
-    class Others(MagicTemplate):
-        """Other menus."""
-        def Open_help(self): ...
-        def Create_macro(self): ...
-        def Global_variables(self): ...
-        def Clear_cache(self): ...
-        def MTProps_info(self): ...
 
     @Others.wraps
     @do_not_record
@@ -533,6 +536,7 @@ class MTPropsWidget(MagicTemplate):
         self._last_ft_size = tomo.metadata.get("ft_size", self._last_ft_size)
             
         self._update_splines_in_images()
+        self.reset_choices()
         self.Sample_subtomograms()
         return None
     
@@ -627,7 +631,7 @@ class MTPropsWidget(MagicTemplate):
                 self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(
                     cutoff, chunks=(32, 128, 128)
                     )
-                return np.percentile(self.layer_image.data, [1, 97])
+            return np.percentile(self.layer_image.data, [1, 97])
         worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
         self._WorkerControl.info = "Low-pass filtering"
 
@@ -677,7 +681,8 @@ class MTPropsWidget(MagicTemplate):
         if len(self.tomogram.splines) == 0:
             raise ValueError("No spline found.")
         spl = self.tomogram.splines[0]
-        self.SplineControl["pos"].max = spl.anchors.size - 1
+        if spl._anchors is not None:
+            self.SplineControl["pos"].max = spl.anchors.size - 1
         self.SplineControl._num_changed()
         self.layer_work.mode = "pan_zoom"
         
@@ -782,6 +787,18 @@ class MTPropsWidget(MagicTemplate):
         self._init_widget_state()
         if need_resample:
             self.Sample_subtomograms()
+    
+    # @Splines.wraps
+    # @set_options(
+    #     auto_call=True,
+    #     spline={"choices": _get_splines}
+    # )
+    # def Clip_spline(self, spline: int, start: 0.0, stop: 1.0):
+    #     if spline is None:
+    #         return
+    #     spl = self.tomogram.splines[spline]
+    #     spl.clip(0, 1)
+        
         
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"},
@@ -1193,8 +1210,8 @@ class MTPropsWidget(MagicTemplate):
         
         @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
         class params(MagicTemplate):
-            dilate_radius = vfield(4, options={"tooltip": "Radius of dilation applied to template (unit: pixel).", "max": 100}, record=False)
-            sigma = vfield(4.0, options={"tooltip": "Standard deviation of Gaussian blur applied to the edge of binary image (unit: pixel).", "max": 100}, record=False)
+            dilate_radius = vfield(1.0, options={"tooltip": "Radius of dilation applied to binarized template (unit: nm).", "step": 0.5, "max": 20}, record=False)
+            sigma = vfield(1.0, options={"tooltip": "Standard deviation of Gaussian blur applied to the edge of binary image (unit: nm).", "step": 0.5, "max": 20}, record=False)
             
         @magicclass(layout="horizontal", widget_type="frame")
         class mask_path(MagicTemplate):
@@ -1223,10 +1240,12 @@ class MTPropsWidget(MagicTemplate):
             img = ip.imread(path)
             if img.ndim != 3:
                 raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
-            scale_ratio = img.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                with ip.silent():
-                    img = img.rescale(scale_ratio)
+            parent = self.find_ancestor(MTPropsWidget)
+            if parent.tomogram is not None:
+                scale_ratio = img.scale.x / parent.tomogram.scale
+                if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                    with ip.silent():
+                        img = img.rescale(scale_ratio)
             self._template = img
             return img
         
@@ -1236,7 +1255,7 @@ class MTPropsWidget(MagicTemplate):
             
             return tuple(s * self._template.scale.x for s in self._template.shape)
         
-        def _get_mask_params(self, params=None) -> Union[str, Tuple[int, float], None]:
+        def _get_mask_params(self, params=None) -> Union[str, Tuple[nm, nm], None]:
             v = self.mask
             if v == "No mask":
                 params = None
@@ -1266,9 +1285,10 @@ class MTPropsWidget(MagicTemplate):
             elif isinstance(params, tuple):
                 with ip.silent():
                     thr = self._template.threshold()
+                    scale: nm = thr.scale.x
                     mask_image = thr.smooth_mask(
-                        sigma=params[1], 
-                        dilate_radius=params[0]
+                        sigma=params[1]/scale, 
+                        dilate_radius=roundint(params[0]/scale),
                     )
             else:
                 mask_image = ip.imread(self.mask_path.mask_path)
@@ -1318,6 +1338,34 @@ class MTPropsWidget(MagicTemplate):
         class Refinement(MagicTemplate):
             def Align_averaged(self): ...
             def Align_all(self): ...
+        
+        @magicmenu
+        class Template(MagicTemplate):
+            def Reshape_template(self): ...
+        
+        @do_not_record
+        @set_options(
+            new_shape={"widget_type": TupleEdit, "options": {"min": 2, "max": 100}},
+            save_as={"mode": "w", "filter": "*.mrc;*.tif"}
+        )
+        @Template.wraps
+        def Reshape_template(
+            self, 
+            new_shape: Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
+            save_as: Path = "",
+            update_template_path: bool = True,
+        ):
+            template = self._get_template()
+            if save_as == "":
+                raise ValueError("Set save path.")
+            scale = template.scale.x
+            shape = tuple(roundint(s/scale) for s in new_shape)
+            with ip.silent():
+                reshaped = pad_template(template, shape)
+            reshaped.imsave(save_as)
+            if update_template_path:
+                self.template_path = save_as
+            return None
     
     def _get_binned_loader(
         self, 
@@ -1511,7 +1559,7 @@ class MTPropsWidget(MagicTemplate):
             Cutoff frequency of low-pass filter applied to averaged image.
         chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
-        """        
+        """
         molecules: Molecules = layer.metadata[MOLECULES]
         template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
         mask: ip.ImgArray = self._subtomogram_averaging._get_mask(params=mask_params)
@@ -1555,20 +1603,23 @@ class MTPropsWidget(MagicTemplate):
                     img = img[sl]
                     
                 rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
-                shifted_image = image_avg.affine(translation=shift, cval=np.min(image_avg))
-                # TODO: Rotate shifted image (this does not affect analysis but it's better)
-            dx = shift[-1]
-            dtheta = dx/radius
-            skew_rotator = Rotation.from_rotvec(molecules.y * dtheta)
-            shift = molecules.rotator.apply(-shift * self.tomogram.scale)  # Verified
-            internal_rotator = Rotation.from_rotvec([0, rot, 0])
-            mole = molecules.rotate_by(skew_rotator).translate(internal_rotator.apply(shift))
+                shifted_image = image_avg.affine(
+                    translation=shift, cval=np.min(image_avg)
+                    ).rotate(np.rad2deg(rot), dims="zx")  # Verified
+
+            internal_rotator = Rotation.from_rotvec([0, -rot, 0])
+            mole_shift_px = internal_rotator.apply(molecules.rotator.apply(-shift))[0]
+
+            dz, dy, dx = mole_shift_px
+            dtheta = np.arcsin(dx/radius/2) * 2  # r*sin(dtheta/2) = dx/2
+            skew_rotator = Rotation.from_rotvec(-molecules.y * dtheta)
+            mole = molecules.translate(mole_shift_px*self.tomogram.scale).rotate_by(skew_rotator)
             
             add_molecules(self.parent_viewer, 
-                           mole,
-                           _coerce_aligned_name(layer.name),
-                           source=spl
-                           )
+                          mole,
+                          _coerce_aligned_name(layer.name, self.parent_viewer),
+                          source=spl
+                          )
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned average image")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
@@ -1649,10 +1700,10 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
             add_molecules(self.parent_viewer, 
-                           aligned_loader.molecules,
-                           _coerce_aligned_name(layer.name),
-                           source=source
-                           )            
+                          aligned_loader.molecules,
+                          _coerce_aligned_name(layer.name, self.parent_viewer),
+                          source=source
+                          )            
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
@@ -2256,7 +2307,7 @@ class MTPropsWidget(MagicTemplate):
     
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self):
-        i = self.SplineControl.num
+        i: int = self.SplineControl.num
         if i is None:
             return
         spl = self.tomogram.splines[i]
@@ -2384,7 +2435,7 @@ def _iter_run(tomo: MtTomogram,
     return tomo
 
 
-def _coerce_aligned_name(name: str):
+def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     num = 1
     if re.match(fr".*-{ALN_SUFFIX}(\d)+", name):
         try:
@@ -2393,4 +2444,8 @@ def _coerce_aligned_name(name: str):
             name = "".join(pre)
         except Exception:
             num = 1
+    
+    existing_names = [layer.name for layer in viewer.layers]
+    while name + f"-{ALN_SUFFIX}{num}" in existing_names:
+        num += 1
     return name + f"-{ALN_SUFFIX}{num}"

@@ -1384,6 +1384,30 @@ class MtTomogram:
         df.index = df.index.rename(["SplineID", "PosID"])
         return df
     
+    def collect_globalprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
+        """
+        Collect all the global properties into a single pd.DataFrame.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to collect.
+
+        Returns
+        -------
+        pd.DataFrame
+            Concatenated data frame.
+        """        
+        if i is None:
+            i = range(self.n_splines)
+        elif isinstance(i, int):
+            i = [i]
+        df = pd.concat([self._splines[i_].globalprops for i_ in i], 
+                        axis=1,
+                       ).transpose()
+        df["radius"] = [self._splines[i_].radius for i_ in i]
+        df["orientation"] = [str(self._splines[i_].orientation) for i_ in i]
+        return df
     
     def plot_localprops(self, i: int | Iterable[int] = None,
                         x=None, y=None, hue=None, **kwargs):
@@ -1413,27 +1437,6 @@ class MtTomogram:
             
         return df.groupby(by=by).agg(functions)
     
-    
-    def collect_radii(self, i: int | Iterable[int] = None) -> np.ndarray:
-        """
-        Collect all the radius into a single array.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        np.ndarray
-            Radius of each spline
-        """        
-        if i is None:
-            i = range(self.n_splines)
-        elif isinstance(i, int):
-            i = [i]
-        return np.array([self._splines[i_].radius for i_ in i])
-
 
 def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):
     # img: 3D

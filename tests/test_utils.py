@@ -94,14 +94,14 @@ def test_map_coordinates():
 def test_multi_map_coordinates():
     from scipy import ndimage as ndi
     yy, xx = np.indices((100, 100))
-    img = np.sin(yy/4)*np.sin(xx/3)
+    img = ip.asarray(np.sin(yy/4)*np.sin(xx/3))
     
     coords = np.array([[[10, 13], [11, 16], [12, 19]],
                        [[3, 32], [7, 26], [10, 18]]], dtype=np.float64
                       )
     all_coords = np.stack([coords + i for i in range(20)], axis=0)
     
-    out0 = [ndi.map_coordinates(img, crds, order=3) for crds in all_coords]
+    out0 = [ndi.map_coordinates(img.value, crds, order=3) for crds in all_coords]
     
     out1 = sum([list(utils.multi_map_coordinates(img, crds, order=3))
                for crds in np.split(all_coords, 4)], start=[])

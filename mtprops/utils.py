@@ -3,7 +3,6 @@ import numpy as np
 from scipy import ndimage as ndi
 from dask import array as da, delayed
 import impy as ip
-from impy.array_api import xp
 from typing import Callable
 from .const import Mode, GVar
 
@@ -293,6 +292,44 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)
 
+def pad_template(template: ip.ImgArray, shape: tuple[int, ...]) -> ip.ImgArray:
+    """
+    Pad (or crop) template image to the specified shape.
+    
+    This function will not degenerate template information unless template is cropped.
+    Template image is inserted into a empty image with correct shape with integer
+    shift.
+
+    Parameters
+    ----------
+    template : ip.ImgArray
+        Template image.
+    shape : tuple[int, ...]
+        Desired output shape.
+
+    Returns
+    -------
+    ip.ImgArray
+        New image with desired shape.
+    """
+    template_shape = template.shape
+    if len(template_shape) != len(shape):
+        raise ValueError(
+            f"Size mismatch between template shape {tuple(template_shape)!r} "
+            f"and required shape {shape!r}"
+        )
+    
+    needed_size_up = np.array(shape) - np.array(template_shape)
+    pads: list[tuple[int, int]] = []
+    for i, s in enumerate(needed_size_up):
+        dw = s//2
+        if s < 0:
+            template = template[(slice(None),)*i, slice(dw, -s+dw)]
+            pads.append((0, 0))
+        else:
+            pads.append((dw, s - dw))
+    
+    return template.pad(pads, dims=template.axes, constant_values=np.min(template))
 
 class Projections:
     """

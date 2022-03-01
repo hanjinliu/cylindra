@@ -96,5 +96,4 @@ def test_result_io():
     tomo2.load_json(save_path)
     assert_allclose(tomo.collect_anchor_coords(0), tomo2.collect_anchor_coords(0))
     assert_allclose(tomo.collect_localprops(0), tomo2.collect_localprops(0))
-    assert_allclose(tomo.collect_radii(0), tomo2.collect_radii(0))
-    assert_allclose(tomo.global_ft_params(0), tomo2.global_ft_params(0))
+
