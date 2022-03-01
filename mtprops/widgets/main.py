@@ -1556,6 +1556,7 @@ class MTPropsWidget(MagicTemplate):
                     
                 rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
                 shifted_image = image_avg.affine(translation=shift, cval=np.min(image_avg))
+                # TODO: Rotate shifted image (this does not affect analysis but it's better)
             dx = shift[-1]
             dtheta = dx/radius
             skew_rotator = Rotation.from_rotvec(molecules.y * dtheta)
@@ -1753,8 +1754,8 @@ class MTPropsWidget(MagicTemplate):
         )
         
         @worker.returned.connect
-        def _on_returned(result: Tuple[np.ndarray, ip.ImgArray, list[Molecules]]):
-            corrs, img_ave, moles = result
+        def _on_returned(result: Tuple[np.ndarray, ip.ImgArray, list[SubtomogramLoader]]):
+            corrs, img_ave, loaders = result
             iopt = np.argmax(corrs)
             viewer: napari.Viewer = self._subtomogram_averaging._show_reconstruction(
                 img_ave, "All reconstructions"
@@ -1781,7 +1782,7 @@ class MTPropsWidget(MagicTemplate):
             plt2.title("Score")
             wdt = Container(widgets=[plt1, plt2], labels=False)
             viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
-            add_molecules(self.parent_viewer, moles[iopt], layer.name + "-OPT", source=source)
+            add_molecules(self.parent_viewer, loaders[iopt].molecules, layer.name + "-OPT", source=source)
             
         self._WorkerControl.info = "Seam search ... "
 

@@ -242,12 +242,32 @@ class SubtomogramLoader:
         local_rot[:, 3] = 1  # identity map in quaternion
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
-        with ip.silent():
-            with set_gpu():
-                template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
-            if rots is None:
-                for i, subvol in enumerate(self.iter_subtomograms(order=order)):
-                    with set_gpu():
+        with ip.silent(), set_gpu():
+            template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
+        if rots is None:
+            for i, subvol in enumerate(self.iter_subtomograms(order=order)):
+                with ip.silent(), set_gpu():
+                    input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
+                    shift = ip.ft_pcc_maximum(
+                        input_subvol.fft(),
+                        template_ft, 
+                        upsample_factor=20, 
+                        max_shifts=_max_shifts_px
+                    )
+                if self.image_avg is None:
+                    pre_alignment += subvol
+                local_shifts[i, :] = shift
+                yield local_shifts[i, :], local_rot[i, :]
+                
+        else:
+            rotators = [Rotation.from_quat(r) for r in rots]
+            iterator = self.iter_subtomograms(rotators=rotators, order=order)
+            for i, subvol_set in enumerate(iterator):
+                corrs: list[float] = []
+                all_shifts: list[np.ndarray] = []
+                for subvol in subvol_set:
+                    subvol: ip.ImgArray
+                    with ip.silent(), set_gpu():
                         input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
                         shift = ip.ft_pcc_maximum(
                             input_subvol.fft(),
@@ -255,41 +275,20 @@ class SubtomogramLoader:
                             upsample_factor=20, 
                             max_shifts=_max_shifts_px
                         )
-                    if self.image_avg is None:
-                        pre_alignment += subvol
-                    local_shifts[i, :] = shift
-                    yield local_shifts[i, :], local_rot[i, :]
-                    
-            else:
-                rotators = [Rotation.from_quat(r) for r in rots]
-                iterator = self.iter_subtomograms(rotators=rotators, order=order)
-                for i, subvol_set in enumerate(iterator):
-                    corrs: list[float] = []
-                    all_shifts: list[np.ndarray] = []
-                    for subvol in subvol_set:
-                        subvol: ip.ImgArray
-                        with set_gpu():
-                            input_subvol = subvol.lowpass_filter(cutoff=cutoff) * mask
-                            shift = ip.ft_pcc_maximum(
-                                input_subvol.fft(),
-                                template_ft, 
-                                upsample_factor=20, 
-                                max_shifts=_max_shifts_px
-                            )
-                            all_shifts.append(shift)
-                            shifted_subvol = input_subvol.affine(translation=shift)
-                        corr = ip.zncc(shifted_subvol*mask, template*mask)
-                        corrs.append(corr)
-                    
-                    if self.image_avg is None:
-                        pre_alignment += subvol_set[0]
-                    
-                    iopt = np.argmax(corrs)
-                    local_shifts[i, :] = all_shifts[iopt]
-                    local_rot[i, :] = rots[iopt]
-                    
-                    yield local_shifts[i, :], local_rot[i, :]
-        
+                        all_shifts.append(shift)
+                        shifted_subvol = input_subvol.affine(translation=shift)
+                    corr = ip.zncc(shifted_subvol*mask, template*mask)
+                    corrs.append(corr)
+                
+                if self.image_avg is None:
+                    pre_alignment += subvol_set[0]
+                
+                iopt = np.argmax(corrs)
+                local_shifts[i, :] = all_shifts[iopt]
+                local_rot[i, :] = rots[iopt]
+                
+                yield local_shifts[i, :], local_rot[i, :]
+    
         if self.image_avg is None:
             pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
             pre_alignment.set_scale(self.image_ref)
@@ -374,12 +373,12 @@ class SubtomogramLoader:
         mask: ip.ImgArray | None = None,
         load_all: bool = False,
         order: int = 1,
-    ) -> Generator[tuple[float, ip.ImgArray, Molecules],
+    ) -> Generator[tuple[float, ip.ImgArray, SubtomogramLoader],
                    None,
-                   tuple[np.ndarray, ip.ImgArray, list[Molecules]]]:
+                   tuple[np.ndarray, ip.ImgArray, list[SubtomogramLoader]]]:
         averaged_images: list[ip.ImgArray] = []
         corrs: list[float] = []
-        candidates: list[Molecules] = []
+        candidates: list[SubtomogramLoader] = []
         
         if mask is None:
             mask = 1
