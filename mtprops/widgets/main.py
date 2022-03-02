@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Iterable, Union, Tuple, List
+from typing import Iterable, Iterator, Union, Tuple, List
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -36,6 +36,7 @@ from magicclass.widgets import (
     ConsoleTextEdit,
     Figure,
     Container,
+    Select,
     )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
@@ -228,6 +229,18 @@ class MTPropsWidget(MagicTemplate):
     
     @magicclass(name="Run MTProps")
     class _runner(MagicTemplate):
+        def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
+            """Get list of spline objects for categorical widgets."""
+            try:
+                tomo = self.find_ancestor(MTPropsWidget).tomogram
+            except Exception:
+                return []
+            if tomo is None:
+                return []
+            return [(str(spl), i) for i, spl in enumerate(tomo.splines)]
+        
+        all_splines = vfield(True, options={"text": "Run for all the splines.", "tooltip": "Uncheck to select along which spline algorithms will be executed."}, record=False)
+        splines = vfield(Select, options={"choices": _get_splines, "visible": False})
         dense_mode = vfield(True, options={"label": "Use dense-mode", "tooltip": "Check if microtubules are densely packed. Initial spline position must be 'almost' fitted in dense mode."}, record=False)
         @magicclass(widget_type="groupbox", name="Parameters")
         class params1:
@@ -243,6 +256,10 @@ class MTPropsWidget(MagicTemplate):
             paint = vfield(True, options={"tooltip": "Check if paint microtubules after local properties are calculated."}, record=False)
         global_props = vfield(True, options={"label": "Calculate global properties", "tooltip": "Check if calculate global properties."}, record=False)
 
+        @all_splines.connect
+        def _toggle_spline_list(self):
+            self["splines"].visible = not self.all_splines
+            
         @dense_mode.connect
         def _toggle_dense_mode_sigma(self):
             self.params1.visible = self.dense_mode
@@ -250,6 +267,12 @@ class MTPropsWidget(MagicTemplate):
         @local_props.connect
         def _toggle_localprops_params(self):
             self.params2.visible = self.local_props
+        
+        def _get_splines_to_run(self, w=None) -> List[int]:
+            if self.all_splines:
+                return []
+            else:
+                return self.splines
         
         def run_mtprops(self): ...
     
@@ -266,6 +289,7 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def run_mtprops(
         self,
+        splines: Bound[_runner._get_splines_to_run] = (),
         interval: Bound[_runner.params2.interval] = 32.0,
         ft_size: Bound[_runner.params2.ft_size] = 32.0,
         n_refine: Bound[_runner.n_refine] = 1,
@@ -280,13 +304,16 @@ class MTPropsWidget(MagicTemplate):
         
         if self.layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
-        if len(self.tomogram.splines) == 0:
+        if self.tomogram.n_splines == 0:
             raise ValueError("No spline found.")
+        elif len(splines) == 0:
+            splines = range(self.tomogram.n_splines)
         
-        total = 1 + n_refine + int(local_props) + int(global_props)
+        total = (1 + n_refine + int(local_props) + int(global_props)) * len(splines)
         
         worker = create_worker(_iter_run, 
                                tomo=self.tomogram,
+                               splines=splines,
                                interval=interval,
                                ft_size=ft_size,
                                n_refine=n_refine,
@@ -316,7 +343,7 @@ class MTPropsWidget(MagicTemplate):
             if global_props:
                 self._update_global_properties_in_widget()
         self._last_ft_size = ft_size
-        self._WorkerControl.info = "Spline fitting"
+        self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
         return worker
     
     @toolbar.wraps
@@ -2003,15 +2030,15 @@ class MTPropsWidget(MagicTemplate):
         
         # Labels layer properties
         _id = "ID"
-        _type = "type"
-        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _type]
+        _structure = "structure"
+        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _structure]
         df = tomo.collect_localprops()[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
         df_reset[_id] = df_reset.apply(
             lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), 
             axis=1
             )
-        df_reset[_type] = df_reset.apply(
+        df_reset[_structure] = df_reset.apply(
             lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), start=x[H.start]), 
             axis=1
             )
@@ -2239,8 +2266,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return local Cartesian image at the current position
         """        
-        i = i or self.SplineControl.num
-        j = j or self.SplineControl.pos
+        i: int = i or self.SplineControl.num
+        j: int = j or self.SplineControl.pos
         tomo = self.tomogram
         spl = tomo._splines[i]
         
@@ -2401,33 +2428,36 @@ def _multi_affine(images, matrices, cval: float = 0, order=1):
         )
     return out
     
-def _iter_run(tomo: MtTomogram, 
-              interval: nm,
-              ft_size,
-              n_refine,
-              dense_mode,
-              dense_mode_sigma,
-              local_props,
-              global_props):
-    
-    tomo.fit(dense_mode=dense_mode, dense_mode_sigma=dense_mode_sigma)
-    tomo.set_radius()
-    
-    for i in range(n_refine):
-        if n_refine == 1:
-            yield "Spline refinement ..."
-        else:
-            yield f"Spline refinement (iteration {i+1}/{n_refine}) ..."
-        tomo.refine(max_interval=max(interval, 30))
-        tomo.set_radius()
+def _iter_run(
+    tomo: MtTomogram, 
+    splines: Iterable[int],
+    interval: nm,
+    ft_size,
+    n_refine,
+    dense_mode,
+    dense_mode_sigma,
+    local_props,
+    global_props
+) -> Iterator[str]:
+    n_spl = len(splines)
+    for i_spl in splines:
+        if i_spl > 0:
+            yield f"[{i_spl + 1}/{n_spl}] Spline fitting"
+        tomo.fit(i=i_spl, dense_mode=dense_mode, dense_mode_sigma=dense_mode_sigma)
+        tomo.set_radius(i=i_spl)
         
-    tomo.make_anchors(interval=interval)
-    if local_props:
-        yield "Local Fourier transformation ..."
-        tomo.local_ft_params(ft_size=ft_size)
-    if global_props:
-        yield "Global Fourier transformation ..."
-        tomo.global_ft_params()
+        for i in range(n_refine):
+            yield f"[{i_spl + 1}/{n_spl}] Spline refinement (iteration {i + 1}/{n_refine})"
+            tomo.refine(i=i_spl, max_interval=max(interval, 30))
+            tomo.set_radius(i=i_spl)
+            
+        tomo.make_anchors(i=i_spl, interval=interval)
+        if local_props:
+            yield f"[{i_spl + 1}/{n_spl}] Local Fourier transformation"
+            tomo.local_ft_params(i=i_spl, ft_size=ft_size)
+        if global_props:
+            yield f"[{i_spl + 1}/{n_spl}] Global Fourier transformation"
+            tomo.global_ft_params(i=i_spl)
     yield "Finishing ..."
     return tomo
 
