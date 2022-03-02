@@ -18,12 +18,15 @@ def test_run_all(coords, npf, rise, skew_range):
     path = Path(__file__).parent / f"{npf}pf_MT.tif"
     tomo = MtTomogram.imread(path, light_background=False)
     
+    assert abs(tomo.scale - 1.052) < 1e-6
+    
     # the length of spline is ~80 nm
     tomo.add_spline(coords=coords)
     tomo.fit()
     tomo.refine()
     tomo.make_anchors(n=3)
     tomo.set_radius()
+    tomo.make_anchors(interval=30)
     tomo.local_ft_params(i=0)
     tomo.global_ft_params(i=0)
     spl = tomo.splines[0]

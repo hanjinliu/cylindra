@@ -283,7 +283,7 @@ class MtTomogram:
     def __init__(self, 
                  *,
                  subtomogram_length: nm = 48.0,
-                 subtomogram_width: nm = 40.0,
+                 subtomogram_width: nm = 44.0,
                  light_background: bool = False,
                  ):
         self.subtomo_length = subtomogram_length
@@ -319,13 +319,14 @@ class MtTomogram:
         *, 
         scale: float = None,
         subtomogram_length: nm = 48.0,
-        subtomogram_width: nm = 40.0,
+        subtomogram_width: nm = 44.0,
         light_background: bool = False
     ) -> Self:
         
         self = cls(subtomogram_length=subtomogram_length,
                    subtomogram_width=subtomogram_width,
-                   light_background=light_background)
+                   light_background=light_background
+                   )
         img = ip.lazy_imread(path, chunks=GVar.daskChunk).as_float()
         if scale is not None:
             img.set_scale(xyz=scale)
@@ -548,7 +549,7 @@ class MtTomogram:
         degree_precision: float = 0.5,
         cutoff: float = 0.2,
         edge_sigma: nm = 2.0,
-        max_shift: nm = 10.0,
+        max_shift: nm = 5.0,
     ) -> Self:
         """
         Roughly fit i-th spline to MT.
@@ -573,7 +574,7 @@ class MtTomogram:
             Sharpness of mask at the edges. If not None, fitting will be executed after regions outside 
             microtubule are masked. Soft mask is important for precision because sharp changes in intensity
             cause strong correlation at the edges.
-        max_shift: nm, default is 10.0
+        max_shift: nm, default is 5.0
             Maximum shift from the true center of microtubule. This parameter is used in phase cross 
             correlation.
 

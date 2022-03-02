@@ -302,7 +302,7 @@ class MTPropsWidget(MagicTemplate):
         ft_size: Bound[_runner.params2.ft_size] = 32.0,
         n_refine: Bound[_runner.n_refine] = 1,
         max_shift: Bound[_runner.params1.max_shift] = 5.0,
-        dense_mode_sigma: Bound[_runner._get_edge_sigma] = 0.2,
+        edge_sigma: Bound[_runner._get_edge_sigma] = 2.0,
         local_props: Bound[_runner.local_props] = True,
         global_props: Bound[_runner.global_props] = True,
         paint: Bound[_runner.params2.paint] = True,
@@ -326,7 +326,7 @@ class MTPropsWidget(MagicTemplate):
                                ft_size=ft_size,
                                n_refine=n_refine,
                                max_shift=max_shift,
-                               dense_mode_sigma=dense_mode_sigma,
+                               edge_sigma=edge_sigma,
                                local_props=local_props,
                                global_props=global_props,
                                _progress={"total": total, 
@@ -531,13 +531,15 @@ class MTPropsWidget(MagicTemplate):
         if scale is not None:
             scale = float(scale)
             img.scale.x = img.scale.y = img.scale.z = scale
+        else:
+            scale = img.scale.x
     
         if scale > 0.96:
-            self.bin_size = 1
+            bin_size = 1
         elif scale > 0.48:
-            self.bin_size = 2
+            bin_size = 2
         else:
-            self.bin_size = 4
+            bin_size = 4
         
         if cutoff is None:
             cutoff = 1.0
@@ -2134,7 +2136,7 @@ class MTPropsWidget(MagicTemplate):
     def get_molecules(self, name: str):
         """Retrieve Molecules object from layer list."""
         return self.parent_viewer.layers[name].metadata[MOLECULES]
-    
+
     @nogui
     def get_loader(self, name: str, chunksize: int = 64):
         mole = self.get_molecules(name)
@@ -2143,7 +2145,7 @@ class MTPropsWidget(MagicTemplate):
         return loader
     
     @nogui
-    def get_current_spline(self):
+    def get_current_spline(self) -> MtSpline:
         tomo = self.tomogram
         i = self.SplineControl.num
         return tomo.splines[i]
@@ -2462,7 +2464,7 @@ def _iter_run(
     ft_size,
     n_refine,
     max_shift,
-    dense_mode_sigma,
+    edge_sigma,
     local_props,
     global_props
 ) -> Iterator[str]:
@@ -2470,7 +2472,7 @@ def _iter_run(
     for i_spl in splines:
         if i_spl > 0:
             yield f"[{i_spl + 1}/{n_spl}] Spline fitting"
-        tomo.fit(i=i_spl, edge_sigma=dense_mode_sigma, max_shift=max_shift)
+        tomo.fit(i=i_spl, edge_sigma=edge_sigma, max_shift=max_shift)
         tomo.set_radius(i=i_spl)
         
         for i in range(n_refine):

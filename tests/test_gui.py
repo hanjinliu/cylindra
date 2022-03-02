@@ -40,8 +40,7 @@ def test_spline_switch():
     ui.SplineControl.pos = 0
     assert_canvas(ui, [False, False, True])
     
-    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1,dense_mode_sigma=0.2, 
-                   local_props=True, global_props=True, paint=True)
+    ui.run_mtprops(interval=16.0)
     
     # check results
     spl = ui.tomogram.splines[0]
@@ -105,10 +104,14 @@ def test_spline_switch():
     # NOTE: Not implemented yet
     # ui.Calculate_FSC(ui.parent_viewer.layers['Monomers-0'], mask_params=None, shape=(18., 18., 18.),
     #                  seed=0, interpolation=1)
+    template_path = Path(__file__).parent / "template.mrc"
+    ui.Align_averaged(layer=ui.parent_viewer.layers['Monomers-0'], template_path=template_path, mask_params=(1, 1), chunk_size=39)
+    ui.Align_all(layer=ui.parent_viewer.layers['Monomers-0'], template_path=template_path, mask_params=(1, 1), 
+                 max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=39,)
     ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
-                                layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
+                                layer=ui.parent_viewer.layers['Monomers-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",
-                           layer=viewer.layers['Monomers-0'], rotation_axes="ZXZ", in_degree=True, separator=",")
+                           layer=ui.parent_viewer.layers['Monomers-0'], rotation_axes="ZXZ", in_degree=True, separator=",")
     ui.clear_all()
     assert_canvas(ui, [True, True, True])
     assert ui.LocalProperties.params.pitch.txt == " -- nm"
