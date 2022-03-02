@@ -7,7 +7,6 @@ if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec
 else:
     from typing import ParamSpec
-import warnings
 from functools import wraps
 
 from napari.qt.threading import GeneratorWorker, FunctionWorker
@@ -54,10 +53,11 @@ class WorkerControl(MagicTemplate):
     
     @property
     def running(self) -> bool:
-        """Return ture if worker is running."""
+        """Return true if worker is running."""
         return self._worker is not None and self._worker._running
     
     def _set_worker(self, worker: Worker):
+        """Set worker if no worker is running."""
         if self.running:
             e = Exception(
                 "An worker is already running! Please wait until it finishs, or click "
