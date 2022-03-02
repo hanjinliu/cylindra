@@ -547,8 +547,8 @@ class MtTomogram:
         max_interval: nm = 30.0,
         degree_precision: float = 0.5,
         cutoff: float = 0.2,
-        dense_mode: bool = False,
-        dense_mode_sigma: nm = 2.0,
+        edge_sigma: nm = 2.0,
+        max_shift: nm = 10.0,
     ) -> Self:
         """
         Roughly fit i-th spline to MT.
@@ -569,11 +569,13 @@ class MtTomogram:
         cutoff : float, default is 0.35
             The cutoff frequency of lowpass filter that will applied to subtomogram 
             before alignment-based fitting. 
-        dense_mode : bool, default is False
-            If True, fitting will be executed in the dense-microtubule mode.
-        dense_mode_sigma : nm, default is 2.0
-            Sharpness of mask at the edges. Soft mask is important for precision
-            because sharp changes in intensity cause strong correlation at the edges.
+        edge_sigma : nm, default is 2.0
+            Sharpness of mask at the edges. If not None, fitting will be executed after regions outside 
+            microtubule are masked. Soft mask is important for precision because sharp changes in intensity
+            cause strong correlation at the edges.
+        max_shift: nm, default is 10.0
+            Maximum shift from the true center of microtubule. This parameter is used in phase cross 
+            correlation.
 
         Returns
         -------
@@ -607,7 +609,7 @@ class MtTomogram:
                     subtomo: ip.ImgArray
                     subtomo.value[:] = subtomo.lowpass_filter(cutoff)
         
-            if dense_mode:
+            if edge_sigma is not None:
                 # mask XY-region outside the microtubules with sigmoid function.
                 yy, xx = np.indices(subtomograms.sizesof("yx"))
                 yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
@@ -617,10 +619,10 @@ class MtTomogram:
                     _, vy, vx = ds
                     distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * self.scale
                     distance_cutoff = self.subtomo_width / 2
-                    if dense_mode_sigma == 0:
+                    if edge_sigma == 0:
                         mask_yx = (distance > distance_cutoff).astype(np.float32)
                     else:
-                        mask_yx = 1 / (1 + np.exp((distance - distance_cutoff)/dense_mode_sigma))
+                        mask_yx = 1 / (1 + np.exp((distance - distance_cutoff)/edge_sigma))
                     mask = np.stack([mask_yx]*subtomograms.shape.z, axis=0)
                     subtomograms[i] *= mask
             
@@ -654,19 +656,17 @@ class MtTomogram:
             # zx-shift correction by self-PCC
             subtomo_proj = subtomograms.proj("y")
             
-            if dense_mode:
+            if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
                 xc = int(subtomo_proj.shape.x/2)
                 w = int((self.subtomo_width/self.scale)/2)
                 subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
 
-            shape = subtomo_proj[0].shape
             shifts = np.zeros((npoints, 2)) # zx-shift
-            mask_yx = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-            
+            max_shift_px = max_shift / self.scale * 2
             for i in range(npoints):
                 img = subtomo_proj[i]
-                shifts[i] = mirror_pcc(img, mask=mask_yx) / 2
+                shifts[i] = mirror_pcc(img, max_shifts=max_shift_px) / 2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -779,18 +779,14 @@ class MtTomogram:
             
             inputs_ft = inputs.fft(dims=inputs["p=0"].axes)
             
-            # Coarsely align skew-corrected images
-            shape = inputs["p=0"].shape
-            
-            # prepare a mask image for PCC calculation
-            mask = ip.circular_mask(radius=[s//4 for s in shape], shape=shape)
-                
+            # Coarsely align skew-corrected images                
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
+            max_shift = 4.0 / self.scale
             
             for i in range(npoints):
                 img: ip.ImgArray = inputs[i]
                 ft = inputs_ft[i]
-                shift = mirror_ft_pcc(ft, mask=mask) / 2
+                shift = mirror_ft_pcc(ft, max_shifts=max_shift*2) / 2
                 if not projection:
                     shift[1] = 0
                 imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
@@ -804,7 +800,7 @@ class MtTomogram:
             
             # Make template using coarse aligned images.
             imgcory: ip.ImgArray = imgs_aligned.proj("p")
-            center_shift = mirror_pcc(imgcory, mask=mask) / 2
+            center_shift = mirror_pcc(imgcory, max_shifts=max_shift*2) / 2
             template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
             template_ft = template.fft(dims=template.axes)
             
@@ -812,7 +808,7 @@ class MtTomogram:
             shifts = np.zeros((npoints, 2))
             for i in range(npoints):
                 ft = inputs_ft[i]
-                shift = -ip.ft_pcc_maximum(template_ft, ft, mask=mask)
+                shift = -ip.ft_pcc_maximum(template_ft, ft, max_shifts=max_shift)
                 
                 if not projection:
                     shift = shift[[0, 2]]
@@ -820,7 +816,7 @@ class MtTomogram:
                 rad = np.deg2rad(skew_angles[i])
                 cos, sin = np.cos(rad), np.sin(rad)
                 zxrot = np.array([[ cos, sin],
-                                [-sin, cos]], dtype=np.float32)
+                                  [-sin, cos]], dtype=np.float32)
                 shifts[i] = shift @ zxrot
 
         # Update spline parameters

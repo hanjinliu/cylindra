@@ -40,7 +40,7 @@ def test_spline_switch():
     ui.SplineControl.pos = 0
     assert_canvas(ui, [False, False, True])
     
-    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1, dense_mode=True, dense_mode_sigma=0.2, 
+    ui.run_mtprops(interval=16.0, ft_size=32.0, n_refine=1,dense_mode_sigma=0.2, 
                    local_props=True, global_props=True, paint=True)
     
     # check results
@@ -102,8 +102,9 @@ def test_spline_switch():
     # map monomer coordinates and save them.
     ui.Map_monomers(splines=[0])
     ui.Average_subset(ui.parent_viewer.layers['Monomers-0'], size=18.)
-    ui.Calculate_FSC(ui.parent_viewer.layers['Monomers-0'], mask_params=None, shape=(18., 18., 18.),
-                     seed=0, interpolation=1)
+    # NOTE: Not implemented yet
+    # ui.Calculate_FSC(ui.parent_viewer.layers['Monomers-0'], mask_params=None, shape=(18., 18., 18.),
+    #                  seed=0, interpolation=1)
     ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
                                 layer=viewer.layers['Monomers-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",

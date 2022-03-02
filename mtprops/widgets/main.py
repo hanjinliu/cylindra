@@ -245,7 +245,8 @@ class MTPropsWidget(MagicTemplate):
         @magicclass(widget_type="groupbox", name="Parameters")
         class params1:
             """Parameters used in spline fitting."""
-            dense_mode_sigma = vfield(2.0, options={"label": "dense-mode sigma", "tooltip": "Sharpness of dense-mode mask."}, record=False)
+            edge_sigma = vfield(2.0, options={"label": "edge sigma", "tooltip": "Sharpness of dense-mode mask at the edges."}, record=False)
+            max_shift = vfield(5.0, options={"label": "Maximum shift (nm)", "max": 50.0, "step": 0.5, "tooltip": "Maximum shift in nm of manually selected spline to the true center."}, record=False)
         n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4, "tooltip": "Iteration number of spline refinement."}, record=False)
         local_props = vfield(True, options={"label": "Calculate local properties", "tooltip": "Check if calculate local properties."}, record=False)
         @magicclass(widget_type="groupbox", name="Parameters")
@@ -262,7 +263,7 @@ class MTPropsWidget(MagicTemplate):
             
         @dense_mode.connect
         def _toggle_dense_mode_sigma(self):
-            self.params1.visible = self.dense_mode
+            self.params1["edge_sigma"].visible = self.dense_mode
         
         @local_props.connect
         def _toggle_localprops_params(self):
@@ -273,6 +274,12 @@ class MTPropsWidget(MagicTemplate):
                 return []
             else:
                 return self.splines
+        
+        def _get_edge_sigma(self, w=None) -> Union[float, None]:
+            if self.dense_mode:
+                return self.params1.edge_sigma
+            else:
+                return None
         
         def run_mtprops(self): ...
     
@@ -293,8 +300,8 @@ class MTPropsWidget(MagicTemplate):
         interval: Bound[_runner.params2.interval] = 32.0,
         ft_size: Bound[_runner.params2.ft_size] = 32.0,
         n_refine: Bound[_runner.n_refine] = 1,
-        dense_mode: Bound[_runner.dense_mode] = True,
-        dense_mode_sigma: Bound[_runner.params1.dense_mode_sigma] = 0.2,
+        max_shift: Bound[_runner.params1.max_shift] = 5.0,
+        dense_mode_sigma: Bound[_runner._get_edge_sigma] = 0.2,
         local_props: Bound[_runner.local_props] = True,
         global_props: Bound[_runner.global_props] = True,
         paint: Bound[_runner.params2.paint] = True,
@@ -317,7 +324,7 @@ class MTPropsWidget(MagicTemplate):
                                interval=interval,
                                ft_size=ft_size,
                                n_refine=n_refine,
-                               dense_mode=dense_mode,
+                               max_shift=max_shift,
                                dense_mode_sigma=dense_mode_sigma,
                                local_props=local_props,
                                global_props=global_props,
@@ -2438,7 +2445,7 @@ def _iter_run(
     interval: nm,
     ft_size,
     n_refine,
-    dense_mode,
+    max_shift,
     dense_mode_sigma,
     local_props,
     global_props
@@ -2447,7 +2454,7 @@ def _iter_run(
     for i_spl in splines:
         if i_spl > 0:
             yield f"[{i_spl + 1}/{n_spl}] Spline fitting"
-        tomo.fit(i=i_spl, dense_mode=dense_mode, dense_mode_sigma=dense_mode_sigma)
+        tomo.fit(i=i_spl, edge_sigma=dense_mode_sigma, max_shift=max_shift)
         tomo.set_radius(i=i_spl)
         
         for i in range(n_refine):
