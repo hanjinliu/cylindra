@@ -22,7 +22,7 @@ setup(
         "magic-class>=0.5.23",
         "pyqtgraph>=0.12",
         "mrcfile>=1.3.0",
-        "napari>=0.4.14",  # point shading
+        "napari>=0.4.15",
     ],
     python_requires=">=3.8",
     )

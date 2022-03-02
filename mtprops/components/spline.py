@@ -8,7 +8,7 @@ from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
 from ..utils import ceilint, interval_divmod, roundint
-from ..const import nm
+from ..const import Mode, nm
 from .molecules import Molecules, axes_to_rotator
 
 if TYPE_CHECKING:
@@ -595,23 +595,14 @@ class Spline:
             (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and 
             dimensional axis.
         """        
-        out = self._get_local_coords(_polar_coords_2d, r_range, u, n_pixels)
-        return out
-        
-    
-    def _get_local_coords(self,
-                          map_func: Callable[[tuple], np.ndarray],
-                          map_params: tuple, 
-                          u: np.ndarray, 
-                          n_pixels: int):
         if u is None:
             u = self.anchors
         ds = self(u, 1).astype(np.float32)
         len_ds = np.sqrt(sum(ds**2))
-        dy = ds.reshape(-1, 1)/len_ds * np.linspace(-n_pixels/2+0.5, n_pixels/2-0.5, n_pixels)
+        dy = ds.reshape(-1, 1)/len_ds * np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
         y_ax_coords = (self(u)/self.scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds]*n_pixels, axis=0)
-        map_ = map_func(*map_params)
+        map_ = _polar_coords_2d(*r_range)
         map_slice = _stack_coords(map_)
         out = _rot_with_vector(map_slice, y_ax_coords, dslist)
         return np.moveaxis(out, -1, 0)
@@ -819,6 +810,25 @@ class Spline:
         yvec = self(u, der=1)
         return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
 
+    def slice_along(
+        self, 
+        array: np.ndarray,
+        s_range: tuple[float, float] = (0., 1.),
+        order: int = 3,
+        mode: str = Mode.constant,
+        cval: float = 0.,
+    ) -> np.ndarray:
+        _, coords = self._get_y_ax_coords(s_range)
+        from scipy import ndimage as ndi
+        return ndi.map_coordinates(
+            array,
+            coords.T,
+            order=order,
+            mode=mode,
+            cval=cval,
+            prefilter=order>1,
+        )
+
 
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
@@ -828,6 +838,14 @@ class Spline:
         Make coordinate system using function ``map_func`` and stack the same point cloud
         in the direction of the spline, in the range of ``s_range``.
         """
+        u, y_ax_coords = self._get_y_ax_coords(s_range)
+        dslist = self(u, 1).astype(np.float32)
+        map_ = map_func(*map_params)
+        map_slice = _stack_coords(map_)
+        out = _rot_with_vector(map_slice, y_ax_coords, dslist)
+        return np.moveaxis(out, -1, 0)
+    
+    def _get_y_ax_coords(self, s_range: tuple[float, float]):
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
         stop_length, n_segs = interval_divmod(length, self.scale)
@@ -836,13 +854,8 @@ class Spline:
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
         u = np.linspace(s0, s2, n_pixels)
-        y_ax_coords = self(u)/self.scale  # world coordinates of y-axis in spline coords system
-        dslist = self(u, 1).astype(np.float32)
-        map_ = map_func(*map_params)
-        map_slice = _stack_coords(map_)
-        out = _rot_with_vector(map_slice, y_ax_coords, dslist)
-        return np.moveaxis(out, -1, 0)
-
+        y = self(u) / self.scale  # world coordinates of y-axis in spline coords system
+        return u, y
 
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop
