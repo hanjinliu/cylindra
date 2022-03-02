@@ -35,8 +35,8 @@ class SplineInfo(TypedDict):
 class Spline:
     """
     3D spline curve model with coordinate system. Anchor points can be set via ``anchor``
-    property. Every time spline parameters or anchors are updated, hash value of Spline3D
-    object will be changed, thus it is safe to map Spline3D object to some result along
+    property. Every time spline parameters or anchors are updated, hash value of Spline
+    object will be changed, thus it is safe to map Spline object to some result along
     the corresponding curve.
     
     References
@@ -72,7 +72,7 @@ class Spline:
     
     def copy(self, copy_cache: bool = True) -> Self:
         """
-        Copy Spline3D object.
+        Copy Spline object.
 
         Parameters
         ----------
@@ -81,7 +81,7 @@ class Spline:
 
         Returns
         -------
-        Spline3D
+        Spline
             Copied object.
         """
         new = self.__class__(self.scale, self.k, lims=self._lims)
@@ -225,7 +225,7 @@ class Spline:
 
         Returns
         -------
-        Spline3D
+        Spline
             Clipped spline.
         """
         u0 = _linear_conversion(start, *self._lims)
@@ -235,6 +235,21 @@ class Spline:
         new._u = self._u
         return new
     
+    
+    def restore(self) -> Self:
+        """
+        Restore the original, not-clipped spline.
+
+        Returns
+        -------
+        Spline
+            Copy of the original spline.
+        """
+        original = self.__class__(self.scale, self.k, lims=(0, 1))
+        original._tck = self._tck
+        original._u = self._u
+        return original
+
 
     def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Self:
         """
@@ -248,6 +263,11 @@ class Spline:
             Weight of each coordinate.
         s : float, optional
             Total variation , by default None
+        
+        Returns
+        -------
+        Spline
+            Spline fit to given coordinates.
         """        
         npoints = coords.shape[0]
         if npoints < 2:
@@ -279,6 +299,11 @@ class Spline:
             Weight of each coordinate.
         s : float, optional
             Total variation, by default None
+            
+        Returns
+        -------
+        Spline
+            Spline shifted by fitting to given coordinates.
         """        
         coords = self(u)
         rot = self.get_rotator(u)
@@ -361,7 +386,7 @@ class Spline:
 
         Returns
         -------
-        Spline3D
+        Spline
             Inverted object
         """
         anchors = self._anchors

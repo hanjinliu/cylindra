@@ -114,7 +114,7 @@ class MTPropsWidget(MagicTemplate):
         def Add_anchors(self): ...
         sep0 = field(Separator)
         def Align_to_polarity(self): ...
-        # def Clip_spline(self): ...
+        def Clip_spline(self): ...
         sep1 = field(Separator)
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...
@@ -800,8 +800,9 @@ class MTPropsWidget(MagicTemplate):
         """Show 3D spline paths of microtubule center axes as a layer."""        
         paths = [r.partition(100) for r in self.tomogram.splines]
         
-        self.parent_viewer.add_shapes(paths, shape_type="path", edge_color="lime", edge_width=1,
-                                      translate=self.layer_image.translate)
+        self.parent_viewer.add_shapes(
+            paths, shape_type="Splines", edge_color="lime", edge_width=1,
+        )
         return None
 
     @Splines.wraps
@@ -822,17 +823,20 @@ class MTPropsWidget(MagicTemplate):
         if need_resample:
             self.Sample_subtomograms()
     
-    # @Splines.wraps
-    # @set_options(
-    #     auto_call=True,
-    #     spline={"choices": _get_splines}
-    # )
-    # def Clip_spline(self, spline: int, start: 0.0, stop: 1.0):
-    #     if spline is None:
-    #         return
-    #     spl = self.tomogram.splines[spline]
-    #     spl.clip(0, 1)
-        
+    @Splines.wraps
+    @set_options(
+        auto_call=True,
+        spline={"choices": _get_splines},
+        start={"max": 1.0, "step": 0.01},
+        stop={"max": 1.0, "step": 0.01},
+    )
+    def Clip_spline(self, spline: int, start: float = 0.0, stop: float = 1.0):
+        if spline is None:
+            return
+        spl = self.tomogram.splines[spline]
+        self.tomogram.splines[spline] = spl.restore().clip(start, stop)
+        self._update_splines_in_images()
+        return None
         
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"},
@@ -1365,7 +1369,7 @@ class MTPropsWidget(MagicTemplate):
         class Subtomogram_analysis(MagicTemplate):
             def Average_all(self): ...
             def Average_subset(self): ...
-            def Calculate_FSC(self): ...
+            # def Calculate_FSC(self): ...
             def Seam_search(self): ...
         
         @magicmenu
@@ -1743,46 +1747,46 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
 
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        shape={"widget_type": TupleEdit, "text": "Use template shape"}
-    )
-    @dispatch_worker
-    def Calculate_FSC(
-        self,
-        layer: MonomerLayer,
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        shape: Optional[tuple[nm, nm, nm]] = None,
-        seed: Optional[int] = 0,
-        interpolation: int = 1,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
-    ):
-        mole: Molecules = layer.metadata[MOLECULES]
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        if shape is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=chunk_size)
-        worker = create_worker(loader.fsc,
-                               seed=seed,
-                               mask=mask,
-                               order=interpolation,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
+    # @_subtomogram_averaging.Subtomogram_analysis.wraps
+    # @set_options(
+    #     interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+    #     shape={"widget_type": TupleEdit, "text": "Use template shape"}
+    # )
+    # @dispatch_worker
+    # def Calculate_FSC(
+    #     self,
+    #     layer: MonomerLayer,
+    #     mask_params: Bound[_subtomogram_averaging._get_mask_params],
+    #     shape: Optional[tuple[nm, nm, nm]] = None,
+    #     seed: Optional[int] = 0,
+    #     interpolation: int = 1,
+    #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
+    # ):
+    #     mole: Molecules = layer.metadata[MOLECULES]
+    #     mask = self._subtomogram_averaging._get_mask(params=mask_params)
+    #     if shape is None:
+    #         shape = self._subtomogram_averaging._get_shape_in_nm()
+    #     loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=chunk_size)
+    #     worker = create_worker(loader.fsc,
+    #                            seed=seed,
+    #                            mask=mask,
+    #                            order=interpolation,
+    #                            _progress={"total": 0, "desc": "Running"}
+    #                            )
         
-        @worker.returned.connect
-        def _on_returned(out: tuple[np.ndarray, np.ndarray]):
-            freq, fsc = out
-            ind = (freq <= 0.5)
-            plt = Figure(style="dark_background")
-            plt.plot(freq[ind], fsc[ind], color="gold")
-            plt.xlabel("Frequency")
-            plt.ylabel("FSC")
-            plt.title(f"FSC of {layer.name}")
-            plt.show()
+    #     @worker.returned.connect
+    #     def _on_returned(out: tuple[np.ndarray, np.ndarray]):
+    #         freq, fsc = out
+    #         ind = (freq <= 0.5)
+    #         plt = Figure(style="dark_background")
+    #         plt.plot(freq[ind], fsc[ind], color="gold")
+    #         plt.xlabel("Frequency")
+    #         plt.ylabel("FSC")
+    #         plt.title(f"FSC of {layer.name}")
+    #         plt.show()
         
-        self._WorkerControl.info = f"Calculating FSC ..."
-        return worker
+    #     self._WorkerControl.info = f"Calculating FSC ..."
+    #     return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(

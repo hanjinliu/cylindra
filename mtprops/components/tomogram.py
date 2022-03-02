@@ -205,7 +205,27 @@ class MtSpline(Spline):
         else:
             clipped.orientation = self.orientation
         return clipped
-            
+    
+    def restore(self) -> MtSpline:
+        """
+        Restore the original, not-clipped spline.
+
+        Returns
+        -------
+        Spline
+            Copy of the original spline.
+        """
+        original = super().restore()
+        start, stop = self._lims
+        if start > stop:
+            if self.orientation == Ori.PlusToMinus:
+                original.orientation = Ori.MinusToPlus
+            elif self.orientation == Ori.MinusToPlus:
+                original.orientation = Ori.PlusToMinus
+        else:
+            original.orientation = self.orientation
+        return original
+    
         
     @property
     def orientation(self) -> Ori:
@@ -467,7 +487,14 @@ class MtTomogram:
         return pix
     
     @batch_process
-    def make_anchors(self, i = None, *, interval: nm = None, n: int = None, max_interval: nm = None):
+    def make_anchors(
+        self,
+        i: int = None,
+        *, 
+        interval: nm | None = None,
+        n: int | None = None,
+        max_interval: nm | None = None,
+    ):
         """
         Make anchors on MtSpline object(s).
 
