@@ -11,7 +11,6 @@ from magicclass import (
 
 from magicclass.utils import to_clipboard
 
-from .worker import run_worker_function
 from ..components import MtTomogram
 
 
@@ -76,9 +75,8 @@ class TomogramList(MagicTemplate):
         
         if self["Load"].running:
             parent._connect_worker(worker)
-            worker.start()
         else:
-            run_worker_function(worker)
+            worker.run()
         
         return None
     

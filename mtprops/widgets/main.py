@@ -484,21 +484,28 @@ class MTPropsWidget(MagicTemplate):
     def load_tomogram(
         self, 
         path: Bound[_loader.path],
-        scale: Bound[_loader.scale],
-        bin_size: Bound[_loader.bin_size],
-        light_background: Bound[_loader.light_background],
-        cutoff: Bound[_loader._get_cutoff_freq],
-        subtomo_length: Bound[_loader.subtomo_length],
-        subtomo_width: Bound[_loader.subtomo_width]
+        scale: Bound[_loader.scale] = None,
+        bin_size: Bound[_loader.bin_size] = None,
+        light_background: Bound[_loader.light_background] = False,
+        cutoff: Bound[_loader._get_cutoff_freq] = None,
+        subtomo_length: Bound[_loader.subtomo_length] = 48.,
+        subtomo_width: Bound[_loader.subtomo_width] = 44.,
     ):
         """Start loading image."""
-        try:
-            scale = float(scale)
-        except Exception as e:
-            raise type(e)(f"Invalid input: {scale}")
-        
         img = ip.lazy_imread(path, chunks=GVar.daskChunk)
-        img.scale.x = img.scale.y = img.scale.z = scale
+        if scale is not None:
+            scale = float(scale)
+            img.scale.x = img.scale.y = img.scale.z = scale
+    
+        if scale > 0.96:
+            self.bin_size = 1
+        elif scale > 0.48:
+            self.bin_size = 2
+        else:
+            self.bin_size = 4
+        
+        if cutoff is None:
+            cutoff = 1.0
         
         worker = self._get_process_image_worker(
             img, 
@@ -2252,8 +2259,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Return cylindric-transformed image at the current position
         """        
-        i = i or self.SplineControl.num
-        j = j or self.SplineControl.pos
+        i: int = i or self.SplineControl.num
+        j: int = j or self.SplineControl.pos
         tomo = self.tomogram
         if self._last_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
@@ -2279,7 +2286,7 @@ class MTPropsWidget(MagicTemplate):
         if self.layer_prof in self.parent_viewer.layers:
             viewer.layers.remove(self.layer_prof)
     
-        self.layer_prof = viewer.add_points(
+        self.layer_prof: Points = viewer.add_points(
             **common_properties,
             name=SELECTION_LAYER_NAME,
             opacity=0.4, 
@@ -2325,7 +2332,7 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         if i is None or i >= len(tomo.splines):
             return
-        j = self.SplineControl.pos
+        j: int = self.SplineControl.pos
         spl = tomo.splines[i]
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -2335,16 +2342,6 @@ class MTPropsWidget(MagicTemplate):
     
     def _connect_worker(self, worker: Worker):
         self._WorkerControl._set_worker(worker)
-        viewer: napari.Viewer = self.parent_viewer
-        viewer.window._status_bar._toggle_activity_dock(True)
-        dialog = viewer.window._qt_window._activity_dialog
-        
-        @worker.finished.connect
-        def _on_finish(*args):
-            viewer.window._status_bar._toggle_activity_dock(False)
-            dialog.layout().removeWidget(self._WorkerControl.native)
-
-        dialog.layout().addWidget(self._WorkerControl.native)
         return None
         
     def _add_spline_to_images(self, spl: MtSpline):

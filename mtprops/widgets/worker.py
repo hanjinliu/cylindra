@@ -10,7 +10,7 @@ else:
 import warnings
 from functools import wraps
 
-from napari._qt.qthreading import GeneratorWorker, FunctionWorker
+from napari.qt.threading import GeneratorWorker, FunctionWorker
 
 from magicclass import magicclass, vfield, MagicTemplate
 from magicclass.gui._message_box import QtErrorMessageBox
@@ -19,23 +19,6 @@ if TYPE_CHECKING:
     from .main import MTPropsWidget
 
 Worker = Union[FunctionWorker, GeneratorWorker]
-
-
-def run_worker_function(worker: Worker):
-    """Emulate worker execution."""
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("always")
-            warnings.showwarning = lambda *w: worker.warned.emit(w)
-            result = worker.work()
-        if isinstance(result, Exception):
-            raise result
-        worker.returned.emit(result)
-    except Exception as exc:
-        worker.errored.emit(exc)
-    worker._running = False
-    worker.finished.emit()
-    worker._finished.emit(worker)
 
 _P = ParamSpec("_P")
 
@@ -50,9 +33,9 @@ def dispatch_worker(f: Callable[_P, Worker]) -> Callable[_P, None]:
         worker: Worker = f(self, *args, **kwargs)
         if self[f.__name__].running:
             self._connect_worker(worker)
-            worker.start()
         else:
-            run_worker_function(worker)
+            # run_worker_function(worker)
+            worker.run()
         return None
     return wrapper
 
@@ -66,39 +49,61 @@ class WorkerControl(MagicTemplate):
     
     def __post_init__(self):
         self.paused = False
-        self.worker: Worker = None
+        self._worker: Worker = None
         self._last_info = ""
     
+    @property
+    def running(self) -> bool:
+        """Return ture if worker is running."""
+        return self._worker is not None and self._worker._running
+    
     def _set_worker(self, worker: Worker):
-        self.worker = worker
-        @worker.errored.connect
-        def _(e=None):
-            # In some environments, errors raised in workers are completely hidden.
-            # We have to re-raise it here.
+        if self.running:
+            e = Exception(
+                "An worker is already running! Please wait until it finishs, or click "
+                "the 'Interrupt' button to abort it."
+            )
             QtErrorMessageBox.raise_(e, parent=self.native)
+            return
+        self._worker = worker
+        viewer = self.parent_viewer
+        viewer.window._status_bar._toggle_activity_dock(True)
+        dialog = viewer.window._qt_window._activity_dialog
         
+        @worker.finished.connect
+        def _on_finish(*args):
+            self.info = ""
+            viewer.window._status_bar._toggle_activity_dock(False)
+            dialog.layout().removeWidget(self.native)
+            self.native.setParent(None)
+
+        dialog.layout().addWidget(self.native)
+        worker.start()
+        return None
+
     def Pause(self):
         """Pause/Resume thread."""        
-        if not isinstance(self.worker, GeneratorWorker):
+        if not isinstance(self._worker, GeneratorWorker):
             return
         if self.paused:
-            self.worker.resume()
+            self._worker.resume()
             self["Pause"].text = "Pause"
             self.info = self._last_info
         else:
-            self.worker.pause()
-            self["Pause"].text = "Resume"
+            self._worker.pause()
+            self["Pause"].text = "Pausing"
             self._last_info = self.info
-            self.info = "Pausing"
+            @self._worker.paused.connect
+            def _on_pause():
+                self["Pause"].text = "Resume"
+                
         self.paused = not self.paused
+        return None
         
     def Interrupt(self):
         """Interrupt thread."""
         self.paused = False
         self["Pause"].text = "Pause"
         self.info = ""
-        self.worker.quit()
-        dialog = self.parent_viewer.window._qt_window._activity_dialog
-        if self.native.parent() is dialog:
-            self.parent_viewer.window._status_bar._toggle_activity_dock(False)
-            dialog.layout().removeWidget(self.native)
+        self._worker.quit()
+        return None
