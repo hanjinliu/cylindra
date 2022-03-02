@@ -334,12 +334,16 @@ class Molecules:
     
     def translate(self, shifts: ArrayLike, copy: bool = True) -> Molecules:
         """
-        Translate molecule positions by ``shifts``. This operation does not convert
-        molecule orientations.
+        Translate molecule positions by ``shifts``. 
+        
+        Shifts are applied in world coordinates, not internal coordinates of every molecules.
+        If molecules should be translated in their own coordinates, such as translating toward 
+        y-direction of each molecules by 1.0 nm, use ``translate_internal`` instead. Translation
+        operation does not convert molecule orientations.
 
         Parameters
         ----------
-        shifts : ArrayLike
+        shifts : (3,) or (N, 3) array
             Spatial shift of molecules.
         copy : bool, default is True
             If true, create a new instance, otherwise overwrite the existing instance.
@@ -356,6 +360,30 @@ class Molecules:
             self._pos = coords
             out = self
         return out
+    
+    def translate_internal(self, shifts: ArrayLike, copy: bool = True) -> Molecules:
+        """
+        Translate molecule positions by ``shifts``, in their own coordinates separately. 
+        
+        Shifts are applied in world coordinates, not internal coordinates of every molecules.
+        If molecules should be translated in their own coordinates, such as translating toward 
+        y-direction of each molecules by 1.0 nm, use ``translate_internal`` instead. Translation
+        operation does not convert molecule orientations.
+
+        Parameters
+        ----------
+        shifts : (3,) or (N, 3) array
+            Spatial shift of molecules.
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated positional coordinates.
+        """        
+        world_shifts = self._rotator.apply(shifts)
+        return self.translate(world_shifts, copy=copy)
     
     
     def rot180(self, axis: str = "z", copy: bool = True) -> Molecules:

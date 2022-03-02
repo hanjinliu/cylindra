@@ -113,6 +113,7 @@ class MTPropsWidget(MagicTemplate):
         def Show_splines(self): ...
         def Add_anchors(self): ...
         sep0 = field(Separator)
+        def Invert_spline(self): ...
         def Align_to_polarity(self): ...
         def Clip_spline(self): ...
         sep1 = field(Separator)
@@ -813,6 +814,17 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Splines.wraps
+    def Invert_spline(self, spline: Bound[SplineControl.num] = None):
+        """Invert current displayed spline in place."""
+        if spline is None:
+            return
+        spl = self.tomogram.splines[spline]
+        self.tomogram.splines[spline] = spl.invert()
+        self._update_splines_in_images()
+        self.reset_choices()
+        return None
+    
+    @Splines.wraps
     @set_options(orientation={"choices": ["MinusToPlus", "PlusToMinus"]})
     def Align_to_polarity(self, orientation: Ori = "MinusToPlus"):
         """
@@ -1355,6 +1367,8 @@ class MTPropsWidget(MagicTemplate):
                     self._viewer = None
             if self._viewer is None:
                 self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
+                self._viewer.window.resize(10, 10)
+                self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
             with ip.silent():
@@ -1529,7 +1543,9 @@ class MTPropsWidget(MagicTemplate):
             (4) random: choose randomly.
         number : int, default is 64
             Number of subtomograms to use.
-            
+        use_binned_image : bool, default is False
+            Check if you want to use binned image (reference image in the viewer) to boost image
+            analysis.
         """
         molecules: Molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
@@ -1604,6 +1620,9 @@ class MTPropsWidget(MagicTemplate):
             Cutoff frequency of low-pass filter applied to averaged image.
         chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
+        use_binned_image : bool, default is False
+            Check if you want to use binned image (reference image in the viewer) to boost image
+            analysis. Be careful! this may cause unexpected fitting.
         """
         molecules: Molecules = layer.metadata[MOLECULES]
         template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
@@ -1631,7 +1650,6 @@ class MTPropsWidget(MagicTemplate):
             _scale = self.tomogram.scale
             
         max_shifts = tuple(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale)
-        # max_shifts = ceilint(pitch/_scale)
         worker = create_worker(loader.iter_average,
                                order = 1,
                                _progress={"total": nmole, "desc": "Running"}
@@ -1649,17 +1667,15 @@ class MTPropsWidget(MagicTemplate):
                     
                 rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
                 shifted_image = image_avg.affine(
-                    translation=shift, cval=np.min(image_avg)
-                    ).rotate(np.rad2deg(rot), dims="zx")  # Verified
+                    translation=shift, cval=np.percentile(image_avg, 5)
+                    ).rotate(np.rad2deg(rot), dims="zx")
 
-            internal_rotator = Rotation.from_rotvec([0, -rot, 0])
-            mole_shift_px = internal_rotator.apply(molecules.rotator.apply(-shift))[0]
-
-            dz, dy, dx = mole_shift_px
-            dtheta = np.arcsin(dx/radius/2) * 2  # r*sin(dtheta/2) = dx/2
-            skew_rotator = Rotation.from_rotvec(-molecules.y * dtheta)
-            mole = molecules.translate(mole_shift_px*self.tomogram.scale).rotate_by(skew_rotator)
-            
+            shift0 = Rotation.from_rotvec([0, rot, 0]).apply(shift * self.tomogram.scale)
+            dz, dy, dx = shift0
+            dtheta = np.arctan(dx/(dz + radius))  # (r + dz)*tan(dtheta) = dx
+            skew_rotator = Rotation.from_rotvec(molecules.y * (dtheta - rot))
+            print(dtheta, rot)
+            mole = molecules.translate_internal(shift0).rotate_by(skew_rotator)
             add_molecules(self.parent_viewer, 
                           mole,
                           _coerce_aligned_name(layer.name, self.parent_viewer),
