@@ -3,7 +3,7 @@ from typing import Iterable
 import numpy as np
 import napari
 from ..components import Molecules, MtSpline
-from ..const import MOLECULES, SOURCE, nm
+from ..const import MOLECULES, SOURCE
 
 def add_molecules(viewer: napari.Viewer, mol: Molecules, name, source: MtSpline = None):
     """Add Molecules object as a point layer."""
@@ -31,13 +31,3 @@ def change_viewer_focus(
     viewer.camera.zoom = zoom
     viewer.dims.current_step = list(np.round(center*scale).astype(int))
     return None
-
-def transform_molecules(
-    molecules: Molecules, 
-    shift: list[nm], 
-    rot: float, 
-) -> Molecules:
-    from scipy.spatial.transform import Rotation
-    shift_corrected = Rotation.from_rotvec([0, rot, 0]).apply(shift)
-    skew_rotator = Rotation.from_rotvec(-molecules.y * rot)
-    return molecules.translate_internal(shift_corrected).rotate_by(skew_rotator)

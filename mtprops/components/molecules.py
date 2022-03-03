@@ -386,6 +386,34 @@ class Molecules:
         return self.translate(world_shifts, copy=copy)
     
     
+    def rotate_by_rotvec_internal(self, vector: ArrayLike, copy: bool = True) -> Molecules:
+        """
+        Rotate molecules using rotation vector, whose components are calculated in the molecule-coordinate.
+
+        Parameters
+        ----------
+        vector : ArrayLike
+            Rotation vector(s).
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Instance with updated angles.
+        """        
+        vector = np.atleast_2d(vector)
+        vec_x = self.x
+        vec_y = self.y
+        vec_z = -np.cross(vec_x, vec_y, axis=1)
+        world_rotvec = (
+            vec_z * vector[:, 0][:, np.newaxis]
+            + vec_y * vector[:, 1][:, np.newaxis]
+            + vec_x * vector[:, 2][:, np.newaxis]
+        )
+        return self.rotate_by_rotvec(world_rotvec, copy=copy)
+    
+    
     def rot180(self, axis: str = "z", copy: bool = True) -> Molecules:
         if axis == "x":
             quat = [0., 0., 0., 1.]

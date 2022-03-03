@@ -106,3 +106,32 @@ def test_rotate():
     assert_allclose(rot.apply(mol.z), mol2.z, rtol=1e-8, atol=1e-8)
     assert_allclose(rot.apply(mol.y), mol2.y, rtol=1e-8, atol=1e-8)
     assert_allclose(rot.apply(mol.x), mol2.x, rtol=1e-8, atol=1e-8)
+
+def test_internal_transformation():
+    pos = np.array([0, 0, 0])
+    zvec = np.array([1, 0, 0])
+    yvec = np.array([0, 1/Sq2, -1/Sq2])
+    mol = Molecules.from_axes(pos, z=zvec, y=yvec)
+    
+    # internal translation
+    mol0 = mol.translate_internal([2, 0, 0])
+    assert_allclose(mol0.pos, mol.pos + np.array([[2., 0., 0.]]), rtol=1e-8, atol=1e-8)
+    assert_allclose(mol0.x, mol.x, rtol=1e-8, atol=1e-8)
+    assert_allclose(mol0.y, mol.y, rtol=1e-8, atol=1e-8)
+    mol1 = mol.translate_internal([1, 1, 1])
+    assert_allclose(mol1.pos, mol.pos + np.array([[1., Sq2, 0.]]), rtol=1e-8, atol=1e-8)
+    assert_allclose(mol1.x, mol.x, rtol=1e-8, atol=1e-8)
+    assert_allclose(mol1.y, mol.y, rtol=1e-8, atol=1e-8)
+    
+    # itnernal rotation
+    mol2 = mol.rotate_by_rotvec_internal([-np.pi/4, 0., 0.])
+    assert_allclose(mol2.pos, mol.pos, rtol=1e-8, atol=1e-8)
+    assert_allclose(mol2.z, np.array([[1., 0., 0.]]), rtol=1e-8, atol=1e-8)
+    assert_allclose(mol2.y, np.array([[0., 0., -1.]]), rtol=1e-8, atol=1e-8)
+    assert_allclose(mol2.x, np.array([[0., 1., 0.]]), rtol=1e-8, atol=1e-8)
+    
+    mol3 = mol.rotate_by_rotvec_internal([0., 0., -np.pi/2])
+    assert_allclose(mol3.pos, mol.pos, rtol=1e-8, atol=1e-8)
+    assert_allclose(mol3.z, np.array([[0., -1/Sq2, 1/Sq2]]), rtol=1e-8, atol=1e-8)
+    assert_allclose(mol3.y, np.array([[1., 0., 0.]]), rtol=1e-8, atol=1e-8)
+    assert_allclose(mol3.x, np.array([[0., 1/Sq2, 1/Sq2]]), rtol=1e-8, atol=1e-8)

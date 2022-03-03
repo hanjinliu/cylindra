@@ -3,9 +3,11 @@ import itertools
 from typing import Union, overload
 from typing_extensions import Literal
 import numpy as np
+from numpy.typing import ArrayLike
 import impy as ip
 
-from .molecules import from_euler
+from .molecules import from_euler, Molecules
+
 
 def align_image_to_template(
     image_avg: ip.ImgArray,
@@ -81,3 +83,12 @@ def normalize_rotations(rotations):
             rotations = np.stack(quat, axis=0)
         
     return rotations
+
+def transform_molecules(
+    molecules: Molecules, 
+    shift: ArrayLike, 
+    rotvec: ArrayLike, 
+) -> Molecules:
+    from scipy.spatial.transform import Rotation
+    shift_corrected = Rotation.from_rotvec(rotvec).apply(shift)
+    return molecules.translate_internal(shift_corrected).rotate_by_rotvec_internal(rotvec)

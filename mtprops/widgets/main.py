@@ -61,7 +61,7 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
-from .widget_utils import add_molecules, change_viewer_focus, transform_molecules
+from .widget_utils import add_molecules, change_viewer_focus
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -1111,6 +1111,9 @@ class MTPropsWidget(MagicTemplate):
                 )
             
             points_layer.shading = "spherical"
+        
+        else:
+            viewer.layers[layer_name].metadata[MOLECULES] = mol
             
         points_layer: Points = viewer.layers[layer_name]
         points_layer.data = mol.pos
@@ -1672,7 +1675,7 @@ class MTPropsWidget(MagicTemplate):
                 
         @worker.returned.connect
         def _on_return(image_avg: ip.ImgArray):
-            from ..components._align_utils import align_image_to_template
+            from ..components._align_utils import align_image_to_template, transform_molecules
             with ip.silent():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
                 if use_binned_image and img.shape != template.shape:
@@ -1686,7 +1689,7 @@ class MTPropsWidget(MagicTemplate):
 
             add_molecules(
                 self.parent_viewer, 
-                transform_molecules(molecules, shift * self.tomogram.scale, rot),
+                transform_molecules(molecules, shift * self.tomogram.scale, [0, -rot, 0]),
                 _coerce_aligned_name(layer.name, self.parent_viewer),
                 source=spl
             )

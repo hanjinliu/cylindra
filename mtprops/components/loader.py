@@ -264,6 +264,7 @@ class SubtomogramLoader:
                     yield local_shifts[i, :], local_rot[i, :]
                 
         else:
+            # "rots" is quaternions
             rotators = [Rotation.from_quat(r) for r in rots]
             iterator = self.iter_subtomograms(rotators=rotators, order=order)
             for i, subvol_set in enumerate(iterator):
@@ -299,11 +300,17 @@ class SubtomogramLoader:
             pre_alignment.set_scale(self.image_ref)
             self.image_avg = pre_alignment
         
-        shifts = self.molecules.rotator.apply(-np.stack(local_shifts, axis=0) * self.scale)
-        mole_aligned = self.molecules.translate(shifts)
-        if rots is not None:
-            mole_aligned = mole_aligned.rotate_by_quaternion(local_rot)
+        if rots is None:
+            mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
+        else:
+            from ._align_utils import transform_molecules
             
+            mole_aligned = transform_molecules(
+                self.molecules, 
+                local_shifts* self.scale, 
+                Rotation.from_quat(local_rot).as_rotvec()
+            )
+                
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         return out
         
