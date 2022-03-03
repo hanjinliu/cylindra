@@ -137,7 +137,7 @@ class MtSpline(Spline):
     A spline object with information related to MT.
     """    
     _local_cache = (K.localprops,)
-    _global_cache = (K.globalprops, K.radius, K.orientation, K.cart_stimg, K.cyl_stimg)
+    _global_cache = (K.globalprops, K.radius, K.orientation)
     
     def __init__(self, scale: float = 1.0, k: int = 3, *, lims: tuple[float, float] = (0., 1.)):
         """
@@ -155,8 +155,6 @@ class MtSpline(Spline):
         self.radius: nm = None
         self.localprops: pd.DataFrame = None
         self.globalprops: pd.Series = None
-        self.cart_stimg: ip.ImgArray = None
-        self.cyl_stimg: ip.ImgArray = None
     
     def invert(self) -> MtSpline:
         """
@@ -171,8 +169,6 @@ class MtSpline(Spline):
         inverted.radius = self.radius
         inverted.globalprops = self.globalprops
         inverted.localprops = None
-        inverted.cart_stimg = None
-        inverted.cyl_stimg = None
         return inverted
     
     def clip(self, start: float, stop: float) -> MtSpline:
@@ -198,10 +194,7 @@ class MtSpline(Spline):
         """
         clipped = super().clip(start, stop)
         if start > stop:
-            if self.orientation == Ori.PlusToMinus:
-                clipped.orientation = Ori.MinusToPlus
-            elif self.orientation == Ori.MinusToPlus:
-                clipped.orientation = Ori.PlusToMinus
+            clipped.orientation = Ori.invert(self.orientation)
         else:
             clipped.orientation = self.orientation
         return clipped
@@ -218,10 +211,7 @@ class MtSpline(Spline):
         original = super().restore()
         start, stop = self._lims
         if start > stop:
-            if self.orientation == Ori.PlusToMinus:
-                original.orientation = Ori.MinusToPlus
-            elif self.orientation == Ori.MinusToPlus:
-                original.orientation = Ori.PlusToMinus
+            original.orientation = Ori.invert(self.orientation)
         else:
             original.orientation = self.orientation
         return original
@@ -233,11 +223,11 @@ class MtSpline(Spline):
         return self._orientation
     
     @orientation.setter
-    def orientation(self, value: Ori | str):
-        try:
-            self._orientation = Ori(value)
-        except ValueError:
+    def orientation(self, value: Ori | str | None):
+        if value is None:
             self._orientation = Ori.none
+        else:
+            self._orientation = Ori(value)
     
     def to_dict(self) -> dict:
         d = super().to_dict()
@@ -1075,11 +1065,8 @@ class MtTomogram:
         -------
         ip.array.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
-        """        
-        try_cache = size is None and range_ == (0.0, 1.0)
+        """
         spl = self.splines[i]
-        if try_cache and spl.cart_stimg is not None:
-            return spl.cart_stimg
         
         length = self._splines[i].length(nknots=512)
         
@@ -1107,9 +1094,6 @@ class MtTomogram:
             transformed = ip.asarray(transformed, axes=axes)
             transformed.set_scale({k: self.scale for k in axes})
             transformed.scale_unit = "nm"
-        
-        if try_cache:
-            spl.cart_stimg = transformed
         
         return transformed
 
@@ -1143,14 +1127,10 @@ class MtTomogram:
         ip.array.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """        
-        try_cache = radii is None and range_ == (0.0, 1.0)
         spl = self.splines[i]
         
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
-        
-        if try_cache and spl.cyl_stimg is not None:
-            return spl.cyl_stimg
         
         length = self._splines[i].length(nknots=512)
         
@@ -1180,9 +1160,6 @@ class MtTomogram:
             transformed = ip.asarray(transformed, axes=axes)
             transformed.set_scale({k: self.scale for k in axes})
             transformed.scale_unit = "nm"
-        
-        if try_cache:
-            spl.cyl_stimg = transformed
         
         return transformed
     

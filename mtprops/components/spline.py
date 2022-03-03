@@ -30,6 +30,7 @@ class SplineInfo(TypedDict):
     k: int
     u: list[float]
     scale: float
+    lims: tuple[float, float]
 
 
 class Spline:
@@ -58,10 +59,9 @@ class Spline:
         *, 
         lims: tuple[float, float] = (0., 1.)
     ):
-        self._tck = None
-        self._u = None
+        self._tck: tuple[np.ndarray | None, list[np.ndarray] | None, int] = (None, None, k)
+        self._u: np.ndarray | None = None
         self.scale = scale
-        self._k = k
         self._anchors = None
         
         # check lims
@@ -84,7 +84,7 @@ class Spline:
         Spline
             Copied object.
         """
-        new = self.__class__(self.scale, self.k, lims=self._lims)
+        new = self.__class__(self.scale, self.degree, lims=self._lims)
         new._tck = self._tck
         new._u = self._u
         new._anchors = self._anchors
@@ -98,26 +98,32 @@ class Spline:
     __copy__ = copy
     
     @property
-    def tck(self) -> tuple[np.ndarray, list[np.ndarray], int]:
-        return self._tck
+    def knots(self) -> np.ndarray:
+        return self._tck[0]
+    
+    @property
+    def coeff(self) -> list[np.ndarray]:
+        return self._tck[1]
+    
+    @property
+    def degree(self) -> int:
+        return self._tck[2]
     
     @property
     def u(self) -> np.ndarray:
         return self._u
     
-    @property
-    def k(self) -> int:
-        return self._k
-    
     def __eq__(self: Self, other: Self) -> bool:
         if not isinstance(other, self.__class__):
             return False
-        t0, c0, k0 = self.tck
-        t1, c1, k1 = other.tck
+        t0, c0, k0 = self._tck
+        t1, c1, k1 = other._tck
         return (
             np.allclose(t0, t1) and 
-            all(np.allclose(x, y) for x, y in zip(c0, c1)) 
-            and k0 == k1
+            all(np.allclose(x, y) for x, y in zip(c0, c1)) and
+            k0 == k1 and
+            np.allclose(self._u, other._u) and
+            np.allclose(self._lims, other._lims)
             )
     
     def clear_cache(self, loc: bool = True, glob: bool = True):
@@ -193,7 +199,7 @@ class Spline:
         elif n is not None:
             end = 1
         elif max_interval is not None:
-            n = max(ceilint(length/max_interval), self.k) + 1
+            n = max(ceilint(length/max_interval), self.degree) + 1
             end = 1
         else:
             raise ValueError("Either 'interval' or 'n' must be specified.")
@@ -230,7 +236,7 @@ class Spline:
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        new = self.__class__(self.scale, self.k, lims=(u0, u1))
+        new = self.__class__(self.scale, self.degree, lims=(u0, u1))
         new._tck = self._tck
         new._u = self._u
         return new
@@ -245,7 +251,7 @@ class Spline:
         Spline
             Copy of the original spline.
         """
-        original = self.__class__(self.scale, self.k, lims=(0, 1))
+        original = self.__class__(self.scale, self.degree, lims=(0, 1))
         original._tck = self._tck
         original._u = self._u
         return original
@@ -272,9 +278,9 @@ class Spline:
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
-        elif npoints <= self._k:
-            self._k = npoints - 1
-        self._tck, self._u = splprep(coords.T, k=self._k, w=w, s=s)
+        elif npoints <= self.degree:
+            self._tck = self._tck[:2] + (npoints - 1,)
+        self._tck, self._u = splprep(coords.T, k=self.degree, w=w, s=s)
         del self.anchors # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
         return self
@@ -427,10 +433,8 @@ class Spline:
         """
         Convert spline info into a dict.
         """        
-        t = self.tck[0]
-        c = self.tck[1]
-        k = self.tck[2]
-        u = self.u
+        t, c, k = self._tck
+        u = self._u
         scale = self.scale
         return {"t": t.tolist(), 
                 "c": {"z": c[0].tolist(),
@@ -438,12 +442,13 @@ class Spline:
                       "x": c[2].tolist()},
                 "k": k,
                 "u": u.tolist(),
-                "scale": scale
+                "scale": scale,
+                "lims": self._lims,
                 }
     
     @classmethod
-    def from_dict(cls, d: SplineInfo) -> Self:
-        self = cls(d["scale"], d["k"])
+    def from_dict(cls: type[Self], d: SplineInfo) -> Self:
+        self = cls(d.get("scale", 1.0), d.get("k", 3), lims=d.get("lims", (0, 1)))
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]
         k = roundint(d["k"])
@@ -467,6 +472,10 @@ class Spline:
             json.dump(self.to_dict(), f, indent=4, separators=(", ", ": "))
         
         return None
+    
+    # @classmethod
+    # def from_json(self, file_path: str) -> Self:
+    #     raise NotImplementedError()
 
     def affine_matrix(
         self, 

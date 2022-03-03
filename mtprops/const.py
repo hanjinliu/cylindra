@@ -1,3 +1,4 @@
+from __future__ import annotations
 from enum import Enum
 import numpy as np
 from types import SimpleNamespace
@@ -27,7 +28,35 @@ class Ori(strEnum):
     none = "none"
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
-
+    
+    @classmethod
+    def invert(cls, ori: Ori, allow_none: bool = True) -> Ori:
+        """
+        Invert orientation.
+        
+        Parameters
+        ----------
+        ori : Ori
+            Ori object to be inverted.
+        allow_none : bool, default is True
+            If true, convert ``Ori.none`` into ``Ori.none``. Raise an error
+            otherwise.
+        
+        Returns
+        -------
+        Ori
+            Inverted ``Ori`` object.
+        """
+        if ori == Ori.PlusToMinus:
+            out = Ori.MinusToPlus
+        elif ori == Ori.MinusToPlus:
+            out = Ori.PlusToMinus
+        else:
+            if allow_none:
+                out = Ori.none
+            else:
+                raise ValueError(f"{ori} cannot be inverted.")
+        return out
 
 class H(SimpleNamespace):
     """Header names for result table of local properties."""
@@ -48,8 +77,6 @@ class K(SimpleNamespace):
     orientation = "orientation"
     localprops = "localprops"
     globalprops = "globalprops"
-    cart_stimg = "cart_stimg"
-    cyl_stimg = "cyl_stimg"
 
 
 class Mode(SimpleNamespace):
