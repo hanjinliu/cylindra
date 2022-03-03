@@ -61,7 +61,7 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
-from .widget_utils import add_molecules, change_viewer_focus
+from .widget_utils import add_molecules, change_viewer_focus, transform_molecules
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -1663,16 +1663,16 @@ class MTPropsWidget(MagicTemplate):
             
         max_shifts = tuple(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale)
         nbatch = 24
-        worker = create_worker(loader.iter_average,
-                               order=1,
-                               nbatch=nbatch,
-                               _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
-                               )
+        worker = create_worker(
+            loader.iter_average,
+            order=1,
+            nbatch=nbatch,
+            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+        )
                 
         @worker.returned.connect
         def _on_return(image_avg: ip.ImgArray):
             from ..components._align_utils import align_image_to_template
-            from scipy.spatial.transform import Rotation
             with ip.silent():
                 img = image_avg.lowpass_filter(cutoff=cutoff)
                 if use_binned_image and img.shape != template.shape:
@@ -1684,16 +1684,12 @@ class MTPropsWidget(MagicTemplate):
                     translation=shift, cval=np.percentile(image_avg, 5)
                     ).rotate(np.rad2deg(rot), dims="zx")
 
-            shift0 = Rotation.from_rotvec([0, rot, 0]).apply(shift * self.tomogram.scale)
-            dz, dy, dx = shift0
-            dtheta = np.arctan(dx/(dz + radius))  # (r + dz)*tan(dtheta) = dx
-            skew_rotator = Rotation.from_rotvec(molecules.y * (dtheta - rot))
-            mole = molecules.translate_internal(shift0).rotate_by(skew_rotator)
-            add_molecules(self.parent_viewer, 
-                          mole,
-                          _coerce_aligned_name(layer.name, self.parent_viewer),
-                          source=spl
-                          )
+            add_molecules(
+                self.parent_viewer, 
+                transform_molecules(molecules, shift * self.tomogram.scale, rot),
+                _coerce_aligned_name(layer.name, self.parent_viewer),
+                source=spl
+            )
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned average image")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
@@ -1761,16 +1757,17 @@ class MTPropsWidget(MagicTemplate):
         else:
             loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
         nbatch = 24
-        worker = create_worker(loader.iter_align,
-                               template=template, 
-                               mask=mask,
-                               max_shifts=max_shifts,
-                               rotations=(z_rotation, y_rotation, x_rotation),
-                               cutoff=cutoff,
-                               order=interpolation,
-                               nbatch=nbatch,
-                               _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
-                               )
+        worker = create_worker(
+            loader.iter_align,
+            template=template, 
+            mask=mask,
+            max_shifts=max_shifts,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=cutoff,
+            order=interpolation,
+            nbatch=nbatch,
+            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+        )
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
