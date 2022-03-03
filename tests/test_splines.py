@@ -142,3 +142,15 @@ def test_shift_fit():
     spl.shift_fit(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
     spl.make_anchors(n=4)
     assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
+
+def test_dict():
+    spl = MtSpline(scale=0.5)
+   
+    coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
+    spl.fit(coords)
+    spl.orientation = "PlusToMinus"
+    spl.clip(0.2, 0.8)
+    
+    d = spl.to_dict()
+    spl_from_dict = MtSpline.from_dict(d)
+    assert spl == spl_from_dict
