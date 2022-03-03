@@ -1514,7 +1514,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_returned(img: ip.ImgArray):
             if self.tomogram.light_background:
                 img = -img
-            self._subtomogram_averaging._show_reconstruction(img, f"Subtomogram average (n={nmole})")
+            self._subtomogram_averaging._show_reconstruction(img, f"[AVG]{layer.name}")
             if save_at is not None:
                 with ip.silent():
                     img.imsave(save_at)
@@ -1828,6 +1828,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        npf={"text": "Use global properties"},
         load_all={"label": "Load all the subtomograms in memory for better performance."}
     )
     @dispatch_worker
@@ -1838,6 +1839,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
         interpolation: int = 1,
+        npf: Optional[int] = None,
         load_all: bool = False,
     ):
         """
@@ -1862,10 +1864,11 @@ class MTPropsWidget(MagicTemplate):
         molecules: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        source: MtSpline = layer.metadata[SOURCE]
         shape = self._subtomogram_averaging._get_shape_in_nm()
+        source: MtSpline = layer.metadata.get(SOURCE, None)
         loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
-        npf = roundint(source.globalprops[H.nPF])
+        if npf is None:
+            npf = roundint(source.globalprops[H.nPF])
         
         total = 0 if load_all else 2*npf
             
