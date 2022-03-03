@@ -824,6 +824,11 @@ class MTPropsWidget(MagicTemplate):
         self.tomogram.splines[spline] = spl.invert()
         self._update_splines_in_images()
         self.reset_choices()
+        
+        need_resample = self.SplineControl.canvas[0].image is not None
+        self._init_widget_state()
+        if need_resample:
+            self.Sample_subtomograms()
         return None
     
     @Splines.wraps
@@ -841,6 +846,7 @@ class MTPropsWidget(MagicTemplate):
         self.tomogram.align_to_polarity(orientation=orientation)
         self._update_splines_in_images()
         self._init_widget_state()
+        self.reset_choices()
         if need_resample:
             self.Sample_subtomograms()
     
@@ -1494,10 +1500,11 @@ class MTPropsWidget(MagicTemplate):
             loader = self._get_binned_loader(molecules, shape, chunk_size)
         else:
             loader = tomo.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
-        
+        nbatch = 24
         worker = create_worker(loader.iter_average,
                                order=interpolation,
-                               _progress={"total": nmole, "desc": "Running"}
+                               nbatch=nbatch,
+                               _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
                                )
         
         @worker.returned.connect
@@ -1509,7 +1516,7 @@ class MTPropsWidget(MagicTemplate):
                 with ip.silent():
                     img.imsave(save_at)
         
-        self._WorkerControl.info = f"Subtomogram averaging of {layer.name} ..."
+        self._WorkerControl.info = f"Subtomogram averaging of {layer.name}"
         return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -1587,7 +1594,7 @@ class MTPropsWidget(MagicTemplate):
                 img = -img
             self._subtomogram_averaging._show_reconstruction(img, f"Subtomogram average (n={number})")
         
-        self._WorkerControl.info = f"Subtomogram Averaging (subset) ..."
+        self._WorkerControl.info = f"Subtomogram Averaging (subset)"
 
         return worker
     
@@ -1607,6 +1614,9 @@ class MTPropsWidget(MagicTemplate):
     ):
         """
         Align the averaged image at current monomers to the template image.
+        
+        This function creates a new layer with transformed monomers, which should
+        align well with template image.
 
         Parameters
         ----------
@@ -1624,7 +1634,7 @@ class MTPropsWidget(MagicTemplate):
             How many subtomograms will be loaded at the same time.
         use_binned_image : bool, default is False
             Check if you want to use binned image (reference image in the viewer) to boost image
-            analysis. Be careful! this may cause unexpected fitting.
+            analysis. Be careful! this may cause unexpected fitting result.
         """
         molecules: Molecules = layer.metadata[MOLECULES]
         template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
@@ -1652,9 +1662,11 @@ class MTPropsWidget(MagicTemplate):
             _scale = self.tomogram.scale
             
         max_shifts = tuple(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale)
+        nbatch = 24
         worker = create_worker(loader.iter_average,
-                               order = 1,
-                               _progress={"total": nmole, "desc": "Running"}
+                               order=1,
+                               nbatch=nbatch,
+                               _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
                                )
                 
         @worker.returned.connect
@@ -1676,7 +1688,6 @@ class MTPropsWidget(MagicTemplate):
             dz, dy, dx = shift0
             dtheta = np.arctan(dx/(dz + radius))  # (r + dz)*tan(dtheta) = dx
             skew_rotator = Rotation.from_rotvec(molecules.y * (dtheta - rot))
-            print(dtheta, rot)
             mole = molecules.translate_internal(shift0).rotate_by(skew_rotator)
             add_molecules(self.parent_viewer, 
                           mole,
@@ -1749,7 +1760,7 @@ class MTPropsWidget(MagicTemplate):
             loader = self._get_binned_loader(molecules, shape, chunk_size)
         else:
             loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
-            
+        nbatch = 24
         worker = create_worker(loader.iter_align,
                                template=template, 
                                mask=mask,
@@ -1757,7 +1768,8 @@ class MTPropsWidget(MagicTemplate):
                                rotations=(z_rotation, y_rotation, x_rotation),
                                cutoff=cutoff,
                                order=interpolation,
-                               _progress={"total": nmole, "desc": "Running"}
+                               nbatch=nbatch,
+                               _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
                                )
                     
         @worker.returned.connect
@@ -2264,6 +2276,7 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     def _init_widget_state(self):
+        """Initialize widget state of spline control and local properties for new plot."""
         self.SplineControl.pos = 0
         self.SplineControl["pos"].max = 0
         self.LocalProperties._init_text()

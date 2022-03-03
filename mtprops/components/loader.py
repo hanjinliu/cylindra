@@ -170,14 +170,15 @@ class SubtomogramLoader:
         mole = self.molecules.subset(spec)
         return self.__class__(self.image_ref, mole, self.output_shape, self.chunksize)
 
-    def iter_average(self, order: int = 3) -> Generator[ip.ImgArray, None, ip.ImgArray]:
+    def iter_average(self, order: int = 3, nbatch: int = 1) -> Generator[ip.ImgArray, None, ip.ImgArray]:
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
         with ip.silent():
             for subvol in self.iter_subtomograms(order=order):
                 aligned += subvol.value
                 n += 1
-                yield aligned
+                if n % nbatch == nbatch - 1:
+                    yield aligned
         self.image_avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
         self.image_avg.set_scale(self.image_ref)
         return self.image_avg
@@ -221,6 +222,7 @@ class SubtomogramLoader:
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         order: int = 1,
+        nbatch: int = 24,
     ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
         
         if template is None:
@@ -257,7 +259,9 @@ class SubtomogramLoader:
                 if self.image_avg is None:
                     pre_alignment += subvol
                 local_shifts[i, :] = shift
-                yield local_shifts[i, :], local_rot[i, :]
+                
+                if i % nbatch == nbatch - 1:
+                    yield local_shifts[i, :], local_rot[i, :]
                 
         else:
             rotators = [Rotation.from_quat(r) for r in rots]
@@ -287,14 +291,15 @@ class SubtomogramLoader:
                 local_shifts[i, :] = all_shifts[iopt]
                 local_rot[i, :] = rots[iopt]
                 
-                yield local_shifts[i, :], local_rot[i, :]
+                if i % nbatch == nbatch - 1:
+                    yield local_shifts[i, :], local_rot[i, :]
     
         if self.image_avg is None:
             pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
             pre_alignment.set_scale(self.image_ref)
             self.image_avg = pre_alignment
         
-        shifts = self.molecules.rotator.apply(np.stack(local_shifts, axis=0) * self.scale)
+        shifts = self.molecules.rotator.apply(-np.stack(local_shifts, axis=0) * self.scale)
         mole_aligned = self.molecules.translate(shifts)
         if rots is not None:
             mole_aligned = mole_aligned.rotate_by_quaternion(local_rot)
