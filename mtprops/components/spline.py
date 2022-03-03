@@ -99,18 +99,22 @@ class Spline:
     
     @property
     def knots(self) -> np.ndarray:
+        """Spline knots."""
         return self._tck[0]
     
     @property
     def coeff(self) -> list[np.ndarray]:
+        """Spline coefficient."""
         return self._tck[1]
     
     @property
     def degree(self) -> int:
+        """Spline degree."""
         return self._tck[2]
     
     @property
-    def u(self) -> np.ndarray:
+    def params(self) -> np.ndarray:
+        """Spline parameters."""
         return self._u
     
     def __eq__(self: Self, other: Self) -> bool:
