@@ -160,7 +160,9 @@ class MTPropsWidget(MagicTemplate):
         @magicmenu(icon_path=ICON_DIR/"adjust_intervals.png")
         class Adjust(MagicTemplate):
             """Adjust auto picker"""
-            stride = field(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
+            stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
+            angle_deviation = vfield(25.0, widget_type="FloatSlider", options={"min": 1.0, "max": 22.5, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
+            angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1, "tooltip": "Angle precision (degree) of auto picker"}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
@@ -192,6 +194,11 @@ class MTPropsWidget(MagicTemplate):
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.Panels.min_height = 300
+
+    @property
+    def sub_viewer(self) -> napari.Viewer:
+        """Return the sub-viewer that is used for subtomogram averaging."""
+        return self._subtomogram_averaging._viewer
 
     def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
@@ -1285,7 +1292,7 @@ class MTPropsWidget(MagicTemplate):
         class mask_path(MagicTemplate):
             mask_path = vfield(Path, options={"filter": "*.mrc;*.tif"}, record=False)
         
-        chunk_size = vfield(64, options={"min": 1, "max": 600, "tooltip": "How many subtomograms will be loaded at the same time."})
+        chunk_size = vfield(200, options={"min": 1, "max": 600, "tooltip": "How many subtomograms will be loaded at the same time."})
         
         @mask.connect
         def _on_switch(self):
@@ -1463,7 +1470,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
         interpolation: int = 1,
         use_binned_image: bool = False,
         save_at: Optional[Path] = None,
@@ -1613,7 +1620,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         cutoff: float = 0.5,
         use_binned_image: bool = False,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Align the averaged image at current monomers to the template image.
@@ -1721,7 +1728,7 @@ class MTPropsWidget(MagicTemplate):
         cutoff: float = 0.5,
         interpolation: int = 1,
         use_binned_image: bool = False,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -1899,7 +1906,7 @@ class MTPropsWidget(MagicTemplate):
             
             # plot the score
             corr1, corr2 = corrs[:npf], corrs[npf:]
-            if corr1.max() < corr2.max():
+            if np.max(corr1) < np.max(corr2):
                 score = corr2 - corr1
             else:
                 score = corr1 - corr2
@@ -1922,7 +1929,9 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def pick_next(self):
         """Automatically pick MT center using previous two points."""        
-        stride_nm = self.toolbar.Adjust.stride.value
+        stride_nm = self.toolbar.Adjust.stride
+        angle_pre = self.toolbar.Adjust.angle_precision
+        angle_dev = self.toolbar.Adjust.angle_deviation
         imgb: ip.ImgArray = self.layer_image.data
         try:
             # orientation is point0 -> point1
@@ -1943,7 +1952,7 @@ class MTPropsWidget(MagicTemplate):
             orientation = point1[1:] - point0[1:]
             img = crop_tomogram(imgb, point1, shape)
             center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-            angle_deg = angle_corr(img, ang_center=center, drot=25, nrots=25)
+            angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=ceilint(angle_dev/angle_pre))
             angle_rad = np.deg2rad(angle_deg)
             dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
             if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
