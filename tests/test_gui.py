@@ -105,9 +105,12 @@ def test_spline_switch():
     # ui.Calculate_FSC(ui.parent_viewer.layers['Mono-0'], mask_params=None, shape=(18., 18., 18.),
     #                  seed=0, interpolation=1)
     template_path = Path(__file__).parent / "template.mrc"
-    ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), chunk_size=39)
+    ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
+                      mask_params=(1, 1), chunk_size=78)
     ui.Align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
-                 max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=39,)
+                 max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=78,)
+    ui.Seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1),
+                   chunksize=78, load_all=True)
     ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
                                 layer=ui.parent_viewer.layers['Mono-0'], separator=",", unit="pixel")
     ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",

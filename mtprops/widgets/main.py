@@ -52,8 +52,8 @@ from ..utils import (
     ceilint,
     set_gpu
     )
-from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
-from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES, MOLECULES_LABEL
+from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order, Mole
+from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer
 
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
@@ -61,10 +61,11 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
-from .widget_utils import add_molecules, change_viewer_focus
+from .widget_utils import add_molecules, change_viewer_focus, update_features
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
+SPLINE_ID = "spline-id"
 
 ### The main widget ###
     
@@ -122,6 +123,12 @@ class MTPropsWidget(MagicTemplate):
         def Refine_splines(self): ...
 
     @magicmenu
+    class Molecules(MagicTemplate):
+        def Show_orientation(self): ...
+        def Calculate_intervals(self): ...
+        def Show_isotypes(self): ...
+        
+    @magicmenu
     class Analysis(MagicTemplate):
         """Analysis of tomograms."""
         def Set_radius(self): ...
@@ -134,10 +141,6 @@ class MTPropsWidget(MagicTemplate):
             def Map_monomers_manually(self): ...
             def Map_centers(self): ...
             def Map_along_PF(self): ...
-        @magicmenu
-        class Molecule_features(MagicTemplate):
-            def Molecule_orientation(self): ...
-            def Monomer_intervals(self): ...
         def Open_subtomogram_analyzer(self): ...
     
     @magicmenu
@@ -224,13 +227,14 @@ class MTPropsWidget(MagicTemplate):
         if coords.size == 0:
             return None
 
-        self.tomogram.add_spline(coords)
-        spl = self.tomogram.splines[-1]
+        tomo = self.tomogram
+        tomo.add_spline(coords)
+        spl = tomo.splines[-1]
         
         # draw path
-        self._add_spline_to_images(spl)
+        self._add_spline_to_images(spl, tomo.n_splines)
         self.layer_work.data = []
-        
+        self.layer_prof.selected_data = set()
         self.reset_choices()
         return None
     
@@ -738,6 +742,7 @@ class MTPropsWidget(MagicTemplate):
         
         self._update_local_properties_in_widget()
         self._update_global_properties_in_widget()
+        self._highlight_spline()
         
         # reset contrast limits
         self.SplineControl._reset_contrast_limits()
@@ -894,14 +899,14 @@ class MTPropsWidget(MagicTemplate):
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
         """        
-        worker = create_worker(self.tomogram.fit,
-                               max_interval=max_interval,
-                               cutoff=cutoff,
-                               degree_precision=degree_precision,
-                               dense_mode=dense_mode,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
-        worker.returned.connect(self._init_layers)
+        worker = create_worker(
+            self.tomogram.fit,
+            max_interval=max_interval,
+            cutoff=cutoff,
+            degree_precision=degree_precision,
+            dense_mode=dense_mode,
+            _progress={"total": 0, "desc": "Running"}
+        )
         worker.returned.connect(self._update_splines_in_images)
         self._WorkerControl.info = "Spline Fitting"
 
@@ -1072,7 +1077,7 @@ class MTPropsWidget(MagicTemplate):
                 spl = tomo.splines[i]
                 layer = add_molecules(self.parent_viewer, mol, f"Mono-{i}", source=spl)
                 npf = roundint(spl.globalprops[H.nPF])
-                layer.metadata[MOLECULES_LABEL] = np.arange(len(mol)) % npf
+                update_features(layer, Mole.pf, np.arange(len(mol)) % npf)
                 
         self._WorkerControl.info = "Monomer mapping ..."
         return worker
@@ -1118,7 +1123,8 @@ class MTPropsWidget(MagicTemplate):
             
             points_layer = self.parent_viewer.add_points(
                 ndim=3, size=3, face_color="lime", edge_color="lime",
-                out_of_slice_display=True, name=layer_name, metadata={MOLECULES: mol, MOLECULES_LABEL: labels, SOURCE: spl}
+                out_of_slice_display=True, name=layer_name, 
+                metadata={MOLECULES: mol, Mole.pf: labels, SOURCE: spl}
                 )
             
             points_layer.shading = "spherical"
@@ -1128,8 +1134,8 @@ class MTPropsWidget(MagicTemplate):
             points_layer.data = mol.pos
             points_layer.selected_data = set()
             points_layer.metadata[MOLECULES] = mol
-            points_layer.metadata[MOLECULES_LABEL] = labels
             points_layer.metadata[SOURCE] = spl
+            update_features(points_layer, Mole.pf, labels)
         
     @Analysis.Mapping.wraps
     @set_options(
@@ -1191,9 +1197,9 @@ class MTPropsWidget(MagicTemplate):
         for i, mol in enumerate(mols):
             add_molecules(self.parent_viewer, mol, f"PF line-{i}", source=mol)
 
-    @Analysis.Molecule_features.wraps
+    @Molecules.wraps
     @set_options(orientation={"choices": ["x", "y", "z"]})
-    def Molecule_orientation(
+    def Show_orientation(
         self,
         layer: MonomerLayer,
         orientation: str = "z"
@@ -1220,9 +1226,9 @@ class MTPropsWidget(MagicTemplate):
             )
         return None
         
-    @Analysis.Molecule_features.wraps
+    @Molecules.wraps
     @set_options(spline_precision={"max": 2.0, "step": 0.01, "label": "spline precision (nm)"})
-    def Monomer_intervals(
+    def Calculate_intervals(
         self,
         layer: MonomerLayer,
         spline_precision: nm = 0.2,
@@ -1264,6 +1270,40 @@ class MTPropsWidget(MagicTemplate):
         layer.face_contrast_limits = layer.edge_contrast_limits = _clim
         layer.refresh()
         return None
+    
+    @Molecules.wraps
+    @set_options(
+        color_0={"widget_type": ColorEdit},
+        color_1={"widget_type": ColorEdit},
+    )
+    def Show_isotypes(
+        self,
+        layer: MonomerLayer,
+        color_0: Union[Iterable[float], str] = "orange",
+        color_1: Union[Iterable[float], str] = "cyan",
+    ):
+        """
+        Paint molecules according to the isotypes.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Molecules-bound layer.
+        color_0 : Iterable[float] or str, optional
+            Color of isotype 0.
+        color_1 : Iterable[float] or str, optional
+            Color of isotype 1.
+        """
+        if Mole.isotype not in layer.features.columns:
+            raise ValueError("Isotype is not determined yet.")
+        nmole = len(layer.data)
+        spec = np.reshape(layer.features[Mole.isotype].values == 0, (-1, 1))
+        colors = np.where(spec, [color_0]*nmole, [color_1]*nmole)
+        layer.face_color = colors
+        layer.edge_color = colors
+        layer.refresh()
+        return None
+        
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Subtomogram averaging methods
@@ -1507,6 +1547,7 @@ class MTPropsWidget(MagicTemplate):
         save_at : str, optional
             If given, save the averaged image at the specified location.
         """
+        # TODO: save_at not working
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
         nmole = len(molecules)
@@ -1519,11 +1560,12 @@ class MTPropsWidget(MagicTemplate):
         else:
             loader = tomo.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
         nbatch = 24
-        worker = create_worker(loader.iter_average,
-                               order=interpolation,
-                               nbatch=nbatch,
-                               _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
-                               )
+        worker = create_worker(
+            loader.iter_average,
+            order=interpolation,
+            nbatch=nbatch,
+            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+        )
         
         @worker.returned.connect
         def _on_returned(img: ip.ImgArray):
@@ -1702,13 +1744,14 @@ class MTPropsWidget(MagicTemplate):
                     translation=shift, cval=np.percentile(image_avg, 5)
                     ).rotate(np.rad2deg(rot), dims="zx")
 
-            add_molecules(
+            points = add_molecules(
                 self.parent_viewer, 
                 transform_molecules(molecules, shift * self.tomogram.scale, [0, -rot, 0]),
                 _coerce_aligned_name(layer.name, self.parent_viewer),
                 source=spl
             )
-            self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned average image")
+            points.features = layer.features
+            self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         return worker
@@ -1789,11 +1832,13 @@ class MTPropsWidget(MagicTemplate):
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
-            add_molecules(self.parent_viewer, 
-                          aligned_loader.molecules,
-                          _coerce_aligned_name(layer.name, self.parent_viewer),
-                          source=source
-                          )            
+            points = add_molecules(
+                self.parent_viewer, 
+                aligned_loader.molecules,
+                _coerce_aligned_name(layer.name, self.parent_viewer),
+                source=source
+            )
+            points.features = layer.features
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
@@ -1844,7 +1889,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         npf={"text": "Use global properties"},
-        missing_wedge={"label": "Cut missing-wedge frequency from correlations."},
         load_all={"label": "Load all the subtomograms in memory for better performance."}
     )
     @dispatch_worker
@@ -1890,7 +1934,7 @@ class MTPropsWidget(MagicTemplate):
             try:
                 npf = roundint(source.globalprops[H.nPF])
             except Exception:
-                npf = np.max(layer.metadata[MOLECULES_LABEL]) + 1
+                npf = np.max(layer.features[Mole.pf]) + 1
         
         total = 0 if load_all else 2*npf
             
@@ -1905,9 +1949,8 @@ class MTPropsWidget(MagicTemplate):
         )
         
         @worker.returned.connect
-        def _on_returned(result: Tuple[np.ndarray, ip.ImgArray, list[SubtomogramLoader]]):
-            corrs, img_ave, loaders = result
-            iopt = np.argmax(corrs)
+        def _on_returned(result: Tuple[np.ndarray, ip.ImgArray]):
+            corrs, img_ave, all_labels = result
             viewer: napari.Viewer = self._subtomogram_averaging._show_reconstruction(
                 img_ave, layer.name
             )
@@ -1930,7 +1973,6 @@ class MTPropsWidget(MagicTemplate):
             plt1.title("Seam search result")
             
             # plot the score
-            
             plt2 = Figure(style="dark_background")
             plt2.plot(score)
             plt2.xlabel("PF position")
@@ -1940,10 +1982,11 @@ class MTPropsWidget(MagicTemplate):
 
             wdt = Container(widgets=[plt1, plt2], labels=False)
             viewer.window.add_dock_widget(wdt, name=f"Seam search of {layer.name}", area="right")
-            add_molecules(self.parent_viewer, loaders[iopt].molecules, layer.name + "-OPT", source=source)
             
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
+            
+            update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
             
         self._WorkerControl.info = "Seam search ... "
 
@@ -2395,10 +2438,12 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof: Points = viewer.add_points(
             **common_properties,
             name=SELECTION_LAYER_NAME,
+            features={SPLINE_ID: []},
             opacity=0.4, 
             edge_color="black",
             face_color="black",
             )
+        self.layer_prof.feature_defaults[SPLINE_ID] = 0
         self.layer_prof.editable = False
             
         if self.layer_work in viewer.layers:
@@ -2417,6 +2462,23 @@ class MTPropsWidget(MagicTemplate):
             self.layer_paint.scale = self.layer_image.scale
         self.GlobalProperties._init_text()
         return None
+    
+    @SplineControl.num.connect
+    def _highlight_spline(self):
+        i: int = self.SplineControl.num
+        if i is None:
+            return
+        
+        for layer in self.Panels.overview.layers:
+            if f"spline-{i}" in layer.name:
+                layer.color = "red"
+            else:
+                layer.color = "lime"
+        
+        spec = self.layer_prof.features[SPLINE_ID] == i
+        self.layer_prof.face_color = "black"
+        self.layer_prof.face_color[spec] = [0.8, 0.0, 0.5, 1]
+        self.layer_prof.refresh()
     
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self):
@@ -2450,22 +2512,25 @@ class MTPropsWidget(MagicTemplate):
         self._WorkerControl._set_worker(worker)
         return None
         
-    def _add_spline_to_images(self, spl: MtSpline):
+    def _add_spline_to_images(self, spl: MtSpline, i: int):
         interval = 15
         length = spl.length()
         scale = self.layer_image.scale[0]
         
         n = int(length/interval) + 1
         fit = spl(np.linspace(0, 1, n))
+        self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
-        self.Panels.overview.add_curve(fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=3)
+        self.Panels.overview.add_curve(
+            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=3, name=f"spline-{i}",)
+        return None
     
     def _update_splines_in_images(self):
         self.Panels.overview.layers.clear()
         self.layer_prof.data = []
         scale = self.layer_image.scale[0]
-        for spl in self.tomogram.splines:
-            self._add_spline_to_images(spl)
+        for i, spl in enumerate(self.tomogram.splines):
+            self._add_spline_to_images(spl, i)
             if spl._anchors is None:
                 continue
             coords = spl()
@@ -2475,7 +2540,8 @@ class MTPropsWidget(MagicTemplate):
                 color="lime", 
                 symbol="x",
                 lw=1,
-                size=10
+                size=10,
+                name=f"spline-{i}-anc",
             )
         
 

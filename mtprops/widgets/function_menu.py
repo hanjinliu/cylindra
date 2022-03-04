@@ -1,3 +1,4 @@
+from pathlib import Path
 from magicclass import magicmenu, MagicTemplate, set_options, do_not_record
 import numpy as np
 import impy as ip
@@ -31,9 +32,10 @@ OPERATORS = [
 @magicmenu
 class Volume(MagicTemplate):
     """A custom menu that provides useful functions for volumeric data visualization."""
+
     @set_options(bin_size={"min": 1, "max": 16}, auto_call=True)
     @do_not_record
-    def binning(self, layer: Image, bin_size: int = 2) -> LayerDataTuple:
+    def Binning(self, layer: Image, bin_size: int = 2) -> LayerDataTuple:
         if layer is None:
             return None
         img = _convert_array(layer.data, layer.scale[-1])
@@ -80,6 +82,13 @@ class Volume(MagicTemplate):
                  name=f"{layer_1.name}-binary_op"), 
             "image",
         )
+    
+    @do_not_record
+    def Save_volume(self, layer: Image, path: Path):
+        img = layer.data
+        if not isinstance(img, ip.ImgArray):
+            raise TypeError
+        img.imsave(path)
 
     def _apply_method(self, layer: Image, method_name: str, *args, **kwargs):
         if layer is None:

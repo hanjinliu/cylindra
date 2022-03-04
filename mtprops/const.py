@@ -7,9 +7,8 @@ nm = float  # type alias for clearer annotation.
 
 # Constant strings for layer names and metadata keys
 WORKING_LAYER_NAME = "Working Layer"
-SELECTION_LAYER_NAME = "Selected MTs"
+SELECTION_LAYER_NAME = "Splines"
 MOLECULES = "molecules"
-MOLECULES_LABEL = "molecules-label"
 SOURCE = "source-spline"
 ALN_SUFFIX = "ALN"
 
@@ -90,6 +89,11 @@ class Mode(SimpleNamespace):
     constant = "constant"
     nearest = "nearest"
 
+class Mole(SimpleNamespace):
+    """Feature header names for Molecules."""
+    
+    pf = "molecules-pf"
+    isotype = "molecules-isotype"
 
 class Sep(strEnum):
     """Separator character."""

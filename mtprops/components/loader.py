@@ -392,29 +392,29 @@ class SubtomogramLoader:
         mask: ip.ImgArray | None = None,
         load_all: bool = False,
         order: int = 1,
-    ) -> Generator[tuple[float, ip.ImgArray, SubtomogramLoader],
+    ) -> Generator[tuple[float, ip.ImgArray, np.ndarray],
                    None,
-                   tuple[np.ndarray, ip.ImgArray, list[SubtomogramLoader]]]:
+                   tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]]:
         averaged_images: list[ip.ImgArray] = []
         corrs: list[float] = []
-        candidates: list[SubtomogramLoader] = []
+        labels: list[np.ndarray] = []
         
         if mask is None:
             mask = 1
         
         self._check_shape(template)
         masked_template = template * mask
+        _id = np.arange(len(self.molecules))
         
         with ip.silent():
             if load_all:
                 subtomograms = np.stack(list(self.iter_subtomograms(order=order)), axis="p")
                 
             for pf in range(2*npf):
-                _id = np.arange(len(self.molecules))
                 res = (_id - pf) // npf
                 sl = res % 2 == 0
+                labels.append(sl)
                 candidate = self.subset(sl)
-                candidates.append(candidate)
                 if not load_all:
                     image_ave = candidate.average(order=order)
                 else:
@@ -422,9 +422,9 @@ class SubtomogramLoader:
                 averaged_images.append(image_ave)
                 corr = ip.zncc(image_ave*mask, masked_template)
                 corrs.append(corr)
-                yield corr, image_ave, candidate
-                
-        return np.array(corrs), np.stack(averaged_images, axis="p"), candidates
+                yield corr, image_ave, sl
+        
+        return np.array(corrs), np.stack(averaged_images, axis="p"), labels
     
     def try_all_seams(
         self,
