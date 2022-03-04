@@ -161,7 +161,7 @@ class MTPropsWidget(MagicTemplate):
         class Adjust(MagicTemplate):
             """Adjust auto picker"""
             stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
-            angle_deviation = vfield(25.0, widget_type="FloatSlider", options={"min": 1.0, "max": 22.5, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
+            angle_deviation = vfield(25.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
             angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1, "tooltip": "Angle precision (degree) of auto picker"}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
@@ -186,7 +186,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof: Points = None
         self.layer_work: Points = None
         self.layer_paint: Labels = None
-        
+        self.last_result = None  # TODO: this is a temporal solution! Should be implemented in a more elegant way.
         
     def __post_init__(self):
         self.Set_colormap()
@@ -1071,7 +1071,7 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(out: List[Molecules]):
             for i, mol in enumerate(out):
                 spl = tomo.splines[i]
-                add_molecules(self.parent_viewer, mol, f"Monomers-{i}", source=spl)
+                add_molecules(self.parent_viewer, mol, f"Mono-{i}", source=spl)
                 
         self._WorkerControl.info = "Monomer mapping ..."
         return worker
@@ -1384,13 +1384,17 @@ class MTPropsWidget(MagicTemplate):
                 except RuntimeError:
                     self._viewer = None
             if self._viewer is None:
+                from .function_menu import Volume
+                volume_menu = Volume()
                 self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
+                self._viewer.window.main_menu.addMenu(volume_menu.native)
+                volume_menu.native.setParent(self._viewer.window.main_menu, volume_menu.native.windowFlags())
                 self._viewer.window.resize(10, 10)
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
             with ip.silent():
-                self._viewer.add_image(image.rescale_intensity(), scale=image.scale, name=name)
+                self._viewer.add_image(image.rescale_intensity(dtype=np.float32), scale=image.scale, name=name)
             
             return self._viewer
         
@@ -1836,6 +1840,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         npf={"text": "Use global properties"},
+        missing_wedge={"label": "Cut missing-wedge frequency from correlations."},
         load_all={"label": "Load all the subtomograms in memory for better performance."}
     )
     @dispatch_worker
@@ -1847,6 +1852,7 @@ class MTPropsWidget(MagicTemplate):
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
         interpolation: int = 1,
         npf: Optional[int] = None,
+        missing_wedge: bool = False,
         load_all: bool = False,
     ):
         """
@@ -1864,6 +1870,11 @@ class MTPropsWidget(MagicTemplate):
             Mask image. Must in the same shape as the template.
         interpolation : int, default is 1
             Interpolation order.
+        npf : int, optional
+            Number of protofilaments. By default the global properties stored in the corresponding spline
+            will be used.
+        missing_wedge : bool, default is False
+            Check if cut the 2/cycle frequency from the calculated correlation.
         load_all : bool, default is False
             Load all the subtomograms into memory for better performance
             at the expense of memory usage.
@@ -1896,8 +1907,24 @@ class MTPropsWidget(MagicTemplate):
             viewer: napari.Viewer = self._subtomogram_averaging._show_reconstruction(
                 img_ave, "All reconstructions"
             )
+            
+            if missing_wedge:
+                corrs_mean = np.mean(corrs)
+                ft = np.fft.fft(corrs - corrs_mean)
+                ft[2] = ft[-2] = 0
+                corrs = np.real(np.fft.ifft(ft)) - corrs_mean
+            
+            # calculate score and the best PF position
+            corr1, corr2 = corrs[:npf], corrs[npf:]
+            score = np.empty_like(corrs)
+            score[:npf] = corr1 - corr2
+            score[npf:] = corr2 - corr1
+            imax = np.argmax(score)
+                
             # plot all the correlation
             plt1 = Figure(style="dark_background")
+            plt1.ax.axvline(imax, color="gray", alpha=0.5)
+            plt1.ax.axhline(corrs[imax], color="gray", alpha=0.5)
             plt1.plot(corrs)
             plt1.xlabel("Seam position")
             plt1.ylabel("Correlation")
@@ -1905,20 +1932,19 @@ class MTPropsWidget(MagicTemplate):
             plt1.title("Seam search result")
             
             # plot the score
-            corr1, corr2 = corrs[:npf], corrs[npf:]
-            if np.max(corr1) < np.max(corr2):
-                score = corr2 - corr1
-            else:
-                score = corr1 - corr2
+            
             plt2 = Figure(style="dark_background")
             plt2.plot(score)
             plt2.xlabel("PF position")
             plt2.ylabel("ΔCorr")
             plt2.xticks(np.arange(0, npf+1, 2))
             plt2.title("Score")
+
             wdt = Container(widgets=[plt1, plt2], labels=False)
             viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
             add_molecules(self.parent_viewer, loaders[iopt].molecules, layer.name + "-OPT", source=source)
+            
+            self.last_result = corrs
             
         self._WorkerControl.info = "Seam search ... "
 
@@ -2526,7 +2552,7 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
         except Exception:
             num = 1
     
-    existing_names = [layer.name for layer in viewer.layers]
+    existing_names = set(layer.name for layer in viewer.layers)
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
