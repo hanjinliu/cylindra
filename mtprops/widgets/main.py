@@ -53,7 +53,7 @@ from ..utils import (
     set_gpu
     )
 from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order
-from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
+from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES, MOLECULES_LABEL
 from ..types import MonomerLayer
 
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
@@ -186,7 +186,6 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof: Points = None
         self.layer_work: Points = None
         self.layer_paint: Labels = None
-        self.last_result = None  # TODO: this is a temporal solution! Should be implemented in a more elegant way.
         
     def __post_init__(self):
         self.Set_colormap()
@@ -1071,7 +1070,9 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(out: List[Molecules]):
             for i, mol in enumerate(out):
                 spl = tomo.splines[i]
-                add_molecules(self.parent_viewer, mol, f"Mono-{i}", source=spl)
+                layer = add_molecules(self.parent_viewer, mol, f"Mono-{i}", source=spl)
+                npf = roundint(spl.globalprops[H.nPF])
+                layer.metadata[MOLECULES_LABEL] = np.arange(len(mol)) % npf
                 
         self._WorkerControl.info = "Monomer mapping ..."
         return worker
@@ -1107,25 +1108,28 @@ class MTPropsWidget(MagicTemplate):
         theta_offset = np.deg2rad(theta_offset)
         tomo = self.tomogram
         tomo.global_ft_params(i)
-        mol = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
-        
+        mol: Molecules = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
         viewer = self.parent_viewer
         layer_name = f"Monomers-{i}"
+        spl = tomo.splines[i]
+        npf = roundint(spl.globalprops[H.nPF])
+        labels = np.arange(len(mol)) % npf
         if layer_name not in viewer.layers:
+            
             points_layer = self.parent_viewer.add_points(
                 ndim=3, size=3, face_color="lime", edge_color="lime",
-                out_of_slice_display=True, name=layer_name, metadata={MOLECULES: mol}
+                out_of_slice_display=True, name=layer_name, metadata={MOLECULES: mol, MOLECULES_LABEL: labels, SOURCE: spl}
                 )
             
             points_layer.shading = "spherical"
         
         else:
-            viewer.layers[layer_name].metadata[MOLECULES] = mol
-            
-        points_layer: Points = viewer.layers[layer_name]
-        points_layer.data = mol.pos
-        points_layer.selected_data = set()
-        points_layer.metadata[SOURCE] = self.tomogram.splines[i]
+            points_layer: Points = viewer.layers[layer_name]
+            points_layer.data = mol.pos
+            points_layer.selected_data = set()
+            points_layer.metadata[MOLECULES] = mol
+            points_layer.metadata[MOLECULES_LABEL] = labels
+            points_layer.metadata[SOURCE] = spl
         
     @Analysis.Mapping.wraps
     @set_options(
@@ -1852,7 +1856,6 @@ class MTPropsWidget(MagicTemplate):
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
         interpolation: int = 1,
         npf: Optional[int] = None,
-        missing_wedge: bool = False,
         load_all: bool = False,
     ):
         """
@@ -1873,8 +1876,6 @@ class MTPropsWidget(MagicTemplate):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the corresponding spline
             will be used.
-        missing_wedge : bool, default is False
-            Check if cut the 2/cycle frequency from the calculated correlation.
         load_all : bool, default is False
             Load all the subtomograms into memory for better performance
             at the expense of memory usage.
@@ -1886,7 +1887,10 @@ class MTPropsWidget(MagicTemplate):
         source: MtSpline = layer.metadata.get(SOURCE, None)
         loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
         if npf is None:
-            npf = roundint(source.globalprops[H.nPF])
+            try:
+                npf = roundint(source.globalprops[H.nPF])
+            except Exception:
+                npf = np.max(layer.metadata[MOLECULES_LABEL]) + 1
         
         total = 0 if load_all else 2*npf
             
@@ -1905,14 +1909,8 @@ class MTPropsWidget(MagicTemplate):
             corrs, img_ave, loaders = result
             iopt = np.argmax(corrs)
             viewer: napari.Viewer = self._subtomogram_averaging._show_reconstruction(
-                img_ave, "All reconstructions"
+                img_ave, layer.name
             )
-            
-            if missing_wedge:
-                corrs_mean = np.mean(corrs)
-                ft = np.fft.fft(corrs - corrs_mean)
-                ft[2] = ft[-2] = 0
-                corrs = np.real(np.fft.ifft(ft)) - corrs_mean
             
             # calculate score and the best PF position
             corr1, corr2 = corrs[:npf], corrs[npf:]
@@ -1937,14 +1935,15 @@ class MTPropsWidget(MagicTemplate):
             plt2.plot(score)
             plt2.xlabel("PF position")
             plt2.ylabel("ΔCorr")
-            plt2.xticks(np.arange(0, npf+1, 2))
+            plt2.xticks(np.arange(0, 2*npf+1, 4))
             plt2.title("Score")
 
             wdt = Container(widgets=[plt1, plt2], labels=False)
-            viewer.window.add_dock_widget(wdt, name="Seam search", area="right")
+            viewer.window.add_dock_widget(wdt, name=f"Seam search of {layer.name}", area="right")
             add_molecules(self.parent_viewer, loaders[iopt].molecules, layer.name + "-OPT", source=source)
             
-            self.last_result = corrs
+            self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
+            self.sub_viewer.layers[-1].metadata["Score"] = score
             
         self._WorkerControl.info = "Seam search ... "
 

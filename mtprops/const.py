@@ -5,10 +5,12 @@ from types import SimpleNamespace
 
 nm = float  # type alias for clearer annotation.
 
+# Constant strings for layer names and metadata keys
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Selected MTs"
-MOLECULES = "Molecules"
-SOURCE = "Source"
+MOLECULES = "molecules"
+MOLECULES_LABEL = "molecules-label"
+SOURCE = "source-spline"
 ALN_SUFFIX = "ALN"
 
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
 from typing import Iterable, Iterator
+import warnings
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
 
 from ..const import EulerAxes, nm
 
-    
+_CSV_COLUMNS = ["z", "y", "x", "zvec", "yvec", "xvec"]
+
 class Molecules:
     """
     Object that represents multiple orientation and position of molecules. Orientation
@@ -61,6 +63,28 @@ class Molecules:
         """Create molecules from Euler angles."""
         rotator = from_euler(angles, seq, degrees)
         return cls(pos, rotator)
+    
+    @classmethod
+    def from_csv(cls, path: str, **kwargs) -> Molecules:
+        import pandas as pd
+        df: pd.DataFrame = pd.read_csv(path, **kwargs)
+        if df.shape[1] != 6:
+            raise ValueError(f"CSV must be six columns but got shape {df.shape}")
+        if list(df.columns) != _CSV_COLUMNS:
+            warnings.warn(
+                f"Columns {df.columns} does not match the standard column names for Molecules object.",
+                UserWarning,
+            )
+        
+        return cls(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:]))
+    
+    def to_csv(self, save_path: str):
+        import pandas as pd
+        rotvec = self.rotvec()
+        data = np.concatenate([self.pos, rotvec], axis=1)
+        df = pd.DataFrame(data, columns=_CSV_COLUMNS)
+        df.to_csv(save_path)
+        return None
 
     def __len__(self) -> int:
         """Return the number of molecules."""

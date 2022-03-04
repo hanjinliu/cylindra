@@ -290,7 +290,8 @@ class MtTomogram:
         return str(self)
     
     def __str__(self) -> str:
-        return f"{self.__class__.__name__} of '{self._image.name}'"
+        shape = str(self._image.shape).lstrip("AxesShape")
+        return f"{self.__class__.__name__}{shape!r}"
             
     @property
     def splines(self) -> list[MtSpline]:
