@@ -15,7 +15,7 @@ def get_args():
     
     
 if __name__ == "__main__":
-    ui = start(ip.gui.viewer)
+    ui = start()
     ui.parent_viewer.update_console({"ui": ui, "ip": ip, "np": np})
     if len(sys.argv) > 1:
         args = get_args()
@@ -27,4 +27,4 @@ if __name__ == "__main__":
             widget = getattr(mgui, key)
             widget.value = value
         mgui[-1].changed()
-    ip.gui.viewer.show(block=True)
+    ui.parent_viewer.show(block=True)

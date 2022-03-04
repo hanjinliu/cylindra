@@ -33,10 +33,7 @@ class PcaClassifier:
         self.n_clusters = n_clusters
         
         self._pca = PCA(n_components=n_components)
-        self._pca.fit(self._image_flat(mask=True))
-        
-        self._kmeans = KMeans(n_clusters=self.pca.n_components, random_state=seed)
-        self._labels = self._kmeans.fit_predict(self.get_transform())
+        self._kmeans = KMeans(n_clusters=n_clusters, random_state=seed)
 
     @property
     def pca(self) -> "PCA":
@@ -45,6 +42,11 @@ class PcaClassifier:
     @property
     def kmeans(self) -> "KMeans":
         return self._kmeans
+    
+    def run(self):
+        self._pca.fit(self._image_flat(mask=True))
+        self._labels = self._kmeans.fit_predict(self.get_transform())
+        return self
     
     def transform(self, input: ip.ImgArray, mask: bool = True) -> np.ndarray:
         if mask:

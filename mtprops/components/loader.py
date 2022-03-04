@@ -89,16 +89,23 @@ class SubtomogramLoader:
     def iter_subtomograms(
         self,
         rotators: Iterable[Rotation] | None = None,
+        binsize: int = 1,
         order: int = 1
     ) -> Iterator[ip.ImgArray]:  # axes: zyx or azyx
         if rotators is None:
             iterator = self._iter_chunks(order=order)
         else:
             iterator = self._iter_chunks_with_rotation(rotators=rotators, order=order)
-            
-        for subvols in iterator:
-            for subvol in subvols:
-                yield subvol
+        
+        if binsize == 1:
+            for subvols in iterator:
+                for subvol in subvols:
+                    yield subvol
+        else:
+            for subvols in iterator:
+                for subvol in subvols:
+                    subvol: ip.ImgArray
+                    yield subvol.binning(binsize, check_edges=False)
     
     def _iter_chunks(self, order: int = 3) -> Iterator[ip.ImgArray]:  # axes: pzyx
         """Generate subtomogram list chunk-wise."""
@@ -142,9 +149,9 @@ class SubtomogramLoader:
                 yield subvols
     
     
-    def to_stack(self) -> ip.ImgArray:
+    def to_stack(self, binsize: int = 1, order: int = 1) -> ip.ImgArray:
         """Create a 4D image stack of all the subtomograms."""
-        images = list(self)
+        images = list(self.iter_subtomograms(binsize=binsize, order=order))
         return np.stack(images, axis="p")
 
 
@@ -515,9 +522,10 @@ class SubtomogramLoader:
         mask: ip.ImgArray | None = None,
         n_components: int = 5,
         n_clusters: int = 2,
+        binsize: int = 1,
         seed: int | None = 0,
     ) -> PcaClassifier:
-        image_stack = self.to_stack()
+        image_stack = self.to_stack(binsize=binsize)
         from ._pca_utils import PcaClassifier
         clf = PcaClassifier(
             image_stack,

@@ -12,11 +12,10 @@ def start(viewer: "napari.Viewer" = None) -> "MTPropsWidget":
     By default impy's viewer is used.
     """
     from .widgets import MTPropsWidget
-    import impy as ip
     
     if viewer is None:
-        ip.gui.start()
-        viewer = ip.gui.viewer
+        import napari
+        viewer = napari.Viewer()
     mtprof = MTPropsWidget()
     dock = viewer.window.add_dock_widget(mtprof, area="right", allowed_areas=["right"],
                                          name="MT Profiler")
