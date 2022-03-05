@@ -52,7 +52,7 @@ from ..utils import (
     ceilint,
     set_gpu
     )
-from ..const import EulerAxes, Unit, nm, H, Ori, GVar, Sep, Order, Mole
+from ..const import nm, H, Ori, GVar, Sep, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer
 
@@ -88,15 +88,16 @@ class MTPropsWidget(MagicTemplate):
         sep0 = field(Separator)
         def Save_results_as_json(self): ...
         def Save_results_as_csv(self): ...
-        def Save_monomer_coordinates(self): ...
-        def Save_monomer_angles(self): ...
+        def Save_molecules(self): ...
         sep1 = field(Separator)
         PEET = PEET
 
     @magicmenu
     class Image(MagicTemplate):
         """Image processing and visualization"""
+        def Show_image_info(self): ...
         def Apply_lowpass_to_reference_image(self): ...
+        def Invert_tomogram(self): ...
         sep0 = field(Separator)
         def show_current_ft(self): ...
         def show_global_ft(self): ...
@@ -475,12 +476,14 @@ class MTPropsWidget(MagicTemplate):
         import magicclass as mcls
         import dask
         
-        value = f"MTProps: {__version__}\n"\
-                f"impy: {ip.__version__}\n"\
-                f"magicgui: {magicgui.__version__}\n"\
-                f"magicclass: {mcls.__version__}\n"\
-                f"napari: {napari.__version__}\n"\
-                f"dask: {dask.__version__}\n"
+        value = (
+            f"MTProps: {__version__}\n"
+            f"impy: {ip.__version__}\n"
+            f"magicgui: {magicgui.__version__}\n"
+            f"magicclass: {mcls.__version__}\n"
+            f"napari: {napari.__version__}\n"
+            f"dask: {dask.__version__}\n"
+        )
         w = ConsoleTextEdit(value=value)
         w.read_only = True
         w.native.setParent(self.native, w.native.windowFlags())
@@ -571,12 +574,13 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def Open_image(self):
         """Open an image and add to viewer."""
-        self._loader.show()
+        self._loader.show(run=False)
         return None
     
     @File.wraps
     @do_not_record
     def Open_tomogram_list(self):
+        """Open the list of loaded tomogram references."""
         self._TomogramList.show()
         return None
         
@@ -604,77 +608,46 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_coordinates(self,
-                                 save_path: Path,
-                                 layer: MonomerLayer, 
-                                 separator = Sep.Comma,
-                                 unit = Unit.pixel,
-                                 order = Order.xyz):
+    def Save_molecules(
+        self,
+        layer: MonomerLayer, 
+        save_path: Path,
+    ):
         """
         Save monomer coordinates.
 
         Parameters
         ----------
-        save_path : Path
-            Saving path.
         layer : Points
-            Select the Vectors layer to save.
-        separator : str, optional
-            Select the separator.
-        unit : Unit
-            Unit of length.
-        order : Order
-            The order of output array.
-        """        
-        unit = Unit(unit)
-        order = Order(order)
-        separator = Sep(separator)
-        if unit == Unit.pixel:
-            arr = layer.data / self.tomogram.scale
-        elif unit == Unit.nm:
-            arr = layer.data
-        elif unit == Unit.angstrom:
-            arr = layer.data * 10
-        if order == Order.xyz:
-            arr = arr[:, ::-1]
-        elif not order == Order.zyx:
-            raise RuntimeError
-        np.savetxt(save_path, arr, delimiter=str(separator))
-        return None
-    
-    @File.wraps
-    @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_monomer_angles(
-        self, 
-        save_path: Path,
-        layer: MonomerLayer, 
-        rotation_axes = EulerAxes.ZXZ,
-        in_degree: bool = True,
-        separator = Sep.Comma
-    ):
+            Select the points layer to save.
+        save_path : Path
+            Where to save the molecules.
         """
-        Save monomer angles in Euler angles.
-
-        Parameters
-        ----------
-        save_path : Path
-            Saving path.
-        layer : Points
-            Select the Vectors layer to save.
-        rotation_axes : str, default is "ZXZ"
-            Select the rotation axes. {"X", "Y", "Z"} for intrinsic rotations, or
-            {"x", "y", "z"} for extrinsic rotations.
-        in_degree : bool, default is True
-            Check to save angles in degrres.
-        separator : str, optional
-            Select the separator.
-        """        
         separator = Sep(separator)
-        mol: Molecules = layer.metadata[MOLECULES]
-        arr = mol.euler_angle(rotation_axes, degrees=in_degree)
-        np.savetxt(save_path, arr, delimiter=str(separator))
+        mole: Molecules = layer.metadata[MOLECULES]
+        mole.to_csv(save_path)
         return None
     
+    @Image.wraps
+    def Show_image_info(self):
+        """Show information of current active tomogram."""
+        tomo = self.tomogram
+        img = tomo.image
+        source = tomo.metadata.get("source", "Unknown")
+        scale = tomo.scale
+        shape_px = ", ".join(f"{s} px" for s in img.shape)
+        shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
+        value = (
+            f"File: {source}\n"
+            f"Voxel size: {scale:.4f} nm/px\n"
+            f"ZYX-Shape: ({shape_px}), ({shape_nm})"
+        )
+        w = ConsoleTextEdit(value=value)
+        w.read_only = True
+        w.native.setParent(self.native, w.native.windowFlags())
+        w.show()
+        return None
+        
     @Image.wraps
     @dispatch_worker
     def Apply_lowpass_to_reference_image(self):
@@ -698,7 +671,39 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.overview.contrast_limits = contrast_limits
         
         return worker
-                    
+    
+    @Image.wraps
+    @dispatch_worker
+    def Invert_tomogram(self):
+        """
+        Invert intensity of tomogram and the reference image.
+        
+        This method will update each image but will not overwrite image file itself.
+        A temporary memory-mapped file with inverted image is created which will be
+        deleted after Python is closed.
+        """
+        tomo = self.tomogram
+        def func():
+            with ip.silent(), set_gpu():
+                img_inv = -tomo.image
+                img_inv.release()
+                tomo._set_image(img_inv)
+            return -self.layer_image.data
+        
+        worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
+        self._WorkerControl.info = "Inverting tomogram"
+        
+        @worker.returned.connect
+        def _on_return(imgb_inv):
+            self.layer_image.data = imgb_inv
+            vmin, vmax = self.layer_image.contrast_limits
+            clims = [-vmax, -vmin]
+            self.layer_image.contrast_limits = clims
+            self.Panels.overview.image = -self.Panels.overview.image
+            self.Panels.overview.contrast_limits = clims
+        
+        return worker
+    
     @SplineControl.num.connect
     @SplineControl.pos.connect
     @SplineControl.footer.focus.connect
@@ -711,8 +716,8 @@ class MTPropsWidget(MagicTemplate):
             return None
         
         viewer = self.parent_viewer
-        i = self.SplineControl.num
-        j = self.SplineControl.pos
+        i: int = self.SplineControl.num
+        j: int = self.SplineControl.pos
         
         tomo = self.tomogram
         spl = tomo.splines[i]
@@ -1740,9 +1745,10 @@ class MTPropsWidget(MagicTemplate):
                     img = img[sl]
                     
                 rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
+                cval = np.percentile(image_avg, 1)
                 shifted_image = image_avg.affine(
-                    translation=shift, cval=np.percentile(image_avg, 5)
-                    ).rotate(np.rad2deg(rot), dims="zx")
+                    translation=shift, cval=cval
+                    ).rotate(np.rad2deg(rot), dims="zx", cval=cval)
 
             points = add_molecules(
                 self.parent_viewer, 
