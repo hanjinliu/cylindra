@@ -8,7 +8,13 @@ import numpy as np
 import impy as ip
 from dask import array as da
 
-from ._align_utils import normalize_rotations, Ranges
+from ._align_utils import (
+    normalize_rotations,
+    Ranges,
+    align_subvolume,
+    align_subvolume_list,
+    transform_molecules
+)
 from .molecules import Molecules
 from ..utils import multi_map_coordinates, set_gpu
 from ..const import nm
@@ -123,7 +129,7 @@ class SubtomogramLoader:
                     subvols = np.stack(
                         multi_map_coordinates(image, coords, order=order, cval=np.mean),
                         axis=0,
-                        )
+                    )
                 subvols = ip.asarray(subvols, axes="pzyx")
                 subvols.set_scale(image)
                 yield subvols
@@ -266,79 +272,49 @@ class SubtomogramLoader:
         local_rot[:, 3] = 1  # identity map in quaternion
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
-        with ip.silent(), set_gpu():
-            template_ft = (template.lowpass_filter(cutoff=cutoff) * mask).fft()
         
-        # memory allocation
-        subvol_filt = ip.empty(self.output_shape, dtype=np.float32, axes="zyx")
-        input_ft = ip.empty(self.output_shape, dtype=np.complex64, axes="zyx")
-
+        with ip.silent(), set_gpu():
+            template_masked = template.lowpass_filter(cutoff=cutoff) * mask
+            template_ft = template_masked.fft()
+        
         if rots is None:
             for i, subvol in enumerate(self.iter_subtomograms(order=order)):
-                with ip.silent(), set_gpu():
-                    subvol_filt.value[:] = subvol.lowpass_filter(cutoff=cutoff)
-                    input_ft.value[:] = (subvol_filt * mask).fft()
-                    shift = ip.ft_pcc_maximum(
-                        input_ft,
-                        template_ft, 
-                        upsample_factor=20, 
-                        max_shifts=_max_shifts_px
-                    )
+                local_shifts[i, :] = align_subvolume(
+                    subvol, cutoff, mask, template_ft, _max_shifts_px
+                )
                 if self.image_avg is None:
                     pre_alignment += subvol
-                local_shifts[i, :] = shift
                 
                 if i % nbatch == nbatch - 1:
                     yield local_shifts[i, :], local_rot[i, :]
+            
+            mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
                 
         else:
             # "rots" is quaternions
             rotators = [Rotation.from_quat(r) for r in rots]
-            template_masked = template * mask
             iterator = self.iter_subtomograms(rotators=rotators, order=order)
             for i, subvol_set in enumerate(iterator):
-                corrs: list[float] = []
-                all_shifts: list[np.ndarray] = []
-                for subvol in subvol_set:
-                    subvol: ip.ImgArray
-                    with ip.silent(), set_gpu():
-                        subvol_filt.value[:] = subvol.lowpass_filter(cutoff=cutoff)
-                        input_ft.value[:] = (subvol_filt * mask).fft()
-                        shift = ip.ft_pcc_maximum(
-                            input_ft,
-                            template_ft, 
-                            upsample_factor=20, 
-                            max_shifts=_max_shifts_px,
-                        )
-                        all_shifts.append(shift)
-                        shifted_subvol = subvol_filt.affine(translation=shift)
-                    corr = ip.zncc(shifted_subvol*mask, template_masked)
-                    corrs.append(corr)
-                
+                iopt, local_shifts[i, :] = align_subvolume_list(
+                    subvol, cutoff, mask, template_ft, template_masked, _max_shifts_px
+                )
+                local_rot[i, :] = rots[iopt]
                 if self.image_avg is None:
                     pre_alignment += subvol_set[0]
-                iopt = np.argmax(corrs)
-                local_shifts[i, :] = all_shifts[iopt]
-                local_rot[i, :] = rots[iopt]
                 if i % nbatch == nbatch - 1:
                     yield local_shifts[i, :], local_rot[i, :]
-    
-        if self.image_avg is None:
-            pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
-            pre_alignment.set_scale(self.image_ref)
-            self.image_avg = pre_alignment
-        
-        if rots is None:
-            mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
-        else:
-            from ._align_utils import transform_molecules
             
             mole_aligned = transform_molecules(
                 self.molecules, 
                 local_shifts* self.scale, 
                 Rotation.from_quat(local_rot).as_rotvec()
             )
-                
+        
+        if self.image_avg is None:
+            pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
+            pre_alignment.set_scale(self.image_ref)
+            self.image_avg = pre_alignment
+        
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         return out
     

@@ -1,12 +1,13 @@
 from __future__ import annotations
 import itertools
-from typing import Union, overload
+from typing import Iterable, Union, overload
 from typing_extensions import Literal
 import numpy as np
 from numpy.typing import ArrayLike
 import impy as ip
 
 from .molecules import from_euler, Molecules
+from ..utils import set_gpu
 
 
 def align_image_to_template(
@@ -107,3 +108,49 @@ def transform_molecules(
     from scipy.spatial.transform import Rotation
     shift_corrected = Rotation.from_rotvec(rotvec).apply(shift)
     return molecules.translate_internal(shift_corrected).rotate_by_rotvec_internal(rotvec)
+
+def align_subvolume(
+    subvol: ip.ImgArray,
+    cutoff: float,
+    mask: ip.ImgArray,
+    template_ft: ip.ImgArray,
+    max_shift: tuple[int, int, int],
+) -> np.ndarray:
+    with ip.silent(), set_gpu():    
+        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+        input_ft = (subvol_filt * mask).fft()
+        shift = ip.ft_pcc_maximum(
+            input_ft,
+            template_ft, 
+            upsample_factor=20, 
+            max_shifts=max_shift
+        )
+    return shift
+
+def align_subvolume_list(
+    subvol_set: Iterable[ip.ImgArray],
+    cutoff: float,
+    mask: ip.ImgArray,
+    template_ft: ip.ImgArray,
+    template_for_zncc: ip.ImgArray,
+    max_shift: tuple[int, int, int],
+) -> tuple[int, np.ndarray]:
+    corrs: list[float] = []
+    all_shifts: list[np.ndarray] = []
+    for subvol in subvol_set:
+        with ip.silent(), set_gpu():
+            subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+            input_ft = (subvol_filt * mask).fft()
+            shift = ip.ft_pcc_maximum(
+                input_ft,
+                template_ft, 
+                upsample_factor=20, 
+                max_shifts=max_shift,
+            )
+            all_shifts.append(shift)
+            shifted_subvol = subvol_filt.affine(translation=shift)
+        corr = ip.zncc(shifted_subvol*mask, template_for_zncc)
+        corrs.append(corr)
+    
+    iopt = np.argmax(corrs)
+    return iopt, all_shifts[iopt]

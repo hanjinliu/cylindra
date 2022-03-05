@@ -1249,7 +1249,7 @@ class MTPropsWidget(MagicTemplate):
         try:
             pf_label = layer.features[Mole.pf]
             pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
-            for pf in range(pf_label.max()):
+            for pf in range(pf_label.max() + 1):
                 pos_list.append(mole.pos[pf_label == pf])
             pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
             # pos = mole.pos.reshape(-1, npf, ndim)
@@ -1269,12 +1269,13 @@ class MTPropsWidget(MagicTemplate):
         
         # apply filter
         if filter_length > 1 or filter_width > 1:
-            l_ypad = filter_length//2
-            l_apad = filter_width//2
+            l_ypad = filter_length // 2
+            l_apad = filter_width // 2
             start = roundint(spl.globalprops[H.start])
             input = pad_mt_edges(y_dist, (l_ypad, l_apad), start=start)
             out = ndi.uniform_filter(input, (filter_length, filter_width), mode="constant")
-            y_dist = out[l_ypad:-l_ypad, l_apad:-l_apad]
+            ly, lx = out.shape
+            y_dist = out[l_ypad:ly-l_ypad, l_apad:lx-l_apad]
         
         properties = y_dist.ravel()
         _interval = "interval"
@@ -1771,6 +1772,7 @@ class MTPropsWidget(MagicTemplate):
             )
             points.features = layer.features
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
+            layer.visible = False
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         return worker
@@ -1858,6 +1860,7 @@ class MTPropsWidget(MagicTemplate):
                 source=source
             )
             points.features = layer.features
+            layer.visible = False
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
