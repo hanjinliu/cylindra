@@ -13,6 +13,8 @@ from ._align_utils import (
     Ranges,
     align_subvolume,
     align_subvolume_list,
+    align_subvolume_multitemplates,
+    align_subvolume_list_multitemplates,
     transform_molecules
 )
 from .molecules import Molecules
@@ -322,27 +324,88 @@ class SubtomogramLoader:
         self,
         *,
         templates: list[ip.ImgArray],
-        masks: ip.ImgArray | list[ip.ImgArray] | None = None,
+        mask: ip.ImgArray | None = None,
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         order: int = 1,
         nbatch: int = 24,
-    ):
-        ...
-    
-    def iter_align_no_template(
-        self,
-        *,
-        mask_func = None,
-        max_shifts: nm | tuple[nm, nm, nm] = 1.,
-        rotations: Ranges | None = None,
-        cutoff: float = 0.5,
-        order: int = 1,
-        nbatch: int = 24,
-    ):
-        ...
-    
+    ) -> Generator[tuple[np.ndarray, np.ndarray], None, tuple[np.ndarray, SubtomogramLoader]]:
+        
+        shapes = [arr.shape for arr in templates]
+        if len(set(shapes)) != 1:
+            _shapes = ", ".join(str(tuple(shape)) for shape in shapes)
+            raise ValueError(f"Inconsistent template shapes: {_shapes}.")
+        
+        if mask is None:
+            mask = 1
+
+        self._check_shape(templates[0])
+        
+        # Convert rotations into quaternion if given.
+        rots = normalize_rotations(rotations)
+        
+        pre_alignment = np.zeros_like(templates[0].value)
+        
+        # optimal shift in local Cartesian
+        local_shifts = np.zeros((len(self), 3))
+        
+        # optimal rotation (quaternion) in local Cartesian
+        local_rot = np.zeros((len(self), 4))
+        local_rot[:, 3] = 1  # identity map in quaternion
+        
+        # optimal template ID
+        labels = np.zeros(len(self), dtype=np.uint8)
+        
+        _max_shifts_px = np.asarray(max_shifts) / self.scale
+        
+        with ip.silent(), set_gpu():
+            templates_masked = [tmp.lowpass_filter(cutoff=cutoff) * mask for tmp in templates]
+            templates_ft = [tmp.fft() for tmp in templates_masked]
+
+        if rots is None:
+            for i, subvol in enumerate(self.iter_subtomograms(order=order)):
+                iopt, shift = align_subvolume_multitemplates(
+                    subvol, cutoff, mask, templates_ft, templates_masked, _max_shifts_px
+                )
+                local_shifts[i, :] = shift
+                labels[i] = iopt
+                if self.image_avg is None:
+                    pre_alignment += subvol
+                
+                if i % nbatch == nbatch - 1:
+                    yield local_shifts[i, :]
+            
+            mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
+                
+        else:
+            # "rots" is quaternions
+            rotators = [Rotation.from_quat(r) for r in rots]
+            iterator = self.iter_subtomograms(rotators=rotators, order=order)
+            for i, subvol_set in enumerate(iterator):
+                iopt, jopt = align_subvolume_list_multitemplates(
+                    subvol_set, cutoff, mask, templates_ft, templates_masked, _max_shifts_px
+                )
+                local_rot[i, :] = rots[iopt]
+                labels[i] = jopt
+                if self.image_avg is None:
+                    pre_alignment += subvol_set[0]
+                if i % nbatch == nbatch - 1:
+                    yield local_shifts[i, :], local_rot[i, :]
+            
+            mole_aligned = transform_molecules(
+                self.molecules, 
+                local_shifts* self.scale, 
+                Rotation.from_quat(local_rot).as_rotvec()
+            )
+        
+        if self.image_avg is None:
+            pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
+            pre_alignment.set_scale(self.image_ref)
+            self.image_avg = pre_alignment
+        
+        out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
+        return labels, out
         
     def align(
         self,
