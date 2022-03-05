@@ -10,14 +10,15 @@ from .molecules import from_euler, Molecules
 
 
 def align_image_to_template(
-    image_avg: ip.ImgArray,
+    image: ip.ImgArray,
     template: ip.ImgArray,
     mask: ip.ImgArray = None,
     max_shifts = None,
 ) -> tuple[float, np.ndarray]:
-    if image_avg.shape != template.shape:
+    """Determine the shift and rotation that will align image to template."""
+    if image.shape != template.shape:
         raise ValueError(
-            f"Shape mismatch. Shape of Average image is {tuple(image_avg.shape)} while "
+            f"Shape mismatch. Shape of Average image is {tuple(image.shape)} while "
             f"shape of template image is {tuple(template.shape)}"
         )
     if mask is None:
@@ -28,7 +29,7 @@ def align_image_to_template(
     masked_template = template*mask
     template_ft = masked_template.fft()
     for yrot in rots:
-        img_rot = image_avg.rotate(yrot, cval=0, dims="zx")
+        img_rot = image.rotate(yrot, cval=0, dims="zx")
         img_rot_ft = img_rot.fft()
         shift = ip.ft_pcc_maximum(img_rot_ft, template_ft, max_shifts=max_shifts)
         shifts.append(shift)
@@ -64,6 +65,19 @@ def normalize_rotations(rotations: Ranges) -> np.ndarray:
     ...
 
 def normalize_rotations(rotations):
+    """
+    Normalize various rotation expressions to quaternions.
+
+    Parameters
+    ----------
+    rotations : tuple of float and int, or list of it, optional
+        Rotation around each axis.
+
+    Returns
+    -------
+    np.ndarray
+        Corresponding quaternions in shape (N, 4).
+    """
     if rotations is not None:
         rotations = _normalize_ranges(rotations)
         angles = []
@@ -89,6 +103,7 @@ def transform_molecules(
     shift: ArrayLike, 
     rotvec: ArrayLike, 
 ) -> Molecules:
+    """Shift and rotate molecules around their own coordinate."""
     from scipy.spatial.transform import Rotation
     shift_corrected = Rotation.from_rotvec(rotvec).apply(shift)
     return molecules.translate_internal(shift_corrected).rotate_by_rotvec_internal(rotvec)

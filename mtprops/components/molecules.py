@@ -32,11 +32,13 @@ class Molecules:
         return f"{self.__class__.__name__}(n={len(self)})"
     
     @classmethod
-    def from_axes(cls, 
-                  pos: np.ndarray, 
-                  z: np.ndarray | None = None, 
-                  y: np.ndarray | None = None,
-                  x: np.ndarray | None = None) -> Molecules:
+    def from_axes(
+        cls, 
+        pos: np.ndarray, 
+        z: np.ndarray | None = None, 
+        y: np.ndarray | None = None,
+        x: np.ndarray | None = None,
+    ) -> Molecules:
         """Construct molecule cloud with orientation from two of their local axes."""
         pos = np.atleast_2d(pos)
         
@@ -58,8 +60,13 @@ class Molecules:
         return cls(pos, rotator)
 
     @classmethod
-    def from_euler(cls, pos: np.ndarray, angles: np.ndarray, 
-                   seq: str | EulerAxes = EulerAxes.ZXZ, degrees: bool = False):
+    def from_euler(
+        cls,
+        pos: np.ndarray,
+        angles: np.ndarray, 
+        seq: str | EulerAxes = EulerAxes.ZXZ,
+        degrees: bool = False
+    ):
         """Create molecules from Euler angles."""
         rotator = from_euler(angles, seq, degrees)
         return cls(pos, rotator)
@@ -140,7 +147,7 @@ class Molecules:
 
         Parameters
         ----------
-        spec : int ,slice, list of int, or ndarray
+        spec : int, slice, list of int, or ndarray
             Specifier that defines which molecule will be used. Any objects that numpy
             slicing are defined are supported. For instance, ``[2, 3, 5]`` means the 2nd,
             3rd and 5th molecules will be used (zero-indexed), and ``slice(10, 20)``
