@@ -331,35 +331,109 @@ def pad_template(template: ip.ImgArray, shape: tuple[int, ...]) -> ip.ImgArray:
     
     return template.pad(pads, dims=template.axes, constant_values=np.min(template))
 
-class Projections:
-    """
-    Class that stores projections of a 3D image.
-    
-    .. note::
-    
-        We have to think thoroughly about the XYZ coordinate here.
-        In right-handed coordinate system, the XYZ axes look like following.
-    
-            Z (parallel to sight)
-           (x)------> X
-            |
-            |
-            |
-            v Y
-        
-        When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
-        and viewed parallel to Y axis, the projection should look like following.
-        
-            X <-------(x) Y
-                       |
-                       |
-                       |
-                     Z v
 
-        Therefore, if we use standard ``imshow`` functions like ``plt.imshow`` and those
-        in ``pyqtgraph``, we must **flip along X axis**.
+def pad_mt_edges(
+    arr: np.ndarray,
+    pad_width: tuple(int, int),
+    axial_mode: str = Mode.reflect,
+    cval: float = 0.0,
+    start: int = 3,
+) -> np.ndarray:
     
-    """
+    if arr.ndim != 2:
+        raise ValueError("Only 2D arrays are supported.")
+    
+    # arr shape: (y, pf)
+    pad_kwargs = dict(mode=axial_mode)
+    if axial_mode == Mode.constant:
+        pad_kwargs.update(constant_values=cval)
+    
+    pad_long, pad_lat = pad_width
+    
+    if pad_lat > arr.shape[1]:
+        raise ValueError("Cannot pad wider than array width.")
+    
+    # `arr` will be padded like below, suppose arr has seven columns (=protofilaments)
+    # and `start == 2`.`
+
+    #   */////*///////*/////*  <--+
+    #   */////*///////*******     | 
+    #   */////*///////*12345*     |
+    #   */////*********     *     |
+    #   */////*1234567*rpad *     |
+    #   *******       *     *     |  
+    #   *34567*  arr  *     *     +- These blanks disappears if pad length is shorter
+    #   *     *       *ABCDE*     |  than `start`.
+    #   * lpad*       *******     |
+    #   *     *ABCDEFG*/////*     |
+    #   *     *********/////*     |
+    #   *CDEFG*///////*/////*     |
+    #   *******///////*/////*     |
+    #   */////*///////*/////*  <--+
+    #      ^      ^      ^
+    #      |      |      |
+    #      |      |      +-- rpad_padded
+    #      |      +--------- arr_padded
+    #      +---------------- lpad_padded
+
+    # where shaded area by slash "/" means that the area needs padding.
+    
+    lpad = arr[:, -pad_lat:]
+    rpad = arr[:, :pad_lat]
+    
+    if pad_long < start:
+        lpad_padded = np.pad(
+            lpad[:-(start-pad_long)], 
+            pad_width=[(pad_long + start, 0), (0, 0)], 
+            **pad_kwargs
+        )
+        rpad_padded = np.pad(
+            rpad[(start-pad_long):],
+            pad_width=[(0, pad_long + start), (0, 0)], 
+            **pad_kwargs
+        )
+    else:
+        lpad_padded = np.pad(
+            lpad, 
+            pad_width=[(pad_long + start, pad_long - start), (0, 0)], 
+            **pad_kwargs
+        )
+        rpad_padded = np.pad(
+            rpad, 
+            pad_width=[(pad_long - start, pad_long + start), (0, 0)], 
+            **pad_kwargs
+        )
+    
+    arr_padded = np.pad(arr, [(pad_long, pad_long), (0, 0)], **pad_kwargs)
+    
+    return np.concatenate([lpad_padded, arr_padded, rpad_padded], axis=1)
+    
+
+class Projections:
+    """Class that stores projections of a 3D image."""
+
+    # We have to think thoroughly about the XYZ coordinate here.
+    # In right-handed coordinate system, the XYZ axes look like following.
+
+    #     Z (parallel to sight)
+    #    (x)------> X
+    #     |
+    #     |
+    #     |
+    #     v Y
+    
+    # When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
+    # and viewed parallel to Y axis, the projection should look like following.
+    
+    #     X <-------(x) Y
+    #                |
+    #                |
+    #                |
+    #              Z v
+
+    # Therefore, if we use standard ``imshow`` functions like ``plt.imshow`` and those
+    # in ``pyqtgraph``, we must **flip along X axis**.
+
     def __init__(self, image: ip.ImgArray):
         with ip.silent():
             self.yx = image.proj("z")

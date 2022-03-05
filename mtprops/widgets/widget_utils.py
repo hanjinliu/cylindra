@@ -44,4 +44,3 @@ def update_features(
     features[feature_name] = value
     layer.features = features
     return None
-    

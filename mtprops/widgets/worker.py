@@ -33,7 +33,6 @@ def dispatch_worker(f: Callable[_P, Worker]) -> Callable[_P, None]:
         if self[f.__name__].running:
             self._connect_worker(worker)
         else:
-            # run_worker_function(worker)
             worker.run()
         return None
     return wrapper

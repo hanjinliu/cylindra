@@ -48,6 +48,7 @@ from ..utils import (
     map_coordinates,
     mirror_pcc,
     pad_template, 
+    pad_mt_edges,
     roundint,
     ceilint,
     set_gpu
@@ -1236,6 +1237,8 @@ class MTPropsWidget(MagicTemplate):
     def Calculate_intervals(
         self,
         layer: MonomerLayer,
+        filter_length: int = 1,
+        filter_width: int = 1,
         spline_precision: nm = 0.2,
     ):
         ndim = 3
@@ -1244,14 +1247,18 @@ class MTPropsWidget(MagicTemplate):
         
         npf = roundint(spl.globalprops[H.nPF])
         try:
-            pos = mole.pos.reshape(-1, npf, ndim)
-        except ValueError as e:
-            msg = (
-                f"Reshaping failed. Molecules represented by layer {layer.name} may not "
-                f"be a tubular shaped."
-            )
-            e.args = (msg,)
-            raise e
+            pf_label = layer.features[Mole.pf]
+            pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
+            for pf in range(pf_label.max()):
+                pos_list.append(mole.pos[pf_label == pf])
+            pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
+            # pos = mole.pos.reshape(-1, npf, ndim)
+        except Exception as e:
+            raise TypeError(
+                f"Reshaping failed. Molecules represented by layer {layer.name} must be "
+                f"correctly labeled at {Mole.pf!r} feature. Original error is\n"
+                f"{type(e).__name__}: {e}"
+            ) from e
         
         pitch_vec = np.diff(pos, axis=0, append=0)
         u = spl.world_to_y(mole.pos, precision=spline_precision)
@@ -1260,14 +1267,20 @@ class MTPropsWidget(MagicTemplate):
         spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)
         y_dist: np.ndarray = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
         
+        # apply filter
+        if filter_length > 1 or filter_width > 1:
+            l_ypad = filter_length//2
+            l_apad = filter_width//2
+            start = roundint(spl.globalprops[H.start])
+            input = pad_mt_edges(y_dist, (l_ypad, l_apad), start=start)
+            out = ndi.uniform_filter(input, (filter_length, filter_width), mode="constant")
+            y_dist = out[l_ypad:-l_ypad, l_apad:-l_apad]
+        
         properties = y_dist.ravel()
         _interval = "interval"
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
         
-        # Update features
-        features = layer.features
-        features[_interval] = properties
-        layer.features = features
+        update_features(layer, _interval, np.abs(properties))
         
         # Set colormap
         layer.face_color = layer.edge_color = _interval
