@@ -30,7 +30,6 @@ from magicclass import (
     )
 from magicclass.widgets import (
     TupleEdit,
-    ListEdit,
     Separator,
     RadioButtons,
     ColorEdit,
@@ -1249,7 +1248,7 @@ class MTPropsWidget(MagicTemplate):
         npf = roundint(spl.globalprops[H.nPF])
         try:
             pf_label = layer.features[Mole.pf]
-            pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
+            pos_list: List[np.ndarray] = []  # each shape: (y, ndim)
             for pf in range(pf_label.max() + 1):
                 pos_list.append(mole.pos[pf_label == pf])
             pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)

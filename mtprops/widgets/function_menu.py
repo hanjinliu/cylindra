@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 from magicclass import magicmenu, MagicTemplate, set_options, do_not_record
 import numpy as np
 import impy as ip
@@ -41,7 +42,7 @@ class Volume(MagicTemplate):
         img = _convert_array(layer.data, layer.scale[-1])
         with ip.silent():
             out = img.binning(binsize=bin_size, check_edges=False)
-        translate: list[float] = []
+        translate: List[float] = []
         for k, v in img.scale.items():
             if k in "zyx":
                 translate.append((bin_size - 1) / 2 * v)

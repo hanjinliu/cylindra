@@ -127,7 +127,7 @@ class SplineControl(MagicTemplate):
         
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian((width_px, length_px, width_px), spl.scale*binsize)
-        out: list[ip.ImgArray] = []
+        out: List[ip.ImgArray] = []
         with ip.silent():
             for crds in coords:
                 mapped = map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
