@@ -111,10 +111,9 @@ def test_spline_switch():
                  max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=78,)
     ui.Seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1),
                    chunk_size=78, load_all=True)
-    ui.Save_monomer_coordinates(save_path=Path(__file__).parent/"monomer_coords.txt", 
-                                layer=ui.parent_viewer.layers['Mono-0'], separator=",", unit="pixel")
-    ui.Save_monomer_angles(save_path=Path(__file__).parent/"monomer_angles.txt",
-                           layer=ui.parent_viewer.layers['Mono-0'], rotation_axes="ZXZ", in_degree=True, separator=",")
+    ui.Save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
+                      save_path=Path(__file__).parent/"monomers.txt"
+                      )
     ui.clear_all()
     assert_canvas(ui, [True, True, True])
     assert ui.LocalProperties.params.pitch.txt == " -- nm"

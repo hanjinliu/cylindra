@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 from .._utils import translate_command
-from ...const import Order
 
 class IMOD(SimpleNamespace):
     """IMOD commands."""
@@ -16,7 +15,7 @@ class IMOD(SimpleNamespace):
     _3dmod = translate_command("3dmod")
     
 
-def read_mod(path: str, order: str | Order = "zyx") -> pd.DataFrame:
+def read_mod(path: str, order: str = "zyx") -> pd.DataFrame:
     """
     
     Read a mod file.
@@ -28,7 +27,7 @@ def read_mod(path: str, order: str | Order = "zyx") -> pd.DataFrame:
     ----------
     path : str
         Path to mod file.
-    order : str or Order, default is "zyx"
+    order : str, default is "zyx"
         The order of dimension of output data frame.
 
     Returns
@@ -37,14 +36,16 @@ def read_mod(path: str, order: str | Order = "zyx") -> pd.DataFrame:
         (N, 3) data frame with coordinates.
     """    
     path = str(path)
-    order = Order(order)
+    if order not in ("xyz", "zyx"):
+        raise ValueError("order must be either 'zyx' or 'xyz'.")
     with tempfile.NamedTemporaryFile(mode="r+") as fh:
         output_path = fh.name
         IMOD.model2point(input=path, output=output_path)
         df: pd.DataFrame = pd.read_csv(output_path, sep="\s+", header=None)
         df.columns = ["x", "y", "z"]
-    if Order.zyx:
+    if order == "zyx":
         df = df[["z", "y", "x"]]
+    
     return df
 
 

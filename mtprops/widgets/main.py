@@ -21,18 +21,16 @@ from magicclass import (
     set_design,
     set_options,
     do_not_record,
-    Bound,
-    Optional,
     MagicTemplate,
     bind_key,
     build_help,
     nogui
     )
+from magicclass.types import Color, Bound, Optional, Tuple as _Tuple
 from magicclass.widgets import (
     TupleEdit,
     Separator,
     RadioButtons,
-    ColorEdit,
     ConsoleTextEdit,
     Figure,
     Container,
@@ -53,7 +51,7 @@ from ..utils import (
     ceilint,
     set_gpu
     )
-from ..const import nm, H, Ori, GVar, Sep, Mole
+from ..const import nm, H, Ori, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer
 
@@ -191,6 +189,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof: Points = None
         self.layer_work: Points = None
         self.layer_paint: Labels = None
+        self.objectName()  # load napari types
         
     def __post_init__(self):
         self.Set_colormap()
@@ -411,7 +410,7 @@ class MTPropsWidget(MagicTemplate):
         splError={"max": 5.0, "step": 0.1},
         inner={"step": 0.1},
         outer={"step": 0.1},
-        daskChunk={"widget_type": TupleEdit, "options": {"min": 16, "max": 2048, "step": 16}},
+        daskChunk={"options": {"min": 16, "max": 2048, "step": 16}},
         GPU={"label": "Use GPU if available"},
     )
     def Global_variables(
@@ -426,7 +425,7 @@ class MTPropsWidget(MagicTemplate):
         splError: nm = GVar.splError,
         inner: float = GVar.inner,
         outer: float = GVar.outer,
-        daskChunk: Tuple[int, int, int] = GVar.daskChunk,
+        daskChunk: _Tuple[int, int, int] = GVar.daskChunk,
         GPU: bool = GVar.GPU,
     ):
         """
@@ -624,7 +623,6 @@ class MTPropsWidget(MagicTemplate):
         save_path : Path
             Where to save the molecules.
         """
-        separator = Sep(separator)
         mole: Molecules = layer.metadata[MOLECULES]
         mole.to_csv(save_path)
         return None
@@ -1291,15 +1289,11 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules.wraps
-    @set_options(
-        color_0={"widget_type": ColorEdit},
-        color_1={"widget_type": ColorEdit},
-    )
     def Show_isotypes(
         self,
         layer: MonomerLayer,
-        color_0: Union[Iterable[float], str] = "orange",
-        color_1: Union[Iterable[float], str] = "cyan",
+        color_0: Color = "orange",
+        color_1: Color = "cyan",
     ):
         """
         Paint molecules according to the isotypes.
@@ -1490,13 +1484,13 @@ class MTPropsWidget(MagicTemplate):
         
         @do_not_record
         @set_options(
-            new_shape={"widget_type": TupleEdit, "options": {"min": 2, "max": 100}},
+            new_shape={"options": {"min": 2, "max": 100}},
             save_as={"mode": "w", "filter": "*.mrc;*.tif"}
         )
         @Template.wraps
         def Reshape_template(
             self, 
-            new_shape: Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
+            new_shape: _Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
             save_as: Path = "",
             update_template_path: bool = True,
         ):
@@ -1529,7 +1523,7 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
+        size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         save_at={"text": "Do not save the result.", "options": {"mode": "w", "filter": "*.mrc;*.tif"}},
     )
@@ -1801,10 +1795,10 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"widget_type": TupleEdit, "options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
-        z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
-        y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
-        x_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
+        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        z_rotation={"options": {"max": 5.0, "step": 0.1}},
+        y_rotation={"options": {"max": 5.0, "step": 0.1}},
+        x_rotation={"options": {"max": 5.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     )
     @dispatch_worker
@@ -1813,10 +1807,10 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
+        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: _Tuple[float, float] = (0., 0.),
+        y_rotation: _Tuple[float, float] = (0., 0.),
+        x_rotation: _Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
         use_binned_image: bool = False,
@@ -1887,10 +1881,10 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         other_templates={"filter": "*.mrc;*.tif"},
         cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"widget_type": TupleEdit, "options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
-        z_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
-        y_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
-        x_rotation={"widget_type": TupleEdit, "options": {"max": 5.0, "step": 0.1}},
+        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        z_rotation={"options": {"max": 5.0, "step": 0.1}},
+        y_rotation={"options": {"max": 5.0, "step": 0.1}},
+        x_rotation={"options": {"max": 5.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     )
     @dispatch_worker
@@ -1900,10 +1894,10 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         other_templates: List[Path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
+        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: _Tuple[float, float] = (0., 0.),
+        y_rotation: _Tuple[float, float] = (0., 0.),
+        x_rotation: _Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
         use_binned_image: bool = False,
@@ -1991,7 +1985,7 @@ class MTPropsWidget(MagicTemplate):
     #     self,
     #     layer: MonomerLayer,
     #     mask_params: Bound[_subtomogram_averaging._get_mask_params],
-    #     shape: Optional[tuple[nm, nm, nm]] = None,
+    #     shape: Optional[Tuple[nm, nm, nm]] = None,
     #     seed: Optional[int] = 0,
     #     interpolation: int = 1,
     #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
@@ -2319,17 +2313,15 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_options(
-        start={"widget_type": ColorEdit},
-        end={"widget_type": ColorEdit},
-        limit={"widget_type": TupleEdit, "options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
+        limit={"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
         color_by={"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]},
         auto_call=True
     )
     def Set_colormap(
         self,
-        start=(0, 0, 1, 1), 
-        end=(1, 0, 0, 1), 
-        limit=(4.00, 4.24), 
+        start: Color = (0, 0, 1, 1), 
+        end: Color = (1, 0, 0, 1), 
+        limit: _Tuple[float, float] = (4.00, 4.24), 
         color_by: str = H.yPitch
     ):
         """
@@ -2485,7 +2477,10 @@ class MTPropsWidget(MagicTemplate):
                 tomo_list_widget = self._TomogramList
                 tomo_list_widget._tomogram_list.append(tomo)
                 tomo_list_widget.reset_choices()  # Next line of code needs updated choices
-                tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
+                try:
+                    tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
+                except ValueError:
+                    pass
                 self.clear_all()
             
             return None

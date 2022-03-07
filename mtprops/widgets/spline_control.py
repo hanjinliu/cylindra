@@ -1,7 +1,8 @@
 from typing import List
 import numpy as np
 import impy as ip
-from magicclass import magicclass, MagicTemplate, field, vfield, Bound, set_options
+from magicclass import magicclass, MagicTemplate, field, vfield, set_options
+from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
 from ..const import GVar, Ori, H, Mode

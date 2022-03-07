@@ -5,10 +5,9 @@ from magicclass import (
     magicclass,
     magictoolbar,
     field,
-    Bound,
     MagicTemplate,
     )
-
+from magicclass.types import Bound
 from magicclass.utils import to_clipboard
 
 from ..components import MtTomogram

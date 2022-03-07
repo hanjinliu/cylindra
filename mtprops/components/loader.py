@@ -298,7 +298,7 @@ class SubtomogramLoader:
             iterator = self.iter_subtomograms(rotators=rotators, order=order)
             for i, subvol_set in enumerate(iterator):
                 iopt, local_shifts[i, :] = align_subvolume_list(
-                    subvol, cutoff, mask, template_ft, template_masked, _max_shifts_px
+                    subvol_set, cutoff, mask, template_ft, template_masked, _max_shifts_px
                 )
                 local_rot[i, :] = rots[iopt]
                 if self.image_avg is None:

@@ -6,10 +6,10 @@ from magicclass import (
     magicclass,
     field,
     do_not_record,
-    Bound,
     MagicTemplate,
     bind_key,
     )
+from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from ..utils import Projections, roundint, centroid, map_coordinates
