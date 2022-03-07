@@ -349,6 +349,7 @@ def pad_mt_edges(
         pad_kwargs.update(constant_values=cval)
     
     pad_long, pad_lat = pad_width
+    s0, s1 = arr.shape
     
     if pad_lat > arr.shape[1]:
         raise ValueError("Cannot pad wider than array width.")
@@ -378,12 +379,12 @@ def pad_mt_edges(
 
     # where shaded area by slash "/" means that the area needs padding.
     
-    lpad = arr[:, -pad_lat:]
+    lpad = arr[:, s1-pad_lat:]
     rpad = arr[:, :pad_lat]
     
     if pad_long < start:
         lpad_padded = np.pad(
-            lpad[:-(start-pad_long)], 
+            lpad[:s0-(start-pad_long)], 
             pad_width=[(pad_long + start, 0), (0, 0)], 
             **pad_kwargs
         )

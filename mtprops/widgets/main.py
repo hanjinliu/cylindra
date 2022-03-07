@@ -352,15 +352,16 @@ class MTPropsWidget(MagicTemplate):
             
         @worker.returned.connect
         def _on_return(tomo: MtTomogram):
-            self._update_splines_in_images()
-            if local_props or global_props:
-                self.Sample_subtomograms()
-            if local_props:
-                if paint:
-                    self.Paint_MT()
-            tomo.metadata["ft_size"] = self._last_ft_size
-            if global_props:
-                self._update_global_properties_in_widget()
+            with self.macro.blocked():
+                self._update_splines_in_images()
+                if local_props or global_props:
+                    self.Sample_subtomograms()
+                if local_props:
+                    if paint:
+                        self.Paint_MT()
+                tomo.metadata["ft_size"] = self._last_ft_size
+                if global_props:
+                    self._update_global_properties_in_widget()
         self._last_ft_size = ft_size
         self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
         return worker
@@ -1022,8 +1023,9 @@ class MTPropsWidget(MagicTemplate):
                                )
         @worker.returned.connect
         def _on_return(df):
-            self.Sample_subtomograms()
-            self._update_local_properties_in_widget()
+            with self.macro.blocked():
+                self.Sample_subtomograms()
+                self._update_local_properties_in_widget()
         self._last_ft_size = ft_size
         self._WorkerControl.info = "Local Fourier transform ..."
         return worker
@@ -1239,6 +1241,24 @@ class MTPropsWidget(MagicTemplate):
         filter_width: int = 1,
         spline_precision: nm = 0.2,
     ):
+        """
+        Calculate intervals between adjucent molecules.
+        
+        If filter is applied, connections and boundary padding mode are safely defined using global properties. 
+        For instance, with 13_3 microtubule, the 13th monomer in the first round is connected to the 1st monomer
+        in the 4th round.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Select which layer will be calculated.
+        filter_length : int, default is 1
+            Length of uniform filter kernel. Must be an odd number. If 1, no filter will be applied.
+        filter_width : int, default is 1
+            Width (lateral length) of uniform filter kernel. Must be an odd number. If 1, no filter will be applied.
+        spline_precision : nm, optional
+            Precision in nm that is used to define the direction of molecules for calculating projective interval.
+        """
         ndim = 3
         mole: Molecules = layer.metadata[MOLECULES]
         spl: MtSpline = layer.metadata[SOURCE]
@@ -1250,7 +1270,7 @@ class MTPropsWidget(MagicTemplate):
             for pf in range(pf_label.max() + 1):
                 pos_list.append(mole.pos[pf_label == pf])
             pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
-            # pos = mole.pos.reshape(-1, npf, ndim)
+            
         except Exception as e:
             raise TypeError(
                 f"Reshaping failed. Molecules represented by layer {layer.name} must be "
@@ -1264,17 +1284,17 @@ class MTPropsWidget(MagicTemplate):
         spl_vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
         spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)
         y_dist: np.ndarray = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
-        
+
         # apply filter
         if filter_length > 1 or filter_width > 1:
             l_ypad = filter_length // 2
             l_apad = filter_width // 2
             start = roundint(spl.globalprops[H.start])
-            input = pad_mt_edges(y_dist, (l_ypad, l_apad), start=start)
+            input = pad_mt_edges(y_dist[:, ::-1], (l_ypad, l_apad), start=start)
             out = ndi.uniform_filter(input, (filter_length, filter_width), mode="constant")
             ly, lx = out.shape
-            y_dist = out[l_ypad:ly-l_ypad, l_apad:lx-l_apad]
-        
+            y_dist = out[l_ypad:ly-l_ypad, l_apad:lx-l_apad][:, ::-1]
+
         properties = y_dist.ravel()
         _interval = "interval"
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
@@ -2481,7 +2501,8 @@ class MTPropsWidget(MagicTemplate):
                     tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
                 except ValueError:
                     pass
-                self.clear_all()
+                with self.macro.blocked():
+                    self.clear_all()
             
             return None
         

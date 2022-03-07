@@ -84,6 +84,7 @@ class Volume(MagicTemplate):
             "image",
         )
     
+    @set_options(path={"mode": "w"})
     @do_not_record
     def Save_volume(self, layer: Image, path: Path):
         img = layer.data
