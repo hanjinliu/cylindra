@@ -528,7 +528,6 @@ class SubtomogramLoader:
         *,
         seed: int | float | str | bytes | bytearray | None = 0,
         order: int = 1,
-        nbatch=24,
     ):
         np.random.seed(seed)
         try:
@@ -537,15 +536,12 @@ class SubtomogramLoader:
             
             res = 0
             n = 0
-            with set_gpu():
-                for subvols in self._iter_chunks(order=order):
-                    np.random.shuffle(subvols)
-                    lc, res = divmod(len(subvols) + res, 2)
-                    sum0[:] += sum(subvols[:lc])
-                    sum1[:] += sum(subvols[lc:])
-                    n += 1
-                    if n % nbatch == nbatch - 1:
-                        yield sum0, sum1
+            for subvols in self._iter_chunks(order=order):
+                np.random.shuffle(subvols)
+                lc, res = divmod(len(subvols) + res, 2)
+                sum0[:] += sum(subvols[:lc])
+                sum1[:] += sum(subvols[lc:])
+                yield sum0, sum1
         finally:
             np.random.seed(None)
         

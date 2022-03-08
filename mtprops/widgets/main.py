@@ -2050,13 +2050,13 @@ class MTPropsWidget(MagicTemplate):
             mask = 1
         else:
             loader._check_shape(mask, "mask")
-        nbatch = 24
+        if dfreq is None:
+            dfreq = 1.5 / min(shape)
         worker = create_worker(
             loader.iter_average_split,
             seed=seed,
             order=interpolation,
-            nbatch=nbatch,
-            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+            _progress={"total": ceilint(nmole/loader.chunksize), "desc": "Running"}
         )
         
         @worker.returned.connect
