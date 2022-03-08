@@ -28,7 +28,7 @@ from magicclass import (
     )
 from magicclass.types import Color, Bound, Optional, Tuple as _Tuple
 from magicclass.widgets import (
-    TupleEdit,
+    Logger,
     Separator,
     RadioButtons,
     ConsoleTextEdit,
@@ -179,6 +179,7 @@ class MTPropsWidget(MagicTemplate):
         """Panels for output."""
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
         image2D = field(QtImageCanvas, options={"tooltip": "2-D image viewer."})
+        log = field(Logger)
     
     ### methods ###
     
@@ -362,6 +363,7 @@ class MTPropsWidget(MagicTemplate):
                 tomo.metadata["ft_size"] = self._last_ft_size
                 if global_props:
                     self._update_global_properties_in_widget()
+            self.Panels.log.print("MTProps done!")
         self._last_ft_size = ft_size
         self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
         return worker
@@ -1583,7 +1585,6 @@ class MTPropsWidget(MagicTemplate):
         save_at : str, optional
             If given, save the averaged image at the specified location.
         """
-        # TODO: save_at not working
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
         nmole = len(molecules)
@@ -2073,6 +2074,8 @@ class MTPropsWidget(MagicTemplate):
             plt.ylim(-0.1, 1.1)
             plt.title(f"FSC of {layer.name}")
             plt.show()
+            self.Panels.log.print("FSC calculation finished")
+            self.Panels.log.print_table({"freq": freq, "FSC": fsc})
         
         self._WorkerControl.info = "Calculating FSC ..."
         return worker
@@ -2178,6 +2181,12 @@ class MTPropsWidget(MagicTemplate):
             
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
+            
+            
+            self.Panels.log.print("Seam search finished.")
+            self.Panels.log.print_table({"PF position": np.arange(2*npf),
+                                         "ΔCorr": corrs,
+                                         "score": score,})
             
             update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
             
