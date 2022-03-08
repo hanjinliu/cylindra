@@ -101,9 +101,8 @@ def test_spline_switch():
     # map monomer coordinates and save them.
     ui.Map_monomers(splines=[0])
     ui.Average_subset(ui.parent_viewer.layers['Mono-0'], size=18.)
-    # NOTE: Not implemented yet
-    # ui.Calculate_FSC(ui.parent_viewer.layers['Mono-0'], mask_params=None, shape=(18., 18., 18.),
-    #                  seed=0, interpolation=1)
+    ui.Calculate_FSC(ui.parent_viewer.layers['Mono-0'], mask_params=None, shape=(18., 18., 18.),
+                     seed=0, interpolation=1)
     template_path = Path(__file__).parent / "template.mrc"
     ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
                       mask_params=(1, 1), chunk_size=78)

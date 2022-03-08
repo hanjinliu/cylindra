@@ -41,7 +41,7 @@ def align_image_to_template(
     iopt = np.argmax(corrs)
     return np.deg2rad(rots[iopt]), shifts[iopt]
 
-RangeLike = tuple[float, int]
+RangeLike = tuple[float, float]
 Ranges = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]
 
 def _normalize_a_range(rng: RangeLike) -> tuple[float, int]:

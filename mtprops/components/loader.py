@@ -1,6 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Generator, Iterator, Iterable, TYPE_CHECKING
-import random
+from typing import Any, Callable, Generator, Iterator, Iterable, TYPE_CHECKING, TypeVar
 import warnings
 import weakref
 from scipy.spatial.transform import Rotation
@@ -23,6 +22,9 @@ from ..const import nm
 
 if TYPE_CHECKING:
     from ._pca_utils import PcaClassifier
+    
+_V = TypeVar("_V")
+
 
 class SubtomogramLoader:
     """
@@ -237,11 +239,8 @@ class SubtomogramLoader:
         ImgArray
             Averaged image.
         """
-        if callback is None:
-            callback = lambda x: None
-        for i in self.iter_average(order=order):
-            callback(self)
-        return self.image_avg
+        average_iter = self.iter_average(order=order)
+        return self._resolve_iterator(average_iter, callback)
     
     def iter_align(
         self,
@@ -433,7 +432,7 @@ class SubtomogramLoader:
             Mask image. Must in the same shae as the template.
         max_shifts : int or tuple of int, default is (4, 4, 4)
             Maximum shift between subtomograms and template.
-        rotations : RangeLike | None, optional
+        rotations : (float, float) or three-tuple of (float, float) or None, optional
             Rotation between subtomograms and template in external Euler angles.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
@@ -448,9 +447,6 @@ class SubtomogramLoader:
             Refined molecule object is bound.
         """        
         
-        if callback is None:
-            callback = lambda x: None
-        
         align_iter = self.iter_align(
             template=template, 
             mask=mask,
@@ -460,12 +456,7 @@ class SubtomogramLoader:
             order=order,
         )
         
-        while True:
-            try:
-                next(align_iter)
-                callback(self)
-            except StopIteration as mole_aligned:
-                break
+        mole_aligned = self._resolve_iterator(align_iter, callback)
         
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         
@@ -521,8 +512,6 @@ class SubtomogramLoader:
         order: int = 1,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> tuple[np.ndarray, ip.ImgArray, list[Molecules]]:
-        if callback is None:
-            callback = lambda x: None
         
         seam_iter = self.iter_each_seam(
             npf=npf,
@@ -531,51 +520,53 @@ class SubtomogramLoader:
             load_all=load_all,
             order=order,
         )
-        
-        while True:
-            try:
-                next(seam_iter)
-                callback(self)
-            except StopIteration as results:
-                break
-        
-        return results
+        return self._resolve_iterator(seam_iter, callback)
     
+    
+    def iter_average_split(
+        self, 
+        *,
+        seed: int | float | str | bytes | bytearray | None = 0,
+        order: int = 1,
+        nbatch=24,
+    ):
+        np.random.seed(seed)
+        try:
+            sum0 = np.zeros(self.output_shape, dtype=np.float32)
+            sum1 = np.zeros(self.output_shape, dtype=np.float32)
+            
+            res = 0
+            n = 0
+            with set_gpu():
+                for subvols in self._iter_chunks(order=order):
+                    np.random.shuffle(subvols)
+                    lc, res = divmod(len(subvols) + res, 2)
+                    sum0[:] += sum(subvols[:lc])
+                    sum1[:] += sum(subvols[lc:])
+                    n += 1
+                    if n % nbatch == nbatch - 1:
+                        yield sum0, sum1
+        finally:
+            np.random.seed(None)
+        
+        img0 = ip.asarray(sum0, axes="zyx")
+        img1 = ip.asarray(sum1, axes="zyx")
+        img0.set_scale(self.image_ref)
+        img1.set_scale(self.image_ref)
+        
+        if self.image_avg is None:
+            self.image_avg = img0 + img1
+        return img0, img1
     
     def average_split(
         self, 
         *,
         seed: int | float | str | bytes | bytearray | None = 0,
         order: int = 1,
+        callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> tuple[ip.ImgArray, ip.ImgArray]:
-        random.seed(seed)
-            
-        subsets: list[np.ndarray] = []
-        sum_images = (np.zeros(self.output_shape, dtype=np.float32),
-                      np.zeros(self.output_shape, dtype=np.float32))
-        next_set = 0
-        with set_gpu():
-            for subvols in self._iter_chunks(order=order):
-                subsets.extend(list(subvols.value))
-                next_set = 1 - next_set
-                if next_set == 0:
-                    random.shuffle(subsets)
-                    lc = len(subsets) // 2
-                    sum_images[0][:] += sum(subsets[:lc])
-                    sum_images[1][:] += sum(subsets[lc:])
-        
-        if next_set == 1:
-            random.shuffle(subsets)
-            lc = len(subsets) // 2
-            sum_images[0][:] += sum(subsets[:lc])
-            sum_images[1][:] += sum(subsets[lc:])
-            
-        random.seed(None)
-        img0 = ip.asarray(sum_images[0], axes="zyx")
-        img1 = ip.asarray(sum_images[1], axes="zyx")
-        img0.set_scale(self.image_ref)
-        img1.set_scale(self.image_ref)
-        return img0, img1
+        it = self.iter_average_split(seed=seed, order=order)
+        return self._resolve_iterator(it, callback)
         
     
     def fsc(
@@ -596,10 +587,6 @@ class SubtomogramLoader:
         
         with ip.silent():
             freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
-        
-        if self.image_avg is None:
-            self.image_avg = img0 + img1
-            self.image_avg.set_scale(self.image_ref)
         
         return freq, fsc
     
@@ -632,3 +619,18 @@ class SubtomogramLoader:
             )
             self.output_shape = template.shape
         return None
+    
+    def _resolve_iterator(self, it: Generator[Any, Any, _V], callback: Callable) -> _V:
+        """Iterate over an iterator until it returns something."""
+        if callback is None:
+            callback = lambda x: None
+        while True:
+            try:
+                next(it)
+                callback(self)
+            except StopIteration as e:
+                results = e.value
+                break
+        
+        return results
+

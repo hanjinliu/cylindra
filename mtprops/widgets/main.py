@@ -1260,6 +1260,8 @@ class MTPropsWidget(MagicTemplate):
             Precision in nm that is used to define the direction of molecules for calculating projective interval.
         """
         ndim = 3
+        if filter_length % 2 == 1 or filter_width % 2 == 1:
+            raise ValueError("'filter_length' and 'filter_width' must be odd numbers.")
         mole: Molecules = layer.metadata[MOLECULES]
         spl: MtSpline = layer.metadata[SOURCE]
         
@@ -1489,7 +1491,7 @@ class MTPropsWidget(MagicTemplate):
         class Subtomogram_analysis(MagicTemplate):
             def Average_all(self): ...
             def Average_subset(self): ...
-            # def Calculate_FSC(self): ...
+            def Calculate_FSC(self): ...
             def Seam_search(self): ...
         
         @magicmenu
@@ -1742,8 +1744,9 @@ class MTPropsWidget(MagicTemplate):
             Layer of subtomogram positions and angles.
         template_path : str
             Template image.
-        mask_params : str, (int, float), optional
-            Mask image
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
         cutoff : float, default is 0.5
@@ -1843,8 +1846,9 @@ class MTPropsWidget(MagicTemplate):
         ----------
         template_path : ip.ImgArray, optional
             Template image.
-        mask_params : ip.ImgArray, optional
-            Mask image. Must in the same shape as the template.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
@@ -1932,8 +1936,9 @@ class MTPropsWidget(MagicTemplate):
             Template image path.
         other_templates : list of Path or str
             Path to other template images.
-        mask_params : ip.ImgArray, optional
-            Mask image. Must in the same shape as the template.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
@@ -1946,7 +1951,7 @@ class MTPropsWidget(MagicTemplate):
             Cutoff frequency of low-pass filter applied in each subtomogram.
         interpolation : int, default is 1
             Interpolation order.
-        chunk_size : int, default is 64
+        chunk_size : int, default is 200
             How many subtomograms will be loaded at the same time.
         """
         
@@ -1995,46 +2000,82 @@ class MTPropsWidget(MagicTemplate):
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
 
-    # @_subtomogram_averaging.Subtomogram_analysis.wraps
-    # @set_options(
-    #     interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-    #     shape={"widget_type": TupleEdit, "text": "Use template shape"}
-    # )
-    # @dispatch_worker
-    # def Calculate_FSC(
-    #     self,
-    #     layer: MonomerLayer,
-    #     mask_params: Bound[_subtomogram_averaging._get_mask_params],
-    #     shape: Optional[Tuple[nm, nm, nm]] = None,
-    #     seed: Optional[int] = 0,
-    #     interpolation: int = 1,
-    #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
-    # ):
-    #     mole: Molecules = layer.metadata[MOLECULES]
-    #     mask = self._subtomogram_averaging._get_mask(params=mask_params)
-    #     if shape is None:
-    #         shape = self._subtomogram_averaging._get_shape_in_nm()
-    #     loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=chunk_size)
-    #     worker = create_worker(loader.fsc,
-    #                            seed=seed,
-    #                            mask=mask,
-    #                            order=interpolation,
-    #                            _progress={"total": 0, "desc": "Running"}
-    #                            )
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @set_options(
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        shape={"text": "Use template shape"},
+        dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
+    )
+    @dispatch_worker
+    def Calculate_FSC(
+        self,
+        layer: MonomerLayer,
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        shape: Optional[_Tuple[nm, nm, nm]] = None,
+        seed: Optional[int] = 0,
+        interpolation: int = 1,
+        dfreq: Optional[float] = None,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+    ):
+        """
+        Calculate Fourier Shell Correlation using the selected monomer layer.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Select which monomer layer to be used for subtomogram sampling.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
+        shape : (nm, nm, nm), optional
+            Shape of subtomograms. Use mask shape by default.
+        seed : int, optional
+            Random seed used for subtomogram sampling.
+        interpolation : int, default is 1
+            Interpolation order.
+        dfreq : float, default is 0.02
+            Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
+            at frequency 0.01, 0.03, 0.05, ..., 0.45.
+        chunk_size : int, default is 200
+            How many subtomograms will be loaded at the same time.
+        """
+        mole: Molecules = layer.metadata[MOLECULES]
+        nmole = len(mole)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        if shape is None:
+            shape = self._subtomogram_averaging._get_shape_in_nm()
+        loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=chunk_size)
+        if mask is None:
+            mask = 1
+        else:
+            loader._check_shape(mask, "mask")
+        nbatch = 24
+        worker = create_worker(
+            loader.iter_average_split,
+            seed=seed,
+            order=interpolation,
+            nbatch=nbatch,
+            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+        )
         
-    #     @worker.returned.connect
-    #     def _on_returned(out: tuple[np.ndarray, np.ndarray]):
-    #         freq, fsc = out
-    #         ind = (freq <= 0.5)
-    #         plt = Figure(style="dark_background")
-    #         plt.plot(freq[ind], fsc[ind], color="gold")
-    #         plt.xlabel("Frequency")
-    #         plt.ylabel("FSC")
-    #         plt.title(f"FSC of {layer.name}")
-    #         plt.show()
+        @worker.returned.connect
+        def _on_returned(out: tuple[ip.ImgArray, ip.ImgArray]):
+            img0, img1 = out
+            
+            with ip.silent():
+                freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+            
+            ind = (freq <= 0.5)
+            plt = Figure(style="dark_background")
+            plt.plot(freq[ind], fsc[ind], color="gold")
+            plt.xlabel("Frequency")
+            plt.ylabel("FSC")
+            plt.ylim(-0.1, 1.1)
+            plt.title(f"FSC of {layer.name}")
+            plt.show()
         
-    #     self._WorkerControl.info = f"Calculating FSC ..."
-    #     return worker
+        self._WorkerControl.info = "Calculating FSC ..."
+        return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2064,8 +2105,9 @@ class MTPropsWidget(MagicTemplate):
             Layer of subtomogram positions and angles.
         template_path : ip.ImgArray, optional
             Template image.
-        mask_params : ip.ImgArray, optional
-            Mask image. Must in the same shape as the template.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
         interpolation : int, default is 1
             Interpolation order.
         npf : int, optional
@@ -2374,11 +2416,13 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @nogui
+    @do_not_record
     def get_molecules(self, name: str):
         """Retrieve Molecules object from layer list."""
         return self.parent_viewer.layers[name].metadata[MOLECULES]
 
     @nogui
+    @do_not_record
     def get_loader(self, name: str, chunksize: int = 64):
         mole = self.get_molecules(name)
         shape = self._subtomogram_averaging._get_shape_in_nm()
@@ -2386,6 +2430,7 @@ class MTPropsWidget(MagicTemplate):
         return loader
     
     @nogui
+    @do_not_record
     def get_current_spline(self) -> MtSpline:
         tomo = self.tomogram
         i = self.SplineControl.num
