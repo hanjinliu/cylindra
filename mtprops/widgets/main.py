@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy import ndimage as ndi
+import matplotlib.pyplot as plt
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
@@ -867,6 +868,7 @@ class MTPropsWidget(MagicTemplate):
         self.reset_choices()
         if need_resample:
             self.Sample_subtomograms()
+        return None
     
     @Splines.wraps
     @set_options(
@@ -958,10 +960,11 @@ class MTPropsWidget(MagicTemplate):
     @dispatch_worker
     def Set_radius(self, radius: Optional[nm] = None):
         """Measure MT radius for each spline path."""        
-        worker = create_worker(self.tomogram.set_radius,
-                               radius=radius,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
+        worker = create_worker(
+            self.tomogram.set_radius,
+            radius=radius,
+            _progress={"total": 0, "desc": "Running"}
+        )
         
         self._WorkerControl.info = "Measuring Radius"
 
@@ -1073,19 +1076,23 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        worker = create_worker(tomo.map_monomers,
-                               i=splines,
-                               length=length,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
+        worker = create_worker(
+            tomo.map_monomers,
+            i=splines,
+            length=length,
+            _progress={"total": 0, "desc": "Running"}
+        )
         
         @worker.returned.connect
         def _on_return(out: List[Molecules]):
+            self.Panels.log.print_html("<code>Map monomers</code>")
             for i, mol in enumerate(out):
+                _name = f"Mono-{i}"
                 spl = tomo.splines[i]
-                layer = add_molecules(self.parent_viewer, mol, f"Mono-{i}", source=spl)
+                layer = add_molecules(self.parent_viewer, mol, _name, source=spl)
                 npf = roundint(spl.globalprops[H.nPF])
                 update_features(layer, Mole.pf, np.arange(len(mol)) % npf)
+                self.Panels.log.print(f"{_name}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
         return worker
@@ -1173,8 +1180,11 @@ class MTPropsWidget(MagicTemplate):
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
+        self.Panels.log.print_html("<code>Map centers</code>")
         for i, mol in enumerate(mols):
-            add_molecules(self.parent_viewer, mol, f"Center-{i}", source=mol)
+            _name = f"Center-{i}"
+            add_molecules(self.parent_viewer, mol, _name, source=tomo.splines[splines[i]])
+            self.Panels.log.print(f"{_name}: n = {len(mol)}")
 
     @Analysis.Mapping.wraps
     @set_options(
@@ -1202,8 +1212,11 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
+        self.Panels.log.print_html("<code>Map along PF</code>")
         for i, mol in enumerate(mols):
-            add_molecules(self.parent_viewer, mol, f"PF line-{i}", source=mol)
+            _name = f"PF line-{i}"
+            add_molecules(self.parent_viewer, mol, _name, source=tomo.splines[splines[i]])
+            self.Panels.log.print(f"{_name}: n = {len(mol)}")
 
     @Molecules.wraps
     @set_options(orientation={"choices": ["x", "y", "z"]})
@@ -1811,6 +1824,7 @@ class MTPropsWidget(MagicTemplate):
             points.features = layer.features
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
             layer.visible = False
+            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name} --> {points.name}")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         return worker
@@ -1898,6 +1912,7 @@ class MTPropsWidget(MagicTemplate):
             )
             points.features = layer.features
             layer.visible = False
+            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name} --> {points.name}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
@@ -2067,13 +2082,13 @@ class MTPropsWidget(MagicTemplate):
                 freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
             
             ind = (freq <= 0.5)
-            plt = Figure(style="dark_background")
-            plt.plot(freq[ind], fsc[ind], color="gold")
-            plt.xlabel("Frequency")
-            plt.ylabel("FSC")
-            plt.ylim(-0.1, 1.1)
-            plt.title(f"FSC of {layer.name}")
-            plt.show()
+            with self.Panels.log.set_plt():
+                plt.plot(freq[ind], fsc[ind], color="gold")
+                plt.xlabel("Frequency")
+                plt.ylabel("FSC")
+                plt.ylim(-0.1, 1.1)
+                plt.title(f"FSC of {layer.name}")
+                plt.show()
             self.Panels.log.print("FSC calculation finished")
             self.Panels.log.print_table({"freq": freq, "FSC": fsc})
         
@@ -2159,29 +2174,27 @@ class MTPropsWidget(MagicTemplate):
             imax = np.argmax(score)
                 
             # plot all the correlation
-            plt1 = Figure(style="dark_background")
-            plt1.ax.axvline(imax, color="gray", alpha=0.5)
-            plt1.ax.axhline(corrs[imax], color="gray", alpha=0.5)
-            plt1.plot(corrs)
-            plt1.xlabel("Seam position")
-            plt1.ylabel("Correlation")
-            plt1.xticks(np.arange(0, 2*npf+1, 4))
-            plt1.title("Seam search result")
-            
-            # plot the score
-            plt2 = Figure(style="dark_background")
-            plt2.plot(score)
-            plt2.xlabel("PF position")
-            plt2.ylabel("ΔCorr")
-            plt2.xticks(np.arange(0, 2*npf+1, 4))
-            plt2.title("Score")
-
-            wdt = Container(widgets=[plt1, plt2], labels=False)
-            viewer.window.add_dock_widget(wdt, name=f"Seam search of {layer.name}", area="right")
+            self.Panels.log.print("<code>Seam_search</code>")
+            with self.Panels.log.set_plt():
+                plt.axvline(imax, color="gray", alpha=0.5)
+                plt.axhline(corrs[imax], color="gray", alpha=0.5)
+                plt.plot(corrs)
+                plt.xlabel("Seam position")
+                plt.ylabel("Correlation")
+                plt.xticks(np.arange(0, 2*npf+1, 4))
+                plt.title("Seam search result")
+                plt.show()
+                
+                # plot the score
+                plt.plot(score)
+                plt.xlabel("PF position")
+                plt.ylabel("ΔCorr")
+                plt.xticks(np.arange(0, 2*npf+1, 4))
+                plt.title("Score")
+                plt.show()
             
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
-            
             
             self.Panels.log.print("Seam search finished.")
             self.Panels.log.print_table({"PF position": np.arange(2*npf),
