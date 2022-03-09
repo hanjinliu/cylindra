@@ -175,12 +175,12 @@ class MTPropsWidget(MagicTemplate):
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
     
-    @magicclass(widget_type="tabbed")
+    @magicclass(widget_type="tabbed", labels=False)
     class Panels(MagicTemplate):
         """Panels for output."""
         overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
         image2D = field(QtImageCanvas, options={"tooltip": "2-D image viewer."})
-        log = field(Logger)
+        log = field(Logger, name="Log")
     
     ### methods ###
     
@@ -1022,10 +1022,11 @@ class MTPropsWidget(MagicTemplate):
         if tomo.splines[0].radius is None:
             self.Set_radius()
         self.Add_anchors(interval=interval)
-        worker = create_worker(tomo.local_ft_params,
-                               ft_size=ft_size,
-                               _progress={"total": 0, "desc": "Running"}
-                               )
+        worker = create_worker(
+            tomo.local_ft_params,
+            ft_size=ft_size,
+            _progress={"total": 0, "desc": "Running"}
+        )
         @worker.returned.connect
         def _on_return(df):
             with self.macro.blocked():
@@ -1040,8 +1041,10 @@ class MTPropsWidget(MagicTemplate):
     def Global_FT_analysis(self):
         """Determine MT global structural parameters by Fourier transformation."""        
         tomo = self.tomogram
-        worker = create_worker(tomo.global_ft_params,
-                               _progress={"total": 0, "desc": "Running"})
+        worker = create_worker(
+            tomo.global_ft_params,
+            _progress={"total": 0, "desc": "Running"}
+        )
         worker.returned.connect(lambda e: self._update_global_properties_in_widget())
         
         self._WorkerControl.info = f"Global Fourier transform ..."
@@ -1092,7 +1095,7 @@ class MTPropsWidget(MagicTemplate):
                 layer = add_molecules(self.parent_viewer, mol, _name, source=spl)
                 npf = roundint(spl.globalprops[H.nPF])
                 update_features(layer, Mole.pf, np.arange(len(mol)) % npf)
-                self.Panels.log.print(f"{_name}: n = {len(mol)}")
+                self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
         return worker
@@ -1184,7 +1187,7 @@ class MTPropsWidget(MagicTemplate):
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
             add_molecules(self.parent_viewer, mol, _name, source=tomo.splines[splines[i]])
-            self.Panels.log.print(f"{_name}: n = {len(mol)}")
+            self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
 
     @Analysis.Mapping.wraps
     @set_options(
@@ -1216,7 +1219,7 @@ class MTPropsWidget(MagicTemplate):
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
             add_molecules(self.parent_viewer, mol, _name, source=tomo.splines[splines[i]])
-            self.Panels.log.print(f"{_name}: n = {len(mol)}")
+            self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
 
     @Molecules.wraps
     @set_options(orientation={"choices": ["x", "y", "z"]})
@@ -1248,7 +1251,11 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Molecules.wraps
-    @set_options(spline_precision={"max": 2.0, "step": 0.01, "label": "spline precision (nm)"})
+    @set_options(
+        filter_length={"min": 1, "max": 49, "step": 2},
+        filter_width={"min": 1, "max": 15, "step": 2},
+        spline_precision={"max": 2.0, "step": 0.01, "label": "spline precision (nm)"}
+    )
     def Calculate_intervals(
         self,
         layer: MonomerLayer,
@@ -1275,7 +1282,7 @@ class MTPropsWidget(MagicTemplate):
             Precision in nm that is used to define the direction of molecules for calculating projective interval.
         """
         ndim = 3
-        if filter_length % 2 == 1 or filter_width % 2 == 1:
+        if filter_length % 2 == 0 or filter_width % 2 == 0:
             raise ValueError("'filter_length' and 'filter_width' must be odd numbers.")
         mole: Molecules = layer.metadata[MOLECULES]
         spl: MtSpline = layer.metadata[SOURCE]
@@ -1824,7 +1831,7 @@ class MTPropsWidget(MagicTemplate):
             points.features = layer.features
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
             layer.visible = False
-            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name} --> {points.name}")
+            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         return worker
@@ -1912,7 +1919,7 @@ class MTPropsWidget(MagicTemplate):
             )
             points.features = layer.features
             layer.visible = False
-            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name} --> {points.name}")
+            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
@@ -2066,7 +2073,7 @@ class MTPropsWidget(MagicTemplate):
         else:
             loader._check_shape(mask, "mask")
         if dfreq is None:
-            dfreq = 1.5 / min(shape)
+            dfreq = 1.5 / min(shape) * loader.scale
         worker = create_worker(
             loader.iter_average_split,
             seed=seed,
@@ -2090,7 +2097,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.title(f"FSC of {layer.name}")
                 plt.show()
             self.Panels.log.print("FSC calculation finished")
-            self.Panels.log.print_table({"freq": freq, "FSC": fsc})
+            self.Panels.log.print_table({"freqency": freq, "FSC": fsc}, index=False)
         
         self._WorkerControl.info = "Calculating FSC ..."
         return worker
@@ -2199,7 +2206,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.log.print("Seam search finished.")
             self.Panels.log.print_table({"PF position": np.arange(2*npf),
                                          "ΔCorr": corrs,
-                                         "score": score,})
+                                         "score": score,}, index=False)
             
             update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
             

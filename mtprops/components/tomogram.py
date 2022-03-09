@@ -691,6 +691,7 @@ class MtTomogram:
         cutoff: float = 0.35,
         projection: bool = True,
         corr_allowed: float = 0.9,
+        max_shift: nm = 2.0,
     ) -> Self:
         """
         Refine spline using the result of previous fit and the global structural parameters.
@@ -712,6 +713,9 @@ class MtTomogram:
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
+        max_shift: nm, default is 2.0
+            Maximum shift from the true center of microtubule. This parameter is used in phase cross 
+            correlation.
         
         Returns
         -------
@@ -773,12 +777,12 @@ class MtTomogram:
             
             # Coarsely align skew-corrected images                
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
-            max_shift = 4.0 / self.scale
+            max_shift_px = max_shift / self.scale
             
             for i in range(npoints):
                 img: ip.ImgArray = inputs[i]
                 ft = inputs_ft[i]
-                shift = mirror_ft_pcc(ft, max_shifts=max_shift*2) / 2
+                shift = mirror_ft_pcc(ft, max_shifts=max_shift_px*2) / 2
                 if not projection:
                     shift[1] = 0
                 imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
@@ -792,7 +796,7 @@ class MtTomogram:
             
             # Make template using coarse aligned images.
             imgcory: ip.ImgArray = imgs_aligned.proj("p")
-            center_shift = mirror_pcc(imgcory, max_shifts=max_shift*2) / 2
+            center_shift = mirror_pcc(imgcory, max_shifts=max_shift_px*2) / 2
             template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
             template_ft = template.fft(dims=template.axes)
             
@@ -800,7 +804,7 @@ class MtTomogram:
             shifts = np.zeros((npoints, 2))
             for i in range(npoints):
                 ft = inputs_ft[i]
-                shift = -ip.ft_pcc_maximum(template_ft, ft, max_shifts=max_shift)
+                shift = -ip.ft_pcc_maximum(template_ft, ft, max_shifts=max_shift_px)
                 
                 if not projection:
                     shift = shift[[0, 2]]
