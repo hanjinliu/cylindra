@@ -33,14 +33,12 @@ from magicclass.widgets import (
     Separator,
     RadioButtons,
     ConsoleTextEdit,
-    Figure,
-    Container,
     Select,
     )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
-from ..components.tomogram import angle_corr
+from ..components.microtubule import angle_corr
 from ..utils import (
     crop_tomogram,
     make_slice_and_pad,

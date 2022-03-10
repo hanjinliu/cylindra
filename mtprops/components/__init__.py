@@ -1,7 +1,8 @@
 from .loader import SubtomogramLoader
 from .molecules import Molecules
 from .spline import Spline
-from .tomogram import MtSpline, MtTomogram
+from .tomogram import Tomogram
+from .microtubule import MtSpline, MtTomogram
 from ._pca_utils import PcaClassifier
 
 __all__ = [
@@ -10,5 +11,6 @@ __all__ = [
     "Spline",
     "MtSpline",
     "MtTomogram",
+    "Tomogram",
     "PcaClassifier",
 ]
