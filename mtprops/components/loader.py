@@ -503,14 +503,13 @@ class SubtomogramLoader:
         npf: int,
         template: ip.ImgArray,
         mask: ip.ImgArray | None = None,
-        load_all: bool = False,
         order: int = 1,
     ) -> Generator[tuple[float, ip.ImgArray, np.ndarray],
                    None,
                    tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]]:
-        averaged_images: list[ip.ImgArray] = []
+        sum_image: np.ndarray = np.zeros((2*npf,) + self.output_shape)
         corrs: list[float] = []
-        labels: list[np.ndarray] = []
+        labels: list[np.ndarray] = []  # list of boolean arrays
         
         if mask is None:
             mask = 1
@@ -519,32 +518,31 @@ class SubtomogramLoader:
         masked_template = template * mask
         _id = np.arange(len(self.molecules))
         
-        with ip.silent():
-            if load_all:
-                subtomograms = np.stack(list(self.iter_subtomograms(order=order)), axis="p")
-                
-            for pf in range(2*npf):
-                res = (_id - pf) // npf
-                sl = res % 2 == 0
-                labels.append(sl)
-                candidate = self.subset(sl)
-                if not load_all:
-                    image_ave = candidate.average(order=order)
-                else:
-                    image_ave = np.mean(subtomograms[sl], axis="p")
-                averaged_images.append(image_ave)
-                corr = ip.zncc(image_ave*mask, masked_template)
-                corrs.append(corr)
-                yield corr, image_ave, sl
+        # prepare all the labels in advance (only takes up ~0.5 MB at most)
+        for pf in range(2*npf):
+            res = (_id - pf) // npf
+            sl = res % 2 == 0
+            labels.append(sl)
         
-        return np.array(corrs), np.stack(averaged_images, axis="p"), labels
+        with ip.silent():
+            for idx_chunk, subvols in enumerate(self._iter_chunks(order=order)):
+                chunk_offset = idx_chunk * self.chunksize
+                for j, label in enumerate(labels):
+                    sl = label[chunk_offset:chunk_offset + self.chunksize]
+                    sum_image[j] += np.sum(subvols[sl], axis=0)
+                yield
+        
+            _n = len(self.molecules) / 2
+            avg_image = ip.asarray(sum_image/_n, axes="pzyx")
+            corrs = [ip.zncc(avg*mask, masked_template) for avg in avg_image]
+        
+        return np.array(corrs), avg_image, labels
     
     def try_all_seams(
         self,
         npf: int,
         template: ip.ImgArray,
         mask: ip.ImgArray | None = None,
-        load_all: bool = False,
         order: int = 1,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> tuple[np.ndarray, ip.ImgArray, list[Molecules]]:
@@ -553,7 +551,6 @@ class SubtomogramLoader:
             npf=npf,
             template=template, 
             mask=mask,
-            load_all=load_all,
             order=order,
         )
         return self._resolve_iterator(seam_iter, callback)

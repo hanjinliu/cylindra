@@ -878,6 +878,7 @@ class MTPropsWidget(MagicTemplate):
         stop={"max": 1.0, "step": 0.01},
     )
     def Clip_spline(self, spline: int, start: float = 0.0, stop: float = 1.0):
+        # BUG: properties may be inherited in a wrong way
         if spline is None:
             return
         spl = self.tomogram.splines[spline]
@@ -1333,7 +1334,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules.PaintBy.wraps
-    def isotypes(
+    def Isotypes(
         self,
         layer: MonomerLayer,
         color_0: Color = "orange",
@@ -1366,6 +1367,14 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
     ):
+        """
+        Paint molecules according to its Zero Normalized Cross Correlation with the template image.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Molecules-bound layer.
+        """
         if Mole.zncc not in layer.features.columns:
             raise ValueError("ZNCC is not determined yet.")
         layer.face_color = Mole.zncc
@@ -1838,7 +1847,7 @@ class MTPropsWidget(MagicTemplate):
             shift_nm = shift * self.tomogram.scale
             vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
             shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-            self.Panels.log.print_html(f"rotation = {deg:.2f}°, {vec_str} = {shift_nm_str}")
+            self.Panels.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
             points = add_molecules(
                 self.parent_viewer, 
                 transform_molecules(molecules, shift * self.tomogram.scale, [0, -rot, 0]),
@@ -2076,12 +2085,13 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(corr):
-            with self.Panels.log.set_plt():
+            with self.Panels.log.set_plt(rc_context={"font.size": 15}):
                 plt.hist(corr, bins=50)
                 plt.title("Zero Normalized Cross Correlation")
                 plt.show()
             update_features(layer, Mole.zncc, corr)
         
+        self._WorkerControl.info = "Calculating Correlation"
         return worker
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2149,13 +2159,19 @@ class MTPropsWidget(MagicTemplate):
             with ip.silent():
                 freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
             
-            ind = (freq <= 0.5)
-            with self.Panels.log.set_plt():
+            ind = (freq <= 0.7)
+            with self.Panels.log.set_plt(rc_context={"font.size": 15}):
+                plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
+                plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
+                plt.axhline(0.143, color="violet")
                 plt.plot(freq[ind], fsc[ind], color="gold")
-                plt.xlabel("Frequency")
+                plt.xlabel("Spatial frequence (1/nm)")
                 plt.ylabel("FSC")
                 plt.ylim(-0.1, 1.1)
                 plt.title(f"FSC of {layer.name}")
+                xticks = np.linspace(0, 0.7, 8)
+                per_nm = ["$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
+                plt.xticks(xticks, per_nm)
                 plt.show()
             self.Panels.log.print("FSC calculation finished")
             self.Panels.log.print_table({"freqency": freq, "FSC": fsc}, index=False)
@@ -2167,7 +2183,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         npf={"text": "Use global properties"},
-        load_all={"label": "Load all the subtomograms in memory for better performance."}
     )
     @dispatch_worker
     def Seam_search(
@@ -2178,7 +2193,6 @@ class MTPropsWidget(MagicTemplate):
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
         interpolation: int = 1,
         npf: Optional[int] = None,
-        load_all: bool = False,
     ):
         """
         Search for the best seam position.
@@ -2199,9 +2213,6 @@ class MTPropsWidget(MagicTemplate):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the corresponding spline
             will be used.
-        load_all : bool, default is False
-            Load all the subtomograms into memory for better performance
-            at the expense of memory usage.
         """
         molecules: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2215,14 +2226,13 @@ class MTPropsWidget(MagicTemplate):
             except Exception:
                 npf = np.max(layer.features[Mole.pf]) + 1
         
-        total = 0 if load_all else 2*npf
+        total = ceilint(len(molecules) / chunk_size)
             
         worker = create_worker(
             loader.iter_each_seam,
             npf=npf,
             template=template,
             mask=mask,
-            load_all=load_all,
             order=interpolation,
             _progress={"total": total, "desc": "Running"}
         )
@@ -2243,7 +2253,7 @@ class MTPropsWidget(MagicTemplate):
                 
             # plot all the correlation
             self.Panels.log.print_html("<code>Seam_search</code>")
-            with self.Panels.log.set_plt():
+            with self.Panels.log.set_plt(rc_context={"font.size": 15}):
                 plt.axvline(imax, color="gray", alpha=0.5)
                 plt.axhline(corrs[imax], color="gray", alpha=0.5)
                 plt.plot(corrs)
@@ -2492,7 +2502,7 @@ class MTPropsWidget(MagicTemplate):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         xmin, xmax = self.label_colorlimit
-        with self.Panels.log.set_plt():
+        with self.Panels.log.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
             plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])

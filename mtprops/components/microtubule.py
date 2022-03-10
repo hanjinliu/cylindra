@@ -591,7 +591,7 @@ class MtTomogram(Tomogram):
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0]  # unit: nm^2
         spl.fit(coords, s=sqsum)
-        LOGGER.info(f" >> Shift RMSD: {rmsd(shifts):.3f}")
+        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * self.scale):.3f} nm")
         return self
     
     @batch_process
@@ -653,7 +653,7 @@ class MtTomogram(Tomogram):
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
         
-        LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f}°, PF = {npf}")
+        LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}")
         
         skew_angles = np.arange(npoints) * interval/lp * skew
         pf_ang = 360/npf
@@ -726,7 +726,7 @@ class MtTomogram(Tomogram):
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
         spl.shift_fit(shifts=shifts*self.scale, s=sqsum)
-        LOGGER.info(f" >> Shift RMSD: {rmsd(shifts):.3f}")
+        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * self.scale):.3f} nm")
         return self
     
     @batch_process
@@ -815,7 +815,7 @@ class MtTomogram(Tomogram):
         rmin = spl.radius * GVar.inner / self.scale
         rmax = spl.radius * GVar.outer / self.scale
         tasks = []
-        LOGGER.info(f" >> Rmin = {rmin:.2f} nm, Rmax = {rmax:.2f} nm")
+        LOGGER.info(f" >> Rmin = {rmin * self.scale:.2f} nm, Rmax = {rmax * self.scale:.2f} nm")
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
             tasks.append(

@@ -59,6 +59,8 @@ class SplineControl(MagicTemplate):
         if spl.globalprops is not None:
             spl.globalprops[H.nPF] = npf
             parent._update_global_properties_in_widget()
+        if self.canvas[0].image is not None:
+            parent.Sample_subtomograms()
         return None
         
     @footer.wraps
