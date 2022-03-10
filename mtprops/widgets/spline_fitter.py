@@ -127,8 +127,6 @@ class SplineFitter(MagicTemplate):
         r_max: nm = tomo.subtomo_width/2
         nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
-        if tomo.light_background:
-            prof = -prof
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
         r_peak = (imax_sub+0.5)/nbin*r_max/tomo.scale/self.binsize

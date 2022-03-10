@@ -16,7 +16,7 @@ params = [(coords_13pf, 13, 8.3, (-0.1, 0.1)),
 @pytest.mark.parametrize(["coords", "npf", "rise", "skew_range"], params)
 def test_run_all(coords, npf, rise, skew_range):
     path = Path(__file__).parent / f"{npf}pf_MT.tif"
-    tomo = MtTomogram.imread(path, light_background=False)
+    tomo = MtTomogram.imread(path)
     
     assert abs(tomo.scale - 1.052) < 1e-6
     
@@ -42,7 +42,7 @@ def test_run_all(coords, npf, rise, skew_range):
 
 def test_chunked_straightening():
     path = Path(__file__).parent / "14pf_MT.tif"
-    tomo = MtTomogram.imread(path, light_background=False)
+    tomo = MtTomogram.imread(path)
     
     # the length of spline is ~80 nm
     tomo.add_spline(np.array([[21.97, 123.1, 32.98],
@@ -71,7 +71,7 @@ def test_result_io():
     path = Path(__file__).parent / "14pf_MT.tif"
     save_path = Path(__file__).parent / "result.json"
     
-    tomo = MtTomogram.imread(path, light_background=False)
+    tomo = MtTomogram.imread(path)
     tomo.add_spline(np.array([[21.97, 123.1, 32.98],
                               [21.97, 83.3, 40.5],
                               [21.97, 17.6, 64.96]]))

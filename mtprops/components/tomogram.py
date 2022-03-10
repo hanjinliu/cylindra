@@ -199,6 +199,8 @@ class MtSpline(Spline):
             Clipped spline.
         """
         clipped = super().clip(start, stop)
+        
+        clipped.radius = self.radius
         if start > stop:
             clipped.orientation = Ori.invert(self.orientation)
         else:
@@ -276,16 +278,15 @@ class MtTomogram:
     """
     _image: ip.LazyImgArray
 
-    def __init__(self, 
-                 *,
-                 subtomogram_length: nm = 48.0,
-                 subtomogram_width: nm = 44.0,
-                 light_background: bool = False,
-                 ):
+    def __init__(
+        self, 
+        *,
+        subtomogram_length: nm = 48.0,
+        subtomogram_width: nm = 44.0,
+    ):
         self.subtomo_length = subtomogram_length
         self.subtomo_width = subtomogram_width
         self._splines: list[MtSpline] = []
-        self.light_background = light_background
         self.metadata: dict[str, Any] = {}
         
     
@@ -317,12 +318,10 @@ class MtTomogram:
         scale: float = None,
         subtomogram_length: nm = 48.0,
         subtomogram_width: nm = 44.0,
-        light_background: bool = False
     ) -> Self:
         
         self = cls(subtomogram_length=subtomogram_length,
                    subtomogram_width=subtomogram_width,
-                   light_background=light_background
                    )
         img = ip.lazy_imread(path, chunks=GVar.daskChunk).as_float()
         if scale is not None:
@@ -395,7 +394,6 @@ class MtTomogram:
         
         from .. import __version__
         metadata = self.metadata.copy()
-        metadata["light_background"] = self.light_background
         metadata["version"] = __version__
         all_results["metadata"] = metadata
 
@@ -697,8 +695,8 @@ class MtTomogram:
         *, 
         max_interval: nm = 30.0,
         cutoff: float = 0.35,
-        projection: bool = True,
         corr_allowed: float = 0.9,
+        mask_params: tuple[nm, nm] = (1.0, 1.0),
         max_shift: nm = 2.0,
     ) -> Self:
         """
@@ -714,10 +712,7 @@ class MtTomogram:
             Maximum interval of sampling points in nm unit.
         cutoff : float, default is 0.35
             The cutoff frequency of lowpass filter that will applied to subtomogram 
-            before alignment-based fitting. 
-        projection: bool, default is True
-            If true, 2-D images of projection along the longitudinal axis are used for boosting
-            correlation calculation. Otherwise 3-D images will be used.
+            before alignment-based fitting.
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
@@ -783,11 +778,7 @@ class MtTomogram:
                     subtomo: ip.ImgArray
                     subtomo.value[:] = subtomo.lowpass_filter(cutoff)
 
-            # prepare input images according to the options.
-            if projection:
-                inputs = subtomograms.proj("y")["x=::-1"]
-            else:
-                inputs = subtomograms["x=::-1"]
+            inputs = subtomograms.proj("y")["x=::-1"]
             
             inputs_ft = inputs.fft(dims=inputs["p=0"].axes)
             
@@ -799,8 +790,6 @@ class MtTomogram:
                 img: ip.ImgArray = inputs[i]
                 ft = inputs_ft[i]
                 shift = mirror_ft_pcc(ft, max_shifts=max_shift_px*2) / 2
-                if not projection:
-                    shift[1] = 0
                 imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
                 
             if corr_allowed < 1:
@@ -822,9 +811,6 @@ class MtTomogram:
             for i in range(npoints):
                 ft = inputs_ft[i]
                 shift = -ip.ft_pcc_maximum(template_ft, ft, max_shifts=max_shift_px)
-                
-                if not projection:
-                    shift = shift[[0, 2]]
                     
                 rad = np.deg2rad(skew_angles[i])
                 cos, sin = np.cos(rad), np.sin(rad)
@@ -882,10 +868,6 @@ class MtTomogram:
         nbin = roundint(r_max/self.scale/2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
-
-        # determine precise radius using centroid    
-        if self.light_background:
-            prof = -prof
         
         imax = np.nanargmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)

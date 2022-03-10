@@ -508,7 +508,6 @@ class MTPropsWidget(MagicTemplate):
         bin_size = vfield(4, record=False, options={"label": "bin size", "min": 1, "max": 8, "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."})
         subtomo_length = vfield(48.0, record=False, options={"label": "subtomogram length (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The axial length of subtomogram."})
         subtomo_width = vfield(44.0, record=False, options={"label": "subtomogram width (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The diameter of subtomogram."})
-        light_background = vfield(False, record=False, options={"label": "light background", "tooltip": "Check if background is bright."})
         use_lowpass = vfield(False, record=False, options={"label": "Apply low-pass filter","tooltip": "Check if images need prefilter."})
         cutoff_freq = vfield(0.2, record=False, options={"label": "Cutoff frequency (1/px)", "visible": False, "min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.866."})
         
@@ -544,7 +543,6 @@ class MTPropsWidget(MagicTemplate):
         path: Bound[_loader.path],
         scale: Bound[_loader.scale] = None,
         bin_size: Bound[_loader.bin_size] = None,
-        light_background: Bound[_loader.light_background] = False,
         cutoff: Bound[_loader._get_cutoff_freq] = None,
         subtomo_length: Bound[_loader.subtomo_length] = 48.,
         subtomo_width: Bound[_loader.subtomo_width] = 44.,
@@ -571,7 +569,6 @@ class MTPropsWidget(MagicTemplate):
             img, 
             path=path,
             binsize=bin_size,
-            light_bg=light_background,
             cutoff=cutoff, 
             length=subtomo_length,
             width=subtomo_width,
@@ -1647,8 +1644,6 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_returned(img: ip.ImgArray):
-            if self.tomogram.light_background:
-                img = -img
             self._subtomogram_averaging._show_reconstruction(img, f"[AVG]{layer.name}")
             if save_at is not None:
                 with ip.silent():
@@ -1728,8 +1723,6 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_returned(img: ip.ImgArray):
-            if self.tomogram.light_background:
-                img = -img
             self._subtomogram_averaging._show_reconstruction(img, f"Subtomogram average (n={number})")
         
         self._WorkerControl.info = f"Subtomogram Averaging (subset)"
@@ -2434,13 +2427,8 @@ class MTPropsWidget(MagicTemplate):
         
         # paint finely
         ref = self.layer_image.data
-        
-        if tomo.light_background:
-            thr = np.percentile(ref[lbl>0], 95)
-            lbl[ref>thr] = 0
-        else:
-            thr = np.percentile(ref[lbl>0], 5)
-            lbl[ref<thr] = 0
+        thr = np.percentile(ref[lbl>0], 5)
+        lbl[ref<thr] = 0
         
         # Labels layer properties
         _id = "ID"
@@ -2554,7 +2542,6 @@ class MTPropsWidget(MagicTemplate):
         img: ip.LazyImgArray,
         path: str,
         binsize: int,
-        light_bg: bool, 
         cutoff: float,
         length: nm,
         width: nm,
@@ -2590,7 +2577,6 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(imgb: ip.ImgArray):
             tr = (binsize - 1)/2*img.scale.x
-            rendering = "minip" if light_bg else "mip"
             
             # update image layer
             if self.layer_image not in viewer.layers:
@@ -2600,7 +2586,6 @@ class MTPropsWidget(MagicTemplate):
                     name=imgb.name, 
                     translate=[tr, tr, tr],
                     contrast_limits=[np.min(imgb), np.max(imgb)],
-                    rendering=rendering
                 )
             else:
                 self.layer_image.data = imgb
@@ -2608,7 +2593,6 @@ class MTPropsWidget(MagicTemplate):
                 self.layer_image.name = imgb.name
                 self.layer_image.translate = [tr, tr, tr]
                 self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
-                self.layer_image.rendering = rendering
             
             # update viewer dimensions
             viewer.scale_bar.unit = img.scale_unit
@@ -2629,8 +2613,7 @@ class MTPropsWidget(MagicTemplate):
             
             if new:
                 tomo = MtTomogram(subtomogram_length=length, 
-                                  subtomogram_width=width, 
-                                  light_background=light_bg)
+                                  subtomogram_width=width)
                 # metadata for GUI
                 tomo._set_image(img)
                 tomo.metadata["source"] = str(path)

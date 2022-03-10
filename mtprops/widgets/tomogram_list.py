@@ -57,7 +57,6 @@ class TomogramList(MagicTemplate):
             tomo.image, 
             path=tomo.metadata["source"],
             binsize=tomo.metadata["binsize"], 
-            light_bg=tomo.light_background, 
             cutoff=tomo.metadata["cutoff"],
             length=tomo.subtomo_length,
             width=tomo.subtomo_width,
