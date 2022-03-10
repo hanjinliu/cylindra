@@ -462,6 +462,40 @@ class SubtomogramLoader:
         
         return out
     
+    def iter_zncc(
+        self,
+        template: ip.ImgArray = None,
+        mask: ip.ImgArray = None,
+        order: int = 1,
+        nbatch: int = 24,
+    ) -> Generator[np.ndarray, None, np.ndarray]:
+        corr = np.zeros(len(self.molecules), dtype=np.float32)
+        template_masked = template * mask
+        n = 0
+        with ip.silent():
+            for i, subvol in enumerate(self.iter_subtomograms(order=order)):
+                corr[i] = ip.zncc(subvol*mask, template_masked)
+                n += 1
+                if n % nbatch == nbatch - 1:
+                    yield corr
+        
+        return corr
+    
+    def zncc(
+        self,
+        template: ip.ImgArray = None,
+        mask: ip.ImgArray = None,
+        order: int = 1,
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ):
+        align_iter = self.iter_zncc(
+            template=template, 
+            mask=mask,
+            order=order,
+        )
+        
+        return self._resolve_iterator(align_iter, callback)
+        
     def iter_each_seam(
         self,
         npf: int,
