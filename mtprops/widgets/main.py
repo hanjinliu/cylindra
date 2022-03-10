@@ -127,7 +127,10 @@ class MTPropsWidget(MagicTemplate):
     class Molecules(MagicTemplate):
         def Show_orientation(self): ...
         def Calculate_intervals(self): ...
-        def Show_isotypes(self): ...
+        @magicmenu(name="Paint by ...")
+        class PaintBy(MagicTemplate):
+            def Isotypes(self): ...
+            def ZNCC(self): ...
         
     @magicmenu
     class Analysis(MagicTemplate):
@@ -332,19 +335,20 @@ class MTPropsWidget(MagicTemplate):
         
         total = (1 + n_refine + int(local_props) + int(global_props)) * len(splines)
         
-        worker = create_worker(_iter_run, 
-                               tomo=self.tomogram,
-                               splines=splines,
-                               interval=interval,
-                               ft_size=ft_size,
-                               n_refine=n_refine,
-                               max_shift=max_shift,
-                               edge_sigma=edge_sigma,
-                               local_props=local_props,
-                               global_props=global_props,
-                               _progress={"total": total, 
-                                          "desc": "Running MTProps"}
-                               )
+        worker = create_worker(
+            _iter_run, 
+            tomo=self.tomogram,
+            splines=splines,
+            interval=interval,
+            ft_size=ft_size,
+            n_refine=n_refine,
+            max_shift=max_shift,
+            edge_sigma=edge_sigma,
+            local_props=local_props,
+            global_props=global_props,
+            _progress={"total": total, 
+                       "desc": "Running MTProps"}
+        )
         
         @worker.yielded.connect
         def _on_yield(out):
@@ -358,13 +362,15 @@ class MTPropsWidget(MagicTemplate):
                 self._update_splines_in_images()
                 if local_props or global_props:
                     self.Sample_subtomograms()
-                if local_props:
-                    if paint:
-                        self.Paint_MT()
+                    if global_props:
+                        df = self.tomogram.collect_globalprops(i=splines).transpose()
+                        df.columns = [f"Spline-{i}" for i in splines]
+                        self.Panels.log.print_table(df, precision=3)
+                if local_props and paint:
+                    self.Paint_MT()
                 tomo.metadata["ft_size"] = self._last_ft_size
                 if global_props:
                     self._update_global_properties_in_widget()
-            self.Panels.log.print("MTProps done!")
         self._last_ft_size = ft_size
         self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
         return worker
@@ -658,8 +664,9 @@ class MTPropsWidget(MagicTemplate):
         cutoff = 0.2
         def func():
             with ip.silent(), set_gpu():
-                self.layer_image.data = self.layer_image.data.tiled_lowpass_filter(
-                    cutoff, chunks=(32, 128, 128)
+                img: ip.ImgArray = self.layer_image.data
+                self.layer_image.data = img.tiled_lowpass_filter(
+                    cutoff, chunks=(96, 96, 96), overlap=32,
                     )
             return np.percentile(self.layer_image.data, [1, 97])
         worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
@@ -1088,7 +1095,7 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(out: List[Molecules]):
-            self.Panels.log.print_html("<code>Map monomers</code>")
+            self.Panels.log.print_html("<code>Map_monomers</code>")
             for i, mol in enumerate(out):
                 _name = f"Mono-{i}"
                 spl = tomo.splines[i]
@@ -1183,7 +1190,7 @@ class MTPropsWidget(MagicTemplate):
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
-        self.Panels.log.print_html("<code>Map centers</code>")
+        self.Panels.log.print_html("<code>Map_centers</code>")
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
             add_molecules(self.parent_viewer, mol, _name, source=tomo.splines[splines[i]])
@@ -1215,7 +1222,7 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
-        self.Panels.log.print_html("<code>Map along PF</code>")
+        self.Panels.log.print_html("<code>Map_along_PF</code>")
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
             add_molecules(self.parent_viewer, mol, _name, source=tomo.splines[splines[i]])
@@ -1332,8 +1339,8 @@ class MTPropsWidget(MagicTemplate):
         layer.refresh()
         return None
     
-    @Molecules.wraps
-    def Show_isotypes(
+    @Molecules.PaintBy.wraps
+    def isotypes(
         self,
         layer: MonomerLayer,
         color_0: Color = "orange",
@@ -1358,6 +1365,19 @@ class MTPropsWidget(MagicTemplate):
         colors = np.where(spec, [color_0]*nmole, [color_1]*nmole)
         layer.face_color = colors
         layer.edge_color = colors
+        layer.refresh()
+        return None
+    
+    @Molecules.PaintBy.wraps
+    def ZNCC(
+        self,
+        layer: MonomerLayer,
+    ):
+        if Mole.zncc not in layer.features.columns:
+            raise ValueError("ZNCC is not determined yet.")
+        layer.face_color = Mole.zncc
+        layer.edge_color = Mole.zncc
+        layer.face_colormap = layer.edge_colormap = self.label_colormap
         layer.refresh()
         return None
         
@@ -1513,6 +1533,7 @@ class MTPropsWidget(MagicTemplate):
         class Subtomogram_analysis(MagicTemplate):
             def Average_all(self): ...
             def Average_subset(self): ...
+            def Calculate_correlation(self): ...
             def Calculate_FSC(self): ...
             def Seam_search(self): ...
         
@@ -1806,7 +1827,9 @@ class MTPropsWidget(MagicTemplate):
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
-                
+        
+        self.Panels.log.print_html(f"<code>Align_averaged</code>")
+        
         @worker.returned.connect
         def _on_return(image_avg: ip.ImgArray):
             from ..components._align_utils import align_image_to_template, transform_molecules
@@ -1817,11 +1840,16 @@ class MTPropsWidget(MagicTemplate):
                     img = img[sl]
                     
                 rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
+                deg = np.rad2deg(rot)
                 cval = np.percentile(image_avg, 1)
                 shifted_image = image_avg.affine(
                     translation=shift, cval=cval
-                    ).rotate(np.rad2deg(rot), dims="zx", cval=cval)
+                    ).rotate(deg, dims="zx", cval=cval)
 
+            shift_nm = shift * self.tomogram.scale
+            vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
+            shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
+            self.Panels.log.print_html(f"rotation = {deg:.2f}°, {vec_str} = {shift_nm_str}")
             points = add_molecules(
                 self.parent_viewer, 
                 transform_molecules(molecules, shift * self.tomogram.scale, [0, -rot, 0]),
@@ -1831,7 +1859,7 @@ class MTPropsWidget(MagicTemplate):
             points.features = layer.features
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
             layer.visible = False
-            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name!r} --> {points.name!r}")
+            self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         return worker
@@ -1908,6 +1936,8 @@ class MTPropsWidget(MagicTemplate):
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
+        
+        self.Panels.log.print_html(f"<code>Align_all</code>")
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
@@ -1919,7 +1949,7 @@ class MTPropsWidget(MagicTemplate):
             )
             points.features = layer.features
             layer.visible = False
-            self.Panels.log.print_html(f"<code>Align_averaged</code> {layer.name!r} --> {points.name!r}")
+            self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
@@ -2023,6 +2053,48 @@ class MTPropsWidget(MagicTemplate):
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
         return worker
 
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @set_options(
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+    )
+    @dispatch_worker
+    def Calculate_correlation(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        interpolation: int = 1,
+        use_binned_image: bool = False,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+    ):
+        molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        nmole = len(molecules)
+        
+        loader, template, mask = self._check_binning_for_alignment(
+            template, mask, use_binned_image, molecules, chunk_size
+        )
+        nbatch = 24
+        worker = create_worker(
+            loader.iter_zncc,
+            template=template, 
+            mask=mask,
+            order=interpolation,
+            nbatch=nbatch,
+            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+        )
+        
+        @worker.returned.connect
+        def _on_return(corr):
+            with self.Panels.log.set_plt():
+                plt.hist(corr, bins=50)
+                plt.title("Zero Normalized Cross Correlation")
+                plt.show()
+            update_features(layer, Mole.zncc, corr)
+        
+        return worker
+        
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
@@ -2181,7 +2253,7 @@ class MTPropsWidget(MagicTemplate):
             imax = np.argmax(score)
                 
             # plot all the correlation
-            self.Panels.log.print("<code>Seam_search</code>")
+            self.Panels.log.print_html("<code>Seam_search</code>")
             with self.Panels.log.set_plt():
                 plt.axvline(imax, color="gray", alpha=0.5)
                 plt.axhline(corrs[imax], color="gray", alpha=0.5)
@@ -2203,10 +2275,9 @@ class MTPropsWidget(MagicTemplate):
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
             
-            self.Panels.log.print("Seam search finished.")
-            self.Panels.log.print_table({"PF position": np.arange(2*npf),
-                                         "ΔCorr": corrs,
-                                         "score": score,}, index=False)
+            self.Panels.log.print_html("<b>Seam search result</b>")
+            self.Panels.log.print_table({"ΔCorr": corrs,
+                                         "score": score,}, precision=3)
             
             update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
             
@@ -2436,12 +2507,12 @@ class MTPropsWidget(MagicTemplate):
     def Show_colorbar(self):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
-        plt = Figure()
-        plt.imshow(arr)
         xmin, xmax = self.label_colorlimit
-        plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
-        plt.yticks([], [])
-        plt.show()
+        with self.Panels.log.set_plt():
+            plt.imshow(arr)
+            plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
+            plt.yticks([], [])
+            plt.show()
         return None
     
     @nogui
@@ -2501,7 +2572,7 @@ class MTPropsWidget(MagicTemplate):
         def _run(img: ip.LazyImgArray, binsize: int, cutoff: float):
             with ip.silent():
                 if 0 < cutoff < 0.866:
-                    img.tiled_lowpass_filter(cutoff, update=True)
+                    img.tiled_lowpass_filter(cutoff, update=True, overlap=32)
                     img.release()
                 imgb = img.binning(binsize, check_edges=False).compute()
             

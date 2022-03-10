@@ -470,6 +470,8 @@ class SubtomogramLoader:
         nbatch: int = 24,
     ) -> Generator[np.ndarray, None, np.ndarray]:
         corr = np.zeros(len(self.molecules), dtype=np.float32)
+        if mask is None:
+            mask = 1
         template_masked = template * mask
         n = 0
         with ip.silent():

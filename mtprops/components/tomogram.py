@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import logging
 
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpecKwargs
@@ -36,17 +37,22 @@ from ..utils import (
     mirror_pcc,
     mirror_ft_pcc,
     angle_uniform_filter,
-    )
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
 
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
+LOGGER = logging.getLogger(__name__.split(".")[0])
 
 def tandg(x):
     """Tangent in degree."""
     return np.tan(np.deg2rad(x))
+
+def rmsd(shifts: ArrayLike) -> float:
+    shifts = np.atleast_2d(shifts)
+    return np.sqrt(np.sum(shifts**2)/shifts.shape[0])
 
 _KW = ParamSpecKwargs("_KW")
 _RETURN = TypeVar("_RETURN")
@@ -573,7 +579,8 @@ class MtTomogram:
         -------
         MtTomogram
             Same object with updated MtSpline objects.
-        """        
+        """
+        LOGGER.info(f"Running: {self.__class__.__name__}.fit, i={i}")
         spl = self._splines[i]
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
@@ -628,6 +635,7 @@ class MtTomogram:
                 out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
             refined_tilt_deg = np.array(out)
             refined_tilt_rad = np.deg2rad(refined_tilt_deg)
+            LOGGER.info(f" >> Angles (deg): {np.round(refined_tilt_deg, 1)}")
             
             # If subtomograms are sampled at short intervals, angles should be smoothened to 
             # avoid overfitting.
@@ -679,7 +687,7 @@ class MtTomogram:
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0]  # unit: nm^2
         spl.fit(coords, s=sqsum)
-        
+        LOGGER.info(f" >> Shift RMSD: {rmsd(shifts):.3f}")
         return self
     
     @batch_process
@@ -722,12 +730,18 @@ class MtTomogram:
         MtTomogram
             Same object with updated MtSpline objects.
         """
+        LOGGER.info(f"Running: {self.__class__.__name__}.refine, i={i}")
         spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
             self.set_radius(i=i)
-            
-        props = self.global_ft_params(i)
+        
+        level = LOGGER.level
+        LOGGER.setLevel(logging.WARNING)
+        try:
+            props = self.global_ft_params(i)
+        finally:
+            LOGGER.setLevel(level)
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
@@ -738,6 +752,8 @@ class MtTomogram:
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
+        
+        LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f}°, PF = {npf}")
         
         skew_angles = np.arange(npoints) * interval/lp * skew
         pf_ang = 360/npf
@@ -789,10 +805,11 @@ class MtTomogram:
                 
             if corr_allowed < 1:
                 # remove low correlation image from calculation of template image.
-                corrs = ip.zncc(imgs_aligned, imgs_aligned["z=::-1;x=::-1"])
+                corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned["z=::-1;x=::-1"]))
                 threshold = np.quantile(corrs, 1 - corr_allowed)
                 indices: np.ndarray = np.where(corrs >= threshold)[0]
                 imgs_aligned = imgs_aligned[indices.tolist()]
+                LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
             
             # Make template using coarse aligned images.
             imgcory: ip.ImgArray = imgs_aligned.proj("p")
@@ -818,6 +835,7 @@ class MtTomogram:
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
         spl.shift_fit(shifts=shifts*self.scale, s=sqsum)
+        LOGGER.info(f" >> Shift RMSD: {rmsd(shifts):.3f}")
         return self
     
     @batch_process
@@ -897,8 +915,10 @@ class MtTomogram:
         pd.DataFrame
             Local properties.
         """        
+        LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
         spl = self.splines[i]
         if spl.localprops is not None:
+            LOGGER.info(" >> cache is returned")
             return spl.localprops
         
         if spl.radius is None:
@@ -908,6 +928,7 @@ class MtTomogram:
         rmin = spl.radius * GVar.inner / self.scale
         rmax = spl.radius * GVar.outer / self.scale
         tasks = []
+        LOGGER.info(f" >> Rmin = {rmin:.2f} nm, Rmax = {rmax:.2f} nm")
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
             tasks.append(
@@ -1013,8 +1034,10 @@ class MtTomogram:
         pd.DataFrame
             Global properties.
         """        
+        LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self._splines[i]
         if spl.globalprops is not None:
+            LOGGER.info(f" >> cache is returned")
             return spl.globalprops
         
         img_st = self.straighten_cylindric(i)
@@ -1266,7 +1289,7 @@ class MtTomogram:
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
-        npf = int(props[H.nPF])
+        npf = roundint(props[H.nPF])
         radius = spl.radius
         
         ny = roundint(length/pitch) # number of monomers in y-direction

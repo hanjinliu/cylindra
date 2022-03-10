@@ -94,6 +94,7 @@ class Mole(SimpleNamespace):
     
     pf = "molecules-pf"
     isotype = "molecules-isotype"
+    zncc = "molecules-zncc"
 
     
 class EulerAxes(strEnum):
@@ -138,7 +139,7 @@ class GVar:
     splError: nm = 0.8
     inner: float = 0.8
     outer: float = 1.3
-    daskChunk: int = (128, 256, 256)
+    daskChunk: int = (256, 256, 256)
     GPU: bool = True
     
     @classmethod
