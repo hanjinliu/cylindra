@@ -1340,7 +1340,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules.PaintBy.wraps
-    def isotypes(
+    def Isotypes(
         self,
         layer: MonomerLayer,
         color_0: Color = "orange",
@@ -1373,6 +1373,14 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
     ):
+        """
+        Paint molecules according to its Zero Normalized Cross Correlation with the template image.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Molecules-bound layer.
+        """
         if Mole.zncc not in layer.features.columns:
             raise ValueError("ZNCC is not determined yet.")
         layer.face_color = Mole.zncc
@@ -1849,7 +1857,7 @@ class MTPropsWidget(MagicTemplate):
             shift_nm = shift * self.tomogram.scale
             vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
             shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-            self.Panels.log.print_html(f"rotation = {deg:.2f}°, {vec_str} = {shift_nm_str}")
+            self.Panels.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
             points = add_molecules(
                 self.parent_viewer, 
                 transform_molecules(molecules, shift * self.tomogram.scale, [0, -rot, 0]),
@@ -2093,6 +2101,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.show()
             update_features(layer, Mole.zncc, corr)
         
+        self._WorkerControl.info = "Calculating Correlation"
         return worker
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2160,13 +2169,16 @@ class MTPropsWidget(MagicTemplate):
             with ip.silent():
                 freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
             
-            ind = (freq <= 0.5)
+            ind = (freq <= 0.7)
             with self.Panels.log.set_plt():
                 plt.plot(freq[ind], fsc[ind], color="gold")
                 plt.xlabel("Frequency")
                 plt.ylabel("FSC")
                 plt.ylim(-0.1, 1.1)
                 plt.title(f"FSC of {layer.name}")
+                xticks = np.linspace(0, 0.7, 8)
+                per_nm = ["$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
+                plt.xticks(xticks, per_nm)
                 plt.show()
             self.Panels.log.print("FSC calculation finished")
             self.Panels.log.print_table({"freqency": freq, "FSC": fsc}, index=False)

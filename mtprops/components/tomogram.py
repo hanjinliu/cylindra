@@ -687,7 +687,7 @@ class MtTomogram:
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0]  # unit: nm^2
         spl.fit(coords, s=sqsum)
-        LOGGER.info(f" >> Shift RMSD: {rmsd(shifts):.3f}")
+        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * self.scale):.3f} nm")
         return self
     
     @batch_process
@@ -753,7 +753,7 @@ class MtTomogram:
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
         
-        LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f}°, PF = {npf}")
+        LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}")
         
         skew_angles = np.arange(npoints) * interval/lp * skew
         pf_ang = 360/npf
@@ -809,7 +809,7 @@ class MtTomogram:
                 threshold = np.quantile(corrs, 1 - corr_allowed)
                 indices: np.ndarray = np.where(corrs >= threshold)[0]
                 imgs_aligned = imgs_aligned[indices.tolist()]
-                LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
+                LOGGER.info(f" >> Correlation = {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
             
             # Make template using coarse aligned images.
             imgcory: ip.ImgArray = imgs_aligned.proj("p")
@@ -834,8 +834,9 @@ class MtTomogram:
 
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
-        spl.shift_fit(shifts=shifts*self.scale, s=sqsum)
-        LOGGER.info(f" >> Shift RMSD: {rmsd(shifts):.3f}")
+        shifts_nm = shifts*self.scale
+        spl.shift_fit(shifts=shifts_nm, s=sqsum)
+        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts_nm):.3f} nm")
         return self
     
     @batch_process
@@ -928,7 +929,7 @@ class MtTomogram:
         rmin = spl.radius * GVar.inner / self.scale
         rmax = spl.radius * GVar.outer / self.scale
         tasks = []
-        LOGGER.info(f" >> Rmin = {rmin:.2f} nm, Rmax = {rmax:.2f} nm")
+        LOGGER.info(f" >> Rmin = {rmin * self.scale:.2f} nm, Rmax = {rmax * self.scale:.2f} nm")
         for anc in spl.anchors:
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
             tasks.append(
