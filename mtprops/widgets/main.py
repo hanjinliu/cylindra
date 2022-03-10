@@ -420,6 +420,8 @@ class MTPropsWidget(MagicTemplate):
         splError={"max": 5.0, "step": 0.1},
         inner={"step": 0.1},
         outer={"step": 0.1},
+        fitLength={"min": 3.0, "max": 100.0},
+        fitWidth={"min": 3.0, "max": 100.0},
         daskChunk={"options": {"min": 16, "max": 2048, "step": 16}},
         GPU={"label": "Use GPU if available"},
     )
@@ -435,6 +437,8 @@ class MTPropsWidget(MagicTemplate):
         splError: nm = GVar.splError,
         inner: float = GVar.inner,
         outer: float = GVar.outer,
+        fitLength: nm = GVar.fitLength,
+        fitWidth: nm = GVar.fitWidth,
         daskChunk: _Tuple[int, int, int] = GVar.daskChunk,
         GPU: bool = GVar.GPU,
     ):
@@ -506,8 +510,6 @@ class MTPropsWidget(MagicTemplate):
         path = vfield(Path, record=False, options={"filter": "*.tif;*.tiff;*.mrc;*.rec", "tooltip": "Path to tomogram."})
         scale = vfield(str, record=False, options={"label": "scale (nm)", "tooltip": "Pixel size in nm/pixel."})
         bin_size = vfield(4, record=False, options={"label": "bin size", "min": 1, "max": 8, "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."})
-        subtomo_length = vfield(48.0, record=False, options={"label": "subtomogram length (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The axial length of subtomogram."})
-        subtomo_width = vfield(44.0, record=False, options={"label": "subtomogram width (nm)", "min": 2.0, "max": 100.0, "step": 4.0, "tooltip": "The diameter of subtomogram."})
         use_lowpass = vfield(False, record=False, options={"label": "Apply low-pass filter","tooltip": "Check if images need prefilter."})
         cutoff_freq = vfield(0.2, record=False, options={"label": "Cutoff frequency (1/px)", "visible": False, "min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.866."})
         
@@ -544,8 +546,6 @@ class MTPropsWidget(MagicTemplate):
         scale: Bound[_loader.scale] = None,
         bin_size: Bound[_loader.bin_size] = None,
         cutoff: Bound[_loader._get_cutoff_freq] = None,
-        subtomo_length: Bound[_loader.subtomo_length] = 48.,
-        subtomo_width: Bound[_loader.subtomo_width] = 44.,
     ):
         """Start loading image."""
         img = ip.lazy_imread(path, chunks=GVar.daskChunk)
@@ -569,9 +569,7 @@ class MTPropsWidget(MagicTemplate):
             img, 
             path=path,
             binsize=bin_size,
-            cutoff=cutoff, 
-            length=subtomo_length,
-            width=subtomo_width,
+            cutoff=cutoff,
             )
         
         self._loader.close()
@@ -2297,8 +2295,8 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         binsize = roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
         
-        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
-        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        length_px = tomo.nm2pixel(GVar.fitLength/binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth/binsize)
         
         shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
@@ -2335,8 +2333,8 @@ class MTPropsWidget(MagicTemplate):
         binsize = roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
         selected = self.layer_work.selected_data
         
-        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
-        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        length_px = tomo.nm2pixel(GVar.fitLength/binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth/binsize)
         
         shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
@@ -2543,8 +2541,6 @@ class MTPropsWidget(MagicTemplate):
         path: str,
         binsize: int,
         cutoff: float,
-        length: nm,
-        width: nm,
         *, 
         new: bool = True
     ):
@@ -2612,8 +2608,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.overview.ylim = (0, proj.shape[0])
             
             if new:
-                tomo = MtTomogram(subtomogram_length=length, 
-                                  subtomogram_width=width)
+                tomo = MtTomogram()
                 # metadata for GUI
                 tomo._set_image(img)
                 tomo.metadata["source"] = str(path)
@@ -2657,7 +2652,7 @@ class MTPropsWidget(MagicTemplate):
             return ""
         else:
             point0 = self.layer_work.data[-1]
-            box_size = (tomo.subtomo_width,) + ((tomo.subtomo_width+tomo.subtomo_length)/1.41,)*2
+            box_size = (GVar.fitWidth,) + ((GVar.fitWidth+GVar.fitLength)/1.41,)*2
             
             if not np.all([r/4 <= p < s - r/4
                            for p, s, r in zip(point0, imgshape_nm, box_size)]):
@@ -2674,8 +2669,8 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         spl = tomo._splines[i]
         
-        l = tomo.nm2pixel(tomo.subtomo_length)
-        w = tomo.nm2pixel(tomo.subtomo_width)
+        l = tomo.nm2pixel(GVar.fitLength)
+        w = tomo.nm2pixel(GVar.fitWidth)
         
         coords = spl.local_cartesian((w, w), l, spl.anchors[j])
         img = tomo.image

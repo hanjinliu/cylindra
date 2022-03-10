@@ -123,8 +123,8 @@ class SplineControl(MagicTemplate):
         binsize = tomo.metadata["binsize"]
         imgb = parent.layer_image.data
         
-        length_px = tomo.nm2pixel(tomo.subtomo_length/binsize)
-        width_px = tomo.nm2pixel(tomo.subtomo_width/binsize)
+        length_px = tomo.nm2pixel(GVar.fitLength/binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth/binsize)
         
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian((width_px, length_px, width_px), spl.scale*binsize)

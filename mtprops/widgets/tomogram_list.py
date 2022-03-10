@@ -58,8 +58,6 @@ class TomogramList(MagicTemplate):
             path=tomo.metadata["source"],
             binsize=tomo.metadata["binsize"], 
             cutoff=tomo.metadata["cutoff"],
-            length=tomo.subtomo_length,
-            width=tomo.subtomo_width,
             new=False
             )
         parent._last_ft_size = tomo.metadata.get("ft_size", None)

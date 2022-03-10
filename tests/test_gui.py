@@ -20,8 +20,7 @@ def test_spline_switch():
     viewer = napari.Viewer()
     ui = start(viewer)
     path = Path(__file__).parent / "13pf_MT.tif"
-    ui.load_tomogram(path=path, scale='1.052', bin_size=2,
-                     cutoff=0.0, subtomo_length=48.0, subtomo_width=44.0)
+    ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
     ui.Apply_lowpass_to_reference_image()
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
@@ -123,16 +122,14 @@ def test_many_tomograms():
     viewer = napari.Viewer()
     ui = start(viewer)
     path = Path(__file__).parent / "13pf_MT.tif"
-    ui.load_tomogram(path=path, scale='1.052', bin_size=2,
-                     cutoff=0.0, subtomo_length=48.0, subtomo_width=44.0)
+    ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
     ui.register_path(coords=coords_13pf)
     ui.run_mtprops()
     assert_canvas(ui, [False, False, False])
     spl0 = ui.get_current_spline()
     
     path = Path(__file__).parent / "14pf_MT.tif"
-    ui.load_tomogram(path=path, scale='1.052', bin_size=2,
-                     cutoff=0.0, subtomo_length=48.0, subtomo_width=44.0)
+    ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
     assert_canvas(ui, [True, True, True])
     ui.register_path(coords=coords_14pf)
     ui.run_mtprops()

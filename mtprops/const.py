@@ -139,6 +139,8 @@ class GVar:
     splError: nm = 0.8
     inner: float = 0.8
     outer: float = 1.3
+    fitLength: nm = 48.0
+    fitWidth: nm = 44.0
     daskChunk: int = (256, 256, 256)
     GPU: bool = True
     

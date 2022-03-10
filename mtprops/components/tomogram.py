@@ -9,6 +9,7 @@ else:
     from typing import ParamSpecKwargs
     
 from typing import Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING
+from pathlib import Path
 import json
 from functools import partial, wraps
 import numpy as np
@@ -278,18 +279,10 @@ class MtTomogram:
     """
     _image: ip.LazyImgArray
 
-    def __init__(
-        self, 
-        *,
-        subtomogram_length: nm = 48.0,
-        subtomogram_width: nm = 44.0,
-    ):
-        self.subtomo_length = subtomogram_length
-        self.subtomo_width = subtomogram_width
+    def __init__(self):
         self._splines: list[MtSpline] = []
-        self.metadata: dict[str, Any] = {}
-        
-    
+        self._metadata: dict[str, Any] = {}
+
     def __hash__(self) -> int:
         return id(self)
     
@@ -299,7 +292,15 @@ class MtTomogram:
     def __str__(self) -> str:
         shape = str(self._image.shape).lstrip("AxesShape")
         return f"{self.__class__.__name__}{shape!r}"
-            
+    
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self._metadata
+    
+    @property
+    def source(self) -> Path:
+        return self.metadata["source"]
+    
     @property
     def splines(self) -> list[MtSpline]:
         """List of splines."""
@@ -316,13 +317,9 @@ class MtTomogram:
         path: str,
         *, 
         scale: float = None,
-        subtomogram_length: nm = 48.0,
-        subtomogram_width: nm = 44.0,
     ) -> Self:
         
-        self = cls(subtomogram_length=subtomogram_length,
-                   subtomogram_width=subtomogram_width,
-                   )
+        self = cls()
         img = ip.lazy_imread(path, chunks=GVar.daskChunk).as_float()
         if scale is not None:
             img.set_scale(xyz=scale)
@@ -332,6 +329,7 @@ class MtTomogram:
                 raise ValueError("Uneven scale.")
         
         self._set_image(img)
+        self._metadata["source"] = Path(path).resolve()
         return self
         
     @property
@@ -562,7 +560,7 @@ class MtTomogram:
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.
-        cutoff : float, default is 0.35
+        cutoff : float, default is 0.2
             The cutoff frequency of lowpass filter that will applied to subtomogram 
             before alignment-based fitting. 
         edge_sigma : nm, default is 2.0
@@ -584,8 +582,8 @@ class MtTomogram:
         npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
         spl = self._splines[i]
-        length_px = self.nm2pixel(self.subtomo_length)
-        width_px = self.nm2pixel(self.subtomo_width)
+        length_px = self.nm2pixel(GVar.fitLength)
+        width_px = self.nm2pixel(GVar.fitWidth)
         
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # sqrt(2) * (length + width)
@@ -615,7 +613,7 @@ class MtTomogram:
                 for i, ds in enumerate(spl(der=1)):
                     _, vy, vx = ds
                     distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * self.scale
-                    distance_cutoff = self.subtomo_width / 2
+                    distance_cutoff = GVar.fitWidth / 2
                     if edge_sigma == 0:
                         mask_yx = (distance > distance_cutoff).astype(np.float32)
                     else:
@@ -657,7 +655,7 @@ class MtTomogram:
             if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
                 xc = int(subtomo_proj.shape.x/2)
-                w = int((self.subtomo_width/self.scale)/2)
+                w = int((GVar.fitWidth/self.scale)/2)
                 subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
 
             shifts = np.zeros((npoints, 2)) # zx-shift
@@ -755,14 +753,14 @@ class MtTomogram:
         skew_angles %= pf_ang
         skew_angles[skew_angles > pf_ang/2] -= pf_ang
         
-        length_px = self.nm2pixel(self.subtomo_length)
-        width_px = self.nm2pixel(self.subtomo_width)
+        length_px = self.nm2pixel(GVar.fitLength)
+        width_px = self.nm2pixel(GVar.fitWidth)
         
         images: list[ip.ImgArray] = []
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
-        chunksize = max(int(self.subtomo_length*2/interval), 1)
+        chunksize = max(int(GVar.fitLength*2/interval), 1)
         with set_gpu():
             for coords in mole.iter_cartesian((width_px, length_px, width_px), 
                                             self.scale, chunksize=chunksize):
@@ -848,8 +846,8 @@ class MtTomogram:
         if spl._anchors is None:
             spl.make_anchors(n=3)
             
-        length_px = self.nm2pixel(self.subtomo_length)
-        width_px = self.nm2pixel(self.subtomo_width)
+        length_px = self.nm2pixel(GVar.fitLength)
+        width_px = self.nm2pixel(GVar.fitWidth)
         
         mole = spl.anchors_to_molecules()
         images: list[ip.ImgArray] = []
@@ -864,7 +862,7 @@ class MtTomogram:
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(self.image)
         
-        r_max = self.subtomo_width / 2
+        r_max = GVar.fitWidth / 2
         nbin = roundint(r_max/self.scale/2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
