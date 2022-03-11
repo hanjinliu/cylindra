@@ -38,9 +38,18 @@ class Tomogram:
     def metadata(self) -> dict[str, Any]:
         return self._metadata
     
+    @metadata.setter
+    def metadata(self, v: dict):
+        if not isinstance(v, dict):
+            raise TypeError(f"Cannot set type {type(v)} as a metadata.")
+        self._metadata = v
+    
     @property
     def source(self) -> Path:
-        return self.metadata["source"]
+        source = self.metadata.get("source", None)
+        if source is None:
+            raise ValueError("Source file is unknown.")
+        return Path(source)
     
     @classmethod
     def imread(

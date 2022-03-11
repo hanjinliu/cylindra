@@ -1,5 +1,5 @@
 import os.path
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 from magicclass import (
     magicclass,
@@ -19,15 +19,15 @@ class TomogramList(MagicTemplate):
     _tomogram_list: List[MtTomogram]
     
     def __init__(self):
-        self._tomogram_list = []
+        self._tomogram_list: list[MtTomogram] = []
+        self._metadata_list: list[dict[str, Any]] = []
         
     def _get_tomograms(self, widget=None) -> List[Tuple[str, int]]:
         out: List[Tuple[str, int]] = []
         for i, tomo in enumerate(self._tomogram_list):
             try:
-                d, name0 = os.path.split(tomo.metadata["source"])
-                _, name1 = os.path.split(d)
-                name = os.path.join(name1, name0)
+                parts = tomo.source.parts
+                name = os.path.join(parts[-2:])
             except Exception:
                 name = f"Tomogram<{hex(id(tomo))}>"
             out.append((name, i))
@@ -80,8 +80,7 @@ class TomogramList(MagicTemplate):
     def Copy_path(self, i: Bound[tomograms]):
         """Copy the path to the image file of the selected tomogram."""
         tomo: MtTomogram = self._tomogram_list[i]
-        if "source" in tomo.metadata:
-            to_clipboard(tomo.metadata["source"])
+        to_clipboard(str(tomo.source))
             
     @Tools.wraps
     def Delete(self, i: Bound[tomograms]):

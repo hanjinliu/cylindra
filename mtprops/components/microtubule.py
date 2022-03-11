@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 
 import sys
 import logging
@@ -56,8 +57,7 @@ def rmsd(shifts: ArrayLike) -> float:
     shifts = np.atleast_2d(shifts)
     return np.sqrt(np.sum(shifts**2)/shifts.shape[0])
 
-def json_encoder(obj: Any):
-    
+def json_encoder(obj: Any):    
     """Enable Enum and pandas encoding."""
     if isinstance(obj, Ori):
         return obj.name
@@ -65,6 +65,8 @@ def json_encoder(obj: Any):
         return obj.to_dict(orient="list")
     elif isinstance(obj, pd.Series):
         return obj.to_dict()
+    elif isinstance(obj, Path):
+        return str(obj)
     else:
         raise TypeError(f"{obj!r} is not JSON serializable")
 
