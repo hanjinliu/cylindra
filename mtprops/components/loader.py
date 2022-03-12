@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import partial
-from typing import Any, Callable, Generator, Iterator, Iterable, TYPE_CHECKING, TypeVar
+from typing import Any, Callable, Generator, Generic, Iterator, Iterable, TYPE_CHECKING, TypeVar
 from typing_extensions import ParamSpec
 import warnings
 import weakref
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 _V = TypeVar("_V")
 _P = ParamSpec("_P")
 
-class SubtomogramLoader(Iterator[_V]):
+class SubtomogramLoader(Generic[_V]):
     """
     A class for efficient loading of subtomograms.
     
@@ -172,32 +172,29 @@ class SubtomogramLoader(Iterator[_V]):
         fp = partial(f, *args, **kwargs)
         return map(fp, self.iter_subtomograms)
     
-    def drop(self, nbatch: int = 24) -> Iterator[_V]:
-        n = 0
-        for i, subvol in enumerate(self):
-            n += 1
-            if i % n == 0:
-                yield subvol
-    
     def iter_to_memmap(self, path: str | None = None):
         shape = (len(self.molecules),) + self.output_shape
-        mmap = np.memmap(path, dtype=np.float32, mode="r", shape=shape)
+        kwargs = dict(dtype=np.float32, mode="w+", shape=shape)
+        if path is None:
+            with tempfile.NamedTemporaryFile() as ntf:
+                mmap = np.memmap(ntf, **kwargs)
+        else:
+            mmap = np.memmap(path, **kwargs)
+            
         for i, subvol in enumerate(self.iter_subtomograms()):
             mmap[i] = subvol
             yield subvol
-        darr = da.from_array(mmap, chunks=(1,) + self.output_shape, meta=np.array([], dtype=np.float32))
-        return darr
+        darr = da.from_array(mmap, chunks=("auto",) + self.output_shape, meta=np.array([], dtype=np.float32))
+        return ip.LazyImgArray(darr, name="All_subtomograms", axes="pzyx")
         
-    def to_dask(self, path: str | None = None) -> None:
+    def to_lazy_imgarray(self, path: str | None = None) -> ip.LazyImgArray:
         it = self.iter_to_memmap(path)
-        darr = self._resolve_iterator(it, lambda x: None)
-        
+        return self._resolve_iterator(it, lambda x: None)
     
     def to_stack(self, binsize: int = 1) -> ip.ImgArray:
         """Create a 4D image stack of all the subtomograms."""
         images = list(self.iter_subtomograms(binsize=binsize))
         return np.stack(images, axis="p")
-
 
     def subset(self, spec: int | slice | list[int] | np.ndarray) -> SubtomogramLoader:
         """
@@ -229,13 +226,17 @@ class SubtomogramLoader(Iterator[_V]):
 
     def iter_average(
         self,
-        nbatch: int = 1
+        classifier: Callable[[np.ndarray], bool] | None = None,
+        nbatch: int = 1,
     ) -> Generator[ip.ImgArray, None, ip.ImgArray]:
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
+        if classifier is None:
+            classifier = lambda x: True
         with ip.silent():
             for subvol in self.iter_subtomograms():
-                aligned += subvol.value
+                if classifier(subvol):
+                    aligned += subvol.value
                 n += 1
                 if n % nbatch == nbatch - 1:
                     yield aligned
@@ -246,6 +247,7 @@ class SubtomogramLoader(Iterator[_V]):
     def average(
         self,
         *,
+        classifier=None, 
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> ip.ImgArray:
         """
@@ -256,6 +258,9 @@ class SubtomogramLoader(Iterator[_V]):
 
         Parameters
         ----------
+        classifier : callable, optional
+            If given, only those subvolumes that satisfy ``classifier(subvol) == True`` will be
+            collected.
         callback : callable, optional
             If given, ``callback(self)`` will be called for each iteration of subtomogram loading.
 
@@ -264,7 +269,7 @@ class SubtomogramLoader(Iterator[_V]):
         ImgArray
             Averaged image.
         """
-        average_iter = self.iter_average()
+        average_iter = self.iter_average(classifier=classifier)
         return self._resolve_iterator(average_iter, callback)
     
     def iter_align(
@@ -337,6 +342,91 @@ class SubtomogramLoader(Iterator[_V]):
             chunksize=self.chunksize
         )
         return out
+    
+    # def iter_align_no_template(
+    #     self,
+    #     *,
+    #     mask_params: np.ndarray | tuple[nm, nm] | Callable[[np.ndarray], np.ndarray] = (1, 1),
+    #     max_shifts: nm | tuple[nm, nm, nm] = 1.,
+    #     rotations: Ranges | None = None,
+    #     corr_threshold = "80%",
+    #     cutoff: float = 0.5,
+    #     nbatch: int = 24,
+    # ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
+                
+    #     # Convert rotations into quaternion if given.
+    #     rots = normalize_rotations(rotations)
+        
+    #     # shift in local Cartesian
+    #     local_shifts = np.zeros((len(self), 3))
+        
+    #     # rotation (quaternion) in local Cartesian
+    #     local_rot = np.zeros((len(self), 4))
+    #     local_rot[:, 3] = 1  # identity map in quaternion
+        
+    #     _max_shifts_px = np.asarray(max_shifts) / self.scale
+    #     all_subvols = self.to_lazy_imgarray(path=None)
+        
+    #     template = all_subvols.proj("p").compute()
+        
+    #     with ip.silent(), set_gpu():
+    #         template_filt = template.lowpass_filter(cutoff=cutoff)
+    #         if isinstance(mask_params, tuple):
+    #             _sigma, _radius = mask_params
+    #             mask = template.threshold().smooth_mask(
+    #                 sigma=_sigma/self.scale, dilate_radius=int(round(_radius/self.scale))
+    #             )
+    #         elif isinstance(mask_params, np.ndarray):
+    #             mask = mask_params
+    #         elif callable(mask_params):
+    #             mask = mask_params(template)
+    #         template_masked = template_filt * mask
+    #         # template_ft = template_masked.fft()
+        
+        
+    #     corrs = np.zeros(len(self.molecules))
+    #     for i, subvol in enumerate(all_subvols):
+    #         corrs[i] = ip.zncc(subvol * mask, template)
+        
+    #     corr_high = 
+        
+    #     if rots is None:
+    #         for i, subvol in enumerate(self.iter_subtomograms()):
+    #             local_shifts[i, :] = align_subvolume(
+    #                 subvol, cutoff, mask, template_ft, _max_shifts_px
+    #             )
+                
+    #             if i % nbatch == nbatch - 1:
+    #                 yield local_shifts[i, :], local_rot[i, :]
+            
+    #         mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
+                
+    #     else:
+    #         # "rots" is quaternions
+    #         rotators = [Rotation.from_quat(r) for r in rots]
+    #         iterator = self.iter_subtomograms(rotators=rotators)
+    #         for i, subvol_set in enumerate(iterator):
+    #             iopt, local_shifts[i, :] = align_subvolume_list(
+    #                 subvol_set, cutoff, mask, template_ft, template_masked, _max_shifts_px
+    #             )
+    #             local_rot[i, :] = rots[iopt]
+    #             if i % nbatch == nbatch - 1:
+    #                 yield local_shifts[i, :], local_rot[i, :]
+            
+    #         mole_aligned = transform_molecules(
+    #             self.molecules, 
+    #             local_shifts* self.scale, 
+    #             Rotation.from_quat(local_rot).as_rotvec()
+    #         )
+        
+    #     out = self.__class__(
+    #         self.image_ref,
+    #         mole_aligned, 
+    #         self.output_shape,
+    #         order=self.order,
+    #         chunksize=self.chunksize
+    #     )
+    #     return out
     
     def iter_align_multi_templates(
         self,
@@ -673,29 +763,18 @@ class SubtomogramLoader(Iterator[_V]):
         rotators: list[Rotation],
     ) -> Iterator[ip.ImgArray]:  # axes: pazyx
         image = self.image_ref
-        scale = image.scale.x
-        mole_list = [self.molecules.rotate_by_rotvec_internal(rot.as_rotvec()) for rot in rotators]
-        nrot = len(rotators)
-        chunksize = max(self.chunksize//nrot, 1)
-        iterators = [mole.iter_cartesian(self.output_shape, scale, chunksize) for mole in mole_list]
-        
-        with ip.silent():
-            for coords_list in zip(*iterators):
-                # coords_list[i] is all the coordinates of i-th molecule cloud
-                # The first dimension of coords will be
-                # (angle-0, position-0), (angle-0, position-1), ...
-                coords = np.concatenate(coords_list, axis=0)
-                with set_gpu():
-                    subvols = np.stack(
-                        multi_map_coordinates(image, coords, order=self.order, cval=np.mean),
-                        axis=0,
-                    )
-                # shape: (position, rot-angle, z, y, x)
-                subvols = subvols.reshape((nrot, -1) + self.output_shape)
-                subvols = np.swapaxes(subvols, 0, 1)
-                subvols = ip.asarray(subvols, axes="pazyx")
-                subvols.set_scale(image)
-                yield subvols
+        matrices = _compose_rotation_matrices(self.output_shape, rotators)
+        for subvols in self._iter_chunks():
+            # shape: (position, rot-angle, z, y, x)
+            with ip.silent(), set_gpu():
+                all_subvols: list[ip.ImgArray] = []  # axes: pzyx
+                for mtx in matrices:
+                    all_subvols.append(subvols.affine(mtx, dims="zyx").value)
+                out = np.stack(all_subvols, axis=1)
+                out = ip.asarray(out, axes="pazyx")
+                out.set_scale(image)
+            yield out
+    
         
     def _resolve_iterator(self, it: Generator[Any, Any, _V], callback: Callable) -> _V:
         """Iterate over an iterator until it returns something."""
@@ -711,3 +790,27 @@ class SubtomogramLoader(Iterator[_V]):
         
         return results
 
+def _compose_rotation_matrices(
+    shape: tuple[int, int, int],
+    rotators: list[Rotation],
+):
+    dz, dy, dx = (np.array(shape) - 1) / 2
+    # center to corner
+    translation_0 = np.array([[1., 0., 0., dz],
+                                [0., 1., 0., dy],
+                                [0., 0., 1., dx],
+                                [0., 0., 0., 1.]],
+                                dtype=np.float32)
+    # corner to center
+    translation_1 = np.array([[1., 0., 0., -dz],
+                                [0., 1., 0., -dy],
+                                [0., 0., 1., -dx],
+                                [0., 0., 0.,  1.]],
+                                dtype=np.float32)
+    
+    matrices = []
+    for rot in rotators:
+        e_ = np.eye(4)
+        e_[:3, :3] = rot.as_matrix()
+        matrices.append(translation_0 @ e_ @ translation_1)
+    return matrices

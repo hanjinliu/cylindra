@@ -1257,7 +1257,6 @@ class MtTomogram(Tomogram):
             self.image, mole, output_shape=output_shape, order=order, chunksize=chunksize
         )
     
-    
     def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
         """
         Collect all the anchor coordinates into a single np.ndarray.
