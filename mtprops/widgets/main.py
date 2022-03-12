@@ -52,7 +52,7 @@ from ..utils import (
     )
 from ..const import nm, H, Ori, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, SOURCE, ALN_SUFFIX, MOLECULES
-from ..types import MonomerLayer
+from ..types import MonomerLayer, get_monomer_layers
 
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
@@ -129,6 +129,9 @@ class MTPropsWidget(MagicTemplate):
         class PaintBy(MagicTemplate):
             def Isotypes(self): ...
             def ZNCC(self): ...
+        sep0 = field(Separator)
+        def Concatenate(self): ...
+        def Split(self): ...
         
     @magicmenu
     class Analysis(MagicTemplate):
@@ -406,7 +409,11 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def Create_macro(self):
         """Create Python executable script."""
-        self.macro.widget.duplicate().show()
+        import macrokit as mk
+        v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
+        new = self.macro.widget.new()
+        new.value = str(self.macro.format([(mk.symbol(self.parent_viewer), v)]))
+        new.show()
         return None
     
     @Others.wraps
@@ -1382,7 +1389,52 @@ class MTPropsWidget(MagicTemplate):
         layer.face_colormap = layer.edge_colormap = self.label_colormap
         layer.refresh()
         return None
+    
+    @Molecules.wraps
+    @set_options(layers={"widget_type": "Select", "choices": get_monomer_layers})
+    def Concatenate(
+        self,
+        layers: Iterable[MonomerLayer],
+    ):
+        molecules = (layer.metadata[MOLECULES] for layer in layers)
+        out = Molecules.concat(molecules)
+        add_molecules(self.parent_viewer, out, "Mono-concat")
+        for layer in layers:
+            layer.visible = False
+        return None
+    
+    @Molecules.wraps
+    @set_options(method={"choices": ["residue", "each", "divide"]})
+    def Split(
+        self,
+        layer: MonomerLayer,
+        method: str = "residue",
+        n_group: int = 2,
+    ):
+        mole: Molecules = layer.metadata[MOLECULES]
+        nmole = len(mole)
+        source = layer.metadata.get(SOURCE, None)
+        if method == "residue":
+            slices = [slice(i, None, n_group) for i in range(n_group)]
+        elif method == "each":
+            _id = np.arange(nmole, dtype=np.uint16)
+            slices = [_id % n_group == i for i in range(n_group)]
+        elif method == "divide":
+            borders = np.linspace(0, nmole, n_group + 1).astype(np.uint16)
+            slices = [slice(borders[i], borders[i+1]) for i in range(n_group)]
+        else:
+            raise ValueError(f"{method} is not supported.")
         
+        for i, sl in enumerate(slices):
+            mol = mole.subset(sl)
+            add_molecules(
+                self.parent_viewer, 
+                mol, 
+                layer.name + f"-G{i:0>2}", 
+                source=source
+            )
+        layer.visible = False
+        return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Subtomogram averaging methods
@@ -1654,7 +1706,7 @@ class MTPropsWidget(MagicTemplate):
                 with ip.silent():
                     img.imsave(save_at)
         
-        self._WorkerControl.info = f"Subtomogram averaging of {layer.name}"
+        self._WorkerControl.info = f"Subtomogram averaging of {layer.name} (n = {nmole})"
         return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -1949,7 +2001,7 @@ class MTPropsWidget(MagicTemplate):
             layer.visible = False
             self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
-        self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
+        self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
         return worker
     
     @_subtomogram_averaging.Refinement.wraps
@@ -2173,8 +2225,7 @@ class MTPropsWidget(MagicTemplate):
                 per_nm = ["$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
                 plt.xticks(xticks, per_nm)
                 plt.show()
-            self.Panels.log.print("FSC calculation finished")
-            self.Panels.log.print_table({"freqency": freq, "FSC": fsc}, index=False)
+            
         
         self._WorkerControl.info = "Calculating FSC ..."
         return worker
@@ -2273,10 +2324,6 @@ class MTPropsWidget(MagicTemplate):
             
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
-            
-            self.Panels.log.print_html("<b>Seam search result</b>")
-            self.Panels.log.print_table({"ΔCorr": corrs,
-                                         "score": score,}, precision=3)
             
             update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
             

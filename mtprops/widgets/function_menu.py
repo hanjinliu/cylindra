@@ -1,13 +1,21 @@
 from pathlib import Path
 from typing import List
-from magicclass import magicmenu, MagicTemplate, set_options, do_not_record
+from magicclass import (
+    magicclass,
+    vfield,
+    magicmenu,
+    MagicTemplate,
+    set_options,
+    do_not_record
+)
+from magicclass.widgets import FloatRangeSlider
 import numpy as np
 import impy as ip
 import operator
 from napari.types import LayerDataTuple
-from napari.layers import Image
+from napari.layers import Image, Layer
 
-from mtprops.utils import set_gpu
+from ..utils import set_gpu
 
 def _convert_array(arr, scale: float) -> ip.ImgArray:
     if not isinstance(arr, ip.ImgArray):
@@ -91,6 +99,13 @@ class Volume(MagicTemplate):
         if not isinstance(img, ip.ImgArray):
             raise TypeError
         img.imsave(path)
+    
+    @do_not_record
+    def Plane_clip(self):
+        widget = PlaneClip()
+        self.parent_viewer.window.add_dock_widget(widget, area="left")
+        widget._connect_layer()
+        return None
 
     def _apply_method(self, layer: Image, method_name: str, *args, **kwargs):
         if layer is None:
@@ -105,3 +120,91 @@ class Volume(MagicTemplate):
                  name=f"{layer.name}-{method_name}"), 
             "image",
         )
+
+@magicclass
+class PlaneClip(MagicTemplate):
+    layer: Layer = vfield(Layer)
+    x = vfield(FloatRangeSlider)
+    y = vfield(FloatRangeSlider)
+    z = vfield(FloatRangeSlider)
+
+    @property
+    def xmin_plane(self):
+        return self.layer.experimental_clipping_planes[0]
+    
+    @property
+    def xmax_plane(self):
+        return self.layer.experimental_clipping_planes[1]
+    
+    @property
+    def ymin_plane(self):
+        return self.layer.experimental_clipping_planes[2]
+    
+    @property
+    def ymax_plane(self):
+        return self.layer.experimental_clipping_planes[3]
+    
+    @property
+    def zmin_plane(self):
+        return self.layer.experimental_clipping_planes[4]
+    
+    @property
+    def zmax_plane(self):
+        return self.layer.experimental_clipping_planes[5]
+    
+    @x.connect
+    def _update_x(self):
+        xmin, xmax = self.x
+        self.xmin_plane.position = (0,)*(self.layer.ndim-1) + (xmin,)
+        self.xmax_plane.position = (0,)*(self.layer.ndim-1) + (xmax,)
+        return None
+
+    @y.connect
+    def _update_y(self):
+        ymin, ymax = self.y
+        self.ymin_plane.position = (0,)*(self.layer.ndim-2) + (ymin, 0)
+        self.ymax_plane.position = (0,)*(self.layer.ndim-2) + (ymax, 0)
+        return None
+
+    @z.connect
+    def _update_z(self):
+        zmin, zmax = self.z
+        self.zmin_plane.position = (0,)*(self.layer.ndim-3) + (zmin, 0, 0)
+        self.zmax_plane.position = (0,)*(self.layer.ndim-3) + (zmax, 0, 0)
+        return None
+    
+    @layer.connect
+    def _connect_layer(self):
+        layer = self.layer
+        if not layer:
+            return
+        xmin = layer.extent.data[0, -1]
+        xmax = layer.extent.data[1, -1]
+        ymin = layer.extent.data[0, -2]
+        ymax = layer.extent.data[1, -2]
+        zmin = layer.extent.data[0, -3]
+        zmax = layer.extent.data[1, -3]
+        
+        self["x"].range = xmin, xmax
+        self["y"].range = ymin, ymax
+        self["z"].range = zmin, zmax
+        
+        if len(self.layer.experimental_clipping_planes) == 6:
+            self.x = self.xmin_plane.position[2], self.xmax_plane.position[2]
+            self.x = self.ymin_plane.position[1], self.ymax_plane.position[1]
+            self.x = self.zmin_plane.position[0], self.zmax_plane.position[0]
+        
+        else:
+            self.x = xmin, xmax
+            self.y = ymin, ymax
+            self.z = zmin, zmax
+            ndim = layer.ndim
+            
+            self.layer.experimental_clipping_planes = [
+                {"position": (0,)*(ndim-1)+(xmin,), "normal": (0, 0, 1), "enabled": True},
+                {"position": (0,)*(ndim-1)+(xmax,), "normal": (0, 0, -1), "enabled": True},
+                {"position": (0,)*(ndim-2)+(ymin, 0), "normal": (0, 1, 0), "enabled": True},
+                {"position": (0,)*(ndim-2)+(ymax, 0), "normal": (0, -1, 0), "enabled": True},
+                {"position": (0,)*(ndim-3)+(zmin, 0, 0), "normal": (1, 0, 0), "enabled": True},
+                {"position": (0,)*(ndim-3)+(zmax, 0, 0), "normal": (-1, 0, 0), "enabled": True},
+            ]

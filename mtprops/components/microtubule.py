@@ -541,7 +541,6 @@ class MtTomogram(Tomogram):
                 out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
             refined_tilt_deg = np.array(out)
             refined_tilt_rad = np.deg2rad(refined_tilt_deg)
-            LOGGER.info(f" >> Angles (deg): {np.round(refined_tilt_deg, 1)}")
             
             # If subtomograms are sampled at short intervals, angles should be smoothened to 
             # avoid overfitting.
