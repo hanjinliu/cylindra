@@ -1,0 +1,20 @@
+{
+    "nPFmin": 15, 
+    "nPFmax": 17, 
+    "splOrder": 3, 
+    "yPitchMin": 2.1, 
+    "yPitchMax": 2.5, 
+    "minSkew": -20.0, 
+    "maxSkew": -10.0, 
+    "splError": 0.8, 
+    "inner": 0.3, 
+    "outer": 1.5, 
+    "fitLength": 48.0, 
+    "fitWidth": 28.0, 
+    "daskChunk": [
+        256, 
+        256, 
+        256
+    ], 
+    "GPU": true
+}

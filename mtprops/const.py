@@ -2,6 +2,7 @@ from __future__ import annotations
 from enum import Enum
 import numpy as np
 from types import SimpleNamespace
+from typing import Any
 
 nm = float  # type alias for clearer annotation.
 
@@ -143,6 +144,13 @@ class GVar:
     fitWidth: nm = 44.0
     daskChunk: int = (256, 256, 256)
     GPU: bool = True
+    
+    @classmethod
+    def get_value(cls) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for k in cls.__annotations__.keys():
+            out[k] = getattr(cls, k)
+        return out
     
     @classmethod
     def set_value(cls, **kwargs):
