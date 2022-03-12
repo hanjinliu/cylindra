@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any, Callable, Generator, Iterator, Iterable, TYPE_CHECKING, TypeVar
 import warnings
 import weakref
+import tempfile
 from scipy.spatial.transform import Rotation
 import numpy as np
 import impy as ip
@@ -24,7 +25,6 @@ if TYPE_CHECKING:
     from ._pca_utils import PcaClassifier
     
 _V = TypeVar("_V")
-
 
 class SubtomogramLoader:
     """
@@ -122,6 +122,22 @@ class SubtomogramLoader:
                     subvol: ip.ImgArray  # subvol axes: azyx
                     yield subvol.binning(binsize, check_edges=False)
     
+    def iter_subtomograms_with_corr(
+        self,
+        ref: ip.ImgArray,
+        mask: ip.ImgArray | None = None,
+        order: int = 1,
+        corr_func: Callable[[np.ndarray, np.ndarray], _V] = ip.zncc,
+    ) -> Iterator[tuple[ip.ImgArray, _V]]:
+        if mask is None:
+            mask = 1.0
+        ref_masked = ref * mask
+        iterator = self._iter_chunks(order=order)
+        for subvols in iterator:
+            for subvol in subvols:
+                corr = corr_func(subvol*mask, ref_masked)
+                yield subvol, corr
+    
     def _iter_chunks(self, order: int = 1) -> Iterator[ip.ImgArray]:  # axes: pzyx
         """Generate subtomogram list chunk-wise."""
         image = self.image_ref
@@ -167,8 +183,20 @@ class SubtomogramLoader:
                 subvols = ip.asarray(subvols, axes="pazyx")
                 subvols.set_scale(image)
                 yield subvols
-                    
-    
+        
+    def iter_to_memmap(self, path: str | None = None, order: int = 1):
+        shape = (len(self.molecules),) + self.output_shape
+        mmap = np.memmap(path, dtype=np.float32, mode="r", shape=shape)
+        for i, subvol in enumerate(self.iter_subtomograms(order=order)):
+            mmap[i] = subvol
+            yield subvol
+        darr = da.from_array(mmap, chunks=(1,) + self.output_shape, meta=np.array([], dtype=np.float32))
+        return darr
+        
+    def to_dask(self, path: str | None = None, order: int = 1) -> None:
+        it = self.iter_to_memmap(path, order)
+        darr = self._resolve_iterator(it, lambda x: None)
+        
     
     def to_stack(self, binsize: int = 1, order: int = 1) -> ip.ImgArray:
         """Create a 4D image stack of all the subtomograms."""
@@ -283,8 +311,6 @@ class SubtomogramLoader:
                 local_shifts[i, :] = align_subvolume(
                     subvol, cutoff, mask, template_ft, _max_shifts_px
                 )
-                if self.image_avg is None:
-                    pre_alignment += subvol
                 
                 if i % nbatch == nbatch - 1:
                     yield local_shifts[i, :], local_rot[i, :]
@@ -300,8 +326,6 @@ class SubtomogramLoader:
                     subvol_set, cutoff, mask, template_ft, template_masked, _max_shifts_px
                 )
                 local_rot[i, :] = rots[iopt]
-                if self.image_avg is None:
-                    pre_alignment += subvol_set[0]
                 if i % nbatch == nbatch - 1:
                     yield local_shifts[i, :], local_rot[i, :]
             
@@ -310,11 +334,6 @@ class SubtomogramLoader:
                 local_shifts* self.scale, 
                 Rotation.from_quat(local_rot).as_rotvec()
             )
-        
-        if self.image_avg is None:
-            pre_alignment = ip.asarray(pre_alignment/len(self), axes="zyx", name="Avg")
-            pre_alignment.set_scale(self.image_ref)
-            self.image_avg = pre_alignment
         
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         return out
@@ -461,7 +480,7 @@ class SubtomogramLoader:
         out = self.__class__(self.image_ref, mole_aligned, self.output_shape, self.chunksize)
         
         return out
-    
+
     def iter_zncc(
         self,
         template: ip.ImgArray = None,
@@ -470,17 +489,21 @@ class SubtomogramLoader:
         nbatch: int = 24,
     ) -> Generator[np.ndarray, None, np.ndarray]:
         corr = np.zeros(len(self.molecules), dtype=np.float32)
-        if mask is None:
-            mask = 1
-        template_masked = template * mask
+        sum_img = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
+        it = self.iter_subtomograms_with_corr(template, mask, order=order, corr_func=ip.zncc)
         with ip.silent():
-            for i, subvol in enumerate(self.iter_subtomograms(order=order)):
-                corr[i] = ip.zncc(subvol*mask, template_masked)
+            for i, (subvol, corr) in enumerate(it):
+                sum_img[:] += subvol
+                corr[i] = corr
                 n += 1
                 if n % nbatch == nbatch - 1:
                     yield corr
         
+        if self.image_avg is None:
+            sum_img = ip.asarray(sum_img/len(self), axes="zyx", name="Avg")
+            sum_img.set_scale(self.image_ref)
+            self.image_avg = sum_img
         return corr
     
     def zncc(

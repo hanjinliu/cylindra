@@ -130,7 +130,6 @@ class MTPropsWidget(MagicTemplate):
             def Isotypes(self): ...
             def ZNCC(self): ...
         sep0 = field(Separator)
-        def Concatenate(self): ...
         def Split(self): ...
         
     @magicmenu
@@ -1391,19 +1390,6 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules.wraps
-    @set_options(layers={"widget_type": "Select", "choices": get_monomer_layers})
-    def Concatenate(
-        self,
-        layers: Iterable[MonomerLayer],
-    ):
-        molecules = (layer.metadata[MOLECULES] for layer in layers)
-        out = Molecules.concat(molecules)
-        add_molecules(self.parent_viewer, out, "Mono-concat")
-        for layer in layers:
-            layer.visible = False
-        return None
-    
-    @Molecules.wraps
     @set_options(method={"choices": ["residue", "each", "divide"]})
     def Split(
         self,
@@ -1595,7 +1581,8 @@ class MTPropsWidget(MagicTemplate):
         class Refinement(MagicTemplate):
             def Align_averaged(self): ...
             def Align_all(self): ...
-            def Align_with_multiple_templates(self): ...
+            def Template_free_alignment(self): ...
+            def Multi_template_alignment(self): ...
         
         @magicmenu
         class Template(MagicTemplate):
@@ -2003,6 +1990,60 @@ class MTPropsWidget(MagicTemplate):
                 
         self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
         return worker
+
+    # @_subtomogram_averaging.Refinement.wraps
+    # def Template_free_alignment(
+    #     self,
+    #     layer: MonomerLayer,
+    #     max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
+    #     z_rotation: _Tuple[float, float] = (0., 0.),
+    #     y_rotation: _Tuple[float, float] = (0., 0.),
+    #     x_rotation: _Tuple[float, float] = (0., 0.),
+    #     cutoff: float = 0.5,
+    #     allowed_correlation: float = 0.9,
+    #     interpolation: int = 1,
+    #     use_binned_image: bool = False,
+    #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+    # ):
+        
+    #     molecules = layer.metadata[MOLECULES]
+    #     template = self._subtomogram_averaging._get_template(path=template_path)
+    #     mask = self._subtomogram_averaging._get_mask(params=mask_params)
+    #     source = layer.metadata.get(SOURCE, None)
+    #     nmole = len(molecules)
+        
+    #     loader, template, mask = self._check_binning_for_alignment(
+    #         template, mask, use_binned_image, molecules, chunk_size
+    #     )
+    #     nbatch = 24
+    #     worker = create_worker(
+    #         loader.iter_align,
+    #         template=template, 
+    #         mask=mask,
+    #         max_shifts=max_shifts,
+    #         rotations=(z_rotation, y_rotation, x_rotation),
+    #         cutoff=cutoff,
+    #         order=interpolation,
+    #         nbatch=nbatch,
+    #         _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+    #     )
+        
+    #     self.Panels.log.print_html(f"<code>Align_all</code>")
+                    
+    #     @worker.returned.connect
+    #     def _on_return(aligned_loader: SubtomogramLoader):
+    #         points = add_molecules(
+    #             self.parent_viewer, 
+    #             aligned_loader.molecules,
+    #             _coerce_aligned_name(layer.name, self.parent_viewer),
+    #             source=source
+    #         )
+    #         points.features = layer.features
+    #         layer.visible = False
+    #         self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
+                
+    #     self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
+    #     return worker
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2015,7 +2056,7 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     )
     @dispatch_worker
-    def Align_with_multiple_templates(
+    def Multi_template_alignment(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
