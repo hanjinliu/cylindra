@@ -1248,11 +1248,14 @@ class MtTomogram(Tomogram):
         self,
         mole: Molecules,
         shape: tuple[nm, nm, nm], 
+        order: int = 1,
         chunksize: int = 128,
     ) -> SubtomogramLoader:
         """Create a subtomogram loader from molecules."""
         output_shape = tuple(self.nm2pixel(shape))
-        return SubtomogramLoader(self.image, mole, output_shape=output_shape, chunksize=chunksize)
+        return SubtomogramLoader(
+            self.image, mole, output_shape=output_shape, order=order, chunksize=chunksize
+        )
     
     
     def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:

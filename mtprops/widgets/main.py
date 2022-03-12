@@ -1616,7 +1616,8 @@ class MTPropsWidget(MagicTemplate):
         self, 
         molecules: Molecules,
         shape: tuple[nm, ...], 
-        chunk_size: int
+        order: int,
+        chunk_size: int,
     ) -> SubtomogramLoader:
         """Called when a method has to use subtomogram loader with binned image."""
         imgb: ip.ImgArray = self.layer_image.data
@@ -1625,7 +1626,7 @@ class MTPropsWidget(MagicTemplate):
         tr = -(binsize - 1)/2*tomo.scale
         mole = molecules.translate([tr, tr, tr])
         shape = tuple(roundint(s/imgb.scale.x) for s in shape)
-        return SubtomogramLoader(imgb, mole, shape, chunksize=chunk_size)
+        return SubtomogramLoader(imgb, mole, shape, order=order, chunksize=chunk_size)
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -1675,13 +1676,16 @@ class MTPropsWidget(MagicTemplate):
         else:
             shape = (size,) * 3
         if use_binned_image:
-            loader = self._get_binned_loader(molecules, shape, chunk_size)
+            loader = self._get_binned_loader(
+                molecules, shape, order=interpolation, chunk_size=chunk_size
+            )
         else:
-            loader = tomo.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            loader = tomo.get_subtomogram_loader(
+                molecules, shape, order=interpolation, chunksize=chunk_size
+            )
         nbatch = 24
         worker = create_worker(
             loader.iter_average,
-            order=interpolation,
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
@@ -1756,12 +1760,11 @@ class MTPropsWidget(MagicTemplate):
             raise NotImplementedError(method)
         mole = molecules.subset(sl)
         if use_binned_image:
-            loader = self._get_binned_loader(mole, shape, chunk_size=1)
+            loader = self._get_binned_loader(mole, shape, order=1, chunk_size=1)
         else:
-            loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=1)
+            loader = self.tomogram.get_subtomogram_loader(mole, shape, order=1, chunksize=1)
         
         worker = create_worker(loader.iter_average,
-                               order = 1,
                                _progress={"total": number, "desc": "Running"}
                                )
         
@@ -1779,11 +1782,14 @@ class MTPropsWidget(MagicTemplate):
         mask: Union[ip.ImgArray, None],
         use_binned_image: bool,
         molecules: Molecules,
-        chunk_size: int
+        order: int,
+        chunk_size: int,
     ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[ip.ImgArray, None]]:
         shape = self._subtomogram_averaging._get_shape_in_nm()
         if use_binned_image:
-            loader = self._get_binned_loader(molecules, shape, chunk_size)
+            loader = self._get_binned_loader(
+                molecules, shape, order=order, chunk_size=chunk_size
+            )
             binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
             with ip.silent():
                 if isinstance(template, list):
@@ -1793,7 +1799,9 @@ class MTPropsWidget(MagicTemplate):
                 if mask is not None:
                     mask = mask.binning(binsize, check_edges=False)
         else:
-            loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            loader = self.tomogram.get_subtomogram_loader(
+                molecules, shape, order=order, chunksize=chunk_size
+            )
         return loader, template, mask
             
     
@@ -1849,7 +1857,7 @@ class MTPropsWidget(MagicTemplate):
         npf = spl.globalprops[H.nPF]
         
         loader, template, mask = self._check_binning_for_alignment(
-            template, mask, use_binned_image, molecules, chunk_size
+            template, mask, use_binned_image, molecules, order=1, chunk_size=chunk_size
         )
         if use_binned_image:
             _scale = self.layer_image.data.scale.x
@@ -1860,7 +1868,6 @@ class MTPropsWidget(MagicTemplate):
         nbatch = 24
         worker = create_worker(
             loader.iter_average,
-            order=1,
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
@@ -1959,7 +1966,12 @@ class MTPropsWidget(MagicTemplate):
         nmole = len(molecules)
         
         loader, template, mask = self._check_binning_for_alignment(
-            template, mask, use_binned_image, molecules, chunk_size
+            template, 
+            mask, 
+            use_binned_image,
+            molecules,
+            order=interpolation,
+            chunk_size=chunk_size
         )
         nbatch = 24
         worker = create_worker(
@@ -1969,7 +1981,6 @@ class MTPropsWidget(MagicTemplate):
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            order=interpolation,
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
@@ -2023,7 +2034,6 @@ class MTPropsWidget(MagicTemplate):
     #         max_shifts=max_shifts,
     #         rotations=(z_rotation, y_rotation, x_rotation),
     #         cutoff=cutoff,
-    #         order=interpolation,
     #         nbatch=nbatch,
     #         _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
     #     )
@@ -2113,7 +2123,12 @@ class MTPropsWidget(MagicTemplate):
         source = layer.metadata.get(SOURCE, None)
         nmole = len(molecules)
         loader, templates, mask = self._check_binning_for_alignment(
-            templates, mask, use_binned_image, molecules, chunk_size
+            templates,
+            mask,
+            use_binned_image,
+            molecules, 
+            order=interpolation,
+            chunk_size=chunk_size
         )
         nbatch = 24
         worker = create_worker(
@@ -2123,7 +2138,6 @@ class MTPropsWidget(MagicTemplate):
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            order=interpolation,
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
@@ -2171,7 +2185,6 @@ class MTPropsWidget(MagicTemplate):
             loader.iter_zncc,
             template=template, 
             mask=mask,
-            order=interpolation,
             nbatch=nbatch,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
@@ -2231,7 +2244,12 @@ class MTPropsWidget(MagicTemplate):
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if shape is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(mole, shape, chunksize=chunk_size)
+        loader = self.tomogram.get_subtomogram_loader(
+            mole,
+            shape,
+            order=interpolation,
+            chunksize=chunk_size
+        )
         if mask is None:
             mask = 1
         else:
@@ -2241,7 +2259,6 @@ class MTPropsWidget(MagicTemplate):
         worker = create_worker(
             loader.iter_average_split,
             seed=seed,
-            order=interpolation,
             _progress={"total": ceilint(nmole/loader.chunksize), "desc": "Running"}
         )
         
@@ -2311,7 +2328,9 @@ class MTPropsWidget(MagicTemplate):
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         shape = self._subtomogram_averaging._get_shape_in_nm()
         source: MtSpline = layer.metadata.get(SOURCE, None)
-        loader = self.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+        loader = self.tomogram.get_subtomogram_loader(
+            molecules, shape, order=interpolation, chunksize=chunk_size
+        )
         if npf is None:
             try:
                 npf = roundint(source.globalprops[H.nPF])
@@ -2325,7 +2344,6 @@ class MTPropsWidget(MagicTemplate):
             npf=npf,
             template=template,
             mask=mask,
-            order=interpolation,
             _progress={"total": total, "desc": "Running"}
         )
         
