@@ -57,20 +57,6 @@ def rmsd(shifts: ArrayLike) -> float:
     shifts = np.atleast_2d(shifts)
     return np.sqrt(np.sum(shifts**2)/shifts.shape[0])
 
-def json_encoder(obj: Any):    
-    """Enable Enum and pandas encoding."""
-    if isinstance(obj, Ori):
-        return obj.name
-    elif isinstance(obj, pd.DataFrame):
-        return obj.to_dict(orient="list")
-    elif isinstance(obj, pd.Series):
-        return obj.to_dict()
-    elif isinstance(obj, Path):
-        return str(obj)
-    else:
-        raise TypeError(f"{obj!r} is not JSON serializable")
-
-
 class MtSpline(Spline):
     """
     A spline object with information related to MT.
@@ -167,37 +153,6 @@ class MtSpline(Spline):
             self._orientation = Ori.none
         else:
             self._orientation = Ori(value)
-    
-    
-    # def to_dict(self) -> dict:
-    #     d = super().to_dict()
-    #     d[K.radius] = self.radius
-    #     d[K.orientation] = self.orientation.name
-    #     if self.localprops is not None:
-    #         cols = [l for l in LOCALPROPS if l in self.localprops.columns]
-    #         d[K.localprops] = self.localprops[cols]
-    #     if self.globalprops is not None:
-    #         d[K.globalprops] = self.globalprops
-    #     return d
-        
-    # @classmethod
-    # def from_dict(cls, d: dict) -> Self:
-    #     self = super().from_dict(d)
-    #     localprops = d.get(K.localprops, None)
-    #     if localprops is not None and H.splPosition in localprops:
-    #         self.anchors = localprops[H.splPosition]
-    #     self.radius = d.get(K.radius, None)
-    #     self.orientation = d.get(K.orientation, Ori.none)
-    #     if localprops is None:
-    #         self.localprops = None
-    #     else:
-    #         self.localprops = pd.DataFrame(localprops)
-    #     globalprops = d.get(K.globalprops, None)
-    #     if globalprops is None:
-    #         self.globalprops = globalprops
-    #     else:
-    #         self.globalprops = pd.Series(globalprops)
-    #     return self
 
 
 _KW = ParamSpecKwargs("_KW")
@@ -305,65 +260,6 @@ class MtTomogram(Tomogram):
         for spl in self.splines:
             spl.clear_cache(loc, glob)
         return None
-    
-    def save_json(self, path: str) -> None:
-        """
-        Save splines with its local properties as a json file.
-
-        Parameters
-        ----------
-        path : str
-            File path to save file.
-        """        
-        path = str(path)
-        
-        all_results = {}
-        for i, spl in enumerate(self._splines):
-            spl_dict = spl.to_dict()
-            all_results[i] = spl_dict
-        
-        from .. import __version__
-        metadata = self.metadata.copy()
-        metadata["version"] = __version__
-        all_results["metadata"] = metadata
-
-        with open(path, mode="w") as f:
-            json.dump(all_results, f, indent=4, separators=(",", ": "), default=json_encoder)
-        return None
-    
-    
-    def load_json(self, file_path: str) -> Self:
-        """
-        Load splines from a json file.
-
-        Parameters
-        ----------
-        file_path : str
-            File path to the json file.
-
-        Returns
-        -------
-        MtTomogram
-            Same object with spline curves loaded.
-        """        
-        file_path = str(file_path)
-        
-        with open(file_path, mode="r") as f:
-            js: dict = json.load(f)
-        
-        for i, d in js.items():
-            try:
-                # integer key means it's spline info
-                int(i)
-            except:
-                setattr(self, i, d)
-            else:
-                self._splines.append(
-                    MtSpline.from_dict(d)
-                )
-            
-        return self
-    
     
     def add_spline(self, coords: ArrayLike) -> None:
         """
@@ -1319,7 +1215,7 @@ class MtTomogram(Tomogram):
         return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
     
     
-    def collect_localprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
+    def collect_localprops(self, i: int | Iterable[int] = None) -> pd.DataFrame | None:
         """
         Collect all the local properties into a single pd.DataFrame.
 
@@ -1337,11 +1233,14 @@ class MtTomogram(Tomogram):
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        df = pd.concat([self._splines[i_].localprops for i_ in i], 
-                        keys=list(i)
-                       )
+        try:
+            df = pd.concat(
+                [self._splines[i_].localprops for i_ in i], keys=list(i)
+            )
+            df.index = df.index.rename(["SplineID", "PosID"])
+        except ValueError:
+            df = None
         
-        df.index = df.index.rename(["SplineID", "PosID"])
         return df
     
     def collect_globalprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
@@ -1362,11 +1261,17 @@ class MtTomogram(Tomogram):
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        df = pd.concat([self._splines[i_].globalprops for i_ in i], 
-                        axis=1,
-                       ).transpose()
-        df["radius"] = [self._splines[i_].radius for i_ in i]
-        df["orientation"] = [str(self._splines[i_].orientation) for i_ in i]
+        try:
+            series_list = []
+            for i_ in i:
+                series = self._splines[i_].globalprops
+                if series is not None:
+                    series["radius"] = self._splines[i_].radius
+                    series["orientation"] = str(self._splines[i_].orientation)
+                series_list.append(series)
+            df = pd.concat(series_list, axis=1, keys=list(i)).transpose()
+        except ValueError:
+            df = None
         return df
     
     def plot_localprops(self, i: int | Iterable[int] = None,

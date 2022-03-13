@@ -72,12 +72,14 @@ class Tomogram:
         if scale is not None:
             img.set_scale(xyz=scale)
         else:
-            if (abs(img.scale.z - img.scale.x) > 1e-4
-                or abs(img.scale.z - img.scale.y) > 1e-4):
-                raise ValueError("Uneven scale.")
+            if (abs(img.scale.z - img.scale.x) > 1e-3
+                or abs(img.scale.z - img.scale.y) > 1e-3
+            ):
+                raise ValueError(f"Uneven scale: {img.scale}.")
         
         self._set_image(img)
         self._metadata["source"] = Path(path).resolve()
+        self._metadata["scale"] = scale
         return self
         
     @property

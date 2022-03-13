@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from typing import Iterable, Iterator, Union, Tuple, List
 from pathlib import Path
 import numpy as np
@@ -39,7 +40,7 @@ from magicclass.widgets import (
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
-from ..components.microtubule import angle_corr
+from ..components.microtubule import LOCALPROPS, angle_corr
 from ..utils import (
     crop_tomogram,
     make_slice_and_pad,
@@ -90,9 +91,10 @@ class MTPropsWidget(MagicTemplate):
         """File I/O."""  
         def Open_image(self): ...
         def Open_tomogram_list(self): ...
-        def Load_json(self): ...
         def Load_molecules(self): ...
         sep0 = field(Separator)
+        def Load_state(self): ...
+        def Save_state(self): ...
         def Save_results_as_json(self): ...
         def Save_molecules_as_csv(self): ...
         sep1 = field(Separator)
@@ -200,7 +202,7 @@ class MTPropsWidget(MagicTemplate):
     
     def __init__(self):
         self.tomogram: MtTomogram = None
-        self._last_ft_size: nm = None
+        self._current_ft_size: nm = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -402,10 +404,10 @@ class MTPropsWidget(MagicTemplate):
                         self.Panels.log.print_table(df, precision=3)
                 if local_props and paint:
                     self.Paint_MT()
-                tomo.metadata["ft_size"] = self._last_ft_size
+                tomo.metadata["ft_size"] = self._current_ft_size
                 if global_props:
                     self._update_global_properties_in_widget()
-        self._last_ft_size = ft_size
+        self._current_ft_size = ft_size
         self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
         return worker
     
@@ -598,8 +600,8 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(tomo: MtTomogram):
             self._send_tomogram_to_viewer(tomo)
-            if self._last_ft_size is not None:
-                tomo.metadata["ft_size"] = self._last_ft_size
+            if self._current_ft_size is not None:
+                tomo.metadata["ft_size"] = self._current_ft_size
             tomo_list_widget = self._TomogramList
             tomo_list_widget._tomogram_list.append(tomo)
             tomo_list_widget.reset_choices()  # Next line of code needs updated choices
@@ -621,47 +623,137 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @File.wraps
+    @set_options(path={"filter": "*.json;*.txt"})
+    def Load_state(self, path: Path):
+        path = str(path)
+    
+        with open(path, mode="r") as f:
+            js: dict = json.load(f)
+        
+        # load image and multiscales
+        multiscales: List[int] = js["multiscales"]
+        binsize = multiscales.pop(-1)
+        self.load_tomogram(path=js["image"], scale=js["scale"], bin_size=binsize, cutoff=0)
+        for size in multiscales:
+            self.tomogram.add_multiscale(size)
+        
+        self._current_ft_size = js["current_ft_size"]
+        
+        # load splines
+        splines = [MtSpline.from_dict(d) for d in js["splines"]]
+        localprops = dict(iter(pd.read_csv(js["localprops"]).groupby("SplineID")))
+        globalprops = dict(pd.read_csv(js["globalprops"]).iterrows())
+        
+        for i, spl in enumerate(splines):
+            spl.localprops = localprops.get(i, None)
+            if spl.localprops is not None:
+                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
+                spl.localprops.pop("SplineID")
+                spl.localprops.pop("PosID")
+                spl.localprops.index = range(len(spl.localprops))
+            spl.globalprops = globalprops.get(i, None)
+            if spl.globalprops is not None:
+                try:
+                    spl.radius = spl.globalprops.pop("radius")
+                except KeyError:
+                    pass
+                try:
+                    spl.orientation = spl.globalprops.pop("orientation")
+                except KeyError:
+                    pass
+        
+        if splines:
+            self.tomogram._splines = splines
+            self._update_splines_in_images()
+            self.Sample_subtomograms()
+        
+        # load molecules
+        from scipy.spatial.transform import Rotation
+        for path in js["molecules"]:
+            df = pd.read_csv(path)
+            features = df.iloc[:, 6:]
+            mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
+            layer = add_molecules(self.parent_viewer, mole, name=Path(path).stem)
+            layer.features = features
+        self.reset_choices()
+        return None
+    
+    @File.wraps
+    @set_options(
+        json_path={"mode": "w", "filter": "*.json;*.txt"},
+        results_dir={"text": "Save at the same directory", "options": {"mode": "d"}}
+    )
+    def Save_state(self, json_path: Path, results_dir: Optional[Path] = None):
+        from .. import __version__
+        tomo = self.tomogram
+        localprops = tomo.collect_localprops()    
+        globalprops = tomo.collect_globalprops()
+        
+        _json_path = Path(json_path)
+        if results_dir is None:
+            results_dir = _json_path.parent / (_json_path.stem + "_results")
+        localprops_path = None if localprops is None else results_dir / "localprops.csv"
+        globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
+        
+        molecule_dataframes: List[pd.DataFrame] = []
+        molecules_paths = []
+        for layer in filter(
+            lambda x: isinstance(x, Points) and MOLECULES in x.metadata,
+            self.parent_viewer.layers
+        ):
+            layer: Points
+            mole: Molecules = layer.metadata[MOLECULES]
+            features = layer.features
+            molecule_dataframes.append(pd.concat([mole.to_dataframe(), features], axis=1))
+            molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
+            
+        js = {
+            "version": __version__,
+            "image": tomo.source,
+            "scale": tomo.scale,
+            "multiscales": [x[0] for x in tomo.multiscaled],
+            "current_ft_size": self._current_ft_size,
+            "splines": [spl.to_dict() for spl in tomo.splines],
+            "localprops": localprops_path,
+            "globalprops": globalprops_path,
+            "molecules": molecules_paths,
+        }
+        
+        with open(_json_path, mode="w") as f:
+            json.dump(js, f, indent=4, separators=(",", ": "), default=json_encoder)
+        
+        if not os.path.exists(results_dir):
+            os.mkdir(results_dir)
+        if localprops_path:
+            localprops.to_csv(localprops_path)
+        if globalprops_path:
+            globalprops.to_csv(globalprops_path)
+        if molecules_paths:
+            for df, fp in zip(molecule_dataframes, molecules_paths):
+                df.to_csv(fp, index=False)
+        return
+    
+    @File.wraps
     @do_not_record
     def Open_tomogram_list(self):
         """Open the list of loaded tomogram references."""
         self._TomogramList.show()
         return None
-        
-    @File.wraps
-    @set_options(path={"filter": "*.json;*.txt"})
-    def Load_json(self, path: Path):
-        """Choose a json file and load it a a spline."""        
-        tomo = self.tomogram
-        tomo.load_json(path)
-
-        self._last_ft_size = tomo.metadata.get("ft_size", self._last_ft_size)
-            
-        self._update_splines_in_images()
-        self.reset_choices()
-        self.Sample_subtomograms()
-        return None
     
     @File.wraps
     @set_options(path={"filter": "*.csv;*.txt"})
-    def Load_molecules(self, path: Path):
+    def Load_molecules(self, paths: List[Path]):
         """Load molecules from a csv file."""
-        df: pd.DataFrame = pd.read_csv(path)
-        if df.shape[1] < 6:
-            raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
-        from scipy.spatial.transform import Rotation
-        mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
-        name = Path(path).name
-        points = add_molecules(self.parent_viewer, mole, name)
-        if df.shape[1] > 6:
-            points.features = df.iloc[:, 6:]
-        return None
-    
-    @File.wraps
-    @set_design(text="Save results as json")
-    @set_options(save_path={"mode": "w", "filter": "*.json;*.txt"})
-    def Save_splines_as_json(self, save_path: Path):
-        """Save the results as json."""
-        self.tomogram.save_json(save_path)
+        for path in paths:
+            df: pd.DataFrame = pd.read_csv(path)
+            if df.shape[1] < 6:
+                raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
+            from scipy.spatial.transform import Rotation
+            mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
+            name = Path(path).name
+            points = add_molecules(self.parent_viewer, mole, name)
+            if df.shape[1] > 6:
+                points.features = df.iloc[:, 6:]
         return None
     
     @File.wraps
@@ -766,6 +858,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
+    @dispatch_worker
     def Add_multiscale(self, bin_size: int = 2, update_layer: bool = False):
         tomo = self.tomogram        
         worker = create_worker(
@@ -1142,7 +1235,7 @@ class MTPropsWidget(MagicTemplate):
             with self.macro.blocked():
                 self.Sample_subtomograms()
                 self._update_local_properties_in_widget()
-        self._last_ft_size = ft_size
+        self._current_ft_size = ft_size
         self._WorkerControl.info = "Local Fourier transform ..."
         return worker
         
@@ -2509,14 +2602,14 @@ class MTPropsWidget(MagicTemplate):
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """
-        if self._last_ft_size is None:
+        if self._current_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, List[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = roundint(bin_scale/tomo.scale)
-        ft_size = self._last_ft_size
+        ft_size = self._current_ft_size
         
         lz, ly, lx = [roundint(r/bin_scale*1.4)*2 + 1 for r in [15, ft_size/2, 15]]
         with ip.silent():
@@ -2700,8 +2793,8 @@ class MTPropsWidget(MagicTemplate):
         tomo.lowpass_filter(cutoff)
         tomo.add_multiscale(binsize)
         tomo.metadata["cutoff"] = cutoff
-        if self._last_ft_size is not None:
-            tomo.metadata["ft_size"] = self._last_ft_size
+        if self._current_ft_size is not None:
+            tomo.metadata["ft_size"] = self._current_ft_size
         return tomo
         
     def _init_widget_state(self):
@@ -2760,10 +2853,10 @@ class MTPropsWidget(MagicTemplate):
         i: int = i or self.SplineControl.num
         j: int = j or self.SplineControl.pos
         tomo = self.tomogram
-        if self._last_ft_size is None:
+        if self._current_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
         
-        ylen = tomo.nm2pixel(self._last_ft_size)
+        ylen = tomo.nm2pixel(self._current_ft_size)
         spl = tomo._splines[i]
         
         rmin = tomo.nm2pixel(spl.radius*GVar.inner)
@@ -2846,6 +2939,8 @@ class MTPropsWidget(MagicTemplate):
             radius = spl.radius
             ori = spl.orientation
             self.GlobalProperties._set_text(pitch, skew, npf, start, radius, ori)
+        else:
+            self.GlobalProperties._init_text()
     
     @SplineControl.num.connect
     @SplineControl.pos.connect
@@ -2860,6 +2955,9 @@ class MTPropsWidget(MagicTemplate):
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
             pitch, skew, npf, start = spl.localprops[headers].iloc[j]
             self.LocalProperties._set_text(pitch, skew, npf, start)
+        else:
+            self.LocalProperties._init_plot()
+            self.LocalProperties._init_text()
         return None
     
     def _connect_worker(self, worker: Worker):
@@ -2975,3 +3073,18 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+
+def json_encoder(obj):    
+    """Enable Enum and pandas encoding."""
+    if isinstance(obj, Ori):
+        return obj.name
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient="list")
+    elif isinstance(obj, pd.Series):
+        return obj.to_dict()
+    elif isinstance(obj, Path):
+        return str(obj)
+    else:
+        raise TypeError(f"{obj!r} is not JSON serializable")
+

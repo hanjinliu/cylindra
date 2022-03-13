@@ -86,6 +86,12 @@ class Molecules:
         
         return cls(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
     
+    def to_dataframe(self) -> pd.DataFrame:
+        rotvec = self.rotvec()
+        data = np.concatenate([self.pos, rotvec], axis=1)
+        df = pd.DataFrame(data, columns=_CSV_COLUMNS)
+        return df
+
     def to_csv(self, save_path: str, properties: pd.DataFrame | None = None) -> None:
         """
         Save molecules as a csv file.
@@ -97,14 +103,12 @@ class Molecules:
         properties : pd.DataFrame | None, optional
             Molecules porperties. Saved in the same csv file from column-7.
         """        
-        rotvec = self.rotvec()
-        data = np.concatenate([self.pos, rotvec], axis=1)
-        df = pd.DataFrame(data, columns=_CSV_COLUMNS)
+        df = self.to_dataframe()
         if properties is not None:
             if len(properties) != len(self):
                 raise ValueError("Length mismatch between Molecules and properties.")
             df = pd.concat([df, properties], axis=1)
-        df.to_csv(save_path)
+        df.to_csv(save_path, index=False)
         return None
 
     def __len__(self) -> int:

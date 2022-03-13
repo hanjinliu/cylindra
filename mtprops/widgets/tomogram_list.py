@@ -52,7 +52,7 @@ class TomogramList(MagicTemplate):
         # Load dask again. Here, lowpass filter is already applied so that cutoff frequency
         # should be set to 0.
         parent._send_tomogram_to_viewer(tomo)
-        parent._last_ft_size = tomo.metadata.get("ft_size", None)
+        parent._current_ft_size = tomo.metadata.get("ft_size", None)
         
         parent._init_layers()
         parent._init_widget_state()

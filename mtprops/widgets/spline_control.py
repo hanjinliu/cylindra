@@ -120,18 +120,17 @@ class SplineControl(MagicTemplate):
             npf_list = [spl.globalprops[H.nPF]] * spl.anchors.size
         else:
             npf_list = [0] * spl.anchors.size
-            # return None
 
         binsize = parent.layer_image.metadata["current_binsize"]
         imgb = parent.tomogram.get_multiscale(binsize)
         
-        length_px = tomo.nm2pixel(GVar.fitLength/binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth/binsize)
+        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian(
             shape=(width_px, length_px, width_px), 
-            scale=tomo.scale*binsize
+            scale=tomo.scale * binsize
         )
         out: List[ip.ImgArray] = []
         with ip.silent():
@@ -159,6 +158,8 @@ class SplineControl(MagicTemplate):
         j = self.pos
         
         if not self.projections or i is None or j is None:
+            for ic in range(3):
+                self.canvas[ic].layers.clear()
             return
         spl = tomo.splines[i]
         # Set projections
@@ -170,6 +171,8 @@ class SplineControl(MagicTemplate):
             self.canvas[1].image = proj.zx
             if proj.zx_ave is not None:
                 self.canvas[2].image = proj.zx_ave
+            else:
+                del self.canvas[2].image
         
         # Update text overlay
         self.canvas[0].text_overlay.text = f"{i}-{j}"
@@ -179,10 +182,10 @@ class SplineControl(MagicTemplate):
             return None
         lz, ly, lx = np.array(proj.shape)
         
-        if parent._last_ft_size is None:
+        if parent._current_ft_size is None:
             ylen = 25/binsize/tomo.scale
         else:
-            ylen = parent._last_ft_size/2/binsize/tomo.scale
+            ylen = parent._current_ft_size/2/binsize/tomo.scale
         
         # draw a square in YX-view
         ymin, ymax = ly/2 - ylen - 0.5, ly/2 + ylen + 0.5

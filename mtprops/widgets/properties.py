@@ -12,7 +12,7 @@ from ..const import H
 if TYPE_CHECKING:
     import pandas as pd
 
-@magicclass(widget_type="collapsible")
+@magicclass(widget_type="collapsible", name="Local Properties")
 class LocalPropertiesWidget(MagicTemplate):
     """Local properties."""
     
@@ -89,8 +89,8 @@ class LocalPropertiesWidget(MagicTemplate):
         
         self._init_plot()
         
-        self._y_pitch = props[H.yPitch]
-        self._skew_angle = props[H.skewAngle]
+        self._y_pitch = np.asarray(props[H.yPitch])
+        self._skew_angle = np.asarray(props[H.skewAngle])
         
         self.plot[0].add_curve(x, self._y_pitch, color=pitch_color)
         self.plot[1].add_curve(x, self._skew_angle, color=skew_color)
@@ -111,8 +111,9 @@ class LocalPropertiesWidget(MagicTemplate):
         return None
             
 
-@magicclass(widget_type="collapsible")
+@magicclass(widget_type="collapsible", name="Global Properties")
 class GlobalPropertiesWidget(MagicTemplate):
+    """Global properties."""
     
     def __post_init__(self):
         self._init_text()
@@ -167,6 +168,6 @@ class GlobalPropertiesWidget(MagicTemplate):
         self.params.params1.pitch.txt = f" {pitch:.2f} nm"
         self.params.params1.skew.txt = f" {skew:.2f}°"
         self.params.params1.structure.txt = f" {int(npf)}_{start:.1f}"
-        self.params.params2.radius.txt = f" {radius:.2f} nm"
+        self.params.params2.radius.txt = f" {radius:.2f} nm" if radius is not None else " -- nm"
         self.params.params2.polarity.txt = orientation
         return None
