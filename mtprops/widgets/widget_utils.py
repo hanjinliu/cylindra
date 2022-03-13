@@ -3,8 +3,8 @@ from typing import Iterable
 import numpy as np
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
-from ..components import Molecules
-from ..const import MOLECULES
+from ..components import Molecules, MtSpline
+from ..const import MOLECULES, GVar, Mole
 
 def add_molecules(viewer: napari.Viewer, mol: Molecules, name):
     """Add Molecules object as a point layer."""
@@ -42,3 +42,18 @@ def update_features(
     features[feature_name] = value
     layer.features = features
     return None
+
+def molecules_to_spline(layer: Points) -> MtSpline:
+    mole: Molecules = layer.metadata[MOLECULES]
+    spl = MtSpline(degree=GVar.splOrder)
+    npf = int(round(np.max(layer.features[Mole.pf]) + 1))
+    all_coords = mole.pos.reshape(-1, npf, 3)
+    mean_coords = np.mean(all_coords, axis=1)
+    spl.fit(mean_coords, variance=GVar.splError**2)
+    return spl
+
+def y_coords_to_start_number(u: np.ndarray, npf: int):
+    """infer start number using the y coordinates in spline coordinate system."""
+    a0 = (u[-npf] - u[0]) / (u.size - npf)
+    a1 = np.mean((u[::npf] - u[(npf-1)::npf])/(npf - 1))
+    return int(round(a1/a0))

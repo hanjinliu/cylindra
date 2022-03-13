@@ -168,35 +168,36 @@ class MtSpline(Spline):
         else:
             self._orientation = Ori(value)
     
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d[K.radius] = self.radius
-        d[K.orientation] = self.orientation.name
-        if self.localprops is not None:
-            cols = [l for l in LOCALPROPS if l in self.localprops.columns]
-            d[K.localprops] = self.localprops[cols]
-        if self.globalprops is not None:
-            d[K.globalprops] = self.globalprops
-        return d
+    
+    # def to_dict(self) -> dict:
+    #     d = super().to_dict()
+    #     d[K.radius] = self.radius
+    #     d[K.orientation] = self.orientation.name
+    #     if self.localprops is not None:
+    #         cols = [l for l in LOCALPROPS if l in self.localprops.columns]
+    #         d[K.localprops] = self.localprops[cols]
+    #     if self.globalprops is not None:
+    #         d[K.globalprops] = self.globalprops
+    #     return d
         
-    @classmethod
-    def from_dict(cls, d: dict) -> Self:
-        self = super().from_dict(d)
-        localprops = d.get(K.localprops, None)
-        if localprops is not None and H.splPosition in localprops:
-            self.anchors = localprops[H.splPosition]
-        self.radius = d.get(K.radius, None)
-        self.orientation = d.get(K.orientation, Ori.none)
-        if localprops is None:
-            self.localprops = None
-        else:
-            self.localprops = pd.DataFrame(localprops)
-        globalprops = d.get(K.globalprops, None)
-        if globalprops is None:
-            self.globalprops = globalprops
-        else:
-            self.globalprops = pd.Series(globalprops)
-        return self
+    # @classmethod
+    # def from_dict(cls, d: dict) -> Self:
+    #     self = super().from_dict(d)
+    #     localprops = d.get(K.localprops, None)
+    #     if localprops is not None and H.splPosition in localprops:
+    #         self.anchors = localprops[H.splPosition]
+    #     self.radius = d.get(K.radius, None)
+    #     self.orientation = d.get(K.orientation, Ori.none)
+    #     if localprops is None:
+    #         self.localprops = None
+    #     else:
+    #         self.localprops = pd.DataFrame(localprops)
+    #     globalprops = d.get(K.globalprops, None)
+    #     if globalprops is None:
+    #         self.globalprops = globalprops
+    #     else:
+    #         self.globalprops = pd.Series(globalprops)
+    #     return self
 
 
 _KW = ParamSpecKwargs("_KW")

@@ -440,9 +440,7 @@ class Spline:
 
     
     def to_dict(self) -> SplineInfo:
-        """
-        Convert spline info into a dict.
-        """        
+        """Convert spline info into a dict."""
         t, c, k = self._tck
         u = self._u
         return {"t": t.tolist(), 

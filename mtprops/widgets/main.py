@@ -61,7 +61,13 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .worker import WorkerControl, dispatch_worker, Worker
-from .widget_utils import add_molecules, change_viewer_focus, update_features
+from .widget_utils import (
+    add_molecules,
+    change_viewer_focus,
+    update_features,
+    molecules_to_spline,
+    y_coords_to_start_number,
+)
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -1099,7 +1105,7 @@ class MTPropsWidget(MagicTemplate):
         splines: List[MtSpline] = []
         for layer in layers:
             mole: Molecules = layer.metadata[MOLECULES]
-            spl = MtSpline(self.tomogram.scale, GVar.splOrder)
+            spl = MtSpline(degree=GVar.splOrder)
             npf = roundint(np.max(layer.features[Mole.pf]) + 1)
             all_coords = mole.pos.reshape(-1, npf, 3)
             mean_coords = np.mean(all_coords, axis=1)
@@ -1394,7 +1400,7 @@ class MTPropsWidget(MagicTemplate):
         if filter_length % 2 == 0 or filter_width % 2 == 0:
             raise ValueError("'filter_length' and 'filter_width' must be odd numbers.")
         mole: Molecules = layer.metadata[MOLECULES]
-        spl = self.Molecules_to_spline([layer])
+        spl = molecules_to_spline(layer)
         npf = roundint(np.max(layer.features[Mole.pf]) + 1)
         try:
             pf_label = layer.features[Mole.pf]
@@ -1421,7 +1427,8 @@ class MTPropsWidget(MagicTemplate):
         if filter_length > 1 or filter_width > 1:
             l_ypad = filter_length // 2
             l_apad = filter_width // 2
-            start = roundint(spl.globalprops[H.start])
+            start = y_coords_to_start_number(u, npf)
+            self.Panels.log.print(f"geometry: {npf}_{start}")
             input = pad_mt_edges(y_dist[:, ::-1], (l_ypad, l_apad), start=start)
             out = ndi.uniform_filter(input, (filter_length, filter_width), mode="constant")
             ly, lx = out.shape
@@ -1952,9 +1959,9 @@ class MTPropsWidget(MagicTemplate):
                 cval = np.percentile(image_avg, 1)
                 shifted_image = image_avg.affine(
                     translation=shift, cval=cval
-                    ).rotate(deg, dims="zx", cval=cval)
+                ).rotate(deg, dims="zx", cval=cval)
 
-            shift_nm = shift * self.tomogram.scale
+            shift_nm = shift * img.scale
             vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
             shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
             self.Panels.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")

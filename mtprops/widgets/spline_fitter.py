@@ -61,13 +61,15 @@ class SplineFitter(MagicTemplate):
     def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.num]):
         """Fit current spline."""
         shifts = np.asarray(shifts)
+        parent = self._get_parent()
+        _scale = parent.tomogram.scale
         spl = self.splines[i]
         var = GVar.splError**2
-        spl.shift_fit(shifts=shifts*self.binsize*spl.scale, variance=var)
+        spl.shift_fit(shifts=shifts*self.binsize*_scale, variance=var)
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()
-        self._get_parent()._update_splines_in_images()
+        parent._update_splines_in_images()
     
     @Rotational_averaging.frame.wraps
     @do_not_record
