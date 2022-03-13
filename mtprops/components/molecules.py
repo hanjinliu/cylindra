@@ -269,7 +269,8 @@ class Molecules:
         shape : tuple[int, int, int]
             Shape of output coordinates.
         scale : nm
-            Scale of coordinates. Same as the pixel size of the tomogram.
+            Scale of coordinates. Same as the pixel size of the tomogram. This parameter is 
+            needed for calculating the center pixel coordinates.
         chunksize : int, default is 100
             Chunk size of the iterator.
 

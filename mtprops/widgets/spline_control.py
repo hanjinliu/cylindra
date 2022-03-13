@@ -129,7 +129,10 @@ class SplineControl(MagicTemplate):
         width_px = tomo.nm2pixel(GVar.fitWidth/binsize)
         
         mole = spl.anchors_to_molecules()
-        coords = mole.cartesian((width_px, length_px, width_px), spl.scale*binsize)
+        coords = mole.cartesian(
+            shape=(width_px, length_px, width_px), 
+            scale=tomo.scale*binsize
+        )
         out: List[ip.ImgArray] = []
         with ip.silent():
             for crds in coords:

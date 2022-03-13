@@ -78,18 +78,16 @@ class MtSpline(Spline):
     _local_cache = (K.localprops,)
     _global_cache = (K.globalprops, K.radius, K.orientation)
     
-    def __init__(self, scale: float = 1.0, k: int = 3, *, lims: tuple[float, float] = (0., 1.)):
+    def __init__(self, degree: int = 3, *, lims: tuple[float, float] = (0., 1.)):
         """
         Spline object for MT.
         
         Parameters
         ----------
-        scale : float, default is 1.0
-            Pixel scale
         k : int, default is 3
             Spline order.
         """        
-        super().__init__(scale=scale, k=k, lims=lims)
+        super().__init__(degree=degree, lims=lims)
         self.orientation = Ori.none
         self.radius: nm = None
         self.localprops: pd.DataFrame = None
@@ -375,7 +373,7 @@ class MtTomogram(Tomogram):
         coords : array-like
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """        
-        spl = MtSpline(self.scale, k=GVar.splOrder)
+        spl = MtSpline(degree=GVar.splOrder)
         coords = np.asarray(coords)
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
         spl.fit(coords, variance=sqsum)
@@ -681,7 +679,7 @@ class MtTomogram(Tomogram):
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
-        scale = self.scale*binsize
+        scale = self.scale * binsize
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
         if isinstance(input_img, ip.LazyImgArray):
             chunksize = max(int(GVar.fitLength*2/interval), 1)
@@ -689,7 +687,9 @@ class MtTomogram(Tomogram):
             chunksize = len(mole)
         with set_gpu():
             for coords in mole.iter_cartesian(
-                (width_px, length_px, width_px), scale, chunksize=chunksize
+                shape=(width_px, length_px, width_px),
+                scale=scale, 
+                chunksize=chunksize,
             ):
                 _subtomo = multi_map_coordinates(input_img, coords, order=1, cval=np.mean)
                 images.extend(_subtomo)
@@ -797,7 +797,9 @@ class MtTomogram(Tomogram):
             chunksize = len(mole)
         with set_gpu():
             for coords in mole.iter_cartesian(
-                (width_px, length_px, width_px), scale, chunksize=chunksize
+                shape=(width_px, length_px, width_px), 
+                scale=scale,
+                chunksize=chunksize,
             ):
                 _subtomo = map_coordinates(input_img, coords[0], order=1, cval=np.mean)
                 images.append(_subtomo)
@@ -849,18 +851,20 @@ class MtTomogram(Tomogram):
             raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(ft_size)
-        rmin = spl.radius * GVar.inner / self.scale
-        rmax = spl.radius * GVar.outer / self.scale
+        _scale = self.scale
+        rmin = spl.radius * GVar.inner / _scale
+        rmax = spl.radius * GVar.outer / _scale
         tasks = []
-        LOGGER.info(f" >> Rmin = {rmin * self.scale:.2f} nm, Rmax = {rmax * self.scale:.2f} nm")
+        LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         for anc in spl.anchors:
-            coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
+            coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
             tasks.append(
-                da.from_delayed(lazy_ft_params(self.image, coords, spl.radius), 
-                                shape=(5,), 
-                                meta=np.array([], dtype=np.float32)
-                                )
+                da.from_delayed(
+                    lazy_ft_params(self.image, coords, spl.radius), 
+                    shape=(5,), 
+                    meta=np.array([], dtype=np.float32)
                 )
+            )
         with set_gpu():
             results = np.stack(da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0)
                 
@@ -899,8 +903,9 @@ class MtTomogram(Tomogram):
             raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(ft_size)
-        rmin = spl.radius * GVar.inner / self.scale
-        rmax = spl.radius * GVar.outer / self.scale
+        _scale = self.scale
+        rmin = spl.radius * GVar.inner / _scale
+        rmax = spl.radius * GVar.outer / _scale
         out: list[ip.ImgArray] = []
         with ip.silent():
             if pos is None:
@@ -909,10 +914,10 @@ class MtTomogram(Tomogram):
                 anchors = [spl.anchors[pos]]
             with set_gpu():
                 for anc in anchors:
-                    coords = spl.local_cylindrical((rmin, rmax), ylen, anc)
+                    coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
                     polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
                     polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
-                    polar.set_scale(r=self.scale, y=self.scale, a=self.scale)
+                    polar.set_scale(r=_scale, y=_scale, a=_scale)
                     polar.scale_unit = self.image.scale_unit
                     polar[:] -= np.mean(polar)
                     out.append(polar.fft(dims="rya"))
@@ -1038,7 +1043,11 @@ class MtTomogram(Tomogram):
                 else:
                     rz = rx = self.nm2pixel(size)
                     
-            coords = spl.cartesian((rz, rx), s_range=range_)
+            coords = spl.cartesian(
+                shape=(rz, rx),
+                s_range=range_,
+                scale=self.scale
+            )
             with set_gpu():
                 transformed = map_coordinates(self.image, coords, order=1)
             
@@ -1103,7 +1112,11 @@ class MtTomogram(Tomogram):
             if outer_radius <= inner_radius:
                 raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
             
-            coords = spl.cylindrical((inner_radius, outer_radius), s_range=range_)            
+            coords = spl.cylindrical(
+                r_range=(inner_radius, outer_radius),
+                s_range=range_,
+                scale=self.scale
+            )
             
             with set_gpu():
                 transformed = map_coordinates(self.image, coords, order=3)
@@ -1279,6 +1292,10 @@ class MtTomogram(Tomogram):
         acoords = np.arange(ny) * skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
         return spl.cylindrical_to_molecules(coords)
+    
+    #####################################################################################
+    #   Utility functions
+    #####################################################################################
     
     def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
         """
@@ -1503,10 +1520,11 @@ def _affine(img, matrix, mode: str, cval: float, order):
 def dask_affine(images, matrices, mode: str = Mode.constant, cval: float = 0, order=1):
     imgs = da.from_array(images, chunks=(1,)+images.shape[1:])
     mtxs = da.from_array(matrices[..., np.newaxis], chunks=(1,)+matrices.shape[1:]+(1,))
-    return imgs.map_blocks(_affine,
-                           mtxs,
-                           mode=mode,
-                           cval=cval,
-                           order=order,
-                           meta=np.array([], dtype=np.float32),
-                           ).compute()
+    return imgs.map_blocks(
+        _affine,
+        mtxs,
+        mode=mode,
+        cval=cval,
+        order=order,
+        meta=np.array([], dtype=np.float32),
+    ).compute()

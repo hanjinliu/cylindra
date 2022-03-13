@@ -29,7 +29,6 @@ class SplineInfo(TypedDict):
     c: Coords3D
     k: int
     u: list[float]
-    scale: float
     lims: tuple[float, float]
 
 
@@ -54,14 +53,12 @@ class Spline:
     
     def __init__(
         self, 
-        scale: float = 1.0, 
-        k: int = 3, 
+        degree: int = 3, 
         *, 
         lims: tuple[float, float] = (0., 1.)
     ):
-        self._tck: tuple[np.ndarray | None, list[np.ndarray] | None, int] = (None, None, k)
+        self._tck: tuple[np.ndarray | None, list[np.ndarray] | None, int] = (None, None, degree)
         self._u: np.ndarray | None = None
-        self.scale = scale
         self._anchors = None
         
         # check lims
@@ -84,7 +81,7 @@ class Spline:
         Spline
             Copied object.
         """
-        new = self.__class__(self.scale, self.degree, lims=self._lims)
+        new = self.__class__(degree=self.degree, lims=self._lims)
         new._tck = self._tck
         new._u = self._u
         new._anchors = self._anchors
@@ -247,7 +244,7 @@ class Spline:
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        new = self.__class__(self.scale, self.degree, lims=(u0, u1))
+        new = self.__class__(degree=self.degree, lims=(u0, u1))
         new._tck = self._tck
         new._u = self._u
         return new
@@ -262,7 +259,7 @@ class Spline:
         Spline
             Copy of the original spline.
         """
-        original = self.__class__(self.scale, self.degree, lims=(0, 1))
+        original = self.__class__(degree=self.degree, lims=(0, 1))
         original._tck = self._tck
         original._u = self._u
         return original
@@ -439,7 +436,7 @@ class Spline:
         dz, dy, dx = self(u, 1).T
         ddz, ddy, ddx = self(u, 2).T
         a = (ddz*dy - ddy*dz)**2 + (ddx*dz - ddz*dx)**2 + (ddy*dx - ddx*dy)**2
-        return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5 / self.scale
+        return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5
 
     
     def to_dict(self) -> SplineInfo:
@@ -448,20 +445,18 @@ class Spline:
         """        
         t, c, k = self._tck
         u = self._u
-        scale = self.scale
         return {"t": t.tolist(), 
                 "c": {"z": c[0].tolist(),
                       "y": c[1].tolist(),
                       "x": c[2].tolist()},
                 "k": k,
                 "u": u.tolist(),
-                "scale": scale,
                 "lims": self._lims,
                 }
     
     @classmethod
     def from_dict(cls: type[Self], d: SplineInfo) -> Self:
-        self = cls(d.get("scale", 1.0), d.get("k", 3), lims=d.get("lims", (0, 1)))
+        self = cls(degree=d.get("k", 3), lims=d.get("lims", (0, 1)))
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]
         k = roundint(d["k"])
@@ -585,7 +580,7 @@ class Spline:
         shape: tuple[int, int],
         n_pixels: int,
         u: float | Iterable[float] = None,
-        scale: nm | None = None,
+        scale: nm = 1.,
     ):
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
@@ -599,19 +594,17 @@ class Spline:
             Length of y axis in pixels.
         u : float, optional
             Position on the spline at which local Cartesian coordinates will be built.
-        scale: nm, optional
-            Scale of coordinates. Spline's scale will be used if not given.
+        scale: nm, default is 1.0
+            Scale of coordinates, i.e. spacing of the grid.
             
         Returns
         -------
         np.ndarray
-            (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
-            dimensional axis.
+            (D, V, S, H) shape. Each cooresponds to dimensional vertical, longitudinal and
+            horizontal axis, which is ready to be used in ``ndi.map_coordinates``.
         """
         
         mole = self.anchors_to_molecules(u)
-        if scale is None:
-            scale = self.scale
         coords = mole.cartesian((shape[0], n_pixels, shape[1]), scale)
         if np.isscalar(u):
             coords = coords[0]
@@ -622,7 +615,7 @@ class Spline:
         r_range: tuple[float, float],
         n_pixels: int,
         u: float = None,
-        scale: nm | None = None,
+        scale: nm = 1.,
     ):
         """
         Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
@@ -636,17 +629,17 @@ class Spline:
             Length of y axis in pixels.
         u : float
             Position on the spline at which local cylindrical coordinates will be built.
+        scale: nm, default is 1.0
+            Scale of coordinates, i.e. spacing of the grid.
             
         Returns
         -------
         np.ndarray
-            (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and 
-            dimensional axis.
+            (D, V, S, H) shape. Each cooresponds to dimensional, radius, longitudinal and
+            angle axis, which is ready to be used in ``ndi.map_coordinates``.
         """        
         if u is None:
             u = self.anchors
-        if scale is None:
-            scale = self.scale
         ds = self(u, 1).astype(np.float32)
         len_ds = np.sqrt(sum(ds**2))
         dy = ds.reshape(-1, 1)/len_ds * np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
@@ -662,7 +655,7 @@ class Spline:
         self, 
         shape: tuple[int, int], 
         s_range: tuple[float, float] = (0, 1),
-        scale = None,
+        scale: nm = 1.,
     ) -> np.ndarray:
         """
         Generate a Cartesian coordinate system along spline that can be used for
@@ -675,7 +668,10 @@ class Spline:
             The ZX-shape of output coordinate system. Center of the array will be
             spline curve itself after coodinate transformation.
         s_range : tuple[float, float], default is (0, 1)
-            Range of spline domain.
+            Range of spline. Spline coordinate system will be built between 
+            ``spl[s_range[0]]`` and ``spl[s_range[1]]``.
+        scale: nm, default is 1.0
+            Scale of coordinates, i.e. spacing of the grid.
 
         Returns
         -------
@@ -690,7 +686,7 @@ class Spline:
         self, 
         r_range: tuple[float, float],
         s_range: tuple[float, float] = (0, 1),
-        scale: nm = None,
+        scale: nm = 1.,
     ) -> np.ndarray:
         """
         Generate a cylindrical coordinate system along spline that can be used for
@@ -703,7 +699,10 @@ class Spline:
             Range of radius in pixels. r=0 will be spline curve itself after coodinate 
             transformation.
         s_range : tuple[float, float], default is (0, 1)
-            Range of spline domain.
+            Range of spline. Spline coordinate system will be built between 
+            ``spl[s_range[0]]`` and ``spl[s_range[1]]``.
+        scale: nm, default is 1.0
+            Scale of coordinates, i.e. spacing of the grid.
 
         Returns
         -------
@@ -786,8 +785,8 @@ class Spline:
         ----------
         coords : (3,) or (N, 3) array
             World coordinates.
-        precision : nm, optional
-            Precision of y coordinate in nm., by default 0.2
+        precision : nm, default is 0.2
+            Precision of y coordinate in nm.
 
         Returns
         -------
@@ -807,7 +806,7 @@ class Spline:
     def anchors_to_molecules(
         self, 
         u: float | Iterable[float] | None = None,
-        rotation: Iterable[float] | None = None
+        rotation: Iterable[float] | None = None,
     ) -> Molecules:
         """
         Convert coordinates of anchors to ``Molecules`` instance.
@@ -882,12 +881,13 @@ class Spline:
             prefilter=order>1,
         )
 
-
-    def _get_coords(self,
-                    map_func: Callable[[tuple], np.ndarray],
-                    map_params: tuple,
-                    s_range: tuple[float, float],
-                    scale: nm):
+    def _get_coords(
+        self,
+        map_func: Callable[[tuple], np.ndarray],
+        map_params: tuple,
+        s_range: tuple[float, float],
+        scale: nm
+        ):
         """
         Make coordinate system using function ``map_func`` and stack the same point cloud
         in the direction of the spline, in the range of ``s_range``.
@@ -899,9 +899,7 @@ class Spline:
         out = _rot_with_vector(map_slice, y_ax_coords, dslist)
         return np.moveaxis(out, -1, 0)
     
-    def _get_y_ax_coords(self, s_range: tuple[float, float], scale):
-        if scale is None:
-            scale = self.scale
+    def _get_y_ax_coords(self, s_range: tuple[float, float], scale: nm):
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
         stop_length, n_segs = interval_divmod(length, scale)
@@ -912,6 +910,7 @@ class Spline:
         u = np.linspace(s0, s2, n_pixels)
         y = self(u) / scale  # world coordinates of y-axis in spline coords system
         return u, y
+
 
 def _linear_conversion(u, start: float, stop: float):
     return (1 - u) * start + u * stop

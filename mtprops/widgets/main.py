@@ -2762,7 +2762,12 @@ class MTPropsWidget(MagicTemplate):
         rmin = tomo.nm2pixel(spl.radius*GVar.inner)
         rmax = tomo.nm2pixel(spl.radius*GVar.outer)
         
-        coords = spl.local_cylindrical((rmin, rmax), ylen, spl.anchors[j])
+        coords = spl.local_cylindrical(
+            r_range=(rmin, rmax), 
+            n_pixels=ylen, 
+            u=spl.anchors[j],
+            scale=tomo.scale
+        )
         img = tomo.image
         polar = map_coordinates(img, coords, order=1)
         polar = ip.asarray(polar, axes="rya") # radius, y, angle
