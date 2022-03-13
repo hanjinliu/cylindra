@@ -172,7 +172,7 @@ class MTPropsWidget(MagicTemplate):
         class Adjust(MagicTemplate):
             """Adjust auto picker"""
             stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
-            angle_deviation = vfield(25.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
+            angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
             angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1, "tooltip": "Angle precision (degree) of auto picker"}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
@@ -966,6 +966,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         max_interval={"label": "Max interval (nm)"},
         bin_size={"choices": _get_available_binsize},
+        edge_sigma={"text": "Do not mask image"},
     )
     @dispatch_worker
     def Fit_splines(
@@ -1175,7 +1176,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.log.print_html("<code>Map_monomers</code>")
             for i, mol in enumerate(out):
                 _name = f"Mono-{i}"
-                spl = tomo.splines[i]
+                spl = tomo.splines[splines[i]]
                 layer = add_molecules(self.parent_viewer, mol, _name, source=spl)
                 npf = roundint(spl.globalprops[H.nPF])
                 update_features(layer, Mole.pf, np.arange(len(mol)) % npf)
@@ -1532,7 +1533,7 @@ class MTPropsWidget(MagicTemplate):
         class mask_path(MagicTemplate):
             mask_path = vfield(Path, options={"filter": "*.mrc;*.tif"}, record=False)
         
-        chunk_size = vfield(200, options={"min": 1, "max": 600, "tooltip": "How many subtomograms will be loaded at the same time."})
+        chunk_size = vfield(200, options={"min": 1, "max": 600, "step": 10, "tooltip": "How many subtomograms will be loaded at the same time."})
         
         @mask.connect
         def _on_switch(self):
@@ -1904,19 +1905,16 @@ class MTPropsWidget(MagicTemplate):
         nmole = len(molecules)
         spl: MtSpline = layer.metadata.get(SOURCE, None)
         
-        pitch = spl.globalprops[H.yPitch]
-        radius = spl.radius
-        npf = spl.globalprops[H.nPF]
-        
         loader, template, mask = self._check_binning_for_alignment(
             template, mask, bin_size, molecules, order=1, chunk_size=chunk_size
         )
-        if bin_size:
-            _scale = self.tomogram.scale * bin_size
-        else:
-            _scale = self.tomogram.scale
-            
-        max_shifts = tuple(np.array([pitch, pitch/2, 2*np.pi*radius/npf/2])/_scale)
+        _scale = self.tomogram.scale * bin_size
+        max_shifts = tuple()
+        npf = np.max(layer.features[Mole.pf]) + 1
+        dy = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[1])**2))  # longitudinal shift
+        dx = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[npf])**2))  # lateral shift
+        
+        max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
         nbatch = 24
         worker = create_worker(
             loader.iter_average,
@@ -1950,7 +1948,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
             points = add_molecules(
                 self.parent_viewer, 
-                transform_molecules(molecules, shift * self.tomogram.scale, [0, -rot, 0]),
+                transform_molecules(molecules, shift_nm, [0, -rot, 0]),
                 _coerce_aligned_name(layer.name, self.parent_viewer),
                 source=spl
             )

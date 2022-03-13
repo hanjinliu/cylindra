@@ -378,7 +378,7 @@ class MtTomogram(Tomogram):
         spl = MtSpline(self.scale, k=GVar.splOrder)
         coords = np.asarray(coords)
         sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
-        spl.fit(coords, s=sqsum)
+        spl.fit(coords, variance=sqsum)
         interval: nm = 30.0
         length = spl.length()
         
@@ -468,7 +468,7 @@ class MtTomogram(Tomogram):
             Spline ID that you want to fit.
         max_interval : nm, default is 30.0
             Maximum interval of sampling points in nm unit.
-        degree_precision : float, default is 0.2
+        degree_precision : float, default is 0.5
             Precision of MT xy-tilt degree in angular correlation.
         binsize : int, default is 1
             Multiscale bin size used for fitting.
@@ -495,8 +495,11 @@ class MtTomogram(Tomogram):
         width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
         
         # If subtomogram region is rotated by 45 degree, its XY-width will be
-        # sqrt(2) * (length + width)
-        centers = spl() - self.multiscale_translation(binsize)
+        # (length + width) / sqrt(2)
+        if binsize > 1:
+            centers = spl() - self.multiscale_translation(binsize)
+        else:
+            centers = spl()
         center_px = self.nm2pixel(centers, binsize=binsize)
         size_px = (width_px,) + (roundint((width_px + length_px)/1.41),)*2
         
@@ -525,7 +528,7 @@ class MtTomogram(Tomogram):
                 xr = xx - xc
                 for i, ds in enumerate(spl(der=1)):
                     _, vy, vx = ds
-                    distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * self.scale
+                    distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * scale
                     distance_cutoff = GVar.fitWidth / 2
                     if edge_sigma == 0:
                         mask_yx = (distance > distance_cutoff).astype(np.float32)
@@ -547,7 +550,7 @@ class MtTomogram(Tomogram):
             
             # If subtomograms are sampled at short intervals, angles should be smoothened to 
             # avoid overfitting.
-            size = 2*roundint(48.0/interval) + 1
+            size = 2 * roundint(48.0/interval) + 1
             if size > 1:
                 # Mirror-mode padding is "a b c d | c b a".
                 refined_tilt_rad = angle_uniform_filter(
@@ -566,10 +569,10 @@ class MtTomogram(Tomogram):
             
             if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
-                xc = int(subtomo_proj.shape.x/2)
-                w = int((GVar.fitWidth/scale)/2)
+                xc = int(subtomo_proj.shape.x / 2)
+                w = int(GVar.fitWidth / scale / 2)
                 subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
-
+    
             shifts = np.zeros((npoints, 2)) # zx-shift
             max_shift_px = max_shift / scale * 2
             for i in range(npoints):
@@ -593,8 +596,8 @@ class MtTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
         
         # Update spline parameters
-        sqsum = GVar.splError**2 * coords.shape[0]  # unit: nm^2
-        spl.fit(coords, s=sqsum)
+        var = GVar.splError**2  # unit: nm^2
+        spl.fit(coords, variance=var)
         LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
@@ -736,8 +739,8 @@ class MtTomogram(Tomogram):
                 shifts[i] = shift @ zxrot
 
         # Update spline parameters
-        sqsum = GVar.splError**2 * npoints # unit: nm^2
-        spl.shift_fit(shifts=shifts*scale, s=sqsum)
+        var = GVar.splError**2  # unit: nm^2
+        spl.shift_fit(shifts=shifts*scale, variance=var)
         LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
@@ -781,7 +784,7 @@ class MtTomogram(Tomogram):
         
         length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
-        scale = self.scale*binsize
+        scale = self.scale * binsize
         
         mole = spl.anchors_to_molecules()
         if binsize > 1:

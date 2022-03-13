@@ -62,8 +62,8 @@ class SplineFitter(MagicTemplate):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         spl = self.splines[i]
-        sqsum = GVar.splError**2 * shifts.shape[0]
-        spl.shift_fit(shifts=shifts*self.binsize*spl.scale, s=sqsum)
+        var = GVar.splError**2
+        spl.shift_fit(shifts=shifts*self.binsize*spl.scale, variance=var)
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()

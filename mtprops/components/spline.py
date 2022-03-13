@@ -268,7 +268,7 @@ class Spline:
         return original
 
 
-    def fit(self, coords: np.ndarray, w: np.ndarray = None, s: float = None) -> Self:
+    def fit(self, coords: np.ndarray, weight: np.ndarray = None, variance: float = None) -> Self:
         """
         Fit spline model using a list of coordinates.
 
@@ -276,10 +276,10 @@ class Spline:
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
-        w : np.ndarray, optional
+        weight : np.ndarray, optional
             Weight of each coordinate.
-        s : float, optional
-            Total variation , by default None
+        variance : float, optional
+            Total variation.
         
         Returns
         -------
@@ -291,7 +291,7 @@ class Spline:
             raise ValueError("npoins must be > 1.")
         elif npoints <= self.degree:
             self._tck = self._tck[:2] + (npoints - 1,)
-        self._tck, self._u = splprep(coords.T, k=self.degree, w=w, s=s)
+        self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=variance*npoints)
         del self.anchors # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
         return self
@@ -301,7 +301,7 @@ class Spline:
         self,
         u: Iterable[float] | None = None,
         shifts: np.ndarray | None = None,
-        s: float = None
+        variance: float = None
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -312,9 +312,7 @@ class Spline:
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
-        w : np.ndarray, optional
-            Weight of each coordinate.
-        s : float, optional
+        variance : float, optional
             Total variation, by default None
             
         Returns
@@ -326,7 +324,7 @@ class Spline:
         rot = self.get_rotator(u)
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit(coords, s=s)
+        self.fit(coords, variance=variance)
         return self
 
     
