@@ -450,7 +450,7 @@ class MtTomogram(Tomogram):
         *, 
         max_interval: nm = 30.0,
         degree_precision: float = 0.5,
-        cutoff: float = 0.2,
+        binsize: int = 1,
         edge_sigma: nm = 2.0,
         max_shift: nm = 5.0,
     ) -> Self:
@@ -470,9 +470,8 @@ class MtTomogram(Tomogram):
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.2
             Precision of MT xy-tilt degree in angular correlation.
-        cutoff : float, default is 0.2
-            The cutoff frequency of lowpass filter that will applied to subtomogram 
-            before alignment-based fitting. 
+        binsize : int, default is 1
+            Multiscale bin size used for fitting.
         edge_sigma : nm, default is 2.0
             Sharpness of mask at the edges. If not None, fitting will be executed after regions outside 
             microtubule are masked. Soft mask is important for precision because sharp changes in intensity
@@ -492,28 +491,32 @@ class MtTomogram(Tomogram):
         npoints = spl.anchors.size
         interval = spl.length()/(npoints-1)
         spl = self._splines[i]
-        length_px = self.nm2pixel(GVar.fitLength)
-        width_px = self.nm2pixel(GVar.fitWidth)
+        length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
         
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # sqrt(2) * (length + width)
-        center_px = self.nm2pixel(spl())
+        centers = spl() - self.multiscale_translation(binsize)
+        center_px = self.nm2pixel(centers, binsize=binsize)
         size_px = (width_px,) + (roundint((width_px + length_px)/1.41),)*2
         
+        if binsize > 1:
+            input_img = self.get_multiscale(binsize)
+        else:
+            try:
+                input_img = self.get_multiscale(1)
+            except ValueError:
+                input_img = self.image
+            
         subtomograms: ip.ImgArray = np.stack(
-            [crop_tomogram(self._image, c, size_px) for c in center_px],
+            [crop_tomogram(input_img, c, size_px) for c in center_px],
             axis="p"
         )
         
         subtomograms[:] -= subtomograms.mean()
+        scale = self.scale * binsize
 
-        with set_gpu():
-            if 0 < cutoff < 0.866:
-                # NOTE: to avoid memory error, FFT should not be calculated in parallel
-                for subtomo in subtomograms:
-                    subtomo: ip.ImgArray
-                    subtomo.value[:] = subtomo.lowpass_filter(cutoff)
-        
+        with set_gpu():        
             if edge_sigma is not None:
                 # mask XY-region outside the microtubules with sigmoid function.
                 yy, xx = np.indices(subtomograms.sizesof("yx"))
@@ -564,11 +567,11 @@ class MtTomogram(Tomogram):
             if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
                 xc = int(subtomo_proj.shape.x/2)
-                w = int((GVar.fitWidth/self.scale)/2)
+                w = int((GVar.fitWidth/scale)/2)
                 subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
 
             shifts = np.zeros((npoints, 2)) # zx-shift
-            max_shift_px = max_shift / self.scale * 2
+            max_shift_px = max_shift / scale * 2
             for i in range(npoints):
                 img = subtomo_proj[i]
                 shifts[i] = mirror_pcc(img, max_shifts=max_shift_px) / 2
@@ -576,7 +579,7 @@ class MtTomogram(Tomogram):
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
         # coordinates that will be shifted should be converted to integers. 
-        coords_px = self.nm2pixel(spl()).astype(np.float32)
+        coords_px = self.nm2pixel(spl(), binsize=binsize).astype(np.float32)
         
         shifts_3d = np.stack([shifts[:, 0],
                               np.zeros(shifts.shape[0]), 
@@ -587,12 +590,12 @@ class MtTomogram(Tomogram):
         rot = Rotation.from_rotvec(rotvec)
         coords_px += rot.apply(shifts_3d)
             
-        coords = coords_px * self.scale
+        coords = coords_px * scale + self.multiscale_translation(binsize)
         
         # Update spline parameters
         sqsum = GVar.splError**2 * coords.shape[0]  # unit: nm^2
         spl.fit(coords, s=sqsum)
-        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * self.scale):.3f} nm")
+        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
     @batch_process
@@ -601,7 +604,7 @@ class MtTomogram(Tomogram):
         i: int = None,
         *, 
         max_interval: nm = 30.0,
-        cutoff: float = 0.35,
+        binsize: int = 1,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
     ) -> Self:
@@ -616,9 +619,8 @@ class MtTomogram(Tomogram):
             Spline ID that you want to fit.
         max_interval : nm, default is 24.0
             Maximum interval of sampling points in nm unit.
-        cutoff : float, default is 0.35
-            The cutoff frequency of lowpass filter that will applied to subtomogram 
-            before alignment-based fitting.
+        binsize : int, default is 1
+            Multiscale bin size used for refining.
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
@@ -635,7 +637,7 @@ class MtTomogram(Tomogram):
         spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
-            self.set_radius(i=i)
+            self.set_radius(i=i, binsize=binsize)
         
         level = LOGGER.level
         LOGGER.setLevel(logging.WARNING)
@@ -661,28 +663,37 @@ class MtTomogram(Tomogram):
         skew_angles %= pf_ang
         skew_angles[skew_angles > pf_ang/2] -= pf_ang
         
-        length_px = self.nm2pixel(GVar.fitLength)
-        width_px = self.nm2pixel(GVar.fitWidth)
+        if binsize > 1:
+            input_img = self.get_multiscale(binsize)
+        else:
+            try:
+                input_img = self.get_multiscale(1)
+            except ValueError:
+                input_img = self.image
+        
+        length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
         
         images: list[ip.ImgArray] = []
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
-        
+        if binsize > 1:
+            mole = mole.translate(-self.multiscale_translation(binsize))
+        scale = self.scale*binsize
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
-        chunksize = max(int(GVar.fitLength*2/interval), 1)
+        if isinstance(input_img, ip.LazyImgArray):
+            chunksize = max(int(GVar.fitLength*2/interval), 1)
+        else:
+            chunksize = len(mole)
         with set_gpu():
-            for coords in mole.iter_cartesian((width_px, length_px, width_px), 
-                                            self.scale, chunksize=chunksize):
-                _subtomo = multi_map_coordinates(self.image, coords, order=1, cval=np.mean)
+            for coords in mole.iter_cartesian(
+                (width_px, length_px, width_px), scale, chunksize=chunksize
+            ):
+                _subtomo = multi_map_coordinates(input_img, coords, order=1, cval=np.mean)
                 images.extend(_subtomo)
         
             subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
             subtomograms[:] -= subtomograms.mean()  # normalize
-            subtomograms.set_scale(self.image)
-            if 0 < cutoff < 0.866:
-                # NOTE: to avoid memory error, FFT should not be calculated in parallel
-                for subtomo in subtomograms:
-                    subtomo: ip.ImgArray
-                    subtomo.value[:] = subtomo.lowpass_filter(cutoff)
+            subtomograms.set_scale(input_img)
 
             inputs = subtomograms.proj("y")["x=::-1"]
             
@@ -690,7 +701,7 @@ class MtTomogram(Tomogram):
             
             # Coarsely align skew-corrected images                
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
-            max_shift_px = max_shift / self.scale
+            max_shift_px = max_shift / scale
             
             for i in range(npoints):
                 img: ip.ImgArray = inputs[i]
@@ -726,12 +737,18 @@ class MtTomogram(Tomogram):
 
         # Update spline parameters
         sqsum = GVar.splError**2 * npoints # unit: nm^2
-        spl.shift_fit(shifts=shifts*self.scale, s=sqsum)
-        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * self.scale):.3f} nm")
+        spl.shift_fit(shifts=shifts*scale, s=sqsum)
+        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
     @batch_process
-    def set_radius(self, i: int = None, *, radius: nm | None = None) -> nm:
+    def set_radius(
+        self,
+        i: int = None,
+        *, 
+        radius: nm | None = None,
+        binsize: int = 1,
+    ) -> nm:
         """
         Set radius or measure radius using radial profile from the center.
 
@@ -753,25 +770,41 @@ class MtTomogram(Tomogram):
 
         if spl._anchors is None:
             spl.make_anchors(n=3)
-            
-        length_px = self.nm2pixel(GVar.fitLength)
-        width_px = self.nm2pixel(GVar.fitWidth)
+        
+        if binsize > 1:
+            input_img = self.get_multiscale(binsize)
+        else:
+            try:
+                input_img = self.get_multiscale(1)
+            except ValueError:
+                input_img = self.image
+        
+        length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
+        scale = self.scale*binsize
         
         mole = spl.anchors_to_molecules()
+        if binsize > 1:
+            mole = mole.translate(-self.multiscale_translation(binsize))
         images: list[ip.ImgArray] = []
         
+        if isinstance(input_img, ip.LazyImgArray):
+            chunksize = 1
+        else:
+            chunksize = len(mole)
         with set_gpu():
-            for coords in mole.iter_cartesian((width_px, length_px, width_px), 
-                                            self.scale, chunksize=1):
-                _subtomo = map_coordinates(self.image, coords[0], order=1, cval=np.mean)
+            for coords in mole.iter_cartesian(
+                (width_px, length_px, width_px), scale, chunksize=chunksize
+            ):
+                _subtomo = map_coordinates(input_img, coords[0], order=1, cval=np.mean)
                 images.append(_subtomo)
         
         subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
-        subtomograms.set_scale(self.image)
+        subtomograms.set_scale(input_img)
         
         r_max = GVar.fitWidth / 2
-        nbin = roundint(r_max/self.scale/2)
+        nbin = roundint(r_max/scale/2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
         
@@ -1243,19 +1276,6 @@ class MtTomogram(Tomogram):
         acoords = np.arange(ny) * skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
         return spl.cylindrical_to_molecules(coords)
-    
-    def get_subtomogram_loader(
-        self,
-        mole: Molecules,
-        shape: tuple[nm, nm, nm], 
-        order: int = 1,
-        chunksize: int = 128,
-    ) -> SubtomogramLoader:
-        """Create a subtomogram loader from molecules."""
-        output_shape = tuple(self.nm2pixel(shape))
-        return SubtomogramLoader(
-            self.image, mole, output_shape=output_shape, order=order, chunksize=chunksize
-        )
     
     def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
         """

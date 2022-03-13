@@ -130,6 +130,13 @@ class Spline:
             np.allclose(self._lims, other._lims)
             )
     
+    def translate(self, shift: tuple[nm, nm, nm]):
+        # TODO: need test
+        new = self.copy()
+        c = [x + s for x, s in zip(self.coeff, shift)]
+        new._tck = (self.knots, c, self.degree)
+        return new
+        
     def clear_cache(self, loc: bool = True, glob: bool = True):
         """
         Clear caches stored on the spline.
@@ -612,7 +619,8 @@ class Spline:
         self,
         r_range: tuple[float, float],
         n_pixels: int,
-        u: float = None
+        u: float = None,
+        scale: nm | None = None,
     ):
         """
         Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
@@ -635,10 +643,12 @@ class Spline:
         """        
         if u is None:
             u = self.anchors
+        if scale is None:
+            scale = self.scale
         ds = self(u, 1).astype(np.float32)
         len_ds = np.sqrt(sum(ds**2))
         dy = ds.reshape(-1, 1)/len_ds * np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
-        y_ax_coords = (self(u)/self.scale).reshape(1, -1) + dy.T
+        y_ax_coords = (self(u)/scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds]*n_pixels, axis=0)
         map_ = _polar_coords_2d(*r_range)
         map_slice = _stack_coords(map_)
@@ -649,7 +659,8 @@ class Spline:
     def cartesian(
         self, 
         shape: tuple[int, int], 
-        s_range: tuple[float, float] = (0, 1)
+        s_range: tuple[float, float] = (0, 1),
+        scale = None,
     ) -> np.ndarray:
         """
         Generate a Cartesian coordinate system along spline that can be used for
@@ -670,13 +681,15 @@ class Spline:
             (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and 
             dimensional axis.
         """        
-        return self._get_coords(_cartesian_coords_2d, shape, s_range)
+        return self._get_coords(_cartesian_coords_2d, shape, s_range, scale)
 
 
-    def cylindrical(self, 
-                    r_range: tuple[float, float],
-                    s_range: tuple[float, float] = (0, 1)
-                    ) -> np.ndarray:
+    def cylindrical(
+        self, 
+        r_range: tuple[float, float],
+        s_range: tuple[float, float] = (0, 1),
+        scale: nm = None,
+    ) -> np.ndarray:
         """
         Generate a cylindrical coordinate system along spline that can be used for
         ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
@@ -696,7 +709,7 @@ class Spline:
             (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and 
             dimensional axis.
         """   
-        return self._get_coords(_polar_coords_2d, r_range, s_range)
+        return self._get_coords(_polar_coords_2d, r_range, s_range, scale)
 
 
     def cartesian_to_world(self, coords: np.ndarray) -> np.ndarray:
@@ -871,28 +884,31 @@ class Spline:
     def _get_coords(self,
                     map_func: Callable[[tuple], np.ndarray],
                     map_params: tuple,
-                    s_range: tuple[float, float]):
+                    s_range: tuple[float, float],
+                    scale: nm):
         """
         Make coordinate system using function ``map_func`` and stack the same point cloud
         in the direction of the spline, in the range of ``s_range``.
         """
-        u, y_ax_coords = self._get_y_ax_coords(s_range)
+        u, y_ax_coords = self._get_y_ax_coords(s_range, scale)
         dslist = self(u, 1).astype(np.float32)
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
         out = _rot_with_vector(map_slice, y_ax_coords, dslist)
         return np.moveaxis(out, -1, 0)
     
-    def _get_y_ax_coords(self, s_range: tuple[float, float]):
+    def _get_y_ax_coords(self, s_range: tuple[float, float], scale):
+        if scale is None:
+            scale = self.scale
         s0, s1 = s_range
         length = self.length(start=s0, stop=s1)
-        stop_length, n_segs = interval_divmod(length, self.scale)
+        stop_length, n_segs = interval_divmod(length, scale)
         n_pixels = n_segs + 1
         s2 = (s1 - s0) * stop_length/length + s0
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
         u = np.linspace(s0, s2, n_pixels)
-        y = self(u) / self.scale  # world coordinates of y-axis in spline coords system
+        y = self(u) / scale  # world coordinates of y-axis in spline coords system
         return u, y
 
 def _linear_conversion(u, start: float, stop: float):

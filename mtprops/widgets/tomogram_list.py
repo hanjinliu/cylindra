@@ -22,12 +22,12 @@ class TomogramList(MagicTemplate):
         self._tomogram_list: list[MtTomogram] = []
         self._metadata_list: list[dict[str, Any]] = []
         
-    def _get_tomograms(self, widget=None) -> List[Tuple[str, int]]:
+    def _get_tomograms(self, _=None) -> List[Tuple[str, int]]:
         out: List[Tuple[str, int]] = []
         for i, tomo in enumerate(self._tomogram_list):
             try:
                 parts = tomo.source.parts
-                name = os.path.join(parts[-2:])
+                name = os.path.join(*parts[-2:])
             except Exception:
                 name = f"Tomogram<{hex(id(tomo))}>"
             out.append((name, i))
@@ -49,30 +49,18 @@ class TomogramList(MagicTemplate):
         tomo: MtTomogram = self._tomogram_list[i]
         if tomo is parent.tomogram:
             return None
-        parent.tomogram = tomo
-        
         # Load dask again. Here, lowpass filter is already applied so that cutoff frequency
         # should be set to 0.
-        worker = parent._get_process_image_worker(
-            tomo.image, 
-            path=tomo.metadata["source"],
-            binsize=tomo.metadata["binsize"], 
-            cutoff=tomo.metadata["cutoff"],
-            new=False
-            )
+        parent._send_tomogram_to_viewer(tomo)
         parent._last_ft_size = tomo.metadata.get("ft_size", None)
         
-        worker.finished.connect(parent._init_layers)
-        worker.finished.connect(parent._init_widget_state)
+        parent._init_layers()
+        parent._init_widget_state()
         if tomo.splines:
-            worker.finished.connect(parent.Sample_subtomograms)
+            parent._update_splines_in_images()
+            parent.Sample_subtomograms()
         else:
-            worker.finished.connect(parent.Panels.overview.layers.clear)
-        
-        if self["Load"].running:
-            parent._connect_worker(worker)
-        else:
-            worker.run()
+            parent.Panels.overview.layers.clear()
         
         return None
     

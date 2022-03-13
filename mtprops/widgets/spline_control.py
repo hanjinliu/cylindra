@@ -122,8 +122,8 @@ class SplineControl(MagicTemplate):
             npf_list = [0] * spl.anchors.size
             # return None
 
-        binsize = tomo.metadata["binsize"]
-        imgb = parent.layer_image.data
+        binsize = parent.layer_image.metadata["current_binsize"]
+        imgb = parent.tomogram.get_multiscale(binsize)
         
         length_px = tomo.nm2pixel(GVar.fitLength/binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth/binsize)
@@ -151,7 +151,7 @@ class SplineControl(MagicTemplate):
         from .main import MTPropsWidget
         parent = self.find_ancestor(MTPropsWidget)
         tomo = parent.tomogram
-        binsize = tomo.metadata["binsize"]
+        binsize = parent.layer_image.metadata["current_binsize"]
         i = self.num
         j = self.pos
         

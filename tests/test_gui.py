@@ -21,7 +21,7 @@ def test_spline_switch():
     ui = start(viewer)
     path = Path(__file__).parent / "13pf_MT.tif"
     ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
-    ui.Apply_lowpass_to_reference_image()
+    ui.Filter_reference_image()
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
     

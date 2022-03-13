@@ -55,7 +55,7 @@ class SplineFitter(MagicTemplate):
     
     def _get_shifts(self, _=None):
         i = self.mt.num.value
-        return self.shifts[i]
+        return np.round(self.shifts[i], 3)
     
     @mt.wraps
     def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.num]):
@@ -143,13 +143,14 @@ class SplineFitter(MagicTemplate):
     
     def _load_parent_state(self, max_interval: nm):
         self.max_interval = max_interval
-        tomo = self._get_parent().tomogram
+        parent = self._get_parent()
+        tomo = parent.tomogram
         for i in range(tomo.n_splines):
             spl = tomo.splines[i]
             spl.make_anchors(max_interval=self.max_interval)
             
         self.shifts = [None] * tomo.n_splines
-        self.binsize = tomo.metadata["binsize"]
+        self.binsize = parent.layer_image.metadata["current_binsize"]
         self.mt.num.max = tomo.n_splines - 1
         self.mt.num.value = 0
         self._mt_changed()
