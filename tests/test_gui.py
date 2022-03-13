@@ -3,6 +3,7 @@ from mtprops import start, MTPropsWidget
 from mtprops.const import H, MOLECULES
 from pathlib import Path
 import napari
+from numpy.testing import assert_allclose
 
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
@@ -16,9 +17,8 @@ def assert_canvas(ui: MTPropsWidget, isnone):
         else:
             assert ui.SplineControl.canvas[i].image is not None, f"{i}-th canvas"
 
-def test_spline_switch():    
-    viewer = napari.Viewer()
-    ui = start(viewer)
+def test_spline_switch():
+    ui = start()
     path = Path(__file__).parent / "13pf_MT.tif"
     ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
     ui.Filter_reference_image()
@@ -112,15 +112,21 @@ def test_spline_switch():
     ui.Save_molecules_as_csv(layer=ui.parent_viewer.layers['Mono-0'],
                       save_path=Path(__file__).parent/"monomers.txt"
                       )
+    mole = ui.get_molecules('Mono-0')
     ui.clear_all()
+    ui.Load_molecules(Path(__file__).parent/"monomers.txt")
+    mole_read = ui.get_molecules('monomers')
+    assert_allclose(mole.pos, mole_read.pos)
+    assert_allclose(mole.x, mole_read.x)
+    assert_allclose(mole.y, mole_read.y)
+    assert_allclose(mole.z, mole_read.z)
     assert_canvas(ui, [True, True, True])
     assert ui.LocalProperties.params.pitch.txt == " -- nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
 
 
 def test_many_tomograms():
-    viewer = napari.Viewer()
-    ui = start(viewer)
+    ui = start()
     path = Path(__file__).parent / "13pf_MT.tif"
     ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
     ui.register_path(coords=coords_13pf)
@@ -149,3 +155,17 @@ def test_many_tomograms():
     with pytest.raises(Exception):
         ui._TomogramList.Delete(1)
     ui._TomogramList.Delete(0)
+
+def test_io():
+    ui = start()
+    path = Path(__file__).parent / "13pf_MT.tif"
+    ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
+    ui.register_path(coords=coords_13pf)
+    ui.register_path(coords=coords_13pf[::-1])
+    ui.run_mtprops(interval=24.0)
+    ui.Map_monomers(splines=[0, 1])
+    
+    # Save project
+    ui.Save_state(Path(__file__).parent / "test-project.json")
+    ui.Load_state(Path(__file__).parent / "test-project.json")
+    

@@ -13,7 +13,6 @@ from napari.qt import create_worker
 from napari.layers import Points, Image, Labels
 
 import impy as ip
-
 from magicclass import (
     magicclass,
     magictoolbar,
@@ -744,13 +743,15 @@ class MTPropsWidget(MagicTemplate):
     @set_options(path={"filter": "*.csv;*.txt"})
     def Load_molecules(self, paths: List[Path]):
         """Load molecules from a csv file."""
+        if isinstance(paths, (str, Path, bytes)):
+            paths = [paths]
         for path in paths:
             df: pd.DataFrame = pd.read_csv(path)
             if df.shape[1] < 6:
                 raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
             from scipy.spatial.transform import Rotation
             mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
-            name = Path(path).name
+            name = Path(path).stem
             points = add_molecules(self.parent_viewer, mole, name)
             if df.shape[1] > 6:
                 points.features = df.iloc[:, 6:]

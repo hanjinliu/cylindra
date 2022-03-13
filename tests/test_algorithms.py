@@ -3,7 +3,6 @@ from mtprops.const import H
 from pathlib import Path
 import numpy as np
 import impy as ip
-from numpy.testing import assert_allclose
 import pytest
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
@@ -27,8 +26,14 @@ def test_run_all(coords, npf, rise, skew_range):
     tomo.make_anchors(n=3)
     tomo.set_radius()
     tomo.make_anchors(interval=30)
+    tomo.collect_localprops()
+    tomo.collect_globalprops()
     tomo.local_ft_params(i=0)
+    tomo.collect_localprops()
+    tomo.collect_globalprops()
     tomo.global_ft_params(i=0)
+    tomo.collect_localprops()
+    tomo.collect_globalprops()
     spl = tomo.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
@@ -65,38 +70,3 @@ def test_chunked_straightening():
     
     assert abs(prop0[H.yPitch] - prop1[H.yPitch]) < 1e-6
     assert abs(prop0[H.skewAngle] - prop1[H.skewAngle]) < 1e-6
-    
-
-def test_result_io():
-    path = Path(__file__).parent / "14pf_MT.tif"
-    save_path = Path(__file__).parent / "result.json"
-    
-    tomo = MtTomogram.imread(path)
-    tomo.add_spline(np.array([[21.97, 123.1, 32.98],
-                              [21.97, 83.3, 40.5],
-                              [21.97, 17.6, 64.96]]))
-    tomo.fit()
-    tomo.refine()
-    tomo.save_json(save_path)
-    tomo2 = MtTomogram()
-    tomo2.load_json(save_path)
-    assert tomo2.splines[0] == tomo.splines[0]
-    assert tomo2.splines[0].localprops is None
-    assert tomo2.splines[0].globalprops is None
-    
-    tomo.set_radius()
-    tomo.local_ft_params()
-    tomo.save_json(save_path)
-    tomo2 = MtTomogram()
-    tomo2.load_json(save_path)
-    assert_allclose(tomo.collect_anchor_coords(0), tomo2.collect_anchor_coords(0))
-    assert_allclose(tomo.collect_localprops(0), tomo2.collect_localprops(0))
-    assert tomo2.splines[0].globalprops is None
-    
-    tomo.global_ft_params()
-    tomo.save_json(save_path)
-    tomo2 = MtTomogram()
-    tomo2.load_json(save_path)
-    assert_allclose(tomo.collect_anchor_coords(0), tomo2.collect_anchor_coords(0))
-    assert_allclose(tomo.collect_localprops(0), tomo2.collect_localprops(0))
-

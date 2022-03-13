@@ -1,7 +1,8 @@
 .vscode/
 
-tests/*.txt
-tests/*.json
+tests/**/*.txt
+tests/**/*.json
+tests/**/*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
