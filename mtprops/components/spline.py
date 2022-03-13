@@ -291,7 +291,11 @@ class Spline:
             raise ValueError("npoins must be > 1.")
         elif npoints <= self.degree:
             self._tck = self._tck[:2] + (npoints - 1,)
-        self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=variance*npoints)
+        if variance is None:
+            s = None
+        else:
+            s = variance * npoints
+        self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
         del self.anchors # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
         return self

@@ -10,7 +10,6 @@ nm = float  # type alias for clearer annotation.
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Splines"
 MOLECULES = "molecules"
-SOURCE = "source-spline"
 ALN_SUFFIX = "ALN"
 
 

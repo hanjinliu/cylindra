@@ -7,11 +7,9 @@ from magicclass import magicmenu, set_options, MagicTemplate
 
 from ...components import Molecules, MtSpline
 from ...utils import roundint
-from ...const import EulerAxes, H
+from ...const import EulerAxes, H, Mole
 from ...types import MOLECULES, MonomerLayer, get_monomer_layers
 from ...widgets.widget_utils import add_molecules
-
-SOURCE = "Source"
 
 @magicmenu
 class PEET(MagicTemplate):
@@ -63,9 +61,7 @@ class PEET(MagicTemplate):
         mol: Molecules = layer.metadata[MOLECULES]
         from .cmd  import save_mod, save_angles
         if save_protofilaments_separately:
-            spl: MtSpline = layer.metadata[SOURCE]
-            npf = roundint(spl.globalprops[H.nPF])
-            
+            npf = roundint(max(layer.features[Mole.pf]) + 1)
             for pf in range(npf):
                 sl = slice(pf, None, npf)
                 save_mod(save_dir/f"coordinates-PF{pf:0>2}.mod", mol.pos[sl, ::-1]/self.scale)
@@ -133,8 +129,7 @@ class PEET(MagicTemplate):
                     )
             layer.metadata[MOLECULES] = mol_shifted
         else:
-            add_molecules(self.parent_viewer, mol_shifted, 
-                          "Molecules from PEET", source=layer.metadata.get(SOURCE, None))
+            add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
     
     @property
     def scale(self) -> float:
