@@ -561,7 +561,7 @@ class MTPropsWidget(MagicTemplate):
             _name = os.path.join(*parts[-2:])
         except Exception:
             _name = f"Tomogram<{hex(id(tomo))}>"
-        self.Panels.log.print_html(f"<h2><u>{_name} Loaded</u></h2>")
+        self.Panels.log.print_html(f"<h2>{_name}</h2>")
         return None
 
     @_loader.wraps
@@ -623,6 +623,7 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
+    @dispatch_worker
     def Load_state(self, path: Path):
         path = str(path)
     
@@ -632,50 +633,76 @@ class MTPropsWidget(MagicTemplate):
         # load image and multiscales
         multiscales: List[int] = js["multiscales"]
         binsize = multiscales.pop(-1)
-        self.load_tomogram(path=js["image"], scale=js["scale"], bin_size=binsize, cutoff=0)
-        for size in multiscales:
-            self.tomogram.add_multiscale(size)
         
-        self._current_ft_size = js["current_ft_size"]
+        worker = create_worker(
+            self._imread,
+            path=js["image"], 
+            scale=js["scale"], 
+            binsize=binsize, 
+            cutoff=0,
+            _progress={"total": 0, "desc": "Running"}
+        )
+
+        self._WorkerControl.info = f"Reading project {path!r}"
         
-        # load splines
-        splines = [MtSpline.from_dict(d) for d in js["splines"]]
-        localprops = dict(iter(pd.read_csv(js["localprops"]).groupby("SplineID")))
-        globalprops = dict(pd.read_csv(js["globalprops"]).iterrows())
-        
-        for i, spl in enumerate(splines):
-            spl.localprops = localprops.get(i, None)
-            if spl.localprops is not None:
-                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
-                spl.localprops.pop("SplineID")
-                spl.localprops.pop("PosID")
-                spl.localprops.index = range(len(spl.localprops))
-            spl.globalprops = globalprops.get(i, None)
-            if spl.globalprops is not None:
-                try:
-                    spl.radius = spl.globalprops.pop("radius")
-                except KeyError:
-                    pass
-                try:
-                    spl.orientation = spl.globalprops.pop("orientation")
-                except KeyError:
-                    pass
-        
-        if splines:
-            self.tomogram._splines = splines
-            self._update_splines_in_images()
-            self.Sample_subtomograms()
-        
-        # load molecules
-        from scipy.spatial.transform import Rotation
-        for path in js["molecules"]:
-            df = pd.read_csv(path)
-            features = df.iloc[:, 6:]
-            mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
-            layer = add_molecules(self.parent_viewer, mole, name=Path(path).stem)
-            layer.features = features
-        self.reset_choices()
-        return None
+        @worker.returned.connect
+        def _on_return(tomo: MtTomogram):
+            self._send_tomogram_to_viewer(tomo)
+            if self._current_ft_size is not None:
+                tomo.metadata["ft_size"] = self._current_ft_size
+            tomo_list_widget = self._TomogramList
+            tomo_list_widget._tomogram_list.append(tomo)
+            tomo_list_widget.reset_choices()  # Next line of code needs updated choices
+            try:
+                tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
+            except ValueError:
+                pass
+            with self.macro.blocked():
+                self.clear_all()
+    
+            for size in multiscales:
+                self.tomogram.add_multiscale(size)
+            
+            self._current_ft_size = js["current_ft_size"]
+            
+            # load splines
+            splines = [MtSpline.from_dict(d) for d in js["splines"]]
+            localprops = dict(iter(pd.read_csv(js["localprops"]).groupby("SplineID")))
+            globalprops = dict(pd.read_csv(js["globalprops"]).iterrows())
+            
+            for i, spl in enumerate(splines):
+                spl.localprops = localprops.get(i, None)
+                if spl.localprops is not None:
+                    spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
+                    spl.localprops.pop("SplineID")
+                    spl.localprops.pop("PosID")
+                    spl.localprops.index = range(len(spl.localprops))
+                spl.globalprops = globalprops.get(i, None)
+                if spl.globalprops is not None:
+                    try:
+                        spl.radius = spl.globalprops.pop("radius")
+                    except KeyError:
+                        pass
+                    try:
+                        spl.orientation = spl.globalprops.pop("orientation")
+                    except KeyError:
+                        pass
+            
+            if splines:
+                self.tomogram._splines = splines
+                self._update_splines_in_images()
+                self.Sample_subtomograms()
+            
+            # load molecules
+            from scipy.spatial.transform import Rotation
+            for path in js["molecules"]:
+                df = pd.read_csv(path)
+                features = df.iloc[:, 6:]
+                mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
+                layer = add_molecules(self.parent_viewer, mole, name=Path(path).stem)
+                layer.features = features
+            self.reset_choices()
+        return worker
     
     @File.wraps
     @set_options(
@@ -740,7 +767,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @File.wraps
-    @set_options(path={"filter": "*.csv;*.txt"})
+    @set_options(paths={"filter": "*.csv;*.txt"})
     def Load_molecules(self, paths: List[Path]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
@@ -2403,7 +2430,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.ylim(-0.1, 1.1)
                 plt.title(f"FSC of {layer.name}")
                 xticks = np.linspace(0, 0.7, 8)
-                per_nm = ["$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
+                per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
                 plt.xticks(xticks, per_nm)
                 plt.tight_layout()
                 plt.show()

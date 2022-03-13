@@ -1,8 +1,8 @@
 import pytest
 from mtprops import start, MTPropsWidget
-from mtprops.const import H, MOLECULES
+from mtprops.components import Molecules
+from mtprops.const import H
 from pathlib import Path
-import napari
 from numpy.testing import assert_allclose
 
 
@@ -16,6 +16,13 @@ def assert_canvas(ui: MTPropsWidget, isnone):
             assert ui.SplineControl.canvas[i].image is None, f"{i}-th canvas"
         else:
             assert ui.SplineControl.canvas[i].image is not None, f"{i}-th canvas"
+
+def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
+    assert_allclose(mole0.pos, mole1.pos, atol=1e-8, rtol=1e-8)
+    assert_allclose(mole0.x, mole1.x, atol=1e-8, rtol=1e-8)
+    assert_allclose(mole0.y, mole1.y, atol=1e-8, rtol=1e-8)
+    assert_allclose(mole0.z, mole1.z, atol=1e-8, rtol=1e-8)
+    
 
 def test_spline_switch():
     ui = start()
@@ -116,10 +123,7 @@ def test_spline_switch():
     ui.clear_all()
     ui.Load_molecules(Path(__file__).parent/"monomers.txt")
     mole_read = ui.get_molecules('monomers')
-    assert_allclose(mole.pos, mole_read.pos)
-    assert_allclose(mole.x, mole_read.x)
-    assert_allclose(mole.y, mole_read.y)
-    assert_allclose(mole.z, mole_read.z)
+    assert_molecule_equal(mole, mole_read)
     assert_canvas(ui, [True, True, True])
     assert ui.LocalProperties.params.pitch.txt == " -- nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
@@ -159,13 +163,21 @@ def test_many_tomograms():
 def test_io():
     ui = start()
     path = Path(__file__).parent / "13pf_MT.tif"
-    ui.load_tomogram(path=path, scale='1.052', bin_size=2, cutoff=0.0)
+    ui.load_tomogram(path=path, scale='1.052', bin_size=1, cutoff=0.0)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
     ui.run_mtprops(interval=24.0)
     ui.Map_monomers(splines=[0, 1])
     
     # Save project
+    old_splines = ui.tomogram.splines.copy()
+    old_molecules = [ui.get_molecules('Mono-0'), ui.get_molecules('Mono-1')]
     ui.Save_state(Path(__file__).parent / "test-project.json")
     ui.Load_state(Path(__file__).parent / "test-project.json")
+    new_splines = ui.tomogram.splines
+    new_molecules = [ui.get_molecules('Mono-0'), ui.get_molecules('Mono-1')]
+    assert old_splines[0] == new_splines[0]
+    assert old_splines[1] == new_splines[1]
+    for mol0, mol1 in zip(old_molecules, new_molecules):
+        assert_molecule_equal(mol0, mol1)
     

@@ -6,7 +6,11 @@ if TYPE_CHECKING:
     from .widgets import MTPropsWidget
     
 
-def start(viewer: "napari.Viewer" = None) -> "MTPropsWidget":
+def start(
+    project_file: str | None = None,
+    globals_file: str | None = None,
+    viewer: "napari.Viewer" = None,
+) -> "MTPropsWidget":
     """
     Start napari viewer and dock MTProfiler widget as a dock widget.
     
@@ -36,4 +40,9 @@ def start(viewer: "napari.Viewer" = None) -> "MTPropsWidget":
         name="MT Profiler"
     )
     dock.setMinimumHeight(300)
+    
+    if project_file is not None:
+        widget.Load_state(project_file)
+    if globals_file is not None:
+        widget.Others.Global_variables.Load_variables(globals_file)
     return widget
