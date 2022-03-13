@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Iterable, Iterator
 import warnings
 import numpy as np
+import pandas as pd
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
 
@@ -73,23 +74,36 @@ class Molecules:
     
     @classmethod
     def from_csv(cls, path: str, **kwargs) -> Molecules:
-        import pandas as pd
+        """Load csv as a Molecules object."""
         df: pd.DataFrame = pd.read_csv(path, **kwargs)
-        if df.shape[1] != 6:
-            raise ValueError(f"CSV must be six columns but got shape {df.shape}")
+        if df.shape[1] < 6:
+            raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
         if list(df.columns) != _CSV_COLUMNS:
             warnings.warn(
                 f"Columns {df.columns} does not match the standard column names for Molecules object.",
                 UserWarning,
             )
         
-        return cls(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:]))
+        return cls(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
     
-    def to_csv(self, save_path: str):
-        import pandas as pd
+    def to_csv(self, save_path: str, properties: pd.DataFrame | None = None) -> None:
+        """
+        Save molecules as a csv file.
+
+        Parameters
+        ----------
+        save_path : str
+            Save path.
+        properties : pd.DataFrame | None, optional
+            Molecules porperties. Saved in the same csv file from column-7.
+        """        
         rotvec = self.rotvec()
         data = np.concatenate([self.pos, rotvec], axis=1)
         df = pd.DataFrame(data, columns=_CSV_COLUMNS)
+        if properties is not None:
+            if len(properties) != len(self):
+                raise ValueError("Length mismatch between Molecules and properties.")
+            df = pd.concat([df, properties], axis=1)
         df.to_csv(save_path)
         return None
 

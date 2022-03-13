@@ -573,19 +573,19 @@ class SubtomogramLoader(Generic[_V]):
         mask: ip.ImgArray = None,
         nbatch: int = 24,
     ) -> Generator[np.ndarray, None, np.ndarray]:
-        corr = np.zeros(len(self.molecules), dtype=np.float32)
+        corrs = np.zeros(len(self.molecules), dtype=np.float32)
         sum_img = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
         it = self.iter_subtomograms_with_corr(template, mask, corr_func=ip.zncc)
         with ip.silent():
             for i, (subvol, corr) in enumerate(it):
                 sum_img[:] += subvol
-                corr[i] = corr
+                corrs[i] = corr
                 n += 1
                 if n % nbatch == nbatch - 1:
                     yield corr
 
-        return corr
+        return corrs
     
     def zncc(
         self,

@@ -124,7 +124,7 @@ class SplineFitter(MagicTemplate):
         itemh.pos = [x, z]
         
         tomo = self._get_parent().tomogram
-        r_max: nm = tomo.subtomo_width/2
+        r_max: nm = GVar.fitWidth/2
         nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
         imax = np.argmax(prof)

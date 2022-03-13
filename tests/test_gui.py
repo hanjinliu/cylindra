@@ -109,7 +109,7 @@ def test_spline_switch():
                  max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=78,)
     ui.Seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1),
                    chunk_size=78)
-    ui.Save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
+    ui.Save_molecules_as_csv(layer=ui.parent_viewer.layers['Mono-0'],
                       save_path=Path(__file__).parent/"monomers.txt"
                       )
     ui.clear_all()

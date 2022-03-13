@@ -6,6 +6,7 @@ from magicclass import (
     MagicTemplate,
     )
 from magicclass.types import Tuple as _Tuple
+from magicclass import get_function_gui
 
 from ..const import nm, GVar
 
@@ -75,7 +76,7 @@ class GlobalVariables(MagicTemplate):
     def Load_variables(self, path: Path = INITIAL_PATH):
         with open(path, mode="r") as f:
             gvar = json.load(f)
-        GVar.set_value(**gvar)
+        get_function_gui(self, "Set_variables")(**gvar, update_widget=True)
         return None
     
     @set_options(path={"filter": "*.json;*.txt", "mode": "w"})

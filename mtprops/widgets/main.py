@@ -84,10 +84,10 @@ class MTPropsWidget(MagicTemplate):
         def Open_image(self): ...
         def Open_tomogram_list(self): ...
         def Load_json(self): ...
+        def Load_molecules(self): ...
         sep0 = field(Separator)
         def Save_results_as_json(self): ...
-        def Save_results_as_csv(self): ...
-        def Save_molecules(self): ...
+        def Save_molecules_as_csv(self): ...
         sep1 = field(Separator)
         PEET = PEET
 
@@ -417,7 +417,8 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Others.wraps
-    def Clear_cache(self):
+    @set_options(_={"widget_type": "Label"})
+    def Clear_cache(self, _="Are you sure to clear cache?"):
         """Clear cache stored on the current tomogram."""
         if self.tomogram is not None:
             self.tomogram.clear_cache()
@@ -534,7 +535,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
     def Load_json(self, path: Path):
-        """Choose a json file and load it."""        
+        """Choose a json file and load it a a spline."""        
         tomo = self.tomogram
         tomo.load_json(path)
 
@@ -546,19 +547,35 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @File.wraps
+    @set_options(path={"filter": "*.csv;*.txt"})
+    def Load_molecules(self, path: Path):
+        """Load molecules from a csv file."""
+        df: pd.DataFrame = pd.read_csv(path)
+        if df.shape[1] < 6:
+            raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
+        from scipy.spatial.transform import Rotation
+        mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
+        name = Path(path).name
+        points = add_molecules(self.parent_viewer, mole, name, None)
+        if df.shape[1] > 6:
+            points.features = df.iloc[:, 6:]
+        return None
+    
+    @File.wraps
     @set_design(text="Save results as json")
     @set_options(save_path={"mode": "w", "filter": "*.json;*.txt"})
-    def Save_results_as_json(self, save_path: Path):
+    def Save_splines_as_json(self, save_path: Path):
         """Save the results as json."""
         self.tomogram.save_json(save_path)
         return None
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_molecules(
+    def Save_molecules_as_csv(
         self,
         layer: MonomerLayer, 
         save_path: Path,
+        save_features: bool = True,
     ):
         """
         Save monomer coordinates.
@@ -569,9 +586,15 @@ class MTPropsWidget(MagicTemplate):
             Select the points layer to save.
         save_path : Path
             Where to save the molecules.
+        save_features : bool, default is True
+            Check if save molecule features.
         """
         mole: Molecules = layer.metadata[MOLECULES]
-        mole.to_csv(save_path)
+        if save_features:
+            props = layer.features
+        else:
+            props = None
+        mole.to_csv(save_path, properties=props)
         return None
     
     @Image.wraps
@@ -919,7 +942,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(max_interval={"label": "Maximum interval (nm)"},
                  corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1})
     @dispatch_worker
-    def Refine_splines(self, max_interval: nm = 30, projection: bool = True, corr_allowed: float = 0.9):
+    def Refine_splines(self, max_interval: nm = 30, corr_allowed: float = 0.9):
         """
         Refine splines using the global MT structural parameters.
         
@@ -927,20 +950,18 @@ class MTPropsWidget(MagicTemplate):
         ----------
         max_interval : nm, default is 30
             Maximum interval between anchors.
-        projection : bool, default is True
-            Check and Y-projection will be used to align subtomograms.
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
         """
         tomo = self.tomogram
         
-        worker = create_worker(tomo.refine,
-                               max_interval=max_interval,
-                               projection=projection,
-                               corr_allowed=corr_allowed,
-                               _progress={"total": 0, 
-                                          "desc": "Running"})
+        worker = create_worker(
+            tomo.refine,
+            max_interval=max_interval,
+            corr_allowed=corr_allowed,
+            _progress={"total": 0, "desc": "Running"}
+        )
         
         worker.finished.connect(self._update_splines_in_images)
 
@@ -1323,7 +1344,9 @@ class MTPropsWidget(MagicTemplate):
             raise ValueError("ZNCC is not determined yet.")
         layer.face_color = Mole.zncc
         layer.edge_color = Mole.zncc
+        zncc = layer.features[Mole.zncc]
         layer.face_colormap = layer.edge_colormap = self.label_colormap
+        layer.face_contrast_limits = layer.edge_contrast_limits = [zncc.min(), zncc.max()]
         layer.refresh()
         return None
     
@@ -2083,6 +2106,9 @@ class MTPropsWidget(MagicTemplate):
             with self.Panels.log.set_plt(rc_context={"font.size": 15}):
                 plt.hist(corr, bins=50)
                 plt.title("Zero Normalized Cross Correlation")
+                plt.xlabel("Correlation")
+                plt.ylabel("Frequency")
+                plt.tight_layout()
                 plt.show()
             update_features(layer, Mole.zncc, corr)
         
@@ -2159,10 +2185,11 @@ class MTPropsWidget(MagicTemplate):
                 freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
             
             ind = (freq <= 0.7)
+            crit = 0.143
             with self.Panels.log.set_plt(rc_context={"font.size": 15}):
                 plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
                 plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
-                plt.axhline(0.143, color="violet")
+                plt.axhline(crit, color="violet")
                 plt.plot(freq[ind], fsc[ind], color="gold")
                 plt.xlabel("Spatial frequence (1/nm)")
                 plt.ylabel("FSC")
@@ -2171,8 +2198,15 @@ class MTPropsWidget(MagicTemplate):
                 xticks = np.linspace(0, 0.7, 8)
                 per_nm = ["$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
                 plt.xticks(xticks, per_nm)
+                plt.tight_layout()
                 plt.show()
-            
+            from scipy.interpolate import interp1d
+            interp = interp1d(x=freq, y=fsc)
+            x_interp = np.linspace(freq[0], freq[-1], 200)
+            y_interp = interp(x_interp)
+            imin = np.argmin(np.abs(y_interp - crit))
+            resolution = self.tomogram.scale / x_interp[imin]
+            self.Panels.log.print_html(f"resolution = <b>{resolution:.3f} nm</b>")
         
         self._WorkerControl.info = "Calculating FSC ..."
         return worker
@@ -2253,13 +2287,14 @@ class MTPropsWidget(MagicTemplate):
             # plot all the correlation
             self.Panels.log.print_html("<code>Seam_search</code>")
             with self.Panels.log.set_plt(rc_context={"font.size": 15}):
-                plt.axvline(imax, color="gray", alpha=0.5)
-                plt.axhline(corrs[imax], color="gray", alpha=0.5)
+                plt.axvline(imax, color="gray", alpha=0.6)
+                plt.axhline(corrs[imax], color="gray", alpha=0.6)
                 plt.plot(corrs)
                 plt.xlabel("Seam position")
                 plt.ylabel("Correlation")
                 plt.xticks(np.arange(0, 2*npf+1, 4))
                 plt.title("Seam search result")
+                plt.tight_layout()
                 plt.show()
                 
                 # plot the score
@@ -2268,6 +2303,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.ylabel("ΔCorr")
                 plt.xticks(np.arange(0, 2*npf+1, 4))
                 plt.title("Score")
+                plt.tight_layout()
                 plt.show()
             
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
