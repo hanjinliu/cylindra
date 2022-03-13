@@ -60,6 +60,7 @@ from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
+from .feature_control import FeatureControl
 from .worker import WorkerControl, dispatch_worker, Worker
 from .widget_utils import (
     add_molecules,
@@ -84,6 +85,7 @@ class MTPropsWidget(MagicTemplate):
     _WorkerControl = field(WorkerControl, name="Worker control")
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _TomogramList = field(TomogramList, name="Tomogram list")
+    _FeatureControl = field(FeatureControl, name="Feature Control")
     
     @magicmenu
     class File(MagicTemplate):
@@ -147,6 +149,7 @@ class MTPropsWidget(MagicTemplate):
             def Isotypes(self): ...
             def ZNCC(self): ...
         def Set_contrast_limits(self): ...
+        def Open_feature_control(self): ...
         sep0 = field(Separator)
         def Split(self): ...
         
@@ -2317,7 +2320,7 @@ class MTPropsWidget(MagicTemplate):
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         nmole = len(molecules)
-        
+        # BUG: error when binsize != 1
         loader, template, mask = self._check_binning_for_alignment(
             template,
             mask,
@@ -2733,8 +2736,8 @@ class MTPropsWidget(MagicTemplate):
     )
     def Set_colormap(
         self,
-        start: Color = (0, 0, 1, 1), 
-        end: Color = (1, 0, 0, 1), 
+        start: Color = (0, 0, 1, 1),
+        end: Color = (1, 0, 0, 1),
         limit: _Tuple[float, float] = (4.00, 4.24), 
         color_by: str = H.yPitch,
     ):
@@ -2752,7 +2755,7 @@ class MTPropsWidget(MagicTemplate):
         color_by : str, default is "yPitch"
             Select what property will be colored.
         """        
-        self.label_colormap = Colormap([start, end], name="PitchLength")
+        self.label_colormap = Colormap([start, end], name="LocalProperties")
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
         return None
@@ -2767,6 +2770,12 @@ class MTPropsWidget(MagicTemplate):
         layer.face_contrast_limits = limits
         layer.edge_contrast_limits = limits
         layer.refresh()
+        return None
+
+    @Molecules_.wraps
+    @do_not_record
+    def Open_feature_control(self):
+        self._FeatureControl.show()
         return None
     
     @Image.wraps
