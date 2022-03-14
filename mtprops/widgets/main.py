@@ -2414,13 +2414,20 @@ class MTPropsWidget(MagicTemplate):
                 plt.xticks(xticks, per_nm)
                 plt.tight_layout()
                 plt.show()
-            from scipy.interpolate import interp1d
-            interp = interp1d(x=freq, y=fsc)
-            x_interp = np.linspace(freq[0], freq[-1], 200)
-            y_interp = interp(x_interp)
-            imin = np.argmin(np.abs(y_interp - crit))
-            resolution = self.tomogram.scale / x_interp[imin]
-            self.Panels.log.print_html(f"resolution = <b>{resolution:.3f} nm</b>")
+            
+            freq0 = None
+            for i, fsc1 in enumerate(fsc):
+                if fsc1 < crit:
+                    f0 = freq[i-1]
+                    f1 = freq[i]
+                    fsc0 = fsc[i-1]
+                    freq0 = (crit - fsc1)/(fsc0 - fsc1) * (f0 - f1) + f1
+                    resolution = f"{self.tomogram.scale / freq0:.3f}"
+                    break
+            else:
+                resolution = "N.A."
+            
+            self.Panels.log.print_html(f"resolution = <b>{resolution} nm</b>")
         
         self._WorkerControl.info = "Calculating FSC ..."
         return worker

@@ -766,14 +766,17 @@ class MtTomogram(Tomogram):
         with set_gpu():
             results = np.stack(da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0)
                 
-        spl.localprops = pd.DataFrame([])
-        spl.localprops[H.splPosition] = spl.anchors
-        spl.localprops[H.splDistance] = spl.distances()
-        spl.localprops[H.riseAngle] = results[:, 0]
-        spl.localprops[H.yPitch] = results[:, 1]
-        spl.localprops[H.skewAngle] = results[:, 2]
-        spl.localprops[H.nPF] = np.round(results[:, 3]).astype(np.uint8)
-        spl.localprops[H.start] = results[:, 4]
+        spl.localprops = pd.DataFrame(
+            {
+                H.splPosition: spl.anchors,
+                H.splDistance: spl.distances(),
+                H.riseAngle: results[:, 0],
+                H.yPitch: results[:, 1],
+                H.skewAngle: results[:, 2],
+                H.nPF: np.round(results[:, 3]).astype(np.uint8),
+                H.start: results[:, 4],
+            }
+        )
         
         return spl.localprops
     
