@@ -73,6 +73,7 @@ from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
+MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
 
 ### The main widget ###
     
@@ -94,10 +95,9 @@ class MTPropsWidget(MagicTemplate):
         def Open_tomogram_list(self): ...
         def Load_molecules(self): ...
         sep0 = field(Separator)
-        def Load_state(self): ...
-        def Save_state(self): ...
-        def Save_results_as_json(self): ...
-        def Save_molecules_as_csv(self): ...
+        def Load_project(self): ...
+        def Save_project(self): ...
+        def Save_molecules(self): ...
         sep1 = field(Separator)
         PEET = PEET
 
@@ -144,11 +144,6 @@ class MTPropsWidget(MagicTemplate):
             def Map_along_PF(self): ...
         def Show_orientation(self): ...
         def Calculate_intervals(self): ...
-        @magicmenu(name="Paint by ...")
-        class PaintBy(MagicTemplate):
-            def Isotypes(self): ...
-            def ZNCC(self): ...
-        def Set_contrast_limits(self): ...
         def Open_feature_control(self): ...
         sep0 = field(Separator)
         def Split(self): ...
@@ -627,7 +622,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
     @dispatch_worker
-    def Load_state(self, path: Path):
+    def Load_project(self, path: Path):
         path = str(path)
     
         with open(path, mode="r") as f:
@@ -704,7 +699,12 @@ class MTPropsWidget(MagicTemplate):
                 mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
                 layer = add_molecules(self.parent_viewer, mole, name=Path(path).stem)
                 layer.features = features
+            
+            # load subtomogram analyzer state
+            self._subtomogram_averaging.template_path = js.get("template-image", "")
+            self._subtomogram_averaging._set_mask_params(js.get("mask-parameters", None))
             self.reset_choices()
+        
         return worker
     
     @File.wraps
@@ -712,7 +712,21 @@ class MTPropsWidget(MagicTemplate):
         json_path={"mode": "w", "filter": "*.json;*.txt"},
         results_dir={"text": "Save at the same directory", "options": {"mode": "d"}}
     )
-    def Save_state(self, json_path: Path, results_dir: Optional[Path] = None):
+    def Save_project(self, json_path: Path, results_dir: Optional[Path] = None):
+        """
+        Save current project state as a json file and the results in a directory.
+        
+        The json file contains paths of images and results, parameters of splines,
+        scales and version. Local and global properties, molecule coordinates and
+        features will be exported as csv files.
+
+        Parameters
+        ----------
+        json_path : Path
+            Path of json file.
+        results_dir : Path, optional
+            Optionally you can specify the directory to save csv files.
+        """
         from .. import __version__
         tomo = self.tomogram
         localprops = tomo.collect_localprops()    
@@ -746,6 +760,8 @@ class MTPropsWidget(MagicTemplate):
             "localprops": localprops_path,
             "globalprops": globalprops_path,
             "molecules": molecules_paths,
+            "template-image": self._subtomogram_averaging.template_path,
+            "mask-parameters": self._subtomogram_averaging._get_mask_params(),
         }
         
         with open(_json_path, mode="w") as f:
@@ -789,7 +805,7 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
-    def Save_molecules_as_csv(
+    def Save_molecules(
         self,
         layer: MonomerLayer, 
         save_path: Path,
@@ -1334,7 +1350,7 @@ class MTPropsWidget(MagicTemplate):
                         "Unexpected mismatch between number of molecules and protofilaments! "
                         "These molecules may not work in some analysis."
                     )
-                update_features(layer, Mole.pf, np.arange(len(mol)) % npf)
+                update_features(layer, Mole.pf, np.arange(len(mol), dtype=np.uint8) % npf)
                 self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
@@ -1376,7 +1392,7 @@ class MTPropsWidget(MagicTemplate):
         layer_name = f"Monomers-{i}"
         spl = tomo.splines[i]
         npf = roundint(spl.globalprops[H.nPF])
-        labels = np.arange(len(mol)) % npf
+        labels = np.arange(len(mol), dtype=np.uint8) % npf
         if layer_name not in viewer.layers:
             
             points_layer = self.parent_viewer.add_points(
@@ -1505,20 +1521,23 @@ class MTPropsWidget(MagicTemplate):
         """
         Calculate intervals between adjucent molecules.
         
-        If filter is applied, connections and boundary padding mode are safely defined using global properties. 
-        For instance, with 13_3 microtubule, the 13th monomer in the first round is connected to the 1st monomer
-        in the 4th round.
+        If filter is applied, connections and boundary padding mode are safely defined using 
+        global properties. For instance, with 13_3 microtubule, the 13th monomer in the first 
+        round is connected to the 1st monomer in the 4th round.
 
         Parameters
         ----------
         layer : MonomerLayer
             Select which layer will be calculated.
         filter_length : int, default is 1
-            Length of uniform filter kernel. Must be an odd number. If 1, no filter will be applied.
+            Length of uniform filter kernel. Must be an odd number. If 1, no filter will be 
+            applied.
         filter_width : int, default is 1
-            Width (lateral length) of uniform filter kernel. Must be an odd number. If 1, no filter will be applied.
+            Width (lateral length) of uniform filter kernel. Must be an odd number. If 1, no
+            filter will be applied.
         spline_precision : nm, optional
-            Precision in nm that is used to define the direction of molecules for calculating projective interval.
+            Precision in nm that is used to define the direction of molecules for calculating
+            projective interval.
         """
         ndim = 3
         if filter_length % 2 == 0 or filter_width % 2 == 0:
@@ -1540,7 +1559,7 @@ class MTPropsWidget(MagicTemplate):
                 f"{type(e).__name__}: {e}"
             ) from e
         
-        pitch_vec = np.diff(pos, axis=0, append=0)
+        pitch_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
         spl_vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
@@ -1568,58 +1587,6 @@ class MTPropsWidget(MagicTemplate):
         layer.face_color = layer.edge_color = _interval
         layer.face_colormap = layer.edge_colormap = self.label_colormap
         layer.face_contrast_limits = layer.edge_contrast_limits = _clim
-        layer.refresh()
-        return None
-    
-    @Molecules_.PaintBy.wraps
-    def Isotypes(
-        self,
-        layer: MonomerLayer,
-        color_0: Color = "orange",
-        color_1: Color = "cyan",
-    ):
-        """
-        Paint molecules according to the isotypes.
-
-        Parameters
-        ----------
-        layer : MonomerLayer
-            Molecules-bound layer.
-        color_0 : Iterable[float] or str, optional
-            Color of isotype 0.
-        color_1 : Iterable[float] or str, optional
-            Color of isotype 1.
-        """
-        if Mole.isotype not in layer.features.columns:
-            raise ValueError("Isotype is not determined yet.")
-        nmole = len(layer.data)
-        spec = np.reshape(layer.features[Mole.isotype].values == 0, (-1, 1))
-        colors = np.where(spec, [color_0]*nmole, [color_1]*nmole)
-        layer.face_color = colors
-        layer.edge_color = colors
-        layer.refresh()
-        return None
-    
-    @Molecules_.PaintBy.wraps
-    def ZNCC(
-        self,
-        layer: MonomerLayer,
-    ):
-        """
-        Paint molecules according to its Zero Normalized Cross Correlation with the template image.
-
-        Parameters
-        ----------
-        layer : MonomerLayer
-            Molecules-bound layer.
-        """
-        if Mole.zncc not in layer.features.columns:
-            raise ValueError("ZNCC is not determined yet.")
-        layer.face_color = Mole.zncc
-        layer.edge_color = Mole.zncc
-        zncc = layer.features[Mole.zncc]
-        layer.face_colormap = layer.edge_colormap = self.label_colormap
-        layer.face_contrast_limits = layer.edge_contrast_limits = [zncc.min(), zncc.max()]
         layer.refresh()
         return None
     
@@ -1667,10 +1634,10 @@ class MTPropsWidget(MagicTemplate):
         def __post_init__(self):
             self._template = None
             self._viewer: Union[napari.Viewer, None] = None
-            self.mask = "No mask"
+            self.mask = MASK_CHOICES[0]
             
         template_path = vfield(Path, options={"label": "Template", "filter": "*.mrc;*.tif"})
-        mask = vfield(RadioButtons, options={"label": "Mask", "choices": ["No mask", "Use blurred template as a mask", "Supply a image"]}, record=False)
+        mask = vfield(RadioButtons, options={"label": "Mask", "choices": MASK_CHOICES}, record=False)
         
         @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
         class params(MagicTemplate):
@@ -1686,8 +1653,8 @@ class MTPropsWidget(MagicTemplate):
         @mask.connect
         def _on_switch(self):
             v = self.mask
-            self.params.visible = (v == "Use blurred template as a mask")
-            self.mask_path.visible = (v == "Supply a image")
+            self.params.visible = (v == MASK_CHOICES[1])
+            self.mask_path.visible = (v == MASK_CHOICES[2])
         
         def _get_template(self, path: Union[str, None] = None) -> ip.ImgArray:
             if path is None:
@@ -1721,9 +1688,9 @@ class MTPropsWidget(MagicTemplate):
         
         def _get_mask_params(self, params=None) -> Union[str, Tuple[nm, nm], None]:
             v = self.mask
-            if v == "No mask":
+            if v == MASK_CHOICES[0]:
                 params = None
-            elif v == "Use blurred template as a mask":
+            elif v == MASK_CHOICES[1]:
                 if self._template is None:
                     self._get_template()
                 params = (self.params.dilate_radius, self.params.sigma)
@@ -1738,9 +1705,9 @@ class MTPropsWidget(MagicTemplate):
                 params = self._get_mask_params()
             else:
                 if params is None:
-                    self.mask = "No mask"
+                    self.mask = MASK_CHOICES[0]
                 elif isinstance(params, tuple):
-                    self.mask = "Use blurred template as a mask"
+                    self.mask = MASK_CHOICES[1]
                 else:
                     self.mask_path.mask_path = params
             
@@ -1764,6 +1731,16 @@ class MTPropsWidget(MagicTemplate):
                 with ip.silent():
                     mask_image = mask_image.rescale(scale_ratio)
             return mask_image
+        
+        def _set_mask_params(self, params):
+            if params is None:
+                self.mask = MASK_CHOICES[0]
+            elif isinstance(params, (tuple, list, np.ndarray)):
+                self.mask = MASK_CHOICES[1]
+                self.params.dilate_radius, self.params.sigma = params
+            else:
+                self.mask = MASK_CHOICES[2]
+                self.mask_path.mask_path = params
         
         def _show_reconstruction(self, image: ip.ImgArray, name: str) -> napari.Viewer:
             if self._viewer is not None:
@@ -2758,18 +2735,6 @@ class MTPropsWidget(MagicTemplate):
         self.label_colormap = Colormap([start, end], name="LocalProperties")
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
-        return None
-
-    @Molecules_.wraps
-    @set_options(limits={"options": {"min": -10., "max": 10.}})
-    def Set_contrast_limits(
-        self,
-        layer: MonomerLayer,
-        limits: _Tuple[float, float] = (-1.0, 1.0)
-    ):
-        layer.face_contrast_limits = limits
-        layer.edge_contrast_limits = limits
-        layer.refresh()
         return None
 
     @Molecules_.wraps

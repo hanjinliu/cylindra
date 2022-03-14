@@ -42,7 +42,7 @@ def start(
     dock.setMinimumHeight(300)
     
     if project_file is not None:
-        widget.Load_state(project_file)
+        widget.Load_project(project_file)
     if globals_file is not None:
         widget.Others.Global_variables.Load_variables(globals_file)
     return widget

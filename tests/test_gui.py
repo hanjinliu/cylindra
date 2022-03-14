@@ -172,8 +172,8 @@ def test_io():
     # Save project
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules('Mono-0'), ui.get_molecules('Mono-1')]
-    ui.Save_state(Path(__file__).parent / "test-project.json")
-    ui.Load_state(Path(__file__).parent / "test-project.json")
+    ui.Save_project(Path(__file__).parent / "test-project.json")
+    ui.Load_project(Path(__file__).parent / "test-project.json")
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules('Mono-0'), ui.get_molecules('Mono-1')]
     assert old_splines[0] == new_splines[0]

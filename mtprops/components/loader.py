@@ -637,6 +637,7 @@ class SubtomogramLoader(Generic[_V]):
             avg_image = ip.asarray(sum_image/_n, axes="pzyx")
             corrs = [ip.zncc(avg*mask, masked_template) for avg in avg_image]
         
+        avg_image.set_scale(self.image_ref)
         return np.array(corrs), avg_image, labels
     
     def try_all_seams(
