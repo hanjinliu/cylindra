@@ -893,7 +893,7 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(tomo_inv: MtTomogram):
-            imgb_inv = tomo_inv.multiscaled[-1]
+            imgb_inv = tomo_inv.multiscaled[-1][1]
             self.layer_image.data = imgb_inv
             vmin, vmax = self.layer_image.contrast_limits
             clims = [-vmax, -vmin]
@@ -1350,7 +1350,7 @@ class MTPropsWidget(MagicTemplate):
                         "Unexpected mismatch between number of molecules and protofilaments! "
                         "These molecules may not work in some analysis."
                     )
-                update_features(layer, Mole.pf, np.arange(len(mol), dtype=np.uint8) % npf)
+                update_features(layer, Mole.pf, np.arange(len(mol), dtype=np.uint32) % npf)
                 self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
@@ -1392,7 +1392,7 @@ class MTPropsWidget(MagicTemplate):
         layer_name = f"Monomers-{i}"
         spl = tomo.splines[i]
         npf = roundint(spl.globalprops[H.nPF])
-        labels = np.arange(len(mol), dtype=np.uint8) % npf
+        labels = np.arange(len(mol), dtype=np.uint32) % npf
         if layer_name not in viewer.layers:
             
             points_layer = self.parent_viewer.add_points(

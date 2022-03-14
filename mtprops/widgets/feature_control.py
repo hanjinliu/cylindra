@@ -89,7 +89,6 @@ class FeatureControl(MagicTemplate):
     @layer.connect
     def _update_choices(self):
         self["feature_name"].reset_choices()
-        self.apply()
     
     @layer.connect
     @feature_name.connect
