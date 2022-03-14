@@ -2837,10 +2837,15 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         spl = tomo._splines[i]
         
-        l = tomo.nm2pixel(GVar.fitLength)
-        w = tomo.nm2pixel(GVar.fitWidth)
+        length_px = tomo.nm2pixel(GVar.fitLength)
+        width_px = tomo.nm2pixel(GVar.fitWidth)
         
-        coords = spl.local_cartesian((w, w), l, spl.anchors[j])
+        coords = spl.local_cartesian(
+            shape=(width_px, width_px), 
+            n_pixels=length_px,
+            u=spl.anchors[j],
+            scale=tomo.scale
+        )
         img = tomo.image
         out = map_coordinates(img, coords, order=1)
         out = ip.asarray(out, axes="zyx")

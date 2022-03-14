@@ -88,10 +88,11 @@ class MtSpline(Spline):
         Spline3D
             Inverted object
         """
-        inverted: MtSpline = super().invert()
+        inverted = super().invert()
         inverted.radius = self.radius
+        if self.localprops is not None:
+            inverted.localprops = self.localprops[::-1]
         inverted.globalprops = self.globalprops
-        inverted.localprops = None
         return inverted
     
     def clip(self, start: float, stop: float) -> MtSpline:

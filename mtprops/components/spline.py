@@ -177,6 +177,11 @@ class Spline:
         self._anchors = None
         self.clear_cache(loc=True, glob=False)
         return None
+    
+    @property
+    def inverted(self) -> bool:
+        """Return true if spline is inverted."""
+        return self._lims[0] > self._lims[1]
 
     def make_anchors(
         self, 
@@ -292,6 +297,8 @@ class Spline:
             s = None
         else:
             s = variance * npoints
+        if self.inverted:
+            coords = coords[::-1]
         self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
         del self.anchors # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
@@ -323,6 +330,7 @@ class Spline:
         """        
         coords = self(u)
         rot = self.get_rotator(u)
+        # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
         self.fit(coords, variance=variance)

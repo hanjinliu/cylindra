@@ -170,8 +170,8 @@ class SplineFitter(MagicTemplate):
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
-        length_px = tomo.nm2pixel(GVar.fitLength/self.binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth/self.binsize)
+        length_px = tomo.nm2pixel(GVar.fitLength, binsize=self.binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=self.binsize)
         
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian(

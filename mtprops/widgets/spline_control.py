@@ -112,7 +112,7 @@ class SplineControl(MagicTemplate):
         
         # update plots in pyqtgraph, if properties exist
         parent.LocalProperties._plot_properties(spl.localprops)
-        
+
         # calculate projection
         if spl.localprops is not None:
             npf_list = spl.localprops[H.nPF]
