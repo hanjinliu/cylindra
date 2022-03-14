@@ -665,17 +665,25 @@ class MTPropsWidget(MagicTemplate):
             
             # load splines
             splines = [MtSpline.from_dict(d) for d in js["splines"]]
-            localprops = dict(iter(pd.read_csv(js["localprops"]).groupby("SplineID")))
-            globalprops = dict(pd.read_csv(js["globalprops"]).iterrows())
+            localprops_path = js.get("localprops", None)
+            if localprops_path is not None:
+                all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
+            else:
+                all_localprops = {}
+            globalprops_path = js.get("globalprops", None)
+            if globalprops_path is not None:
+                all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
+            else:
+                all_globalprops = {}
             
             for i, spl in enumerate(splines):
-                spl.localprops = localprops.get(i, None)
+                spl.localprops = all_localprops.get(i, None)
                 if spl.localprops is not None:
                     spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
                     spl.localprops.pop("SplineID")
                     spl.localprops.pop("PosID")
                     spl.localprops.index = range(len(spl.localprops))
-                spl.globalprops = globalprops.get(i, None)
+                spl.globalprops = all_globalprops.get(i, None)
                 if spl.globalprops is not None:
                     try:
                         spl.radius = spl.globalprops.pop("radius")
@@ -2414,6 +2422,8 @@ class MTPropsWidget(MagicTemplate):
                 plt.xticks(xticks, per_nm)
                 plt.tight_layout()
                 plt.show()
+            
+            # calculate 0.143 resolution
             from scipy.interpolate import interp1d
             interp = interp1d(x=freq, y=fsc)
             x_interp = np.linspace(freq[0], freq[-1], 200)
