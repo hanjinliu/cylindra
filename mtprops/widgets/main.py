@@ -63,6 +63,7 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
+from .project import MTPropsProject
 from .worker import WorkerControl, dispatch_worker, Worker
 from .widget_utils import (
     FileFilter,
@@ -595,27 +596,22 @@ class MTPropsWidget(MagicTemplate):
     
         return worker
     
-    
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     @dispatch_worker
     def Load_project(self, path: Path):
         """Load a project json file."""
-        path = str(path)
-    
-        with open(path, mode="r") as f:
-            js: dict = json.load(f)
+        project = MTPropsProject.from_json(path)
         
         # load image and multiscales
-        multiscales: List[int] = js["multiscales"]
-        binsize = multiscales.pop(-1)
+        multiscales = project.multiscales
         
         worker = create_worker(
             self._imread,
-            path=js["image"], 
-            scale=js["scale"], 
-            binsize=binsize, 
+            path=project.image, 
+            scale=project.scale, 
+            binsize=multiscales.pop(-1), 
             _progress={"total": 0, "desc": "Running"}
         )
 
@@ -624,24 +620,22 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(tomo: MtTomogram):
             self._send_tomogram_to_viewer(tomo)
-            if self._current_ft_size is not None:
-                tomo.metadata["ft_size"] = self._current_ft_size
             with self.macro.blocked():
                 self.clear_all()
     
             for size in multiscales:
                 self.tomogram.add_multiscale(size)
             
-            self._current_ft_size = js["current_ft_size"]
+            self._current_ft_size = project.current_ft_size
             
             # load splines
-            splines = [MtSpline.from_dict(d) for d in js["splines"]]
-            localprops_path = js.get("localprops", None)
+            splines = [MtSpline.from_dict(d) for d in project.splines]
+            localprops_path = project.localprops
             if localprops_path is not None:
                 all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
             else:
                 all_localprops = {}
-            globalprops_path = js.get("globalprops", None)
+            globalprops_path = project.globalprops
             if globalprops_path is not None:
                 all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
             else:
@@ -672,7 +666,7 @@ class MTPropsWidget(MagicTemplate):
             
             # load molecules
             from scipy.spatial.transform import Rotation
-            for path in js["molecules"]:
+            for path in project.molecules:
                 df = pd.read_csv(path)
                 features = df.iloc[:, 6:]
                 mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
@@ -680,13 +674,13 @@ class MTPropsWidget(MagicTemplate):
                 layer.features = features
             
             # load subtomogram analyzer state
-            self._subtomogram_averaging.template_path = js.get("template-image", "")
-            self._subtomogram_averaging._set_mask_params(js.get("mask-parameters", None))
+            self._subtomogram_averaging.template_path = project.template_image or ""
+            self._subtomogram_averaging._set_mask_params(project.mask_parameters)
             self.reset_choices()
             self._need_save = False
         
         return worker
-    
+
     @File.wraps
     @set_options(
         json_path={"mode": "w", "filter": FileFilter.JSON},
@@ -729,23 +723,22 @@ class MTPropsWidget(MagicTemplate):
             features = layer.features
             molecule_dataframes.append(pd.concat([mole.to_dataframe(), features], axis=1))
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
-            
-        js = {
-            "version": __version__,
-            "image": tomo.source,
-            "scale": tomo.scale,
-            "multiscales": [x[0] for x in tomo.multiscaled],
-            "current_ft_size": self._current_ft_size,
-            "splines": [spl.to_dict() for spl in tomo.splines],
-            "localprops": localprops_path,
-            "globalprops": globalprops_path,
-            "molecules": molecules_paths,
-            "template-image": self._subtomogram_averaging.template_path,
-            "mask-parameters": self._subtomogram_averaging._get_mask_params(),
-        }
         
-        with open(_json_path, mode="w") as f:
-            json.dump(js, f, indent=4, separators=(",", ": "), default=json_encoder)
+        project = MTPropsProject(
+            version = __version__,
+            image = tomo.source,
+            scale = tomo.scale,
+            multiscales = [x[0] for x in tomo.multiscaled],
+            current_ft_size = self._current_ft_size,
+            splines = [spl.to_dict() for spl in tomo.splines],
+            localprops = localprops_path,
+            globalprops = globalprops_path,
+            molecules = molecules_paths,
+            template_image = self._subtomogram_averaging.template_path,
+            mask_parameters = self._subtomogram_averaging._get_mask_params(),
+        )
+        
+        project.to_json(_json_path)
         
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)
@@ -3083,18 +3076,3 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
-
-
-def json_encoder(obj):    
-    """Enable Enum and pandas encoding."""
-    if isinstance(obj, Ori):
-        return obj.name
-    elif isinstance(obj, pd.DataFrame):
-        return obj.to_dict(orient="list")
-    elif isinstance(obj, pd.Series):
-        return obj.to_dict()
-    elif isinstance(obj, Path):
-        return str(obj)
-    else:
-        raise TypeError(f"{obj!r} is not JSON serializable")
-

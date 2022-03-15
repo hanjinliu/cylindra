@@ -50,6 +50,11 @@ class SubtomogramLoader(Generic[_V]):
         Chunk size used when loading subtomograms.
     """
     
+    _PROPS = {
+        "ncc": ip.ncc,
+        "zncc": ip.zncc,
+    }
+    
     def __init__(
         self, 
         image: ip.ImgArray | ip.LazyImgArray | np.ndarray | da.core.Array, 
@@ -185,7 +190,9 @@ class SubtomogramLoader(Generic[_V]):
             mmap[i] = subvol
             yield subvol
         darr = da.from_array(mmap, chunks=("auto",) + self.output_shape, meta=np.array([], dtype=np.float32))
-        return ip.LazyImgArray(darr, name="All_subtomograms", axes="pzyx")
+        arr = ip.LazyImgArray(darr, name="All_subtomograms", axes="pzyx")
+        arr.set_scale(self.image_ref)
+        return arr
         
     def to_lazy_imgarray(self, path: str | None = None) -> ip.LazyImgArray:
         it = self.iter_to_memmap(path)
@@ -194,7 +201,9 @@ class SubtomogramLoader(Generic[_V]):
     def to_stack(self, binsize: int = 1) -> ip.ImgArray:
         """Create a 4D image stack of all the subtomograms."""
         images = list(self.iter_subtomograms(binsize=binsize))
-        return np.stack(images, axis="p")
+        stack: ip.ImgArray = np.stack(images, axis="p")
+        stack.set_scale(xyz=self.image_ref.scale.x*binsize)
+        return stack
 
     def subset(self, spec: int | slice | list[int] | np.ndarray) -> SubtomogramLoader:
         """
@@ -574,12 +583,10 @@ class SubtomogramLoader(Generic[_V]):
         nbatch: int = 24,
     ) -> Generator[np.ndarray, None, np.ndarray]:
         corrs = np.zeros(len(self.molecules), dtype=np.float32)
-        sum_img = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
         it = self.iter_subtomograms_with_corr(template, mask, corr_func=ip.zncc)
         with ip.silent():
             for i, (subvol, corr) in enumerate(it):
-                sum_img[:] += subvol
                 corrs[i] = corr
                 n += 1
                 if n % nbatch == nbatch - 1:
@@ -599,6 +606,32 @@ class SubtomogramLoader(Generic[_V]):
         )
         
         return self._resolve_iterator(align_iter, callback)
+    
+    # @classmethod
+    # def register_property(cls, name: str, function: Callable[[np.ndarray, np.ndarray], Any]):
+    #     cls._PROPS
+        
+    def iter_subtomoprops(
+        self,
+        template: ip.ImgArray = None,
+        mask: ip.ImgArray = None,
+        properties=("zncc",),
+        nbatch: int = 24,
+    ):
+        results = [[]] * len(properties)
+        n = 0
+        if mask is None:
+            mask = 1
+        template_masked = template * mask
+        with ip.silent():
+            for i, subvol in enumerate(self.iter_subtomograms()):
+                for _idx_prop, _prop in enumerate(properties):
+                    results[_idx_prop].append(_prop(subvol*mask, template_masked))
+                n += 1
+                if n % nbatch == nbatch - 1:
+                    yield
+
+        return results
         
     def iter_each_seam(
         self,
