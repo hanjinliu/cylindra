@@ -93,13 +93,13 @@ def test_spline_switch():
     ui.SplineControl.num = 0
     ui.SplineControl.pos = 1
     assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_current_spline().localprops[H.yPitch][1]:.2f} nm"
+    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_current_spline().localprops[H.yPitch].values[1]:.2f} nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_current_spline().globalprops[H.yPitch]:.2f} nm"
     
     ui.SplineControl.num = 1
     assert ui.SplineControl.pos == 1
     assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_current_spline().localprops[H.yPitch][1]:.2f} nm"
+    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_current_spline().localprops[H.yPitch].values[1]:.2f} nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_current_spline().globalprops[H.yPitch]:.2f} nm"
     
     assert_canvas(ui, [False, False, False])
@@ -116,7 +116,7 @@ def test_spline_switch():
                  max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=78,)
     ui.Seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1),
                    chunk_size=78)
-    ui.Save_molecules_as_csv(layer=ui.parent_viewer.layers['Mono-0'],
+    ui.Save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
                       save_path=Path(__file__).parent/"monomers.txt"
                       )
     mole = ui.get_molecules('Mono-0')
@@ -128,37 +128,6 @@ def test_spline_switch():
     assert ui.LocalProperties.params.pitch.txt == " -- nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
 
-
-# def test_many_tomograms():
-#     ui = start()
-#     path = Path(__file__).parent / "13pf_MT.tif"
-#     ui.Open_image(path=path, scale=1.052, bin_size=2)
-#     ui.register_path(coords=coords_13pf)
-#     ui.run_mtprops()
-#     assert_canvas(ui, [False, False, False])
-#     spl0 = ui.get_current_spline()
-    
-#     path = Path(__file__).parent / "14pf_MT.tif"
-#     ui.Open_image(path=path, scale=1.052, bin_size=2)
-#     assert_canvas(ui, [True, True, True])
-#     ui.register_path(coords=coords_14pf)
-#     ui.run_mtprops()
-#     assert_canvas(ui, [False, False, False])
-#     spl1 = ui.get_current_spline()
-    
-#     ui._TomogramList.Load(0)
-#     # assert_canvas(ui, [False, False, False])  # this is not working (maybe due to event emission timing?)
-#     assert ui.tomogram is ui._TomogramList._tomogram_list[0]
-#     assert ui.LocalProperties.params.pitch.txt == f" {spl0.localprops[H.yPitch][0]:.2f} nm"
-    
-#     ui._TomogramList.Load(1)
-#     # assert_canvas(ui, [False, False, False])
-#     assert ui.tomogram is ui._TomogramList._tomogram_list[1]
-#     assert ui.LocalProperties.params.pitch.txt == f" {spl1.localprops[H.yPitch][0]:.2f} nm"
-    
-#     with pytest.raises(Exception):
-#         ui._TomogramList.Delete(1)
-#     ui._TomogramList.Delete(0)
 
 def test_io():
     ui = start()
