@@ -102,7 +102,7 @@ class MTPropsWidget(MagicTemplate):
         def Save_project(self): ...
         def Save_molecules(self): ...
         sep1 = field(Separator)
-        Process_image_files = ImageProcessor
+        Process_images = ImageProcessor
         PEET = PEET
 
     @magicmenu
@@ -136,7 +136,7 @@ class MTPropsWidget(MagicTemplate):
         def Fit_splines(self): ...
         def Fit_splines_manually(self): ...
         def Refine_splines(self): ...
-        def Molecules_to_spline(self): ...
+        # def Molecules_to_spline(self): ...
 
     @magicmenu
     class Molecules_(MagicTemplate):
@@ -208,6 +208,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof: Points = None
         self.layer_work: Points = None
         self.layer_paint: Labels = None
+        self._need_save: bool = False
         self.objectName()  # load napari types
         
     def __post_init__(self):
@@ -416,6 +417,7 @@ class MTPropsWidget(MagicTemplate):
                 tomo.metadata["ft_size"] = self._current_ft_size
                 if global_props:
                     self._update_global_properties_in_widget()
+            self._need_save = True
         self._current_ft_size = ft_size
         self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
         return worker
@@ -430,7 +432,7 @@ class MTPropsWidget(MagicTemplate):
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"clear_all.png")
-    @confirm("Are you sure to clear all?\nYou cannot undo this.")
+    @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
     def clear_all(self):
         """Clear all the splines and results."""
         self._init_widget_state()
@@ -438,6 +440,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.overview.layers.clear()
         self.tomogram.clear_cache()
         self.tomogram.splines.clear()
+        self._need_save = False
         self.reset_choices()
         return None
 
@@ -461,7 +464,7 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Others.wraps
-    @confirm("Are you sure to clear cache?\nYou cannot undo this.")
+    @confirm(text="Are you sure to clear cache?\nYou cannot undo this.")
     def Clear_cache(self):
         """Clear cache stored on the current tomogram."""
         if self.tomogram is not None:
@@ -540,13 +543,14 @@ class MTPropsWidget(MagicTemplate):
             _name = f"Tomogram<{hex(id(tomo))}>"
         self.Panels.log.print_html(f"<h2>{_name}</h2>")
         return None
-
+        
     @File.wraps
     @set_options(
         path={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map;;*.*"},
         scale={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"},
         bin_size={"min": 1, "max": 8}
     )
+    @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     @dispatch_worker
     def Open_image(
         self, 
@@ -602,7 +606,7 @@ class MTPropsWidget(MagicTemplate):
     
     
     @File.wraps
-    @set_options(path={"filter": "*.json;*.txt"})
+    @set_options(path={"filter": "*.json;*.txt;;*.*"})
     @dispatch_worker
     def Load_project(self, path: Path):
         """Load a project json file."""
@@ -691,7 +695,7 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(
-        json_path={"mode": "w", "filter": "*.json;*.txt"},
+        json_path={"mode": "w", "filter": "*.json;*.txt;;*.*"},
         results_dir={"text": "Save at the same directory", "options": {"mode": "d"}}
     )
     def Save_project(self, json_path: Path, results_dir: Optional[Path] = None):
@@ -758,6 +762,7 @@ class MTPropsWidget(MagicTemplate):
         if molecules_paths:
             for df, fp in zip(molecule_dataframes, molecules_paths):
                 df.to_csv(fp, index=False)
+        self._need_save = False
         return
     
     @File.wraps
@@ -909,7 +914,8 @@ class MTPropsWidget(MagicTemplate):
             self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
             with ip.silent():
                 self.Panels.overview.image = imgb.proj("z")
-        
+            self._need_save = True
+            
         return worker
     
     @SplineControl.num.connect
@@ -1053,6 +1059,7 @@ class MTPropsWidget(MagicTemplate):
         self._init_widget_state()
         if need_resample:
             self.Sample_subtomograms()
+        self._need_save = True
         return None
     
     @Splines.wraps
@@ -1073,6 +1080,7 @@ class MTPropsWidget(MagicTemplate):
         self.reset_choices()
         if need_resample:
             self.Sample_subtomograms()
+        self._need_save = True
         return None
     
     @Splines.wraps
@@ -1089,6 +1097,7 @@ class MTPropsWidget(MagicTemplate):
         spl = self.tomogram.splines[spline]
         self.tomogram.splines[spline] = spl.restore().clip(start, stop)
         self._update_splines_in_images()
+        self._need_save = True
         return None
         
     @Splines.wraps
@@ -1130,7 +1139,7 @@ class MTPropsWidget(MagicTemplate):
         )
         worker.returned.connect(self._update_splines_in_images)
         self._WorkerControl.info = "Spline Fitting"
-
+        self._need_save = True
         return worker
     
     @Splines.wraps
@@ -1165,6 +1174,7 @@ class MTPropsWidget(MagicTemplate):
         for i in range(tomo.n_splines):
             tomo.make_anchors(i, interval=interval)
         self._update_splines_in_images()
+        self._need_save = True
         return None
     
     @Analysis.wraps
@@ -1179,7 +1189,7 @@ class MTPropsWidget(MagicTemplate):
         )
         
         self._WorkerControl.info = "Measuring Radius"
-
+        self._need_save = True
         return worker
     
     @Splines.wraps
@@ -1216,25 +1226,26 @@ class MTPropsWidget(MagicTemplate):
         self._WorkerControl.info = "Refining splines ..."
         
         self._init_widget_state()
+        self._need_save = True
         return worker
     
-    @Splines.wraps
-    def Molecules_to_spline(
-        self, 
-        layers: List[MonomerLayer],
-        update_splines: bool = False,
-    ):
-        splines: List[MtSpline] = []
-        for layer in layers:
-            mole: Molecules = layer.metadata[MOLECULES]
-            spl = MtSpline(degree=GVar.splOrder)
-            npf = roundint(np.max(layer.features[Mole.pf]) + 1)
-            all_coords = mole.pos.reshape(-1, npf, 3)
-            mean_coords = np.mean(all_coords, axis=1)
-            spl.fit(mean_coords, variance=GVar.splError**2)
-            splines.append(spl)
+    # @Splines.wraps
+    # def Molecules_to_spline(
+    #     self, 
+    #     layers: List[MonomerLayer],
+    #     update_splines: bool = False,
+    # ):
+    #     splines: List[MtSpline] = []
+    #     for layer in layers:
+    #         mole: Molecules = layer.metadata[MOLECULES]
+    #         spl = MtSpline(degree=GVar.splOrder)
+    #         npf = roundint(np.max(layer.features[Mole.pf]) + 1)
+    #         all_coords = mole.pos.reshape(-1, npf, 3)
+    #         mean_coords = np.mean(all_coords, axis=1)
+    #         spl.fit(mean_coords, variance=GVar.splError**2)
+    #         splines.append(spl)
         
-        return None
+    #     return None
         
     @Analysis.wraps
     @dispatch_worker
@@ -1266,6 +1277,7 @@ class MTPropsWidget(MagicTemplate):
                 self._update_local_properties_in_widget()
         self._current_ft_size = ft_size
         self._WorkerControl.info = "Local Fourier transform ..."
+        self._need_save = True
         return worker
         
     @Analysis.wraps
@@ -1280,7 +1292,7 @@ class MTPropsWidget(MagicTemplate):
         worker.returned.connect(lambda e: self._update_global_properties_in_widget())
         
         self._WorkerControl.info = f"Global Fourier transform ..."
-        
+        self._need_save = True
         return worker
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -1336,6 +1348,7 @@ class MTPropsWidget(MagicTemplate):
                 self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
+        self._need_save = True
         return worker
 
     @Molecules_.Mapping.wraps
@@ -1392,6 +1405,8 @@ class MTPropsWidget(MagicTemplate):
             points_layer.metadata[MOLECULES] = mol
             update_features(points_layer, Mole.pf, labels)
         
+        self._need_save = True
+        
     @Molecules_.Mapping.wraps
     @set_options(
         splines={"widget_type": "Select", "choices": _get_splines},
@@ -1425,7 +1440,9 @@ class MTPropsWidget(MagicTemplate):
             _name = f"Center-{i}"
             add_molecules(self.parent_viewer, mol, _name)
             self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
-
+        self._need_save = True
+        return None
+    
     @Molecules_.Mapping.wraps
     @set_options(
         splines={"widget_type": "Select", "choices": _get_splines},
@@ -1457,6 +1474,8 @@ class MTPropsWidget(MagicTemplate):
             _name = f"PF line-{i}"
             add_molecules(self.parent_viewer, mol, _name)
             self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
+        self._need_save = True
+        return None
 
     @Molecules_.wraps
     @set_options(orientation={"choices": ["x", "y", "z"]})
@@ -1570,6 +1589,7 @@ class MTPropsWidget(MagicTemplate):
         layer.face_colormap = layer.edge_colormap = self.label_colormap
         layer.face_contrast_limits = layer.edge_contrast_limits = _clim
         layer.refresh()
+        self._need_save = True
         return None
     
     @Molecules_.wraps
@@ -1597,6 +1617,7 @@ class MTPropsWidget(MagicTemplate):
             mol = mole.subset(sl)
             add_molecules(self.parent_viewer, mol, name=f"{layer.name}-G{i:0>2}")
         layer.visible = False
+        self._need_save = True
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -2059,6 +2080,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
+        self._need_save = True
         return worker
     
     
@@ -2154,6 +2176,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
+        self._need_save = True
         return worker
 
     @_subtomogram_averaging.Refinement.wraps
@@ -2258,6 +2281,7 @@ class MTPropsWidget(MagicTemplate):
             layer.visible = False
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
+        self._need_save = True
         return worker
 
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2309,6 +2333,7 @@ class MTPropsWidget(MagicTemplate):
             update_features(layer, Mole.zncc, corr)
         
         self._WorkerControl.info = "Calculating Correlation"
+        self._need_save = True
         return worker
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2415,6 +2440,7 @@ class MTPropsWidget(MagicTemplate):
             self.Panels.log.print_html(f"resolution = <b>{resolution} nm</b>")
         
         self._WorkerControl.info = "Calculating FSC ..."
+        self._need_save = True
         return worker
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2512,7 +2538,7 @@ class MTPropsWidget(MagicTemplate):
             update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
             
         self._WorkerControl.info = "Seam search ... "
-
+        self._need_save = True
         return worker
         
     @toolbar.wraps

@@ -129,36 +129,36 @@ def test_spline_switch():
     assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
 
 
-def test_many_tomograms():
-    ui = start()
-    path = Path(__file__).parent / "13pf_MT.tif"
-    ui.Open_image(path=path, scale=1.052, bin_size=2)
-    ui.register_path(coords=coords_13pf)
-    ui.run_mtprops()
-    assert_canvas(ui, [False, False, False])
-    spl0 = ui.get_current_spline()
+# def test_many_tomograms():
+#     ui = start()
+#     path = Path(__file__).parent / "13pf_MT.tif"
+#     ui.Open_image(path=path, scale=1.052, bin_size=2)
+#     ui.register_path(coords=coords_13pf)
+#     ui.run_mtprops()
+#     assert_canvas(ui, [False, False, False])
+#     spl0 = ui.get_current_spline()
     
-    path = Path(__file__).parent / "14pf_MT.tif"
-    ui.Open_image(path=path, scale=1.052, bin_size=2)
-    assert_canvas(ui, [True, True, True])
-    ui.register_path(coords=coords_14pf)
-    ui.run_mtprops()
-    assert_canvas(ui, [False, False, False])
-    spl1 = ui.get_current_spline()
+#     path = Path(__file__).parent / "14pf_MT.tif"
+#     ui.Open_image(path=path, scale=1.052, bin_size=2)
+#     assert_canvas(ui, [True, True, True])
+#     ui.register_path(coords=coords_14pf)
+#     ui.run_mtprops()
+#     assert_canvas(ui, [False, False, False])
+#     spl1 = ui.get_current_spline()
     
-    ui._TomogramList.Load(0)
-    # assert_canvas(ui, [False, False, False])  # this is not working (maybe due to event emission timing?)
-    assert ui.tomogram is ui._TomogramList._tomogram_list[0]
-    assert ui.LocalProperties.params.pitch.txt == f" {spl0.localprops[H.yPitch][0]:.2f} nm"
+#     ui._TomogramList.Load(0)
+#     # assert_canvas(ui, [False, False, False])  # this is not working (maybe due to event emission timing?)
+#     assert ui.tomogram is ui._TomogramList._tomogram_list[0]
+#     assert ui.LocalProperties.params.pitch.txt == f" {spl0.localprops[H.yPitch][0]:.2f} nm"
     
-    ui._TomogramList.Load(1)
-    # assert_canvas(ui, [False, False, False])
-    assert ui.tomogram is ui._TomogramList._tomogram_list[1]
-    assert ui.LocalProperties.params.pitch.txt == f" {spl1.localprops[H.yPitch][0]:.2f} nm"
+#     ui._TomogramList.Load(1)
+#     # assert_canvas(ui, [False, False, False])
+#     assert ui.tomogram is ui._TomogramList._tomogram_list[1]
+#     assert ui.LocalProperties.params.pitch.txt == f" {spl1.localprops[H.yPitch][0]:.2f} nm"
     
-    with pytest.raises(Exception):
-        ui._TomogramList.Delete(1)
-    ui._TomogramList.Delete(0)
+#     with pytest.raises(Exception):
+#         ui._TomogramList.Delete(1)
+#     ui._TomogramList.Delete(0)
 
 def test_io():
     ui = start()

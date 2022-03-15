@@ -19,8 +19,8 @@ class TomogramList(MagicTemplate):
     _tomogram_list: List[MtTomogram]
     
     def __init__(self):
-        self._tomogram_list: list[MtTomogram] = []
-        self._metadata_list: list[dict[str, Any]] = []
+        self._tomogram_list: List[MtTomogram] = []
+        self._metadata_list: List[dict[str, Any]] = []
         
     def _get_tomograms(self, _=None) -> List[Tuple[str, int]]:
         out: List[Tuple[str, int]] = []
