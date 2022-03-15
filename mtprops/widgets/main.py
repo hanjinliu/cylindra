@@ -61,11 +61,11 @@ from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
-from .tomogram_list import TomogramList
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .worker import WorkerControl, dispatch_worker, Worker
 from .widget_utils import (
+    FileFilter,
     add_molecules,
     change_viewer_focus,
     update_features,
@@ -88,14 +88,12 @@ class MTPropsWidget(MagicTemplate):
     
     _WorkerControl = field(WorkerControl, name="Worker control")
     _SplineFitter = field(SplineFitter, name="Spline fitter")
-    _TomogramList = field(TomogramList, name="Tomogram list")
     _FeatureControl = field(FeatureControl, name="Feature Control")
     
     @magicmenu
     class File(MagicTemplate):
         """File I/O."""  
         def Open_image(self): ...
-        def Open_tomogram_list(self): ...
         def Load_molecules(self): ...
         sep0 = field(Separator)
         def Load_project(self): ...
@@ -546,7 +544,7 @@ class MTPropsWidget(MagicTemplate):
         
     @File.wraps
     @set_options(
-        path={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map;;*.*"},
+        path={"filter": FileFilter.IMAGE},
         scale={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"},
         bin_size={"min": 1, "max": 8}
     )
@@ -592,13 +590,6 @@ class MTPropsWidget(MagicTemplate):
             self._send_tomogram_to_viewer(tomo)
             if self._current_ft_size is not None:
                 tomo.metadata["ft_size"] = self._current_ft_size
-            tomo_list_widget = self._TomogramList
-            tomo_list_widget._tomogram_list.append(tomo)
-            tomo_list_widget.reset_choices()  # Next line of code needs updated choices
-            try:
-                tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
-            except ValueError:
-                pass
             with self.macro.blocked():
                 self.clear_all()
     
@@ -606,7 +597,8 @@ class MTPropsWidget(MagicTemplate):
     
     
     @File.wraps
-    @set_options(path={"filter": "*.json;*.txt;;*.*"})
+    @set_options(path={"filter": FileFilter.JSON})
+    @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     @dispatch_worker
     def Load_project(self, path: Path):
         """Load a project json file."""
@@ -634,13 +626,6 @@ class MTPropsWidget(MagicTemplate):
             self._send_tomogram_to_viewer(tomo)
             if self._current_ft_size is not None:
                 tomo.metadata["ft_size"] = self._current_ft_size
-            tomo_list_widget = self._TomogramList
-            tomo_list_widget._tomogram_list.append(tomo)
-            tomo_list_widget.reset_choices()  # Next line of code needs updated choices
-            try:
-                tomo_list_widget.tomograms.value = len(tomo_list_widget._tomogram_list) - 1
-            except ValueError:
-                pass
             with self.macro.blocked():
                 self.clear_all()
     
@@ -690,12 +675,13 @@ class MTPropsWidget(MagicTemplate):
             self._subtomogram_averaging.template_path = js.get("template-image", "")
             self._subtomogram_averaging._set_mask_params(js.get("mask-parameters", None))
             self.reset_choices()
+            self._need_save = False
         
         return worker
     
     @File.wraps
     @set_options(
-        json_path={"mode": "w", "filter": "*.json;*.txt;;*.*"},
+        json_path={"mode": "w", "filter": FileFilter.JSON},
         results_dir={"text": "Save at the same directory", "options": {"mode": "d"}}
     )
     def Save_project(self, json_path: Path, results_dir: Optional[Path] = None):
@@ -766,14 +752,7 @@ class MTPropsWidget(MagicTemplate):
         return
     
     @File.wraps
-    @do_not_record
-    def Open_tomogram_list(self):
-        """Open the list of loaded tomogram references."""
-        self._TomogramList.show()
-        return None
-    
-    @File.wraps
-    @set_options(paths={"filter": "*.csv;*.txt"})
+    @set_options(paths={"filter": FileFilter.CSV})
     def Load_molecules(self, paths: List[Path]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
@@ -791,7 +770,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @File.wraps
-    @set_options(save_path={"mode": "w", "filter": "*.txt;*.csv;*.dat"})
+    @set_options(save_path={"mode": "w", "filter": FileFilter.CSV})
     def Save_molecules(
         self,
         layer: MonomerLayer, 
@@ -1639,7 +1618,7 @@ class MTPropsWidget(MagicTemplate):
             self._viewer: Union[napari.Viewer, None] = None
             self.mask = MASK_CHOICES[0]
             
-        template_path = vfield(Path, options={"label": "Template", "filter": "*.mrc;*.tif"})
+        template_path = vfield(Path, options={"label": "Template", "filter": FileFilter.IMAGE})
         mask = vfield(RadioButtons, options={"label": "Mask", "choices": MASK_CHOICES}, record=False)
         
         @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
@@ -1649,7 +1628,7 @@ class MTPropsWidget(MagicTemplate):
             
         @magicclass(layout="horizontal", widget_type="frame")
         class mask_path(MagicTemplate):
-            mask_path = vfield(Path, options={"filter": "*.mrc;*.tif"}, record=False)
+            mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
         
         chunk_size = vfield(200, options={"min": 1, "max": 600, "step": 10, "tooltip": "How many subtomograms will be loaded at the same time."})
         
@@ -1801,7 +1780,7 @@ class MTPropsWidget(MagicTemplate):
         @do_not_record
         @set_options(
             new_shape={"options": {"min": 2, "max": 100}},
-            save_as={"mode": "w", "filter": "*.mrc;*.tif"}
+            save_as={"mode": "w", "filter": FileFilter.IMAGE}
         )
         @Template.wraps
         def Reshape_template(
@@ -2181,7 +2160,7 @@ class MTPropsWidget(MagicTemplate):
 
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
-        other_templates={"filter": "*.mrc;*.tif"},
+        other_templates={"filter": FileFilter.IMAGE},
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
         z_rotation={"options": {"max": 5.0, "step": 0.1}},
@@ -2997,7 +2976,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
         self.Panels.overview.add_curve(
-            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=3, name=f"spline-{i}",)
+            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=5, name=f"spline-{i}",)
         return None
     
     def _update_splines_in_images(self):

@@ -1,10 +1,19 @@
 from __future__ import annotations
+from types import SimpleNamespace
 from typing import Iterable
 import numpy as np
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
 from ..components import Molecules, MtSpline
 from ..const import MOLECULES, GVar, Mole
+
+class FileFilter(SimpleNamespace):
+    """File dialog filter strings"""
+    
+    IMAGE = "Tomograms (*.mrc;*.rec;*.tif;*.tiff;*.map);;All files (*)"
+    JSON = "JSON(*.json;*.txt);;All files (*)"
+    CSV = "CSV(*.csv;*.txt);*.dat;;All files (*)"
+
 
 def add_molecules(viewer: napari.Viewer, mol: Molecules, name):
     """Add Molecules object as a point layer."""

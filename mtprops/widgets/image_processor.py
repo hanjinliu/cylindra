@@ -1,14 +1,15 @@
 from pathlib import Path
 from magicclass import magicmenu, MagicTemplate, set_options
 import impy as ip
+from .widget_utils import FileFilter
 from ..const import GVar
 
 @magicmenu(name="Process images")
 class ImageProcessor(MagicTemplate):
     @set_options(
         dtype={"choices": ["int8", "uint8", "uint16", "float32"]},
-        input={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map"},
-        output={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map", "mode": "w"},
+        input={"filter": FileFilter.IMAGE},
+        output={"filter": FileFilter.IMAGE, "mode": "w"},
     )
     def Convert_dtype(self, input: Path, dtype, output: Path):
         img = self._imread(input)
@@ -17,8 +18,8 @@ class ImageProcessor(MagicTemplate):
         return None
         
     @set_options(
-        input={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map"},
-        output={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map", "mode": "w"},
+        input={"filter": FileFilter.IMAGE},
+        output={"filter": FileFilter.IMAGE, "mode": "w"},
     )
     def Invert(self, input: Path, output: Path):
         img = self._imread(input)
@@ -27,9 +28,9 @@ class ImageProcessor(MagicTemplate):
         return None
     
     @set_options(
-        input={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map"},
+        input={"filter": FileFilter.IMAGE},
         cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
-        output={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map", "mode": "w"},
+        output={"filter": FileFilter.IMAGE, "mode": "w"},
     )
     def Lowpass_filter(self, input: Path, cutoff: float, output: Path):
         img = self._imread(input)

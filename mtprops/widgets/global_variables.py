@@ -8,6 +8,8 @@ from magicclass import (
 from magicclass.types import Tuple as _Tuple
 from magicclass import get_function_gui
 
+from .widget_utils import FileFilter
+
 from ..const import nm, GVar
 
 INITIAL_PATH = Path(__file__).parent / "variables"
@@ -72,14 +74,14 @@ class GlobalVariables(MagicTemplate):
         """        
         GVar.set_value(**locals())
     
-    @set_options(path={"filter": "*.json;*.txt"})
+    @set_options(path={"filter": FileFilter.JSON})
     def Load_variables(self, path: Path = INITIAL_PATH):
         with open(path, mode="r") as f:
             gvar = json.load(f)
         get_function_gui(self, "Set_variables")(**gvar, update_widget=True)
         return None
     
-    @set_options(path={"filter": "*.json;*.txt", "mode": "w"})
+    @set_options(path={"filter": FileFilter.JSON, "mode": "w"})
     def Save_variables(self, path: Path = INITIAL_PATH):
         gvar = GVar.get_value()
         with open(path, mode="w") as f:
