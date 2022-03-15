@@ -5,17 +5,17 @@ import pandas as pd
 
 from magicclass import magicmenu, set_options, MagicTemplate
 
-from ...components import Molecules, MtSpline
+from ...components import Molecules
 from ...utils import roundint
-from ...const import EulerAxes, H, Mole
+from ...const import EulerAxes, Mole
 from ...types import MOLECULES, MonomerLayer, get_monomer_layers
-from ...widgets.widget_utils import add_molecules
+from ...widgets.widget_utils import add_molecules, FileFilter
 
 @magicmenu
 class PEET(MagicTemplate):
     """PEET extension."""
     @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "Model files (*.mod);;All files (*.txt;*.csv)"},
-                 ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"},
+                 ang_path={"label": "Path to csv file", "mode": "r", "filter": FileFilter.CSV},
                  shift_mol={"label": "Apply shifts to monomers if offsets are available."})
     def Read_monomers(self, mod_path: Path, ang_path: Path, shift_mol: bool = True):
         """
@@ -92,7 +92,7 @@ class PEET(MagicTemplate):
         save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
         return None
     
-    @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": "*.csv;*.txt"})
+    @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": FileFilter.CSV})
     def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
         """
         Shift monomer coordinates in PEET format.

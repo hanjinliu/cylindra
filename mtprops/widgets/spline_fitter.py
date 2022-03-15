@@ -70,6 +70,8 @@ class SplineFitter(MagicTemplate):
         self.fit_done = True
         self._mt_changed()
         parent._update_splines_in_images()
+        parent._need_save = True
+        return None
     
     @Rotational_averaging.frame.wraps
     @do_not_record
@@ -86,7 +88,7 @@ class SplineFitter(MagicTemplate):
             proj = Projections(img)
             proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
         self.Rotational_averaging.canvas_rot.image = proj.zx_ave
-    
+        return None
     
     def __post_init__(self):
         self.shifts: List[np.ndarray] = None
@@ -170,8 +172,8 @@ class SplineFitter(MagicTemplate):
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
-        length_px = tomo.nm2pixel(GVar.fitLength/self.binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth/self.binsize)
+        length_px = tomo.nm2pixel(GVar.fitLength, binsize=self.binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=self.binsize)
         
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian(

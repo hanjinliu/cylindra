@@ -84,6 +84,8 @@ class LocalPropertiesWidget(MagicTemplate):
         if props is None:
             return None
         x = np.asarray(props[H.splDistance])
+        if x[0] > x[-1]:
+            x = x[::-1]
         pitch_color = "lime"
         skew_color = "gold"
         
