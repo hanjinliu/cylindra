@@ -25,6 +25,8 @@ from magicclass import (
     MagicTemplate,
     bind_key,
     build_help,
+    get_function_gui,
+    confirm,
     nogui
     )
 from magicclass.types import Color, Bound, Optional, Tuple as _Tuple
@@ -39,7 +41,7 @@ from magicclass.widgets import (
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
-from ..components.microtubule import LOCALPROPS, angle_corr
+from ..components.microtubule import angle_corr
 from ..utils import (
     crop_tomogram,
     make_slice_and_pad,
@@ -61,6 +63,7 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .tomogram_list import TomogramList
 from .feature_control import FeatureControl
+from .image_processor import ImageProcessor
 from .worker import WorkerControl, dispatch_worker, Worker
 from .widget_utils import (
     add_molecules,
@@ -99,6 +102,7 @@ class MTPropsWidget(MagicTemplate):
         def Save_project(self): ...
         def Save_molecules(self): ...
         sep1 = field(Separator)
+        Process_image_files = ImageProcessor
         PEET = PEET
 
     @magicmenu
@@ -212,6 +216,14 @@ class MTPropsWidget(MagicTemplate):
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.Panels.min_height = 300
+        
+        mgui = get_function_gui(self, "Open_image")
+        @mgui.path.changed.connect
+        def _read_scale():
+            img = ip.lazy_imread(mgui.path.value, chunks=GVar.daskChunk)
+            scale = img.scale.x
+            mgui.scale.value = f"{scale:.4f}"
+            mgui.bin_size.value = ceilint(0.96 / scale)
 
     @property
     def sub_viewer(self) -> napari.Viewer:
@@ -336,7 +348,7 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def open_runner(self):
         """Run MTProps with various settings."""
-        self._runner.show()
+        self._runner.show(run=False)
         return None
     
     @_runner.wraps
@@ -417,9 +429,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @toolbar.wraps
-    @set_options(_={"widget_type": "Label"})
     @set_design(icon_path=ICON_DIR/"clear_all.png")
-    def clear_all(self, _="Are you sure to clear all?"):
+    @confirm("Are you sure to clear all?\nYou cannot undo this.")
+    def clear_all(self):
         """Clear all the splines and results."""
         self._init_widget_state()
         self._init_layers()
@@ -449,8 +461,8 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Others.wraps
-    @set_options(_={"widget_type": "Label"})
-    def Clear_cache(self, _="Are you sure to clear cache?"):
+    @confirm("Are you sure to clear cache?\nYou cannot undo this.")
+    def Clear_cache(self):
         """Clear cache stored on the current tomogram."""
         if self.tomogram is not None:
             self.tomogram.clear_cache()
@@ -478,39 +490,6 @@ class MTPropsWidget(MagicTemplate):
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
         return None
-    
-    @magicclass
-    class _loader(MagicTemplate):
-        # A loader widget with imread settings.
-        path = vfield(Path, record=False, options={"filter": "*.tif;*.tiff;*.mrc;*.rec", "tooltip": "Path to tomogram."})
-        scale = vfield(str, record=False, options={"label": "scale (nm)", "tooltip": "Pixel size in nm/pixel."})
-        bin_size = vfield(4, record=False, options={"label": "bin size", "min": 1, "max": 8, "tooltip": "Bin size of image for reference. This value does not affect MTProps analysis."})
-        use_lowpass = vfield(False, record=False, options={"label": "Apply low-pass filter","tooltip": "Check if images need prefilter."})
-        cutoff_freq = vfield(0.2, record=False, options={"label": "Cutoff frequency (1/px)", "visible": False, "min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass prefilter. Must be 0.0 < freq < 0.866."})
-        
-        @use_lowpass.connect
-        def _enable_freq_option(self):
-            self["cutoff_freq"].visible = self.use_lowpass
-        
-        def _get_cutoff_freq(self, _=None):
-            if self.use_lowpass:
-                return self.cutoff_freq
-            else:
-                return 0.0
-        
-        @path.connect
-        def _read_scale(self):
-            img = ip.lazy_imread(self.path, chunks=GVar.daskChunk)
-            scale = img.scale.x
-            self.scale = f"{scale:.4f}"
-            if scale > 0.96:
-                self.bin_size = 1
-            elif scale > 0.48:
-                self.bin_size = 2
-            else:
-                self.bin_size = 4
-        
-        def load_tomogram(self): ...
     
     def _send_tomogram_to_viewer(self, tomo: MtTomogram):
         viewer = self.parent_viewer
@@ -562,17 +541,32 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.log.print_html(f"<h2>{_name}</h2>")
         return None
 
-    @_loader.wraps
-    @set_design(text="OK")
+    @File.wraps
+    @set_options(
+        path={"filter": "*.mrc;*.rec;*.tif;*.tiff;*.map;;*.*"},
+        scale={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"},
+        bin_size={"min": 1, "max": 8}
+    )
     @dispatch_worker
-    def load_tomogram(
+    def Open_image(
         self, 
-        path: Bound[_loader.path],
-        scale: Bound[_loader.scale] = None,
-        bin_size: Bound[_loader.bin_size] = None,
-        cutoff: Bound[_loader._get_cutoff_freq] = None,
+        path: Path,
+        scale: float = 1.0,
+        bin_size: int = 1,
     ):
-        """Start loading image."""
+        """
+        Load an image file and process it before sending it to the viewer.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the tomogram. Must be 3-D image.
+        scale : float, defaul is 1.0
+            Pixel size in nm/pixel unit.
+        bin_size : int, default is 1
+            Initial bin size of image. Binned image will be used for visualization in the viewer.
+            You can use both binned and non-binned image for analysis.
+        """
         img = ip.lazy_imread(path, chunks=GVar.daskChunk)
         if scale is not None:
             scale = float(scale)
@@ -580,19 +574,14 @@ class MTPropsWidget(MagicTemplate):
         else:
             scale = img.scale.x
         
-        if cutoff is None:
-            cutoff = 1.0
-            
         worker = create_worker(
             self._imread,
             path=path,
             scale=scale,
             binsize=bin_size,
-            cutoff=cutoff,
             _progress={"total": 0, "desc": "Running"})
 
-        self._WorkerControl.info = \
-            f"Reading image (bin size = {bin_size}, cutoff = {cutoff})"
+        self._WorkerControl.info = f"Reading image (bin size = {bin_size})"
         
         @worker.returned.connect
         def _on_return(tomo: MtTomogram):
@@ -609,20 +598,14 @@ class MTPropsWidget(MagicTemplate):
             with self.macro.blocked():
                 self.clear_all()
     
-        self._loader.close()
         return worker
     
-    @File.wraps
-    @do_not_record
-    def Open_image(self):
-        """Open an image and add to viewer."""
-        self._loader.show(run=False)
-        return None
     
     @File.wraps
     @set_options(path={"filter": "*.json;*.txt"})
     @dispatch_worker
     def Load_project(self, path: Path):
+        """Load a project json file."""
         path = str(path)
     
         with open(path, mode="r") as f:
@@ -637,7 +620,6 @@ class MTPropsWidget(MagicTemplate):
             path=js["image"], 
             scale=js["scale"], 
             binsize=binsize, 
-            cutoff=0,
             _progress={"total": 0, "desc": "Running"}
         )
 
@@ -2418,6 +2400,9 @@ class MTPropsWidget(MagicTemplate):
             freq0 = None
             for i, fsc1 in enumerate(fsc):
                 if fsc1 < crit:
+                    if i == 0:
+                        resolution = "N.A."
+                        break
                     f0 = freq[i-1]
                     f1 = freq[i]
                     fsc0 = fsc[i-1]
@@ -2797,11 +2782,9 @@ class MTPropsWidget(MagicTemplate):
         self.layer_paint.color = color
         return None
 
-    def _imread(self, path: str, scale: nm, binsize: int, cutoff: float):
+    def _imread(self, path: str, scale: nm, binsize: int):
         tomo = MtTomogram.imread(path, scale=scale)
-        tomo.lowpass_filter(cutoff)
         tomo.add_multiscale(binsize)
-        tomo.metadata["cutoff"] = cutoff
         if self._current_ft_size is not None:
             tomo.metadata["ft_size"] = self._current_ft_size
         return tomo
