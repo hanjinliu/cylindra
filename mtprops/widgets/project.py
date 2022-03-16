@@ -147,9 +147,10 @@ class MTPropsProject(ProjectDescriptor):
     multiscales: List[int]
     current_ft_size: float
     splines: List[PathLike]
-    localprops: PathLike
-    globalprops: PathLike
+    localprops: Union[PathLike, None]
+    globalprops: Union[PathLike, None]
     molecules: List[PathLike]
-    template_image: PathLike
+    template_image: Union[PathLike, None]
     mask_parameters: Union[None, Tuple[float, float], List[float], PathLike]
+    chunksize: int
     macro: PathLike

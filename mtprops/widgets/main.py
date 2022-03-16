@@ -165,7 +165,8 @@ class MTPropsWidget(MagicTemplate):
     @magicmenu
     class Others(MagicTemplate):
         """Other menus."""
-        def Create_macro(self): ...
+        def Show_macro(self): ...
+        def Show_full_macro(self): ...
         Global_variables = GlobalVariables
         def Clear_cache(self): ...
         def Open_help(self): ...
@@ -454,9 +455,32 @@ class MTPropsWidget(MagicTemplate):
         help.show()
         return None
     
+    def _get_macro_object(self):
+        import macrokit as mk
+        v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
+        return self.macro.format([(mk.symbol(self.parent_viewer), v)])
+    
     @Others.wraps
     @do_not_record
-    def Create_macro(self):
+    def Show_macro(self):
+        """Create Python executable script of the current project."""
+        new = self.macro.widget.new()
+        new.value = str(self._get_macro_object()[self._macro_offset:])
+        new.show()
+        return None
+    
+    @Others.wraps
+    @do_not_record
+    def Show_full_macro(self):
+        """Create Python executable script since the startup this time."""
+        new = self.macro.widget.new()
+        new.value = str(self._get_macro_object())
+        new.show()
+        return None
+    
+    @Others.wraps
+    @do_not_record
+    def Create_full_macro(self):
         """Create Python executable script."""
         import macrokit as mk
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
@@ -687,6 +711,7 @@ class MTPropsWidget(MagicTemplate):
             # load subtomogram analyzer state
             self._subtomogram_averaging.template_path = project.template_image or ""
             self._subtomogram_averaging._set_mask_params(project.mask_parameters)
+            self._subtomogram_averaging.chunk_size = project.chunksize or 200
             self.reset_choices()
             self._need_save = False
 
@@ -764,6 +789,7 @@ class MTPropsWidget(MagicTemplate):
             molecules = molecules_paths,
             template_image = self._subtomogram_averaging.template_path,
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
+            chunksize = self._subtomogram_averaging.chunk_size,
             macro = macro_path,
         )
         
@@ -1676,7 +1702,7 @@ class MTPropsWidget(MagicTemplate):
             self._viewer: Union[napari.Viewer, None] = None
             self.mask = MASK_CHOICES[0]
             
-        template_path = vfield(Path, options={"label": "Template", "filter": FileFilter.IMAGE})
+        template_path = vfield(Path, options={"label": "Template", "filter": FileFilter.IMAGE}, record=False)
         mask = vfield(RadioButtons, options={"label": "Mask", "choices": MASK_CHOICES}, record=False)
         
         @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
@@ -1688,7 +1714,7 @@ class MTPropsWidget(MagicTemplate):
         class mask_path(MagicTemplate):
             mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
         
-        chunk_size = vfield(200, options={"min": 1, "max": 600, "step": 10, "tooltip": "How many subtomograms will be loaded at the same time."})
+        chunk_size = vfield(200, options={"min": 1, "max": 600, "step": 10, "tooltip": "How many subtomograms will be loaded at the same time."}, record=False)
         
         @mask.connect
         def _on_switch(self):
