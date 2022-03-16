@@ -487,10 +487,14 @@ class Spline:
         
         return None
     
-    # @classmethod
-    # def from_json(self, file_path: str) -> Self:
-    #     raise NotImplementedError()
-
+    @classmethod
+    def from_json(cls, file_path: str) -> Self:
+        file_path = str(file_path)
+        
+        with open(file_path, mode="r") as f:
+            js = json.load(f)
+        return cls.from_dict(js)
+        
     def affine_matrix(
         self, 
         u: Iterable[float] = None,

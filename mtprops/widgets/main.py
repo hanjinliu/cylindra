@@ -1,7 +1,7 @@
 import os
 import re
 import json
-from typing import Iterable, Iterator, Union, Tuple, List
+from typing import Dict, Iterable, Iterator, Union, Tuple, List
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -95,10 +95,12 @@ class MTPropsWidget(MagicTemplate):
     class File(MagicTemplate):
         """File I/O."""  
         def Open_image(self): ...
+        def Load_project(self): ...
+        def Load_splines(self): ...
         def Load_molecules(self): ...
         sep0 = field(Separator)
-        def Load_project(self): ...
         def Save_project(self): ...
+        def Save_spline(self): ...
         def Save_molecules(self): ...
         sep1 = field(Separator)
         Process_images = ImageProcessor
@@ -207,6 +209,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof: Points = None
         self.layer_work: Points = None
         self.layer_paint: Labels = None
+        self._macro_offset: int = 1
         self._need_save: bool = False
         self.objectName()  # load napari types
         
@@ -473,26 +476,32 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def MTProps_info(self):
         """Show information of dependencies."""
-        import napari
-        import magicgui
-        from .. import __version__
-        import magicclass as mcls
-        import dask
-        
-        value = (
-            f"MTProps: {__version__}\n"
-            f"impy: {ip.__version__}\n"
-            f"magicgui: {magicgui.__version__}\n"
-            f"magicclass: {mcls.__version__}\n"
-            f"napari: {napari.__version__}\n"
-            f"dask: {dask.__version__}\n"
-        )
+        versions = self._get_versions()
+        value = "\n".join(f"{k}: {v}" for k, v in versions.items())
         w = ConsoleTextEdit(value=value)
         w.read_only = True
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
         return None
     
+    @staticmethod
+    def _get_versions() -> Dict[str, str]:
+        import napari
+        import magicgui
+        from .. import __version__
+        import magicclass as mcls
+        import dask
+        
+        return {
+            "MTProps": __version__,
+            "numpy": np.__version__,
+            "impy": ip.__version__,
+            "magicgui": magicgui.__version__,
+            "magicclass": mcls.__version__,
+            "napari": napari.__version__,
+            "dask": dask.__version__,
+        }
+        
     def _send_tomogram_to_viewer(self, tomo: MtTomogram):
         viewer = self.parent_viewer
         self.tomogram = tomo
@@ -593,6 +602,8 @@ class MTPropsWidget(MagicTemplate):
                 tomo.metadata["ft_size"] = self._current_ft_size
             with self.macro.blocked():
                 self.clear_all()
+                
+        self._macro_offset = len(self.macro)
     
         return worker
     
@@ -629,7 +640,7 @@ class MTPropsWidget(MagicTemplate):
             self._current_ft_size = project.current_ft_size
             
             # load splines
-            splines = [MtSpline.from_dict(d) for d in project.splines]
+            splines = [MtSpline.from_json(path) for path in project.splines]
             localprops_path = project.localprops
             if localprops_path is not None:
                 all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
@@ -678,7 +689,8 @@ class MTPropsWidget(MagicTemplate):
             self._subtomogram_averaging._set_mask_params(project.mask_parameters)
             self.reset_choices()
             self._need_save = False
-        
+
+        self._macro_offset = len(self.macro)
         return worker
 
     @File.wraps
@@ -701,7 +713,7 @@ class MTPropsWidget(MagicTemplate):
         results_dir : Path, optional
             Optionally you can specify the directory to save csv files.
         """
-        from .. import __version__
+        _versions = self._get_versions()
         tomo = self.tomogram
         localprops = tomo.collect_localprops()    
         globalprops = tomo.collect_globalprops()
@@ -709,9 +721,17 @@ class MTPropsWidget(MagicTemplate):
         _json_path = Path(json_path)
         if results_dir is None:
             results_dir = _json_path.parent / (_json_path.stem + "_results")
+        else:
+            results_dir = Path(results_dir)
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
         globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
         
+        # Save splines
+        spline_paths: List[Path] = []
+        for i, spl in enumerate(self.tomogram.splines):
+            spline_paths.append(results_dir/f"spline-{i}.json")
+            
+        # Save molecules
         molecule_dataframes: List[pd.DataFrame] = []
         molecules_paths = []
         for layer in filter(
@@ -724,20 +744,30 @@ class MTPropsWidget(MagicTemplate):
             molecule_dataframes.append(pd.concat([mole.to_dataframe(), features], axis=1))
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
         
+        # Save macro
+        macro_path = results_dir / "script.py"
+        macro_str = str(self.macro[self._macro_offset:])
+        
+        from datetime import datetime
+        
         project = MTPropsProject(
-            version = __version__,
+            datetime = datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+            version = _versions.pop("MTProps"),
+            dependency_versions = _versions,
             image = tomo.source,
             scale = tomo.scale,
             multiscales = [x[0] for x in tomo.multiscaled],
             current_ft_size = self._current_ft_size,
-            splines = [spl.to_dict() for spl in tomo.splines],
+            splines = spline_paths,
             localprops = localprops_path,
             globalprops = globalprops_path,
             molecules = molecules_paths,
             template_image = self._subtomogram_averaging.template_path,
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
+            macro = macro_path,
         )
         
+        # save objects
         project.to_json(_json_path)
         
         if not os.path.exists(results_dir):
@@ -746,12 +776,29 @@ class MTPropsWidget(MagicTemplate):
             localprops.to_csv(localprops_path)
         if globalprops_path:
             globalprops.to_csv(globalprops_path)
+        if spline_paths:
+            for spl, path in zip(self.tomogram.splines, spline_paths):
+                spl.to_json(path)
         if molecules_paths:
             for df, fp in zip(molecule_dataframes, molecules_paths):
                 df.to_csv(fp, index=False)
+        if macro_str:
+            with open(macro_path, mode="w") as f:
+                f.write(macro_str)
+        
         self._need_save = False
         return
     
+    @File.wraps
+    @set_options(paths={"filter": FileFilter.JSON})
+    def Load_splines(self, paths: List[Path]):
+        if isinstance(paths, (str, Path, bytes)):
+            paths = [paths]
+        splines = [MtSpline.from_json(path) for path in paths]
+        self.tomogram.splines.extend(splines)
+        self.reset_choices()
+        return None
+        
     @File.wraps
     @set_options(paths={"filter": FileFilter.CSV})
     def Load_molecules(self, paths: List[Path]):
@@ -770,6 +817,16 @@ class MTPropsWidget(MagicTemplate):
                 points.features = df.iloc[:, 6:]
         return None
     
+    @File.wraps
+    @set_options(
+        spline={"choices": _get_splines},
+        save_path={"mode": "w", "filter": FileFilter.JSON}
+    )
+    def Save_spline(self, spline: int, save_path: Path):
+        spl = self.tomogram.splines[spline]
+        spl.to_json(save_path)
+        return None
+        
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": FileFilter.CSV})
     def Save_molecules(

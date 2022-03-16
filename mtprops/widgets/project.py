@@ -139,15 +139,17 @@ PathLike = Union[Path, str]
 class MTPropsProject(ProjectDescriptor):
     """A project of MTProps."""
     
+    datetime: str
     version: str
+    dependency_versions: Dict[str, str]
     image: PathLike
     scale: float
     multiscales: List[int]
     current_ft_size: float
-    splines: List[dict]
+    splines: List[PathLike]
     localprops: PathLike
     globalprops: PathLike
     molecules: List[PathLike]
     template_image: PathLike
     mask_parameters: Union[None, Tuple[float, float], List[float], PathLike]
-    
+    macro: PathLike
