@@ -53,6 +53,7 @@ def update_features(
     return None
 
 def molecules_to_spline(layer: Points) -> MtSpline:
+    """Convert well aligned molecule positions into a spline."""
     mole: Molecules = layer.metadata[MOLECULES]
     spl = MtSpline(degree=GVar.splOrder)
     npf = int(round(np.max(layer.features[Mole.pf]) + 1))
@@ -66,3 +67,22 @@ def y_coords_to_start_number(u: np.ndarray, npf: int):
     a0 = (u[-npf] - u[0]) / (u.size - npf)
     a1 = np.mean((u[::npf] - u[(npf-1)::npf])/(npf - 1))
     return int(round(a1/a0))
+
+def get_versions() -> dict[str, str]:
+    """Return version info of relevant libraries."""
+    import napari
+    import impy as ip
+    import magicgui
+    from .. import __version__
+    import magicclass as mcls
+    import dask
+    
+    return {
+        "MTProps": __version__,
+        "numpy": np.__version__,
+        "impy": ip.__version__,
+        "magicgui": magicgui.__version__,
+        "magicclass": mcls.__version__,
+        "napari": napari.__version__,
+        "dask": dask.__version__,
+    }

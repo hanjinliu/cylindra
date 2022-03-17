@@ -1,7 +1,6 @@
 import os
 import re
-import json
-from typing import Dict, Iterable, Iterator, Union, Tuple, List
+from typing import Iterable, Iterator, Union, Tuple, List
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -72,6 +71,7 @@ from .widget_utils import (
     update_features,
     molecules_to_spline,
     y_coords_to_start_number,
+    get_versions,
 )
 from ..ext.etomo import PEET
 
@@ -500,31 +500,13 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def MTProps_info(self):
         """Show information of dependencies."""
-        versions = self._get_versions()
+        versions = get_versions()
         value = "\n".join(f"{k}: {v}" for k, v in versions.items())
         w = ConsoleTextEdit(value=value)
         w.read_only = True
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
         return None
-    
-    @staticmethod
-    def _get_versions() -> Dict[str, str]:
-        import napari
-        import magicgui
-        from .. import __version__
-        import magicclass as mcls
-        import dask
-        
-        return {
-            "MTProps": __version__,
-            "numpy": np.__version__,
-            "impy": ip.__version__,
-            "magicgui": magicgui.__version__,
-            "magicclass": mcls.__version__,
-            "napari": napari.__version__,
-            "dask": dask.__version__,
-        }
         
     def _send_tomogram_to_viewer(self, tomo: MtTomogram):
         viewer = self.parent_viewer
@@ -738,7 +720,7 @@ class MTPropsWidget(MagicTemplate):
         results_dir : Path, optional
             Optionally you can specify the directory to save csv files.
         """
-        _versions = self._get_versions()
+        _versions = get_versions()
         tomo = self.tomogram
         localprops = tomo.collect_localprops()    
         globalprops = tomo.collect_globalprops()

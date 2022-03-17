@@ -6,19 +6,16 @@ import numpy as np
 import pandas as pd
 
 class ProjectDescriptor:
-    def __init__(self, desc: Dict[str, Any] = None, **kwargs):
+    def __init__(self, **kwargs):
         self._fields_ = {}
-        if desc is None:
-            desc = kwargs
-        elif kwargs:
-            raise TypeError("Cannot set both desc and **kwargs.")
-        for k, v in desc.items():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
     def __init_subclass__(cls) -> None:
         for annot, tp in cls.__annotations__.items():
             prop = cls._annotation_to_property(annot, tp)
             setattr(cls, annot, prop)
+        cls.__init__.__annotations__ = cls.__annotations__
     
     @classmethod
     def _annotation_to_property(cls, annot: str, tp: Type):
@@ -49,7 +46,7 @@ class ProjectDescriptor:
     
         with open(path, mode="r") as f:
             js: dict = json.load(f)
-        return cls(js)
+        return cls(**js)
     
     def to_json(self, path: str) -> None:
         with open(path, mode="w") as f:
@@ -73,6 +70,8 @@ def json_encoder(obj):
         raise TypeError(f"{obj!r} is not JSON serializable")
 
 
+_list_like = (list, tuple, set)
+
 def _type_to_validator(tp: Type):
     origin = get_origin(tp)
     if origin is None and tp in (list, tuple, set, dict):
@@ -84,16 +83,16 @@ def _type_to_validator(tp: Type):
         def _validator(v):
             return any(_val(v) for _val in _validators)
         
-    elif origin in (list, tuple, set):
+    elif origin in _list_like:
         _types = get_args(tp)
         if len(_types) == 0:
             def _validator(v):
-                return isinstance(v, origin)
+                return isinstance(v, _list_like)
         else:
             _inner_validator = _type_to_validator(_types[0])
             def _validator(v):
                 return (
-                    isinstance(v, origin) and
+                    isinstance(v, _list_like) and
                     all(_inner_validator(v0) for v0 in v)
                 )
     elif origin is dict:
@@ -151,6 +150,18 @@ class MTPropsProject(ProjectDescriptor):
     globalprops: Union[PathLike, None]
     molecules: List[PathLike]
     template_image: Union[PathLike, None]
-    mask_parameters: Union[None, Tuple[float, float], List[float], PathLike]
+    mask_parameters: Union[None, Tuple[float, float], PathLike]
     chunksize: int
     macro: PathLike
+
+
+class SubtomogramAveragingProject(ProjectDescriptor):
+    """A project of subtomogram averaging using multiple tomograms."""
+    
+    datetime: str
+    version: str
+    dependency_versions: Dict[str, str]
+    datasets: Dict[PathLike, List[PathLike]]  # {subproject-path: [molecules-path-0, molecules-path-1, ...]}
+    shape: Tuple[float, float ,float]
+    chunksize: int
+    
