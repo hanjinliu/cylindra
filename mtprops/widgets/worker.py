@@ -43,7 +43,7 @@ class WorkerControl(MagicTemplate):
     # A widget that has a napari worker object and appears as buttons in the activity dock 
     # while running.
     
-    info = vfield(str, enabled=False, record=False)
+    info = vfield(str, options={"enabled": False}, record=False)
     
     def __post_init__(self):
         self.paused = False

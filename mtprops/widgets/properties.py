@@ -24,18 +24,18 @@ class LocalPropertiesWidget(MagicTemplate):
         class pitch(MagicTemplate):
             """Longitudinal pitch length (interval between monomers)"""
             lbl = field("pitch", widget_type="Label")
-            txt = vfield("", enabled=False)
+            txt = vfield("", options={"enabled": False})
             
         @magicclass(labels=False)
         class skew(MagicTemplate):
             """Skew angle """
             lbl = field("skew angle", widget_type="Label")
-            txt = vfield("", enabled=False)
+            txt = vfield("", options={"enabled": False})
             
         @magicclass(labels=False)
         class structure(MagicTemplate):
             lbl = field("structure", widget_type="Label")
-            txt = vfield("", enabled=False)
+            txt = vfield("", options={"enabled": False})
 
     plot = field(QtMultiPlotCanvas,
                  name="Plot", 
@@ -130,18 +130,18 @@ class GlobalPropertiesWidget(MagicTemplate):
             class pitch(MagicTemplate):
                 """Longitudinal pitch length (interval between monomers)"""
                 lbl = field("pitch", widget_type="Label")
-                txt = vfield("", enabled=False)
+                txt = vfield("", options={"enabled": False})
                 
             @magicclass(labels=False)
             class skew(MagicTemplate):
                 """Skew angle """
                 lbl = field("skew angle", widget_type="Label")
-                txt = vfield("", enabled=False)
+                txt = vfield("", options={"enabled": False})
                 
             @magicclass(labels=False)
             class structure(MagicTemplate):
                 lbl = field("structure", widget_type="Label")
-                txt = vfield("", enabled=False)
+                txt = vfield("", options={"enabled": False})
         
         @magicclass(layout="horizontal", labels=False)
         class params2(MagicTemplate):
@@ -150,13 +150,13 @@ class GlobalPropertiesWidget(MagicTemplate):
             class radius(MagicTemplate):
                 """radius"""
                 lbl = field("radius", widget_type="Label")
-                txt = vfield("", enabled=False)
+                txt = vfield("", options={"enabled": False})
                 
             @magicclass(labels=False)
             class polarity(MagicTemplate):
                 """polarity of MT"""
                 lbl = field("polarity", widget_type="Label")
-                txt = vfield("", enabled=False)
+                txt = vfield("", options={"enabled": False})
 
     def _init_text(self):
         self.params.params1.pitch.txt = " -- nm"
