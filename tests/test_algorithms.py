@@ -39,7 +39,7 @@ def test_run_all(coords, npf, rise, skew_range):
     ypitch_glob = spl.globalprops[H.yPitch]
     assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has pitch length in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.011
-    assert all(spl.localprops[H.nPF] == npf)
+    assert sum(spl.localprops[H.nPF] == npf) >= 3
     assert all(spl.localprops[H.riseAngle] > rise)
     skew_min, skew_max = skew_range
     assert skew_min < spl.globalprops[H.skewAngle] < skew_max
