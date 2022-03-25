@@ -63,6 +63,7 @@ from .spline_fitter import SplineFitter
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
+from .project_editor import SubtomogramAveragingProjectEditor
 from .worker import WorkerControl, dispatch_worker, Worker
 from .widget_utils import (
     FileFilter,
@@ -90,6 +91,7 @@ class MTPropsWidget(MagicTemplate):
     _WorkerControl = field(WorkerControl, name="Worker control")
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _FeatureControl = field(FeatureControl, name="Feature Control")
+    _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
     @magicmenu
     class File(MagicTemplate):
@@ -161,6 +163,7 @@ class MTPropsWidget(MagicTemplate):
         def Global_FT_analysis(self): ...
         sep0 = field(Separator)
         def Open_subtomogram_analyzer(self): ...
+        def Open_project_editor(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
@@ -1674,6 +1677,12 @@ class MTPropsWidget(MagicTemplate):
     def Open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
         self._subtomogram_averaging.show()
+    
+    @Analysis.wraps
+    @do_not_record
+    def Open_project_editor(self):
+        """Open the subtomogram averaging project editor."""
+        self._STAProjectEditor.show()
     
     @magicclass(name="Subtomogram averaging")
     class _subtomogram_averaging(MagicTemplate):

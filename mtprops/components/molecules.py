@@ -78,7 +78,7 @@ class Molecules:
         df: pd.DataFrame = pd.read_csv(path, **kwargs)
         if df.shape[1] < 6:
             raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
-        if list(df.columns) != _CSV_COLUMNS:
+        if list(df.columns)[:6] != _CSV_COLUMNS:
             warnings.warn(
                 f"Columns {df.columns} does not match the standard column names for Molecules object.",
                 UserWarning,
