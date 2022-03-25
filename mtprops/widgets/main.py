@@ -227,7 +227,10 @@ class MTPropsWidget(MagicTemplate):
         mgui = get_function_gui(self, "Open_image")
         @mgui.path.changed.connect
         def _read_scale():
-            img = ip.lazy_imread(mgui.path.value, chunks=GVar.daskChunk)
+            path = mgui.path.value
+            if not os.path.exists(path):
+                return
+            img = ip.lazy_imread(path, chunks=GVar.daskChunk)
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
             mgui.bin_size.value = ceilint(0.96 / scale)
@@ -446,6 +449,13 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.overview.layers.clear()
         self.tomogram.clear_cache()
         self.tomogram.splines.clear()
+        # remove all the molecules layers
+        _layers_to_remove: List[str] = []
+        for layer in self.parent_viewer.layers:
+            if MOLECULES in layer.metadata.keys():
+                _layers_to_remove.append(layer.name)
+        for name in _layers_to_remove:
+            self.parent_viewer.layers.remove(self.parent_viewer.layers[name])
         self._need_save = False
         self.reset_choices()
         return None

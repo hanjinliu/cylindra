@@ -1,4 +1,3 @@
-import pytest
 from mtprops import start, MTPropsWidget
 from mtprops.components import Molecules
 from mtprops.const import H
@@ -8,7 +7,7 @@ from numpy.testing import assert_allclose
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
-
+TEST_PATH = Path(__file__).parent
 
 def assert_canvas(ui: MTPropsWidget, isnone):
     for i in range(3):
@@ -26,7 +25,7 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
 
 def test_spline_switch():
     ui = start()
-    path = Path(__file__).parent / "13pf_MT.tif"
+    path = TEST_PATH / "13pf_MT.tif"
     ui.Open_image(path=path, scale=1.052, bin_size=2)
     ui.Filter_reference_image()
     ui.register_path(coords=coords_13pf)
@@ -109,7 +108,7 @@ def test_spline_switch():
     ui.Average_subset(ui.parent_viewer.layers['Mono-0'], size=18.)
     ui.Calculate_FSC(ui.parent_viewer.layers['Mono-0'], mask_params=None, shape=(18., 18., 18.),
                      seed=0, interpolation=1)
-    template_path = Path(__file__).parent / "template.mrc"
+    template_path = TEST_PATH / "template.mrc"
     ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
                       mask_params=(1, 1), chunk_size=78)
     ui.Align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
@@ -117,11 +116,11 @@ def test_spline_switch():
     ui.Seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1),
                    chunk_size=78)
     ui.Save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
-                      save_path=Path(__file__).parent/"monomers.txt"
+                      save_path=TEST_PATH/"monomers.txt"
                       )
     mole = ui.get_molecules('Mono-0')
     ui.clear_all()
-    ui.Load_molecules(Path(__file__).parent/"monomers.txt")
+    ui.Load_molecules(TEST_PATH/"monomers.txt")
     mole_read = ui.get_molecules('monomers')
     assert_molecule_equal(mole, mole_read)
     assert_canvas(ui, [True, True, True])
@@ -131,7 +130,7 @@ def test_spline_switch():
 
 def test_io():
     ui = start()
-    path = Path(__file__).parent / "13pf_MT.tif"
+    path = TEST_PATH / "13pf_MT.tif"
     ui.Open_image(path=path, scale=1.052, bin_size=1)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
@@ -141,12 +140,31 @@ def test_io():
     # Save project
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules('Mono-0'), ui.get_molecules('Mono-1')]
-    ui.Save_project(Path(__file__).parent / "test-project.json")
-    ui.Load_project(Path(__file__).parent / "test-project.json")
+    ui.Save_project(TEST_PATH / "test-project.json")
+    ui.Load_project(TEST_PATH / "test-project.json")
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules('Mono-0'), ui.get_molecules('Mono-1')]
     assert old_splines[0] == new_splines[0]
     assert old_splines[1] == new_splines[1]
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
-    
+
+def test_multi_STA():
+    ui = start()
+    ui.Open_image(path=TEST_PATH/"13pf_MT.tif", scale=1.052, bin_size=1)
+    ui.register_path(coords=[[18.974, 195.011, 27.41], [18.974, 40.587, 75.181]])
+    ui.run_mtprops(splines=[], bin_size=1, interval=32.0, ft_size=32.0, n_refine=1, max_shift=5.0, edge_sigma=2.0, local_props=False, global_props=True, paint=True)
+    ui.Map_monomers(splines=[0], length=None)
+    ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), cutoff=0.5, bin_size=1, chunk_size=100)
+    ui.Align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1, chunk_size=100)
+    ui.Save_project(json_path=TEST_PATH/"project_13.json", results_dir=None)
+    ui.Open_image(path=TEST_PATH/"14pf_MT.tif", scale=1.052, bin_size=1)
+    ui.register_path(coords=[[22.974, 123.751, 33.26], [22.974, 25.986, 62.515]])
+    ui.run_mtprops(splines=[], bin_size=1, interval=32.0, ft_size=32.0, n_refine=1, max_shift=5.0, edge_sigma=2.0, local_props=False, global_props=True, paint=True)
+    ui.Invert_spline(spline=0)
+    ui.Map_monomers(splines=[0], length=None)
+    ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), cutoff=0.5, bin_size=1, chunk_size=100)
+    ui.Align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1, chunk_size=100)
+    ui.Save_project(json_path=TEST_PATH/"project_14.json", results_dir=None)
+    ui._STAProjectEditor.Save(path=TEST_PATH/"STA_project.json", info=[('C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_13.json', ['C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_13_results\\Mono-0-ALN2.csv']), ('C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_14.json', ['C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_14_results\\Mono-0-ALN2.csv'])])
+    ui._STAProjectEditor.run(path=TEST_PATH/"STA_project.json", order=1)
