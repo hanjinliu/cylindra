@@ -39,6 +39,10 @@ class SubProject(MagicTemplate):
         self.subproject = subproject_path
         self["subproject"].changed.emit(subproject_path)
         self["select"].value = v[1]
+    
+    @property
+    def project(self) -> MTPropsProject:
+        return MTPropsProject.from_json(self.subproject)
 
 N_BATCH = 24
 

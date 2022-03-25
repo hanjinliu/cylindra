@@ -12,6 +12,7 @@ from napari.qt import create_worker
 from napari.layers import Points, Image, Labels
 
 import impy as ip
+import macrokit as mk
 from magicclass import (
     magicclass,
     magictoolbar,
@@ -224,6 +225,7 @@ class MTPropsWidget(MagicTemplate):
         self.GlobalProperties.collapsed = False
         self.Panels.min_height = 300
         
+        # automatically set scale and binsize
         mgui = get_function_gui(self, "Open_image")
         @mgui.path.changed.connect
         def _read_scale():
@@ -234,6 +236,20 @@ class MTPropsWidget(MagicTemplate):
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
             mgui.bin_size.value = ceilint(0.96 / scale)
+        
+        # NOTE: To make recorded macro completely reproducible, removing molecules from the viewer layer list
+        # must be always monitored.
+        @self.parent_changed.connect
+        def _on_parent_changed():
+            viewer = self.parent_viewer
+            if viewer is None:
+                return
+            @viewer.layers.events.removed.connect
+            def _on_layer_removed(event):
+                layer = event.value
+                if MOLECULES in layer.metadata.keys():
+                    expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
+                    self.macro.append(mk.Expr("del", [expr]))
 
     @property
     def sub_viewer(self) -> napari.Viewer:
@@ -469,7 +485,6 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     def _get_macro_object(self):
-        import macrokit as mk
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
         return self.macro.format([(mk.symbol(self.parent_viewer), v)])
     
@@ -495,7 +510,6 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def Create_full_macro(self):
         """Create Python executable script."""
-        import macrokit as mk
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
         new = self.macro.widget.new()
         new.value = str(self.macro.format([(mk.symbol(self.parent_viewer), v)]))
