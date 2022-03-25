@@ -1,10 +1,10 @@
 .vscode/
 
+# Project files and results
 tests/**/*.txt
 tests/**/*.json
 tests/**/*.csv
 tests/**/script.py
-tests/test-project_results/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
