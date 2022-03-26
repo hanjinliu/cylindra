@@ -38,5 +38,4 @@ python launch.py
 ## Issues
 
 If you encountered any bugs or have any requests, feel free to [report an issue](https://github.com/hanjinliu/MTProps/issues).
-For better reproducibility, please copy your environments from `Others > MTProps info` and the recorded macro from 
-`Others > Create macro` if available.
+For better reproducibility, please copy your environments from `Others > MTProps info` and the recorded macro from `Others > Show full macro`.

@@ -470,8 +470,9 @@ class MTPropsWidget(MagicTemplate):
         for layer in self.parent_viewer.layers:
             if MOLECULES in layer.metadata.keys():
                 _layers_to_remove.append(layer.name)
-        for name in _layers_to_remove:
-            self.parent_viewer.layers.remove(self.parent_viewer.layers[name])
+        with self.parent_viewer.layers.events.blocker():
+            for name in _layers_to_remove:
+                self.parent_viewer.layers.remove(self.parent_viewer.layers[name])
         self._need_save = False
         self.reset_choices()
         return None
@@ -506,16 +507,6 @@ class MTPropsWidget(MagicTemplate):
         new.show()
         return None
     
-    @Others.wraps
-    @do_not_record
-    def Create_full_macro(self):
-        """Create Python executable script."""
-        v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
-        new = self.macro.widget.new()
-        new.value = str(self.macro.format([(mk.symbol(self.parent_viewer), v)]))
-        new.show()
-        return None
-        
     @Others.wraps
     @confirm(text="Are you sure to clear cache?\nYou cannot undo this.")
     def Clear_cache(self):
