@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import napari
 from napari.utils import Colormap
 from napari.qt import create_worker
-from napari.layers import Points, Image, Labels
+from napari.layers import Points, Image, Labels, Layer
 
 import impy as ip
 import macrokit as mk
@@ -174,6 +174,7 @@ class MTPropsWidget(MagicTemplate):
         Global_variables = GlobalVariables
         def Clear_cache(self): ...
         def Open_help(self): ...
+        def Restore_layers(self): ...
         def MTProps_info(self): ...
         
     @magictoolbar(labels=False)
@@ -236,20 +237,7 @@ class MTPropsWidget(MagicTemplate):
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
             mgui.bin_size.value = ceilint(0.96 / scale)
-        
-        # NOTE: To make recorded macro completely reproducible, removing molecules from the viewer layer list
-        # must be always monitored.
-        @self.parent_changed.connect
-        def _on_parent_changed():
-            viewer = self.parent_viewer
-            if viewer is None:
-                return
-            @viewer.layers.events.removed.connect
-            def _on_layer_removed(event):
-                layer = event.value
-                if MOLECULES in layer.metadata.keys():
-                    expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
-                    self.macro.append(mk.Expr("del", [expr]))
+
 
     @property
     def sub_viewer(self) -> napari.Viewer:
@@ -465,14 +453,6 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.overview.layers.clear()
         self.tomogram.clear_cache()
         self.tomogram.splines.clear()
-        # remove all the molecules layers
-        _layers_to_remove: List[str] = []
-        for layer in self.parent_viewer.layers:
-            if MOLECULES in layer.metadata.keys():
-                _layers_to_remove.append(layer.name)
-        with self.parent_viewer.layers.events.blocker():
-            for name in _layers_to_remove:
-                self.parent_viewer.layers.remove(self.parent_viewer.layers[name])
         self._need_save = False
         self.reset_choices()
         return None
@@ -513,6 +493,15 @@ class MTPropsWidget(MagicTemplate):
         """Clear cache stored on the current tomogram."""
         if self.tomogram is not None:
             self.tomogram.clear_cache()
+    
+    @Others.wraps
+    @do_not_record
+    def Restore_layers(self):
+        """Restore mistakenly deleted layers."""
+        for layer in (self.layer_image, self.layer_work, self.layer_prof, self.layer_paint):
+            if layer not in self.parent_viewer.layers:
+                self.parent_viewer.add_layer(layer)
+        return None
     
     @Others.wraps
     @do_not_record
@@ -2967,9 +2956,29 @@ class MTPropsWidget(MagicTemplate):
         polar.scale_unit = img.scale_unit
         return polar
     
+    def _on_layer_removing(self, event):
+        # NOTE: To make recorded macro completely reproducible, removing molecules 
+        # from the viewer layer list must be always monitored.
+        layer: Layer = self.parent_viewer.layers[event.index]
+        if MOLECULES in layer.metadata.keys():
+            expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
+            self.macro.append(mk.Expr("del", [expr]))
+        return
+    
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer
+        viewer.layers.events.removing.disconnect(self._on_layer_removing)
         
+        # remove all the molecules layers
+        _layers_to_remove: List[str] = []
+        for layer in self.parent_viewer.layers:
+            if MOLECULES in layer.metadata.keys():
+                _layers_to_remove.append(layer.name)
+        with self.macro.blocked():
+            for name in _layers_to_remove:
+                layer: Layer = self.parent_viewer.layers[name]
+                self.parent_viewer.layers.remove(layer)
+                
         common_properties = dict(ndim=3, out_of_slice_display=True, size=8)
         if self.layer_prof in self.parent_viewer.layers:
             viewer.layers.remove(self.layer_prof)
@@ -3000,6 +3009,8 @@ class MTPropsWidget(MagicTemplate):
             self.layer_paint.data = np.zeros_like(self.layer_paint.data)
             self.layer_paint.scale = self.layer_image.scale
         self.GlobalProperties._init_text()
+        
+        viewer.layers.events.removing.connect(self._on_layer_removing)
         return None
     
     @SplineControl.num.connect
