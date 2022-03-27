@@ -1,20 +1,11 @@
 from __future__ import annotations
-from pathlib import Path
-
-import sys
 import logging
-
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpecKwargs
-else:
-    from typing import ParamSpecKwargs
+from typing_extensions import ParamSpecKwargs
     
 from typing import Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING
-import json
 from functools import partial, wraps
 import numpy as np
 from numpy.typing import ArrayLike
-import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import ndimage as ndi
 from scipy.spatial.transform import Rotation
@@ -24,7 +15,6 @@ import impy as ip
 
 from .molecules import Molecules
 from .spline import Spline
-from .loader import SubtomogramLoader
 from .tomogram import Tomogram
 from ..const import nm, H, K, Ori, Mode, GVar
 from ..utils import (
@@ -36,8 +26,7 @@ from ..utils import (
     ceilint,
     oblique_meshgrid,
     set_gpu,
-    mirror_pcc,
-    mirror_ft_pcc,
+    mirror_zncc, 
     angle_uniform_filter,
 )
 
@@ -473,7 +462,8 @@ class MtTomogram(Tomogram):
             max_shift_px = max_shift / scale * 2
             for i in range(npoints):
                 img = subtomo_proj[i]
-                shifts[i] = mirror_pcc(img, max_shifts=max_shift_px) / 2
+                shifts[i] = mirror_zncc(img, max_shifts=max_shift_px) / 2
+                # shifts[i] = mirror_pcc(img, max_shifts=max_shift_px) / 2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -598,16 +588,13 @@ class MtTomogram(Tomogram):
 
             inputs = subtomograms.proj("y")["x=::-1"]
             
-            inputs_ft = inputs.fft(dims=inputs["p=0"].axes)
-            
             # Coarsely align skew-corrected images                
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
             max_shift_px = max_shift / scale
             
             for i in range(npoints):
                 img: ip.ImgArray = inputs[i]
-                ft = inputs_ft[i]
-                shift = mirror_ft_pcc(ft, max_shifts=max_shift_px*2) / 2
+                shift = mirror_zncc(img, max_shifts=max_shift_px*2) / 2
                 imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
                 
             if corr_allowed < 1:
@@ -620,15 +607,14 @@ class MtTomogram(Tomogram):
             
             # Make template using coarse aligned images.
             imgcory: ip.ImgArray = imgs_aligned.proj("p")
-            center_shift = mirror_pcc(imgcory, max_shifts=max_shift_px*2) / 2
+            center_shift = mirror_zncc(imgcory, max_shifts=max_shift_px*2) / 2
             template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
-            template_ft = template.fft(dims=template.axes)
             
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
             for i in range(npoints):
-                ft = inputs_ft[i]
-                shift = -ip.ft_pcc_maximum(template_ft, ft, max_shifts=max_shift_px)
+                img = inputs[i]
+                shift = -ip.zncc_maximum(template, img, max_shifts=max_shift_px)
                     
                 rad = np.deg2rad(skew_angles[i])
                 cos, sin = np.cos(rad), np.sin(rad)

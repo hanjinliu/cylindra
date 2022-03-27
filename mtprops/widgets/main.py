@@ -46,7 +46,7 @@ from ..utils import (
     crop_tomogram,
     make_slice_and_pad,
     map_coordinates,
-    mirror_pcc,
+    mirror_zncc,
     pad_template, 
     pad_mt_edges,
     roundint,
@@ -2674,8 +2674,8 @@ class MTPropsWidget(MagicTemplate):
                 if i not in selected:
                     continue
                 img_input = crop_tomogram(imgb, point, shape)
-                angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=19)
-                centering(img_input, point, angle_deg, drot=5, nrots=7)
+                angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
+                centering(img_input, point, angle_deg, drot=3, nrots=7)
                 last_i = i
         
         self.layer_work.data = points * imgb.scale.x
@@ -3127,14 +3127,18 @@ class MTPropsWidget(MagicTemplate):
             )
         
 
-def centering(imgb: ip.ImgArray, point: np.ndarray, angle: float, drot: int = 5, 
-              nrots: int = 7):
-    
+def centering(
+    imgb: ip.ImgArray,
+    point: np.ndarray,
+    angle: float,
+    drot: float = 5, 
+    nrots: int = 7
+):
     angle_deg2 = angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
     
     img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
     proj = img_next_rot.proj("y")
-    shift = mirror_pcc(proj)
+    shift = mirror_zncc(proj)
     
     shiftz, shiftx = shift/2
     shift = np.array([shiftz, 0, shiftx])

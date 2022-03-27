@@ -128,6 +128,14 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None, max_shifts=None):
         shift = ip.ft_pcc_maximum(ft0, ft1, mask=mask, max_shifts=max_shifts) + 1
     return shift
 
+def mirror_zncc(img0: ip.ImgArray, max_shifts=None):
+    """
+    Shift correction using zero-mean normalized cross correlation of an image 
+    and its mirror image. Identical to ``ip.zncc_maximum(img0, img0[::-1, ::-1])``.
+    """    
+    img1 = img0[(slice(None, None, -1),) * img0.ndim]
+    return ip.zncc_maximum(img0, img1, max_shifts=max_shifts)
+
 def map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray,
     coordinates: np.ndarray,
