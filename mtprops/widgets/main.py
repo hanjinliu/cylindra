@@ -115,7 +115,6 @@ class MTPropsWidget(MagicTemplate):
         """Image processing and visualization"""
         def Show_image_info(self): ...
         def Filter_reference_image(self): ...
-        def Invert_tomogram(self): ...
         def Add_multiscale(self): ...
         def Set_multiscale(self): ...
         @magicmenu
@@ -700,6 +699,10 @@ class MTPropsWidget(MagicTemplate):
                 layer = add_molecules(self.parent_viewer, mole, name=Path(path).stem)
                 layer.features = features
             
+            # load global variables
+            if project.global_variables:
+                self.Others.Global_variables.Load_variables(project.global_variables)
+            
             # load subtomogram analyzer state
             self._subtomogram_averaging.template_path = project.template_image or ""
             self._subtomogram_averaging._set_mask_params(project.mask_parameters)
@@ -782,6 +785,7 @@ class MTPropsWidget(MagicTemplate):
             localprops = localprops_path,
             globalprops = globalprops_path,
             molecules = molecules_paths,
+            global_variables = gvar_path,
             template_image = self._subtomogram_averaging.template_path,
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
             chunksize = self._subtomogram_averaging.chunk_size,
@@ -930,31 +934,6 @@ class MTPropsWidget(MagicTemplate):
         
         return worker
     
-    @Image.wraps
-    @dispatch_worker
-    def Invert_tomogram(self):
-        """
-        Invert intensity of tomogram and the reference image.
-        
-        This method will update each image but will not overwrite image file itself.
-        A temporary memory-mapped file with inverted image is created which will be
-        deleted after Python is closed.
-        """
-        tomo = self.tomogram        
-        worker = create_worker(tomo.invert, _progress={"total": 0, "desc": "Running"})
-        self._WorkerControl.info = "Inverting tomogram"
-        
-        @worker.returned.connect
-        def _on_return(tomo_inv: MtTomogram):
-            imgb_inv = tomo_inv.multiscaled[-1][1]
-            self.layer_image.data = imgb_inv
-            vmin, vmax = self.layer_image.contrast_limits
-            clims = [-vmax, -vmin]
-            self.layer_image.contrast_limits = clims
-            self.Panels.overview.image = -self.Panels.overview.image
-            self.Panels.overview.contrast_limits = clims
-        
-        return worker
     
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
@@ -1876,15 +1855,16 @@ class MTPropsWidget(MagicTemplate):
             def Multi_template_alignment(self): ...
         
         @magicmenu
-        class Template(MagicTemplate):
+        class Others(MagicTemplate):
             def Reshape_template(self): ...
+            def Render_molecules(self): ...
         
         @do_not_record
         @set_options(
             new_shape={"options": {"min": 2, "max": 100}},
             save_as={"mode": "w", "filter": FileFilter.IMAGE}
         )
-        @Template.wraps
+        @Others.wraps
         def Reshape_template(
             self, 
             new_shape: _Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
@@ -1902,6 +1882,12 @@ class MTPropsWidget(MagicTemplate):
             if update_template_path:
                 self.template_path = save_as
             return None
+
+        @Others.wraps
+        def Render_molecules(
+            self, colorby=None
+        ):
+            ...
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2594,25 +2580,8 @@ class MTPropsWidget(MagicTemplate):
             # plot all the correlation
             self.Panels.log.print_html("<code>Seam_search</code>")
             with self.Panels.log.set_plt(rc_context={"font.size": 15}):
-                plt.axvline(imax, color="gray", alpha=0.6)
-                plt.axhline(corrs[imax], color="gray", alpha=0.6)
-                plt.plot(corrs)
-                plt.xlabel("Seam position")
-                plt.ylabel("Correlation")
-                plt.xticks(np.arange(0, 2*npf+1, 4))
-                plt.title("Seam search result")
-                plt.tight_layout()
-                plt.show()
+                _plot_seam_search_result(corrs, score, npf)
                 
-                # plot the score
-                plt.plot(score)
-                plt.xlabel("PF position")
-                plt.ylabel("ΔCorr")
-                plt.xticks(np.arange(0, 2*npf+1, 4))
-                plt.title("Score")
-                plt.tight_layout()
-                plt.show()
-            
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
             
@@ -2839,6 +2808,7 @@ class MTPropsWidget(MagicTemplate):
     @Molecules_.wraps
     @do_not_record
     def Open_feature_control(self):
+        """Open the molecule-feature control widget."""
         self._FeatureControl.show()
         return None
     
@@ -2853,6 +2823,10 @@ class MTPropsWidget(MagicTemplate):
             plt.yticks([], [])
             plt.show()
         return None
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Non-GUI methods
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
     @nogui
     @do_not_record
@@ -3224,3 +3198,24 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+def _plot_seam_search_result(corrs: np.ndarray, score: np.ndarray, npf: int):
+    imax = np.argmax(score)
+    plt.axvline(imax, color="gray", alpha=0.6)
+    plt.axhline(corrs[imax], color="gray", alpha=0.6)
+    plt.plot(corrs)
+    plt.xlabel("Seam position")
+    plt.ylabel("Correlation")
+    plt.xticks(np.arange(0, 2*npf+1, 4))
+    plt.title("Seam search result")
+    plt.tight_layout()
+    plt.show()
+    
+    # plot the score
+    plt.plot(score)
+    plt.xlabel("PF position")
+    plt.ylabel("ΔCorr")
+    plt.xticks(np.arange(0, 2*npf+1, 4))
+    plt.title("Score")
+    plt.tight_layout()
+    plt.show()

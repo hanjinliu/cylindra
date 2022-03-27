@@ -149,6 +149,7 @@ class MTPropsProject(ProjectDescriptor):
     localprops: Union[PathLike, None]
     globalprops: Union[PathLike, None]
     molecules: List[PathLike]
+    global_variables: PathLike
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, Tuple[float, float], PathLike]
     chunksize: int
