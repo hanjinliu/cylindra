@@ -3085,10 +3085,10 @@ class MTPropsWidget(MagicTemplate):
         for layer in self.parent_viewer.layers:
             if MOLECULES in layer.metadata.keys():
                 _layers_to_remove.append(layer.name)
-        with self.macro.blocked():
-            for name in _layers_to_remove:
-                layer: Layer = self.parent_viewer.layers[name]
-                self.parent_viewer.layers.remove(layer)
+
+        for name in _layers_to_remove:
+            layer: Layer = self.parent_viewer.layers[name]
+            self.parent_viewer.layers.remove(layer)
                 
         common_properties = dict(ndim=3, out_of_slice_display=True, size=8)
         if self.layer_prof in self.parent_viewer.layers:

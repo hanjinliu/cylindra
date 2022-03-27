@@ -1275,15 +1275,13 @@ class MtTomogram(Tomogram):
         return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
     
     
-    def summerize_localprops(
+    def summarize_localprops(
         self, 
         i: int | Iterable[int] = None, 
         by: str | list[str] = "SplineID", 
         functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
     ) -> pd.DataFrame:
-        """
-        Simple summerize of local properties.
-        """
+        """Simple summary of local properties."""
         df = self.collect_localprops(i).reset_index()
         if functions is None:
             def se(x): return np.std(x)/np.sqrt(len(x))
@@ -1291,6 +1289,20 @@ class MtTomogram(Tomogram):
             functions = [np.mean, np.std, se, n]
             
         return df.groupby(by=by).agg(functions)
+    
+    def summarize_globalprops(
+        self, 
+        functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
+    ) -> pd.DataFrame:
+        """Simple summary of global properties."""
+        df = self.collect_globalprops()
+        valid_colmuns = df.columns[df.columns != "orientation"]
+        if functions is None:
+            def se(x): return np.std(x)/np.sqrt(len(x))
+            def n(x): return len(x)
+            functions = [np.mean, np.std, se, n]
+
+        return df[valid_colmuns].agg(functions)
     
 
 def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):
@@ -1324,6 +1336,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     l_circ: nm = 2*np.pi*radius
     npfmin = GVar.nPFmin
     npfmax = GVar.nPFmax
+    
+    # First transform around the expected length of y-pitch.
     ylength_nm = img.shape.y * img.scale.y
     y0 = ceilint(ylength_nm/GVar.yPitchMax) - 1
     y1 = max(ceilint(ylength_nm/GVar.yPitchMin), y0+1)
