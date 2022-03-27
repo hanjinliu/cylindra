@@ -743,12 +743,12 @@ class MTPropsWidget(MagicTemplate):
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
         globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
         
-        # Save splines
+        # Save path of splines
         spline_paths: List[Path] = []
         for i, spl in enumerate(self.tomogram.splines):
             spline_paths.append(results_dir/f"spline-{i}.json")
             
-        # Save molecules
+        # Save path of molecules
         molecule_dataframes: List[pd.DataFrame] = []
         molecules_paths = []
         for layer in filter(
@@ -761,7 +761,10 @@ class MTPropsWidget(MagicTemplate):
             molecule_dataframes.append(pd.concat([mole.to_dataframe(), features], axis=1))
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
         
-        # Save macro
+        # Save path of  global variables
+        gvar_path = results_dir / "global_variables.json"
+        
+        # Save path of macro
         macro_path = results_dir / "script.py"
         macro_str = str(self.macro[self._macro_offset:])
         
@@ -800,6 +803,9 @@ class MTPropsWidget(MagicTemplate):
         if molecules_paths:
             for df, fp in zip(molecule_dataframes, molecules_paths):
                 df.to_csv(fp, index=False)
+        
+        self.Others.Global_variables.Save_variables(gvar_path)
+        
         if macro_str:
             with open(macro_path, mode="w") as f:
                 f.write(macro_str)
@@ -3115,7 +3121,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
         self.Panels.overview.add_curve(
-            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=5, name=f"spline-{i}",)
+            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",)
         return None
     
     def _update_splines_in_images(self):
@@ -3132,7 +3138,7 @@ class MTPropsWidget(MagicTemplate):
                 coords[:, 1]/scale,
                 color="lime", 
                 symbol="x",
-                lw=1,
+                lw=2,
                 size=10,
                 name=f"spline-{i}-anc",
             )
