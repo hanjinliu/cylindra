@@ -117,12 +117,14 @@ class MTPropsWidget(MagicTemplate):
         def Filter_reference_image(self): ...
         def Invert_tomogram(self): ...
         def Add_multiscale(self): ...
+        def Set_multiscale(self): ...
+        @magicmenu
+        class Cylindric(MagicTemplate):
+            def show_current_ft(self): ...
+            def show_global_ft(self): ...
+            def show_r_proj(self): ...
+            def show_global_r_proj(self): ...
         sep0 = field(Separator)
-        def show_current_ft(self): ...
-        def show_global_ft(self): ...
-        def show_r_proj(self): ...
-        def show_global_r_proj(self): ...
-        sep1 = field(Separator)
         def Sample_subtomograms(self): ...
         def Paint_MT(self): ...
         def Set_colormap(self): ...
@@ -963,19 +965,28 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(imgb: ip.ImgArray):
-            if not update_layer:
-                return
-            self.layer_image.data = imgb
-            self.layer_image.scale = imgb.scale
-            self.layer_image.name = imgb.name + f"(bin {bin_size})"
-            self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
-            self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
-            with ip.silent():
-                self.Panels.overview.image = imgb.proj("z")
+            if update_layer:
+                with self.macro.blocked():
+                    self.Set_multiscale(bin_size)
             self._need_save = True
             
         return worker
     
+    @Image.wraps
+    @set_options(bin_size={"choices": _get_available_binsize})
+    def Set_multiscale(self, bin_size: int):
+        tomo = self.tomogram
+        imgb = tomo.get_multiscale(bin_size)
+        self.layer_image.data = imgb
+        self.layer_image.scale = imgb.scale
+        self.layer_image.name = imgb.name + f"(bin {bin_size})"
+        self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
+        self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
+        with ip.silent():
+            self.Panels.overview.image = imgb.proj("z")
+        self.layer_image.metadata["current_binsize"] = bin_size
+        return None
+        
     @SplineControl.num.connect
     @SplineControl.pos.connect
     @SplineControl.footer.focus.connect
@@ -1025,7 +1036,7 @@ class MTPropsWidget(MagicTemplate):
         self.SplineControl._reset_contrast_limits()
         return None
     
-    @Image.wraps
+    @Image.Cylindric.wraps
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
@@ -1040,7 +1051,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @Image.wraps
+    @Image.Cylindric.wraps
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
@@ -1055,7 +1066,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @Image.wraps
+    @Image.Cylindric.wraps
     @set_design(text="2D-FT")
     def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
@@ -1074,7 +1085,7 @@ class MTPropsWidget(MagicTemplate):
         self.Panels.current_index = 1
         return None
     
-    @Image.wraps
+    @Image.Cylindric.wraps
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound[SplineControl.num]):
         """View Fourier space along current MT."""  
