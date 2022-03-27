@@ -95,6 +95,7 @@ class Mole(SimpleNamespace):
     pf = "molecules-pf"
     isotype = "molecules-isotype"
     zncc = "molecules-zncc"
+    interval = "molecules-interval"
 
     
 class EulerAxes(strEnum):

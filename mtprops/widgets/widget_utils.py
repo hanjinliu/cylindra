@@ -68,6 +68,15 @@ def y_coords_to_start_number(u: np.ndarray, npf: int):
     a1 = np.mean((u[::npf] - u[(npf-1)::npf])/(npf - 1))
     return int(round(a1/a0))
 
+def coords_to_params(pos: np.ndarray, npf: int) -> tuple[float, float, float]:
+    """infer pitch length using the y coordinates in spline coordinate system."""
+    ndim = 3
+    pos = pos.reshape(-1, npf, ndim)
+    ypitch = np.mean(np.sqrt(np.sum(np.diff(pos, axis=0)**2, axis=2)))
+    lateral_spacing = np.mean(np.sqrt(np.sum(np.diff(pos, axis=1)**2, axis=2)))
+    radius = lateral_spacing * npf / 2 / np.pi
+    return ypitch, lateral_spacing, radius
+
 def get_versions() -> dict[str, str]:
     """Return version info of relevant libraries."""
     import napari

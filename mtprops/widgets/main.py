@@ -73,6 +73,7 @@ from .widget_utils import (
     update_features,
     molecules_to_spline,
     y_coords_to_start_number,
+    coords_to_params,
     get_versions,
 )
 from ..ext.etomo import PEET
@@ -1633,13 +1634,12 @@ class MTPropsWidget(MagicTemplate):
             y_dist = out[l_ypad:ly-l_ypad, l_apad:lx-l_apad][:, ::-1]
 
         properties = y_dist.ravel()
-        _interval = "interval"
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
         
-        update_features(layer, _interval, np.abs(properties))
+        update_features(layer, Mole.interval, np.abs(properties))
         
         # Set colormap
-        layer.face_color = layer.edge_color = _interval
+        layer.face_color = layer.edge_color = Mole.interval
         layer.face_colormap = layer.edge_colormap = self.label_colormap
         layer.face_contrast_limits = layer.edge_contrast_limits = _clim
         layer.refresh()
@@ -1719,7 +1719,7 @@ class MTPropsWidget(MagicTemplate):
             self.params.visible = (v == MASK_CHOICES[1])
             self.mask_path.visible = (v == MASK_CHOICES[2])
         
-        def _get_template(self, path: Union[str, None] = None) -> ip.ImgArray:
+        def _get_template(self, path: Union[str, None] = None, rescale: bool = True) -> ip.ImgArray:
             if path is None:
                 path = self.template_path
             else:
@@ -1735,7 +1735,7 @@ class MTPropsWidget(MagicTemplate):
             if img.ndim != 3:
                 raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
             parent = self.find_ancestor(MTPropsWidget)
-            if parent.tomogram is not None:
+            if parent.tomogram is not None and rescale:
                 scale_ratio = img.scale.x / parent.tomogram.scale
                 if scale_ratio < 0.99 or 1.01 < scale_ratio:
                     with ip.silent():
@@ -1763,7 +1763,10 @@ class MTPropsWidget(MagicTemplate):
         
         _sentinel = object()
         
-        def _get_mask(self, params: Union[str, Tuple[int, float], None] = _sentinel) -> Union[ip.ImgArray, None]:
+        def _get_mask(
+            self,
+            params: Union[str, Tuple[int, float], None] = _sentinel
+        ) -> Union[ip.ImgArray, None]:
             if params is self._sentinel:
                 params = self._get_mask_params()
             else:
@@ -1855,7 +1858,7 @@ class MTPropsWidget(MagicTemplate):
             def Multi_template_alignment(self): ...
         
         @magicmenu
-        class Others(MagicTemplate):
+        class Tools(MagicTemplate):
             def Reshape_template(self): ...
             def Render_molecules(self): ...
         
@@ -1864,7 +1867,7 @@ class MTPropsWidget(MagicTemplate):
             new_shape={"options": {"min": 2, "max": 100}},
             save_as={"mode": "w", "filter": FileFilter.IMAGE}
         )
-        @Others.wraps
+        @Tools.wraps
         def Reshape_template(
             self, 
             new_shape: _Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
@@ -1881,13 +1884,7 @@ class MTPropsWidget(MagicTemplate):
             reshaped.imsave(save_as)
             if update_template_path:
                 self.template_path = save_as
-            return None
-
-        @Others.wraps
-        def Render_molecules(
-            self, colorby=None
-        ):
-            ...
+            return None            
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2533,7 +2530,7 @@ class MTPropsWidget(MagicTemplate):
         Parameters
         ----------
         layer : MonomerLayer
-            Layer of subtomogram positions and angles.
+            Select which monomer layer to be used for subtomogram sampling.
         template_path : ip.ImgArray, optional
             Template image.
         mask_params : str or (float, float), optional
@@ -2590,7 +2587,104 @@ class MTPropsWidget(MagicTemplate):
         self._WorkerControl.info = "Seam search ... "
         self._need_save = True
         return worker
+    
+    @_subtomogram_averaging.Tools.wraps
+    @set_options(feature_name={"text": "Do not color molecules."})
+    def Render_molecules(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        feature_name: Optional[str] = None,
+        auto_crop: bool = False,
+    ):
+        """
+        Render molecules using the template image.
         
+        This method is only for visualization purpose. Iso-surface will be calculated
+        using the input template image and mapped to every molecule position. The input
+        template image does not have to be the image used for subtomogram alignment.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Select which monomer layer to be used for subtomogram sampling.
+        template_path : ip.ImgArray, optional
+            Template image.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
+        feature_name : str, optional
+            Feature name used for coloring.
+        auto_crop : bool, optional
+            If true, template image will be automatically cropped in the center, 
+            considering spacing between molecules.
+        """        
+        from skimage.measure import marching_cubes
+        # prepare template and mask
+        template: ip.ImgArray = self._subtomogram_averaging._get_template(template_path).copy()
+        soft_mask = self._subtomogram_averaging._get_mask(mask_params)
+        if soft_mask is None:
+            mask = np.ones_like(template)
+        else:
+            mask = soft_mask > 0.2
+            template[~mask] = template.min()
+        
+        mole: Molecules = layer.metadata[MOLECULES]
+        nmol = len(mole)
+
+        # check feature name
+        if feature_name is not None:
+            if feature_name in layer.features.columns:
+                pass
+            elif getattr(Mole, feature_name, "") in layer.features.columns:
+                feature_name = getattr(Mole, feature_name)
+            if feature_name not in layer.features.columns:
+                raise ValueError(
+                    f"Feature {feature_name} not found in layer {layer.name}. Must be in "
+                    f"{set(layer.features.columns)}"
+                )
+        
+        if auto_crop:
+            npf = np.max(layer.features[Mole.pf]) + 1
+            dy, dx, _ = coords_to_params(mole.pos, npf)
+            dr = dx
+            r_edge = max((template.shape[0] - roundint(dr/template.scale.z)) // 2, 0)
+            y_edge = max((template.shape[1] - roundint(dy/template.scale.y)) // 2, 0)
+            x_edge = max((template.shape[2] - roundint(dx/template.scale.x)) // 2, 0)
+            
+            lz, ly, lx = template.shape
+            template = template[r_edge:lz-r_edge, y_edge:ly-y_edge, x_edge:lx-x_edge]
+            mask = mask[r_edge:lz-r_edge, y_edge:ly-y_edge, x_edge:lx-x_edge]
+        
+        # create surface
+        verts, faces, _, _ = marching_cubes(
+            template, step_size=1, spacing=template.scale, mask=mask > 0.2,
+        )
+        
+        nverts = verts.shape[0]
+        all_verts = np.empty((nmol * nverts, 3), dtype=np.float32)
+        all_faces = np.concatenate([faces + i*nverts for i in range(nmol)], axis=0)
+        center = np.array(template.shape)/2 + 0.5
+        
+        for i, v in enumerate(verts):
+            v_transformed = mole.rotator.apply(v - center * np.array(template.scale)) + mole.pos
+            all_verts[i::nverts] = v_transformed
+        
+        if feature_name is None:
+            data = (all_verts, all_faces)
+        else:
+            all_values = np.stack([layer.features[feature_name]]*nverts, axis=1).ravel()
+            data = (all_verts, all_faces, all_values)
+            
+        self.parent_viewer.add_surface(
+            data=data, 
+            colormap=self.label_colormap, 
+            shading="smooth",
+            name=f"Rendered {layer.name}",
+        )
+        return None
+    
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")
     @do_not_record
