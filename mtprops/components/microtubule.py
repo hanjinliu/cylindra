@@ -1364,9 +1364,9 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
-    y_factor = abs(radius/y_pitch/npfmin*img.shape.y/4)
-    dy_min = ceilint(tandg(GVar.minSkew)*y_factor) - 1
-    dy_max = max(ceilint(tandg(GVar.maxSkew)*y_factor), dy_min+1)
+    y_factor = abs(radius/y_pitch/img.shape.a*img.shape.y/2)
+    dy_min = ceilint(tandg(GVar.minSkew)*y_factor*npfmin) - 1
+    dy_max = max(ceilint(tandg(GVar.maxSkew)*y_factor*npfmax), dy_min+1)
     up_a = 20
     up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
     
