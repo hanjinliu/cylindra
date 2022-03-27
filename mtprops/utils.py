@@ -3,7 +3,7 @@ import numpy as np
 from scipy import ndimage as ndi
 from dask import array as da, delayed
 import impy as ip
-from typing import Callable
+from typing import Callable, ContextManager
 from .const import Mode, GVar
 
 
@@ -13,7 +13,8 @@ def roundint(a: float):
 def ceilint(a: float):
     return int(np.ceil(a))
 
-def set_gpu():
+def set_gpu() -> ContextManager:
+    """Use GPU within this context."""
     if GVar.GPU:
         return ip.use("cupy")
     else:
