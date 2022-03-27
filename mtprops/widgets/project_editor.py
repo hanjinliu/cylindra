@@ -103,7 +103,7 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
         shape_nm = np.zeros(3)  # initialize
         chunksize = 99999  # initialize
         for subproject_path, molecules_path in info:
-            datasets[subproject_path] = molecules_path
+            datasets[str(subproject_path)] = molecules_path
             subproject = MTPropsProject.from_json(subproject_path)
             # use smaller chunk size
             chunksize = min(chunksize, subproject.chunksize)

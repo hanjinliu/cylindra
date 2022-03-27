@@ -19,7 +19,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     install_requires=[
         "impy-array>=1.26.1",
-        "magic-class>=0.6.0",
+        "magic-class>=0.6.1",
         "pyqtgraph>=0.12",
         "mrcfile>=1.3.0",
         "napari>=0.4.15",

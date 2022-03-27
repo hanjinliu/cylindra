@@ -166,5 +166,5 @@ def test_multi_STA():
     ui.Align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), cutoff=0.5, bin_size=1, chunk_size=100)
     ui.Align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1, chunk_size=100)
     ui.Save_project(json_path=TEST_PATH/"project_14.json", results_dir=None)
-    ui._STAProjectEditor.Save(path=TEST_PATH/"STA_project.json", info=[('C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_13.json', ['C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_13_results\\Mono-0-ALN2.csv']), ('C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_14.json', ['C:\\Users\\Uemura-Lab\\Desktop\\Liu\\python_codes\\MTProps\\tests\\project_14_results\\Mono-0-ALN2.csv'])])
+    ui._STAProjectEditor.Save(path=TEST_PATH/"STA_project.json", info=[(TEST_PATH/"project_13.json", [TEST_PATH/"project_13_results"/"Mono-0-ALN2.csv"]), (TEST_PATH/"project_14.json", [TEST_PATH/"project_14_results"/"Mono-0-ALN2.csv"])])
     ui._STAProjectEditor.run(path=TEST_PATH/"STA_project.json", order=1)

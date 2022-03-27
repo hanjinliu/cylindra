@@ -91,6 +91,7 @@ class MTPropsWidget(MagicTemplate):
     
     _WorkerControl = field(WorkerControl, name="Worker control")
     _SplineFitter = field(SplineFitter, name="Spline fitter")
+    _ImageProcessor = field(ImageProcessor, name="Image Processor")
     _FeatureControl = field(FeatureControl, name="Feature Control")
     _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
@@ -106,7 +107,7 @@ class MTPropsWidget(MagicTemplate):
         def Save_spline(self): ...
         def Save_molecules(self): ...
         sep1 = field(Separator)
-        Process_images = ImageProcessor
+        def Process_images(self): ...
         PEET = PEET
 
     @magicmenu
@@ -290,7 +291,7 @@ class MTPropsWidget(MagicTemplate):
     
     @magicclass(name="Run MTProps")
     class _runner(MagicTemplate):
-        def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
+        def _get_splines(self, _=None) -> List[Tuple[str, int]]:
             """Get list of spline objects for categorical widgets."""
             try:
                 tomo = self.find_ancestor(MTPropsWidget).tomogram
@@ -869,6 +870,11 @@ class MTPropsWidget(MagicTemplate):
             props = None
         mole.to_csv(save_path, properties=props)
         return None
+    
+    @File.wraps
+    @do_not_record
+    def Process_images(self):
+        self._ImageProcessor.show()
     
     @Image.wraps
     def Show_image_info(self):
@@ -2833,13 +2839,37 @@ class MTPropsWidget(MagicTemplate):
     
     @nogui
     @do_not_record
-    def get_molecules(self, name: str) -> Molecules:
+    def get_molecules(self, name: str = None) -> Molecules:
         """Retrieve Molecules object from layer list."""
+        if name is None:
+            for layer in self.parent_viewer.layers:
+                if MOLECULES in layer.metadata.keys():
+                    name = layer.name
+                    break
+            else:
+                raise ValueError("No molecules found in the layer list.")
         return self.parent_viewer.layers[name].metadata[MOLECULES]
 
     @nogui
     @do_not_record
-    def get_loader(self, name: str, order: int = 1, chunksize: int = 64) -> SubtomogramLoader:
+    def get_loader(
+        self,
+        name: str = None,
+        order: int = 1,
+        chunksize: int = 64
+    ) -> SubtomogramLoader:
+        """
+        Create a subtomogram loader using current tomogram and a molecules layer.
+
+        Parameters
+        ----------
+        name : str, optional
+            Name of the molecules layer.
+        order : int, default is 1
+            Interpolation order of the subtomogram loader.
+        chunksize : int, default is 64
+            Chunk size of the subtomogram loader.
+        """        
         mole = self.get_molecules(name)
         shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
@@ -2903,9 +2933,7 @@ class MTPropsWidget(MagicTemplate):
         return ""
     
     def _current_cartesian_img(self, i=None, j=None):
-        """
-        Return local Cartesian image at the current position
-        """        
+        """Return local Cartesian image at the current position."""
         i: int = i or self.SplineControl.num
         j: int = j or self.SplineControl.pos
         tomo = self.tomogram
@@ -2928,9 +2956,7 @@ class MTPropsWidget(MagicTemplate):
         return out
     
     def _current_cylindrical_img(self, i=None, j=None):
-        """
-        Return cylindric-transformed image at the current position
-        """        
+        """Return cylindric-transformed image at the current position"""
         i: int = i or self.SplineControl.num
         j: int = j or self.SplineControl.pos
         tomo = self.tomogram
@@ -3029,6 +3055,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof.face_color = "black"
         self.layer_prof.face_color[spec] = [0.8, 0.0, 0.5, 1]
         self.layer_prof.refresh()
+        return None
     
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self):
