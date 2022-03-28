@@ -355,32 +355,33 @@ class SubtomogramLoader(Generic[_V]):
         # check method
         align_func = get_alignment_function(method=method, multi_template=(rots is not None))
         
-        if rots is None:
-            for i, subvol in enumerate(self.iter_subtomograms()):
-                local_shifts[i, :], corr_max[i] = align_func(
-                    subvol, cutoff, mask, template_input, _max_shifts_px
-                )
-                
-                if i % nbatch == nbatch - 1:
-                    yield local_shifts[i, :], local_rot[i, :]
-        
-            mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
-                
-        else:
-            for i, subvol_set in enumerate(self.iter_subtomograms()):
-                iopt, local_shifts[i, :], corr_max[i] = align_func(
-                    subvol_set, cutoff, mask, template_input, _max_shifts_px
-                )
-                local_rot[i, :] = rots[iopt]
-                if i % nbatch == nbatch - 1:
-                    yield local_shifts[i, :], local_rot[i, :]
+        with set_gpu():
+            if rots is None:
+                for i, subvol in enumerate(self.iter_subtomograms()):
+                    local_shifts[i, :], corr_max[i] = align_func(
+                        subvol, cutoff, mask, template_input, _max_shifts_px
+                    )
+                    
+                    if i % nbatch == nbatch - 1:
+                        yield local_shifts[i, :], local_rot[i, :]
             
-            mole_aligned = transform_molecules(
-                self.molecules, 
-                local_shifts * self.scale, 
-                Rotation.from_quat(local_rot).as_rotvec()
-            )
-        
+                mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
+                    
+            else:
+                for i, subvol_set in enumerate(self.iter_subtomograms()):
+                    iopt, local_shifts[i, :], corr_max[i] = align_func(
+                        subvol_set, cutoff, mask, template_input, _max_shifts_px
+                    )
+                    local_rot[i, :] = rots[iopt]
+                    if i % nbatch == nbatch - 1:
+                        yield local_shifts[i, :], local_rot[i, :]
+                
+                mole_aligned = transform_molecules(
+                    self.molecules, 
+                    local_shifts * self.scale, 
+                    Rotation.from_quat(local_rot).as_rotvec()
+                )
+            
         feature_key = Mole.zncc if method == "zncc" else Mole.pcc
         
         out = self.__class__(
