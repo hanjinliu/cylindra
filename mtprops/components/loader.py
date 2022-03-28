@@ -4,6 +4,7 @@ from typing import Any, Callable, Generator, Generic, Iterator, Iterable, TYPE_C
 from typing_extensions import ParamSpec
 import warnings
 import weakref
+from contextlib import contextmanager
 import tempfile
 from scipy.spatial.transform import Rotation
 import numpy as np
@@ -47,7 +48,10 @@ class SubtomogramLoader(Generic[_V]):
     output_shape : int or tuple of int
         Shape (in pixel) of output subtomograms.
     chunksize : int, optional
-        Chunk size used when loading subtomograms.
+        Chunk size used when loading subtomograms. This parameter controls the
+        number of subtomograms to be loaded at the same time. Larger chunk size
+        results in better performance if adjacent subtomograms are near to each
+        other.
     """
     
     _PROPS = {
@@ -104,18 +108,22 @@ class SubtomogramLoader(Generic[_V]):
 
     @property
     def output_shape(self) -> tuple[int, ...]:
+        """Return the output subtomogram shape."""
         return self._output_shape
 
     @property
     def molecules(self) -> Molecules:
+        """Return the molecules of the subtomogram loader."""
         return self._molecules
 
     @property
     def order(self) -> int:
+        """Return the interpolation order."""
         return self._order
     
     @property
     def chunksize(self) -> int:
+        """Return the chunk size on subtomogram loading."""
         return self._chunksize
     
     def __len__(self) -> int:
@@ -124,6 +132,18 @@ class SubtomogramLoader(Generic[_V]):
     
     def __iter__(self) -> Iterator[_V]:
         return self.iter_subtomograms()
+    
+    @contextmanager
+    def set_shape(self, shape: tuple[int, int, int]):
+        """Temporarily change the output subtomogram shape."""
+        if len(shape) != 3 or any(not isinstance(s, int) for s in shape):
+            raise ValueError("Shape must be three integers")
+        old_shape = self._output_shape
+        self._output_shape = shape
+        try:
+            yield
+        finally:
+            self._output_shape = old_shape
     
     def replace(self, order: int | None = None, chunksize: int | None = None):
         if order is None:
