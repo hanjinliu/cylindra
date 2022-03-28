@@ -18,9 +18,9 @@ setup(
     license="BSD 3-Clause",
     packages=find_packages(exclude=["tests", "tests.*"]),
     install_requires=[
-        "impy-array>=1.26.1",
+        "impy-array>=1.26.2",
         "magic-class>=0.6.1",
-        "pyqtgraph>=0.12",
+        "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
         "napari>=0.4.15",
     ],

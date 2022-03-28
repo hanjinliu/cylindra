@@ -21,7 +21,7 @@ from ._align_utils import (
     transform_molecules
 )
 from .molecules import Molecules
-from ..utils import multi_map_coordinates, set_gpu
+from ..utils import ceilint, multi_map_coordinates, set_gpu
 from ..const import nm
 
 if TYPE_CHECKING:
@@ -134,11 +134,12 @@ class SubtomogramLoader(Generic[_V]):
         return self.iter_subtomograms()
     
     @contextmanager
-    def set_shape(self, shape: tuple[int, int, int]):
-        """Temporarily change the output subtomogram shape."""
-        if len(shape) != 3 or any(not isinstance(s, int) for s in shape):
-            raise ValueError("Shape must be three integers")
+    def expand_output(self, pad_width: tuple[float, float, float]):
+        """Temporarily expand the output subtomogram shape."""
+        if len(pad_width) != 3:
+            raise ValueError("Shape length must be three.")
         old_shape = self._output_shape
+        shape = tuple(s + 2*ceilint(pad) for pad, s in zip(pad_width, old_shape))
         self._output_shape = shape
         try:
             yield
@@ -324,6 +325,9 @@ class SubtomogramLoader(Generic[_V]):
         # shift in local Cartesian
         local_shifts = np.zeros((len(self), 3))
         
+        # maximum ZNCC
+        zncc_max = np.zeros(len(self))
+        
         # rotation (quaternion) in local Cartesian
         local_rot = np.zeros((len(self), 4))
         local_rot[:, 3] = 1  # identity map in quaternion
@@ -332,17 +336,16 @@ class SubtomogramLoader(Generic[_V]):
         
         with ip.silent(), set_gpu():
             template_masked = template.lowpass_filter(cutoff=cutoff) * mask
-            template_ft = template_masked.fft()
         
         if rots is None:
             for i, subvol in enumerate(self.iter_subtomograms()):
-                local_shifts[i, :] = align_subvolume(
-                    subvol, cutoff, mask, template_ft, _max_shifts_px
+                local_shifts[i, :], zncc_max[i] = align_subvolume(
+                    subvol, cutoff, mask, template_masked, _max_shifts_px
                 )
                 
                 if i % nbatch == nbatch - 1:
                     yield local_shifts[i, :], local_rot[i, :]
-            
+        
             mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
                 
         else:
@@ -350,8 +353,8 @@ class SubtomogramLoader(Generic[_V]):
             rotators = [Rotation.from_quat(r) for r in rots]
             iterator = self.iter_subtomograms(rotators=rotators)
             for i, subvol_set in enumerate(iterator):
-                iopt, local_shifts[i, :] = align_subvolume_list(
-                    subvol_set, cutoff, mask, template_ft, template_masked, _max_shifts_px
+                iopt, local_shifts[i, :], zncc_max[i] = align_subvolume_list(
+                    subvol_set, cutoff, mask, template_masked, _max_shifts_px
                 )
                 local_rot[i, :] = rots[iopt]
                 if i % nbatch == nbatch - 1:
@@ -372,90 +375,92 @@ class SubtomogramLoader(Generic[_V]):
         )
         return out
     
-    # def iter_align_no_template(
-    #     self,
-    #     *,
-    #     mask_params: np.ndarray | tuple[nm, nm] | Callable[[np.ndarray], np.ndarray] = (1, 1),
-    #     max_shifts: nm | tuple[nm, nm, nm] = 1.,
-    #     rotations: Ranges | None = None,
-    #     corr_threshold = "80%",
-    #     cutoff: float = 0.5,
-    #     nbatch: int = 24,
-    # ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
+    def iter_align_no_template(
+        self,
+        *,
+        mask_params: np.ndarray | tuple[nm, nm] | Callable[[np.ndarray], np.ndarray] = (1, 1),
+        max_shifts: nm | tuple[nm, nm, nm] = 1.,
+        rotations: Ranges | None = None,
+        corr_threshold = 0.8,
+        cutoff: float = 0.5,
+        nbatch: int = 24,
+    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
                 
-    #     # Convert rotations into quaternion if given.
-    #     rots = normalize_rotations(rotations)
+        # Convert rotations into quaternion if given.
+        rots = normalize_rotations(rotations)
         
-    #     # shift in local Cartesian
-    #     local_shifts = np.zeros((len(self), 3))
+        # shift in local Cartesian
+        local_shifts = np.zeros((len(self), 3))
         
-    #     # rotation (quaternion) in local Cartesian
-    #     local_rot = np.zeros((len(self), 4))
-    #     local_rot[:, 3] = 1  # identity map in quaternion
+        zncc_max = np.zeros(len(self))
         
-    #     _max_shifts_px = np.asarray(max_shifts) / self.scale
-    #     all_subvols = self.to_lazy_imgarray(path=None)
+        # rotation (quaternion) in local Cartesian
+        local_rot = np.zeros((len(self), 4))
+        local_rot[:, 3] = 1  # identity map in quaternion
         
-    #     template = all_subvols.proj("p").compute()
+        _max_shifts_px = np.asarray(max_shifts) / self.scale
+        all_subvols = self.to_lazy_imgarray(path=None)
         
-    #     with ip.silent(), set_gpu():
-    #         template_filt = template.lowpass_filter(cutoff=cutoff)
-    #         if isinstance(mask_params, tuple):
-    #             _sigma, _radius = mask_params
-    #             mask = template.threshold().smooth_mask(
-    #                 sigma=_sigma/self.scale, dilate_radius=int(round(_radius/self.scale))
-    #             )
-    #         elif isinstance(mask_params, np.ndarray):
-    #             mask = mask_params
-    #         elif callable(mask_params):
-    #             mask = mask_params(template)
-    #         template_masked = template_filt * mask
-    #         # template_ft = template_masked.fft()
+        template = all_subvols.proj("p").compute()
         
-        
-    #     corrs = np.zeros(len(self.molecules))
-    #     for i, subvol in enumerate(all_subvols):
-    #         corrs[i] = ip.zncc(subvol * mask, template)
-        
-    #     corr_high = 
-        
-    #     if rots is None:
-    #         for i, subvol in enumerate(self.iter_subtomograms()):
-    #             local_shifts[i, :] = align_subvolume(
-    #                 subvol, cutoff, mask, template_ft, _max_shifts_px
-    #             )
-                
-    #             if i % nbatch == nbatch - 1:
-    #                 yield local_shifts[i, :], local_rot[i, :]
+        with ip.silent():
+            with set_gpu():
+                if isinstance(mask_params, tuple):
+                    _sigma, _radius = mask_params
+                    mask = template.threshold().smooth_mask(
+                        sigma=_sigma/self.scale, dilate_radius=int(round(_radius/self.scale))
+                    )
+                elif isinstance(mask_params, np.ndarray):
+                    mask = mask_params
+                elif callable(mask_params):
+                    mask = mask_params(template)
+                template_masked = template.lowpass_filter(cutoff=cutoff) * mask
+                for i, subvol in enumerate(all_subvols):
+                    local_shifts[i], zncc_max[i] = ip.zncc_maximum_with_corr(
+                        subvol, template_masked, upsample_factor=20, max_shifts=_max_shifts_px
+                    )
             
-    #         mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
-                
-    #     else:
-    #         # "rots" is quaternions
-    #         rotators = [Rotation.from_quat(r) for r in rots]
-    #         iterator = self.iter_subtomograms(rotators=rotators)
-    #         for i, subvol_set in enumerate(iterator):
-    #             iopt, local_shifts[i, :] = align_subvolume_list(
-    #                 subvol_set, cutoff, mask, template_ft, template_masked, _max_shifts_px
-    #             )
-    #             local_rot[i, :] = rots[iopt]
-    #             if i % nbatch == nbatch - 1:
-    #                 yield local_shifts[i, :], local_rot[i, :]
+            corr_high = zncc_max >= np.quantile(zncc_max, corr_threshold)
+            template = all_subvols[corr_high].proj("p").compute()
+            template_masked = template.lowpass_filter(cutoff=cutoff) * mask
             
-    #         mole_aligned = transform_molecules(
-    #             self.molecules, 
-    #             local_shifts* self.scale, 
-    #             Rotation.from_quat(local_rot).as_rotvec()
-    #         )
-        
-    #     out = self.__class__(
-    #         self.image_ref,
-    #         mole_aligned, 
-    #         self.output_shape,
-    #         order=self.order,
-    #         chunksize=self.chunksize
-    #     )
-    #     return out
+            if rots is None:
+                for i, subvol in enumerate(all_subvols):
+                    local_shifts[i], zncc_max[i] = ip.zncc_maximum_with_corr(
+                        subvol, template_masked, upsample_factor=20, max_shifts=_max_shifts_px
+                    )
+                    
+                    if i % nbatch == nbatch - 1:
+                        yield local_shifts[i, :], local_rot[i, :]
+                
+                mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
+                    
+            else:
+                # "rots" is quaternions
+                rotators = [Rotation.from_quat(r) for r in rots]
+                iterator = self.iter_subtomograms(rotators=rotators)
+                for i, subvol_set in enumerate(iterator):
+                    iopt, local_shifts[i, :] = align_subvolume_list(
+                        subvol_set, cutoff, mask, template_masked, _max_shifts_px
+                    )
+                    local_rot[i, :] = rots[iopt]
+                    if i % nbatch == nbatch - 1:
+                        yield local_shifts[i, :], local_rot[i, :]
+                
+                mole_aligned = transform_molecules(
+                    self.molecules, 
+                    local_shifts* self.scale, 
+                    Rotation.from_quat(local_rot).as_rotvec()
+                )
+            
+        out = self.__class__(
+            self.image_ref,
+            mole_aligned, 
+            self.output_shape,
+            order=self.order,
+            chunksize=self.chunksize
+        )
+        return out
     
     def iter_align_multi_templates(
         self,
@@ -484,6 +489,9 @@ class SubtomogramLoader(Generic[_V]):
         # optimal shift in local Cartesian
         local_shifts = np.zeros((len(self), 3))
         
+        # maximum ZNCC
+        zncc_max = np.zeros(len(self))
+        
         # optimal rotation (quaternion) in local Cartesian
         local_rot = np.zeros((len(self), 4))
         local_rot[:, 3] = 1  # identity map in quaternion
@@ -495,14 +503,12 @@ class SubtomogramLoader(Generic[_V]):
         
         with ip.silent(), set_gpu():
             templates_masked = [tmp.lowpass_filter(cutoff=cutoff) * mask for tmp in templates]
-            templates_ft = [tmp.fft() for tmp in templates_masked]
 
         if rots is None:
             for i, subvol in enumerate(self.iter_subtomograms()):
-                iopt, shift = align_subvolume_multitemplates(
-                    subvol, cutoff, mask, templates_ft, templates_masked, _max_shifts_px
+                iopt, local_shifts[i, :], zncc_max[i] = align_subvolume_multitemplates(
+                    subvol, cutoff, mask, templates_masked, _max_shifts_px
                 )
-                local_shifts[i, :] = shift
                 labels[i] = iopt
                 
                 if i % nbatch == nbatch - 1:
@@ -515,8 +521,8 @@ class SubtomogramLoader(Generic[_V]):
             rotators = [Rotation.from_quat(r) for r in rots]
             iterator = self.iter_subtomograms(rotators=rotators)
             for i, subvol_set in enumerate(iterator):
-                iopt, jopt = align_subvolume_list_multitemplates(
-                    subvol_set, cutoff, mask, templates_ft, templates_masked, _max_shifts_px
+                (iopt, jopt), local_shifts[i, :], zncc_max[i]  = align_subvolume_list_multitemplates(
+                    subvol_set, cutoff, mask, templates_masked, _max_shifts_px
                 )
                 local_rot[i, :] = rots[iopt]
                 labels[i] = jopt

@@ -113,108 +113,102 @@ def align_subvolume(
     subvol: ip.ImgArray,
     cutoff: float,
     mask: ip.ImgArray,
-    template_ft: ip.ImgArray,
+    template: ip.ImgArray,
     max_shift: tuple[int, int, int],
-) -> np.ndarray:
-    with ip.silent(), set_gpu():    
+) -> tuple[np.ndarray, float]:
+    with ip.silent():    
         subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-        input_ft = (subvol_filt * mask).fft()
-        shift = ip.ft_pcc_maximum(
-            input_ft,
-            template_ft, 
+        input = subvol_filt * mask
+        shift, zncc = ip.zncc_maximum_with_corr(
+            input,
+            template, 
             upsample_factor=20, 
             max_shifts=max_shift
         )
-    return shift
+    return shift, zncc
 
 def align_subvolume_list(
     subvol_set: Iterable[ip.ImgArray],
     cutoff: float,
     mask: ip.ImgArray,
-    template_ft: ip.ImgArray,
-    template_for_zncc: ip.ImgArray,
+    template: ip.ImgArray,
     max_shift: tuple[int, int, int],
-) -> tuple[int, np.ndarray]:
-    corrs: list[float] = []
+) -> tuple[int, np.ndarray, float]:
     all_shifts: list[np.ndarray] = []
+    all_zncc: list[float] = []
     with ip.silent(), set_gpu():
         for subvol in subvol_set:
             subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-            input_ft = (subvol_filt * mask).fft()
-            shift = ip.ft_pcc_maximum(
-                input_ft,
-                template_ft, 
+            input = subvol_filt * mask
+            shift, zncc = ip.zncc_maximum_with_corr(
+                input,
+                template, 
                 upsample_factor=20, 
                 max_shifts=max_shift,
             )
             all_shifts.append(shift)
-            corr = shifted_zncc(subvol_filt, template_for_zncc, mask, shift)
-            corrs.append(corr)
+            all_zncc.append(zncc)
     
-    iopt = np.argmax(corrs)
-    return iopt, all_shifts[iopt]
+    iopt = np.argmax(all_zncc)
+    return iopt, all_shifts[iopt], all_zncc[iopt]
 
 def align_subvolume_multitemplates(
     subvol: ip.ImgArray,
     cutoff: float,
     mask: ip.ImgArray,
-    template_ft_list: list[ip.ImgArray],
-    template_for_zncc_list: list[ip.ImgArray],
+    template_list: list[ip.ImgArray],
     max_shift: tuple[int, int, int],
-) -> tuple[int, np.ndarray]:
-    corrs: list[float] = []
+) -> tuple[int, np.ndarray, float]:
     all_shifts: list[np.ndarray] = []
+    all_zncc: list[float] = []
     with ip.silent(), set_gpu():
         subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-        input_ft = (subvol_filt * mask).fft()
-        for tmp_ft, tmp_zncc in zip(template_ft_list, template_for_zncc_list):
-            shift = ip.ft_pcc_maximum(
-                input_ft,
-                tmp_ft, 
+        input = subvol_filt * mask
+        for template in template_list:
+            shift, zncc = ip.zncc_maximum_with_corr(
+                input,
+                template, 
                 upsample_factor=20, 
                 max_shifts=max_shift,
             )
             all_shifts.append(shift)
-            corr = shifted_zncc(subvol_filt, tmp_zncc, mask, shift)
-            corrs.append(corr)
+            all_zncc.append(zncc)
     
-    iopt = np.argmax(corrs)
-    return iopt, all_shifts[iopt]
+    iopt = np.argmax(all_zncc)
+    return iopt, all_shifts[iopt], all_zncc[iopt]
 
 
 def align_subvolume_list_multitemplates(
     subvol_set: Iterable[ip.ImgArray],
     cutoff: float,
     mask: ip.ImgArray,
-    template_ft_list: list[ip.ImgArray],
-    template_for_zncc_list: list[ip.ImgArray],
+    template_list: list[ip.ImgArray],
     max_shift: tuple[int, int, int],
-) -> tuple[tuple[int, int], np.ndarray]:
-    corrs: list[list[float]] = []  # corrs[i, j] := i-th rotation, j-th template
+) -> tuple[tuple[int, int], np.ndarray, float]:
     all_shifts: list[np.ndarray] = []
+    all_zncc: list[list[float]] = []  # corrs[i, j] := i-th rotation, j-th template
     with ip.silent(), set_gpu():
         for subvol in subvol_set:
             subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-            input_ft = (subvol_filt * mask).fft()
-            current_corrs: list[float] = []
+            input = subvol_filt * mask
+            current_zncc: list[float] = []
             current_all_shifts: list[np.ndarray] = []
-            for tmp_ft, tmp_zncc in zip(template_ft_list, template_for_zncc_list):
-                shift = ip.ft_pcc_maximum(
-                    input_ft,
-                    tmp_ft, 
+            for template in template_list:
+                shift, corr = ip.zncc_maximum_with_corr(
+                    input,
+                    template, 
                     upsample_factor=20, 
                     max_shifts=max_shift,
                 )
                 all_shifts.append(shift)
-                corr = shifted_zncc(subvol_filt, tmp_zncc, mask, shift)
-                current_corrs.append(corr)
+                current_zncc.append(corr)
             
-            corrs.append(current_corrs)
+            all_zncc.append(current_zncc)
             all_shifts.append(current_all_shifts)
     
-    _corrs = np.array(corrs)
+    _corrs = np.array(all_zncc)
     iopt, jopt = np.unravel_index(np.argmax(_corrs), _corrs.shape)
-    return (iopt, jopt), all_shifts[iopt][jopt]
+    return (iopt, jopt), all_shifts[iopt][jopt], _corrs[iopt][jopt]
 
 def shifted_zncc(
     subvol: ip.ImgArray,
