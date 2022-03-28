@@ -2156,6 +2156,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 180.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
     )
     @dispatch_worker
@@ -2170,6 +2171,7 @@ class MTPropsWidget(MagicTemplate):
         x_rotation: _Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
+        method: str = "pcc",
         bin_size: int = 1,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2223,6 +2225,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             nbatch=nbatch,
+            method=method,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
         

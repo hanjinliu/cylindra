@@ -109,7 +109,26 @@ def transform_molecules(
     shift_corrected = Rotation.from_rotvec(rotvec).apply(shift)
     return molecules.translate_internal(shift_corrected).rotate_by_rotvec_internal(rotvec)
 
-def align_subvolume(
+def get_alignment_function(
+    method: str = "pcc",
+    multi_template: bool = False,
+):
+    method = method.lower()
+    if method == "pcc":
+        if multi_template:
+            f = align_subvolume_multitemplates_pcc
+        else:
+            f = align_subvolume_pcc
+    elif method == "zncc":
+        if multi_template:
+            f = align_subvolume_multitemplates_zncc
+        else:
+            f = align_subvolume_zncc
+    else:
+        raise ValueError(f"Unsupported method {method}.")
+    return f
+
+def align_subvolume_zncc(
     subvol: ip.ImgArray,
     cutoff: float,
     mask: ip.ImgArray,
@@ -126,6 +145,24 @@ def align_subvolume(
             max_shifts=max_shift
         )
     return shift, zncc
+
+def align_subvolume_pcc(
+    subvol: ip.ImgArray,
+    cutoff: float,
+    mask: ip.ImgArray,
+    template_ft: ip.ImgArray,
+    max_shift: tuple[int, int, int],
+) -> tuple[np.ndarray, float]:
+    with ip.silent():    
+        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+        input = subvol_filt * mask
+        shift, pcc = ip.ft_pcc_maximum_with_corr(
+            input.fft(),
+            template_ft, 
+            upsample_factor=20, 
+            max_shifts=max_shift
+        )
+    return shift, pcc
 
 def align_subvolume_list(
     subvol_set: Iterable[ip.ImgArray],
@@ -152,7 +189,33 @@ def align_subvolume_list(
     iopt = np.argmax(all_zncc)
     return iopt, all_shifts[iopt], all_zncc[iopt]
 
-def align_subvolume_multitemplates(
+
+def align_subvolume_multitemplates_pcc(
+    subvol: ip.ImgArray,
+    cutoff: float,
+    mask: ip.ImgArray,
+    template_ft_list: list[ip.ImgArray],
+    max_shift: tuple[int, int, int],
+) -> tuple[int, np.ndarray, float]:
+    all_shifts: list[np.ndarray] = []
+    all_pcc: list[float] = []
+    with ip.silent(), set_gpu():
+        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+        input = subvol_filt * mask
+        for template_ft in template_ft_list:
+            shift, pcc = ip.pcc_maximum_with_corr(
+                input.fft(),
+                template_ft, 
+                upsample_factor=20, 
+                max_shifts=max_shift,
+            )
+            all_shifts.append(shift)
+            all_pcc.append(pcc)
+    
+    iopt = np.argmax(all_pcc)
+    return iopt, all_shifts[iopt], all_pcc[iopt]
+
+def align_subvolume_multitemplates_zncc(
     subvol: ip.ImgArray,
     cutoff: float,
     mask: ip.ImgArray,

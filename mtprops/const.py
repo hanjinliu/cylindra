@@ -95,6 +95,7 @@ class Mole(SimpleNamespace):
     pf = "molecules-pf"
     isotype = "molecules-isotype"
     zncc = "molecules-zncc"
+    pcc = "molecules-pcc"
     interval = "molecules-interval"
 
     
