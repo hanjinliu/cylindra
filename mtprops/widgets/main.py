@@ -1399,7 +1399,7 @@ class MTPropsWidget(MagicTemplate):
                         "Unexpected mismatch between number of molecules and protofilaments! "
                         "These molecules may not work in some analysis."
                     )
-                update_features(layer, Mole.pf, np.arange(len(mol), dtype=np.uint32) % npf)
+                update_features(layer, {Mole.pf: np.arange(len(mol), dtype=np.uint32) % npf})
                 self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
@@ -1458,7 +1458,7 @@ class MTPropsWidget(MagicTemplate):
             points_layer.data = mol.pos
             points_layer.selected_data = set()
             points_layer.metadata[MOLECULES] = mol
-            update_features(points_layer, Mole.pf, labels)
+            update_features(points_layer, {Mole.pf: labels})
         
         self._need_save = True
         
@@ -1636,7 +1636,7 @@ class MTPropsWidget(MagicTemplate):
         properties = y_dist.ravel()
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
         
-        update_features(layer, Mole.interval, np.abs(properties))
+        update_features(layer, {Mole.interval: np.abs(properties)})
         
         # Set colormap
         layer.face_color = layer.edge_color = Mole.interval
@@ -2237,6 +2237,9 @@ class MTPropsWidget(MagicTemplate):
             )
             points.features = layer.features
             layer.visible = False
+            features = aligned_loader.features
+            if features.size > 0:
+                update_features(points, features)
             self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
@@ -2333,15 +2336,14 @@ class MTPropsWidget(MagicTemplate):
         )
                     
         @worker.returned.connect
-        def _on_return(out: Tuple[np.ndarray, SubtomogramLoader]):
-            labels, aligned_loader = out
+        def _on_return(aligned_loader: SubtomogramLoader):
             points = add_molecules(
                 self.parent_viewer, 
                 aligned_loader.molecules,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
             )
             points.features = layer.features
-            update_features(points, "opt-template", labels)
+            update_features(points, aligned_loader.features)
             layer.visible = False
                 
         self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
@@ -2378,7 +2380,7 @@ class MTPropsWidget(MagicTemplate):
         )
         nbatch = 24
         worker = create_worker(
-            loader.iter_zncc,
+            loader.iter_subtomoprops,
             template=template, 
             mask=mask,
             nbatch=nbatch,
@@ -2394,7 +2396,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.ylabel("Frequency")
                 plt.tight_layout()
                 plt.show()
-            update_features(layer, Mole.zncc, corr)
+            update_features(layer, {Mole.zncc: corr})
         
         self._WorkerControl.info = "Calculating Correlation"
         self._need_save = True
@@ -2582,7 +2584,7 @@ class MTPropsWidget(MagicTemplate):
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
             
-            update_features(layer, Mole.isotype, all_labels[imax].astype(np.uint8))
+            update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
             
         self._WorkerControl.info = "Seam search ... "
         self._need_save = True

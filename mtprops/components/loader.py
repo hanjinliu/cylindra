@@ -1,11 +1,20 @@
 from __future__ import annotations
 from functools import partial
-from typing import Any, Callable, Generator, Generic, Iterator, Iterable, TYPE_CHECKING, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Generic,
+    Iterator,
+    Iterable,
+    TYPE_CHECKING,
+    TypeVar
+)
 from typing_extensions import ParamSpec
 import warnings
 import weakref
-from contextlib import contextmanager
 import tempfile
+import pandas as pd
 from scipy.spatial.transform import Rotation
 import numpy as np
 import impy as ip
@@ -21,14 +30,15 @@ from ._align_utils import (
     transform_molecules
 )
 from .molecules import Molecules
-from ..utils import ceilint, multi_map_coordinates, set_gpu
-from ..const import nm
+from ..utils import multi_map_coordinates, set_gpu
+from ..const import nm, Mole
 
 if TYPE_CHECKING:
     from ._pca_utils import PcaClassifier
     
 _V = TypeVar("_V")
 _P = ParamSpec("_P")
+
 
 class SubtomogramLoader(Generic[_V]):
     """
@@ -54,18 +64,14 @@ class SubtomogramLoader(Generic[_V]):
         other.
     """
     
-    _PROPS = {
-        "ncc": ip.ncc,
-        "zncc": ip.zncc,
-    }
-    
     def __init__(
         self, 
         image: ip.ImgArray | ip.LazyImgArray | np.ndarray | da.core.Array, 
         mole: Molecules,
         output_shape: int | tuple[int, int, int],
         order: int = 1,
-        chunksize: int = 1
+        chunksize: int = 1,
+        features: dict[str, np.ndarray] | None = None,
     ) -> None:
         ndim = 3
         if not isinstance(image, (ip.ImgArray, ip.LazyImgArray)):
@@ -82,6 +88,15 @@ class SubtomogramLoader(Generic[_V]):
         if isinstance(output_shape, int):
             output_shape = (output_shape,) * ndim
         self._output_shape = output_shape
+        
+        self._features: dict[str, np.ndarray] = {}
+        if features is not None:
+            for k, v in features.items():
+                arr = np.asarray(v)
+                if arr.ndim != 1 or arr.size != len(mole):
+                    raise ValueError("Feature values must be the same length as molecules.")
+                self._features[k] = arr
+            
     
     def __repr__(self) -> str:
         shape = self.image_ref.shape
@@ -126,25 +141,16 @@ class SubtomogramLoader(Generic[_V]):
         """Return the chunk size on subtomogram loading."""
         return self._chunksize
     
+    @property
+    def features(self) -> pd.DataFrame:
+        return pd.DataFrame(self._features)
+
     def __len__(self) -> int:
         """Return the number of subtomograms."""
         return self.molecules.pos.shape[0]
     
     def __iter__(self) -> Iterator[_V]:
         return self.iter_subtomograms()
-    
-    @contextmanager
-    def expand_output(self, pad_width: tuple[float, float, float]):
-        """Temporarily expand the output subtomogram shape."""
-        if len(pad_width) != 3:
-            raise ValueError("Shape length must be three.")
-        old_shape = self._output_shape
-        shape = tuple(s + 2*ceilint(pad) for pad, s in zip(pad_width, old_shape))
-        self._output_shape = shape
-        try:
-            yield
-        finally:
-            self._output_shape = old_shape
     
     def replace(self, order: int | None = None, chunksize: int | None = None):
         if order is None:
@@ -371,8 +377,10 @@ class SubtomogramLoader(Generic[_V]):
             mole_aligned, 
             self.output_shape,
             order=self.order,
-            chunksize=self.chunksize
+            chunksize=self.chunksize,
+            features={Mole.zncc: zncc_max}
         )
+        
         return out
     
     def iter_align_no_template(
@@ -458,7 +466,8 @@ class SubtomogramLoader(Generic[_V]):
             mole_aligned, 
             self.output_shape,
             order=self.order,
-            chunksize=self.chunksize
+            chunksize=self.chunksize,
+            features={Mole.zncc: zncc_max},
         )
         return out
     
@@ -471,7 +480,7 @@ class SubtomogramLoader(Generic[_V]):
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         nbatch: int = 24,
-    ) -> Generator[tuple[np.ndarray, np.ndarray], None, tuple[np.ndarray, SubtomogramLoader]]:
+    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
         
         shapes = [arr.shape for arr in templates]
         if len(set(shapes)) != 1:
@@ -541,8 +550,9 @@ class SubtomogramLoader(Generic[_V]):
             self.output_shape, 
             order=self.order,
             chunksize=self.chunksize,
+            features={"labels": labels}
         )
-        return labels, out
+        return out
         
     def align(
         self,
@@ -602,46 +612,11 @@ class SubtomogramLoader(Generic[_V]):
         
         return out
 
-    def iter_zncc(
-        self,
-        template: ip.ImgArray = None,
-        mask: ip.ImgArray = None,
-        nbatch: int = 24,
-    ) -> Generator[np.ndarray, None, np.ndarray]:
-        corrs = np.zeros(len(self.molecules), dtype=np.float32)
-        n = 0
-        it = self.iter_subtomograms_with_corr(template, mask, corr_func=ip.zncc)
-        with ip.silent():
-            for i, (subvol, corr) in enumerate(it):
-                corrs[i] = corr
-                n += 1
-                if n % nbatch == nbatch - 1:
-                    yield corr
-
-        return corrs
-    
-    def zncc(
-        self,
-        template: ip.ImgArray = None,
-        mask: ip.ImgArray = None,
-        callback: Callable[[SubtomogramLoader], Any] = None,
-    ):
-        align_iter = self.iter_zncc(
-            template=template, 
-            mask=mask,
-        )
-        
-        return self._resolve_iterator(align_iter, callback)
-    
-    # @classmethod
-    # def register_property(cls, name: str, function: Callable[[np.ndarray, np.ndarray], Any]):
-    #     cls._PROPS
-        
     def iter_subtomoprops(
         self,
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
-        properties=("zncc",),
+        properties=(ip.zncc,),
         nbatch: int = 24,
     ):
         results = [[]] * len(properties)
@@ -650,9 +625,10 @@ class SubtomogramLoader(Generic[_V]):
             mask = 1
         template_masked = template * mask
         with ip.silent():
-            for i, subvol in enumerate(self.iter_subtomograms()):
+            for subvol in self.iter_subtomograms():
                 for _idx_prop, _prop in enumerate(properties):
-                    results[_idx_prop].append(_prop(subvol*mask, template_masked))
+                    prop = _prop(subvol*mask, template_masked)
+                    results[_idx_prop].append(prop)
                 n += 1
                 if n % nbatch == nbatch - 1:
                     yield
@@ -726,7 +702,6 @@ class SubtomogramLoader(Generic[_V]):
             sum1 = np.zeros(self.output_shape, dtype=np.float32)
             
             res = 0
-            n = 0
             for subvols in self._iter_chunks():
                 np.random.shuffle(subvols)
                 lc, res = divmod(len(subvols) + res, 2)
