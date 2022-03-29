@@ -44,11 +44,12 @@ from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
 from ..components.microtubule import angle_corr
 from ..utils import (
     crop_tomogram,
+    interval_filter,
     make_slice_and_pad,
     map_coordinates,
     mirror_zncc,
     pad_template, 
-    pad_mt_edges,
+    sheared_convolve,
     roundint,
     ceilint,
     set_gpu
@@ -156,8 +157,8 @@ class MTPropsWidget(MagicTemplate):
             def Map_along_PF(self): ...
         def Show_orientation(self): ...
         def Calculate_intervals(self): ...
-        def Open_feature_control(self): ...
         sep0 = field(Separator)
+        def Open_feature_control(self): ...
         def Open_feature_viewer(self): ...
         
     @magicmenu
@@ -1540,7 +1541,8 @@ class MTPropsWidget(MagicTemplate):
     def Show_orientation(
         self,
         layer: MonomerLayer,
-        orientation: str = "z"
+        orientation: str = "z",
+        color: Color = "crimson",
     ):
         """
         Show molecule orientations with a vectors layer.
@@ -1552,6 +1554,8 @@ class MTPropsWidget(MagicTemplate):
         orientation : {"x", "y", "z"}, default is "z"
             Which orientation will be shown. "z" is the spline-to-molecule direction,
             "y" is parallel to the spline and "x" is defined by right-handedness.
+        color : Color, default is "crimson
+            Vector color shown in viewer.
         """
         mol: Molecules = layer.metadata[MOLECULES]
         name = f"{layer.name} {orientation.upper()}-axis"
@@ -1559,22 +1563,22 @@ class MTPropsWidget(MagicTemplate):
         vector_data = np.stack([mol.pos, getattr(mol, orientation)], axis=1)
         
         self.parent_viewer.add_vectors(
-            vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
+            vector_data, edge_width=0.3, edge_color=color, length=2.4,
             name=name,
             )
         return None
         
     @Molecules_.wraps
     @set_options(
-        filter_length={"min": 1, "max": 49, "step": 2},
+        filter_length={"min": 3, "max": 49, "step": 2},
         filter_width={"min": 1, "max": 15, "step": 2},
-        spline_precision={"max": 2.0, "step": 0.01, "label": "spline precision (nm)"}
+        spline_precision={"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}
     )
     def Calculate_intervals(
         self,
         layer: MonomerLayer,
-        filter_length: int = 1,
-        filter_width: int = 1,
+        filter_length: int = 3,
+        filter_width: int = 3,
         spline_precision: nm = 0.2,
     ):
         """
@@ -1598,7 +1602,6 @@ class MTPropsWidget(MagicTemplate):
             Precision in nm that is used to define the direction of molecules for calculating
             projective interval.
         """
-        ndim = 3
         if filter_length % 2 == 0 or filter_width % 2 == 0:
             raise ValueError("'filter_length' and 'filter_width' must be odd numbers.")
         mole: Molecules = layer.metadata[MOLECULES]
@@ -1618,28 +1621,23 @@ class MTPropsWidget(MagicTemplate):
                 f"{type(e).__name__}: {e}"
             ) from e
         
-        pitch_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
-        spl_vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
-        spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)
-        y_dist: np.ndarray = np.sum(pitch_vec * spl_vec_norm, axis=2)  # inner product
-
-        # apply filter
-        if filter_length > 1 or filter_width > 1:
-            l_ypad = filter_length // 2
-            l_apad = filter_width // 2
-            start = y_coords_to_start_number(u, npf)
-            self.Panels.log.print(f"geometry: {npf}_{start}")
-            input = pad_mt_edges(y_dist[:, ::-1], (l_ypad, l_apad), start=start)
-            out = ndi.uniform_filter(input, (filter_length, filter_width), mode="constant")
-            ly, lx = out.shape
-            y_dist = out[l_ypad:ly-l_ypad, l_apad:lx-l_apad][:, ::-1]
-
-        properties = y_dist.ravel()
+        start = y_coords_to_start_number(u, npf)
+        self.Panels.log.print(f"Predicted geometry of {layer.name}: {npf}_{start}")
+        y_interval = interval_filter(
+            pos,
+            spl_vec,
+            filter_length=filter_length, 
+            filter_width=filter_width,
+            start=-start
+        )
+        
+        properties = y_interval.ravel()
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
         
         update_features(layer, {Mole.interval: np.abs(properties)})
+        self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
         layer.face_color = layer.edge_color = Mole.interval
@@ -1651,7 +1649,15 @@ class MTPropsWidget(MagicTemplate):
     
     @Molecules_.wraps
     @do_not_record
+    def Open_feature_control(self):
+        """Open the molecule-feature control widget."""
+        self._FeatureControl.show()
+        return None
+    
+    @Molecules_.wraps
+    @do_not_record
     def Open_feature_viewer(self):
+        """Open the molecule-feature viewer widget."""
         self._FeatureViewer.show()
         self._FeatureViewer._update_table_force()
         return None
@@ -2985,13 +2991,6 @@ class MTPropsWidget(MagicTemplate):
         self.label_colormap = Colormap([start, end], name="LocalProperties")
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
-        return None
-
-    @Molecules_.wraps
-    @do_not_record
-    def Open_feature_control(self):
-        """Open the molecule-feature control widget."""
-        self._FeatureControl.show()
         return None
     
     @Image.wraps

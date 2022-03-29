@@ -340,13 +340,16 @@ def pad_template(template: ip.ImgArray, shape: tuple[int, ...]) -> ip.ImgArray:
     return template.pad(pads, dims=template.axes, constant_values=np.min(template))
 
 
-def pad_mt_edges(
+def pad_sheared_edges(
     arr: np.ndarray,
     pad_width: tuple(int, int),
     axial_mode: str = Mode.reflect,
     cval: float = 0.0,
-    start: int = 3,
+    start: int = -3,
 ) -> np.ndarray:
+    if start < 0:
+        start = -start
+        arr = arr[:, ::-1]
     
     if arr.ndim != 2:
         raise ValueError("Only 2D arrays are supported.")
@@ -415,7 +418,76 @@ def pad_mt_edges(
     
     arr_padded = np.pad(arr, [(pad_long, pad_long), (0, 0)], **pad_kwargs)
     
-    return np.concatenate([lpad_padded, arr_padded, rpad_padded], axis=1)
+    out = np.concatenate([lpad_padded, arr_padded, rpad_padded], axis=1)
+    
+    if start < 0:
+        out = arr[:, ::-1]
+    return out
+
+def sheared_convolve(
+    input: np.ndarray,
+    weights: np.ndarray, 
+    axial_mode: str = Mode.reflect,
+    cval: float = 0.0,
+    start: int = -3,
+):
+    """Convolution of an image with sheared boundary."""
+    input = np.asarray(input)
+    weights = np.asarray(weights)
+    filter_length, filter_width = weights.shape
+    l_ypad = filter_length // 2
+    l_apad = filter_width // 2
+    input_padded = pad_sheared_edges(
+        input, (l_ypad, l_apad), axial_mode=axial_mode, cval=cval, start=start
+    )
+    out: np.ndarray = ndi.convolve(input_padded, weights)
+    ly, lx = out.shape
+    out_unpadded = out[l_ypad:ly - l_ypad, l_apad:lx - l_apad]
+    return out_unpadded
+
+def interval_filter(
+    pos: np.ndarray,
+    vec: np.ndarray,
+    filter_length: int,
+    filter_width: int,
+    start: int
+) -> np.ndarray:
+    
+    # For instance, if (filter_length, filter_width) = (3, 3), momoner intervals
+    # will be averaged in the following way.
+    #
+    # - (*) ... center monomer
+    # - (o) ... adjacent monomers
+    #
+    # (o) (o) (o)
+    #  :   :   :   <---+---- These six intervals will be averaged.
+    # (o) (*) (o)      |
+    #  :   :   :   <---+
+    # (o) (o) (o)
+    #
+    # 
+    # calculated interval
+    #     |
+    #  |<-+-->|
+    #        (o)
+    # (o)
+    #  -------> vec
+    
+    ny, npf, ndim = pos.shape
+    
+    # equivalent to padding mode "reflect"
+    pitch_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
+    
+    vec_norm: np.ndarray = vec / np.sqrt(np.sum(vec**2, axis=1))[:, np.newaxis]
+    vec_norm = vec_norm.reshape(-1, npf, ndim)
+    y_interval: np.ndarray = np.sum(pitch_vec * vec_norm, axis=2)  # inner product
+
+    ker = np.ones((filter_length, filter_width))
+    ker[-1, :] = 0
+    ker /= ker.sum()
+    y_interval = sheared_convolve(y_interval, ker, start=start)
+    
+    return y_interval
     
 
 class Projections:
