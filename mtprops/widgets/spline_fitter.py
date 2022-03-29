@@ -8,6 +8,7 @@ from magicclass import (
     do_not_record,
     MagicTemplate,
     bind_key,
+    set_design,
     )
 from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -58,7 +59,8 @@ class SplineFitter(MagicTemplate):
         return np.round(self.shifts[i], 3)
     
     @mt.wraps
-    def Fit(self, shifts: Bound[_get_shifts], i: Bound[mt.num]):
+    @set_design(text="Fit")
+    def fit(self, shifts: Bound[_get_shifts], i: Bound[mt.num]):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         parent = self._get_parent()
@@ -74,8 +76,9 @@ class SplineFitter(MagicTemplate):
         return None
     
     @Rotational_averaging.frame.wraps
+    @set_design(text="Average")
     @do_not_record
-    def Average(self):
+    def average(self):
         """Show rotatinal averaged image."""        
         i = self.mt.num.value
         j = self.mt.pos.value

@@ -95,7 +95,16 @@ class Mole(SimpleNamespace):
     pf = "molecules-pf"
     isotype = "molecules-isotype"
     zncc = "molecules-zncc"
+    pcc = "molecules-pcc"
     interval = "molecules-interval"
+
+class Align(SimpleNamespace):
+    zShift = "shift-z"
+    yShift = "shift-y"
+    xShift = "shift-x"
+    zRotvec = "rotvec-z"
+    yRotvec = "rotvec-y"
+    xRotvec = "rotvec-x"
 
     
 class EulerAxes(strEnum):

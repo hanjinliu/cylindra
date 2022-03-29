@@ -43,12 +43,17 @@ def change_viewer_focus(
 
 def update_features(
     layer: Points | Vectors | Tracks | Labels,
-    feature_name: str,
-    value: Iterable,
+    values: dict[str, Iterable] = None,
+    **kwargs,
 ):
     """Update layer features with new values."""
     features = layer.features
-    features[feature_name] = value
+    if values is not None:
+        if kwargs:
+            raise ValueError("Cannot specify both values and kwargs.")
+        kwargs = values
+    for name, value in kwargs.items():
+        features[name] = value
     layer.features = features
     return None
 

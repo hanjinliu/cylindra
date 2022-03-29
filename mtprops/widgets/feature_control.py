@@ -1,12 +1,110 @@
-from typing import List, Tuple
-from magicclass import magicclass, MagicTemplate, field, vfield, do_not_record
+from typing import TYPE_CHECKING, List
+from magicgui.widgets import Table
+from magicclass import (
+    magicclass,
+    MagicTemplate,
+    field,
+    vfield,
+    do_not_record,
+    set_design,
+)
 from magicclass.widgets import FloatRangeSlider, ColorEdit, ListEdit
-from magicclass.types import Color
+from magicclass.types import Color, Bound
 import numpy as np
 from ..types import get_monomer_layers
-from napari.layers import Points
 from napari.utils.colormaps import Colormap, label_colormap
+from napari.layers import Points
+from ..const import MOLECULES
 
+if TYPE_CHECKING:
+    import pandas as pd
+    
+@magicclass
+class FeatureViewer(MagicTemplate):
+    layer = vfield(Points, options={"choices": get_monomer_layers}, record=False)
+    table = field(Table, record=False)
+    
+    @property
+    def data(self) -> "pd.DataFrame":
+        return self.table.to_dataframe()
+    
+    def __post_init__(self):
+        self.table.read_only = True
+        self.table.min_height = 200
+    
+    @layer.connect
+    def _update_table(self):
+        if self.visible:
+            self._update_table_force()
+    
+    def _update_table_force(self):
+        self.table.value = self.layer.features
+        self.Filter["feature_name"].reset_choices()
+        self.Filter.expression =""
+    
+    @magicclass(widget_type="collapsible")
+    class Filter(MagicTemplate):
+        def _get_feature_names(self, _=None):
+            try:
+                layer: Points = self.find_ancestor(FeatureViewer).layer
+            except RuntimeError:
+                layer = None
+            if layer is None:
+                return []
+            cols = layer.features.columns
+            return cols
+        feature_name = vfield(options={"choices": _get_feature_names}, record=False)
+        expression = vfield(str, record=False)
+        
+        def filter_table(self): ...
+        def reset_filter(self): ...
+        def add_filtered_molecules(self): ...
+    
+    @Filter.wraps
+    @set_design(text="Filter table")
+    @do_not_record
+    def filter_table(
+        self,
+        layer: Bound[layer],
+        feature_name: Bound[Filter.feature_name], 
+        expr: Bound[Filter.expression]
+    ):
+        X = "X"
+        if X not in self.Filter.expression:
+            raise ValueError("Expression does not contain variable 'X'.")
+        df = layer.features
+        arr = df[feature_name].values
+        out = eval(expr, {}, {"X": arr, "np": np})
+        dfout = df[out]
+        self.table.value = dfout
+    
+    @Filter.wraps
+    @set_design(text="Resset filter")
+    @do_not_record
+    def reset_filter(self, layer: Bound[layer]):
+        self.table.value = layer.features
+        
+    @Filter.wraps
+    @set_design(text="Add filtered molecules")
+    def add_filtered_molecules(
+        self,
+        layer: Bound[layer],
+        feature_name: Bound[Filter.feature_name], 
+        expr: Bound[Filter.expression]
+    ):
+        X = "X"
+        if X not in self.Filter.expression:
+            raise ValueError("Expression does not contain variable 'X'.")
+        df = layer.features
+        arr = df[feature_name].values
+        out = eval(expr, {}, {"X": arr, "np": np})
+        mole = layer.metadata[MOLECULES]
+        mole_filt = mole[out]
+        from .main import add_molecules
+        expr_str = expr.replace(X, f"'{feature_name}'")
+        add_molecules(self.parent_viewer, mole_filt, name=f"{layer.name} ({expr_str})")
+        
+        
 @magicclass
 class FeatureControl(MagicTemplate):
     def _get_feature_names(self, _=None):

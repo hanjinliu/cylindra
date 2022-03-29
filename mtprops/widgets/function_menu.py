@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import List
 from magicclass import (
@@ -6,7 +7,8 @@ from magicclass import (
     magicmenu,
     MagicTemplate,
     set_options,
-    do_not_record
+    set_design,
+    do_not_record,
 )
 from magicclass.widgets import FloatRangeSlider
 import numpy as np
@@ -43,8 +45,9 @@ class Volume(MagicTemplate):
     """A custom menu that provides useful functions for volumeric data visualization."""
 
     @set_options(bin_size={"min": 1, "max": 16}, auto_call=True)
+    @set_design(text="Binning")
     @do_not_record
-    def Binning(self, layer: Image, bin_size: int = 2) -> LayerDataTuple:
+    def binning(self, layer: Image, bin_size: int = 2) -> LayerDataTuple:
         if layer is None:
             return None
         img = _convert_array(layer.data, layer.scale[-1])
@@ -66,19 +69,22 @@ class Volume(MagicTemplate):
         )
     
     @set_options(sigma={"widget_type": "FloatSlider", "max": 5.0, "step": 0.1}, auto_call=True)
+    @set_design(text="Gaussian filter")
     @do_not_record
-    def Gaussian_filter(self, layer: Image, sigma: float = 1.0) -> LayerDataTuple:
+    def gaussian_filter(self, layer: Image, sigma: float = 1.0) -> LayerDataTuple:
         return self._apply_method(layer, "gaussian_filter", sigma=sigma)
     
     @set_options(quantile={"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}, auto_call=True)
+    @set_design(text="Threshold")
     @do_not_record
-    def Threshold(self, layer: Image, quantile: float = 0.5) -> LayerDataTuple:
+    def threshold(self, layer: Image, quantile: float = 0.5) -> LayerDataTuple:
         thr = np.quantile(layer.data, quantile)
         return self._apply_method(layer, "threshold", thr)
 
     @set_options(op={"choices": OPERATORS}, layout="horizontal", labels=False, auto_call=True)
+    @set_design(text="Binary operation")
     @do_not_record
-    def Binary_operation(self, layer_1: Image, op, layer_2: Image) -> LayerDataTuple:
+    def binary_operation(self, layer_1: Image, op, layer_2: Image) -> LayerDataTuple:
         if layer_1 is None or layer_2 is None:
             return None
         img1 = _convert_array(layer_1.data, layer_1.scale[-1])
@@ -93,15 +99,30 @@ class Volume(MagicTemplate):
         )
     
     @set_options(path={"mode": "w"})
+    @set_design(text="Save volume")
     @do_not_record
-    def Save_volume(self, layer: Image, path: Path):
+    def save_volume(self, layer: Image, path: Path):
+        """Save a volume as tif or mrc file."""
         img = layer.data
         if not isinstance(img, ip.ImgArray):
-            raise TypeError
-        img.imsave(path)
+            raise TypeError(f"Use napari built-in menu to save {type(img)}.")
+        
+        fp, ext = os.path.split(path)
+        if ext == ".mrc" and img.ndim not in (2, 3):
+            if os.path.exists(fp):
+                raise FileExistsError
+            os.mkdir(fp)
+            imgs: ip.ImgArray = img.reshape(-1, *img.sizesof("zyx"))
+            imgs.axes = "pzyx"
+            for i, img0 in enumerate(imgs):
+                img0.imsave(os.path.join(fp, f"image-{i}.mrc"))
+        else:
+            img.imsave(path)
     
+    @set_design(text="Plane clip")
     @do_not_record
-    def Plane_clip(self):
+    def plane_clip(self):
+        """Open a plane clipper as an dock widget."""
         widget = PlaneClip()
         self.parent_viewer.window.add_dock_widget(widget, area="left")
         widget._connect_layer()
