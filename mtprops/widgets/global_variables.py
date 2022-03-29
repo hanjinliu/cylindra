@@ -81,7 +81,7 @@ class GlobalVariables(MagicTemplate):
     def load_variables(self, path: Path = INITIAL_PATH):
         with open(path, mode="r") as f:
             gvar = json.load(f)
-        get_function_gui(self, "Set_variables")(**gvar, update_widget=True)
+        get_function_gui(self, "set_variables")(**gvar, update_widget=True)
         return None
     
     @set_options(path={"filter": FileFilter.JSON, "mode": "w"})
