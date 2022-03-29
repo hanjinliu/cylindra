@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import List
 from magicclass import (
@@ -101,14 +102,27 @@ class Volume(MagicTemplate):
     @set_design(text="Save volume")
     @do_not_record
     def save_volume(self, layer: Image, path: Path):
+        """Save a volume as tif or mrc file."""
         img = layer.data
         if not isinstance(img, ip.ImgArray):
-            raise TypeError
-        img.imsave(path)
+            raise TypeError(f"Use napari built-in menu to save {type(img)}.")
+        
+        fp, ext = os.path.split(path)
+        if ext == ".mrc" and img.ndim not in (2, 3):
+            if os.path.exists(fp):
+                raise FileExistsError
+            os.mkdir(fp)
+            imgs: ip.ImgArray = img.reshape(-1, *img.sizesof("zyx"))
+            imgs.axes = "pzyx"
+            for i, img0 in enumerate(imgs):
+                img0.imsave(os.path.join(fp, f"image-{i}.mrc"))
+        else:
+            img.imsave(path)
     
     @set_design(text="Plane clip")
     @do_not_record
     def plane_clip(self):
+        """Open a plane clipper as an dock widget."""
         widget = PlaneClip()
         self.parent_viewer.window.add_dock_widget(widget, area="left")
         widget._connect_layer()
