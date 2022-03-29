@@ -1,6 +1,13 @@
 from typing import TYPE_CHECKING, List
 from magicgui.widgets import Table
-from magicclass import magicclass, MagicTemplate, field, vfield, do_not_record
+from magicclass import (
+    magicclass,
+    MagicTemplate,
+    field,
+    vfield,
+    do_not_record,
+    set_design,
+)
 from magicclass.widgets import FloatRangeSlider, ColorEdit, ListEdit
 from magicclass.types import Color, Bound
 import numpy as np
@@ -54,6 +61,7 @@ class FeatureViewer(MagicTemplate):
         def add_filtered_molecules(self): ...
     
     @Filter.wraps
+    @set_design(text="Filter table")
     @do_not_record
     def filter_table(
         self,
@@ -71,11 +79,13 @@ class FeatureViewer(MagicTemplate):
         self.table.value = dfout
     
     @Filter.wraps
+    @set_design(text="Resset filter")
     @do_not_record
     def reset_filter(self, layer: Bound[layer]):
         self.table.value = layer.features
         
     @Filter.wraps
+    @set_design(text="Add filtered molecules")
     def add_filtered_molecules(
         self,
         layer: Bound[layer],

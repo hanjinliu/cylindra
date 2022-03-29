@@ -101,25 +101,25 @@ class MTPropsWidget(MagicTemplate):
     @magicmenu
     class File(MagicTemplate):
         """File I/O."""  
-        def Open_image(self): ...
-        def Load_project(self): ...
-        def Load_splines(self): ...
-        def Load_molecules(self): ...
+        def open_image(self): ...
+        def load_project(self): ...
+        def load_splines(self): ...
+        def load_molecules(self): ...
         sep0 = field(Separator)
-        def Save_project(self): ...
-        def Save_spline(self): ...
-        def Save_molecules(self): ...
+        def save_project(self): ...
+        def save_spline(self): ...
+        def save_molecules(self): ...
         sep1 = field(Separator)
-        def Process_images(self): ...
+        def process_images(self): ...
         PEET = PEET
 
     @magicmenu
     class Image(MagicTemplate):
         """Image processing and visualization"""
-        def Show_image_info(self): ...
-        def Filter_reference_image(self): ...
-        def Add_multiscale(self): ...
-        def Set_multiscale(self): ...
+        def show_image_info(self): ...
+        def filter_reference_image(self): ...
+        def add_multiscale(self): ...
+        def set_multiscale(self): ...
         @magicmenu
         class Cylindric(MagicTemplate):
             def show_current_ft(self): ...
@@ -127,64 +127,64 @@ class MTPropsWidget(MagicTemplate):
             def show_r_proj(self): ...
             def show_global_r_proj(self): ...
         sep0 = field(Separator)
-        def Sample_subtomograms(self): ...
-        def Paint_MT(self): ...
-        def Set_colormap(self): ...
-        def Show_colorbar(self): ...
+        def sample_subtomograms(self): ...
+        def paint_MT(self): ...
+        def set_colormap(self): ...
+        def show_colorbar(self): ...
     
     @magicmenu
     class Splines(MagicTemplate):
         """Spline fitting and operations."""
-        def Show_splines(self): ...
-        def Add_anchors(self): ...
+        def show_splines(self): ...
+        def add_anchors(self): ...
         sep0 = field(Separator)
-        def Invert_spline(self): ...
-        def Align_to_polarity(self): ...
-        def Clip_spline(self): ...
+        def invert_spline(self): ...
+        def align_to_polarity(self): ...
+        def clip_spline(self): ...
         sep1 = field(Separator)
-        def Fit_splines(self): ...
-        def Fit_splines_manually(self): ...
-        def Refine_splines(self): ...
+        def fit_splines(self): ...
+        def fit_splines_manually(self): ...
+        def refine_splines(self): ...
         # def Molecules_to_spline(self): ...
 
     @magicmenu
     class Molecules_(MagicTemplate):
         @magicmenu
         class Mapping(MagicTemplate):
-            def Map_monomers(self): ...
-            def Map_monomers_manually(self): ...
-            def Map_centers(self): ...
-            def Map_along_PF(self): ...
-        def Show_orientation(self): ...
-        def Calculate_intervals(self): ...
+            def map_monomers(self): ...
+            def map_monomers_manually(self): ...
+            def map_centers(self): ...
+            def map_along_pf(self): ...
+        def show_orientation(self): ...
+        def calculate_intervals(self): ...
         sep0 = field(Separator)
-        def Open_feature_control(self): ...
-        def Open_feature_viewer(self): ...
+        def open_feature_control(self): ...
+        def open_feature_viewer(self): ...
         
     @magicmenu
     class Analysis(MagicTemplate):
         """Analysis of tomograms."""
-        def Set_radius(self): ...
-        def Local_FT_analysis(self): ...
-        def Global_FT_analysis(self): ...
+        def set_radius(self): ...
+        def local_ft_analysis(self): ...
+        def global_ft_analysis(self): ...
         sep0 = field(Separator)
-        def Open_subtomogram_analyzer(self): ...
-        def Open_project_editor(self): ...
+        def open_subtomogram_analyzer(self): ...
+        def open_project_editor(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
         """Other menus."""
         @magicmenu
         class Macro:
-            def Run_file(self): ...
+            def run_file(self): ...
             sep0 = field(Separator)
-            def Show_macro(self): ...
-            def Show_full_macro(self): ...
-            def Show_native_macro(self): ...
+            def show_macro(self): ...
+            def show_full_macro(self): ...
+            def show_native_macro(self): ...
         Global_variables = GlobalVariables
-        def Clear_cache(self): ...
-        def Open_help(self): ...
-        def Restore_layers(self): ...
+        def clear_cache(self): ...
+        def open_help(self): ...
+        def restore_layers(self): ...
         def MTProps_info(self): ...
         
     @magictoolbar(labels=False)
@@ -230,14 +230,14 @@ class MTPropsWidget(MagicTemplate):
         self.objectName()  # load napari types
         
     def __post_init__(self):
-        self.Set_colormap()
+        self.set_colormap()
         self.min_width = 400
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.Panels.min_height = 300
         
         # automatically set scale and binsize
-        mgui = get_function_gui(self, "Open_image")
+        mgui = get_function_gui(self, "open_image")
         @mgui.path.changed.connect
         def _read_scale():
             path = mgui.path.value
@@ -430,13 +430,13 @@ class MTPropsWidget(MagicTemplate):
             with self.macro.blocked():
                 self._update_splines_in_images()
                 if local_props or global_props:
-                    self.Sample_subtomograms()
+                    self.sample_subtomograms()
                     if global_props:
                         df = self.tomogram.collect_globalprops(i=splines).transpose()
                         df.columns = [f"Spline-{i}" for i in splines]
                         self.Panels.log.print_table(df, precision=3)
                 if local_props and paint:
-                    self.Paint_MT()
+                    self.paint_mt()
                 tomo.metadata["ft_size"] = self._current_ft_size
                 if global_props:
                     self._update_global_properties_in_widget()
@@ -468,8 +468,9 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Others.wraps
+    @set_design(text="Open help")
     @do_not_record
-    def Open_help(self):
+    def open_help(self):
         """Open a help window."""
         help = build_help(self)
         help.show()
@@ -483,8 +484,9 @@ class MTPropsWidget(MagicTemplate):
     
     @Others.Macro.wraps
     @set_options(path={"filter": "Python (*.py);;All files (*)"})
+    @set_design(text="Run file")
     @do_not_record
-    def Run_file(self, path: Path):
+    def run_file(self, path: Path):
         """Run a Python script file."""
         with open(path, mode="r") as f:
             txt = f.read()
@@ -496,8 +498,9 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Others.Macro.wraps
+    @set_design(text="Show macro")
     @do_not_record
-    def Show_macro(self):
+    def show_macro(self):
         """Create Python executable script of the current project."""
         new = self.macro.widget.new()
         new.value = str(self._format_macro()[self._macro_offset:])
@@ -505,8 +508,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Others.Macro.wraps
+    @set_design(text="Show full macro")
     @do_not_record
-    def Show_full_macro(self):
+    def show_full_macro(self):
         """Create Python executable script since the startup this time."""
         new = self.macro.widget.new()
         new.value = str(self._format_macro())
@@ -514,8 +518,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Others.Macro.wraps
+    @set_design(text="Show native macro")
     @do_not_record
-    def Show_native_macro(self):
+    def show_native_macro(self):
         """
         Show the native macro widget of magic-class, which is always synchronized but
         is not editable.
@@ -525,15 +530,17 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Others.wraps
+    @set_design(text="Clear cache")
     @confirm(text="Are you sure to clear cache?\nYou cannot undo this.")
-    def Clear_cache(self):
+    def clear_cache(self):
         """Clear cache stored on the current tomogram."""
         if self.tomogram is not None:
             self.tomogram.clear_cache()
     
     @Others.wraps
+    @set_design(text="Restore layers")
     @do_not_record
-    def Restore_layers(self):
+    def restore_layers(self):
         """Restore mistakenly deleted layers."""
         for layer in (self.layer_image, self.layer_work, self.layer_prof, self.layer_paint):
             if layer not in self.parent_viewer.layers:
@@ -609,8 +616,9 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"min": 1, "max": 8}
     )
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
+    @set_design(text="Open image")
     @dispatch_worker
-    def Open_image(
+    def open_image(
         self, 
         path: Path,
         scale: float = 1.0,
@@ -660,8 +668,9 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
+    @set_design(text="Load project")
     @dispatch_worker
-    def Load_project(self, path: Path):
+    def load_project(self, path: Path):
         """Load a project json file."""
         project = MTPropsProject.from_json(path)
         
@@ -724,7 +733,7 @@ class MTPropsWidget(MagicTemplate):
                 self.tomogram._splines = splines
                 self._update_splines_in_images()
                 with self.macro.blocked():
-                    self.Sample_subtomograms()
+                    self.sample_subtomograms()
             
             # load molecules
             from scipy.spatial.transform import Rotation
@@ -738,7 +747,7 @@ class MTPropsWidget(MagicTemplate):
             # load global variables
             if project.global_variables:
                 with self.macro.blocked():
-                    self.Others.Global_variables.Load_variables(project.global_variables)
+                    self.Others.Global_variables.load_variables(project.global_variables)
             
             # load subtomogram analyzer state
             self._subtomogram_averaging.template_path = project.template_image or ""
@@ -755,7 +764,8 @@ class MTPropsWidget(MagicTemplate):
         json_path={"mode": "w", "filter": FileFilter.JSON},
         results_dir={"text": "Save at the same directory", "options": {"mode": "d"}}
     )
-    def Save_project(self, json_path: Path, results_dir: Optional[Path] = None):
+    @set_design(text="Save project")
+    def save_project(self, json_path: Path, results_dir: Optional[Path] = None):
         """
         Save current project state as a json file and the results in a directory.
         
@@ -845,7 +855,7 @@ class MTPropsWidget(MagicTemplate):
             for df, fp in zip(molecule_dataframes, molecules_paths):
                 df.to_csv(fp, index=False)
         
-        self.Others.Global_variables.Save_variables(gvar_path)
+        self.Others.Global_variables.save_variables(gvar_path)
         
         if macro_str:
             with open(macro_path, mode="w") as f:
@@ -856,7 +866,8 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(paths={"filter": FileFilter.JSON})
-    def Load_splines(self, paths: List[Path]):
+    @set_design(text="load splines")
+    def load_splines(self, paths: List[Path]):
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
         splines = [MtSpline.from_json(path) for path in paths]
@@ -866,7 +877,8 @@ class MTPropsWidget(MagicTemplate):
         
     @File.wraps
     @set_options(paths={"filter": FileFilter.CSV})
-    def Load_molecules(self, paths: List[Path]):
+    @set_design(text="Load molecules")
+    def load_molecules(self, paths: List[Path]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
@@ -887,14 +899,16 @@ class MTPropsWidget(MagicTemplate):
         spline={"choices": _get_splines},
         save_path={"mode": "w", "filter": FileFilter.JSON}
     )
-    def Save_spline(self, spline: int, save_path: Path):
+    @set_design(text="Save spline")
+    def save_spline(self, spline: int, save_path: Path):
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
         return None
         
     @File.wraps
+    @set_design(text="Save molecules")
     @set_options(save_path={"mode": "w", "filter": FileFilter.CSV})
-    def Save_molecules(
+    def save_molecules(
         self,
         layer: MonomerLayer, 
         save_path: Path,
@@ -921,12 +935,14 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @File.wraps
+    @set_design(text="Process images")
     @do_not_record
-    def Process_images(self):
+    def process_images(self):
         self._ImageProcessor.show()
     
     @Image.wraps
-    def Show_image_info(self):
+    @set_design(text="Show image info")
+    def show_image_info(self):
         """Show information of current active tomogram."""
         tomo = self.tomogram
         img = tomo.image
@@ -946,8 +962,9 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Image.wraps
+    @set_design(text="Filter reference image")
     @dispatch_worker
-    def Filter_reference_image(self):
+    def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
         def func():
@@ -974,8 +991,9 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
+    @set_design(text="Add multi-scale")
     @dispatch_worker
-    def Add_multiscale(self, bin_size: int = 2, update_layer: bool = False):
+    def add_multiscale(self, bin_size: int = 2, update_layer: bool = False):
         tomo = self.tomogram        
         worker = create_worker(
             tomo.get_multiscale,
@@ -989,19 +1007,20 @@ class MTPropsWidget(MagicTemplate):
         def _on_return(imgb: ip.ImgArray):
             if update_layer:
                 with self.macro.blocked():
-                    self.Set_multiscale(bin_size)
+                    self.set_multiscale(bin_size)
             self._need_save = True
             
         return worker
     
     @Image.wraps
     @set_options(bin_size={"choices": _get_available_binsize})
-    def Set_multiscale(self, bin_size: int):
+    @set_design(text="Set multi-scale")
+    def set_multiscale(self, bin_size: int):
         tomo = self.tomogram
         imgb = tomo.get_multiscale(bin_size)
         self.layer_image.data = imgb
         self.layer_image.scale = imgb.scale
-        self.layer_image.name = imgb.name + f"(bin {bin_size})"
+        self.layer_image.name = f"{imgb.name} (bin {bin_size})"
         self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
         self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
         with ip.silent():
@@ -1037,7 +1056,8 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    def Sample_subtomograms(self):
+    @set_design(text="Sample subtomograms")
+    def sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
         self._SplineFitter.close()
         
@@ -1127,7 +1147,8 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    def Show_splines(self):
+    @set_design(text="Show splines")
+    def show_splines(self):
         """Show 3D spline paths of microtubule center axes as a layer."""        
         paths = [r.partition(100) for r in self.tomogram.splines]
         
@@ -1137,8 +1158,16 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Splines.wraps
-    def Invert_spline(self, spline: Bound[SplineControl.num] = None):
-        """Invert current displayed spline in place."""
+    @set_design(text="Invert spline")
+    def invert_spline(self, spline: Bound[SplineControl.num] = None):
+        """
+        Invert current displayed spline **in place**.
+        
+        Parameters
+        ----------
+        spline : int, optional
+            ID of splines to be inverted.
+        """
         if spline is None:
             return
         spl = self.tomogram.splines[spline]
@@ -1149,13 +1178,14 @@ class MTPropsWidget(MagicTemplate):
         need_resample = self.SplineControl.canvas[0].image is not None
         self._init_widget_state()
         if need_resample:
-            self.Sample_subtomograms()
+            self.sample_subtomograms()
         self._need_save = True
         return None
     
     @Splines.wraps
     @set_options(orientation={"choices": ["MinusToPlus", "PlusToMinus"]})
-    def Align_to_polarity(self, orientation: Ori = "MinusToPlus"):
+    @set_design(text="Align to polarity")
+    def align_to_polarity(self, orientation: Ori = "MinusToPlus"):
         """
         Align all the splines in the direction parallel to microtubule polarity.
 
@@ -1170,7 +1200,7 @@ class MTPropsWidget(MagicTemplate):
         self._init_widget_state()
         self.reset_choices()
         if need_resample:
-            self.Sample_subtomograms()
+            self.sample_subtomograms()
         self._need_save = True
         return None
     
@@ -1180,7 +1210,8 @@ class MTPropsWidget(MagicTemplate):
         spline={"choices": _get_splines},
         limits = {"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
     )
-    def Clip_spline(self, spline: int, limits: Tuple[float, float] = (0., 1.)):
+    @set_design(text="Clip splines")
+    def clip_spline(self, spline: int, limits: Tuple[float, float] = (0., 1.)):
         # BUG: properties may be inherited in a wrong way
         if spline is None:
             return
@@ -1197,8 +1228,9 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
         edge_sigma={"text": "Do not mask image"},
     )
+    @set_design(text="Fit splines")
     @dispatch_worker
-    def Fit_splines(
+    def fit_splines(
         self, 
         max_interval: nm = 30,
         bin_size: int = 1,
@@ -1235,7 +1267,9 @@ class MTPropsWidget(MagicTemplate):
     
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
-    def Fit_splines_manually(self, max_interval: nm = 50.0):
+    @set_design(text="Fit splines manually")
+    @do_not_record
+    def fit_splines_manually(self, max_interval: nm = 50.0):
         """
         Open a spline fitter window and fit MT with spline manually.
 
@@ -1249,8 +1283,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Splines.wraps
+    @set_design(text="Add anchors")
     @set_options(interval={"label": "Interval between anchors (nm)"})
-    def Add_anchors(self, interval: nm = 25.0):
+    def add_anchors(self, interval: nm = 25.0):
         """
         Add anchors to splines.
 
@@ -1270,8 +1305,9 @@ class MTPropsWidget(MagicTemplate):
     
     @Analysis.wraps
     @set_options(radius={"text": "Measure radii by radial profile."})
+    @set_design(text="Set radius")
     @dispatch_worker
-    def Set_radius(self, radius: Optional[nm] = None):
+    def set_radius(self, radius: Optional[nm] = None):
         """Measure MT radius for each spline path."""        
         worker = create_worker(
             self.tomogram.set_radius,
@@ -1289,8 +1325,9 @@ class MTPropsWidget(MagicTemplate):
         corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1},
         bin_size={"choices": _get_available_binsize},
     )
+    @set_design(text="Refine splines")
     @dispatch_worker
-    def Refine_splines(self, max_interval: nm = 30, corr_allowed: float = 0.9, bin_size: int = 1):
+    def refine_splines(self, max_interval: nm = 30, corr_allowed: float = 0.9, bin_size: int = 1):
         """
         Refine splines using the global MT structural parameters.
         
@@ -1339,8 +1376,9 @@ class MTPropsWidget(MagicTemplate):
     #     return None
         
     @Analysis.wraps
+    @set_design(text="Local FT analysis")
     @dispatch_worker
-    def Local_FT_analysis(self, interval: nm = 32.0, ft_size: nm = 32.0):
+    def local_ft_analysis(self, interval: nm = 32.0, ft_size: nm = 32.0):
         """
         Determine MT structural parameters by local Fourier transformation.
 
@@ -1354,8 +1392,8 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         if tomo.splines[0].radius is None:
-            self.Set_radius()
-        self.Add_anchors(interval=interval)
+            self.set_radius()
+        self.add_anchors(interval=interval)
         worker = create_worker(
             tomo.local_ft_params,
             ft_size=ft_size,
@@ -1364,7 +1402,7 @@ class MTPropsWidget(MagicTemplate):
         @worker.returned.connect
         def _on_return(df):
             with self.macro.blocked():
-                self.Sample_subtomograms()
+                self.sample_subtomograms()
                 self._update_local_properties_in_widget()
         self._current_ft_size = ft_size
         self._WorkerControl.info = "Local Fourier transform ..."
@@ -1372,8 +1410,9 @@ class MTPropsWidget(MagicTemplate):
         return worker
         
     @Analysis.wraps
+    @set_design(text="Global FT analysis")
     @dispatch_worker
-    def Global_FT_analysis(self):
+    def global_ft_analysis(self):
         """Determine MT global structural parameters by Fourier transformation."""        
         tomo = self.tomogram
         worker = create_worker(
@@ -1395,8 +1434,9 @@ class MTPropsWidget(MagicTemplate):
         splines={"widget_type": "Select", "choices": _get_splines},
         length={"text": "Use full length"}
     )
+    @set_design(text="Map monomers")
     @dispatch_worker
-    def Map_monomers(
+    def map_monomers(
         self,
         splines: Iterable[int] = (),
         length: Optional[nm] = None,
@@ -1449,7 +1489,8 @@ class MTPropsWidget(MagicTemplate):
         theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"},
         length={"text": "Use full length"},
     )
-    def Map_monomers_manually(
+    @set_design(text="Map monomers manually")
+    def map_monomers_manually(
         self, 
         i: Bound[SplineControl.num] = 0,
         y_offset: nm = 0, 
@@ -1504,7 +1545,8 @@ class MTPropsWidget(MagicTemplate):
         interval={"text": "Set to dimer length"},
         length={"text": "Use full length"}
     )
-    def Map_centers(
+    @set_design(text="Map centers")
+    def map_centers(
         self,
         splines: Iterable[int] = (),
         interval: Optional[nm] = None,
@@ -1540,7 +1582,8 @@ class MTPropsWidget(MagicTemplate):
         interval={"text": "Set to dimer length"},
         angle_offset={"max": 360}
     )
-    def Map_along_PF(
+    @set_design(text="Map alogn PF")
+    def map_along_pf(
         self,
         splines: Iterable[int],
         interval: Optional[nm] = None,
@@ -1570,7 +1613,8 @@ class MTPropsWidget(MagicTemplate):
 
     @Molecules_.wraps
     @set_options(orientation={"choices": ["x", "y", "z"]})
-    def Show_orientation(
+    @set_design(text="Show orientation")
+    def show_orientation(
         self,
         layer: MonomerLayer,
         orientation: str = "z",
@@ -1606,7 +1650,8 @@ class MTPropsWidget(MagicTemplate):
         filter_width={"min": 1, "max": 15, "step": 2},
         spline_precision={"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}
     )
-    def Calculate_intervals(
+    @set_design(text="Calculate intervals")
+    def calculate_intervals(
         self,
         layer: MonomerLayer,
         filter_length: int = 3,
@@ -1680,15 +1725,17 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules_.wraps
+    @set_design(text="Open feature control")
     @do_not_record
-    def Open_feature_control(self):
+    def open_feature_control(self):
         """Open the molecule-feature control widget."""
         self._FeatureControl.show()
         return None
     
     @Molecules_.wraps
+    @set_design(text="Open feature viewer")
     @do_not_record
-    def Open_feature_viewer(self):
+    def open_feature_viewer(self):
         """Open the molecule-feature viewer widget."""
         self._FeatureViewer.show()
         self._FeatureViewer._update_table_force()
@@ -1699,14 +1746,16 @@ class MTPropsWidget(MagicTemplate):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
     @Analysis.wraps
+    @set_design(text="Open subtomogram analyzer")
     @do_not_record
-    def Open_subtomogram_analyzer(self):
+    def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
         self._subtomogram_averaging.show()
     
     @Analysis.wraps
+    @set_design(text="Open project editor")
     @do_not_record
-    def Open_project_editor(self):
+    def open_project_editor(self):
         """Open the subtomogram averaging project editor."""
         self._STAProjectEditor.show()
     
@@ -1865,30 +1914,32 @@ class MTPropsWidget(MagicTemplate):
         
         @magicmenu
         class Subtomogram_analysis(MagicTemplate):
-            def Average_all(self): ...
-            def Average_subset(self): ...
-            def Calculate_correlation(self): ...
-            def Calculate_FSC(self): ...
-            def Seam_search(self): ...
+            def average_all(self): ...
+            def average_subset(self): ...
+            def split_and_average(self): ...
+            def calculate_correlation(self): ...
+            def calculate_fsc(self): ...
+            def seam_search(self): ...
         
         @magicmenu
         class Refinement(MagicTemplate):
-            def Align_averaged(self): ...
-            def Align_all(self): ...
-            def Multi_template_alignment(self): ...
+            def align_averaged(self): ...
+            def align_all(self): ...
+            def multi_template_alignment(self): ...
         
         @magicmenu
         class Tools(MagicTemplate):
-            def Reshape_template(self): ...
-            def Render_molecules(self): ...
+            def reshape_template(self): ...
+            def render_molecules(self): ...
         
         @do_not_record
         @set_options(
             new_shape={"options": {"min": 2, "max": 100}},
             save_as={"mode": "w", "filter": FileFilter.IMAGE}
         )
+        @set_design(text="Reshape template")
         @Tools.wraps
-        def Reshape_template(
+        def reshape_template(
             self, 
             new_shape: _Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
             save_as: Path = "",
@@ -1912,8 +1963,9 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
+    @set_design(text="Average all")
     @dispatch_worker
-    def Average_all(
+    def average_all(
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
@@ -1972,8 +2024,9 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": ["steps", "first", "last", "random"]},
         bin_size={"choices": _get_available_binsize},
     )
+    @set_design(text="Average subset")
     @dispatch_worker
-    def Average_subset(
+    def average_subset(
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
@@ -2041,6 +2094,47 @@ class MTPropsWidget(MagicTemplate):
 
         return worker
     
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @set_options(
+        size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
+        n_set={"min": 1, "label": "number of image pairs"},
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        bin_size={"choices": _get_available_binsize},
+    )
+    @set_design(text="Split and average")
+    @dispatch_worker
+    def split_and_average(
+        self,
+        layer: MonomerLayer,
+        n_set: int = 1,
+        size: Optional[nm] = None,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+        interpolation: int = 1,
+        bin_size: int = 1,
+    ):
+        molecules: Molecules = layer.metadata[MOLECULES]
+        tomo = self.tomogram
+        nmole = len(molecules)
+        if size is None:
+            shape = self._subtomogram_averaging._get_shape_in_nm()
+        else:
+            shape = (size,) * 3
+        loader = tomo.get_subtomogram_loader(
+            molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
+        )
+        worker = create_worker(
+            loader.iter_average_split,
+            n_set=n_set,
+            _progress={"total": ceilint(nmole/chunk_size), "desc": "Running"}
+        )
+        
+        @worker.returned.connect
+        def _on_returned(img: ip.ImgArray):
+            self._subtomogram_averaging._show_reconstruction(img, f"[Split]{layer.name}")
+        
+        self._WorkerControl.info = f"Split and averaging of {layer.name} (n = {nmole//2}, {nmole - nmole//2})"
+        return worker
+    
     def _check_binning_for_alignment(
         self,
         template: Union[ip.ImgArray, List[ip.ImgArray]],
@@ -2076,8 +2170,9 @@ class MTPropsWidget(MagicTemplate):
         cutoff={"max": 1.0, "step": 0.05},
         bin_size={"choices": _get_available_binsize}
     )
+    @set_design(text="Align averaged")
     @dispatch_worker
-    def Align_averaged(
+    def align_averaged(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
@@ -2185,8 +2280,9 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
     )
+    @set_design(text="Align all")
     @dispatch_worker
-    def Align_all(
+    def align_all(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
@@ -2286,8 +2382,9 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
     )
+    @set_design(text="Align all without template")
     @dispatch_worker
-    def Align_all_without_template(
+    def align_all_without_template(
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
@@ -2479,8 +2576,9 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
+    @set_design(text="Calculate correlation")
     @dispatch_worker
-    def Calculate_correlation(
+    def calculate_correlation(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
@@ -2530,16 +2628,19 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         shape={"text": "Use template shape"},
+        n_set={"min": 1, "label": "number of image pairs"},
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
+    @set_design(text="Calculate FSC")
     @dispatch_worker
-    def Calculate_FSC(
+    def calculate_fsc(
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         shape: Optional[_Tuple[nm, nm, nm]] = None,
         seed: Optional[int] = 0,
         interpolation: int = 1,
+        n_set: int = 1,
         dfreq: Optional[float] = None,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2559,6 +2660,8 @@ class MTPropsWidget(MagicTemplate):
             Random seed used for subtomogram sampling.
         interpolation : int, default is 1
             Interpolation order.
+        n_set : int, default is 1
+            How many sets of image pairs will be generated to average FSC.
         dfreq : float, default is 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
@@ -2584,50 +2687,36 @@ class MTPropsWidget(MagicTemplate):
             dfreq = 1.5 / min(shape) * loader.scale
         worker = create_worker(
             loader.iter_average_split,
+            n_set=n_set,
             seed=seed,
             _progress={"total": ceilint(nmole/loader.chunksize), "desc": "Running"}
         )
         
         @worker.returned.connect
-        def _on_returned(out: tuple[ip.ImgArray, ip.ImgArray]):
-            img0, img1 = out
-            
+        def _on_returned(img: ip.ImgArray):
+            fsc_all: List[np.ndarray] = []
             with ip.silent():
-                freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+                for i in range(n_set):
+                    img0, img1 = img[i]
+                    freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+                    fsc_all.append(fsc)
+            fsc_all = np.stack(fsc_all, axis=1)
+            fsc_mean = np.mean(fsc_all, axis=1)
+            fsc_std = np.std(fsc_all, axis=1)
+            crit_0143 = 0.143
+            crit_0500 = 0.500
             
-            ind = (freq <= 0.7)
-            crit = 0.143
+            self.Panels.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
             with self.Panels.log.set_plt(rc_context={"font.size": 15}):
-                plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
-                plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
-                plt.axhline(crit, color="violet")
-                plt.plot(freq[ind], fsc[ind], color="gold")
-                plt.xlabel("Spatial frequence (1/nm)")
-                plt.ylabel("FSC")
-                plt.ylim(-0.1, 1.1)
-                plt.title(f"FSC of {layer.name}")
-                xticks = np.linspace(0, 0.7, 8)
-                per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in self.tomogram.scale / xticks[1:]]
-                plt.xticks(xticks, per_nm)
-                plt.tight_layout()
-                plt.show()
+                _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
             
-            freq0 = None
-            for i, fsc1 in enumerate(fsc):
-                if fsc1 < crit:
-                    if i == 0:
-                        resolution = "N.A."
-                        break
-                    f0 = freq[i-1]
-                    f1 = freq[i]
-                    fsc0 = fsc[i-1]
-                    freq0 = (crit - fsc1)/(fsc0 - fsc1) * (f0 - f1) + f1
-                    resolution = f"{self.tomogram.scale / freq0:.3f}"
-                    break
-            else:
-                resolution = "N.A."
+            resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
+            resolution_0500 = _calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
+            str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
+            str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
             
-            self.Panels.log.print_html(f"resolution = <b>{resolution} nm</b>")
+            self.Panels.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
+            self.Panels.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
         
         self._WorkerControl.info = "Calculating FSC ..."
         self._need_save = True
@@ -2638,8 +2727,9 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         npf={"text": "Use global properties"},
     )
+    @set_design(text="Seam search")
     @dispatch_worker
-    def Seam_search(
+    def seam_search(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
@@ -2716,7 +2806,8 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Tools.wraps
     @set_options(feature_name={"text": "Do not color molecules."})
-    def Render_molecules(
+    @set_design(text="Render molecules")
+    def render_molecules(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
@@ -2890,7 +2981,8 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    def Paint_MT(self):
+    @set_design(text="Paint MT")
+    def paint_mt(self):
         """
         Paint microtubule fragments by its pitch length.
         
@@ -2999,7 +3091,8 @@ class MTPropsWidget(MagicTemplate):
         color_by={"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]},
         auto_call=True
     )
-    def Set_colormap(
+    @set_design(text="Set colormap")
+    def set_colormap(
         self,
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
@@ -3026,7 +3119,8 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    def Show_colorbar(self):
+    @set_design(text="Show color-bar")
+    def show_colorbar(self):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         xmin, xmax = self.label_colorlimit
@@ -3432,3 +3526,59 @@ def _plot_seam_search_result(corrs: np.ndarray, score: np.ndarray, npf: int):
     plt.title("Score")
     plt.tight_layout()
     plt.show()
+
+def _plot_fsc(
+    freq: np.ndarray,
+    fsc_mean: np.ndarray,
+    fsc_std: np.ndarray,
+    crit: List[float],
+    scale: nm,
+):
+    ind = (freq <= 0.7)
+    plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
+    plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
+    for cr in crit:
+        plt.axhline(cr, color="violet", alpha=0.5, ls="--")
+    plt.plot(freq[ind], fsc_mean[ind], color="gold")
+    plt.fill_between(
+        freq[ind],
+        y1=fsc_mean[ind] - fsc_std[ind],
+        y2=fsc_mean[ind] + fsc_std[ind],
+        color="gold",
+        alpha=0.3
+    )
+    plt.xlabel("Spatial frequence (1/nm)")
+    plt.ylabel("FSC")
+    plt.ylim(-0.1, 1.1)
+    xticks = np.linspace(0, 0.7, 8)
+    per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in scale / xticks[1:]]
+    plt.xticks(xticks, per_nm)
+    plt.tight_layout()
+    plt.show()
+
+def _calc_resolution(
+    freq: np.ndarray,
+    fsc: np.ndarray,
+    crit: float = 0.143,
+    scale: nm = 1.0
+) -> nm:
+    """
+    Calculate resolution using arrays of frequency and FSC.
+    This function uses linear interpolation to find the solution.
+    If the inputs are not accepted, 0 will be returned.
+    """
+    freq0 = None
+    for i, fsc1 in enumerate(fsc):
+        if fsc1 < crit:
+            if i == 0:
+                resolution = 0
+                break
+            f0 = freq[i-1]
+            f1 = freq[i]
+            fsc0 = fsc[i-1]
+            freq0 = (crit - fsc1)/(fsc0 - fsc1) * (f0 - f1) + f1
+            resolution = scale / freq0
+            break
+    else:
+        resolution = 0
+    return resolution

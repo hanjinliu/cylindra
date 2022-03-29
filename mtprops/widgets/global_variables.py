@@ -3,6 +3,7 @@ import json
 from magicclass import (
     magicmenu,
     set_options,
+    set_design,
     MagicTemplate,
     )
 from magicclass.types import Tuple as _Tuple
@@ -29,7 +30,8 @@ class GlobalVariables(MagicTemplate):
         daskChunk={"options": {"min": 16, "max": 2048, "step": 16}},
         GPU={"label": "Use GPU if available"},
     )
-    def Set_variables(
+    @set_design(text="Set variables")
+    def set_variables(
         self,
         nPFmin: int = GVar.nPFmin,
         nPFmax: int = GVar.nPFmax,
@@ -75,14 +77,16 @@ class GlobalVariables(MagicTemplate):
         GVar.set_value(**locals())
     
     @set_options(path={"filter": FileFilter.JSON})
-    def Load_variables(self, path: Path = INITIAL_PATH):
+    @set_design(text="Load variables")
+    def load_variables(self, path: Path = INITIAL_PATH):
         with open(path, mode="r") as f:
             gvar = json.load(f)
         get_function_gui(self, "Set_variables")(**gvar, update_widget=True)
         return None
     
     @set_options(path={"filter": FileFilter.JSON, "mode": "w"})
-    def Save_variables(self, path: Path = INITIAL_PATH):
+    @set_design(text="Save variables")
+    def save_variables(self, path: Path = INITIAL_PATH):
         gvar = GVar.get_value()
         with open(path, mode="w") as f:
             json.dump(gvar, f, indent=4, separators=(", ", ": "))

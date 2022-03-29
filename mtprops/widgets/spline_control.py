@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 import impy as ip
-from magicclass import magicclass, MagicTemplate, field, vfield, set_options
+from magicclass import magicclass, MagicTemplate, field, vfield, set_options, set_design
 from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
@@ -41,12 +41,13 @@ class SplineControl(MagicTemplate):
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):
         focus = vfield(False, options={"text": "focus on", "tooltip": "Keep focus of viewer camera on the current spline position"}, record=False)
-        def set_PF_number(self): ...
+        def set_pf_number(self): ...
         def set_orientation(self): ...
     
     @footer.wraps
+    @set_design(text="Set PF number")
     @set_options(labels=False)
-    def set_PF_number(self, i: Bound[num], npf: int = 13):
+    def set_pf_number(self, i: Bound[num], npf: int = 13):
         """Manually update protofilament number."""
         from .main import MTPropsWidget
         parent = self.find_ancestor(MTPropsWidget)
@@ -60,10 +61,11 @@ class SplineControl(MagicTemplate):
             spl.globalprops[H.nPF] = npf
             parent._update_global_properties_in_widget()
         if self.canvas[0].image is not None:
-            parent.Sample_subtomograms()
+            parent.sample_subtomograms()
         return None
         
     @footer.wraps
+    @set_design(text="Set orientation")
     @set_options(labels=False, orientation={"widget_type": "RadioButtons"})
     def set_orientation(self, i: Bound[num], orientation: Ori = Ori.none):
         """Manually set polarity."""

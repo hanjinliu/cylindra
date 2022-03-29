@@ -82,7 +82,7 @@ class SubtomogramLoader(Generic[_V]):
         self.image_ref = image
         self._molecules = mole
         self._order = order
-        self._chunksize = chunksize
+        self._chunksize = max(chunksize, 1)
         if isinstance(output_shape, int):
             output_shape = (output_shape,) * ndim
         else:
@@ -184,21 +184,6 @@ class SubtomogramLoader(Generic[_V]):
                 for subvol in subvols:  # subvols axes: pazyx
                     subvol: ip.ImgArray  # subvol axes: azyx
                     yield subvol.binning(binsize, check_edges=False)
-    
-    def iter_subtomograms_with_corr(
-        self,
-        ref: ip.ImgArray,
-        mask: ip.ImgArray | None = None,
-        corr_func: Callable[[np.ndarray, np.ndarray], _V] = ip.zncc,
-    ) -> Iterator[tuple[ip.ImgArray, _V]]:
-        if mask is None:
-            mask = 1.0
-        ref_masked = ref * mask
-        iterator = self._iter_chunks()
-        for subvols in iterator:
-            for subvol in subvols:
-                corr = corr_func(subvol*mask, ref_masked)
-                yield subvol, corr
     
     def map(self, f: Callable[_P, _V], *args, **kwargs) -> Iterator[_V]:
         fp = partial(f, *args, **kwargs)
@@ -351,7 +336,7 @@ class SubtomogramLoader(Generic[_V]):
             if inp.is_single_template:
                 for i, subvol in enumerate(self.iter_subtomograms()):
                     local_shifts[i, :], corr_max[i] = align_func(
-                        subvol, cutoff, mask, template_input, _max_shifts_px
+                        subvol, inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
                     
                     if i % nbatch == nbatch - 1:
@@ -362,7 +347,7 @@ class SubtomogramLoader(Generic[_V]):
             else:
                 for i, subvol in enumerate(self.iter_subtomograms()):
                     iopt, local_shifts[i, :], corr_max[i] = align_func(
-                        subvol, cutoff, mask, template_input, _max_shifts_px
+                        subvol, inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
                     local_rot[i, :] = inp.quaternions[iopt]
                     if i % nbatch == nbatch - 1:
@@ -444,7 +429,7 @@ class SubtomogramLoader(Generic[_V]):
             if inp.is_single_template:
                 for i, subvol in enumerate(all_subvols):
                     local_shifts[i], corr_max[i] = align_func(
-                        subvol, template_input, upsample_factor=20, max_shifts=_max_shifts_px
+                        subvol, inp.cutoff, inp.max, template_input, _max_shifts_px
                     )
                     
                     if i % nbatch == nbatch - 1:
@@ -455,7 +440,7 @@ class SubtomogramLoader(Generic[_V]):
             else:
                 for i, subvol_set in enumerate(all_subvols):
                     iopt, local_shifts[i, :] = align_func(
-                        subvol_set, cutoff, mask, template_input, _max_shifts_px
+                        subvol_set, inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
                     local_rot[i, :] = rots[iopt]
                     if i % nbatch == nbatch - 1:
@@ -626,22 +611,22 @@ class SubtomogramLoader(Generic[_V]):
         mask: ip.ImgArray = None,
         properties=(ip.zncc,),
         nbatch: int = 24,
-    ):
-        results = [[]] * len(properties)
+    ) -> Generator[None, None, pd.DataFrame]:
+        results = {f.__name__: np.zeros(len(self), dtype=np.float32) for f in properties}
         n = 0
         if mask is None:
             mask = 1
         template_masked = template * mask
         with ip.silent():
-            for subvol in self.iter_subtomograms():
-                for _idx_prop, _prop in enumerate(properties):
+            for i, subvol in enumerate(self.iter_subtomograms()):
+                for _prop in properties:
                     prop = _prop(subvol*mask, template_masked)
-                    results[_idx_prop].append(prop)
+                    results[_prop.__name__][i] = prop
                 n += 1
                 if n % nbatch == nbatch - 1:
                     yield
-
-        return results
+        
+        return pd.DataFrame(results)
         
     def iter_each_seam(
         self,
@@ -702,37 +687,36 @@ class SubtomogramLoader(Generic[_V]):
     def iter_average_split(
         self, 
         *,
+        n_set: int = 1,
         seed: int | float | str | bytes | bytearray | None = 0,
     ):
         np.random.seed(seed)
         try:
-            sum0 = np.zeros(self.output_shape, dtype=np.float32)
-            sum1 = np.zeros(self.output_shape, dtype=np.float32)
-            
+            sum_images = np.zeros((n_set, 2) + self.output_shape, dtype=np.float32)
             res = 0
             for subvols in self._iter_chunks():
-                np.random.shuffle(subvols)
                 lc, res = divmod(len(subvols) + res, 2)
-                sum0[:] += sum(subvols[:lc])
-                sum1[:] += sum(subvols[lc:])
-                yield sum0, sum1
+                for i_set in range(n_set):
+                    np.random.shuffle(subvols)
+                    sum_images[i_set, 0] += np.sum(subvols[:lc], axis=0)
+                    sum_images[i_set, 1] += np.sum(subvols[lc:], axis=0)
+                yield sum_images
         finally:
             np.random.seed(None)
         
-        img0 = ip.asarray(sum0, axes="zyx")
-        img1 = ip.asarray(sum1, axes="zyx")
-        img0.set_scale(self.image_ref)
-        img1.set_scale(self.image_ref)
+        img = ip.asarray(sum_images, axes="pqzyx")
+        img.set_scale(self.image_ref)
         
-        return img0, img1
+        return img
     
     def average_split(
         self, 
         *,
+        n_set: int = 1,
         seed: int | float | str | bytes | bytearray | None = 0,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> tuple[ip.ImgArray, ip.ImgArray]:
-        it = self.iter_average_split(seed=seed)
+        it = self.iter_average_split(n_set=n_set, seed=seed)
         return self._resolve_iterator(it, callback)
         
     
@@ -740,20 +724,25 @@ class SubtomogramLoader(Generic[_V]):
         self,
         mask: ip.ImgArray | None = None,
         seed: int | float | str | bytes | bytearray | None = 0,
+        n_set: int = 1,
         dfreq: float = 0.05,
-        ) -> tuple[np.ndarray, np.ndarray]:
+        ) -> pd.DataFrame:
         
         if mask is None:
             mask = 1
         else:
             self._check_shape(mask, "mask")
         
-        img0, img1 = self.average_split(seed=seed)
-        
+        img = self.average_split(n_set=n_set, seed=seed)
+        fsc_all: dict[str, np.ndarray] = {}
         with ip.silent():
-            freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+            for i in range(n_set):
+                img0, img1 = img[i]
+                freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+                fsc_all[f"FSC-{i}"] = fsc
         
-        return freq, fsc
+        df = pd.DataFrame({"freq": freq})
+        return df.update(fsc_all)
     
     def get_classifier(
         self,

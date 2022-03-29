@@ -1,7 +1,15 @@
 import os
 from pathlib import Path
 from magicgui.widgets import ProgressBar, Slider
-from magicclass import magicclass, MagicTemplate, set_options, field, vfield, do_not_record
+from magicclass import (
+    magicclass,
+    MagicTemplate,
+    set_options,
+    field,
+    vfield,
+    do_not_record,
+    set_design,
+)
 from magicclass.qthreading import thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 import numpy as np
@@ -65,8 +73,9 @@ class ImageProcessor(MagicTemplate):
     
     @thread_worker(progress={"desc": "Converting data type."})
     @set_options(dtype={"choices": ["int8", "uint8", "uint16", "float32"]})
+    @set_design(text="Convert dtype")
     @do_not_record
-    def Convert_dtype(self, dtype):
+    def convert_dtype(self, dtype):
         """Convert data type of the input image."""
         img = self._imread(self.input_image)
         out = img.as_img_type(dtype)
@@ -74,7 +83,8 @@ class ImageProcessor(MagicTemplate):
         return None
     
     @thread_worker(progress={"desc": "Inverting image."})
-    def Invert(self):
+    @set_design(text="Invert")
+    def invert(self):
         """Invert intensity of the input image."""
         img = self._imread(self.input_image)
         out = -img
@@ -82,11 +92,12 @@ class ImageProcessor(MagicTemplate):
         return None
     
     @thread_worker(progress={"desc": "Low-pass filtering."})
+    @set_design(text="Low-pass filter")
     @set_options(
         cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
         order={"max": 20,}
     )
-    def Lowpass_filter(self, cutoff: float, order: int = 2):
+    def lowpass_filter(self, cutoff: float, order: int = 2):
         """Apply Butterworth's low-pass filter to the input image."""
         img = self._imread(self.input_image)
         out = img.tiled_lowpass_filter(cutoff, overlap=32, order=order)
@@ -94,7 +105,8 @@ class ImageProcessor(MagicTemplate):
             out.imsave(self.output_image)
         return None
     
-    def Preview(self):
+    @set_design(text="Preview")
+    def preview(self):
         """Open a preview of the input image."""
         self._preview.show()
         self._preview._load_image(self.input_image)
