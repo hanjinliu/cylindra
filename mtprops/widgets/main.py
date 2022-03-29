@@ -174,8 +174,13 @@ class MTPropsWidget(MagicTemplate):
     @magicmenu
     class Others(MagicTemplate):
         """Other menus."""
-        def Show_macro(self): ...
-        def Show_full_macro(self): ...
+        @magicmenu
+        class Macro:
+            def Run_file(self): ...
+            sep0 = field(Separator)
+            def Show_macro(self): ...
+            def Show_full_macro(self): ...
+            def Show_native_macro(self): ...
         Global_variables = GlobalVariables
         def Clear_cache(self): ...
         def Open_help(self): ...
@@ -470,26 +475,53 @@ class MTPropsWidget(MagicTemplate):
         help.show()
         return None
     
-    def _get_macro_object(self):
+    def _format_macro(self, macro: mk.Macro = None):
+        if macro is None:
+            macro = self.macro
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
-        return self.macro.format([(mk.symbol(self.parent_viewer), v)])
+        return macro.format([(mk.symbol(self.parent_viewer), v)])
     
-    @Others.wraps
+    @Others.Macro.wraps
+    @set_options(path={"filter": "Python (*.py);;All files (*)"})
+    @do_not_record
+    def Run_file(self, path: Path):
+        """Run a Python script file."""
+        with open(path, mode="r") as f:
+            txt = f.read()
+        macro = mk.parse(txt)
+        _ui = str(str(mk.symbol(self)))
+        with self.macro.blocked():
+            self._format_macro(macro).eval({}, {_ui: self})
+        self.macro.extend(macro.args)
+        return None
+        
+    @Others.Macro.wraps
     @do_not_record
     def Show_macro(self):
         """Create Python executable script of the current project."""
         new = self.macro.widget.new()
-        new.value = str(self._get_macro_object()[self._macro_offset:])
+        new.value = str(self._format_macro()[self._macro_offset:])
         new.show()
         return None
     
-    @Others.wraps
+    @Others.Macro.wraps
     @do_not_record
     def Show_full_macro(self):
         """Create Python executable script since the startup this time."""
         new = self.macro.widget.new()
-        new.value = str(self._get_macro_object())
+        new.value = str(self._format_macro())
         new.show()
+        return None
+    
+    @Others.Macro.wraps
+    @do_not_record
+    def Show_native_macro(self):
+        """
+        Show the native macro widget of magic-class, which is always synchronized but
+        is not editable.
+        """
+        self.macro.widget.textedit.read_only = True
+        self.macro.widget.show()
         return None
     
     @Others.wraps
@@ -774,7 +806,7 @@ class MTPropsWidget(MagicTemplate):
         
         # Save path of macro
         macro_path = results_dir / "script.py"
-        macro_str = str(self.macro[self._macro_offset:])
+        macro_str = str(self._format_macro(self.macro[self._macro_offset:]))
         
         from datetime import datetime
         
