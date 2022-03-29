@@ -107,7 +107,25 @@ def transform_molecules(
     """Shift and rotate molecules around their own coordinate."""
     from scipy.spatial.transform import Rotation
     shift_corrected = Rotation.from_rotvec(rotvec).apply(shift)
-    return molecules.translate_internal(shift_corrected).rotate_by_rotvec_internal(rotvec)
+    return (
+        molecules
+        .translate_internal(shift_corrected)
+        .rotate_by_rotvec_internal(rotvec)
+    )
+
+def transform_molecules_inv(
+    molecules: Molecules, 
+    shift: ArrayLike, 
+    rotvec: ArrayLike, 
+):
+    """Shift and rotate molecules around their own coordinate. Inverse mapping."""
+    from scipy.spatial.transform import Rotation
+    shift_corrected = Rotation.from_rotvec(rotvec).apply(shift, inverse=True)
+    return (
+        molecules
+        .rotate_by_rotvec_internal(-rotvec)
+        .translate_internal(shift_corrected)
+    )
 
 def get_alignment_function(
     method: str = "pcc",
