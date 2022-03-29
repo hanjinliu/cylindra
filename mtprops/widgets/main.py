@@ -61,7 +61,7 @@ from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
-from .feature_control import FeatureControl
+from .feature_control import FeatureControl, FeatureViewer
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
 from .project_editor import SubtomogramAveragingProjectEditor
@@ -93,6 +93,7 @@ class MTPropsWidget(MagicTemplate):
     _WorkerControl = field(WorkerControl, name="Worker control")
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
+    _FeatureViewer = field(FeatureViewer, name="Monomer feature viewer")
     _FeatureControl = field(FeatureControl, name="Feature Control")
     _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
@@ -157,7 +158,7 @@ class MTPropsWidget(MagicTemplate):
         def Calculate_intervals(self): ...
         def Open_feature_control(self): ...
         sep0 = field(Separator)
-        def Split(self): ...
+        def Open_feature_viewer(self): ...
         
     @magicmenu
     class Analysis(MagicTemplate):
@@ -689,7 +690,8 @@ class MTPropsWidget(MagicTemplate):
             if splines:
                 self.tomogram._splines = splines
                 self._update_splines_in_images()
-                self.Sample_subtomograms()
+                with self.macro.blocked():
+                    self.Sample_subtomograms()
             
             # load molecules
             from scipy.spatial.transform import Rotation
@@ -702,7 +704,8 @@ class MTPropsWidget(MagicTemplate):
             
             # load global variables
             if project.global_variables:
-                self.Others.Global_variables.Load_variables(project.global_variables)
+                with self.macro.blocked():
+                    self.Others.Global_variables.Load_variables(project.global_variables)
             
             # load subtomogram analyzer state
             self._subtomogram_averaging.template_path = project.template_image or ""
@@ -1647,31 +1650,10 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules_.wraps
-    @set_options(method={"choices": ["residue", "each", "divide"]})
-    def Split(
-        self,
-        layer: MonomerLayer,
-        method: str = "residue",
-        n_group: int = 2,
-    ):
-        mole: Molecules = layer.metadata[MOLECULES]
-        nmole = len(mole)
-        if method == "residue":
-            slices = [slice(i, None, n_group) for i in range(n_group)]
-        elif method == "each":
-            _id = np.arange(nmole, dtype=np.uint16)
-            slices = [_id % n_group == i for i in range(n_group)]
-        elif method == "divide":
-            borders = np.linspace(0, nmole, n_group + 1).astype(np.uint16)
-            slices = [slice(borders[i], borders[i+1]) for i in range(n_group)]
-        else:
-            raise ValueError(f"{method} is not supported.")
-        
-        for i, sl in enumerate(slices):
-            mol = mole.subset(sl)
-            add_molecules(self.parent_viewer, mol, name=f"{layer.name}-G{i:0>2}")
-        layer.visible = False
-        self._need_save = True
+    @do_not_record
+    def Open_feature_viewer(self):
+        self._FeatureViewer.show()
+        self._FeatureViewer._update_table_force()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -2030,6 +2012,10 @@ class MTPropsWidget(MagicTemplate):
         order: int,
         chunk_size: int,
     ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[ip.ImgArray, None]]:
+        """
+        Returns proper subtomogram loader, template image and mask image that matche the 
+        bin size.
+        """
         shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=binsize, order=order, chunksize=chunk_size
@@ -2037,7 +2023,9 @@ class MTPropsWidget(MagicTemplate):
         if binsize > 1:
             binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
             with ip.silent():
-                if isinstance(template, list):
+                if template is None:
+                    pass
+                elif isinstance(template, list):
                     template = [tmp.binning(binsize, check_edges=False) for tmp in template]
                 else:
                     template = template.binning(binsize, check_edges=False)
@@ -2248,24 +2236,22 @@ class MTPropsWidget(MagicTemplate):
         self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
         self._need_save = True
         return worker
-
+    
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
-        other_templates={"filter": FileFilter.IMAGE},
         cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
-        z_rotation={"options": {"max": 5.0, "step": 0.1}},
-        y_rotation={"options": {"max": 5.0, "step": 0.1}},
-        x_rotation={"options": {"max": 5.0, "step": 0.1}},
+        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        z_rotation={"options": {"max": 90.0, "step": 0.1}},
+        y_rotation={"options": {"max": 180.0, "step": 0.1}},
+        x_rotation={"options": {"max": 180.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
     )
     @dispatch_worker
-    def Multi_template_alignment(
+    def Align_all_without_template(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        other_templates: List[Path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: _Tuple[float, float] = (0., 0.),
@@ -2273,6 +2259,7 @@ class MTPropsWidget(MagicTemplate):
         x_rotation: _Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
+        method: str = "pcc",
         bin_size: int = 1,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2281,10 +2268,6 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        template_path : Path or str
-            Template image path.
-        other_templates : list of Path or str
-            Path to other template images.
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
@@ -2302,41 +2285,34 @@ class MTPropsWidget(MagicTemplate):
             Interpolation order.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
-        chunk_size : int, default is 200
+        chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
         """
         
         molecules = layer.metadata[MOLECULES]
-        templates = [self._subtomogram_averaging._get_template(path=template_path)]
-        with ip.silent():
-            for path in other_templates:
-                img = ip.imread(path)
-                scale_ratio = img.scale.x / self.tomogram.scale
-                if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                    img = img.rescale(scale_ratio)
-                templates.append(img)
-        
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
         nmole = len(molecules)
-        loader, templates, mask = self._check_binning_for_alignment(
-            templates,
-            mask,
+        
+        loader, _, _ = self._check_binning_for_alignment(
+            None, 
+            None, 
             binsize=bin_size,
-            molecules=molecules, 
+            molecules=molecules,
             order=interpolation,
-            chunk_size=chunk_size,
+            chunk_size=chunk_size
         )
         nbatch = 24
         worker = create_worker(
-            loader.iter_align_multi_templates,
-            templates=templates, 
-            mask=mask,
+            loader.iter_align_no_template,
+            mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             nbatch=nbatch,
+            method=method,
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
+        
+        self.Panels.log.print_html(f"<code>Align_all</code>")
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
@@ -2346,12 +2322,119 @@ class MTPropsWidget(MagicTemplate):
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
             )
             points.features = layer.features
-            update_features(points, aligned_loader.features)
             layer.visible = False
+            features = aligned_loader.features
+            if features.size > 0:
+                update_features(points, features)
+            self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
                 
-        self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
+        self._WorkerControl.info = f"Aligning subtomograms withou template (n = {nmole})"
         self._need_save = True
         return worker
+
+    # @_subtomogram_averaging.Refinement.wraps
+    # @set_options(
+    #     other_templates={"filter": FileFilter.IMAGE},
+    #     cutoff={"max": 1.0, "step": 0.05},
+    #     max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+    #     z_rotation={"options": {"max": 5.0, "step": 0.1}},
+    #     y_rotation={"options": {"max": 5.0, "step": 0.1}},
+    #     x_rotation={"options": {"max": 5.0, "step": 0.1}},
+    #     interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+    #     bin_size={"choices": _get_available_binsize},
+    # )
+    # @dispatch_worker
+    # def Multi_template_alignment(
+    #     self,
+    #     layer: MonomerLayer,
+    #     template_path: Bound[_subtomogram_averaging.template_path],
+    #     other_templates: List[Path],
+    #     mask_params: Bound[_subtomogram_averaging._get_mask_params],
+    #     max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
+    #     z_rotation: _Tuple[float, float] = (0., 0.),
+    #     y_rotation: _Tuple[float, float] = (0., 0.),
+    #     x_rotation: _Tuple[float, float] = (0., 0.),
+    #     cutoff: float = 0.5,
+    #     interpolation: int = 1,
+    #     bin_size: int = 1,
+    #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+    # ):
+    #     """
+    #     Align all the molecules for subtomogram averaging.
+        
+    #     Parameters
+    #     ----------
+    #     template_path : Path or str
+    #         Template image path.
+    #     other_templates : list of Path or str
+    #         Path to other template images.
+    #     mask_params : str or (float, float), optional
+    #         Mask image path or dilation/Gaussian blur parameters. If a path is given,
+    #         image must in the same shape as the template.
+    #     max_shifts : int or tuple of int, default is (1., 1., 1.)
+    #         Maximum shift between subtomograms and template in nm. ZYX order.
+    #     z_rotation : tuple of float, optional
+    #         Rotation in external degree around z-axis.
+    #     y_rotation : tuple of float, optional
+    #         Rotation in external degree around y-axis.
+    #     x_rotation : tuple of float, optional
+    #         Rotation in external degree around x-axis.
+    #     cutoff : float, default is 0.5
+    #         Cutoff frequency of low-pass filter applied in each subtomogram.
+    #     interpolation : int, default is 1
+    #         Interpolation order.
+    #     bin_size : int, default is 1
+    #         Set to >1 if you want to use binned image to boost image analysis.
+    #     chunk_size : int, default is 200
+    #         How many subtomograms will be loaded at the same time.
+    #     """
+        
+    #     molecules = layer.metadata[MOLECULES]
+    #     templates = [self._subtomogram_averaging._get_template(path=template_path)]
+    #     with ip.silent():
+    #         for path in other_templates:
+    #             img = ip.imread(path)
+    #             scale_ratio = img.scale.x / self.tomogram.scale
+    #             if scale_ratio < 0.99 or 1.01 < scale_ratio:
+    #                 img = img.rescale(scale_ratio)
+    #             templates.append(img)
+        
+    #     mask = self._subtomogram_averaging._get_mask(params=mask_params)
+    #     nmole = len(molecules)
+    #     loader, templates, mask = self._check_binning_for_alignment(
+    #         templates,
+    #         mask,
+    #         binsize=bin_size,
+    #         molecules=molecules, 
+    #         order=interpolation,
+    #         chunk_size=chunk_size,
+    #     )
+    #     nbatch = 24
+    #     worker = create_worker(
+    #         loader.iter_align_multi_templates,
+    #         templates=templates, 
+    #         mask=mask,
+    #         max_shifts=max_shifts,
+    #         rotations=(z_rotation, y_rotation, x_rotation),
+    #         cutoff=cutoff,
+    #         nbatch=nbatch,
+    #         _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
+    #     )
+                    
+    #     @worker.returned.connect
+    #     def _on_return(aligned_loader: SubtomogramLoader):
+    #         points = add_molecules(
+    #             self.parent_viewer, 
+    #             aligned_loader.molecules,
+    #             name=_coerce_aligned_name(layer.name, self.parent_viewer),
+    #         )
+    #         points.features = layer.features
+    #         update_features(points, aligned_loader.features)
+    #         layer.visible = False
+                
+    #     self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
+    #     self._need_save = True
+    #     return worker
 
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
