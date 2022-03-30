@@ -182,32 +182,6 @@ def align_subvolume_pcc(
         )
     return shift, pcc
 
-def align_subvolume_list(
-    subvol_set: Iterable[ip.ImgArray],
-    cutoff: float,
-    mask: ip.ImgArray,
-    template: ip.ImgArray,
-    max_shift: tuple[int, int, int],
-) -> tuple[int, np.ndarray, float]:
-    all_shifts: list[np.ndarray] = []
-    all_zncc: list[float] = []
-    with ip.silent(), set_gpu():
-        for subvol in subvol_set:
-            subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-            input = subvol_filt * mask
-            shift, zncc = ip.zncc_maximum_with_corr(
-                input,
-                template, 
-                upsample_factor=20, 
-                max_shifts=max_shift,
-            )
-            all_shifts.append(shift)
-            all_zncc.append(zncc)
-    
-    iopt = np.argmax(all_zncc)
-    return iopt, all_shifts[iopt], all_zncc[iopt]
-
-
 def align_subvolume_multitemplates_pcc(
     subvol: ip.ImgArray,
     cutoff: float,

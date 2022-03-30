@@ -98,6 +98,14 @@ class MTPropsWidget(MagicTemplate):
     _FeatureControl = field(FeatureControl, name="Feature Control")
     _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
+    @magicclass(labels=False, name="Logger")
+    class _LoggerWindow(MagicTemplate):
+        log = field(Logger, name="Log")
+    
+    @property
+    def log(self):
+        return self._LoggerWindow.log
+    
     @magicmenu
     class File(MagicTemplate):
         """File I/O."""  
@@ -182,6 +190,7 @@ class MTPropsWidget(MagicTemplate):
             def show_full_macro(self): ...
             def show_native_macro(self): ...
         Global_variables = GlobalVariables
+        def open_logger(self): ...
         def clear_cache(self): ...
         def open_help(self): ...
         def restore_layers(self): ...
@@ -209,12 +218,7 @@ class MTPropsWidget(MagicTemplate):
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
     
-    @magicclass(widget_type="tabbed", labels=False)
-    class Panels(MagicTemplate):
-        """Panels for output."""
-        overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
-        image2D = field(QtImageCanvas, options={"tooltip": "2-D image viewer."})
-        log = field(Logger, name="Log")
+    overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
     
     ### methods ###
     
@@ -234,7 +238,7 @@ class MTPropsWidget(MagicTemplate):
         self.min_width = 400
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
-        self.Panels.min_height = 300
+        self.overview.min_height = 300
         
         # automatically set scale and binsize
         mgui = get_function_gui(self, "open_image")
@@ -434,7 +438,7 @@ class MTPropsWidget(MagicTemplate):
                     if global_props:
                         df = self.tomogram.collect_globalprops(i=splines).transpose()
                         df.columns = [f"Spline-{i}" for i in splines]
-                        self.Panels.log.print_table(df, precision=3)
+                        self.log.print_table(df, precision=3)
                 if local_props and paint:
                     self.paint_mt()
                 tomo.metadata["ft_size"] = self._current_ft_size
@@ -460,7 +464,7 @@ class MTPropsWidget(MagicTemplate):
         """Clear all the splines and results."""
         self._init_widget_state()
         self._init_layers()
-        self.Panels.overview.layers.clear()
+        self.overview.layers.clear()
         self.tomogram.clear_cache()
         self.tomogram.splines.clear()
         self._need_save = False
@@ -530,6 +534,13 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Others.wraps
+    @set_design(text="Open logger")
+    def open_logger(self):
+        """Open logger window."""
+        self._LoggerWindow.show()
+        return None
+
+    @Others.wraps
     @set_design(text="Clear cache")
     @confirm(text="Are you sure to clear cache?\nYou cannot undo this.")
     def clear_cache(self):
@@ -598,15 +609,15 @@ class MTPropsWidget(MagicTemplate):
         # update overview
         with ip.silent():
             proj = imgb.proj("z")
-        self.Panels.overview.image = proj
-        self.Panels.overview.ylim = (0, proj.shape[0])
+        self.overview.image = proj
+        self.overview.ylim = (0, proj.shape[0])
         
         try:
             parts = tomo.source.parts
             _name = os.path.join(*parts[-2:])
         except Exception:
             _name = f"Tomogram<{hex(id(tomo))}>"
-        self.Panels.log.print_html(f"<h2>{_name}</h2>")
+        self.log.print_html(f"<h2>{_name}</h2>")
         return None
         
     @File.wraps
@@ -983,8 +994,8 @@ class MTPropsWidget(MagicTemplate):
             self.layer_image.contrast_limits = contrast_limits
             with ip.silent():
                 proj = self.layer_image.data.proj("z")
-            self.Panels.overview.image = proj
-            self.Panels.overview.contrast_limits = contrast_limits
+            self.overview.image = proj
+            self.overview.contrast_limits = contrast_limits
         
         return worker
     
@@ -1024,7 +1035,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
         self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
         with ip.silent():
-            self.Panels.overview.image = imgb.proj("z")
+            self.overview.image = imgb.proj("z")
         self.layer_image.metadata["current_binsize"] = bin_size
         return None
         
@@ -1085,27 +1096,23 @@ class MTPropsWidget(MagicTemplate):
         with ip.silent():
             polar = self._current_cylindrical_img().proj("r")
         
-        self.Panels.image2D.image = polar.value
-        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        # move to center
-        ly, lx = polar.shape
-        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
-        self.Panels.current_index = 1
+        canvas = QtImageCanvas()
+        canvas.image = polar.value
+        canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        canvas.show()
         return None
     
     @Image.Cylindric.wraps
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
-        i = self.SplineControl.num
+        i: int = self.SplineControl.num
         with ip.silent():
             polar = self.tomogram.straighten_cylindric(i).proj("r")
-        self.Panels.image2D.image = polar.value
-        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
-        # move to center
-        ly, lx = polar.shape
-        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
-        self.Panels.current_index = 1
+        canvas = QtImageCanvas()
+        canvas.image = polar.value
+        canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        canvas.show()
         return None
     
     @Image.Cylindric.wraps
@@ -1117,14 +1124,10 @@ class MTPropsWidget(MagicTemplate):
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
         
-        if self.Panels.image2D.image is None:
-            self.Panels.image2D.contrast_limits = np.percentile(pw, [0, 75])
-        self.Panels.image2D.image = pw.value
-        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        # move to center
-        ly, lx = pw.shape
-        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
-        self.Panels.current_index = 1
+        canvas = QtImageCanvas()
+        canvas.image = pw.value
+        canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
+        canvas.show()
         return None
     
     @Image.Cylindric.wraps
@@ -1134,16 +1137,12 @@ class MTPropsWidget(MagicTemplate):
         with ip.silent():
             polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-            pw /= pw.max()
-            
-        if self.Panels.image2D.image is None:
-            self.Panels.image2D.contrast_limits = np.percentile(pw, [0, 75])
-        self.Panels.image2D.image = pw.value
-        self.Panels.image2D.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
-        # move to center
-        ly, lx = pw.shape
-        self.Panels.image2D.xlim = [lx*0.3, lx*0.7]
-        self.Panels.current_index = 1
+            pw = pw.max()
+        
+        canvas = QtImageCanvas()
+        canvas.image = pw.value
+        canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
+        canvas.show()
         return None
     
     @Splines.wraps
@@ -1463,7 +1462,7 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(out: List[Molecules]):
-            self.Panels.log.print_html("<code>Map_monomers</code>")
+            self.log.print_html("<code>Map_monomers</code>")
             for i, mol in enumerate(out):
                 _name = f"Mono-{i}"
                 spl = tomo.splines[splines[i]]
@@ -1476,7 +1475,7 @@ class MTPropsWidget(MagicTemplate):
                         "These molecules may not work in some analysis."
                     )
                 update_features(layer, {Mole.pf: np.arange(len(mol), dtype=np.uint32) % npf})
-                self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
+                self.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
         self._need_save = True
@@ -1568,11 +1567,11 @@ class MTPropsWidget(MagicTemplate):
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
-        self.Panels.log.print_html("<code>Map_centers</code>")
+        self.log.print_html("<code>Map_centers</code>")
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
             add_molecules(self.parent_viewer, mol, _name)
-            self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
+            self.log.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return None
     
@@ -1603,11 +1602,11 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
-        self.Panels.log.print_html("<code>Map_along_PF</code>")
+        self.log.print_html("<code>Map_along_PF</code>")
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
             add_molecules(self.parent_viewer, mol, _name)
-            self.Panels.log.print(f"{_name!r}: n = {len(mol)}")
+            self.log.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return None
 
@@ -1701,7 +1700,7 @@ class MTPropsWidget(MagicTemplate):
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
         start = y_coords_to_start_number(u, npf)
-        self.Panels.log.print(f"Predicted geometry of {layer.name}: {npf}_{start}")
+        self.log.print(f"Predicted geometry of {layer.name}: {npf}_{start}")
         y_interval = interval_filter(
             pos,
             spl_vec,
@@ -2230,7 +2229,7 @@ class MTPropsWidget(MagicTemplate):
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
         
-        self.Panels.log.print_html(f"<code>Align_averaged</code>")
+        self.log.print_html(f"<code>Align_averaged</code>")
         
         @worker.returned.connect
         def _on_return(image_avg: ip.ImgArray):
@@ -2253,7 +2252,7 @@ class MTPropsWidget(MagicTemplate):
             shift_nm = shift * img.scale
             vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
             shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-            self.Panels.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
+            self.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
             points = add_molecules(
                 self.parent_viewer, 
                 transform_molecules(molecules, shift_nm, [0, -rot, 0]),
@@ -2262,7 +2261,7 @@ class MTPropsWidget(MagicTemplate):
             points.features = layer.features
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
             layer.visible = False
-            self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
+            self.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
         self._need_save = True
@@ -2351,7 +2350,7 @@ class MTPropsWidget(MagicTemplate):
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
         
-        self.Panels.log.print_html(f"<code>Align_all</code>")
+        self.log.print_html(f"<code>Align_all</code>")
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
@@ -2365,7 +2364,7 @@ class MTPropsWidget(MagicTemplate):
             features = aligned_loader.features
             if features.size > 0:
                 update_features(points, features)
-            self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
+            self.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
         self._need_save = True
@@ -2447,7 +2446,7 @@ class MTPropsWidget(MagicTemplate):
             _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
         
-        self.Panels.log.print_html(f"<code>Align_all</code>")
+        self.log.print_html(f"<code>Align_all</code>")
                     
         @worker.returned.connect
         def _on_return(aligned_loader: SubtomogramLoader):
@@ -2461,7 +2460,7 @@ class MTPropsWidget(MagicTemplate):
             features = aligned_loader.features
             if features.size > 0:
                 update_features(points, features)
-            self.Panels.log.print(f"{layer.name!r} --> {points.name!r}")
+            self.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms withou template (n = {nmole})"
         self._need_save = True
@@ -2611,7 +2610,7 @@ class MTPropsWidget(MagicTemplate):
         
         @worker.returned.connect
         def _on_return(corr):
-            with self.Panels.log.set_plt(rc_context={"font.size": 15}):
+            with self.log.set_plt(rc_context={"font.size": 15}):
                 plt.hist(corr, bins=50)
                 plt.title("Zero Normalized Cross Correlation")
                 plt.xlabel("Correlation")
@@ -2619,6 +2618,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.tight_layout()
                 plt.show()
             update_features(layer, {Mole.zncc: corr})
+            self.log.show()
         
         self._WorkerControl.info = "Calculating Correlation"
         self._need_save = True
@@ -2706,8 +2706,8 @@ class MTPropsWidget(MagicTemplate):
             crit_0143 = 0.143
             crit_0500 = 0.500
             
-            self.Panels.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
-            with self.Panels.log.set_plt(rc_context={"font.size": 15}):
+            self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
+            with self.log.set_plt(rc_context={"font.size": 15}):
                 _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
             
             resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
@@ -2715,8 +2715,9 @@ class MTPropsWidget(MagicTemplate):
             str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
             str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
             
-            self.Panels.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
-            self.Panels.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
+            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
+            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
+            self.log.show()
         
         self._WorkerControl.info = "Calculating FSC ..."
         self._need_save = True
@@ -2791,14 +2792,15 @@ class MTPropsWidget(MagicTemplate):
             imax = np.argmax(score)
                 
             # plot all the correlation
-            self.Panels.log.print_html("<code>Seam_search</code>")
-            with self.Panels.log.set_plt(rc_context={"font.size": 15}):
+            self.log.print_html("<code>Seam_search</code>")
+            with self.log.set_plt(rc_context={"font.size": 15}):
                 _plot_seam_search_result(corrs, score, npf)
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
             
             update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
+            self.log.show()
             
         self._WorkerControl.info = "Seam search ... "
         self._need_save = True
@@ -3124,11 +3126,12 @@ class MTPropsWidget(MagicTemplate):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         xmin, xmax = self.label_colorlimit
-        with self.Panels.log.set_plt(rc_context={"font.size": 15}):
+        with self.log.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
             plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])
             plt.show()
+        self.log.show()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -3138,9 +3141,23 @@ class MTPropsWidget(MagicTemplate):
     @nogui
     @do_not_record
     def get_molecules(self, name: str = None) -> Molecules:
-        """Retrieve Molecules object from layer list."""
+        """
+        Retrieve Molecules object from layer list.
+
+        Parameters
+        ----------
+        name : str, optional
+            Name of the molecules layer. If not given, the most recent molecules object
+            will be returned.
+        
+        Returns
+        -------
+        Molecules
+            The ``Molecules`` object.
+        """
         if name is None:
-            for layer in self.parent_viewer.layers:
+            # Return the most recent molecules object
+            for layer in reversed(self.parent_viewer.layers):
                 if MOLECULES in layer.metadata.keys():
                     name = layer.name
                     break
@@ -3177,9 +3194,10 @@ class MTPropsWidget(MagicTemplate):
     
     @nogui
     @do_not_record
-    def get_current_spline(self) -> MtSpline:
+    def get_spline(self, i: int = None) -> MtSpline:
         tomo = self.tomogram
-        i = self.SplineControl.num
+        if i is None:
+            i = self.SplineControl.num
         return tomo.splines[i]
     
     def _update_colormap(self, prop: str = H.yPitch):
@@ -3343,7 +3361,7 @@ class MTPropsWidget(MagicTemplate):
         if i is None:
             return
         
-        for layer in self.Panels.overview.layers:
+        for layer in self.overview.layers:
             if f"spline-{i}" in layer.name:
                 layer.color = "red"
             else:
@@ -3401,12 +3419,12 @@ class MTPropsWidget(MagicTemplate):
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
-        self.Panels.overview.add_curve(
+        self.overview.add_curve(
             fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",)
         return None
     
     def _update_splines_in_images(self):
-        self.Panels.overview.layers.clear()
+        self.overview.layers.clear()
         self.layer_prof.data = []
         scale = self.layer_image.scale[0]
         for i, spl in enumerate(self.tomogram.splines):
@@ -3414,7 +3432,7 @@ class MTPropsWidget(MagicTemplate):
             if spl._anchors is None:
                 continue
             coords = spl()
-            self.Panels.overview.add_scatter(
+            self.overview.add_scatter(
                 coords[:, 2]/scale, 
                 coords[:, 1]/scale,
                 color="lime", 
@@ -3489,7 +3507,6 @@ def _iter_run(
             tomo.global_ft_params(i=i_spl)
     yield "Finishing ..."
     return tomo
-
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     num = 1

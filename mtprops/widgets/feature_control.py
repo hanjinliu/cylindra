@@ -77,12 +77,14 @@ class FeatureViewer(MagicTemplate):
         out = eval(expr, {}, {"X": arr, "np": np})
         dfout = df[out]
         self.table.value = dfout
+        return None
     
     @Filter.wraps
     @set_design(text="Resset filter")
     @do_not_record
     def reset_filter(self, layer: Bound[layer]):
         self.table.value = layer.features
+        return None
         
     @Filter.wraps
     @set_design(text="Add filtered molecules")
@@ -103,6 +105,7 @@ class FeatureViewer(MagicTemplate):
         from .main import add_molecules
         expr_str = expr.replace(X, f"'{feature_name}'")
         add_molecules(self.parent_viewer, mole_filt, name=f"{layer.name} ({expr_str})")
+        return mole_filt
         
         
 @magicclass

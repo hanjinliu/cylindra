@@ -28,9 +28,9 @@ def start(
     widget = MTPropsWidget()
     
     logger = logging.getLogger(__name__.split(".")[0])
-    logger.addHandler(widget.Panels.log)
+    logger.addHandler(widget.log)
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
-    widget.Panels.log.setFormatter(formatter)
+    widget.log.setFormatter(formatter)
     logger.setLevel(logging.INFO)
     
     dock = viewer.window.add_dock_widget(

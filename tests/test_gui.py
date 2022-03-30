@@ -71,18 +71,18 @@ def test_spline_switch():
     # switch spline 0 and 1 and check if orientation is correctly set
     ui.SplineControl.num = 0
     ui.SplineControl.set_orientation(i=0, orientation="PlusToMinus")
-    assert ui.get_current_spline().orientation == "PlusToMinus"
+    assert ui.get_spline().orientation == "PlusToMinus"
     assert ui.GlobalProperties.params.params2.polarity.txt == "PlusToMinus"
     ui.SplineControl.num = 1
     ui.SplineControl.set_orientation(i=1, orientation="MinusToPlus")
-    assert ui.get_current_spline().orientation == "MinusToPlus"
+    assert ui.get_spline().orientation == "MinusToPlus"
     assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
     
     ui.SplineControl.num = 0
-    assert ui.get_current_spline().orientation == "PlusToMinus"
+    assert ui.get_spline().orientation == "PlusToMinus"
     assert ui.GlobalProperties.params.params2.polarity.txt == "PlusToMinus"
     ui.SplineControl.num = 1
-    assert ui.get_current_spline().orientation == "MinusToPlus"
+    assert ui.get_spline().orientation == "MinusToPlus"
     assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
     assert_canvas(ui, [False, False, False])
     
@@ -92,14 +92,14 @@ def test_spline_switch():
     ui.SplineControl.num = 0
     ui.SplineControl.pos = 1
     assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_current_spline().localprops[H.yPitch].values[1]:.2f} nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_current_spline().globalprops[H.yPitch]:.2f} nm"
+    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch].values[1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
     
     ui.SplineControl.num = 1
     assert ui.SplineControl.pos == 1
     assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_current_spline().localprops[H.yPitch].values[1]:.2f} nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_current_spline().globalprops[H.yPitch]:.2f} nm"
+    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch].values[1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
     
     assert_canvas(ui, [False, False, False])
 
