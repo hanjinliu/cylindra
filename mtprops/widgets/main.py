@@ -49,14 +49,10 @@ from ..utils import (
     map_coordinates,
     mirror_zncc,
     pad_template, 
-    sheared_convolve,
     roundint,
     ceilint,
     set_gpu
     )
-from ..const import nm, H, Ori, GVar, Mole
-from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
-from ..types import MonomerLayer
 
 from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
@@ -77,6 +73,10 @@ from .widget_utils import (
     coords_to_params,
     get_versions,
 )
+
+from ..const import nm, H, Ori, GVar, Mole
+from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
+from ..types import MonomerLayer
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -217,7 +217,6 @@ class MTPropsWidget(MagicTemplate):
     SplineControl = SplineControl
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
-    
     overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
     
     ### methods ###
@@ -547,6 +546,7 @@ class MTPropsWidget(MagicTemplate):
         """Clear cache stored on the current tomogram."""
         if self.tomogram is not None:
             self.tomogram.clear_cache()
+        return None
     
     @Others.wraps
     @set_design(text="Restore layers")
@@ -2618,7 +2618,7 @@ class MTPropsWidget(MagicTemplate):
                 plt.tight_layout()
                 plt.show()
             update_features(layer, {Mole.zncc: corr})
-            self.log.show()
+            self._LoggerWindow.show()
         
         self._WorkerControl.info = "Calculating Correlation"
         self._need_save = True
@@ -2717,7 +2717,7 @@ class MTPropsWidget(MagicTemplate):
             
             self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
             self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
-            self.log.show()
+            self._LoggerWindow.show()
         
         self._WorkerControl.info = "Calculating FSC ..."
         self._need_save = True
@@ -2800,7 +2800,7 @@ class MTPropsWidget(MagicTemplate):
             self.sub_viewer.layers[-1].metadata["Score"] = score
             
             update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
-            self.log.show()
+            self._LoggerWindow.show()
             
         self._WorkerControl.info = "Seam search ... "
         self._need_save = True
@@ -3131,7 +3131,7 @@ class MTPropsWidget(MagicTemplate):
             plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])
             plt.show()
-        self.log.show()
+        self._LoggerWindow.show()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
