@@ -12,10 +12,27 @@ _CSV_COLUMNS = ["z", "y", "x", "zvec", "yvec", "xvec"]
 
 class Molecules:
     """
-    Object that represents multiple orientation and position of molecules. Orientation
-    is represented by `scipy.spatial.transform.Rotation`. **All the vectors are zyx-order**.
+    Object that represents position- and orientation-defined molecules. 
+    
+    Positions are represented by a (N, 3) ``np.ndarray`` and orientations are represented
+    by a ``scipy.spatial.transform.Rotation`` object. Features of each molecule can also
+    be recorded by the ``features`` property.
+    
+    Parameters
+    ----------
+    pos : ArrayLike
+        Moleculs positions.
+    rot : scipy.spatial.transform.Rotation object
+        Molecule orientations.
+    features : dataframe, optional
+        Molecule features.
     """
-    def __init__(self, pos: np.ndarray, rot: Rotation):
+    def __init__(
+        self,
+        pos: ArrayLike, 
+        rot: Rotation,
+        features: pd.DataFrame | ArrayLike | dict[str, ArrayLike] | None = None
+    ):
         pos = np.atleast_2d(pos)
         
         if pos.shape[1] != 3:
@@ -27,7 +44,8 @@ class Molecules:
                 )
         
         self._pos = pos
-        self._rotator = rot
+        self._rotator = rot   
+        self.features = features
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(n={len(self)})"
@@ -66,11 +84,12 @@ class Molecules:
         pos: np.ndarray,
         angles: np.ndarray, 
         seq: str | EulerAxes = EulerAxes.ZXZ,
-        degrees: bool = False
+        degrees: bool = False,
+        features: pd.DataFrame | None = None,
     ):
         """Create molecules from Euler angles."""
         rotator = from_euler(angles, seq, degrees)
-        return cls(pos, rotator)
+        return cls(pos, rotator, features)
     
     @classmethod
     def from_csv(cls, path: str, **kwargs) -> Molecules:
@@ -84,15 +103,38 @@ class Molecules:
                 UserWarning,
             )
         
-        return cls(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
+        return cls(df.iloc[:, :3], Rotation.from_rotvec(df.iloc[:, 3:6]), features=df.iloc[:, 6:])
     
+    @property
+    def features(self) -> pd.DataFrame:
+        """Molecules features."""
+        if self._features is None:
+            return pd.DataFrame(None)
+        return self._features
+    
+    @features.setter
+    def features(self, value) -> None:
+        if value is None:
+            self._features = None
+        else:
+            df = pd.DataFrame(value)
+            if len(df) != self.pos.shape[0]:
+                raise ValueError(
+                    f"Length mismatch. There are {self.pos.shape[0]} molecules but "
+                    f"{len(df)} features were given."
+                    )
+            self._features = df
+        return None
+
     def to_dataframe(self) -> pd.DataFrame:
         rotvec = self.rotvec()
         data = np.concatenate([self.pos, rotvec], axis=1)
         df = pd.DataFrame(data, columns=_CSV_COLUMNS)
+        if self._features is not None:
+            df = pd.concat([df, self._features], axis=1)
         return df
 
-    def to_csv(self, save_path: str, properties: pd.DataFrame | None = None) -> None:
+    def to_csv(self, save_path: str) -> None:
         """
         Save molecules as a csv file.
 
@@ -100,15 +142,8 @@ class Molecules:
         ----------
         save_path : str
             Save path.
-        properties : pd.DataFrame | None, optional
-            Molecules porperties. Saved in the same csv file from column-7.
         """        
-        df = self.to_dataframe()
-        if properties is not None:
-            if len(properties) != len(self):
-                raise ValueError("Length mismatch between Molecules and properties.")
-            df = pd.concat([df, properties], axis=1)
-        df.to_csv(save_path, index=False)
+        self.to_dataframe().to_csv(save_path, index=False)
         return None
 
     def __len__(self) -> int:
@@ -140,21 +175,32 @@ class Molecules:
 
     @property
     def rotator(self) -> Rotation:
+        """Return ``scipy.spatial.transform.Rotation`` object"""
         return self._rotator
     
     @classmethod
-    def concat(cls, moles: Iterable[Molecules]) -> Molecules:
+    def concat(
+        cls,
+        moles: Iterable[Molecules], 
+        concat_features: bool = True
+    ) -> Molecules:
         """Concatenate Molecules objects."""
         pos: list[np.ndarray] = []
         quat: list[np.ndarray] = []
+        features: list[pd.DataFrame | None] = []
         for mol in moles:
             pos.append(mol.pos)
             quat.append(mol.quaternion())
+            features.append(mol._features)
         
         all_pos = np.concatenate(pos, axis=0)
         all_quat = np.concatenate(quat, axis=0)
+        if concat_features:
+            all_features = pd.concat(features, axis=0)
+        else:
+            all_features = None
         
-        return cls(all_pos, Rotation(all_quat))
+        return cls(all_pos, Rotation(all_quat), features=all_features)
     
     def subset(self, spec: int | slice | list[int] | np.ndarray) -> Molecules:
         """
@@ -180,9 +226,33 @@ class Molecules:
             spec = slice(spec, spec+1)
         pos = self.pos[spec]
         quat = self._rotator.as_quat()[spec]
-        return self.__class__(pos, Rotation(quat))
+        if self._features is None:
+            return self.__class__(pos, Rotation(quat))
+        return self.__class__(pos, Rotation(quat), self._features.iloc[spec, :])
 
-    def affine_matrix(self, src, dst = None, inverse: bool = False):
+    def affine_matrix(
+        self,
+        src: np.ndarray,
+        dst: np.ndarray | None = None,
+        inverse: bool = False
+    ) -> np.ndarray:
+        """
+        Construct affine matrices using positions and angles of molecules.
+
+        Parameters
+        ----------
+        src : np.ndarray
+            Source coordinates.
+        dst : np.ndarray, optional
+            Destination coordinates. By default the coordinates of molecules will be used.
+        inverse : bool, default is False
+            Return inverse mapping if true.
+
+        Returns
+        -------
+        (N, 4, 4) array
+            Array of concatenated affine matrices.
+        """        
         if dst is None:
             dst = self.pos
             
@@ -412,7 +482,10 @@ class Molecules:
         """
         coords = self._pos + shifts
         if copy:
-            out = self.__class__(coords, self._rotator)
+            features = self._features
+            if features is not None:
+                features = features.copy()
+            out = self.__class__(coords, self._rotator, features=features)
         else:
             self._pos = coords
             out = self
@@ -523,11 +596,13 @@ class Molecules:
         return self.rotate_by(rotator, copy)
     
     
-    def rotate_by_euler_angle(self, 
-                              angles: ArrayLike,
-                              seq: str | EulerAxes = EulerAxes.ZXZ,
-                              degrees: bool = False,
-                              copy: bool = True) -> Molecules:
+    def rotate_by_euler_angle(
+        self, 
+        angles: ArrayLike,
+        seq: str | EulerAxes = EulerAxes.ZXZ,
+        degrees: bool = False,
+        copy: bool = True
+    ) -> Molecules:
         """
         Rotate molecules using Euler angles, **with their position unchanged**.
 
@@ -591,7 +666,10 @@ class Molecules:
         """
         rot = rotator * self._rotator
         if copy:
-            out = self.__class__(self._pos, rot)
+            features = self._features
+            if features is not None:
+                features = features.copy()
+            out = self.__class__(self._pos, rot, features=features)
         else:
             self._rotator = rot
             out = self

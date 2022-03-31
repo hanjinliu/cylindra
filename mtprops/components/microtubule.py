@@ -16,7 +16,7 @@ import impy as ip
 from .molecules import Molecules
 from .spline import Spline
 from .tomogram import Tomogram
-from ..const import nm, H, K, Ori, Mode, GVar
+from ..const import Mole, nm, H, K, Ori, Mode, GVar
 from ..utils import (
     crop_tomogram,
     centroid,
@@ -1135,7 +1135,9 @@ class MtTomogram(Tomogram):
         radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
         mesh = np.concatenate([radius_arr, mesh], axis=1)
 
-        return spl.cylindrical_to_molecules(mesh)
+        mole = spl.cylindrical_to_molecules(mesh)
+        mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % npf}
+        return mole
     
     @batch_process
     def map_pf_line(

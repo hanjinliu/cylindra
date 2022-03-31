@@ -66,7 +66,6 @@ class SubtomogramLoader(Generic[_V]):
         output_shape: int | tuple[int, int, int],
         order: int = 1,
         chunksize: int = 1,
-        features: dict[str, np.ndarray] | None = None,
     ) -> None:
         ndim = 3
         if not isinstance(image, (ip.ImgArray, ip.LazyImgArray)):
@@ -85,15 +84,7 @@ class SubtomogramLoader(Generic[_V]):
         else:
             output_shape = tuple(output_shape)
         self._output_shape = output_shape
-        
-        self._features: dict[str, np.ndarray] = {}
-        if features is not None:
-            for k, v in features.items():
-                arr = np.asarray(v)
-                if arr.ndim != 1 or arr.size != len(mole):
-                    raise ValueError("Feature values must be the same length as molecules.")
-                self._features[k] = arr
-            
+                    
     
     def __repr__(self) -> str:
         shape = self.image_ref.shape
@@ -137,10 +128,6 @@ class SubtomogramLoader(Generic[_V]):
     def chunksize(self) -> int:
         """Return the chunk size on subtomogram loading."""
         return self._chunksize
-    
-    @property
-    def features(self) -> pd.DataFrame:
-        return pd.DataFrame(self._features)
 
     def __len__(self) -> int:
         """Return the number of subtomograms."""
@@ -350,15 +337,13 @@ class SubtomogramLoader(Generic[_V]):
                     local_shifts * self.scale, 
                     rotvec,
                 )
-        
-        features = get_features(method, corr_max, local_shifts, rotvec)
+        mole_aligned.features.update(get_features(method, corr_max, local_shifts, rotvec))
         out = self.__class__(
             self.image_ref,
             mole_aligned, 
             self.output_shape,
             order=self.order,
             chunksize=self.chunksize,
-            features=features,
         )
         
         return out
@@ -444,14 +429,13 @@ class SubtomogramLoader(Generic[_V]):
                     rotvec,
                 )
         
-        features = get_features(method, corr_max, local_shifts, rotvec)
+        mole_aligned.features.update(get_features(method, corr_max, local_shifts, rotvec))
         out = self.__class__(
             self.image_ref,
             mole_aligned, 
             self.output_shape,
             order=self.order,
             chunksize=self.chunksize,
-            features=features,
         )
         return out
     
@@ -528,13 +512,13 @@ class SubtomogramLoader(Generic[_V]):
         
         features = get_features(method, corr_max, local_shifts, rotvec)
         features.update({"labels": labels})
+        mole_aligned.features.update(features)
         out = self.__class__(
             self.image_ref,
             mole_aligned, 
             self.output_shape, 
             order=self.order,
             chunksize=self.chunksize,
-            features=features,
         )
         return out
         
@@ -838,7 +822,7 @@ def _compose_rotation_matrices(
         matrices.append(translation_0 @ e_ @ translation_1)
     return matrices
 
-def get_features(method, corr_max, local_shifts, rotvec):
+def get_features(method: str, corr_max, local_shifts, rotvec):
     feature_key = Mole.zncc if method == "zncc" else Mole.pcc
     
     features = {

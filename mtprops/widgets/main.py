@@ -748,13 +748,9 @@ class MTPropsWidget(MagicTemplate):
                     self.sample_subtomograms()
             
             # load molecules
-            from scipy.spatial.transform import Rotation
             for path in project.molecules:
-                df = pd.read_csv(path)
-                features = df.iloc[:, 6:]
-                mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
-                layer = add_molecules(self.parent_viewer, mole, name=Path(path).stem)
-                layer.features = features
+                mole = Molecules.from_csv(path)
+                add_molecules(self.parent_viewer, mole, name=Path(path).stem)
             
             # load global variables
             if project.global_variables:
@@ -819,8 +815,7 @@ class MTPropsWidget(MagicTemplate):
         ):
             layer: Points
             mole: Molecules = layer.metadata[MOLECULES]
-            features = layer.features
-            molecule_dataframes.append(pd.concat([mole.to_dataframe(), features], axis=1))
+            molecule_dataframes.append(mole.to_dataframe())
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
         
         # Save path of  global variables
@@ -895,15 +890,9 @@ class MTPropsWidget(MagicTemplate):
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
         for path in paths:
-            df: pd.DataFrame = pd.read_csv(path)
-            if df.shape[1] < 6:
-                raise ValueError(f"CSV must have more than or equal six columns but got shape {df.shape}")
-            from scipy.spatial.transform import Rotation
-            mole = Molecules(df.values[:, :3], Rotation.from_rotvec(df.values[:, 3:6]))
+            mole = Molecules.from_csv(path)
             name = Path(path).stem
             points = add_molecules(self.parent_viewer, mole, name)
-            if df.shape[1] > 6:
-                points.features = df.iloc[:, 6:]
         return None
     
     @File.wraps
@@ -924,7 +913,6 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer, 
         save_path: Path,
-        save_features: bool = True,
     ):
         """
         Save monomer coordinates.
@@ -939,18 +927,16 @@ class MTPropsWidget(MagicTemplate):
             Check if save molecule features.
         """
         mole: Molecules = layer.metadata[MOLECULES]
-        if save_features:
-            props = layer.features
-        else:
-            props = None
-        mole.to_csv(save_path, properties=props)
+        mole.to_csv(save_path)
         return None
     
     @File.wraps
     @set_design(text="Process images")
     @do_not_record
     def process_images(self):
+        """Open image processor."""
         self._ImageProcessor.show()
+        return None
     
     @Image.wraps
     @set_design(text="Show image info")
@@ -1373,7 +1359,7 @@ class MTPropsWidget(MagicTemplate):
         for layer in layers:
             mole: Molecules = layer.metadata[MOLECULES]
             spl = MtSpline(degree=GVar.splOrder)
-            npf = roundint(np.max(layer.features[Mole.pf]) + 1)
+            npf = roundint(np.max(mole.features[Mole.pf]) + 1)
             all_coords = mole.pos.reshape(-1, npf, 3)
             mean_coords = np.mean(all_coords, axis=1)
             spl.fit(mean_coords, variance=GVar.splError**2)
@@ -1476,71 +1462,13 @@ class MTPropsWidget(MagicTemplate):
             for i, mol in enumerate(out):
                 _name = f"Mono-{i}"
                 spl = tomo.splines[splines[i]]
-                layer = add_molecules(self.parent_viewer, mol, _name)
-                npf = roundint(spl.globalprops[H.nPF])
-                if len(mol) % npf != 0:
-                    # just in case.
-                    raise RuntimeError(
-                        "Unexpected mismatch between number of molecules and protofilaments! "
-                        "These molecules may not work in some analysis."
-                    )
-                update_features(layer, {Mole.pf: np.arange(len(mol), dtype=np.uint32) % npf})
+                add_molecules(self.parent_viewer, mol, _name)
                 self.log.print(f"{_name!r}: n = {len(mol)}")
                 
         self._WorkerControl.info = "Monomer mapping ..."
         self._need_save = True
         return worker
 
-    @Molecules_.Mapping.wraps
-    @set_options(
-        auto_call=True, 
-        y_offset={"widget_type": "FloatSlider", "max": 5, "step": 0.1, "label": "y offset (nm)"},
-        theta_offset={"widget_type": "FloatSlider", "max": 180, "label": "θ offset (deg)"},
-        length={"text": "Use full length"},
-    )
-    @set_design(text="Map monomers manually")
-    def map_monomers_manually(
-        self, 
-        i: Bound[SplineControl.num] = 0,
-        y_offset: nm = 0, 
-        theta_offset: float = 0,
-        length: Optional[nm] = None,
-    ):
-        """
-        Map points to monomer molecules with parameter sweeping.
-
-        Parameters
-        ----------
-        i : int
-            ID of microtubule.
-        y_offset : nm, optional
-            Offset in y-direction
-        theta_offset : float, optional
-            Offset of angle.
-        length : nm, optional
-            Length from the tip where monomers will be mapped.
-        """
-        theta_offset = np.deg2rad(theta_offset)
-        tomo = self.tomogram
-        tomo.global_ft_params(i)
-        mol: Molecules = tomo.map_monomers(i, offsets=(y_offset, theta_offset), length=length)
-        viewer = self.parent_viewer
-        layer_name = f"Monomers-{i}"
-        spl = tomo.splines[i]
-        npf = roundint(spl.globalprops[H.nPF])
-        labels = np.arange(len(mol), dtype=np.uint32) % npf
-        if layer_name not in viewer.layers:
-            points_layer = add_molecules(viewer, mol, layer_name)
-        else:
-            points_layer: Points = viewer.layers[layer_name]
-            points_layer.data = mol.pos
-            points_layer.selected_data = set()
-            points_layer.metadata[MOLECULES] = mol
-        update_features(points_layer, {Mole.pf: labels})
-        
-        self._need_save = True
-        return None
-        
     @Molecules_.Mapping.wraps
     @set_options(
         splines={"widget_type": "Select", "choices": _get_splines},
@@ -1669,7 +1597,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         ndim = 3
         mole: Molecules = layer.metadata[MOLECULES]
-        npf = roundint(np.max(layer.features[Mole.pf]) + 1)
+        npf = roundint(np.max(mole.features[Mole.pf]) + 1)
         pos = mole.pos.reshape(-1, npf, ndim)
         quat = mole.rotator.as_quat()
         if prepend > 0:
@@ -1693,9 +1621,13 @@ class MTPropsWidget(MagicTemplate):
         
         pos_extended: np.ndarray = np.concatenate([pos_pre, pos, pos_post], axis=0)
         quat_extended = np.concatenate([quat_pre, quat, quat_post], axis=0)
-        
+        features = {Mole.pf: np.arange(len(mole_new), dtype=np.uint32) % npf}
         from scipy.spatial.transform import Rotation
-        mole_new = Molecules(pos_extended.reshape(-1, ndim), Rotation.from_quat(quat_extended))
+        mole_new = Molecules(
+            pos_extended.reshape(-1, ndim),
+            Rotation.from_quat(quat_extended),
+            features=features,
+        )
         
         name = layer.name + "-extended"
         viewer = self.parent_viewer
@@ -1707,8 +1639,7 @@ class MTPropsWidget(MagicTemplate):
             points_layer.data = mole_new.pos
             points_layer.selected_data = set()
             points_layer.metadata[MOLECULES] = mole_new
-        
-        update_features(points_layer, {Mole.pf: np.arange(len(mole_new), dtype=np.uint32) % npf})
+            update_features(points_layer, features)
         return None
 
     @Molecules_.wraps
@@ -1750,9 +1681,9 @@ class MTPropsWidget(MagicTemplate):
             raise ValueError("'filter_length' and 'filter_width' must be odd numbers.")
         mole: Molecules = layer.metadata[MOLECULES]
         spl = molecules_to_spline(layer)
-        npf = roundint(np.max(layer.features[Mole.pf]) + 1)
+        npf = roundint(np.max(mole.features[Mole.pf]) + 1)
         try:
-            pf_label = layer.features[Mole.pf]
+            pf_label = mole.features[Mole.pf]
             pos_list: List[np.ndarray] = []  # each shape: (y, ndim)
             for pf in range(pf_label.max() + 1):
                 pos_list.append(mole.pos[pf_label == pf])
@@ -2273,21 +2204,21 @@ class MTPropsWidget(MagicTemplate):
             Set to >1 if you want to use binned image to boost image analysis. Be careful! 
             This may cause unexpected fitting result.
         """
-        molecules: Molecules = layer.metadata[MOLECULES]
+        mole: Molecules = layer.metadata[MOLECULES]
         template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
         mask: ip.ImgArray = self._subtomogram_averaging._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
             raise ValueError("Shape mismatch between template and mask.")
-        nmole = len(molecules)
+        nmole = len(mole)
         
         loader, template, mask = self._check_binning_for_alignment(
-            template, mask, bin_size, molecules, order=1, chunk_size=chunk_size
+            template, mask, bin_size, mole, order=1, chunk_size=chunk_size
         )
         _scale = self.tomogram.scale * bin_size
         max_shifts = tuple()
-        npf = np.max(layer.features[Mole.pf]) + 1
-        dy = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[1])**2))  # longitudinal shift
-        dx = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[npf])**2))  # lateral shift
+        npf = np.max(mole.features[Mole.pf]) + 1
+        dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
+        dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
         
         max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
         nbatch = 24
@@ -2323,10 +2254,9 @@ class MTPropsWidget(MagicTemplate):
             self.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
             points = add_molecules(
                 self.parent_viewer, 
-                transform_molecules(molecules, shift_nm, [0, -rot, 0]),
+                transform_molecules(mole, shift_nm, [0, -rot, 0]),
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
             )
-            points.features = layer.features
             self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
             layer.visible = False
             self.log.print(f"{layer.name!r} --> {points.name!r}")
@@ -2427,11 +2357,7 @@ class MTPropsWidget(MagicTemplate):
                 aligned_loader.molecules,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
             )
-            points.features = layer.features
             layer.visible = False
-            features = aligned_loader.features
-            if features.size > 0:
-                update_features(points, features)
             self.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
@@ -2523,11 +2449,7 @@ class MTPropsWidget(MagicTemplate):
                 aligned_loader.molecules,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
             )
-            points.features = layer.features
             layer.visible = False
-            features = aligned_loader.features
-            if features.size > 0:
-                update_features(points, features)
             self.log.print(f"{layer.name!r} --> {points.name!r}")
                 
         self._WorkerControl.info = f"Aligning subtomograms withou template (n = {nmole})"
@@ -2630,8 +2552,7 @@ class MTPropsWidget(MagicTemplate):
     #             aligned_loader.molecules,
     #             name=_coerce_aligned_name(layer.name, self.parent_viewer),
     #         )
-    #         points.features = layer.features
-    #         update_features(points, aligned_loader.features)
+    #         
     #         layer.visible = False
                 
     #     self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
@@ -2827,17 +2748,17 @@ class MTPropsWidget(MagicTemplate):
             Number of protofilaments. By default the global properties stored in the corresponding spline
             will be used.
         """
-        molecules: Molecules = layer.metadata[MOLECULES]
+        mole: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
-            molecules, shape, order=interpolation, chunksize=chunk_size
+            mole, shape, order=interpolation, chunksize=chunk_size
         )
         if npf is None:
-            npf = np.max(layer.features[Mole.pf]) + 1
+            npf = np.max(mole.features[Mole.pf]) + 1
         
-        total = ceilint(len(molecules) / chunk_size)
+        total = ceilint(len(mole) / chunk_size)
             
         worker = create_worker(
             loader.iter_each_seam,

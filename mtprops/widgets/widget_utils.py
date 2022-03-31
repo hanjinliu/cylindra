@@ -19,9 +19,15 @@ def add_molecules(viewer: napari.Viewer, mol: Molecules, name):
     """Add Molecules object as a point layer."""
     metadata ={MOLECULES: mol}
     points_layer = viewer.add_points(
-        mol.pos, size=3, face_color="lime", edge_color="lime",
-        out_of_slice_display=True, name=name, metadata=metadata
-        )
+        mol.pos, 
+        size=3,
+        face_color="lime",
+        edge_color="lime",
+        out_of_slice_display=True,
+        name=name,
+        metadata=metadata,
+        features=mol.features,
+    )
     
     points_layer.shading = "spherical"
     points_layer.editable = False
@@ -55,13 +61,16 @@ def update_features(
     for name, value in kwargs.items():
         features[name] = value
     layer.features = features
+    if MOLECULES in layer.metadata:
+        mole: Molecules = layer.metadata[MOLECULES]
+        mole.features = features
     return None
 
 def molecules_to_spline(layer: Points) -> MtSpline:
     """Convert well aligned molecule positions into a spline."""
     mole: Molecules = layer.metadata[MOLECULES]
     spl = MtSpline(degree=GVar.splOrder)
-    npf = int(round(np.max(layer.features[Mole.pf]) + 1))
+    npf = int(round(np.max(mole.features[Mole.pf]) + 1))
     all_coords = mole.pos.reshape(-1, npf, 3)
     mean_coords = np.mean(all_coords, axis=1)
     spl.fit(mean_coords, variance=GVar.splError**2)

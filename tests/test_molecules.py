@@ -3,6 +3,7 @@ from mtprops.const import EulerAxes
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
+from scipy.spatial.transform import Rotation
 
 Sq3 = np.sqrt(3)
 Sq2 = np.sqrt(2)
@@ -94,7 +95,6 @@ def test_save_and_load_euler_angle():
     assert_allclose(mol2.z, mol.z, rtol=1e-8, atol=1e-8)
 
 def test_rotate():
-    from scipy.spatial.transform import Rotation
     pos = np.array([0, 0, 0])
     zvec = np.array([1, 0.4, 0.1])
     yvec = np.array([0, 1.1, 2])
@@ -135,3 +135,11 @@ def test_internal_transformation():
     assert_allclose(mol3.z, np.array([[0., -1/Sq2, 1/Sq2]]), rtol=1e-8, atol=1e-8)
     assert_allclose(mol3.y, np.array([[1., 0., 0.]]), rtol=1e-8, atol=1e-8)
     assert_allclose(mol3.x, np.array([[0., 1/Sq2, 1/Sq2]]), rtol=1e-8, atol=1e-8)
+
+def test_features():
+    mol = Molecules(np.zeros((24, 3)), Rotation.random(24), features={"n": np.arange(24)})
+    mol2 = mol.translate([1, 2, 3])
+    mol3 = mol[3:17]
+    assert_allclose(mol.features, mol2.features)
+    assert mol.features is not mol2.features
+    assert_allclose(mol3.features, mol.features.iloc[3:17, :])

@@ -1,6 +1,15 @@
 from pathlib import Path
 from typing import Dict, List, Tuple
-from magicclass import magicclass, magicmenu, vfield, MagicTemplate, do_not_record, set_options, confirm
+from magicclass import (
+    magicclass,
+    magicmenu,
+    vfield,
+    MagicTemplate,
+    do_not_record,
+    set_options,
+    set_design,
+    confirm,
+)
 from magicclass.qthreading import thread_worker
 from magicgui.widgets import ProgressBar
 from magicclass.types import Bound
@@ -50,9 +59,9 @@ N_BATCH = 24
 class SubtomogramAveragingProjectEditor(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
-        def Load(self): ...
-        def Import_subprojects(self): ...
-        def Save(self): ...
+        def load(self): ...
+        def import_subprojects(self): ...
+        def save(self): ...
     
     def __post_init__(self):
         self.min_width = 580
@@ -72,8 +81,9 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
             return [w.value for w in self]
     
     @Menu.wraps
+    @set_design(text="Load")
     @confirm(text="Stop editing current project?", condition="len(self.DataSets) > 0")
-    def Load(self, path: Path):
+    def load(self, path: Path):
         """Load a subtomogram averaging project."""
         self.DataSets.clear()
         project = SubtomogramAveragingProject.from_json(path)
@@ -86,8 +96,9 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
     
     @Menu.wraps
     @set_options(paths={"filter": FileFilter.JSON})
+    @set_design(text="Import sub-projects")
     @confirm(text="Stop editing current project?", condition="len(self.DataSets) > 0")
-    def Import_subprojects(self, paths: List[Path]):
+    def import_subprojects(self, paths: List[Path]):
         for path in paths:
             wdt = SubProject()
             self.DataSets.append(wdt)
@@ -95,7 +106,8 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
             wdt["subproject"].changed.emit(path)
     
     @Menu.wraps
-    def Save(self, path: Bound[project_path], info: Bound[DataSets._get_project_info] = None):
+    @set_design(text="Save")
+    def save(self, path: Bound[project_path], info: Bound[DataSets._get_project_info] = None):
         """Save current state."""
         datasets: Dict[str, List[str]] = {}
         if info is None:
@@ -130,6 +142,7 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
         return None
     
     @do_not_record
+    @set_design(text="Add dataset")
     def add_dataset(self):
         wdt = SubProject()
         self.DataSets.append(wdt)
@@ -144,6 +157,7 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
         return int(np.ceil(niter / N_BATCH))
     
     @thread_worker(progress={"desc": "Progress", "total": _get_n_iter})
+    @set_design(text="Run")
     def run(self, path: Bound[_get_my_path], order: int = 1) -> ip.ImgArray:
         # TODO: how to deal with images with different scale?
         from ..components import MtTomogram
