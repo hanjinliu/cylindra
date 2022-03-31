@@ -76,7 +76,7 @@ from .widget_utils import (
 
 from ..const import nm, H, Ori, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
-from ..types import MonomerLayer
+from ..types import MonomerLayer, get_monomer_layers
 from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -1358,6 +1358,9 @@ class MTPropsWidget(MagicTemplate):
         return worker
     
     @Splines.wraps
+    @set_options(
+        layers={"widget_type": "Select", "choices": get_monomer_layers}
+    )
     @confirm(
         text="The existing splines will be removed.\n Do you want to run?",
         condition="len(self.SplineControl._get_splines()) == 0",

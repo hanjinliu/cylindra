@@ -270,7 +270,12 @@ class Spline:
         return original
 
 
-    def fit(self, coords: np.ndarray, weight: np.ndarray = None, variance: float = None) -> Self:
+    def fit(
+        self,
+        coords: np.ndarray,
+        weight: np.ndarray = None,
+        variance: float = None
+    ) -> Self:
         """
         Fit spline model using a list of coordinates.
 
@@ -307,7 +312,7 @@ class Spline:
 
     def shift_fit(
         self,
-        u: Iterable[float] | None = None,
+        positions: Iterable[float] | None = None,
         shifts: np.ndarray | None = None,
         variance: float = None
     ) -> Self:
@@ -316,7 +321,7 @@ class Spline:
 
         Parameters
         ----------
-        u : Iterable[float], optional
+        positions : Iterable[float], optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
@@ -328,8 +333,8 @@ class Spline:
         Spline
             Spline shifted by fitting to given coordinates.
         """        
-        coords = self(u)
-        rot = self.get_rotator(u)
+        coords = self(positions)
+        rot = self.get_rotator(positions)
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
@@ -337,13 +342,13 @@ class Spline:
         return self
 
     
-    def distances(self, u: Iterable[float] = None) -> np.ndarray:
+    def distances(self, positions: Iterable[float] = None) -> np.ndarray:
         """
         Get the distances from u=0.
 
         Parameters
         ----------
-        u : Iterable[float], optional
+        positions : Iterable[float], optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
@@ -351,19 +356,19 @@ class Spline:
         np.ndarray
             Distances for each ``u``.
         """        
-        if u is None:
-            u = self.anchors
+        if positions is None:
+            positions = self.anchors
         length = self.length()
-        return length * np.asarray(u)
+        return length * np.asarray(positions)
 
 
-    def __call__(self, u: np.ndarray | float = None, der: int = 0) -> np.ndarray:
+    def __call__(self, positions: np.ndarray | float = None, der: int = 0) -> np.ndarray:
         """
         Calculate coordinates (or n-th derivative) at points on the spline.
 
         Parameters
         ----------
-        u : np.ndarray or float, optional
+        positions : np.ndarray or float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
         der : int, default is 0
             ``der``-th derivative will be calculated.
@@ -373,15 +378,15 @@ class Spline:
         np.ndarray
             Positions or vectors in (N, 3) shape.
         """        
-        if u is None:
-            u = self.anchors
+        if positions is None:
+            positions = self.anchors
         u0, u1 = self._lims
-        if np.isscalar(u):
-            u_tr = _linear_conversion(np.array([u]), u0, u1)
+        if np.isscalar(positions):
+            u_tr = _linear_conversion(np.array([positions]), u0, u1)
             coord = splev(u_tr, self._tck, der=der)
             out = np.concatenate(coord).astype(np.float32)
         else:
-            u_tr = _linear_conversion(np.asarray(u), u0, u1)
+            u_tr = _linear_conversion(np.asarray(positions), u0, u1)
             coords = splev(u_tr, self._tck, der=der)
             out = np.stack(coords, axis=1).astype(np.float32)
         
@@ -419,13 +424,13 @@ class Spline:
             inverted.anchors = 1 - anchors[::-1]
         return inverted
     
-    def curvature(self, u: Iterable[float] = None) -> np.ndarray:
+    def curvature(self, positions: Iterable[float] = None) -> np.ndarray:
         """
         Calculate curvature of spline curve.
 
         Parameters
         ----------
-        u : Iterable[float], optional
+        positions : Iterable[float], optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
@@ -438,11 +443,11 @@ class Spline:
         - https://en.wikipedia.org/wiki/Curvature#Space_curves        
         """        
         
-        if u is None:
-            u = self.anchors
+        if positions is None:
+            positions = self.anchors
         
-        dz, dy, dx = self(u, 1).T
-        ddz, ddy, ddx = self(u, 2).T
+        dz, dy, dx = self(positions, 1).T
+        ddz, ddy, ddx = self(positions, 2).T
         a = (ddz*dy - ddy*dz)**2 + (ddx*dz - ddz*dx)**2 + (ddy*dx - ddx*dy)**2
         return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5
 
@@ -489,6 +494,19 @@ class Spline:
     
     @classmethod
     def from_json(cls, file_path: str) -> Self:
+        """
+        Construct a spline model from a json file.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to json file.
+
+        Returns
+        -------
+        Spline
+            Spline object constructed from the json file.
+        """
         file_path = str(file_path)
         
         with open(file_path, mode="r") as f:
@@ -497,7 +515,7 @@ class Spline:
         
     def affine_matrix(
         self, 
-        u: Iterable[float] = None,
+        positions: Iterable[float] = None,
         center: Iterable[float] = None, 
         inverse: bool = False,
     ) -> np.ndarray:
@@ -507,7 +525,7 @@ class Spline:
 
         Parameters
         ----------
-        u : array-like, (N, )
+        positions : array-like, (N,)
             Positions. Between 0 and 1.
         center : array-like, optional
             If not provided, rotation will be executed around the origin. If an array is provided,
@@ -521,9 +539,9 @@ class Spline:
         np.ndarray (N, 4, 4)
             3D array of matrices, where the first dimension corresponds to each point.
         """        
-        if u is None:
-            u = self.anchors
-        ds = self(u, 1)
+        if positions is None:
+            positions = self.anchors
+        ds = self(positions, 1)
         
         if ds.ndim == 1:
             ds = ds[np.newaxis]
@@ -550,13 +568,13 @@ class Spline:
                                      dtype=np.float32)
             
             out = translation_0 @ out @ translation_1
-        if np.isscalar(u):
+        if np.isscalar(positions):
             out = out[0]
         return out
     
     def get_rotator(
         self, 
-        u: Iterable[float] = None,
+        positions: Iterable[float] = None,
         inverse: bool = False,
     ) -> Rotation:
         """
@@ -565,7 +583,7 @@ class Spline:
 
         Parameters
         ----------
-        u : array-like, (N, )
+        positions : array-like, (N,)
             Positions. Between 0 and 1.
         inverse : bool, default is False
             If True, rotation matrix will be inversed.
@@ -575,9 +593,9 @@ class Spline:
         Rotation
             Rotation object at each anchor.
         """        
-        if u is None:
-            u = self.anchors
-        ds = self(u, 1)
+        if positions is None:
+            positions = self.anchors
+        ds = self(positions, 1)
         out = axes_to_rotator(None, -ds)
         
         if inverse:
@@ -738,14 +756,14 @@ class Spline:
             World coordinates.
         """        
         ncoords = coords.shape[0]
-        u = coords[:, 1]/self.length()
-        s = self(u)
+        positions = coords[:, 1]/self.length()
+        s = self(positions)
         coords_ext = np.stack([
             coords[:, 0], 
             np.zeros(ncoords, dtype=np.float32),
             coords[:, 2], 
             ], axis=1)
-        rot = self.get_rotator(u)
+        rot = self.get_rotator(positions)
         out = rot.apply(coords_ext) + s
                 
         return out
@@ -815,7 +833,7 @@ class Spline:
 
     def anchors_to_molecules(
         self, 
-        u: float | Iterable[float] | None = None,
+        positions: float | Iterable[float] | None = None,
         rotation: Iterable[float] | None = None,
     ) -> Molecules:
         """
@@ -827,7 +845,7 @@ class Spline:
 
         Parameters
         ----------
-        u : Iterable[float] | None
+        positions : iterable of float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
@@ -835,10 +853,10 @@ class Spline:
         Molecules
             Molecules object of points.
         """
-        if u is None:
-            u = self.anchors
-        pos = self(u)
-        yvec = self(u, der=1)
+        if positions is None:
+            positions = self.anchors
+        pos = self(positions)
+        yvec = self(positions, der=1)
         rot = axes_to_rotator(None, yvec)
         if rotation is not None:
             rotvec = np.zeros((len(rot), 3), dtype=np.float32)
