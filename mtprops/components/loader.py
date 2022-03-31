@@ -6,7 +6,6 @@ from typing import (
     Generator,
     Generic,
     Iterator,
-    Iterable,
     TYPE_CHECKING,
     TypeVar
 )
@@ -23,8 +22,6 @@ from ._align_utils import (
     normalize_rotations,
     Ranges,
     get_alignment_function,
-    align_subvolume_multitemplates_zncc,
-    align_subvolume_list_multitemplates,
     transform_molecules
 )
 from .molecules import Molecules
@@ -468,9 +465,7 @@ class SubtomogramLoader(Generic[_V]):
         cutoff: float = 0.5,
         nbatch: int = 24,
         method: str = "pcc",
-    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
-        # TODO: do not use align_subvolume_list_multitemplates
-        
+    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:        
         self._check_shape(templates[0])
         
         # Convert rotations into quaternion if given.

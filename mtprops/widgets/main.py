@@ -153,7 +153,7 @@ class MTPropsWidget(MagicTemplate):
         def fit_splines(self): ...
         def fit_splines_manually(self): ...
         def refine_splines(self): ...
-        # def Molecules_to_spline(self): ...
+        def molecules_to_spline(self): ...
 
     @magicmenu
     class Molecules_(MagicTemplate):
@@ -164,6 +164,7 @@ class MTPropsWidget(MagicTemplate):
             def map_centers(self): ...
             def map_along_pf(self): ...
         def show_orientation(self): ...
+        def extend_molecules(self): ...
         def calculate_intervals(self): ...
         sep0 = field(Separator)
         def open_feature_control(self): ...
@@ -1356,23 +1357,29 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         return worker
     
-    # @Splines.wraps
-    # def Molecules_to_spline(
-    #     self, 
-    #     layers: List[MonomerLayer],
-    #     update_splines: bool = False,
-    # ):
-    #     splines: List[MtSpline] = []
-    #     for layer in layers:
-    #         mole: Molecules = layer.metadata[MOLECULES]
-    #         spl = MtSpline(degree=GVar.splOrder)
-    #         npf = roundint(np.max(layer.features[Mole.pf]) + 1)
-    #         all_coords = mole.pos.reshape(-1, npf, 3)
-    #         mean_coords = np.mean(all_coords, axis=1)
-    #         spl.fit(mean_coords, variance=GVar.splError**2)
-    #         splines.append(spl)
+    @Splines.wraps
+    @confirm(
+        text="The existing splines will be removed.\n Do you want to run?",
+        condition="len(self.SplineControl._get_splines()) == 0",
+    )
+    def molecules_to_spline(
+        self, 
+        layers: List[MonomerLayer],
+    ):
+        splines: List[MtSpline] = []
+        for layer in layers:
+            mole: Molecules = layer.metadata[MOLECULES]
+            spl = MtSpline(degree=GVar.splOrder)
+            npf = roundint(np.max(layer.features[Mole.pf]) + 1)
+            all_coords = mole.pos.reshape(-1, npf, 3)
+            mean_coords = np.mean(all_coords, axis=1)
+            spl.fit(mean_coords, variance=GVar.splError**2)
+            splines.append(spl)
         
-    #     return None
+        self.tomogram.splines.clear()
+        self.tomogram.splines.extend(splines)
+        self.sample_subtomograms()
+        return None
         
     @Analysis.wraps
     @set_design(text="Local FT analysis")
@@ -1520,23 +1527,16 @@ class MTPropsWidget(MagicTemplate):
         npf = roundint(spl.globalprops[H.nPF])
         labels = np.arange(len(mol), dtype=np.uint32) % npf
         if layer_name not in viewer.layers:
-            
-            points_layer = self.parent_viewer.add_points(
-                ndim=3, size=3, face_color="lime", edge_color="lime",
-                out_of_slice_display=True, name=layer_name, 
-                metadata={MOLECULES: mol, Mole.pf: labels}
-                )
-            
-            points_layer.shading = "spherical"
-        
+            points_layer = add_molecules(viewer, mol, layer_name)
         else:
             points_layer: Points = viewer.layers[layer_name]
             points_layer.data = mol.pos
             points_layer.selected_data = set()
             points_layer.metadata[MOLECULES] = mol
-            update_features(points_layer, {Mole.pf: labels})
+        update_features(points_layer, {Mole.pf: labels})
         
         self._need_save = True
+        return None
         
     @Molecules_.Mapping.wraps
     @set_options(
@@ -1642,7 +1642,72 @@ class MTPropsWidget(MagicTemplate):
             name=name,
             )
         return None
+    
+    @Molecules_.wraps
+    @set_options(auto_call=True)
+    @set_design(text="Extend molecules")
+    def extend_molecules(
+        self,
+        layer: MonomerLayer,
+        prepend: int = 0,
+        append: int = 0,
+    ):
+        """
+        Extend the existing molecules at the edges.
         
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Points layer that contain the molecules.
+        prepend : int, default is 0
+            Number of molecules to be prepended for each protofilament.
+        append : int, default is 0
+            Number of molecules to be appended for each protofilament.
+        """        
+        ndim = 3
+        mole: Molecules = layer.metadata[MOLECULES]
+        npf = roundint(np.max(layer.features[Mole.pf]) + 1)
+        pos = mole.pos.reshape(-1, npf, ndim)
+        quat = mole.rotator.as_quat()
+        if prepend > 0:
+            dvec_pre = pos[0] - pos[1]
+            pos_pre = np.stack(
+                [pos[0] + dvec_pre * n for n in range(1, prepend + 1)], axis=0
+            )
+            quat_pre = np.concatenate([quat[:npf]] * prepend, axis=0)
+        else:
+            pos_pre = np.zeros((0, npf, ndim), dtype=np.float32)
+            quat_pre = np.zeros((0, 4), dtype=np.float32)
+        if append > 0:
+            dvec_post = pos[-1] - pos[-2]
+            pos_post = np.stack(
+                [pos[-1] + dvec_post * n for n in range(1 + append + 1)], axis=0
+            )
+            quat_post = np.concatenate([quat[-npf:]] * append, axis=0)
+        else:
+            pos_post = np.zeros((0, npf, ndim), dtype=np.float32)
+            quat_post = np.zeros((0, 4), dtype=np.float32)
+        
+        pos_extended: np.ndarray = np.concatenate([pos_pre, pos, pos_post], axis=0)
+        quat_extended = np.concatenate([quat_pre, quat, quat_post], axis=0)
+        
+        from scipy.spatial.transform import Rotation
+        mole_new = Molecules(pos_extended.reshape(-1, ndim), Rotation.from_quat(quat_extended))
+        
+        name = layer.name + "-extended"
+        viewer = self.parent_viewer
+        if name not in viewer.layers:
+            points_layer = add_molecules(self.parent_viewer, mole_new, name)
+            layer.visible = False
+        else:
+            points_layer: Points = viewer.layers[name]
+            points_layer.data = mole_new.pos
+            points_layer.selected_data = set()
+            points_layer.metadata[MOLECULES] = mole_new
+        
+        update_features(points_layer, {Mole.pf: np.arange(len(mole_new), dtype=np.uint32) % npf})
+        return None
+
     @Molecules_.wraps
     @set_options(
         filter_length={"min": 3, "max": 49, "step": 2},
