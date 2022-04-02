@@ -1901,10 +1901,8 @@ class MTPropsWidget(MagicTemplate):
         loader = tomo.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
         )
-        nbatch = 1
-        
         self._subtomogram_averaging._next_layer_name = f"[AVG]{layer.name}"
-        img = yield from loader.iter_average(nbatch=nbatch)
+        img = yield from loader.iter_average()
         return img
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2044,7 +2042,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Align averaged")
     @thread_worker(progress={"desc": "Aligning averaged image",
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//24+1"})
+                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_averaged(
         self,
         layer: MonomerLayer,
@@ -2092,8 +2090,7 @@ class MTPropsWidget(MagicTemplate):
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
         
         max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
-        nbatch = 24
-        img = yield from loader.iter_average(nbatch=nbatch)
+        img = yield from loader.iter_average()
             
         self.log.print_html(f"<code>Align_averaged</code>")
         
@@ -2151,8 +2148,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @thread_worker(progress={"desc": "Aligning subtomograms",
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//24+1"})
+    @thread_worker(progress={"desc": "Aligning",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all(
         self,
         layer: MonomerLayer,
@@ -2208,14 +2205,12 @@ class MTPropsWidget(MagicTemplate):
             order=interpolation,
             chunk_size=chunk_size
         )
-        nbatch = 24
         aligned_loader = yield from loader.iter_align(
             template=template, 
             mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            nbatch=nbatch,
             method=method,
         )
         
@@ -2247,8 +2242,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all without template")
-    @thread_worker(progress={"desc": "Aligning subtomograms\nwithout template",
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//24+1"})
+    @thread_worker(progress={"desc": "Aligning without template",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all_without_template(
         self,
         layer: MonomerLayer,
@@ -2299,13 +2294,11 @@ class MTPropsWidget(MagicTemplate):
             order=interpolation,
             chunk_size=chunk_size
         )
-        nbatch = 24
         aligned_loader = yield from loader.iter_align_no_template(
             mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            nbatch=nbatch,
             method=method,
         )
         
@@ -2402,7 +2395,6 @@ class MTPropsWidget(MagicTemplate):
     #         order=interpolation,
     #         chunk_size=chunk_size,
     #     )
-    #     nbatch = 24
     #     worker = create_worker(
     #         loader.iter_align_multi_templates,
     #         templates=templates, 
@@ -2410,8 +2402,6 @@ class MTPropsWidget(MagicTemplate):
     #         max_shifts=max_shifts,
     #         rotations=(z_rotation, y_rotation, x_rotation),
     #         cutoff=cutoff,
-    #         nbatch=nbatch,
-    #         _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
     #     )
                     
     #     @worker.returned.connect
@@ -3336,39 +3326,6 @@ def _multi_affine(images, matrices, cval: float = 0, order=1):
             img, matrix, order=order, cval=cval, prefilter=order>1
         )
     return out
-    
-def _iter_run(
-    tomo: MtTomogram, 
-    splines: Iterable[int],
-    bin_size: int,
-    interval: nm,
-    ft_size,
-    n_refine: int,
-    max_shift,
-    edge_sigma,
-    local_props,
-    global_props
-) -> Iterator[str]:
-    n_spl = len(splines)
-    for i_spl in splines:
-        if i_spl > 0:
-            yield f"[{i_spl + 1}/{n_spl}] Spline fitting"
-        tomo.fit(i=i_spl, edge_sigma=edge_sigma, max_shift=max_shift, binsize=bin_size)
-        
-        for i in range(n_refine):
-            yield f"[{i_spl + 1}/{n_spl}] Spline refinement (iteration {i + 1}/{n_refine})"
-            tomo.refine(i=i_spl, max_interval=max(interval, 30), binsize=bin_size)
-        tomo.set_radius(i=i_spl)
-            
-        tomo.make_anchors(i=i_spl, interval=interval)
-        if local_props:
-            yield f"[{i_spl + 1}/{n_spl}] Local Fourier transformation"
-            tomo.local_ft_params(i=i_spl, ft_size=ft_size)
-        if global_props:
-            yield f"[{i_spl + 1}/{n_spl}] Global Fourier transformation"
-            tomo.global_ft_params(i=i_spl)
-    yield "Finishing ..."
-    return tomo
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     num = 1

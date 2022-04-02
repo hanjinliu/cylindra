@@ -226,7 +226,6 @@ class SubtomogramLoader(Generic[_V]):
     def iter_average(
         self,
         classifier: Callable[[np.ndarray], bool] | None = None,
-        nbatch: int = 1,
     ) -> Generator[ip.ImgArray, None, ip.ImgArray]:
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
@@ -237,8 +236,7 @@ class SubtomogramLoader(Generic[_V]):
                 if classifier(subvol):
                     aligned += subvol.value
                 n += 1
-                if n % nbatch == nbatch - 1:
-                    yield aligned
+                yield aligned
         avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
         avg.set_scale(self.image_ref)
         return avg
@@ -279,7 +277,6 @@ class SubtomogramLoader(Generic[_V]):
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
-        nbatch: int = 24,
         method: str = "pcc",
     ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
         
@@ -317,8 +314,7 @@ class SubtomogramLoader(Generic[_V]):
                         subvol, inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
                     
-                    if i % nbatch == nbatch - 1:
-                        yield local_shifts[i, :], local_rot[i, :]
+                    yield local_shifts[i, :], local_rot[i, :]
             
                 mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
                 rotvec = None
@@ -328,8 +324,7 @@ class SubtomogramLoader(Generic[_V]):
                         subvol, inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
                     local_rot[i, :] = inp.quaternions[iopt]
-                    if i % nbatch == nbatch - 1:
-                        yield local_shifts[i, :], local_rot[i, :]
+                    yield local_shifts[i, :], local_rot[i, :]
                 
                 rotvec = Rotation.from_quat(local_rot).as_rotvec()
                 mole_aligned = transform_molecules(
@@ -355,7 +350,6 @@ class SubtomogramLoader(Generic[_V]):
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
-        nbatch: int = 24,
         method: str = "pcc",
     ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
                 
@@ -374,7 +368,8 @@ class SubtomogramLoader(Generic[_V]):
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         all_subvols = self.to_lazy_imgarray(path=None)
         
-        template = all_subvols.proj("p").compute()
+        with ip.silent():
+            template = all_subvols.proj("p").compute()
         
         # get mask image
         if isinstance(mask_params, tuple):
@@ -407,9 +402,7 @@ class SubtomogramLoader(Generic[_V]):
                     local_shifts[i], corr_max[i] = align_func(
                         subvol.compute(), inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
-                    
-                    if i % nbatch == nbatch - 1:
-                        yield local_shifts[i, :], local_rot[i, :]
+                    yield local_shifts[i, :], local_rot[i, :]
                 
                 mole_aligned = self.molecules.translate_internal(local_shifts * self.scale)
                 rotvec = None
@@ -419,8 +412,7 @@ class SubtomogramLoader(Generic[_V]):
                         subvol.compute(), inp.cutoff, inp.mask, template_input, _max_shifts_px
                     )
                     local_rot[i, :] = rots[iopt]
-                    if i % nbatch == nbatch - 1:
-                        yield local_shifts[i, :], local_rot[i, :]
+                    yield local_shifts[i, :], local_rot[i, :]
                 
                 rotvec = Rotation.from_quat(local_rot).as_rotvec()
                 mole_aligned = transform_molecules(
