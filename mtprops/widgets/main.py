@@ -653,7 +653,7 @@ class MTPropsWidget(MagicTemplate):
         for size in multiscales:
             self.tomogram.add_multiscale(size)
             
-        return tomo
+        return tomo, project
 
     @load_project.returned.connect
     def _load_project_on_return(self, out: Tuple[MtTomogram, MTPropsProject]):

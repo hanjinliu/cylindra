@@ -174,7 +174,7 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
                 order=order,
                 chunksize=subproject.chunksize
             )
-            ave = yield from loader.iter_average(nbatch=N_BATCH)
+            ave = yield from loader.iter_average()
             size = len(loader.molecules)
             sum_img += ave * size
             total_size += size
