@@ -31,7 +31,7 @@ class SplineFitter(MagicTemplate):
         """MT sub-regions"""
         num = field(int, options={"max": 0, "tooltip": "Number of MT", "label": "Spline No."}, record=False)
         pos = field(int, options={"max": 0, "tooltip": "Position in a MT", "label": "Position"}, record=False)
-        def Fit(self): ...
+        def fit(self): ...
         
         @bind_key("Up")
         @do_not_record

@@ -10,7 +10,7 @@ from magicclass import (
     set_design,
     confirm,
 )
-from magicclass.qthreading import thread_worker
+from magicclass.utils import thread_worker
 from magicgui.widgets import ProgressBar
 from magicclass.types import Bound
 import numpy as np

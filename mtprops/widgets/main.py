@@ -2,6 +2,7 @@ import os
 import re
 from typing import Iterable, Iterator, Union, Tuple, List
 from pathlib import Path
+import weakref
 import numpy as np
 import pandas as pd
 from scipy import ndimage as ndi
@@ -27,7 +28,8 @@ from magicclass import (
     build_help,
     get_function_gui,
     confirm,
-    nogui
+    nogui,
+    mark_preview,
     )
 from magicclass.types import Color, Bound, Optional, Tuple as _Tuple
 from magicclass.widgets import (
@@ -39,6 +41,7 @@ from magicclass.widgets import (
     FloatRangeSlider,
     )
 from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.utils import thread_worker
 
 from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
 from ..components.microtubule import angle_corr
@@ -62,7 +65,7 @@ from .feature_control import FeatureControl, FeatureViewer
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
 from .project_editor import SubtomogramAveragingProjectEditor
-from .worker import WorkerControl, dispatch_worker, Worker
+from ._previews import view_tables, view_text, view_image
 from .widget_utils import (
     FileFilter,
     add_molecules,
@@ -91,7 +94,6 @@ class MTPropsWidget(MagicTemplate):
     
     ### widgets ###
     
-    _WorkerControl = field(WorkerControl, name="Worker control")
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
     _FeatureViewer = field(FeatureViewer, name="Monomer feature viewer")
@@ -136,7 +138,7 @@ class MTPropsWidget(MagicTemplate):
             def show_global_r_proj(self): ...
         sep0 = field(Separator)
         def sample_subtomograms(self): ...
-        def paint_MT(self): ...
+        def paint_mt(self): ...
         def set_colormap(self): ...
         def show_colorbar(self): ...
     
@@ -196,6 +198,7 @@ class MTPropsWidget(MagicTemplate):
         def open_help(self): ...
         def restore_layers(self): ...
         def MTProps_info(self): ...
+        def report_issues(self): ...
         
     @magictoolbar(labels=False)
     class toolbar(MagicTemplate):
@@ -381,7 +384,8 @@ class MTPropsWidget(MagicTemplate):
     
     @_runner.wraps
     @set_design(text="Run")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Running MTProps", 
+                             "total": "(1 + n_refine + int(local_props) + int(global_props)) * len(splines)"})
     def run_mtprops(
         self,
         splines: Bound[_runner._get_splines_to_run] = (),
@@ -395,9 +399,7 @@ class MTPropsWidget(MagicTemplate):
         global_props: Bound[_runner.global_props] = True,
         paint: Bound[_runner.params2.paint] = True,
     ):
-        """Run MTProps"""
-        self._runner.close()
-        
+        """Run MTProps"""        
         if self.layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
         if self.tomogram.n_splines == 0:
@@ -405,49 +407,49 @@ class MTPropsWidget(MagicTemplate):
         elif len(splines) == 0:
             splines = range(self.tomogram.n_splines)
         
-        total = (1 + n_refine + int(local_props) + int(global_props)) * len(splines)
-        
-        worker = create_worker(
-            _iter_run, 
-            tomo=self.tomogram,
-            splines=splines,
-            bin_size=bin_size,
-            interval=interval,
-            ft_size=ft_size,
-            n_refine=n_refine,
-            max_shift=max_shift,
-            edge_sigma=edge_sigma,
-            local_props=local_props,
-            global_props=global_props,
-            _progress={"total": total, 
-                       "desc": "Running MTProps"}
-        )
-        
-        @worker.yielded.connect
-        def _on_yield(out):
-            if isinstance(out, str):
-                self._WorkerControl.info = out
-                self._update_splines_in_images()
+        tomo = self.tomogram
+        for i_spl in splines:
+            tomo.fit(i=i_spl, edge_sigma=edge_sigma, max_shift=max_shift, binsize=bin_size)
             
-        @worker.returned.connect
-        def _on_return(tomo: MtTomogram):
-            with self.macro.blocked():
-                self._update_splines_in_images()
-                if local_props or global_props:
-                    self.sample_subtomograms()
-                    if global_props:
-                        df = self.tomogram.collect_globalprops(i=splines).transpose()
-                        df.columns = [f"Spline-{i}" for i in splines]
-                        self.log.print_table(df, precision=3)
-                if local_props and paint:
-                    self.paint_mt()
-                tomo.metadata["ft_size"] = self._current_ft_size
-                if global_props:
-                    self._update_global_properties_in_widget()
-            self._need_save = True
+            for _ in range(n_refine):
+                yield
+                tomo.refine(i=i_spl, max_interval=max(interval, 30), binsize=bin_size)
+            tomo.set_radius(i=i_spl)
+                
+            tomo.make_anchors(i=i_spl, interval=interval)
+            if local_props:
+                yield
+                tomo.local_ft_params(i=i_spl, ft_size=ft_size)
+            if global_props:
+                yield
+                tomo.global_ft_params(i=i_spl)
+            yield
+                    
+        tomo.metadata["ft_size"] = self._current_ft_size
         self._current_ft_size = ft_size
-        self._WorkerControl.info = f"[1/{len(splines)}] Spline fitting"
-        return worker
+        self._need_save = True
+        
+        return local_props, global_props, splines, paint
+    
+    @run_mtprops.started.connect
+    def _run_mtprops_on_start(self):
+        return self._runner.close()
+    
+    @run_mtprops.returned.connect
+    def _run_mtprops_on_return(self, out):
+        local_props, global_props, splines, paint = out
+        if local_props or global_props:
+            self.sample_subtomograms()
+            if global_props:
+                df = self.tomogram.collect_globalprops(i=splines).transpose()
+                df.columns = [f"Spline-{i}" for i in splines]
+                self.log.print_table(df, precision=3)
+        if local_props and paint:
+            self.paint_mt()
+        if global_props:
+            self._update_global_properties_in_widget()
+        self._update_splines_in_images()
+        return None
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"clear_last.png")
@@ -570,55 +572,14 @@ class MTPropsWidget(MagicTemplate):
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
         return None
-        
-    def _send_tomogram_to_viewer(self, tomo: MtTomogram):
-        viewer = self.parent_viewer
-        self.tomogram = tomo
-        bin_size = max(x[0] for x in tomo.multiscaled)
-        imgb = tomo.get_multiscale(bin_size)
-        tr = tomo.multiscale_translation(bin_size)
-        name = f"{imgb.name} (bin {bin_size})"
-        # update image layer
-        if self.layer_image not in viewer.layers:
-            self.layer_image = viewer.add_image(
-                imgb, 
-                scale=imgb.scale, 
-                name=name, 
-                translate=[tr, tr, tr],
-                contrast_limits=[np.min(imgb), np.max(imgb)],
-            )
-        else:
-            self.layer_image.data = imgb
-            self.layer_image.scale = imgb.scale
-            self.layer_image.name = name
-            self.layer_image.translate = [tr, tr, tr]
-            self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
-        
-        self.layer_image.metadata["current_binsize"] = bin_size
-        
-        # update viewer dimensions
-        viewer.scale_bar.unit = imgb.scale_unit
-        viewer.dims.axis_labels = ("z", "y", "x")
-        change_viewer_focus(viewer, np.asarray(imgb.shape)/2, imgb.scale.x)
-        
-        # update labels layer
-        if self.layer_paint is not None:
-            self.layer_paint.data = np.zeros(imgb.shape, dtype=np.uint8)
-            self.layer_paint.scale = imgb.scale
-            self.layer_paint.translate = [tr, tr, tr]
-        
-        # update overview
-        with ip.silent():
-            proj = imgb.proj("z")
-        self.overview.image = proj
-        self.overview.ylim = (0, proj.shape[0])
-        
-        try:
-            parts = tomo.source.parts
-            _name = os.path.join(*parts[-2:])
-        except Exception:
-            _name = f"Tomogram<{hex(id(tomo))}>"
-        self.log.print_html(f"<h2>{_name}</h2>")
+    
+    @Others.wraps
+    @set_design(text="Report issues")
+    @do_not_record
+    def report_issues(self):
+        """Report issues on GitHub."""
+        from magicclass.utils import open_url
+        open_url("https://github.com/hanjinliu/MTProps/issues/new")
         return None
         
     @File.wraps
@@ -627,9 +588,9 @@ class MTPropsWidget(MagicTemplate):
         scale={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"},
         bin_size={"min": 1, "max": 8}
     )
-    @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     @set_design(text="Open image")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Reading image"})
+    @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     def open_image(
         self, 
         path: Path,
@@ -656,32 +617,23 @@ class MTPropsWidget(MagicTemplate):
         else:
             scale = img.scale.x
         
-        worker = create_worker(
-            self._imread,
+        tomo = self._imread(
             path=path,
             scale=scale,
             binsize=bin_size,
-            _progress={"total": 0, "desc": "Running"})
+        )
 
-        self._WorkerControl.info = f"Reading image (bin size = {bin_size})"
-        
-        @worker.returned.connect
-        def _on_return(tomo: MtTomogram):
-            self._send_tomogram_to_viewer(tomo)
-            if self._current_ft_size is not None:
-                tomo.metadata["ft_size"] = self._current_ft_size
-            with self.macro.blocked():
-                self.clear_all()
-                
+        if self._current_ft_size is not None:
+            tomo.metadata["ft_size"] = self._current_ft_size
         self._macro_offset = len(self.macro)
     
-        return worker
+        return tomo
     
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
-    @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     @set_design(text="Load project")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Reading project"})
+    @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     def load_project(self, path: Path):
         """Load a project json file."""
         project = MTPropsProject.from_json(path)
@@ -689,84 +641,80 @@ class MTPropsWidget(MagicTemplate):
         # load image and multiscales
         multiscales = project.multiscales
         
-        worker = create_worker(
-            self._imread,
+        tomo = self._imread(
             path=project.image, 
             scale=project.scale, 
             binsize=multiscales.pop(-1), 
-            _progress={"total": 0, "desc": "Running"}
         )
-
-        self._WorkerControl.info = f"Reading project {path!r}"
         
-        @worker.returned.connect
-        def _on_return(tomo: MtTomogram):
-            self._send_tomogram_to_viewer(tomo)
-            with self.macro.blocked():
-                self.clear_all()
-    
-            for size in multiscales:
-                self.tomogram.add_multiscale(size)
-            
-            self._current_ft_size = project.current_ft_size
-            
-            # load splines
-            splines = [MtSpline.from_json(path) for path in project.splines]
-            localprops_path = project.localprops
-            if localprops_path is not None:
-                all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
-            else:
-                all_localprops = {}
-            globalprops_path = project.globalprops
-            if globalprops_path is not None:
-                all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
-            else:
-                all_globalprops = {}
-            
-            for i, spl in enumerate(splines):
-                spl.localprops = all_localprops.get(i, None)
-                if spl.localprops is not None:
-                    spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
-                    spl.localprops.pop("SplineID")
-                    spl.localprops.pop("PosID")
-                    spl.localprops.index = range(len(spl.localprops))
-                spl.globalprops = all_globalprops.get(i, None)
-                if spl.globalprops is not None:
-                    try:
-                        spl.radius = spl.globalprops.pop("radius")
-                    except KeyError:
-                        pass
-                    try:
-                        spl.orientation = spl.globalprops.pop("orientation")
-                    except KeyError:
-                        pass
-            
-            if splines:
-                self.tomogram._splines = splines
-                self._update_splines_in_images()
-                with self.macro.blocked():
-                    self.sample_subtomograms()
-            
-            # load molecules
-            for path in project.molecules:
-                mole = Molecules.from_csv(path)
-                add_molecules(self.parent_viewer, mole, name=Path(path).stem)
-            
-            # load global variables
-            if project.global_variables:
-                with self.macro.blocked():
-                    self.Others.Global_variables.load_variables(project.global_variables)
-            
-            # load subtomogram analyzer state
-            self._subtomogram_averaging.template_path = project.template_image or ""
-            self._subtomogram_averaging._set_mask_params(project.mask_parameters)
-            self._subtomogram_averaging.chunk_size = project.chunksize or 200
-            self.reset_choices()
-            self._need_save = False
-
+        self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
-        return worker
+        
+        for size in multiscales:
+            self.tomogram.add_multiscale(size)
+            
+        return tomo
 
+    @load_project.returned.connect
+    def _load_project_on_return(self, out: Tuple[MtTomogram, MTPropsProject]):
+        tomo, project = out
+        self._send_tomogram_to_viewer(tomo)
+        
+        # load splines
+        splines = [MtSpline.from_json(path) for path in project.splines]
+        localprops_path = project.localprops
+        if localprops_path is not None:
+            all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
+        else:
+            all_localprops = {}
+        globalprops_path = project.globalprops
+        if globalprops_path is not None:
+            all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
+        else:
+            all_globalprops = {}
+        
+        for i, spl in enumerate(splines):
+            spl.localprops = all_localprops.get(i, None)
+            if spl.localprops is not None:
+                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
+                spl.localprops.pop("SplineID")
+                spl.localprops.pop("PosID")
+                spl.localprops.index = range(len(spl.localprops))
+            spl.globalprops = all_globalprops.get(i, None)
+            if spl.globalprops is not None:
+                try:
+                    spl.radius = spl.globalprops.pop("radius")
+                except KeyError:
+                    pass
+                try:
+                    spl.orientation = spl.globalprops.pop("orientation")
+                except KeyError:
+                    pass
+        
+        if splines:
+            self.tomogram._splines = splines
+            self._update_splines_in_images()
+            with self.macro.blocked():
+                self.sample_subtomograms()
+        
+        # load molecules
+        for path in project.molecules:
+            mole = Molecules.from_csv(path)
+            add_molecules(self.parent_viewer, mole, name=Path(path).stem)
+        
+        # load global variables
+        if project.global_variables:
+            with self.macro.blocked():
+                self.Others.Global_variables.load_variables(project.global_variables)
+        
+        # load subtomogram analyzer state
+        self._subtomogram_averaging.template_path = project.template_image or ""
+        self._subtomogram_averaging._set_mask_params(project.mask_parameters)
+        self._subtomogram_averaging.chunk_size = project.chunksize or 200
+        self.reset_choices()
+        self._need_save = False
+        return None
+    
     @File.wraps
     @set_options(
         json_path={"mode": "w", "filter": FileFilter.JSON},
@@ -873,7 +821,7 @@ class MTPropsWidget(MagicTemplate):
     
     @File.wraps
     @set_options(paths={"filter": FileFilter.JSON})
-    @set_design(text="load splines")
+    @set_design(text="Load splines")
     def load_splines(self, paths: List[Path]):
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
@@ -892,7 +840,7 @@ class MTPropsWidget(MagicTemplate):
         for path in paths:
             mole = Molecules.from_csv(path)
             name = Path(path).stem
-            points = add_molecules(self.parent_viewer, mole, name)
+            add_molecules(self.parent_viewer, mole, name)
         return None
     
     @File.wraps
@@ -961,56 +909,39 @@ class MTPropsWidget(MagicTemplate):
         
     @Image.wraps
     @set_design(text="Filter reference image")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Low-pass filtering"})
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
-        def func():
-            with ip.silent(), set_gpu():
-                img: ip.ImgArray = self.layer_image.data
-                overlap = [min(s, 32) for s in img.shape]
-                self.layer_image.data = img.tiled_lowpass_filter(
-                    cutoff, chunks=(96, 96, 96), overlap=overlap,
-                    )
-            return np.percentile(self.layer_image.data, [1, 97])
-        worker = create_worker(func, _progress={"total": 0, "desc": "Running"})
-        self._WorkerControl.info = "Low-pass filtering"
+        with ip.silent(), set_gpu():
+            img: ip.ImgArray = self.layer_image.data
+            overlap = [min(s, 32) for s in img.shape]
+            self.layer_image.data = img.tiled_lowpass_filter(
+                cutoff, chunks=(96, 96, 96), overlap=overlap,
+                )
+        return np.percentile(self.layer_image.data, [1, 97])
 
-        @worker.returned.connect
-        def _on_return(contrast_limits):
-            self.layer_image.contrast_limits = contrast_limits
-            with ip.silent():
-                proj = self.layer_image.data.proj("z")
-            self.overview.image = proj
-            self.overview.contrast_limits = contrast_limits
-        
-        return worker
-    
-    
+    @filter_reference_image.returned.connect
+    def _filter_reference_image_on_return(self, contrast_limits):
+        self.layer_image.contrast_limits = contrast_limits
+        with ip.silent():
+            proj = self.layer_image.data.proj("z")
+        self.overview.image = proj
+        self.overview.contrast_limits = contrast_limits
+        return None
+
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
     @set_design(text="Add multi-scale")
-    @dispatch_worker
-    def add_multiscale(self, bin_size: int = 2, update_layer: bool = False):
+    @thread_worker(progress={"desc": "Adding multiscale"})
+    def add_multiscale(self, bin_size: int = 2):
         tomo = self.tomogram        
-        worker = create_worker(
-            tomo.get_multiscale,
-            binsize=bin_size,
-            add=True,
-            _progress={"total": 0, "desc": "Running"}
-        )
-        self._WorkerControl.info = f"Adding multiscale (bin size = {bin_size})"
-        
-        @worker.returned.connect
-        def _on_return(imgb: ip.ImgArray):
-            if update_layer:
-                with self.macro.blocked():
-                    self.set_multiscale(bin_size)
-            self._need_save = True
-            
-        return worker
+        tomo.get_multiscale(binsize=bin_size, add=True)
+        self._need_save = True
+        return bin_size
     
     @Image.wraps
+    @add_multiscale.returned.connect
     @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Set multi-scale")
     def set_multiscale(self, bin_size: int):
@@ -1215,7 +1146,7 @@ class MTPropsWidget(MagicTemplate):
         edge_sigma={"text": "Do not mask image"},
     )
     @set_design(text="Fit splines")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Spline Fitting"})
     def fit_splines(
         self, 
         max_interval: nm = 30,
@@ -1237,19 +1168,15 @@ class MTPropsWidget(MagicTemplate):
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
         """        
-        worker = create_worker(
-            self.tomogram.fit,
+        self.tomogram.fit(
             max_interval=max_interval,
             binsize=bin_size,
             degree_precision=degree_precision,
             edge_sigma=edge_sigma,
             max_shift=max_shift,
-            _progress={"total": 0, "desc": "Running"}
         )
-        worker.returned.connect(self._update_splines_in_images)
-        self._WorkerControl.info = "Spline Fitting"
         self._need_save = True
-        return worker
+        return None
     
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
@@ -1292,18 +1219,12 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.wraps
     @set_options(radius={"text": "Measure radii by radial profile."})
     @set_design(text="Set radius")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Measuring Radius"})
     def set_radius(self, radius: Optional[nm] = None):
         """Measure MT radius for each spline path."""        
-        worker = create_worker(
-            self.tomogram.set_radius,
-            radius=radius,
-            _progress={"total": 0, "desc": "Running"}
-        )
-        
-        self._WorkerControl.info = "Measuring Radius"
+        self.tomogram.set_radius(radius=radius)
         self._need_save = True
-        return worker
+        return None
     
     @Splines.wraps
     @set_options(
@@ -1312,8 +1233,13 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Refine splines")
-    @dispatch_worker
-    def refine_splines(self, max_interval: nm = 30, corr_allowed: float = 0.9, bin_size: int = 1):
+    @thread_worker(progress={"desc": "Refining splines"})
+    def refine_splines(
+        self,
+        max_interval: nm = 30,
+        corr_allowed: float = 0.9,
+        bin_size: int = 1
+    ):
         """
         Refine splines using the global MT structural parameters.
         
@@ -1327,21 +1253,14 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         
-        worker = create_worker(
-            tomo.refine,
+        tomo.refine(
             max_interval=max_interval,
             corr_allowed=corr_allowed,
             binsize = bin_size,
-            _progress={"total": 0, "desc": "Running"}
         )
         
-        worker.finished.connect(self._update_splines_in_images)
-
-        self._WorkerControl.info = "Refining splines ..."
-        
-        self._init_widget_state()
         self._need_save = True
-        return worker
+        return None
     
     @Splines.wraps
     @set_options(
@@ -1372,7 +1291,7 @@ class MTPropsWidget(MagicTemplate):
         
     @Analysis.wraps
     @set_design(text="Local FT analysis")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Local Fourier transform"})
     def local_ft_analysis(self, interval: nm = 32.0, ft_size: nm = 32.0):
         """
         Determine MT structural parameters by local Fourier transformation.
@@ -1389,36 +1308,25 @@ class MTPropsWidget(MagicTemplate):
         if tomo.splines[0].radius is None:
             self.set_radius()
         self.add_anchors(interval=interval)
-        worker = create_worker(
-            tomo.local_ft_params,
-            ft_size=ft_size,
-            _progress={"total": 0, "desc": "Running"}
-        )
-        @worker.returned.connect
-        def _on_return(df):
-            with self.macro.blocked():
-                self.sample_subtomograms()
-                self._update_local_properties_in_widget()
+        tomo.local_ft_params(ft_size=ft_size)
         self._current_ft_size = ft_size
-        self._WorkerControl.info = "Local Fourier transform ..."
         self._need_save = True
-        return worker
+        return None
+    
+    @local_ft_analysis.returned.connect
+    def _local_ft_analysis_on_return(self, _=None):
+        self.sample_subtomograms()
+        self._update_local_properties_in_widget()
+        return None
         
     @Analysis.wraps
     @set_design(text="Global FT analysis")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Global Fourier transform"})
     def global_ft_analysis(self):
         """Determine MT global structural parameters by Fourier transformation."""        
-        tomo = self.tomogram
-        worker = create_worker(
-            tomo.global_ft_params,
-            _progress={"total": 0, "desc": "Running"}
-        )
-        worker.returned.connect(lambda e: self._update_global_properties_in_widget())
-        
-        self._WorkerControl.info = f"Global Fourier transform ..."
+        self.tomogram.global_ft_params()
         self._need_save = True
-        return worker
+        return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1430,7 +1338,6 @@ class MTPropsWidget(MagicTemplate):
         length={"text": "Use full length"}
     )
     @set_design(text="Map monomers")
-    @dispatch_worker
     def map_monomers(
         self,
         splines: Iterable[int] = (),
@@ -1449,25 +1356,16 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        worker = create_worker(
-            tomo.map_monomers,
-            i=splines,
-            length=length,
-            _progress={"total": 0, "desc": "Running"}
-        )
+        molecules = tomo.map_monomers(i=splines, length=length)
         
-        @worker.returned.connect
-        def _on_return(out: List[Molecules]):
-            self.log.print_html("<code>Map_monomers</code>")
-            for i, mol in enumerate(out):
-                _name = f"Mono-{i}"
-                spl = tomo.splines[splines[i]]
-                add_molecules(self.parent_viewer, mol, _name)
-                self.log.print(f"{_name!r}: n = {len(mol)}")
-                
-        self._WorkerControl.info = "Monomer mapping ..."
+        self.log.print_html("<code>Map_monomers</code>")
+        for i, mol in enumerate(molecules):
+            _name = f"Mono-{i}"
+            add_molecules(self.parent_viewer, mol, _name)
+            self.log.print(f"{_name!r}: n = {len(mol)}")
+            
         self._need_save = True
-        return worker
+        return molecules
 
     @Molecules_.Mapping.wraps
     @set_options(
@@ -1756,7 +1654,7 @@ class MTPropsWidget(MagicTemplate):
     def open_project_editor(self):
         """Open the subtomogram averaging project editor."""
         self._STAProjectEditor.show()
-    
+        
     @magicclass(name="Subtomogram averaging")
     class _subtomogram_averaging(MagicTemplate):
         # Widget for subtomogram averaging
@@ -1764,6 +1662,7 @@ class MTPropsWidget(MagicTemplate):
         def __post_init__(self):
             self._template = None
             self._viewer: Union[napari.Viewer, None] = None
+            self._next_layer_name = None
             self.mask = MASK_CHOICES[0]
             
         template_path = vfield(Path, options={"label": "Template", "filter": FileFilter.IMAGE}, record=False)
@@ -1915,7 +1814,7 @@ class MTPropsWidget(MagicTemplate):
             def average_all(self): ...
             def average_subset(self): ...
             def split_and_average(self): ...
-            def calculate_correlation(self): ...
+            # def calculate_properties(self): ...
             def calculate_fsc(self): ...
             def seam_search(self): ...
         
@@ -1962,7 +1861,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Subtomogram averaging",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def average_all(
         self,
         layer: MonomerLayer,
@@ -1994,7 +1894,6 @@ class MTPropsWidget(MagicTemplate):
         """
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
-        nmole = len(molecules)
         if size is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
         else:
@@ -2002,20 +1901,12 @@ class MTPropsWidget(MagicTemplate):
         loader = tomo.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
         )
-        nbatch = 24
-        worker = create_worker(
-            loader.iter_average,
-            nbatch=nbatch,
-            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
-        )
+        nbatch = 1
         
-        @worker.returned.connect
-        def _on_returned(img: ip.ImgArray):
-            self._subtomogram_averaging._show_reconstruction(img, f"[AVG]{layer.name}")
+        self._subtomogram_averaging._next_layer_name = f"[AVG]{layer.name}"
+        img = yield from loader.iter_average(nbatch=nbatch)
+        return img
         
-        self._WorkerControl.info = f"Subtomogram averaging of {layer.name} (n = {nmole})"
-        return worker
-    
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
@@ -2023,7 +1914,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Subtomogram averaging (subset)",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//24"})
     def average_subset(
         self,
         layer: MonomerLayer,
@@ -2080,17 +1972,10 @@ class MTPropsWidget(MagicTemplate):
             mole, shape, binsize=bin_size, order=1, chunksize=1
         )
         
-        worker = create_worker(loader.iter_average,
-                               _progress={"total": number, "desc": "Running"}
-                               )
+        self._subtomogram_averaging._next_layer_name = f"[AVG(n={number})]{layer.name}"
+        img = yield from loader.iter_average()
         
-        @worker.returned.connect
-        def _on_returned(img: ip.ImgArray):
-            self._subtomogram_averaging._show_reconstruction(img, f"Subtomogram average (n={number})")
-        
-        self._WorkerControl.info = f"Subtomogram Averaging (subset)"
-
-        return worker
+        return img
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2100,7 +1985,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Split and average")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Split and averaging",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size"})
     def split_and_average(
         self,
         layer: MonomerLayer,
@@ -2112,7 +1998,6 @@ class MTPropsWidget(MagicTemplate):
     ):
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
-        nmole = len(molecules)
         if size is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
         else:
@@ -2120,18 +2005,10 @@ class MTPropsWidget(MagicTemplate):
         loader = tomo.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
         )
-        worker = create_worker(
-            loader.iter_average_split,
-            n_set=n_set,
-            _progress={"total": ceilint(nmole/chunk_size), "desc": "Running"}
-        )
+        self._subtomogram_averaging._next_layer_name = f"[Split]{layer.name}"
+        img = yield from loader.iter_average_split(n_set=n_set)
         
-        @worker.returned.connect
-        def _on_returned(img: ip.ImgArray):
-            self._subtomogram_averaging._show_reconstruction(img, f"[Split]{layer.name}")
-        
-        self._WorkerControl.info = f"Split and averaging of {layer.name} (n = {nmole//2}, {nmole - nmole//2})"
-        return worker
+        return img
     
     def _check_binning_for_alignment(
         self,
@@ -2164,18 +2041,15 @@ class MTPropsWidget(MagicTemplate):
         return loader, template, mask
     
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(
-        cutoff={"max": 1.0, "step": 0.05},
-        bin_size={"choices": _get_available_binsize}
-    )
+    @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Align averaged")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Aligning averaged image",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//24+1"})
     def align_averaged(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        cutoff: float = 0.5,
         bin_size: int = 1,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2196,8 +2070,6 @@ class MTPropsWidget(MagicTemplate):
             image must in the same shape as the template.
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter applied to averaged image.
         chunk_size : int, default is 64
             How many subtomograms will be loaded at the same time.
         bin_size : int, default is 1
@@ -2209,7 +2081,6 @@ class MTPropsWidget(MagicTemplate):
         mask: ip.ImgArray = self._subtomogram_averaging._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
             raise ValueError("Shape mismatch between template and mask.")
-        nmole = len(mole)
         
         loader, template, mask = self._check_binning_for_alignment(
             template, mask, bin_size, mole, order=1, chunk_size=chunk_size
@@ -2222,49 +2093,51 @@ class MTPropsWidget(MagicTemplate):
         
         max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
         nbatch = 24
-        worker = create_worker(
-            loader.iter_average,
-            nbatch=nbatch,
-            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
-        )
-        
+        img = yield from loader.iter_average(nbatch=nbatch)
+            
         self.log.print_html(f"<code>Align_averaged</code>")
         
-        @worker.returned.connect
-        def _on_return(image_avg: ip.ImgArray):
-            from ..components._align_utils import align_image_to_template, transform_molecules
-            with ip.silent():
-                img = image_avg.lowpass_filter(cutoff=cutoff)
-                
-                # if multiscaled image is used, there could be shape mismatch
-                if bin_size > 1 and img.shape != template.shape:
-                    sl = tuple(slice(0, s) for s in template.shape)
-                    img = img[sl]
-                    
-                rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
-                deg = np.rad2deg(rot)
-                cval = np.percentile(image_avg, 1)
-                shifted_image = image_avg.affine(
-                    translation=shift, cval=cval
-                ).rotate(deg, dims="zx", cval=cval)
-
+        if bin_size > 1 and img.shape != template.shape:
+            sl = tuple(slice(0, s) for s in template.shape)
+            img = img[sl]
+            
+        from ..components._align_utils import align_image_to_template, transform_molecules
+        
+        with ip.silent():
+            # if multiscaled image is used, there could be shape mismatch
+            rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
+            deg = np.rad2deg(rot)
+            cval = np.percentile(img, 1)
+            shifted_image = img.affine(
+                translation=shift, cval=cval
+            ).rotate(deg, dims="zx", cval=cval)
             shift_nm = shift * img.scale
             vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
             shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
             self.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
-            points = add_molecules(
-                self.parent_viewer, 
-                transform_molecules(mole, shift_nm, [0, -rot, 0]),
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-            )
-            self._subtomogram_averaging._show_reconstruction(shifted_image, "Aligned")
-            layer.visible = False
-            self.log.print(f"{layer.name!r} --> {points.name!r}")
-                
-        self._WorkerControl.info = f"Aligning averaged image (n={nmole}) to template"
+            mole_trans = transform_molecules(mole, shift_nm, [0, -rot, 0])
         self._need_save = True
-        return worker
+        return shifted_image, mole_trans, layer
+
+    @align_averaged.returned.connect
+    def _align_averaged_on_return(self, out):
+        img, mole, layer = out
+        points = add_molecules(
+            self.parent_viewer, 
+            mole,
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+        )
+        self._subtomogram_averaging._show_reconstruction(img, "Aligned")
+        layer.visible = False
+        self.log.print(f"{layer.name!r} --> {points.name!r}")
     
+    @average_all.returned.connect
+    @average_subset.returned.connect
+    @split_and_average.returned.connect
+    def _average_all_on_return(self, img: ip.ImgArray):
+        name = self._subtomogram_averaging._next_layer_name
+        self._subtomogram_averaging._show_reconstruction(img, name)
+        return None
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2278,7 +2151,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Aligning subtomograms",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//24+1"})
     def align_all(
         self,
         layer: MonomerLayer,
@@ -2325,7 +2199,6 @@ class MTPropsWidget(MagicTemplate):
         molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        nmole = len(molecules)
         
         loader, template, mask = self._check_binning_for_alignment(
             template, 
@@ -2336,8 +2209,7 @@ class MTPropsWidget(MagicTemplate):
             chunk_size=chunk_size
         )
         nbatch = 24
-        worker = create_worker(
-            loader.iter_align,
+        aligned_loader = yield from loader.iter_align(
             template=template, 
             mask=mask,
             max_shifts=max_shifts,
@@ -2345,24 +2217,23 @@ class MTPropsWidget(MagicTemplate):
             cutoff=cutoff,
             nbatch=nbatch,
             method=method,
-            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
         
         self.log.print_html(f"<code>Align_all</code>")
-                    
-        @worker.returned.connect
-        def _on_return(aligned_loader: SubtomogramLoader):
-            points = add_molecules(
-                self.parent_viewer, 
-                aligned_loader.molecules,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-            )
-            layer.visible = False
-            self.log.print(f"{layer.name!r} --> {points.name!r}")
-                
-        self._WorkerControl.info = f"Aligning subtomograms (n = {nmole})"
         self._need_save = True
-        return worker
+        return aligned_loader, layer
+
+    @align_all.returned.connect
+    def _align_all_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+        aligned_loader, layer = out
+        points = add_molecules(
+            self.parent_viewer, 
+            aligned_loader.molecules,
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+        )
+        layer.visible = False
+        self.log.print(f"{layer.name!r} --> {points.name!r}")
+        return None
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2376,7 +2247,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all without template")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Aligning subtomograms\nwithout template",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//24+1"})
     def align_all_without_template(
         self,
         layer: MonomerLayer,
@@ -2418,8 +2290,7 @@ class MTPropsWidget(MagicTemplate):
         """
         
         molecules = layer.metadata[MOLECULES]
-        nmole = len(molecules)
-        
+
         loader, _, _ = self._check_binning_for_alignment(
             None, 
             None, 
@@ -2429,32 +2300,30 @@ class MTPropsWidget(MagicTemplate):
             chunk_size=chunk_size
         )
         nbatch = 24
-        worker = create_worker(
-            loader.iter_align_no_template,
+        aligned_loader = yield from loader.iter_align_no_template(
             mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             nbatch=nbatch,
             method=method,
-            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
         )
         
         self.log.print_html(f"<code>Align_all</code>")
-                    
-        @worker.returned.connect
-        def _on_return(aligned_loader: SubtomogramLoader):
-            points = add_molecules(
-                self.parent_viewer, 
-                aligned_loader.molecules,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-            )
-            layer.visible = False
-            self.log.print(f"{layer.name!r} --> {points.name!r}")
                 
-        self._WorkerControl.info = f"Aligning subtomograms withou template (n = {nmole})"
         self._need_save = True
-        return worker
+        return aligned_loader, layer
+    
+    def _align_all_without_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+        aligned_loader, layer = out
+        points = add_molecules(
+            self.parent_viewer, 
+            aligned_loader.molecules,
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+        )
+        layer.visible = False
+        self.log.print(f"{layer.name!r} --> {points.name!r}")
+        return None
 
     # @_subtomogram_averaging.Refinement.wraps
     # @set_options(
@@ -2555,63 +2424,9 @@ class MTPropsWidget(MagicTemplate):
     #         
     #         layer.visible = False
                 
-    #     self._WorkerControl.info = f"Aligning subtomograms (n={nmole})"
     #     self._need_save = True
     #     return worker
 
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        bin_size={"choices": _get_available_binsize},
-    )
-    @set_design(text="Calculate correlation")
-    @dispatch_worker
-    def calculate_correlation(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        interpolation: int = 1,
-        bin_size: int = 1,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
-    ):
-        molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        nmole = len(molecules)
-        # BUG: error when binsize != 1
-        loader, template, mask = self._check_binning_for_alignment(
-            template,
-            mask,
-            binsize=bin_size,
-            molecules=molecules,
-            order=interpolation,
-            chunk_size=chunk_size,
-        )
-        nbatch = 24
-        worker = create_worker(
-            loader.iter_subtomoprops,
-            template=template, 
-            mask=mask,
-            nbatch=nbatch,
-            _progress={"total": ceilint(nmole/nbatch), "desc": "Running"}
-        )
-        
-        @worker.returned.connect
-        def _on_return(corr):
-            with self.log.set_plt(rc_context={"font.size": 15}):
-                plt.hist(corr, bins=50)
-                plt.title("Zero Normalized Cross Correlation")
-                plt.xlabel("Correlation")
-                plt.ylabel("Frequency")
-                plt.tight_layout()
-                plt.show()
-            update_features(layer, {Mole.zncc: corr})
-            self._LoggerWindow.show()
-        
-        self._WorkerControl.info = "Calculating Correlation"
-        self._need_save = True
-        return worker
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2621,7 +2436,8 @@ class MTPropsWidget(MagicTemplate):
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
     @set_design(text="Calculate FSC")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Calculating FSC",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
     def calculate_fsc(
         self,
         layer: MonomerLayer,
@@ -2658,7 +2474,6 @@ class MTPropsWidget(MagicTemplate):
             How many subtomograms will be loaded at the same time.
         """
         mole: Molecules = layer.metadata[MOLECULES]
-        nmole = len(mole)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if shape is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
@@ -2674,43 +2489,38 @@ class MTPropsWidget(MagicTemplate):
             loader._check_shape(mask, "mask")
         if dfreq is None:
             dfreq = 1.5 / min(shape) * loader.scale
-        worker = create_worker(
-            loader.iter_average_split,
-            n_set=n_set,
-            seed=seed,
-            _progress={"total": ceilint(nmole/loader.chunksize), "desc": "Running"}
-        )
+        img = yield from loader.iter_average_split(n_set=n_set, seed=seed)
         
-        @worker.returned.connect
-        def _on_returned(img: ip.ImgArray):
-            fsc_all: List[np.ndarray] = []
-            with ip.silent():
-                for i in range(n_set):
-                    img0, img1 = img[i]
-                    freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
-                    fsc_all.append(fsc)
-            fsc_all = np.stack(fsc_all, axis=1)
-            fsc_mean = np.mean(fsc_all, axis=1)
-            fsc_std = np.std(fsc_all, axis=1)
-            crit_0143 = 0.143
-            crit_0500 = 0.500
-            
-            self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
-            with self.log.set_plt(rc_context={"font.size": 15}):
-                _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
-            
-            resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
-            resolution_0500 = _calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
-            str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
-            str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
-            
-            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
-            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
-            self._LoggerWindow.show()
+        fsc_all: List[np.ndarray] = []
+        with ip.silent():
+            for i in range(n_set):
+                img0, img1 = img[i]
+                freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+                fsc_all.append(fsc)
+        fsc_all = np.stack(fsc_all, axis=1)
+        return freq, fsc_all, layer
+    
+    @calculate_fsc.returned.connect
+    def _calculate_fsc_on_return(self, out):
+        freq, fsc_all, layer = out
+        fsc_mean = np.mean(fsc_all, axis=1)
+        fsc_std = np.std(fsc_all, axis=1)
+        crit_0143 = 0.143
+        crit_0500 = 0.500
         
-        self._WorkerControl.info = "Calculating FSC ..."
-        self._need_save = True
-        return worker
+        self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
+        with self.log.set_plt(rc_context={"font.size": 15}):
+            _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
+        
+        resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
+        resolution_0500 = _calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
+        str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
+        str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
+        
+        self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
+        self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
+        self._LoggerWindow.show()
+        return None    
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2718,7 +2528,8 @@ class MTPropsWidget(MagicTemplate):
         npf={"text": "Use global properties"},
     )
     @set_design(text="Seam search")
-    @dispatch_worker
+    @thread_worker(progress={"desc": "Seam search",
+                             "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
     def seam_search(
         self,
         layer: MonomerLayer,
@@ -2757,44 +2568,40 @@ class MTPropsWidget(MagicTemplate):
         )
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
-        
-        total = ceilint(len(mole) / chunk_size)
-            
-        worker = create_worker(
-            loader.iter_each_seam,
+
+        result = yield from loader.iter_each_seam(
             npf=npf,
             template=template,
             mask=mask,
-            _progress={"total": total, "desc": "Running"}
         )
         
-        @worker.returned.connect
-        def _on_returned(result: Tuple[np.ndarray, ip.ImgArray]):
-            corrs, img_ave, all_labels = result
-            self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
-            
-            # calculate score and the best PF position
-            corr1, corr2 = corrs[:npf], corrs[npf:]
-            score = np.empty_like(corrs)
-            score[:npf] = corr1 - corr2
-            score[npf:] = corr2 - corr1
-            imax = np.argmax(score)
-                
-            # plot all the correlation
-            self.log.print_html("<code>Seam_search</code>")
-            with self.log.set_plt(rc_context={"font.size": 15}):
-                _plot_seam_search_result(corrs, score, npf)
-                
-            self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
-            self.sub_viewer.layers[-1].metadata["Score"] = score
-            
-            update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
-            self._LoggerWindow.show()
-            
-        self._WorkerControl.info = "Seam search ... "
         self._need_save = True
-        return worker
-    
+        return result + (layer, npf)
+
+    @seam_search.returned.connect
+    def _seam_search_on_return(self, result):
+        corrs, img_ave, all_labels, layer, npf = result
+        self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
+        self._LoggerWindow.show()
+        
+        # calculate score and the best PF position
+        corr1, corr2 = corrs[:npf], corrs[npf:]
+        score = np.empty_like(corrs)
+        score[:npf] = corr1 - corr2
+        score[npf:] = corr2 - corr1
+        imax = np.argmax(score)
+            
+        # plot all the correlation
+        self.log.print_html("<code>Seam_search</code>")
+        with self.log.set_plt(rc_context={"font.size": 15}):
+            _plot_seam_search_result(corrs, score, npf)
+            
+        self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
+        self.sub_viewer.layers[-1].metadata["Score"] = score
+        
+        update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
+        return None
+
     @_subtomogram_averaging.Tools.wraps
     @set_options(feature_name={"text": "Do not color molecules."})
     @set_design(text="Render molecules")
@@ -3115,12 +2922,12 @@ class MTPropsWidget(MagicTemplate):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         xmin, xmax = self.label_colorlimit
+        self._LoggerWindow.show()
         with self.log.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
             plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])
             plt.show()
-        self._LoggerWindow.show()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -3207,8 +3014,9 @@ class MTPropsWidget(MagicTemplate):
         if self._current_ft_size is not None:
             tomo.metadata["ft_size"] = self._current_ft_size
         return tomo
-        
-    def _init_widget_state(self):
+    
+    @refine_splines.returned.connect
+    def _init_widget_state(self, _=None):
         """Initialize widget state of spline control and local properties for new plot."""
         self.SplineControl.pos = 0
         self.SplineControl["pos"].max = 0
@@ -3220,6 +3028,58 @@ class MTPropsWidget(MagicTemplate):
             self.SplineControl.canvas[i].text_overlay.text = ""
         for i in range(2):
             self.LocalProperties.plot[i].layers.clear()
+        return None
+    
+    @open_image.returned.connect
+    def _send_tomogram_to_viewer(self, tomo: MtTomogram):
+        viewer = self.parent_viewer
+        self.tomogram = tomo
+        bin_size = max(x[0] for x in tomo.multiscaled)
+        imgb = tomo.get_multiscale(bin_size)
+        tr = tomo.multiscale_translation(bin_size)
+        name = f"{imgb.name} (bin {bin_size})"
+        # update image layer
+        if self.layer_image not in viewer.layers:
+            self.layer_image = viewer.add_image(
+                imgb, 
+                scale=imgb.scale, 
+                name=name, 
+                translate=[tr, tr, tr],
+                contrast_limits=[np.min(imgb), np.max(imgb)],
+            )
+        else:
+            self.layer_image.data = imgb
+            self.layer_image.scale = imgb.scale
+            self.layer_image.name = name
+            self.layer_image.translate = [tr, tr, tr]
+            self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
+        
+        self.layer_image.metadata["current_binsize"] = bin_size
+        
+        # update viewer dimensions
+        viewer.scale_bar.unit = imgb.scale_unit
+        viewer.dims.axis_labels = ("z", "y", "x")
+        change_viewer_focus(viewer, np.asarray(imgb.shape)/2, imgb.scale.x)
+        
+        # update labels layer
+        if self.layer_paint is not None:
+            self.layer_paint.data = np.zeros(imgb.shape, dtype=np.uint8)
+            self.layer_paint.scale = imgb.scale
+            self.layer_paint.translate = [tr, tr, tr]
+        
+        # update overview
+        with ip.silent():
+            proj = imgb.proj("z")
+        self.overview.image = proj
+        self.overview.ylim = (0, proj.shape[0])
+        
+        try:
+            parts = tomo.source.parts
+            _name = os.path.join(*parts[-2:])
+        except Exception:
+            _name = f"Tomogram<{hex(id(tomo))}>"
+        self.log.print_html(f"<h2>{_name}</h2>")
+        self.clear_all()
         return None
     
     def _check_path(self) -> str:
@@ -3362,8 +3222,9 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof.refresh()
         return None
     
+    @global_ft_analysis.returned.connect
     @SplineControl.num.connect
-    def _update_global_properties_in_widget(self):
+    def _update_global_properties_in_widget(self, _=None):
         i: int = self.SplineControl.num
         if i is None:
             return
@@ -3395,10 +3256,6 @@ class MTPropsWidget(MagicTemplate):
             self.LocalProperties._init_text()
         return None
     
-    def _connect_worker(self, worker: Worker):
-        self._WorkerControl._set_worker(worker)
-        return None
-        
     def _add_spline_to_images(self, spl: MtSpline, i: int):
         interval = 15
         length = spl.length()
@@ -3412,7 +3269,11 @@ class MTPropsWidget(MagicTemplate):
             fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",)
         return None
     
-    def _update_splines_in_images(self):
+    @fit_splines.returned.connect
+    @refine_splines.returned.connect
+    @run_mtprops.yielded.connect
+    @run_mtprops.returned.connect
+    def _update_splines_in_images(self, _=None):
         self.overview.layers.clear()
         self.layer_prof.data = []
         scale = self.layer_image.scale[0]
@@ -3430,6 +3291,18 @@ class MTPropsWidget(MagicTemplate):
                 size=10,
                 name=f"spline-{i}-anc",
             )
+    
+    @mark_preview(load_project)
+    def _preview_text(self, path: str):
+        view_text(path, parent=self)
+    
+    @mark_preview(load_molecules)
+    def _preview_table(self, paths: List[str]):
+        view_tables(paths, parent=self)
+    
+    @mark_preview(open_image)
+    def _preview_image(self, path: str):
+        view_image(path, parent=self)
         
 
 def centering(
