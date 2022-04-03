@@ -358,7 +358,8 @@ class MTPropsWidget(MagicTemplate):
         
         def _get_splines_to_run(self, w=None) -> List[int]:
             if self.all_splines:
-                return []
+                n_choices = len(self["splines"].choices)
+                return list(range(n_choices))
             else:
                 return self.splines
         
@@ -395,7 +396,7 @@ class MTPropsWidget(MagicTemplate):
         global_props: Bound[_runner.global_props] = True,
         paint: Bound[_runner.params2.paint] = True,
     ):
-        """Run MTProps"""        
+        """Run MTProps"""     
         if self.layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
         if self.tomogram.n_splines == 0:
