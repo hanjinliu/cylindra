@@ -63,7 +63,7 @@ from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
 from .project_editor import SubtomogramAveragingProjectEditor
-from ._previews import view_tables, view_text, view_image
+from ._previews import view_tables, view_text, view_image, view_surface
 from .widget_utils import (
     FileFilter,
     add_molecules,
@@ -2590,7 +2590,6 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         feature_name: Optional[str] = None,
-        auto_crop: bool = False,
     ):
         """
         Render molecules using the template image.
@@ -2610,9 +2609,6 @@ class MTPropsWidget(MagicTemplate):
             image must in the same shape as the template.
         feature_name : str, optional
             Feature name used for coloring.
-        auto_crop : bool, optional
-            If true, template image will be automatically cropped in the center, 
-            considering spacing between molecules.
         """        
         from skimage.measure import marching_cubes
         # prepare template and mask
@@ -2638,19 +2634,7 @@ class MTPropsWidget(MagicTemplate):
                     f"Feature {feature_name} not found in layer {layer.name}. Must be in "
                     f"{set(layer.features.columns)}"
                 )
-        
-        if auto_crop:
-            npf = np.max(layer.features[Mole.pf]) + 1
-            dy, dx, _ = coords_to_params(mole.pos, npf)
-            dr = dx
-            r_edge = max((template.shape[0] - roundint(dr/template.scale.z)) // 2, 0)
-            y_edge = max((template.shape[1] - roundint(dy/template.scale.y)) // 2, 0)
-            x_edge = max((template.shape[2] - roundint(dx/template.scale.x)) // 2, 0)
-            
-            lz, ly, lx = template.shape
-            template = template[r_edge:lz-r_edge, y_edge:ly-y_edge, x_edge:lx-x_edge]
-            mask = mask[r_edge:lz-r_edge, y_edge:ly-y_edge, x_edge:lx-x_edge]
-        
+                
         # create surface
         verts, faces, _, _ = marching_cubes(
             template, step_size=1, spacing=template.scale, mask=mask > 0.2,
@@ -2677,6 +2661,25 @@ class MTPropsWidget(MagicTemplate):
             shading="smooth",
             name=f"Rendered {layer.name}",
         )
+        return None
+    
+    @mark_preview(render_molecules)
+    def _preview_rendering(self, template_path: str, mask_params):
+        from skimage.measure import marching_cubes
+        # prepare template and mask
+        template = self._subtomogram_averaging._get_template(template_path).copy()
+        soft_mask = self._subtomogram_averaging._get_mask(mask_params)
+        if soft_mask is None:
+            mask = np.ones_like(template)
+        else:
+            mask = soft_mask > 0.2
+            template[~mask] = template.min()
+            
+        # create surface
+        verts, faces, _, _ = marching_cubes(
+            template, step_size=1, spacing=template.scale, mask=mask > 0.2,
+        )
+        view_surface([verts, faces], parent=self)
         return None
     
     @toolbar.wraps

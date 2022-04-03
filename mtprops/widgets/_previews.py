@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from magicclass.widgets import Slider, FloatSlider, SpreadSheet, ConsoleTextEdit
+from magicclass.widgets import Slider, SpreadSheet, ConsoleTextEdit
 from magicclass import (
     magicclass,
     MagicTemplate,
@@ -56,25 +56,8 @@ class ImagePreview(MagicTemplate):
         self._load_image(path)
         self.show()
 
-@magicclass
-class ImagePreviewVispy(MagicTemplate):
-    canvas = field(Vispy3DCanvas)
-    sl = field(FloatSlider, name="iso-threshold")
-
-    def _load_image(self, path: str):
-        img = ip.imread(path)
-        if img.ndim != 3:
-            raise ValueError("Cannot only preview 3D image.")
-        self._img = img
-        self.sl.min, self.sl.value, self.sl.max = np.percentile(img, [0, 50, 100])
-        self.sl.step = (self.sl.max - self.sl.min) / 1000
-        self.canvas.add_isosurface(img.value, iso_threshold=self.sl.value)
-    
-    @sl.connect
-    def _update_canvas(self):
-        self.canvas.layers[-1].iso_threshold = self.sl.value
         
-def view_tables(paths: list[str], parent: MagicTemplate = None, **kwargs):
+def view_tables(paths: list[str], parent: MagicTemplate = None, **kwargs) -> SpreadSheet:
     xl = SpreadSheet()
     for i, path in enumerate(paths):
         df = pd.read_csv(path, **kwargs)
@@ -82,17 +65,27 @@ def view_tables(paths: list[str], parent: MagicTemplate = None, **kwargs):
         xl.rename(i, os.path.basename(path))
     xl.native.setParent(parent.native, xl.native.windowFlags())
     xl.show()
+    return xl
 
-def view_text(path: str, parent: MagicTemplate = None, **kwargs):
+def view_text(path: str, parent: MagicTemplate = None, **kwargs) -> ConsoleTextEdit:
     with open(path, mode="r", **kwargs) as f:
         txt = f.read()
     
     textedit = ConsoleTextEdit(value=txt)
     textedit.native.setParent(parent.native, textedit.native.windowFlags())
     textedit.show()
+    return textedit
 
-def view_image(path: str, parent: MagicTemplate = None):
+def view_image(path: str, parent: MagicTemplate = None) -> ImagePreview:
     prev = ImagePreview()
     prev._load_image(path)
     prev.native.setParent(parent.native, prev.native.windowFlags())
     prev.show()
+    return prev
+
+def view_surface(data, parent: MagicTemplate = None) -> Vispy3DCanvas:
+    prev = Vispy3DCanvas()
+    prev.add_surface(data)
+    prev.native.setParent(parent.native, prev.native.windowFlags())
+    prev.show()
+    return prev

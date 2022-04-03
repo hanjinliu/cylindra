@@ -49,7 +49,7 @@ class FeatureControl(MagicTemplate):
 
     @magicclass(widget_type="tabbed")
     class Tabs(MagicTemplate):        
-        @magicclass
+        @magicclass(name="Colormap Editor")
         class ColorEditor(MagicTemplate):
             @magicclass(widget_type="stacked")
             class Colors(MagicTemplate):
