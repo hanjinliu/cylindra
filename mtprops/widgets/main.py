@@ -1,15 +1,13 @@
 import os
 import re
-from typing import Iterable, Iterator, Union, Tuple, List
+from typing import Iterable, Union, Tuple, List
 from pathlib import Path
-import weakref
 import numpy as np
 import pandas as pd
 from scipy import ndimage as ndi
 import matplotlib.pyplot as plt
 import napari
 from napari.utils import Colormap
-from napari.qt import create_worker
 from napari.layers import Points, Image, Labels, Layer
 
 import impy as ip
@@ -61,7 +59,7 @@ from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
-from .feature_control import FeatureControl, FeatureViewer
+from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
 from .project_editor import SubtomogramAveragingProjectEditor
@@ -96,7 +94,6 @@ class MTPropsWidget(MagicTemplate):
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
-    _FeatureViewer = field(FeatureViewer, name="Monomer feature viewer")
     _FeatureControl = field(FeatureControl, name="Feature Control")
     _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
@@ -170,7 +167,6 @@ class MTPropsWidget(MagicTemplate):
         def calculate_intervals(self): ...
         sep0 = field(Separator)
         def open_feature_control(self): ...
-        def open_feature_viewer(self): ...
         
     @magicmenu
     class Analysis(MagicTemplate):
@@ -969,8 +965,8 @@ class MTPropsWidget(MagicTemplate):
             return None
         
         viewer = self.parent_viewer
-        i: int = self.SplineControl.num
-        j: int = self.SplineControl.pos
+        i = self.SplineControl.num
+        j = self.SplineControl.pos
         
         tomo = self.tomogram
         spl = tomo.splines[i]
@@ -1024,7 +1020,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
-        i: int = self.SplineControl.num
+        i = self.SplineControl.num
         with ip.silent():
             polar = self.tomogram.straighten_cylindric(i).proj("r")
         canvas = QtImageCanvas()
@@ -1626,15 +1622,7 @@ class MTPropsWidget(MagicTemplate):
     def open_feature_control(self):
         """Open the molecule-feature control widget."""
         self._FeatureControl.show()
-        return None
-    
-    @Molecules_.wraps
-    @set_design(text="Open feature viewer")
-    @do_not_record
-    def open_feature_viewer(self):
-        """Open the molecule-feature viewer widget."""
-        self._FeatureViewer.show()
-        self._FeatureViewer._update_table_force()
+        self._FeatureControl._update_table_and_expr()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -2075,8 +2063,8 @@ class MTPropsWidget(MagicTemplate):
             This may cause unexpected fitting result.
         """
         mole: Molecules = layer.metadata[MOLECULES]
-        template: ip.ImgArray = self._subtomogram_averaging._get_template(path=template_path)
-        mask: ip.ImgArray = self._subtomogram_averaging._get_mask(params=mask_params)
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
             raise ValueError("Shape mismatch between template and mask.")
         
@@ -2627,7 +2615,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         from skimage.measure import marching_cubes
         # prepare template and mask
-        template: ip.ImgArray = self._subtomogram_averaging._get_template(template_path).copy()
+        template = self._subtomogram_averaging._get_template(template_path).copy()
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
             mask = np.ones_like(template)
@@ -3089,8 +3077,8 @@ class MTPropsWidget(MagicTemplate):
     
     def _current_cartesian_img(self, i=None, j=None):
         """Return local Cartesian image at the current position."""
-        i: int = i or self.SplineControl.num
-        j: int = j or self.SplineControl.pos
+        i = i or self.SplineControl.num
+        j = j or self.SplineControl.pos
         tomo = self.tomogram
         spl = tomo._splines[i]
         
@@ -3112,8 +3100,8 @@ class MTPropsWidget(MagicTemplate):
     
     def _current_cylindrical_img(self, i=None, j=None):
         """Return cylindric-transformed image at the current position"""
-        i: int = i or self.SplineControl.num
-        j: int = j or self.SplineControl.pos
+        i = i or self.SplineControl.num
+        j = j or self.SplineControl.pos
         tomo = self.tomogram
         if self._current_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
@@ -3196,7 +3184,7 @@ class MTPropsWidget(MagicTemplate):
     
     @SplineControl.num.connect
     def _highlight_spline(self):
-        i: int = self.SplineControl.num
+        i = self.SplineControl.num
         if i is None:
             return
         
@@ -3215,7 +3203,7 @@ class MTPropsWidget(MagicTemplate):
     @global_ft_analysis.returned.connect
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self, _=None):
-        i: int = self.SplineControl.num
+        i = self.SplineControl.num
         if i is None:
             return
         spl = self.tomogram.splines[i]
@@ -3231,11 +3219,11 @@ class MTPropsWidget(MagicTemplate):
     @SplineControl.num.connect
     @SplineControl.pos.connect
     def _update_local_properties_in_widget(self):
-        i: int = self.SplineControl.num
+        i = self.SplineControl.num
         tomo = self.tomogram
         if i is None or i >= len(tomo.splines):
             return
-        j: int = self.SplineControl.pos
+        j = self.SplineControl.pos
         spl = tomo.splines[i]
         if spl.localprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
