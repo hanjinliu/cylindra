@@ -43,6 +43,7 @@ class ImageProcessor(MagicTemplate):
     
     @thread_worker(progress={"desc": "Inverting image."})
     @set_design(text="Invert")
+    @do_not_record
     def invert(self):
         """Invert intensity of the input image."""
         img = self._imread(self.input_image)
@@ -56,6 +57,7 @@ class ImageProcessor(MagicTemplate):
         cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
         order={"max": 20,}
     )
+    @do_not_record
     def lowpass_filter(self, cutoff: float, order: int = 2):
         """Apply Butterworth's low-pass filter to the input image."""
         img = self._imread(self.input_image)
@@ -64,7 +66,8 @@ class ImageProcessor(MagicTemplate):
             out.imsave(self.output_image)
         return None
     
-    @set_design(text="Preview")
+    @set_design(text="Preview input image.")
+    @do_not_record
     def preview(self):
         """Open a preview of the input image."""
         view_image(self.input_image, self)
