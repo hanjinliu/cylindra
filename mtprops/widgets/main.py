@@ -1889,9 +1889,8 @@ class MTPropsWidget(MagicTemplate):
         loader = tomo.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
         )
-        self._subtomogram_averaging._next_layer_name = f"[AVG]{layer.name}"
         img = yield from loader.iter_average()
-        return img
+        return img, f"[AVG]{layer.name}"
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -1958,10 +1957,9 @@ class MTPropsWidget(MagicTemplate):
             mole, shape, binsize=bin_size, order=1, chunksize=1
         )
         
-        self._subtomogram_averaging._next_layer_name = f"[AVG(n={number})]{layer.name}"
         img = yield from loader.iter_average()
         
-        return img
+        return img, f"[AVG(n={number})]{layer.name}"
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -1991,10 +1989,9 @@ class MTPropsWidget(MagicTemplate):
         loader = tomo.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
         )
-        self._subtomogram_averaging._next_layer_name = f"[Split]{layer.name}"
         img = yield from loader.iter_average_split(n_set=n_set)
         
-        return img
+        return img, f"[Split]{layer.name}"
     
     def _check_binning_for_alignment(
         self,
@@ -2119,9 +2116,9 @@ class MTPropsWidget(MagicTemplate):
     @average_all.returned.connect
     @average_subset.returned.connect
     @split_and_average.returned.connect
-    def _average_all_on_return(self, img: ip.ImgArray):
-        name = self._subtomogram_averaging._next_layer_name
-        self._subtomogram_averaging._show_reconstruction(img, name)
+    def _average_all_on_return(self, out: Tuple[ip.ImgArray, str]):
+        img, layer_name = out
+        self._subtomogram_averaging._show_reconstruction(img, layer_name)
         return None
     
     @_subtomogram_averaging.Refinement.wraps
@@ -2583,7 +2580,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Tools.wraps
     @set_options(
         feature_name={"text": "Do not color molecules."},
-        cutoff={"min": 0.05, "max": 0.8, "step": 0.05}
+        cutoff={"options": {"min": 0.05, "max": 0.8, "step": 0.05}},
     )
     @set_design(text="Render molecules")
     def render_molecules(
