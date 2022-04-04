@@ -2,6 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Iterable
 import numpy as np
+from scipy import ndimage as ndi
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
 from ..components import Molecules, MtSpline
@@ -109,3 +110,16 @@ def get_versions() -> dict[str, str]:
         "napari": napari.__version__,
         "dask": dask.__version__,
     }
+
+def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
+    sy, sx = arr.shape
+    ny, nx = 5, 10
+    arr1 = np.stack([arr]*ny, axis=1).reshape(sy * ny, sx)
+    arr2 = np.stack([arr1]*nx, axis=2).reshape(sy * ny, sx * nx)
+    shear = start / npf * ny / nx
+    mtx = np.array(
+        [[1., shear, 0.],
+         [0., 1., 0.],
+         [0., 0., 1.]]
+    )
+    return ndi.affine_transform(arr2, matrix=mtx, order=1, prefilter=False)

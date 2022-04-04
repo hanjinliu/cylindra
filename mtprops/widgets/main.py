@@ -1817,13 +1817,13 @@ class MTPropsWidget(MagicTemplate):
             def reshape_template(self): ...
             def render_molecules(self): ...
         
+        @Tools.wraps
         @do_not_record
         @set_options(
             new_shape={"options": {"min": 2, "max": 100}},
             save_as={"mode": "w", "filter": FileFilter.IMAGE}
         )
         @set_design(text="Reshape template")
-        @Tools.wraps
         def reshape_template(
             self, 
             new_shape: _Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
@@ -2581,7 +2581,10 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @_subtomogram_averaging.Tools.wraps
-    @set_options(feature_name={"text": "Do not color molecules."})
+    @set_options(
+        feature_name={"text": "Do not color molecules."},
+        cutoff={"min": 0.05, "max": 0.8, "step": 0.05}
+    )
     @set_design(text="Render molecules")
     def render_molecules(
         self,
@@ -2589,6 +2592,7 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         feature_name: Optional[str] = None,
+        cutoff: Optional[float] = None,
     ):
         """
         Render molecules using the template image.
@@ -2608,10 +2612,16 @@ class MTPropsWidget(MagicTemplate):
             image must in the same shape as the template.
         feature_name : str, optional
             Feature name used for coloring.
+        cutoff : float, optional
+            Cutoff frequency of low-pass filter to smooth template image. This parameter
+            is for visualization only.
         """        
         from skimage.measure import marching_cubes
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
+        if cutoff is not None:
+            with ip.silent(), set_gpu():
+                template.lowpass_filter(cutoff=cutoff, update=True)
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
             mask = np.ones_like(template)
@@ -2636,7 +2646,7 @@ class MTPropsWidget(MagicTemplate):
                 
         # create surface
         verts, faces, _, _ = marching_cubes(
-            template, step_size=1, spacing=template.scale, mask=mask > 0.2,
+            template, step_size=1, spacing=template.scale, mask=mask,
         )
         
         nverts = verts.shape[0]
@@ -2663,10 +2673,13 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @mark_preview(render_molecules)
-    def _preview_rendering(self, template_path: str, mask_params):
+    def _preview_rendering(self, template_path: str, mask_params, cutoff: float):
         from skimage.measure import marching_cubes
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
+        if cutoff is not None:
+            with ip.silent(), set_gpu():
+                template.lowpass_filter(cutoff=cutoff, update=True)
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
             mask = np.ones_like(template)
