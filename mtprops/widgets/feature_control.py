@@ -31,8 +31,8 @@ class FeatureControl(MagicTemplate):
         cols = layer.features.columns
         return cols
     
-    layer = vfield(Points, options={"choices": get_monomer_layers}, record=False)
-    feature_name = field(options={"choices": _get_feature_names}, record=False)
+    layer = vfield(Points, options={"choices": get_monomer_layers, "tooltip": "Select a monomers layer"}, record=False)
+    feature_name = field(options={"choices": _get_feature_names, "tooltip": "Select target feature of the layer"}, record=False)
     table = field(Table, record=False)
     
     def _get_feature_dataframe(self) -> "pd.DataFrame":
@@ -109,6 +109,7 @@ class FeatureControl(MagicTemplate):
                         layer.refresh()
                     
                     def random_color(self):
+                        """Generate random colors."""
                         ncolors = len(self.colors)
                         self.colors = random_color(ncolors)
                 

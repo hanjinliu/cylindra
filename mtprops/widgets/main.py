@@ -71,7 +71,6 @@ from .widget_utils import (
     update_features,
     molecules_to_spline,
     y_coords_to_start_number,
-    coords_to_params,
     get_versions,
 )
 
