@@ -83,13 +83,17 @@ ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
 
-### The main widget ###
-    
+def _fmt_layer_name(fmt: str):
+    """Define a formatter for progressbar description."""
+    def _formatter(**kwargs):
+        layer: Layer = kwargs["layer"]
+        return fmt.format(layer.name)
+    return _formatter
+
+
 @magicclass(widget_type="scrollable", name="MTProps widget")
 class MTPropsWidget(MagicTemplate):
     # Main GUI class.
-    
-    ### widgets ###
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
@@ -930,8 +934,16 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
     @set_design(text="Add multi-scale")
-    @thread_worker(progress={"desc": "Adding multiscale"})
+    @thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
     def add_multiscale(self, bin_size: int = 2):
+        """
+        Add a new multi-scale image of current tomogram.
+
+        Parameters
+        ----------
+        bin_size : int, default is 2
+            Bin size of the new image
+        """
         tomo = self.tomogram        
         tomo.get_multiscale(binsize=bin_size, add=True)
         self._need_save = True
@@ -1841,7 +1853,7 @@ class MTPropsWidget(MagicTemplate):
             reshaped.imsave(save_as)
             if update_template_path:
                 self.template_path = save_as
-            return None            
+            return None
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -1850,7 +1862,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
-    @thread_worker(progress={"desc": "Subtomogram averaging",
+    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of\n {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def average_all(
         self,
@@ -1900,8 +1912,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
-    @thread_worker(progress={"desc": "Subtomogram averaging (subset)",
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//24"})
+    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of\n {!r}"),
+                             "total": "number"})
     def average_subset(
         self,
         layer: MonomerLayer,
@@ -1969,8 +1981,8 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
-    @set_design(text="Split and average")
-    @thread_worker(progress={"desc": "Split and averaging",
+    @set_design(text="Split-and-average")
+    @thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of\n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size"})
     def split_and_average(
         self,
@@ -2027,7 +2039,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Align averaged")
-    @thread_worker(progress={"desc": "Aligning averaged image",
+    @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of \n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_averaged(
         self,
@@ -2134,7 +2146,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @thread_worker(progress={"desc": "Aligning",
+    @thread_worker(progress={"desc": _fmt_layer_name("Alignment of\n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all(
         self,
@@ -2227,10 +2239,10 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
     )
-    @set_design(text="Align all without template")
-    @thread_worker(progress={"desc": "Aligning without template",
+    @set_design(text="Align all (template-free)")
+    @thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of\n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
-    def align_all_without_template(
+    def align_all_template_free(
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
@@ -2315,8 +2327,9 @@ class MTPropsWidget(MagicTemplate):
     #     interpolation={"choices": [("linear", 1), ("cubic", 3)]},
     #     bin_size={"choices": _get_available_binsize},
     # )
-    # @dispatch_worker
-    # def Multi_template_alignment(
+    # @set_design(text="Align all (multi-template)")
+    # @thread_worker
+    # def align_all_multi_template(
     #     self,
     #     layer: MonomerLayer,
     #     template_path: Bound[_subtomogram_averaging.template_path],
@@ -2412,7 +2425,7 @@ class MTPropsWidget(MagicTemplate):
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
     @set_design(text="Calculate FSC")
-    @thread_worker(progress={"desc": "Calculating FSC",
+    @thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
     def calculate_fsc(
         self,
@@ -2504,7 +2517,7 @@ class MTPropsWidget(MagicTemplate):
         npf={"text": "Use global properties"},
     )
     @set_design(text="Seam search")
-    @thread_worker(progress={"desc": "Seam search",
+    @thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
     def seam_search(
         self,
