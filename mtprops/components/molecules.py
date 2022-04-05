@@ -127,6 +127,7 @@ class Molecules:
         return None
 
     def to_dataframe(self) -> pd.DataFrame:
+        """Convert coordinates, rotation and features into a single data frame."""
         rotvec = self.rotvec()
         data = np.concatenate([self.pos, rotvec], axis=1)
         df = pd.DataFrame(data, columns=_CSV_COLUMNS)
@@ -143,8 +144,7 @@ class Molecules:
         save_path : str
             Save path.
         """        
-        self.to_dataframe().to_csv(save_path, index=False)
-        return None
+        return self.to_dataframe().to_csv(save_path, index=False)
 
     def __len__(self) -> int:
         """Return the number of molecules."""
@@ -515,6 +515,44 @@ class Molecules:
         world_shifts = self._rotator.apply(shifts)
         return self.translate(world_shifts, copy=copy)
     
+    def translate_random(self, max_distance: nm, *, seed=None, copy=True) -> Molecules:
+        """
+        Apply random translation to each molecule.
+        
+        Translation range is restricted by a maximum distance and translation values are
+        uniformly distributed in this region. Different translations will be applied to
+        different molecules.
+
+        Parameters
+        ----------
+        max_distance : nm
+            Maximum distance of translation.
+        seed : int, optional
+            Random seed, by default None
+        copy : bool, default is True
+            If true, create a new instance, otherwise overwrite the existing instance.
+
+        Returns
+        -------
+        Molecules
+            Translated molecules.
+        """
+        nmole = len(self)
+        np.random.seed(seed)
+        r = np.random.random(nmole) * max_distance
+        theta = np.random.random(nmole) * 2 * np.pi
+        phi = np.random.random(nmole) * np.pi
+        np.random.seed(None)
+        cos_phi = np.cos(phi)
+        shifts = np.stack(
+            [
+                r * np.sin(phi),
+                r * cos_phi * np.sin(theta),
+                r * cos_phi * np.cos(theta),
+            ],
+            axis=1,
+        )
+        return self.translate(shifts, copy=copy)
     
     def rotate_by_rotvec_internal(self, vector: ArrayLike, copy: bool = True) -> Molecules:
         """
