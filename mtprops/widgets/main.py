@@ -50,6 +50,7 @@ from ..components import (
 )
 from ..components.microtubule import angle_corr
 from ..utils import (
+    Projections,
     crop_tomogram,
     interval_filter,
     make_slice_and_pad,
@@ -259,7 +260,8 @@ class MTPropsWidget(MagicTemplate):
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
             mgui.bin_size.value = ceilint(0.96 / scale)
-
+        
+        return None
 
     @property
     def sub_viewer(self) -> napari.Viewer:
@@ -391,7 +393,7 @@ class MTPropsWidget(MagicTemplate):
     @_runner.wraps
     @set_design(text="Run")
     @thread_worker(progress={"desc": "Running MTProps", 
-                             "total": "(1 + n_refine + int(local_props) + int(global_props)) * len(splines)"})
+                             "total": "(1+n_refine+int(local_props)+int(global_props))*len(splines)"})
     def run_mtprops(
         self,
         splines: Bound[_runner._get_splines_to_run] = (),
@@ -1085,7 +1087,7 @@ class MTPropsWidget(MagicTemplate):
         paths = [r.partition(100) for r in self.tomogram.splines]
         
         self.parent_viewer.add_shapes(
-            paths, shape_type="Splines", edge_color="lime", edge_width=1,
+            paths, shape_type="paths", edge_color="lime", edge_width=1,
         )
         return None
 
@@ -2137,19 +2139,34 @@ class MTPropsWidget(MagicTemplate):
         self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
 
         self._need_save = True
-        return img_trans, mole_trans, layer
+        return img_trans, template, mole_trans, layer
 
     @align_averaged.returned.connect
-    def _align_averaged_on_return(self, out: Tuple[ip.ImgArray, Molecules, MonomerLayer]):
-        img, mole, layer = out
+    def _align_averaged_on_return(self, out: Tuple[ip.ImgArray, ip.ImgArray, Molecules, MonomerLayer]):
+        img, template, mole, layer = out
         points = add_molecules(
             self.parent_viewer, 
             mole,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
-        self._subtomogram_averaging._show_reconstruction(img, "Aligned")
+        with ip.silent():
+            img_norm = img.rescale_intensity(dtype=np.uint8).value
+            temp_norm = template.rescale_intensity(dtype=np.uint8).value
+        merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
         layer.visible = False
         self.log.print(f"{layer.name!r} --> {points.name!r}")
+        with self.log.set_plt():
+            fig, axes = plt.subplots(nrows=1, ncols=2)
+            axes[0].imshow(np.max(merge, axis=0))
+            axes[0].set_xlabel("X")
+            axes[0].set_ylabel("Y")
+            axes[1].imshow(np.max(merge, axis=1))
+            axes[1].set_xlabel("X")
+            axes[0].set_ylabel("Z")
+            plt.tight_layout()
+            plt.show()
+            
+        return None
     
     @average_all.returned.connect
     @average_subset.returned.connect

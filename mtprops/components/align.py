@@ -90,6 +90,7 @@ class AlignmentModel:
                 "dimensional image."
             )
         self._template = template
+        self._n_templates = 1 if template.ndim == 3 else template.shape[0]
         self.cutoff = cutoff
         if mask is None:
             self.mask = 1
@@ -101,6 +102,7 @@ class AlignmentModel:
                 )
             self.mask = mask
         self.quaternions = normalize_rotations(rotations)
+        self._n_rotations = self.quaternions.shape[0]
         self._method = method.lower()
         self._align_func = self._get_alignment_function()
         self.template_input = self._get_template_input()
@@ -128,7 +130,7 @@ class AlignmentModel:
         iopt, shift, corr = self._align_func(
             img, self.cutoff, self.mask, self.template_input, max_shifts
         )
-        quat = self.quaternions[iopt]
+        quat = self.quaternions[iopt % self._n_rotations]
         return AlignmentResult(label=iopt, shift=shift, quat=quat, corr=corr)
     
     def fit(
@@ -172,15 +174,15 @@ class AlignmentModel:
         Whether alignment parameters requires multi-templates.
         "Multi-template" includes alignment with subvolume rotation.
         """
-        return self._template.ndim == 4
+        return self._n_templates > 1
     
     @property
-    def is_single_template(self) -> bool:
-        return self._template.ndim == 3 and self.quaternions.shape[0] == 1
+    def is_single(self) -> bool:
+        return self._n_templates == 1 and self._n_rotations == 1
     
     @property
     def has_rotation(self) -> bool:
-        return self.quaternions.shape[0] > 1
+        return self._n_rotations > 1
     
     def _get_rotators(self, inv: bool = False) -> list[Rotation]:
         if inv:
@@ -397,36 +399,3 @@ def align_subvolume_multitemplates_zncc(
     
     iopt = int(np.argmax(all_zncc))
     return iopt, all_shifts[iopt], all_zncc[iopt]
-
-
-def align_subvolume_list_multitemplates(
-    subvol_set: Iterable[ip.ImgArray],
-    cutoff: float,
-    mask: ip.ImgArray,
-    template_list: list[ip.ImgArray],
-    max_shift: tuple[int, int, int],
-) -> tuple[tuple[int, int], np.ndarray, float]:
-    all_shifts: list[np.ndarray] = []
-    all_zncc: list[list[float]] = []  # corrs[i, j] := i-th rotation, j-th template
-    with ip.silent(), set_gpu():
-        for subvol in subvol_set:
-            subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-            input = subvol_filt * mask
-            current_zncc: list[float] = []
-            current_all_shifts: list[np.ndarray] = []
-            for template in template_list:
-                shift, corr = ip.zncc_maximum_with_corr(
-                    input,
-                    template, 
-                    upsample_factor=20, 
-                    max_shifts=max_shift,
-                )
-                all_shifts.append(shift)
-                current_zncc.append(corr)
-            
-            all_zncc.append(current_zncc)
-            all_shifts.append(current_all_shifts)
-    
-    _corrs = np.array(all_zncc)
-    iopt, jopt = np.unravel_index(np.argmax(_corrs), _corrs.shape)
-    return (iopt, jopt), all_shifts[iopt][jopt], _corrs[iopt][jopt]

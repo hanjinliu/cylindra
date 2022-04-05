@@ -399,12 +399,13 @@ class SubtomogramLoader(Generic[_V]):
         cutoff: float = 0.5,
         method: str = "pcc",
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
+        n_templates = len(templates)
         self._check_shape(templates[0])
         
         local_shifts, local_rot, corr_max = _allocate(len(self))
         
         # optimal template ID
-        labels = np.zeros(len(self), dtype=np.uint8)
+        labels = np.zeros(len(self), dtype=np.uint32)
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         with ip.silent(), set_gpu():
@@ -416,25 +417,21 @@ class SubtomogramLoader(Generic[_V]):
                 method=method,
             )
 
-            if not model.has_rotation:
-                for i, subvol in enumerate(self.iter_subtomograms()):
-                    result = model.align(subvol, _max_shifts_px)
-                    labels[i], local_shifts[i], local_rot[i], corr_max[i] = result
-                    yield result
-                
-            else:
-                for i, subvol in enumerate(self.iter_subtomograms()):
-                    result = model.align(subvol, _max_shifts_px)
-                    (_, labels[i]), local_shifts[i], local_rot[i], corr_max[i] = result
-                    yield result
-            
+            for i, subvol in enumerate(self.iter_subtomograms()):
+                result = model.align(subvol, _max_shifts_px)
+                labels[i], local_shifts[i], local_rot[i], corr_max[i] = result
+                yield result
             rotvec = Rotation.from_quat(local_rot).as_rotvec()
             mole_aligned = transform_molecules(
                 self.molecules, 
                 local_shifts* self.scale, 
                 Rotation.from_quat(local_rot).as_rotvec()
             )
-            
+        
+        if model.has_rotation:
+            labels //= n_templates
+        labels = labels.astype(np.uint8)
+        
         mole_aligned.features = pd.concat(
             [self.molecules.features,
              get_features(method, corr_max, local_shifts, rotvec),

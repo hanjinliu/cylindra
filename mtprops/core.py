@@ -25,24 +25,25 @@ def start(
     if viewer is None:
         import napari
         viewer = napari.Viewer()
-    widget = MTPropsWidget()
+    ui = MTPropsWidget()
     
     logger = logging.getLogger(__name__.split(".")[0])
-    logger.addHandler(widget.log)
+    logger.addHandler(ui.log)
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
-    widget.log.setFormatter(formatter)
+    ui.log.setFormatter(formatter)
     logger.setLevel(logging.INFO)
     
     dock = viewer.window.add_dock_widget(
-        widget,
+        ui,
         area="right",
         allowed_areas=["right"],
         name="MTProps"
     )
     dock.setMinimumHeight(300)
+    viewer.window.add_dock_widget(ui._LoggerWindow)
     
     if project_file is not None:
-        widget.load_project(project_file)
+        ui.load_project(project_file)
     if globals_file is not None:
-        widget.Others.Global_variables.load_variables(globals_file)
-    return widget
+        ui.Others.Global_variables.load_variables(globals_file)
+    return ui
