@@ -41,7 +41,13 @@ from magicclass.widgets import (
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.utils import thread_worker
 
-from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
+from ..components import (
+    SubtomogramLoader,
+    Molecules,
+    MtSpline,
+    MtTomogram,
+    AlignmentInputs,
+)
 from ..components.microtubule import angle_corr
 from ..utils import (
     crop_tomogram,
@@ -2097,25 +2103,41 @@ class MTPropsWidget(MagicTemplate):
             img = img[sl]
             
         from ..components._align_utils import align_image_to_template, transform_molecules
-        
+        from scipy.spatial.transform import Rotation
         with ip.silent():
             # if multiscaled image is used, there could be shape mismatch
+            inp = AlignmentInputs(
+                template,
+                mask,
+                cutoff=1.0,
+                rotations=[(3.0, 3.0), (15.0, 3.0), (3.0, 3.0)],
+            )
+            result = inp.align(img, max_shifts)
             rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
-            deg = np.rad2deg(rot)
+            rotator = Rotation.from_quat(rot)
+            rotvec = rotator.as_rotvec()
+            matrix = rotator.as_matrix()
+            mole_trans = transform_molecules(
+                mole, 
+                result.shift * img.scale, 
+                rotvec,
+            )
             cval = np.percentile(img, 1)
-            shifted_image = img.affine(
-                translation=shift, cval=cval
-            ).rotate(deg, dims="zx", cval=cval)
-            shift_nm = shift * img.scale
+            img_trans = img.affine(translation=shift, rotation=matrix, cval=cval)
+            
+            # logging
+            shift_nm = result.shift * img.scale
             vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
+            rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
             shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-            self.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
-            mole_trans = transform_molecules(mole, shift_nm, [0, -rot, 0])
+            rot_str = ", ".join(f"{s:.2f}" for s in rotvec[::-1])
+            self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
+
         self._need_save = True
-        return shifted_image, mole_trans, layer
+        return img_trans, mole_trans, layer
 
     @align_averaged.returned.connect
-    def _align_averaged_on_return(self, out):
+    def _align_averaged_on_return(self, out: Tuple[ip.ImgArray, Molecules, MonomerLayer]):
         img, mole, layer = out
         points = add_molecules(
             self.parent_viewer, 
@@ -2305,7 +2327,11 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         return aligned_loader, layer
     
-    def _align_all_without_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+    @align_all_template_free.returned.connect
+    def _align_all_template_free_on_return(
+        self,
+        out: Tuple[SubtomogramLoader, MonomerLayer]
+    ):
         aligned_loader, layer = out
         points = add_molecules(
             self.parent_viewer, 
@@ -2490,7 +2516,7 @@ class MTPropsWidget(MagicTemplate):
         return freq, fsc_all, layer
     
     @calculate_fsc.returned.connect
-    def _calculate_fsc_on_return(self, out):
+    def _calculate_fsc_on_return(self, out: Tuple[np.ndarray, np.ndarray, MonomerLayer]):
         freq, fsc_all, layer = out
         fsc_mean = np.mean(fsc_all, axis=1)
         fsc_std = np.std(fsc_all, axis=1)
@@ -2568,8 +2594,11 @@ class MTPropsWidget(MagicTemplate):
         return result + (layer, npf)
 
     @seam_search.returned.connect
-    def _seam_search_on_return(self, result):
-        corrs, img_ave, all_labels, layer, npf = result
+    def _seam_search_on_return(
+        self, 
+        out: Tuple[np.ndarray, ip.ImgArray, np.ndarray, MonomerLayer, int]
+    ):
+        corrs, img_ave, all_labels, layer, npf = out
         self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
         self._LoggerWindow.show()
         
@@ -2996,6 +3025,7 @@ class MTPropsWidget(MagicTemplate):
     @nogui
     @do_not_record
     def get_spline(self, i: int = None) -> MtSpline:
+        """Get a spline object"""
         tomo = self.tomogram
         if i is None:
             i = self.SplineControl.num

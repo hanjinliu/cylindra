@@ -1,7 +1,6 @@
 from __future__ import annotations
 import itertools
-from typing import Iterable, Union, overload
-from typing_extensions import Literal
+from typing import Iterable, Union
 import numpy as np
 from numpy.typing import ArrayLike
 import impy as ip
@@ -27,15 +26,21 @@ def align_image_to_template(
     corrs: list[float] = []
     shifts: list[np.ndarray] = []
     rots = np.linspace(-15, 15, 7)
-    masked_template = template*mask
-    template_ft = masked_template.fft()
+    template_masked = template*mask
     for yrot in rots:
         img_rot = image.rotate(yrot, cval=0, dims="zx")
         img_rot_ft = img_rot.fft()
-        shift = ip.ft_pcc_maximum(img_rot_ft, template_ft, max_shifts=max_shifts)
+        shift, corr = ip.zncc_maximum_with_corr(
+            img_rot_ft, template_masked, max_shifts=max_shifts
+        )
+        iopt, shift, corr = align_subvolume_multitemplates_pcc(
+            image, 
+            cutoff=0.9, 
+            mask=1,
+            template_ft_list=...,
+            max_shift=max_shifts,
+        )
         shifts.append(shift)
-        img_rot_shift = img_rot.affine(translation=shift)
-        corr = ip.zncc(img_rot_shift*mask, masked_template)
         corrs.append(corr)
     
     iopt = np.argmax(corrs)
@@ -57,21 +62,14 @@ def _normalize_ranges(rng: Ranges) -> tuple[tuple[float, int], tuple[float, int]
         rng = _normalize_a_range(rng)
         return (rng,) * 3
 
-@overload
-def normalize_rotations(rotations: Literal[None]) -> None:
-    ...
 
-@overload
-def normalize_rotations(rotations: Ranges) -> np.ndarray:
-    ...
-
-def normalize_rotations(rotations):
+def normalize_rotations(rotations: Ranges | None):
     """
     Normalize various rotation expressions to quaternions.
 
     Parameters
     ----------
-    rotations : tuple of float and int, or list of it, optional
+    rotations : tuple of float and float, or list of it, optional
         Rotation around each axis.
 
     Returns
@@ -92,10 +90,9 @@ def normalize_rotations(rotations):
         quat: list[np.ndarray] = []
         for angs in itertools.product(*angles):
             quat.append(from_euler(np.array(angs), "zyx", degrees=True).as_quat())
-        if len(quat) == 1:
-            rotations = None
-        else:
-            rotations = np.stack(quat, axis=0)
+        rotations = np.stack(quat, axis=0)
+    else:
+        rotations = np.array([[0., 0., 0., 1.]])
         
     return rotations
 
@@ -152,7 +149,7 @@ def align_subvolume_zncc(
     mask: ip.ImgArray,
     template: ip.ImgArray,
     max_shift: tuple[int, int, int],
-) -> tuple[np.ndarray, float]:
+) -> tuple[int, np.ndarray, float]:
     with ip.silent():    
         subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
         input = subvol_filt * mask
@@ -162,7 +159,7 @@ def align_subvolume_zncc(
             upsample_factor=20, 
             max_shifts=max_shift
         )
-    return shift, zncc
+    return 0, shift, zncc
 
 def align_subvolume_pcc(
     subvol: ip.ImgArray,
@@ -180,7 +177,7 @@ def align_subvolume_pcc(
             upsample_factor=20, 
             max_shifts=max_shift
         )
-    return shift, pcc
+    return 0, shift, pcc
 
 def align_subvolume_multitemplates_pcc(
     subvol: ip.ImgArray,
