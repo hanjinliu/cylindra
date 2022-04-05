@@ -41,9 +41,16 @@ from magicclass.widgets import (
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.utils import thread_worker
 
-from ..components import SubtomogramLoader, Molecules, MtSpline, MtTomogram
+from ..components import (
+    SubtomogramLoader,
+    Molecules,
+    MtSpline,
+    MtTomogram,
+    AlignmentModel,
+)
 from ..components.microtubule import angle_corr
 from ..utils import (
+    Projections,
     crop_tomogram,
     interval_filter,
     make_slice_and_pad,
@@ -83,13 +90,17 @@ ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
 
-### The main widget ###
-    
+def _fmt_layer_name(fmt: str):
+    """Define a formatter for progressbar description."""
+    def _formatter(**kwargs):
+        layer: Layer = kwargs["layer"]
+        return fmt.format(layer.name)
+    return _formatter
+
+
 @magicclass(widget_type="scrollable", name="MTProps widget")
 class MTPropsWidget(MagicTemplate):
     # Main GUI class.
-    
-    ### widgets ###
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
@@ -249,7 +260,8 @@ class MTPropsWidget(MagicTemplate):
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
             mgui.bin_size.value = ceilint(0.96 / scale)
-
+        
+        return None
 
     @property
     def sub_viewer(self) -> napari.Viewer:
@@ -381,7 +393,7 @@ class MTPropsWidget(MagicTemplate):
     @_runner.wraps
     @set_design(text="Run")
     @thread_worker(progress={"desc": "Running MTProps", 
-                             "total": "(1 + n_refine + int(local_props) + int(global_props)) * len(splines)"})
+                             "total": "(1+n_refine+int(local_props)+int(global_props))*len(splines)"})
     def run_mtprops(
         self,
         splines: Bound[_runner._get_splines_to_run] = (),
@@ -930,8 +942,16 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
     @set_design(text="Add multi-scale")
-    @thread_worker(progress={"desc": "Adding multiscale"})
+    @thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
     def add_multiscale(self, bin_size: int = 2):
+        """
+        Add a new multi-scale image of current tomogram.
+
+        Parameters
+        ----------
+        bin_size : int, default is 2
+            Bin size of the new image
+        """
         tomo = self.tomogram        
         tomo.get_multiscale(binsize=bin_size, add=True)
         self._need_save = True
@@ -1067,7 +1087,7 @@ class MTPropsWidget(MagicTemplate):
         paths = [r.partition(100) for r in self.tomogram.splines]
         
         self.parent_viewer.add_shapes(
-            paths, shape_type="Splines", edge_color="lime", edge_width=1,
+            paths, shape_type="paths", edge_color="lime", edge_width=1,
         )
         return None
 
@@ -1811,7 +1831,7 @@ class MTPropsWidget(MagicTemplate):
         class Refinement(MagicTemplate):
             def align_averaged(self): ...
             def align_all(self): ...
-            def multi_template_alignment(self): ...
+            def align_all_multi_template(self): ...
         
         @magicmenu
         class Tools(MagicTemplate):
@@ -1841,7 +1861,7 @@ class MTPropsWidget(MagicTemplate):
             reshaped.imsave(save_as)
             if update_template_path:
                 self.template_path = save_as
-            return None            
+            return None
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -1850,7 +1870,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
-    @thread_worker(progress={"desc": "Subtomogram averaging",
+    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of\n {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def average_all(
         self,
@@ -1900,8 +1920,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
-    @thread_worker(progress={"desc": "Subtomogram averaging (subset)",
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//24"})
+    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of\n {!r}"),
+                             "total": "number"})
     def average_subset(
         self,
         layer: MonomerLayer,
@@ -1969,8 +1989,8 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
-    @set_design(text="Split and average")
-    @thread_worker(progress={"desc": "Split and averaging",
+    @set_design(text="Split-and-average")
+    @thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of\n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size"})
     def split_and_average(
         self,
@@ -2025,16 +2045,20 @@ class MTPropsWidget(MagicTemplate):
         return loader, template, mask
     
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(bin_size={"choices": _get_available_binsize})
+    @set_options(
+        bin_size={"choices": _get_available_binsize},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+    )
     @set_design(text="Align averaged")
-    @thread_worker(progress={"desc": "Aligning averaged image",
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of \n{!r}"),
+                             "total": f"len(layer.metadata[{MOLECULES!r}])+1"})
     def align_averaged(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         bin_size: int = 1,
+        method: str = "pcc",
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
@@ -2064,7 +2088,10 @@ class MTPropsWidget(MagicTemplate):
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
-            raise ValueError("Shape mismatch between template and mask.")
+            raise ValueError(
+                f"Shape mismatch between tempalte image ({tuple(template.shape)}) "
+                f"and mask image ({tuple(mask.shape)})."
+            )
         
         loader, template, mask = self._check_binning_for_alignment(
             template, mask, bin_size, mole, order=1, chunk_size=chunk_size
@@ -2084,35 +2111,62 @@ class MTPropsWidget(MagicTemplate):
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
             
-        from ..components._align_utils import align_image_to_template, transform_molecules
-        
+        from ..components.align import transform_molecules
+        from scipy.spatial.transform import Rotation
         with ip.silent():
             # if multiscaled image is used, there could be shape mismatch
-            rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
-            deg = np.rad2deg(rot)
-            cval = np.percentile(img, 1)
-            shifted_image = img.affine(
-                translation=shift, cval=cval
-            ).rotate(deg, dims="zx", cval=cval)
-            shift_nm = shift * img.scale
-            vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
-            shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-            self.log.print_html(f"rotation = {deg:.2f}&deg;, {vec_str} = {shift_nm_str}")
-            mole_trans = transform_molecules(mole, shift_nm, [0, -rot, 0])
+            model = AlignmentModel(
+                template,
+                mask,
+                cutoff=1.0,
+                rotations=((3.0, 3.0), (15.0, 3.0), (3.0, 3.0)),
+                method=method,
+            )
+            img_trans, result = model.fit(img, max_shifts=max_shifts)
+            rotvec = Rotation.from_quat(result.quat).as_rotvec()
+            mole_trans = transform_molecules(
+                mole, 
+                result.shift * img.scale, 
+                rotvec,
+            )
+        yield
+        # logging
+        shift_nm = result.shift * img.scale
+        vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
+        rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
+        shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
+        rot_str = ", ".join(f"{s:.2f}" for s in rotvec[::-1])
+        self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
+
         self._need_save = True
-        return shifted_image, mole_trans, layer
+        return img_trans, template, mole_trans, layer
 
     @align_averaged.returned.connect
-    def _align_averaged_on_return(self, out):
-        img, mole, layer = out
+    def _align_averaged_on_return(self, out: Tuple[ip.ImgArray, ip.ImgArray, Molecules, MonomerLayer]):
+        img, template, mole, layer = out
         points = add_molecules(
             self.parent_viewer, 
             mole,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
-        self._subtomogram_averaging._show_reconstruction(img, "Aligned")
+        with ip.silent():
+            img_norm = img.rescale_intensity(dtype=np.uint8).value
+            temp_norm = template.rescale_intensity(dtype=np.uint8).value
+        merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
         layer.visible = False
         self.log.print(f"{layer.name!r} --> {points.name!r}")
+        with self.log.set_plt():
+            fig, axes = plt.subplots(nrows=1, ncols=2)
+            axes[0].imshow(np.max(merge, axis=0))
+            axes[0].set_xlabel("X")
+            axes[0].set_ylabel("Y")
+            axes[1].imshow(np.max(merge, axis=1))
+            axes[1].set_xlabel("X")
+            axes[0].set_ylabel("Z")
+            plt.tight_layout()
+            plt.show()
+            
+        return None
     
     @average_all.returned.connect
     @average_subset.returned.connect
@@ -2134,7 +2188,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @thread_worker(progress={"desc": "Aligning",
+    @thread_worker(progress={"desc": _fmt_layer_name("Alignment of\n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all(
         self,
@@ -2227,10 +2281,10 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
     )
-    @set_design(text="Align all without template")
-    @thread_worker(progress={"desc": "Aligning without template",
+    @set_design(text="Align all (template-free)")
+    @thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of\n{!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
-    def align_all_without_template(
+    def align_all_template_free(
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
@@ -2293,7 +2347,11 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         return aligned_loader, layer
     
-    def _align_all_without_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+    @align_all_template_free.returned.connect
+    def _align_all_template_free_on_return(
+        self,
+        out: Tuple[SubtomogramLoader, MonomerLayer]
+    ):
         aligned_loader, layer = out
         points = add_molecules(
             self.parent_viewer, 
@@ -2304,104 +2362,107 @@ class MTPropsWidget(MagicTemplate):
         self.log.print(f"{layer.name!r} --> {points.name!r}")
         return None
 
-    # @_subtomogram_averaging.Refinement.wraps
-    # @set_options(
-    #     other_templates={"filter": FileFilter.IMAGE},
-    #     cutoff={"max": 1.0, "step": 0.05},
-    #     max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
-    #     z_rotation={"options": {"max": 5.0, "step": 0.1}},
-    #     y_rotation={"options": {"max": 5.0, "step": 0.1}},
-    #     x_rotation={"options": {"max": 5.0, "step": 0.1}},
-    #     interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-    #     bin_size={"choices": _get_available_binsize},
-    # )
-    # @dispatch_worker
-    # def Multi_template_alignment(
-    #     self,
-    #     layer: MonomerLayer,
-    #     template_path: Bound[_subtomogram_averaging.template_path],
-    #     other_templates: List[Path],
-    #     mask_params: Bound[_subtomogram_averaging._get_mask_params],
-    #     max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
-    #     z_rotation: _Tuple[float, float] = (0., 0.),
-    #     y_rotation: _Tuple[float, float] = (0., 0.),
-    #     x_rotation: _Tuple[float, float] = (0., 0.),
-    #     cutoff: float = 0.5,
-    #     interpolation: int = 1,
-    #     bin_size: int = 1,
-    #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
-    # ):
-    #     """
-    #     Align all the molecules for subtomogram averaging.
+    @_subtomogram_averaging.Refinement.wraps
+    @set_options(
+        other_templates={"filter": FileFilter.IMAGE},
+        cutoff={"max": 1.0, "step": 0.05},
+        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        z_rotation={"options": {"max": 5.0, "step": 0.1}},
+        y_rotation={"options": {"max": 5.0, "step": 0.1}},
+        x_rotation={"options": {"max": 5.0, "step": 0.1}},
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+        bin_size={"choices": _get_available_binsize},
+    )
+    @set_design(text="Align all (multi-template)")
+    @thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of\n{!r}"),
+                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    def align_all_multi_template(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        other_templates: List[Path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: _Tuple[float, float] = (0., 0.),
+        y_rotation: _Tuple[float, float] = (0., 0.),
+        x_rotation: _Tuple[float, float] = (0., 0.),
+        cutoff: float = 0.5,
+        interpolation: int = 1,
+        method: str = "pcc",
+        bin_size: int = 1,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+    ):
+        """
+        Align all the molecules for subtomogram averaging.
         
-    #     Parameters
-    #     ----------
-    #     template_path : Path or str
-    #         Template image path.
-    #     other_templates : list of Path or str
-    #         Path to other template images.
-    #     mask_params : str or (float, float), optional
-    #         Mask image path or dilation/Gaussian blur parameters. If a path is given,
-    #         image must in the same shape as the template.
-    #     max_shifts : int or tuple of int, default is (1., 1., 1.)
-    #         Maximum shift between subtomograms and template in nm. ZYX order.
-    #     z_rotation : tuple of float, optional
-    #         Rotation in external degree around z-axis.
-    #     y_rotation : tuple of float, optional
-    #         Rotation in external degree around y-axis.
-    #     x_rotation : tuple of float, optional
-    #         Rotation in external degree around x-axis.
-    #     cutoff : float, default is 0.5
-    #         Cutoff frequency of low-pass filter applied in each subtomogram.
-    #     interpolation : int, default is 1
-    #         Interpolation order.
-    #     bin_size : int, default is 1
-    #         Set to >1 if you want to use binned image to boost image analysis.
-    #     chunk_size : int, default is 200
-    #         How many subtomograms will be loaded at the same time.
-    #     """
+        Parameters
+        ----------
+        template_path : Path or str
+            Template image path.
+        other_templates : list of Path or str
+            Path to other template images.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template in nm. ZYX order.
+        z_rotation : tuple of float, optional
+            Rotation in external degree around z-axis.
+        y_rotation : tuple of float, optional
+            Rotation in external degree around y-axis.
+        x_rotation : tuple of float, optional
+            Rotation in external degree around x-axis.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        interpolation : int, default is 1
+            Interpolation order.
+        bin_size : int, default is 1
+            Set to >1 if you want to use binned image to boost image analysis.
+        chunk_size : int, default is 200
+            How many subtomograms will be loaded at the same time.
+        """
         
-    #     molecules = layer.metadata[MOLECULES]
-    #     templates = [self._subtomogram_averaging._get_template(path=template_path)]
-    #     with ip.silent():
-    #         for path in other_templates:
-    #             img = ip.imread(path)
-    #             scale_ratio = img.scale.x / self.tomogram.scale
-    #             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-    #                 img = img.rescale(scale_ratio)
-    #             templates.append(img)
+        molecules = layer.metadata[MOLECULES]
+        templates = [self._subtomogram_averaging._get_template(path=template_path)]
+        with ip.silent():
+            for path in other_templates:
+                img = ip.imread(path)
+                scale_ratio = img.scale.x / self.tomogram.scale
+                if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                    img = img.rescale(scale_ratio)
+                templates.append(img)
+
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        loader, templates, mask = self._check_binning_for_alignment(
+            templates,
+            mask,
+            binsize=bin_size,
+            molecules=molecules, 
+            order=interpolation,
+            chunk_size=chunk_size,
+        )
+        aligned_loader = yield from loader.iter_align_multi_templates(
+            templates=templates, 
+            mask=mask,
+            max_shifts=max_shifts,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=cutoff,
+            method=method,
+        )
         
-    #     mask = self._subtomogram_averaging._get_mask(params=mask_params)
-    #     nmole = len(molecules)
-    #     loader, templates, mask = self._check_binning_for_alignment(
-    #         templates,
-    #         mask,
-    #         binsize=bin_size,
-    #         molecules=molecules, 
-    #         order=interpolation,
-    #         chunk_size=chunk_size,
-    #     )
-    #     worker = create_worker(
-    #         loader.iter_align_multi_templates,
-    #         templates=templates, 
-    #         mask=mask,
-    #         max_shifts=max_shifts,
-    #         rotations=(z_rotation, y_rotation, x_rotation),
-    #         cutoff=cutoff,
-    #     )
-                    
-    #     @worker.returned.connect
-    #     def _on_return(aligned_loader: SubtomogramLoader):
-    #         points = add_molecules(
-    #             self.parent_viewer, 
-    #             aligned_loader.molecules,
-    #             name=_coerce_aligned_name(layer.name, self.parent_viewer),
-    #         )
-    #         
-    #         layer.visible = False
-                
-    #     self._need_save = True
-    #     return worker
+        self._need_save = True
+        return aligned_loader, layer
+    
+    @align_all_multi_template.returned.connect
+    def _align_all_multi_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+        aligned_loader, layer = out
+        points = add_molecules(
+            self.parent_viewer, 
+            aligned_loader.molecules,
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+        )
+        layer.visible = False
 
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2412,7 +2473,7 @@ class MTPropsWidget(MagicTemplate):
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
     @set_design(text="Calculate FSC")
-    @thread_worker(progress={"desc": "Calculating FSC",
+    @thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
     def calculate_fsc(
         self,
@@ -2477,7 +2538,7 @@ class MTPropsWidget(MagicTemplate):
         return freq, fsc_all, layer
     
     @calculate_fsc.returned.connect
-    def _calculate_fsc_on_return(self, out):
+    def _calculate_fsc_on_return(self, out: Tuple[np.ndarray, np.ndarray, MonomerLayer]):
         freq, fsc_all, layer = out
         fsc_mean = np.mean(fsc_all, axis=1)
         fsc_std = np.std(fsc_all, axis=1)
@@ -2504,7 +2565,7 @@ class MTPropsWidget(MagicTemplate):
         npf={"text": "Use global properties"},
     )
     @set_design(text="Seam search")
-    @thread_worker(progress={"desc": "Seam search",
+    @thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
     def seam_search(
         self,
@@ -2555,8 +2616,11 @@ class MTPropsWidget(MagicTemplate):
         return result + (layer, npf)
 
     @seam_search.returned.connect
-    def _seam_search_on_return(self, result):
-        corrs, img_ave, all_labels, layer, npf = result
+    def _seam_search_on_return(
+        self, 
+        out: Tuple[np.ndarray, ip.ImgArray, np.ndarray, MonomerLayer, int]
+    ):
+        corrs, img_ave, all_labels, layer, npf = out
         self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
         self._LoggerWindow.show()
         
@@ -2983,6 +3047,7 @@ class MTPropsWidget(MagicTemplate):
     @nogui
     @do_not_record
     def get_spline(self, i: int = None) -> MtSpline:
+        """Get a spline object"""
         tomo = self.tomogram
         if i is None:
             i = self.SplineControl.num
