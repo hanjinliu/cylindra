@@ -37,7 +37,7 @@ from magicclass.widgets import (
     ConsoleTextEdit,
     Select,
     FloatRangeSlider,
-    )
+)
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.utils import thread_worker
 
@@ -50,7 +50,6 @@ from ..components import (
 )
 from ..components.microtubule import angle_corr
 from ..utils import (
-    Projections,
     crop_tomogram,
     interval_filter,
     make_slice_and_pad,
@@ -60,7 +59,7 @@ from ..utils import (
     roundint,
     ceilint,
     set_gpu
-    )
+)
 
 from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
@@ -98,7 +97,7 @@ def _fmt_layer_name(fmt: str):
     return _formatter
 
 
-@magicclass(widget_type="scrollable", name="MTProps widget")
+@magicclass(widget_type="scrollable", name="MTProps")
 class MTPropsWidget(MagicTemplate):
     # Main GUI class.
     
@@ -151,7 +150,7 @@ class MTPropsWidget(MagicTemplate):
     
     @magicmenu
     class Splines(MagicTemplate):
-        """Spline fitting and operations."""
+        """Operations on splines"""
         def show_splines(self): ...
         def add_anchors(self): ...
         sep0 = field(Separator)
@@ -166,6 +165,7 @@ class MTPropsWidget(MagicTemplate):
 
     @magicmenu
     class Molecules_(MagicTemplate):
+        """Operations on molecules"""
         @magicmenu
         class Mapping(MagicTemplate):
             def map_monomers(self): ...
@@ -201,10 +201,12 @@ class MTPropsWidget(MagicTemplate):
         Global_variables = GlobalVariables
         def open_logger(self): ...
         def clear_cache(self): ...
-        def open_help(self): ...
         def restore_layers(self): ...
-        def MTProps_info(self): ...
-        def report_issues(self): ...
+        @magicmenu
+        class Help(MagicTemplate):
+            def open_help(self): ...
+            def MTProps_info(self): ...
+            def report_issues(self): ...
         
     @magictoolbar(labels=False)
     class toolbar(MagicTemplate):
@@ -481,7 +483,7 @@ class MTPropsWidget(MagicTemplate):
         self.reset_choices()
         return None
 
-    @Others.wraps
+    @Others.Help.wraps
     @set_design(text="Open help")
     @do_not_record
     def open_help(self):
@@ -570,7 +572,7 @@ class MTPropsWidget(MagicTemplate):
                 self.parent_viewer.add_layer(layer)
         return None
     
-    @Others.wraps
+    @Others.Help.wraps
     @do_not_record
     def MTProps_info(self):
         """Show information of dependencies."""
@@ -582,7 +584,7 @@ class MTPropsWidget(MagicTemplate):
         w.show()
         return None
     
-    @Others.wraps
+    @Others.Help.wraps
     @set_design(text="Report issues")
     @do_not_record
     def report_issues(self):

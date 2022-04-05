@@ -429,7 +429,7 @@ class SubtomogramLoader(Generic[_V]):
             )
         
         if model.has_rotation:
-            labels //= n_templates
+            labels %= n_templates
         labels = labels.astype(np.uint8)
         
         mole_aligned.features = pd.concat(
