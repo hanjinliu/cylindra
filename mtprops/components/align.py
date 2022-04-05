@@ -84,17 +84,25 @@ class AlignmentModel:
         rotations: Ranges | None = None,
         method: str = "pcc",
     ):
+        if template.ndim not in (3, 4):
+            raise ValueError(
+                f"Template image must be 3 or 4 dimensional, got {template.ndim} "
+                "dimensional image."
+            )
         self._template = template
         self.cutoff = cutoff
         if mask is None:
             self.mask = 1
         else:
-            if template.shape != mask.shape:
-                raise ValueError("Shape mismatch between tempalte image and mask image.")
+            if template.sizesof("zyx") != mask.shape:
+                raise ValueError(
+                    "Shape mismatch in zyx axes between tempalte image "
+                    f"({tuple(template.shape)}) and mask image ({tuple(mask.shape)})."
+                )
             self.mask = mask
         self.quaternions = normalize_rotations(rotations)
-        self.method = method.lower()
-        self.align_func = self._get_alignment_function()
+        self._method = method.lower()
+        self._align_func = self._get_alignment_function()
         self.template_input = self._get_template_input()
     
     def align(
@@ -110,20 +118,17 @@ class AlignmentModel:
         img : ip.ImgArray
             Subvolume to be aligned
         max_shifts : tuple[float, float, float]
-            Maximum shift in pixel.
+            Maximum shifts along z, y, x axis in pixel.
 
         Returns
         -------
         AlignmentResult
             Result of alignment.
         """
-        iopt, shift, corr = self.align_func(
+        iopt, shift, corr = self._align_func(
             img, self.cutoff, self.mask, self.template_input, max_shifts
         )
-        if isinstance(iopt, int):
-            quat = self.quaternions[iopt]
-        else:
-            quat = self.quaternions[iopt[0]]
+        quat = self.quaternions[iopt]
         return AlignmentResult(label=iopt, shift=shift, quat=quat, corr=corr)
     
     def fit(
@@ -132,6 +137,23 @@ class AlignmentModel:
         max_shifts: tuple[float, float, float],
         cval: float = None,
     ) -> tuple[ip.ImgArray, AlignmentResult]:
+        """
+        Fit image to template based on the alignment model.
+
+        Parameters
+        ----------
+        img : ip.ImgArray
+            Input image that will be transformed.
+        max_shifts : tuple[float, float, float]
+            Maximum shifts along z, y, x axis in pixel.
+        cval : float, optional
+            Constant value for padding.
+
+        Returns
+        -------
+        ip.ImgArray, AlignmentResult
+            Transformed input image and the alignment result.
+        """
         result = self.align(img, max_shifts=max_shifts)
         rotator = Rotation.from_quat(result.quat)
         matrix = _compose_rotation_matrices(img.shape, [rotator])[0]
@@ -150,11 +172,11 @@ class AlignmentModel:
         Whether alignment parameters requires multi-templates.
         "Multi-template" includes alignment with subvolume rotation.
         """
-        return self.has_rotation or self._template.ndim == 4
+        return self._template.ndim == 4
     
     @property
     def is_single_template(self) -> bool:
-        return not self.is_multi_templates
+        return self._template.ndim == 3 and self.quaternions.shape[0] == 1
     
     @property
     def has_rotation(self) -> bool:
@@ -177,38 +199,45 @@ class AlignmentModel:
         -------
         ip.ImgArray
             Template image(s). Its axes varies depending on the input.
+            
             - no rotation, single template image ... "zyx"
-            - has rotation, single template image ... "rzyx"
+            - has rotation, single template image ... "pzyx"
             - no rotation, many template images ... "pzyx"
-            - has rotation, many template images ... "rpzyx"
+            - has rotation, many template images ... "pzyx" and when iterated over the
+              first axis yielded images will be (rot0, temp0), (rot0, temp1), ...
         """
         template_input = self._template.lowpass_filter(
             cutoff=self.cutoff, dims="zyx"
         ) * self.mask
-        if self.is_multi_templates:
+        if self.has_rotation:
             rotators = self._get_rotators(inv=True)
             matrices = _compose_rotation_matrices(template_input.sizesof("zyx"), rotators)
             cval = np.percentile(template_input, 1)
-            template_input: ip.ImgArray = np.stack(
-                [template_input.affine(mat, cval=cval) for mat in matrices], axis="r"
-            )
-        if self.method == "pcc":
+            if self.is_multi_templates:
+                template_input: ip.ImgArray = np.concatenate(
+                    [template_input.affine(mat, cval=cval) for mat in matrices], axis="p"
+                )
+            else:
+                template_input: ip.ImgArray = np.stack(
+                    [template_input.affine(mat, cval=cval) for mat in matrices], axis="p"
+                )
+        if self._method == "pcc":
             template_input = template_input.fft(dims="zyx")
         return template_input
 
     def _get_alignment_function(self):
-        if self.method == "pcc":
-            if self.is_multi_templates:
+        if self._method == "pcc":
+            if self.is_multi_templates or self.has_rotation:
                 f = align_subvolume_multitemplates_pcc
             else:
                 f = align_subvolume_pcc
-        elif self.method == "zncc":
-            if self.is_multi_templates:
+        elif self._method == "zncc":
+            if self.is_multi_templates or self.has_rotation:
                 f = align_subvolume_multitemplates_zncc
             else:
                 f = align_subvolume_zncc
         else:
-            raise ValueError(f"Unsupported method {self.method}.")
+            raise ValueError(f"Unsupported method {self._method}.")
         return f
 
 

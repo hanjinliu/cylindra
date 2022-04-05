@@ -2086,7 +2086,10 @@ class MTPropsWidget(MagicTemplate):
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
-            raise ValueError("Shape mismatch between template and mask.")
+            raise ValueError(
+                f"Shape mismatch between tempalte image ({tuple(template.shape)}) "
+                f"and mask image ({tuple(mask.shape)})."
+            )
         
         loader, template, mask = self._check_binning_for_alignment(
             template, mask, bin_size, mole, order=1, chunk_size=chunk_size
@@ -2412,7 +2415,7 @@ class MTPropsWidget(MagicTemplate):
                 if scale_ratio < 0.99 or 1.01 < scale_ratio:
                     img = img.rescale(scale_ratio)
                 templates.append(img)
-        
+
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         loader, templates, mask = self._check_binning_for_alignment(
             templates,

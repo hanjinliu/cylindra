@@ -398,7 +398,7 @@ class SubtomogramLoader(Generic[_V]):
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         method: str = "pcc",
-    ) -> Generator[AlignmentResult, None, SubtomogramLoader]:        
+    ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
         self._check_shape(templates[0])
         
         local_shifts, local_rot, corr_max = _allocate(len(self))
