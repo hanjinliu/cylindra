@@ -7,7 +7,6 @@ from typing import (
     Generic,
     Iterator,
     TYPE_CHECKING,
-    NamedTuple,
     TypeVar
 )
 from typing_extensions import ParamSpec
@@ -19,11 +18,11 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import impy as ip
 from dask import array as da
-from ._align_utils import (
-    normalize_rotations,
+from .align import (
     Ranges,
-    get_alignment_function,
-    transform_molecules
+    transform_molecules,
+    AlignmentModel,
+    AlignmentResult,
 )
 from .molecules import Molecules
 from ..utils import multi_map_coordinates, set_gpu
@@ -331,7 +330,7 @@ class SubtomogramLoader(Generic[_V]):
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         method: str = "pcc",
-    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:
+    ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
         local_shifts, local_rot, corr_max = _allocate(len(self))
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         all_subvols = self.to_lazy_imgarray(path=None)
@@ -399,7 +398,7 @@ class SubtomogramLoader(Generic[_V]):
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         method: str = "pcc",
-    ) -> Generator[tuple[np.ndarray, np.ndarray], None, SubtomogramLoader]:        
+    ) -> Generator[AlignmentResult, None, SubtomogramLoader]:        
         self._check_shape(templates[0])
         
         local_shifts, local_rot, corr_max = _allocate(len(self))
@@ -710,167 +709,6 @@ class SubtomogramLoader(Generic[_V]):
         return results
 
 
-class AlignmentResult(NamedTuple):
-    """The optimal alignment result."""
-    
-    label: int | tuple[int, int]
-    shift: np.ndarray
-    quat: np.ndarray
-    corr: float
-
-
-class AlignmentModel:
-    """A helper class to describe an alignment model."""
-    
-    def __init__(
-        self,
-        template: ip.ImgArray,
-        mask: ip.ImgArray | None = None,
-        cutoff: float = 0.5,
-        rotations: Ranges | None = None,
-        method: str = "pcc",
-    ):
-        self._template = template
-        self.cutoff = cutoff
-        if mask is None:
-            self.mask = 1
-        else:
-            if template.shape != mask.shape:
-                raise ValueError("Shape mismatch between tempalte image and mask image.")
-            self.mask = mask
-        self.quaternions = normalize_rotations(rotations)
-        self.method = method.lower()
-        self.align_func = self._get_alignment_function()
-        self.template_input = self._get_template_input()
-    
-    def align(
-        self, 
-        img: ip.ImgArray,
-        max_shifts: tuple[float, float, float]
-    ) -> AlignmentResult:
-        """
-        Align an image using current alignment parameters.
-
-        Parameters
-        ----------
-        img : ip.ImgArray
-            Subvolume to be aligned
-        max_shifts : tuple[float, float, float]
-            Maximum shift in pixel.
-
-        Returns
-        -------
-        AlignmentResult
-            Result of alignment.
-        """
-        iopt, shift, corr = self.align_func(
-            img, self.cutoff, self.mask, self.template_input, max_shifts
-        )
-        if isinstance(iopt, int):
-            quat = self.quaternions[iopt]
-        else:
-            quat = self.quaternions[iopt[0]]
-        return AlignmentResult(label=iopt, shift=shift, quat=quat, corr=corr)
-    
-    def fit(
-        self, 
-        img: ip.ImgArray,
-        max_shifts: tuple[float, float, float],
-        cval: float = None,
-    ) -> tuple[ip.ImgArray, AlignmentResult]:
-        result = self.align(img, max_shifts=max_shifts)
-        rotator = Rotation.from_quat(result.quat)
-        matrix = _compose_rotation_matrices(img.shape, [rotator])[0]
-        if cval is None:
-            cval = np.percentile(img, 1)
-        img_trans = (
-            img
-            .affine(translation=result.shift, cval=cval)
-            .affine(matrix=matrix, cval=cval)
-        )
-        return img_trans, result
-    
-    @property
-    def is_multi_templates(self) -> bool:
-        """
-        Whether alignment parameters requires multi-templates.
-        "Multi-template" includes alignment with subvolume rotation.
-        """
-        return self.has_rotation or self._template.ndim == 4
-    
-    @property
-    def is_single_template(self) -> bool:
-        return not self.is_multi_templates
-    
-    @property
-    def has_rotation(self) -> bool:
-        return self.quaternions.shape[0] > 1
-    
-    def _get_rotators(self, inv: bool = False) -> list[Rotation]:
-        if inv:
-            return [Rotation.from_quat(r).inv() for r in self.quaternions]
-        else:
-            return [Rotation.from_quat(r) for r in self.quaternions]
-    
-    def _get_template_input(self) -> ip.ImgArray:
-        """
-        Returns proper template image for alignment.
-        
-        Template dimensionality will be dispatched according to the input parameters.
-        Returned template should be used in line of the :func:`get_alignment_function`.
-
-        Returns
-        -------
-        ip.ImgArray
-            Template image(s). Its axes varies depending on the input.
-            - no rotation, single template image ... "zyx"
-            - has rotation, single template image ... "rzyx"
-            - no rotation, many template images ... "pzyx"
-            - has rotation, many template images ... "rpzyx"
-        """
-        template_input = self._template.lowpass_filter(
-            cutoff=self.cutoff, dims="zyx"
-        ) * self.mask
-        if self.is_multi_templates:
-            rotators = self._get_rotators(inv=True)
-            matrices = _compose_rotation_matrices(template_input.sizesof("zyx"), rotators)
-            cval = np.percentile(template_input, 1)
-            template_input: ip.ImgArray = np.stack(
-                [template_input.affine(mat, cval=cval) for mat in matrices], axis="r"
-            )
-        if self.method == "pcc":
-            template_input = template_input.fft(dims="zyx")
-        return template_input
-
-    def _get_alignment_function(self):
-        return get_alignment_function(self.method, self.is_multi_templates)
-
-
-def _compose_rotation_matrices(
-    shape: tuple[int, int, int],
-    rotators: list[Rotation],
-):
-    dz, dy, dx = (np.array(shape) - 1) / 2
-    # center to corner
-    translation_0 = np.array([[1., 0., 0., dz],
-                              [0., 1., 0., dy],
-                              [0., 0., 1., dx],
-                              [0., 0., 0., 1.]],
-                              dtype=np.float32)
-    # corner to center
-    translation_1 = np.array([[1., 0., 0., -dz],
-                              [0., 1., 0., -dy],
-                              [0., 0., 1., -dx],
-                              [0., 0., 0.,  1.]],
-                              dtype=np.float32)
-    
-    matrices = []
-    for rot in rotators:
-        e_ = np.eye(4)
-        e_[:3, :3] = rot.as_matrix()
-        matrices.append(translation_0 @ e_ @ translation_1)
-    return matrices
-
 def get_features(method: str, corr_max, local_shifts, rotvec) -> pd.DataFrame:
     feature_key = Mole.zncc if method == "zncc" else Mole.pcc
     
@@ -884,6 +722,7 @@ def get_features(method: str, corr_max, local_shifts, rotvec) -> pd.DataFrame:
         Align.xRotvec: rotvec[:, 2],
     }
     return pd.DataFrame(features)
+
 
 def _allocate(size: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # shift in local Cartesian

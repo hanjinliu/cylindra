@@ -1829,7 +1829,7 @@ class MTPropsWidget(MagicTemplate):
         class Refinement(MagicTemplate):
             def align_averaged(self): ...
             def align_all(self): ...
-            def multi_template_alignment(self): ...
+            def align_all_multi_template(self): ...
         
         @magicmenu
         class Tools(MagicTemplate):
@@ -2106,7 +2106,7 @@ class MTPropsWidget(MagicTemplate):
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
             
-        from ..components._align_utils import transform_molecules
+        from ..components.align import transform_molecules
         from scipy.spatial.transform import Rotation
         with ip.silent():
             # if multiscaled image is used, there could be shape mismatch
@@ -2342,105 +2342,107 @@ class MTPropsWidget(MagicTemplate):
         self.log.print(f"{layer.name!r} --> {points.name!r}")
         return None
 
-    # @_subtomogram_averaging.Refinement.wraps
-    # @set_options(
-    #     other_templates={"filter": FileFilter.IMAGE},
-    #     cutoff={"max": 1.0, "step": 0.05},
-    #     max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
-    #     z_rotation={"options": {"max": 5.0, "step": 0.1}},
-    #     y_rotation={"options": {"max": 5.0, "step": 0.1}},
-    #     x_rotation={"options": {"max": 5.0, "step": 0.1}},
-    #     interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-    #     bin_size={"choices": _get_available_binsize},
-    # )
-    # @set_design(text="Align all (multi-template)")
-    # @thread_worker
-    # def align_all_multi_template(
-    #     self,
-    #     layer: MonomerLayer,
-    #     template_path: Bound[_subtomogram_averaging.template_path],
-    #     other_templates: List[Path],
-    #     mask_params: Bound[_subtomogram_averaging._get_mask_params],
-    #     max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
-    #     z_rotation: _Tuple[float, float] = (0., 0.),
-    #     y_rotation: _Tuple[float, float] = (0., 0.),
-    #     x_rotation: _Tuple[float, float] = (0., 0.),
-    #     cutoff: float = 0.5,
-    #     interpolation: int = 1,
-    #     bin_size: int = 1,
-    #     chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
-    # ):
-    #     """
-    #     Align all the molecules for subtomogram averaging.
+    @_subtomogram_averaging.Refinement.wraps
+    @set_options(
+        other_templates={"filter": FileFilter.IMAGE},
+        cutoff={"max": 1.0, "step": 0.05},
+        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        z_rotation={"options": {"max": 5.0, "step": 0.1}},
+        y_rotation={"options": {"max": 5.0, "step": 0.1}},
+        x_rotation={"options": {"max": 5.0, "step": 0.1}},
+        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+        bin_size={"choices": _get_available_binsize},
+    )
+    @set_design(text="Align all (multi-template)")
+    @thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of\n{!r}"),
+                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    def align_all_multi_template(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        other_templates: List[Path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: _Tuple[float, float] = (0., 0.),
+        y_rotation: _Tuple[float, float] = (0., 0.),
+        x_rotation: _Tuple[float, float] = (0., 0.),
+        cutoff: float = 0.5,
+        interpolation: int = 1,
+        method: str = "pcc",
+        bin_size: int = 1,
+        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
+    ):
+        """
+        Align all the molecules for subtomogram averaging.
         
-    #     Parameters
-    #     ----------
-    #     template_path : Path or str
-    #         Template image path.
-    #     other_templates : list of Path or str
-    #         Path to other template images.
-    #     mask_params : str or (float, float), optional
-    #         Mask image path or dilation/Gaussian blur parameters. If a path is given,
-    #         image must in the same shape as the template.
-    #     max_shifts : int or tuple of int, default is (1., 1., 1.)
-    #         Maximum shift between subtomograms and template in nm. ZYX order.
-    #     z_rotation : tuple of float, optional
-    #         Rotation in external degree around z-axis.
-    #     y_rotation : tuple of float, optional
-    #         Rotation in external degree around y-axis.
-    #     x_rotation : tuple of float, optional
-    #         Rotation in external degree around x-axis.
-    #     cutoff : float, default is 0.5
-    #         Cutoff frequency of low-pass filter applied in each subtomogram.
-    #     interpolation : int, default is 1
-    #         Interpolation order.
-    #     bin_size : int, default is 1
-    #         Set to >1 if you want to use binned image to boost image analysis.
-    #     chunk_size : int, default is 200
-    #         How many subtomograms will be loaded at the same time.
-    #     """
+        Parameters
+        ----------
+        template_path : Path or str
+            Template image path.
+        other_templates : list of Path or str
+            Path to other template images.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template in nm. ZYX order.
+        z_rotation : tuple of float, optional
+            Rotation in external degree around z-axis.
+        y_rotation : tuple of float, optional
+            Rotation in external degree around y-axis.
+        x_rotation : tuple of float, optional
+            Rotation in external degree around x-axis.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        interpolation : int, default is 1
+            Interpolation order.
+        bin_size : int, default is 1
+            Set to >1 if you want to use binned image to boost image analysis.
+        chunk_size : int, default is 200
+            How many subtomograms will be loaded at the same time.
+        """
         
-    #     molecules = layer.metadata[MOLECULES]
-    #     templates = [self._subtomogram_averaging._get_template(path=template_path)]
-    #     with ip.silent():
-    #         for path in other_templates:
-    #             img = ip.imread(path)
-    #             scale_ratio = img.scale.x / self.tomogram.scale
-    #             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-    #                 img = img.rescale(scale_ratio)
-    #             templates.append(img)
+        molecules = layer.metadata[MOLECULES]
+        templates = [self._subtomogram_averaging._get_template(path=template_path)]
+        with ip.silent():
+            for path in other_templates:
+                img = ip.imread(path)
+                scale_ratio = img.scale.x / self.tomogram.scale
+                if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                    img = img.rescale(scale_ratio)
+                templates.append(img)
         
-    #     mask = self._subtomogram_averaging._get_mask(params=mask_params)
-    #     nmole = len(molecules)
-    #     loader, templates, mask = self._check_binning_for_alignment(
-    #         templates,
-    #         mask,
-    #         binsize=bin_size,
-    #         molecules=molecules, 
-    #         order=interpolation,
-    #         chunk_size=chunk_size,
-    #     )
-    #     worker = create_worker(
-    #         loader.iter_align_multi_templates,
-    #         templates=templates, 
-    #         mask=mask,
-    #         max_shifts=max_shifts,
-    #         rotations=(z_rotation, y_rotation, x_rotation),
-    #         cutoff=cutoff,
-    #     )
-                    
-    #     @worker.returned.connect
-    #     def _on_return(aligned_loader: SubtomogramLoader):
-    #         points = add_molecules(
-    #             self.parent_viewer, 
-    #             aligned_loader.molecules,
-    #             name=_coerce_aligned_name(layer.name, self.parent_viewer),
-    #         )
-    #         
-    #         layer.visible = False
-                
-    #     self._need_save = True
-    #     return worker
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        loader, templates, mask = self._check_binning_for_alignment(
+            templates,
+            mask,
+            binsize=bin_size,
+            molecules=molecules, 
+            order=interpolation,
+            chunk_size=chunk_size,
+        )
+        aligned_loader = yield from loader.iter_align_multi_templates(
+            templates=templates, 
+            mask=mask,
+            max_shifts=max_shifts,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=cutoff,
+            method=method,
+        )
+        
+        self._need_save = True
+        return aligned_loader, layer
+    
+    @align_all_multi_template.returned.connect
+    def _align_all_multi_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+        aligned_loader, layer = out
+        points = add_molecules(
+            self.parent_viewer, 
+            aligned_loader.molecules,
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+        )
+        layer.visible = False
 
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
