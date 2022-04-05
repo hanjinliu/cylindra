@@ -46,7 +46,7 @@ from ..components import (
     Molecules,
     MtSpline,
     MtTomogram,
-    AlignmentInputs,
+    AlignmentModel,
 )
 from ..components.microtubule import angle_corr
 from ..utils import (
@@ -2043,16 +2043,20 @@ class MTPropsWidget(MagicTemplate):
         return loader, template, mask
     
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(bin_size={"choices": _get_available_binsize})
+    @set_options(
+        bin_size={"choices": _get_available_binsize},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+    )
     @set_design(text="Align averaged")
     @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of \n{!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+                             "total": f"len(layer.metadata[{MOLECULES!r}])+1"})
     def align_averaged(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         bin_size: int = 1,
+        method: str = "pcc",
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
@@ -2102,36 +2106,32 @@ class MTPropsWidget(MagicTemplate):
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
             
-        from ..components._align_utils import align_image_to_template, transform_molecules
+        from ..components._align_utils import transform_molecules
         from scipy.spatial.transform import Rotation
         with ip.silent():
             # if multiscaled image is used, there could be shape mismatch
-            inp = AlignmentInputs(
+            model = AlignmentModel(
                 template,
                 mask,
                 cutoff=1.0,
-                rotations=[(3.0, 3.0), (15.0, 3.0), (3.0, 3.0)],
+                rotations=((3.0, 3.0), (15.0, 3.0), (3.0, 3.0)),
+                method=method,
             )
-            result = inp.align(img, max_shifts)
-            rot, shift = align_image_to_template(img, template, mask, max_shifts=max_shifts)
-            rotator = Rotation.from_quat(rot)
-            rotvec = rotator.as_rotvec()
-            matrix = rotator.as_matrix()
+            img_trans, result = model.fit(img, max_shifts=max_shifts)
+            rotvec = Rotation.from_quat(result.quat).as_rotvec()
             mole_trans = transform_molecules(
                 mole, 
                 result.shift * img.scale, 
                 rotvec,
             )
-            cval = np.percentile(img, 1)
-            img_trans = img.affine(translation=shift, rotation=matrix, cval=cval)
-            
-            # logging
-            shift_nm = result.shift * img.scale
-            vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
-            rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
-            shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-            rot_str = ", ".join(f"{s:.2f}" for s in rotvec[::-1])
-            self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
+        yield
+        # logging
+        shift_nm = result.shift * img.scale
+        vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
+        rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
+        shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
+        rot_str = ", ".join(f"{s:.2f}" for s in rotvec[::-1])
+        self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
 
         self._need_save = True
         return img_trans, mole_trans, layer

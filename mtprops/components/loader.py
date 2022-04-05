@@ -279,7 +279,7 @@ class SubtomogramLoader(Generic[_V]):
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         method: str = "pcc",
-    ) -> Generator[OptimalResult, None, SubtomogramLoader]:
+    ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
         
         if template is None:
             raise NotImplementedError("Template image is needed.")
@@ -289,7 +289,7 @@ class SubtomogramLoader(Generic[_V]):
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         
         with ip.silent(), set_gpu():
-            inp = AlignmentInputs(
+            model = AlignmentModel(
                 template=template, 
                 mask=mask, 
                 cutoff=cutoff, 
@@ -297,8 +297,8 @@ class SubtomogramLoader(Generic[_V]):
                 method=method
             )
             for i, subvol in enumerate(self.iter_subtomograms()):
-                result = inp.align(subvol, _max_shifts_px)
-                _, local_shifts[i, :], local_rot[i, 0], corr_max[i] = result
+                result = model.align(subvol, _max_shifts_px)
+                _, local_shifts[i], local_rot[i], corr_max[i] = result
                 yield result
             
             rotvec = Rotation.from_quat(local_rot).as_rotvec()
@@ -308,9 +308,11 @@ class SubtomogramLoader(Generic[_V]):
                 rotvec,
             )
         
-        mole_aligned.features.update(
-            get_features(method, corr_max, local_shifts, rotvec)
-        )
+        mole_aligned.features = pd.concat(
+            [self.molecules.features,
+             get_features(method, corr_max, local_shifts, rotvec)],
+            axis=1)
+
         out = self.__class__(
             self.image_ref,
             mole_aligned, 
@@ -354,7 +356,7 @@ class SubtomogramLoader(Generic[_V]):
             
         
         with ip.silent(), set_gpu():
-            inp = AlignmentInputs(
+            model = AlignmentModel(
                 template=template,
                 mask=mask,
                 cutoff=cutoff,
@@ -362,7 +364,7 @@ class SubtomogramLoader(Generic[_V]):
                 method=method,
             )
             for i, subvol in enumerate(all_subvols):
-                result = inp.align(subvol.compute(), _max_shifts_px)
+                result = model.align(subvol.compute(), _max_shifts_px)
                 _, local_shifts[i], local_rot[i], corr_max[i] = result
                 yield result
             
@@ -373,7 +375,12 @@ class SubtomogramLoader(Generic[_V]):
                 rotvec,
             )
         
-        mole_aligned.features.update(get_features(method, corr_max, local_shifts, rotvec))
+        mole_aligned.features = pd.concat(
+            [self.molecules.features,
+             get_features(method, corr_max, local_shifts, rotvec)],
+            axis=1,
+        )
+        
         out = self.__class__(
             self.image_ref,
             mole_aligned, 
@@ -402,7 +409,7 @@ class SubtomogramLoader(Generic[_V]):
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         with ip.silent(), set_gpu():
-            inp = AlignmentInputs(
+            model = AlignmentModel(
                 template=np.stack(list(templates), axis="p"),
                 mask=mask,
                 cutoff=cutoff,
@@ -410,15 +417,15 @@ class SubtomogramLoader(Generic[_V]):
                 method=method,
             )
 
-            if not inp.has_rotation:
+            if not model.has_rotation:
                 for i, subvol in enumerate(self.iter_subtomograms()):
-                    result = inp.align(subvol, _max_shifts_px)
+                    result = model.align(subvol, _max_shifts_px)
                     labels[i], local_shifts[i], local_rot[i], corr_max[i] = result
                     yield result
                 
             else:
                 for i, subvol in enumerate(self.iter_subtomograms()):
-                    result = inp.align(subvol, _max_shifts_px)
+                    result = model.align(subvol, _max_shifts_px)
                     (_, labels[i]), local_shifts[i], local_rot[i], corr_max[i] = result
                     yield result
             
@@ -429,9 +436,13 @@ class SubtomogramLoader(Generic[_V]):
                 Rotation.from_quat(local_rot).as_rotvec()
             )
             
-        features = get_features(method, corr_max, local_shifts, rotvec)
-        features.update({"labels": labels})
-        mole_aligned.features.update(features)
+        mole_aligned.features = pd.concat(
+            [self.molecules.features,
+             get_features(method, corr_max, local_shifts, rotvec),
+             pd.DataFrame({"labels": labels})],
+            axis=1,
+        )
+        
         out = self.__class__(
             self.image_ref,
             mole_aligned, 
@@ -684,24 +695,6 @@ class SubtomogramLoader(Generic[_V]):
                 subvols.set_scale(image)
                 yield subvols
     
-    def _iter_chunks_with_rotation(
-        self, 
-        rotators: list[Rotation],
-    ) -> Iterator[ip.ImgArray]:  # axes: pazyx
-        image = self.image_ref
-        matrices = _compose_rotation_matrices(self.output_shape, rotators)
-        for subvols in self._iter_chunks():
-            # shape: (position, rot-angle, z, y, x)
-            with ip.silent(), set_gpu():
-                all_subvols: list[ip.ImgArray] = []  # axes: pzyx
-                for mtx in matrices:
-                    all_subvols.append(subvols.affine(mtx, dims="zyx").value)
-                out = np.stack(all_subvols, axis=1)
-                out = ip.asarray(out, axes="pazyx")
-                out.set_scale(image)
-            yield out
-    
-        
     def _resolve_iterator(self, it: Generator[Any, Any, _V], callback: Callable) -> _V:
         """Iterate over an iterator until it returns something."""
         if callback is None:
@@ -717,7 +710,7 @@ class SubtomogramLoader(Generic[_V]):
         return results
 
 
-class OptimalResult(NamedTuple):
+class AlignmentResult(NamedTuple):
     """The optimal alignment result."""
     
     label: int | tuple[int, int]
@@ -726,8 +719,8 @@ class OptimalResult(NamedTuple):
     corr: float
 
 
-class AlignmentInputs:
-    """A helper class to describe alignment simply."""
+class AlignmentModel:
+    """A helper class to describe an alignment model."""
     
     def __init__(
         self,
@@ -747,18 +740,55 @@ class AlignmentInputs:
             self.mask = mask
         self.quaternions = normalize_rotations(rotations)
         self.method = method.lower()
-        self.align_func = self.get_alignment_function()
-        self.template_input = self.get_template_input()
+        self.align_func = self._get_alignment_function()
+        self.template_input = self._get_template_input()
     
-    def align(self, subvol: ip.ImgArray, max_shifts: tuple[int, ...]) -> OptimalResult:
+    def align(
+        self, 
+        img: ip.ImgArray,
+        max_shifts: tuple[float, float, float]
+    ) -> AlignmentResult:
+        """
+        Align an image using current alignment parameters.
+
+        Parameters
+        ----------
+        img : ip.ImgArray
+            Subvolume to be aligned
+        max_shifts : tuple[float, float, float]
+            Maximum shift in pixel.
+
+        Returns
+        -------
+        AlignmentResult
+            Result of alignment.
+        """
         iopt, shift, corr = self.align_func(
-            subvol, self.cutoff, self.mask, self.template_input, max_shifts
+            img, self.cutoff, self.mask, self.template_input, max_shifts
         )
         if isinstance(iopt, int):
             quat = self.quaternions[iopt]
         else:
             quat = self.quaternions[iopt[0]]
-        return OptimalResult(label=iopt, shift=shift, quat=quat, corr=corr)
+        return AlignmentResult(label=iopt, shift=shift, quat=quat, corr=corr)
+    
+    def fit(
+        self, 
+        img: ip.ImgArray,
+        max_shifts: tuple[float, float, float],
+        cval: float = None,
+    ) -> tuple[ip.ImgArray, AlignmentResult]:
+        result = self.align(img, max_shifts=max_shifts)
+        rotator = Rotation.from_quat(result.quat)
+        matrix = _compose_rotation_matrices(img.shape, [rotator])[0]
+        if cval is None:
+            cval = np.percentile(img, 1)
+        img_trans = (
+            img
+            .affine(translation=result.shift, cval=cval)
+            .affine(matrix=matrix, cval=cval)
+        )
+        return img_trans, result
     
     @property
     def is_multi_templates(self) -> bool:
@@ -774,7 +804,7 @@ class AlignmentInputs:
     
     @property
     def has_rotation(self) -> bool:
-        return self.quaternions is not None
+        return self.quaternions.shape[0] > 1
     
     def _get_rotators(self, inv: bool = False) -> list[Rotation]:
         if inv:
@@ -782,7 +812,7 @@ class AlignmentInputs:
         else:
             return [Rotation.from_quat(r) for r in self.quaternions]
     
-    def get_template_input(self) -> ip.ImgArray:
+    def _get_template_input(self) -> ip.ImgArray:
         """
         Returns proper template image for alignment.
         
@@ -804,14 +834,15 @@ class AlignmentInputs:
         if self.is_multi_templates:
             rotators = self._get_rotators(inv=True)
             matrices = _compose_rotation_matrices(template_input.sizesof("zyx"), rotators)
+            cval = np.percentile(template_input, 1)
             template_input: ip.ImgArray = np.stack(
-                [template_input.affine(mat) for mat in matrices], axis="r"
+                [template_input.affine(mat, cval=cval) for mat in matrices], axis="r"
             )
         if self.method == "pcc":
             template_input = template_input.fft(dims="zyx")
         return template_input
 
-    def get_alignment_function(self):
+    def _get_alignment_function(self):
         return get_alignment_function(self.method, self.is_multi_templates)
 
 
@@ -840,7 +871,7 @@ def _compose_rotation_matrices(
         matrices.append(translation_0 @ e_ @ translation_1)
     return matrices
 
-def get_features(method: str, corr_max, local_shifts, rotvec):
+def get_features(method: str, corr_max, local_shifts, rotvec) -> pd.DataFrame:
     feature_key = Mole.zncc if method == "zncc" else Mole.pcc
     
     features = {
@@ -852,7 +883,7 @@ def get_features(method: str, corr_max, local_shifts, rotvec):
         Align.yRotvec: rotvec[:, 1],
         Align.xRotvec: rotvec[:, 2],
     }
-    return features
+    return pd.DataFrame(features)
 
 def _allocate(size: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # shift in local Cartesian

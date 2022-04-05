@@ -9,53 +9,17 @@ from .molecules import from_euler, Molecules
 from ..utils import set_gpu
 
 
-def align_image_to_template(
-    image: ip.ImgArray,
-    template: ip.ImgArray,
-    mask: ip.ImgArray = None,
-    max_shifts = None,
-) -> tuple[float, np.ndarray]:
-    """Determine the shift and rotation that will align image to template."""
-    if image.shape != template.shape:
-        raise ValueError(
-            f"Shape mismatch. Shape of Average image is {tuple(image.shape)} while "
-            f"shape of template image is {tuple(template.shape)}"
-        )
-    if mask is None:
-        mask = 1
-    corrs: list[float] = []
-    shifts: list[np.ndarray] = []
-    rots = np.linspace(-15, 15, 7)
-    template_masked = template*mask
-    for yrot in rots:
-        img_rot = image.rotate(yrot, cval=0, dims="zx")
-        img_rot_ft = img_rot.fft()
-        shift, corr = ip.zncc_maximum_with_corr(
-            img_rot_ft, template_masked, max_shifts=max_shifts
-        )
-        iopt, shift, corr = align_subvolume_multitemplates_pcc(
-            image, 
-            cutoff=0.9, 
-            mask=1,
-            template_ft_list=...,
-            max_shift=max_shifts,
-        )
-        shifts.append(shift)
-        corrs.append(corr)
-    
-    iopt = np.argmax(corrs)
-    return np.deg2rad(rots[iopt]), shifts[iopt]
-
 RangeLike = tuple[float, float]
 Ranges = Union[RangeLike, tuple[RangeLike, RangeLike, RangeLike]]
 
-def _normalize_a_range(rng: RangeLike) -> tuple[float, int]:
+
+def _normalize_a_range(rng: RangeLike) -> RangeLike:
     if len(rng) != 2:
-        raise TypeError("Range must be defined by (float, int).")
-    max_rot, step = rng
-    return float(max_rot), float(step)
+        raise TypeError("Range must be defined by (float, float).")
+    max_rot, drot = rng
+    return float(max_rot), float(drot)
         
-def _normalize_ranges(rng: Ranges) -> tuple[tuple[float, int], tuple[float, int], tuple[float, int]]:
+def _normalize_ranges(rng: Ranges) -> Ranges:
     if isinstance(rng, tuple) and isinstance(rng[0], tuple):
         return tuple(_normalize_a_range(r) for r in rng)
     else:
@@ -63,7 +27,7 @@ def _normalize_ranges(rng: Ranges) -> tuple[tuple[float, int], tuple[float, int]
         return (rng,) * 3
 
 
-def normalize_rotations(rotations: Ranges | None):
+def normalize_rotations(rotations: Ranges | None) -> np.ndarray:
     """
     Normalize various rotation expressions to quaternions.
 
@@ -192,7 +156,7 @@ def align_subvolume_multitemplates_pcc(
         subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
         input = subvol_filt * mask
         for template_ft in template_ft_list:
-            shift, pcc = ip.pcc_maximum_with_corr(
+            shift, pcc = ip.ft_pcc_maximum_with_corr(
                 input.fft(),
                 template_ft, 
                 upsample_factor=20, 
@@ -201,7 +165,7 @@ def align_subvolume_multitemplates_pcc(
             all_shifts.append(shift)
             all_pcc.append(pcc)
     
-    iopt = np.argmax(all_pcc)
+    iopt = int(np.argmax(all_pcc))
     return iopt, all_shifts[iopt], all_pcc[iopt]
 
 def align_subvolume_multitemplates_zncc(
@@ -226,7 +190,7 @@ def align_subvolume_multitemplates_zncc(
             all_shifts.append(shift)
             all_zncc.append(zncc)
     
-    iopt = np.argmax(all_zncc)
+    iopt = int(np.argmax(all_zncc))
     return iopt, all_shifts[iopt], all_zncc[iopt]
 
 

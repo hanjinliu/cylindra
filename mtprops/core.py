@@ -37,7 +37,7 @@ def start(
         widget,
         area="right",
         allowed_areas=["right"],
-        name="MT Profiler"
+        name="MTProps"
     )
     dock.setMinimumHeight(300)
     
