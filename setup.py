@@ -26,4 +26,4 @@ setup(
         "napari>=0.4.15",
     ],
     python_requires=">=3.8",
-    )
+)

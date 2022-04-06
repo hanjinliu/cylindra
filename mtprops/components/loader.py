@@ -52,6 +52,11 @@ class SubtomogramLoader(Generic[_V]):
         Molecules object that defines position and rotation of subtomograms.
     output_shape : int or tuple of int
         Shape (in pixel) of output subtomograms.
+    order : int, default is 1
+        Interpolation order of subtomogram sampling.
+        - 0 = Nearest neighbor
+        - 1 = Linear interpolation
+        - 3 = Cubic interpolation
     chunksize : int, optional
         Chunk size used when loading subtomograms. This parameter controls the
         number of subtomograms to be loaded at the same time. Larger chunk size
@@ -152,18 +157,48 @@ class SubtomogramLoader(Generic[_V]):
     def iter_subtomograms(
         self,
         binsize: int = 1
-    ) -> Iterator[ip.ImgArray]:  # axes: zyx or azyx
+    ) -> Iterator[ip.ImgArray]:  # axes: zyx
+        """
+        Iteratively load subtomograms.
+        
+        This method load the required region of tomogram into memory and crop
+        subtomograms from it. To avoid repetitively loading same region, this
+        function determines what range of tomogram is needed to load current
+        chunk of subtomograms.
+
+        Parameters
+        ----------
+        binsize : int, default is 1
+            Image bin size.
+
+        Yields
+        ------
+        ip.ImgArray
+            Yields image array of each subtomogram.
+        """
         if binsize == 1:
             for subvols in self._iter_chunks():
                 for subvol in subvols:
                     yield subvol
         else:
             for subvols in self._iter_chunks():
-                for subvol in subvols:  # subvols axes: pazyx
-                    subvol: ip.ImgArray  # subvol axes: azyx
+                for subvol in subvols:  # subvols axes: pzyx
+                    subvol: ip.ImgArray  # subvol axes: zyx
                     yield subvol.binning(binsize, check_edges=False)
     
     def map(self, f: Callable[_P, _V], *args, **kwargs) -> Iterator[_V]:
+        """
+        Map subtomogram loader to a function.
+        
+        For every subtomogram ``img`` this function yields
+        ``f(img, *args, **kwargs)``.
+
+        Parameters
+        ----------
+        f : callable
+            Any mapping function.
+
+        """
         fp = partial(f, *args, **kwargs)
         return map(fp, self.iter_subtomograms)
     
@@ -334,7 +369,6 @@ class SubtomogramLoader(Generic[_V]):
         local_shifts, local_rot, corr_max = _allocate(len(self))
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         all_subvols = yield from self.iter_to_memmap(path=None)
-        # all_subvols = self.to_lazy_imgarray(path=None)
         
         with ip.silent():
             template = all_subvols.proj("p").compute()
@@ -472,7 +506,7 @@ class SubtomogramLoader(Generic[_V]):
             Template image.
         mask : ip.ImgArray, optional
             Mask image. Must in the same shae as the template.
-        max_shifts : int or tuple of int, default is (4, 4, 4)
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template.
         rotations : (float, float) or three-tuple of (float, float) or None, optional
             Rotation between subtomograms and template in external Euler angles.
