@@ -29,7 +29,7 @@ from magicclass import (
     nogui,
     mark_preview,
     )
-from magicclass.types import Color, Bound, Optional, Tuple as _Tuple
+from magicclass.types import Color, Bound, Optional
 from magicclass.widgets import (
     Logger,
     Separator,
@@ -1833,6 +1833,7 @@ class MTPropsWidget(MagicTemplate):
         class Refinement(MagicTemplate):
             def align_averaged(self): ...
             def align_all(self): ...
+            def align_all_template_free(self): ...
             def align_all_multi_template(self): ...
         
         @magicmenu
@@ -1849,7 +1850,7 @@ class MTPropsWidget(MagicTemplate):
         @set_design(text="Reshape template")
         def reshape_template(
             self, 
-            new_shape: _Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
+            new_shape: Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
             save_as: Path = "",
             update_template_path: bool = True,
         ):
@@ -1872,7 +1873,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
-    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of\n {!r}"),
+    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def average_all(
         self,
@@ -1922,7 +1923,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
-    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of\n {!r}"),
+    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}"),
                              "total": "number"})
     def average_subset(
         self,
@@ -1992,7 +1993,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Split-and-average")
-    @thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of\n{!r}"),
+    @thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size"})
     def split_and_average(
         self,
@@ -2052,7 +2053,7 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
     )
     @set_design(text="Align averaged")
-    @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of \n{!r}"),
+    @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])+1"})
     def align_averaged(
         self,
@@ -2190,17 +2191,17 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @thread_worker(progress={"desc": _fmt_layer_name("Alignment of\n{!r}"),
+    @thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: _Tuple[float, float] = (0., 0.),
-        y_rotation: _Tuple[float, float] = (0., 0.),
-        x_rotation: _Tuple[float, float] = (0., 0.),
+        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: Tuple[float, float] = (0., 0.),
+        y_rotation: Tuple[float, float] = (0., 0.),
+        x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
         method: str = "pcc",
@@ -2284,16 +2285,16 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (template-free)")
-    @thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of\n{!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}"),
+                             "total": f"len(layer.metadata[{MOLECULES!r}])*2"})
     def align_all_template_free(
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: _Tuple[float, float] = (0., 0.),
-        y_rotation: _Tuple[float, float] = (0., 0.),
-        x_rotation: _Tuple[float, float] = (0., 0.),
+        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: Tuple[float, float] = (0., 0.),
+        y_rotation: Tuple[float, float] = (0., 0.),
+        x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
         method: str = "pcc",
@@ -2377,7 +2378,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (multi-template)")
-    @thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of\n{!r}"),
+    @thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}"),
                              "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all_multi_template(
         self,
@@ -2385,10 +2386,10 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         other_templates: List[Path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        max_shifts: _Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: _Tuple[float, float] = (0., 0.),
-        y_rotation: _Tuple[float, float] = (0., 0.),
-        x_rotation: _Tuple[float, float] = (0., 0.),
+        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: Tuple[float, float] = (0., 0.),
+        y_rotation: Tuple[float, float] = (0., 0.),
+        x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 1,
         method: str = "pcc",
@@ -2459,13 +2460,13 @@ class MTPropsWidget(MagicTemplate):
     @align_all_multi_template.returned.connect
     def _align_all_multi_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
         aligned_loader, layer = out
-        points = add_molecules(
+        add_molecules(
             self.parent_viewer, 
             aligned_loader.molecules,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
         layer.visible = False
-
+        return None
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2481,7 +2482,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        shape: Optional[_Tuple[nm, nm, nm]] = None,
+        shape: Optional[Tuple[nm, nm, nm]] = None,
         seed: Optional[int] = 0,
         interpolation: int = 1,
         n_set: int = 1,
@@ -2595,8 +2596,8 @@ class MTPropsWidget(MagicTemplate):
         interpolation : int, default is 1
             Interpolation order.
         npf : int, optional
-            Number of protofilaments. By default the global properties stored in the corresponding spline
-            will be used.
+            Number of protofilaments. By default the global properties stored in the 
+            corresponding spline will be used.
         """
         mole: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2952,7 +2953,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
-        limit: _Tuple[float, float] = (4.00, 4.24), 
+        limit: Tuple[float, float] = (4.00, 4.24), 
         color_by: str = H.yPitch,
     ):
         """

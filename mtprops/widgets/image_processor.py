@@ -55,7 +55,7 @@ class ImageProcessor(MagicTemplate):
     @set_design(text="Low-pass filter")
     @set_options(
         cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
-        order={"max": 20,}
+        order={"max": 20},
     )
     @do_not_record
     def lowpass_filter(self, cutoff: float, order: int = 2):
@@ -71,6 +71,7 @@ class ImageProcessor(MagicTemplate):
     def preview(self):
         """Open a preview of the input image."""
         view_image(self.input_image, self)
+        return None
         
     def _imread(self, path, chunks=GVar.daskChunk):
         return ip.lazy_imread(path, chunks=chunks)

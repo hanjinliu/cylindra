@@ -333,7 +333,8 @@ class SubtomogramLoader(Generic[_V]):
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
         local_shifts, local_rot, corr_max = _allocate(len(self))
         _max_shifts_px = np.asarray(max_shifts) / self.scale
-        all_subvols = self.to_lazy_imgarray(path=None)
+        all_subvols = yield from self.iter_to_memmap(path=None)
+        # all_subvols = self.to_lazy_imgarray(path=None)
         
         with ip.silent():
             template = all_subvols.proj("p").compute()
