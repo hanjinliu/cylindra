@@ -20,7 +20,7 @@ setup(
     install_requires=[
         "impy-array>=1.26.2",
         "magicgui>=0.4.0",
-        "magic-class>=0.6.2",
+        "magic-class>=0.6.3",
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
         "napari>=0.4.15",
