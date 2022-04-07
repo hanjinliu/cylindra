@@ -107,6 +107,7 @@ class MTPropsWidget(MagicTemplate):
     _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
     @magicclass(labels=False, name="Logger")
+    @set_design(min_height=200)
     class _LoggerWindow(MagicTemplate):
         log = field(Logger, name="Log")
     
