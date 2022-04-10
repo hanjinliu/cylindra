@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Iterable
 import numpy as np
@@ -123,3 +124,14 @@ def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
          [0., 0., 1.]]
     )
     return ndi.affine_transform(arr2, matrix=mtx, order=1, prefilter=False)
+
+def resolve_path(path: str | Path | None, root: Path) -> Path | None:
+    if path is None:
+        return None
+    path = Path(path)
+    if path.is_absolute():
+        return path
+    path_joined = root / path
+    if path_joined.exists():
+        return path_joined
+    raise ValueError(f"Path {path} could not be resolved.")

@@ -1,5 +1,6 @@
+import os
 import json
-from typing import Any, Dict, List, Tuple, Type, Union, get_args, get_origin
+from typing import List, Dict, Tuple, Type, Union, get_args, get_origin
 from enum import Enum
 from pathlib import Path
 import numpy as np
@@ -42,6 +43,7 @@ class ProjectDescriptor:
 
     @classmethod
     def from_json(cls, path: str):
+        """Construct a project from a json file."""
         path = str(path)
     
         with open(path, mode="r") as f:
@@ -49,9 +51,11 @@ class ProjectDescriptor:
         return cls(**js)
     
     def to_json(self, path: str) -> None:
+        """Save project as a json file."""
         with open(path, mode="w") as f:
             json.dump(self._fields_, f, indent=4, separators=(",", ": "), default=json_encoder)
         return None
+
 
 def json_encoder(obj):    
     """An enhanced encoder."""
@@ -65,7 +69,10 @@ def json_encoder(obj):
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
     elif isinstance(obj, Path):
-        return str(obj)
+        if obj.is_absolute():
+            return str(obj)
+        else:
+            return os.path.join(".", str(obj))
     else:
         raise TypeError(f"{obj!r} is not JSON serializable")
 

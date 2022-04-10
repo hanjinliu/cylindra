@@ -78,6 +78,7 @@ from .widget_utils import (
     molecules_to_spline,
     y_coords_to_start_number,
     get_versions,
+    resolve_path,
 )
 
 from ..const import nm, H, Ori, GVar, Mole
@@ -649,15 +650,24 @@ class MTPropsWidget(MagicTemplate):
     def load_project(self, path: Path):
         """Load a project json file."""
         project = MTPropsProject.from_json(path)
+        file_dir = Path(path).parent
         
         # load image and multiscales
         multiscales = project.multiscales
         
         self.tomogram = self._imread(
-            path=project.image, 
+            path=resolve_path(project.image, file_dir), 
             scale=project.scale, 
             binsize=multiscales.pop(-1), 
         )
+        
+        # resolve paths
+        project.localprops = resolve_path(project.localprops, file_dir)
+        project.globalprops = resolve_path(project.globalprops, file_dir)
+        project.template_image = resolve_path(project.template_image, file_dir)
+        project.global_variables = resolve_path(project.global_variables, file_dir)
+        project.splines = [resolve_path(p, file_dir) for p in project.splines]
+        project.molecules = [resolve_path(p, file_dir) for p in project.molecules]
         
         self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
@@ -767,7 +777,7 @@ class MTPropsWidget(MagicTemplate):
             
         # Save path of molecules
         molecule_dataframes: List[pd.DataFrame] = []
-        molecules_paths = []
+        molecules_paths: List[Path] = []
         for layer in filter(
             lambda x: isinstance(x, Points) and MOLECULES in x.metadata,
             self.parent_viewer.layers
@@ -786,30 +796,38 @@ class MTPropsWidget(MagicTemplate):
         
         from datetime import datetime
         
+        file_dir = json_path.parent
+        def as_relative(p):
+            try:
+                out = p.relative_to(file_dir)
+            except Exception:
+                out = p
+            return out
+        
         project = MTPropsProject(
             datetime = datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version = _versions.pop("MTProps"),
             dependency_versions = _versions,
-            image = tomo.source,
+            image = as_relative(tomo.source),
             scale = tomo.scale,
             multiscales = [x[0] for x in tomo.multiscaled],
             current_ft_size = self._current_ft_size,
-            splines = spline_paths,
-            localprops = localprops_path,
-            globalprops = globalprops_path,
-            molecules = molecules_paths,
-            global_variables = gvar_path,
-            template_image = self._subtomogram_averaging.template_path,
+            splines = [as_relative(p) for p in spline_paths],
+            localprops = as_relative(localprops_path),
+            globalprops = as_relative(globalprops_path),
+            molecules = [as_relative(p) for p in molecules_paths],
+            global_variables = as_relative(gvar_path),
+            template_image = as_relative(self._subtomogram_averaging.template_path),
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
             chunksize = self._subtomogram_averaging.chunk_size,
-            macro = macro_path,
+            macro = as_relative(macro_path),
         )
         
         # save objects
         project.to_json(_json_path)
         
         if not os.path.exists(results_dir):
-            os.mkdir(results_dir)
+            os.mkdir(results_dir)  # create a directory if not exists.
         if localprops_path:
             localprops.to_csv(localprops_path)
         if globalprops_path:
