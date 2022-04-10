@@ -388,6 +388,7 @@ class MTPropsWidget(MagicTemplate):
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"run_all.png")
+    @bind_key("F2")
     @do_not_record
     def open_runner(self):
         """Run MTProps with various settings."""
@@ -1375,6 +1376,7 @@ class MTPropsWidget(MagicTemplate):
         length={"text": "Use full length"}
     )
     @set_design(text="Map monomers")
+    @bind_key("M")
     def map_monomers(
         self,
         splines: Iterable[int] = (),
@@ -1812,8 +1814,8 @@ class MTPropsWidget(MagicTemplate):
                     self._viewer = None
             if self._viewer is None:
                 from .function_menu import Volume
-                volume_menu = Volume()
                 self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
+                volume_menu = Volume()
                 self._viewer.window.main_menu.addMenu(volume_menu.native)
                 volume_menu.native.setParent(self._viewer.window.main_menu, volume_menu.native.windowFlags())
                 self._viewer.window.resize(10, 10)
@@ -2067,6 +2069,9 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
+        z_rotation={"options": {"max": 180.0, "step": 1.0}},
+        y_rotation={"options": {"max": 180.0, "step": 1.0}},
+        x_rotation={"options": {"max": 90.0, "step": 1.0}},
         bin_size={"choices": _get_available_binsize},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
     )
@@ -2078,6 +2083,9 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        z_rotation: Tuple[float, float] = (3., 3.),
+        y_rotation: Tuple[float, float] = (15., 3.),
+        x_rotation: Tuple[float, float] = (3., 3.),
         bin_size: int = 1,
         method: str = "pcc",
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
@@ -2097,6 +2105,12 @@ class MTPropsWidget(MagicTemplate):
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
+        z_rotation : tuple of float, optional
+            Rotation in external degree around z-axis.
+        y_rotation : tuple of float, optional
+            Rotation in external degree around y-axis.
+        x_rotation : tuple of float, optional
+            Rotation in external degree around x-axis.
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
         chunk_size : int, default is 64
@@ -2140,7 +2154,7 @@ class MTPropsWidget(MagicTemplate):
                 template,
                 mask,
                 cutoff=1.0,
-                rotations=((3.0, 3.0), (15.0, 3.0), (3.0, 3.0)),
+                rotations=(z_rotation, y_rotation, x_rotation),
                 method=method,
             )
             img_trans, result = model.fit(img, max_shifts=max_shifts)
@@ -2201,9 +2215,9 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
-        z_rotation={"options": {"max": 90.0, "step": 0.1}},
+        z_rotation={"options": {"max": 180.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
-        x_rotation={"options": {"max": 180.0, "step": 0.1}},
+        x_rotation={"options": {"max": 90.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
         bin_size={"choices": _get_available_binsize},
@@ -2779,6 +2793,7 @@ class MTPropsWidget(MagicTemplate):
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"pick_next.png")
+    @bind_key("F3")
     @do_not_record
     def pick_next(self):
         """Automatically pick MT center using previous two points."""        
@@ -2826,6 +2841,7 @@ class MTPropsWidget(MagicTemplate):
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"auto_center.png")
+    @bind_key("F4")
     @do_not_record
     def auto_center(self):
         """Auto centering of selected points."""        
