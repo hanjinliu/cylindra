@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 import itertools
-from typing import Callable, Union, NamedTuple
+from typing import Union, NamedTuple
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
-# from scipy.optimize import minimize
 import impy as ip
 
 from .molecules import from_euler, Molecules

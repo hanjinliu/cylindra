@@ -1108,7 +1108,7 @@ class MTPropsWidget(MagicTemplate):
         paths = [r.partition(100) for r in self.tomogram.splines]
         
         self.parent_viewer.add_shapes(
-            paths, shape_type="paths", edge_color="lime", edge_width=1,
+            paths, shape_type="path", edge_color="lime", edge_width=1,
         )
         return None
 
@@ -1235,7 +1235,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Splines.wraps
     @set_design(text="Add anchors")
-    @set_options(interval={"label": "Interval between anchors (nm)"})
+    @set_options(interval={"label": "Interval between anchors (nm)", "min": 1.0})
     def add_anchors(self, interval: nm = 25.0):
         """
         Add anchors to splines.
@@ -1302,16 +1302,33 @@ class MTPropsWidget(MagicTemplate):
     
     @Splines.wraps
     @set_options(
-        layers={"widget_type": "Select", "choices": get_monomer_layers}
+        layers={"widget_type": "Select", "choices": get_monomer_layers},
+        interval={"label": "Interval (nm)", "min": 1.0},
     )
+    @set_design(text="Molecules to spline")
     @confirm(
         text="The existing splines will be removed.\n Do you want to run?",
-        condition="len(self.SplineControl._get_splines()) == 0",
+        condition="len(self.SplineControl._get_splines()) > 0",
     )
     def molecules_to_spline(
         self, 
         layers: List[MonomerLayer],
+        interval: nm = 24.5,
     ):
+        """
+        Create splines from molecules.
+        
+        This function is useful to refine splines using results of subtomogram 
+        alignment. Note that this function only works with molecules that is
+        correctly assembled by such as :func:`map_monomers`.
+
+        Parameters
+        ----------
+        layers : list of MonomerLayer
+            Select which monomer layers will be used for spline creation.
+        interval : nm, default is 24.5
+            Interval of spline anchors.
+        """        
         splines: List[MtSpline] = []
         for layer in layers:
             mole: Molecules = layer.metadata[MOLECULES]
@@ -1324,19 +1341,21 @@ class MTPropsWidget(MagicTemplate):
         
         self.tomogram.splines.clear()
         self.tomogram.splines.extend(splines)
+        self.tomogram.make_anchors(interval=interval)
         self.sample_subtomograms()
+        self._update_splines_in_images()
         return None
         
     @Analysis.wraps
     @set_design(text="Local FT analysis")
     @thread_worker(progress={"desc": "Local Fourier transform"})
-    def local_ft_analysis(self, interval: nm = 32.0, ft_size: nm = 32.0):
+    def local_ft_analysis(self, interval: nm = 24.5, ft_size: nm = 32.0):
         """
         Determine MT structural parameters by local Fourier transformation.
 
         Parameters
         ----------
-        interval : nm, default is 32.0
+        interval : nm, default is 24.5
             Interval of subtomogram analysis.
         ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for 
@@ -1344,8 +1363,8 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         if tomo.splines[0].radius is None:
-            self.set_radius()
-        self.add_anchors(interval=interval)
+            self.tomogram.set_radius()
+        tomo.make_anchors(interval=interval)
         tomo.local_ft_params(ft_size=ft_size)
         self._current_ft_size = ft_size
         self._need_save = True
@@ -1354,6 +1373,7 @@ class MTPropsWidget(MagicTemplate):
     @local_ft_analysis.returned.connect
     def _local_ft_analysis_on_return(self, _=None):
         self.sample_subtomograms()
+        self._update_splines_in_images()
         self._update_local_properties_in_widget()
         return None
         
