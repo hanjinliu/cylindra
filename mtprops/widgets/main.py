@@ -638,7 +638,7 @@ class MTPropsWidget(MagicTemplate):
         if self._current_ft_size is not None:
             tomo.metadata["ft_size"] = self._current_ft_size
         self._macro_offset = len(self.macro)
-    
+        self.tomogram = tomo
         return tomo
     
     @File.wraps
@@ -653,7 +653,7 @@ class MTPropsWidget(MagicTemplate):
         # load image and multiscales
         multiscales = project.multiscales
         
-        tomo = self._imread(
+        self.tomogram = self._imread(
             path=project.image, 
             scale=project.scale, 
             binsize=multiscales.pop(-1), 
@@ -665,12 +665,11 @@ class MTPropsWidget(MagicTemplate):
         for size in multiscales:
             self.tomogram.add_multiscale(size)
             
-        return tomo, project
+        return project
 
     @load_project.returned.connect
-    def _load_project_on_return(self, out: Tuple[MtTomogram, MTPropsProject]):
-        tomo, project = out
-        self._send_tomogram_to_viewer(tomo)
+    def _load_project_on_return(self, project: MTPropsProject):
+        self._send_tomogram_to_viewer()
         
         # load splines
         splines = [MtSpline.from_json(path) for path in project.splines]
@@ -3092,9 +3091,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @open_image.returned.connect
-    def _send_tomogram_to_viewer(self, tomo: MtTomogram):
+    def _send_tomogram_to_viewer(self, _=None):
         viewer = self.parent_viewer
-        self.tomogram = tomo
+        tomo = self.tomogram
         bin_size = max(x[0] for x in tomo.multiscaled)
         imgb = tomo.get_multiscale(bin_size)
         tr = tomo.multiscale_translation(bin_size)

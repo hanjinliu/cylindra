@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import itertools
-from typing import Union, NamedTuple
+from typing import Callable, Union, NamedTuple
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
@@ -10,7 +10,6 @@ from scipy.spatial.transform import Rotation
 import impy as ip
 
 from .molecules import from_euler, Molecules
-from ..utils import set_gpu
 
 
 RangeLike = tuple[float, float]
@@ -106,6 +105,7 @@ class AlignmentModel:
         self._n_rotations = self.quaternions.shape[0]
         self._method = method.lower()
         self._align_func = self._get_alignment_function()
+        self._landscape_func = self._get_landscape_function()
         self.template_input = self._get_template_input()
     
     def align(
@@ -168,6 +168,31 @@ class AlignmentModel:
             .affine(matrix=matrix, cval=cval)
         )
         return img_trans, result
+    
+    def landscape(
+        self, 
+        img: ip.ImgArray,
+        max_shifts: tuple[float, float, float]
+    ):
+        """
+        Compute cross-correlation landscape using current alignment parameters.
+
+        Parameters
+        ----------
+        img : ip.ImgArray
+            Subvolume to be aligned
+        max_shifts : tuple[float, float, float]
+            Maximum shifts along z, y, x axis in pixel.
+
+        Returns
+        -------
+        ImgArray
+            Landscape image.
+        """
+        return self._landscape_func(
+            img, self.cutoff, self.mask, self.template_input, max_shifts
+        )
+
     
     @property
     def is_multi_templates(self) -> bool:
@@ -243,6 +268,14 @@ class AlignmentModel:
             raise ValueError(f"Unsupported method {self._method}.")
         return f
 
+    def _get_landscape_function(self):
+        if self._method == "pcc":
+            f = zncc_landscape
+        elif self._method == "zncc":
+            f = pcc_landscape
+        else:
+            raise ValueError(f"Unsupported method {self._method}.")
+        return f
 
 def _compose_rotation_matrices(
     shape: tuple[int, int, int],
@@ -296,24 +329,9 @@ def transform_molecules_inv(
         .translate_internal(shift_corrected)
     )
 
-def get_alignment_function(
-    method: str = "pcc",
-    multi_template: bool = False,
-):
-    method = method.lower()
-    if method == "pcc":
-        if multi_template:
-            f = align_subvolume_multitemplates_pcc
-        else:
-            f = align_subvolume_pcc
-    elif method == "zncc":
-        if multi_template:
-            f = align_subvolume_multitemplates_zncc
-        else:
-            f = align_subvolume_zncc
-    else:
-        raise ValueError(f"Unsupported method {method}.")
-    return f
+################################################
+#   Alignment functions
+################################################
 
 def align_subvolume_zncc(
     subvol: ip.ImgArray,
@@ -322,15 +340,14 @@ def align_subvolume_zncc(
     template: ip.ImgArray,
     max_shift: tuple[int, int, int],
 ) -> tuple[int, np.ndarray, float]:
-    with ip.silent():    
-        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-        input = subvol_filt * mask
-        shift, zncc = ip.zncc_maximum_with_corr(
-            input,
-            template, 
-            upsample_factor=20, 
-            max_shifts=max_shift
-        )
+    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+    input = subvol_filt * mask
+    shift, zncc = ip.zncc_maximum_with_corr(
+        input,
+        template, 
+        upsample_factor=20, 
+        max_shifts=max_shift
+    )
     return 0, shift, zncc
 
 def align_subvolume_pcc(
@@ -340,15 +357,14 @@ def align_subvolume_pcc(
     template_ft: ip.ImgArray,
     max_shift: tuple[int, int, int],
 ) -> tuple[np.ndarray, float]:
-    with ip.silent():    
-        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-        input = subvol_filt * mask
-        shift, pcc = ip.ft_pcc_maximum_with_corr(
-            input.fft(),
-            template_ft, 
-            upsample_factor=20, 
-            max_shifts=max_shift
-        )
+    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+    input = subvol_filt * mask
+    shift, pcc = ip.ft_pcc_maximum_with_corr(
+        input.fft(),
+        template_ft, 
+        upsample_factor=20, 
+        max_shifts=max_shift
+    )
     return 0, shift, pcc
 
 def align_subvolume_multitemplates_pcc(
@@ -360,18 +376,17 @@ def align_subvolume_multitemplates_pcc(
 ) -> tuple[int, np.ndarray, float]:
     all_shifts: list[np.ndarray] = []
     all_pcc: list[float] = []
-    with ip.silent(), set_gpu():
-        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-        input = subvol_filt * mask
-        for template_ft in template_ft_list:
-            shift, pcc = ip.ft_pcc_maximum_with_corr(
-                input.fft(),
-                template_ft, 
-                upsample_factor=20, 
-                max_shifts=max_shift,
-            )
-            all_shifts.append(shift)
-            all_pcc.append(pcc)
+    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+    input = subvol_filt * mask
+    for template_ft in template_ft_list:
+        shift, pcc = ip.ft_pcc_maximum_with_corr(
+            input.fft(),
+            template_ft, 
+            upsample_factor=20, 
+            max_shifts=max_shift,
+        )
+        all_shifts.append(shift)
+        all_pcc.append(pcc)
     
     iopt = int(np.argmax(all_pcc))
     return iopt, all_shifts[iopt], all_pcc[iopt]
@@ -385,23 +400,48 @@ def align_subvolume_multitemplates_zncc(
 ) -> tuple[int, np.ndarray, float]:
     all_shifts: list[np.ndarray] = []
     all_zncc: list[float] = []
-    with ip.silent(), set_gpu():
-        subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-        input = subvol_filt * mask
-        for template in template_list:
-            shift, zncc = ip.zncc_maximum_with_corr(
-                input,
-                template, 
-                upsample_factor=20, 
-                max_shifts=max_shift,
-            )
-            all_shifts.append(shift)
-            all_zncc.append(zncc)
+    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+    input = subvol_filt * mask
+    for template in template_list:
+        shift, zncc = ip.zncc_maximum_with_corr(
+            input,
+            template, 
+            upsample_factor=20, 
+            max_shifts=max_shift,
+        )
+        all_shifts.append(shift)
+        all_zncc.append(zncc)
     
     iopt = int(np.argmax(all_zncc))
     return iopt, all_shifts[iopt], all_zncc[iopt]
 
 
+################################################
+#   Landscape functions
+################################################
+
+def zncc_landscape(
+    subvol: ip.ImgArray,
+    cutoff: float,
+    mask: ip.ImgArray,
+    template: ip.ImgArray,
+    max_shift: tuple[int, int, int],
+):
+    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+    input = subvol_filt * mask
+    return ip.zncc_landscape(input, template, max_shift)
+    
+def pcc_landscape(
+    subvol: ip.ImgArray,
+    cutoff: float,
+    mask: ip.ImgArray,
+    template_ft: ip.ImgArray,
+    max_shift: tuple[int, int, int],
+) -> tuple[np.ndarray, float]:
+    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+    input = subvol_filt * mask
+    return ip.ft_pcc_landscape(input.fft(), template_ft, max_shift)
+        
 # def _zncc_opt(quat, subvol: ip.ImgArray, template: ip.ImgArray, shift):
 #     rotated = template.affine(rotation=Rotation.from_quat(quat).as_matrix(), translation=shift)
 #     _zncc_opt.rotated = rotated

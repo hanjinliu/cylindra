@@ -15,6 +15,7 @@ import weakref
 import tempfile
 import pandas as pd
 from scipy.spatial.transform import Rotation
+from scipy import ndimage as ndi
 import numpy as np
 import impy as ip
 from dask import array as da
@@ -512,6 +513,8 @@ class SubtomogramLoader(Generic[_V]):
             chunksize=self.chunksize,
         )
         return out
+    
+    
     def iter_subtomoprops(
         self,
         template: ip.ImgArray = None,
@@ -534,7 +537,84 @@ class SubtomogramLoader(Generic[_V]):
                     yield
         
         return pd.DataFrame(results)
+
+
+    # def iter_constrained_align(
+    #     self,
+    #     *,
+    #     template: ip.ImgArray = None,
+    #     mask: ip.ImgArray = None,
+    #     max_shifts: nm | tuple[nm, nm, nm] = 1.,
+    #     rotations: Ranges | None = None,
+    #     cutoff: float = 0.5,
+    #     method: str = "pcc",
+    #     npf: int = 13,
+    # ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
+    #     from scipy.optimize import dual_annealing
         
+    #     if template is None:
+    #         raise NotImplementedError("Template image is needed.")
+        
+    #     self._check_shape(template)
+        
+    #     local_shifts, local_rot, corr_max = _allocate(len(self))
+    #     _max_shifts_px = np.asarray(max_shifts) / self.scale
+    #     _landscapes: list[np.ndarray] = []
+        
+    #     with ip.silent(), set_gpu():
+    #         model = AlignmentModel(
+    #             template=template, 
+    #             mask=mask, 
+    #             cutoff=cutoff, 
+    #             rotations=rotations,
+    #             method=method
+    #         )
+    #         for i, subvol in enumerate(self.iter_subtomograms()):
+    #             lds = model.landscape(subvol, _max_shifts_px)
+    #             _landscapes.append(lds.value)
+    #             yield lds
+        
+    #     _max_shifts_ceil = np.ceil(_max_shifts_px)
+    #     lds_shape = 1 + 2*_max_shifts_ceil
+    #     landscapes = np.stack(_landscapes, axis=0).reshape(-1, npf, *lds_shape)
+    #     bounds = np.concatenate(
+    #         [np.stack(
+    #             [_max_shifts_ceil - _max_shifts_px, 
+    #              _max_shifts_ceil + _max_shifts_px],
+    #             axis=1)
+    #          ]*len(self),
+    #         axis=0,
+    #     )
+
+    #     results = dual_annealing(
+    #         _neg_correlation_total,
+    #         bounds=bounds,
+    #         args=(landscapes,)
+    #     )
+        
+    #     local_shifts = results.x.reshape(-1, 3) - _max_shifts_ceil[np.newaxis, :]
+    #     rotvec = np.zeros((len(self), 3))
+    #     mole_aligned = transform_molecules(
+    #         self.molecules, 
+    #         local_shifts * self.scale, 
+    #         rotvec,
+    #     )
+        
+    #     mole_aligned.features = pd.concat(
+    #         [self.molecules.features,
+    #          get_features(method, corr_max, local_shifts, rotvec)],
+    #         axis=1)
+
+    #     out = self.__class__(
+    #         self.image_ref,
+    #         mole_aligned, 
+    #         self.output_shape,
+    #         order=self.order,
+    #         chunksize=self.chunksize,
+    #     )
+        
+    #     return out
+    
     def iter_each_seam(
         self,
         npf: int,
@@ -828,3 +908,10 @@ def _allocate(size: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     local_rot[:, 3] = 1  # identity map in quaternion
     
     return local_shifts, local_rot, corr_max
+
+# def _neg_correlation_total(x: np.ndarray, lds: np.ndarray):
+#     # x[3*i], x[3*i + 1], x[3*i + 2] is (z, y, x) coordinates in i-th landscape
+#     coords = x.reshape(-1, 3)
+#     return -np.sum(
+#         ndi.map_coordinates(lds, coords.T, order=3, prefilter=True)
+#     )
