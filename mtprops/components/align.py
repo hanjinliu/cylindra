@@ -6,6 +6,7 @@ from typing import Union, NamedTuple
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
+# from scipy.optimize import minimize
 import impy as ip
 
 from .molecules import from_euler, Molecules
@@ -399,3 +400,30 @@ def align_subvolume_multitemplates_zncc(
     
     iopt = int(np.argmax(all_zncc))
     return iopt, all_shifts[iopt], all_zncc[iopt]
+
+
+# def _zncc_opt(quat, subvol: ip.ImgArray, template: ip.ImgArray, shift):
+#     rotated = template.affine(rotation=Rotation.from_quat(quat).as_matrix(), translation=shift)
+#     _zncc_opt.rotated = rotated
+#     return -ip.zncc(subvol, rotated)
+
+# def align_subvolume_opt(
+#     subvol: ip.ImgArray,
+#     cutoff: float,
+#     mask: ip.ImgArray,
+#     template: ip.ImgArray,
+#     max_shift: tuple[int, int, int],
+# ) -> tuple[int, np.ndarray, float]:
+#     with ip.silent():    
+#         subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
+#         input = subvol_filt * mask
+#         shift = [0, 0, 0]
+#         quat = [0, 0, 0, 1]
+#         for i in range(4):
+#             result = minimize(_zncc_opt, quat, args=(input, template, shift))
+#             shift, zncc = ip.zncc_maximum_with_corr(
+#                 input, _zncc_opt.rotated, upsample_factor=20, max_shifts=max_shift
+#             )
+#             quat = result.x
+            
+#     return 0, shift, zncc

@@ -141,7 +141,15 @@ class SubtomogramLoader(Generic[_V]):
     def __iter__(self) -> Iterator[_V]:
         return self.iter_subtomograms()
     
-    def replace(self, order: int | None = None, chunksize: int | None = None):
+    def replace(
+        self,
+        output_shape: int | tuple[int, int, int] | None = None,
+        order: int | None = None,
+        chunksize: int | None = None
+    ):
+        """Return a new instance with different parameter(s)."""
+        if output_shape is None:
+            output_shape = self.output_shape
         if order is None:
             order = self.order
         if chunksize is None:
@@ -149,7 +157,7 @@ class SubtomogramLoader(Generic[_V]):
         return self.__class__(
             self.image_ref, 
             self.molecules,
-            self.output_shape, 
+            output_shape=output_shape, 
             order=order,
             chunksize=chunksize,
         )
@@ -203,6 +211,29 @@ class SubtomogramLoader(Generic[_V]):
         return map(fp, self.iter_subtomograms)
     
     def iter_to_memmap(self, path: str | None = None):
+        """
+        Create an iterator that convert all the subtomograms into a memory-mapped array.
+        
+        This function is useful when the same set of subtomograms will be used for many
+        times but it should not be fully loaded into memory. A temporary file will be
+        created to store subtomograms by default.
+
+        Parameters
+        ----------
+        path : str, optional
+            File path of the temporary file. If not given file will be created  by
+            ``tempfile.NamedTemporaryFile`` function.
+
+        Returns
+        -------
+        LazyImgArray
+            A lazy-loading array that uses the memory-mapped array.
+
+        Yields
+        ------
+        ImgArray
+            Subtomogram at each position.
+        """
         shape = (len(self.molecules),) + self.output_shape
         kwargs = dict(dtype=np.float32, mode="w+", shape=shape)
         if path is None:
@@ -220,6 +251,33 @@ class SubtomogramLoader(Generic[_V]):
         return arr
         
     def to_lazy_imgarray(self, path: str | None = None) -> ip.LazyImgArray:
+        """
+        An non-iterator version of :func:`iter_to_memmap`.
+
+        Parameters
+        ----------
+        path : str, optional
+            File path of the temporary file. If not given file will be created  by
+            ``tempfile.NamedTemporaryFile`` function.
+
+        Returns
+        -------
+        LazyImgArray
+            A lazy-loading array that uses the memory-mapped array.
+        
+        Examples
+        --------
+        1. Get i-th subtomogram.
+        
+        >>> arr = loader.to_lazy_imgarray()  # axes = "pzyx"
+        >>> arr[i]
+        
+        2. Subtomogram averaging.
+        
+        >>> arr = loader.to_lazy_imgarray()  # axes = "pzyx"
+        >>> avg = arr.proj("p")  # identical to np.mean(arr, axis=0)
+        
+        """
         it = self.iter_to_memmap(path)
         return self._resolve_iterator(it, lambda x: None)
     
@@ -275,34 +333,6 @@ class SubtomogramLoader(Generic[_V]):
         avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
         avg.set_scale(self.image_ref)
         return avg
-    
-    def average(
-        self,
-        *,
-        classifier=None, 
-        callback: Callable[[SubtomogramLoader], Any] = None,
-    ) -> ip.ImgArray:
-        """
-        Average all the subtomograms.
-        
-        The averaged image will be stored in ``self.averaged_image``. The size of subtomograms
-        is determined by the ``self.output_shape`` attribute.
-
-        Parameters
-        ----------
-        classifier : callable, optional
-            If given, only those subvolumes that satisfy ``classifier(subvol) == True`` will be
-            collected.
-        callback : callable, optional
-            If given, ``callback(self)`` will be called for each iteration of subtomogram loading.
-
-        Returns
-        -------
-        ImgArray
-            Averaged image.
-        """
-        average_iter = self.iter_average(classifier=classifier)
-        return self._resolve_iterator(average_iter, callback)
     
     def iter_align(
         self,
@@ -482,65 +512,6 @@ class SubtomogramLoader(Generic[_V]):
             chunksize=self.chunksize,
         )
         return out
-        
-    def align(
-        self,
-        *,
-        template: ip.ImgArray = None,
-        mask: ip.ImgArray = None,
-        max_shifts: nm | tuple[nm, nm, nm] = 1.,
-        rotations: Ranges | None = None,
-        cutoff: float = 0.5,
-        callback: Callable[[SubtomogramLoader], Any] = None,
-    ) -> SubtomogramLoader:        
-        """
-        Align subtomograms to a template to get high-resolution image.
-        
-        This method conduct so called "subtomogram averaging". Only shifts and rotations
-        are calculated in this method. To get averaged image, you'll have run "average"
-        method using the resulting SubtomogramLoader instance.
-        
-        Parameters
-        ----------
-        template : ip.ImgArray, optional
-            Template image.
-        mask : ip.ImgArray, optional
-            Mask image. Must in the same shae as the template.
-        max_shifts : int or tuple of int, default is (1., 1., 1.)
-            Maximum shift between subtomograms and template.
-        rotations : (float, float) or three-tuple of (float, float) or None, optional
-            Rotation between subtomograms and template in external Euler angles.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter applied in each subtomogram.
-        callback : Callable[[SubtomogramLoader], Any], optional
-            Callback function that will get called after each iteration.
-
-        Returns
-        -------
-        SubtomogramLoader
-            Refined molecule object is bound.
-        """        
-        
-        align_iter = self.iter_align(
-            template=template, 
-            mask=mask,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff
-        )
-        
-        mole_aligned = self._resolve_iterator(align_iter, callback)
-        
-        out = self.__class__(
-            self.image_ref,
-            mole_aligned, 
-            self.output_shape,
-            order=self.order,
-            chunksize=self.chunksize,
-        )
-        
-        return out
-
     def iter_subtomoprops(
         self,
         template: ip.ImgArray = None,
@@ -604,21 +575,6 @@ class SubtomogramLoader(Generic[_V]):
         avg_image.set_scale(self.image_ref)
         return np.array(corrs), avg_image, labels
     
-    def try_all_seams(
-        self,
-        npf: int,
-        template: ip.ImgArray,
-        mask: ip.ImgArray | None = None,
-        callback: Callable[[SubtomogramLoader], Any] = None,
-    ) -> tuple[np.ndarray, ip.ImgArray, list[Molecules]]:
-        
-        seam_iter = self.iter_each_seam(
-            npf=npf,
-            template=template, 
-            mask=mask,
-        )
-        return self._resolve_iterator(seam_iter, callback)
-    
     
     def iter_average_split(
         self, 
@@ -645,6 +601,94 @@ class SubtomogramLoader(Generic[_V]):
         
         return img
     
+    
+    def average(
+        self,
+        *,
+        classifier=None, 
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ) -> ip.ImgArray:
+        """
+        A non-iterator version of :func:`iter_average`.
+        
+        This function execute so-called "subtomogram averaging". The size of subtomograms
+        is determined by the ``self.output_shape`` attribute.
+
+        Parameters
+        ----------
+        classifier : callable, optional
+            If given, only those subvolumes that satisfy ``classifier(subvol) == True`` 
+            will be collected.
+        callback : callable, optional
+            If given, ``callback(self)`` will be called for each iteration of subtomogram 
+            loading.
+
+        Returns
+        -------
+        ImgArray
+            Averaged image.
+        """
+        average_iter = self.iter_average(classifier=classifier)
+        return self._resolve_iterator(average_iter, callback)
+        
+    def align(
+        self,
+        *,
+        template: ip.ImgArray = None,
+        mask: ip.ImgArray = None,
+        max_shifts: nm | tuple[nm, nm, nm] = 1.,
+        rotations: Ranges | None = None,
+        cutoff: float = 0.5,
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ) -> SubtomogramLoader:        
+        """
+        A non-iterator version of :func:`iter_align`.
+        
+        This method conduct so called "subtomogram refinement". Only shifts and rotations
+        are calculated in this method. To get averaged image, you'll have to run "average"
+        method using the resulting SubtomogramLoader instance.
+        
+        Parameters
+        ----------
+        template : ip.ImgArray, optional
+            Template image.
+        mask : ip.ImgArray, optional
+            Mask image. Must in the same shae as the template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template.
+        rotations : (float, float) or three-tuple of (float, float) or None, optional
+            Rotation between subtomograms and template in external Euler angles.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        callback : Callable[[SubtomogramLoader], Any], optional
+            Callback function that will get called after each iteration.
+
+        Returns
+        -------
+        SubtomogramLoader
+            Refined molecule object is bound.
+        """        
+        
+        align_iter = self.iter_align(
+            template=template, 
+            mask=mask,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff
+        )
+        
+        mole_aligned = self._resolve_iterator(align_iter, callback)
+        
+        out = self.__class__(
+            self.image_ref,
+            mole_aligned, 
+            self.output_shape,
+            order=self.order,
+            chunksize=self.chunksize,
+        )
+        
+        return out
+
     def average_split(
         self, 
         *,
@@ -655,6 +699,22 @@ class SubtomogramLoader(Generic[_V]):
         it = self.iter_average_split(n_set=n_set, seed=seed)
         return self._resolve_iterator(it, callback)
         
+    
+    def try_all_seams(
+        self,
+        npf: int,
+        template: ip.ImgArray,
+        mask: ip.ImgArray | None = None,
+        callback: Callable[[SubtomogramLoader], Any] = None,
+    ) -> tuple[np.ndarray, ip.ImgArray, list[Molecules]]:
+        
+        seam_iter = self.iter_each_seam(
+            npf=npf,
+            template=template, 
+            mask=mask,
+        )
+        return self._resolve_iterator(seam_iter, callback)
+    
     
     def fsc(
         self,
