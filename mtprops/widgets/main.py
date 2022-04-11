@@ -1382,7 +1382,9 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="Global FT analysis")
     @thread_worker(progress={"desc": "Global Fourier transform"})
     def global_ft_analysis(self):
-        """Determine MT global structural parameters by Fourier transformation."""        
+        """Determine MT global structural parameters by Fourier transformation."""
+        if self.tomogram.splines[0].radius is None:
+            self.tomogram.set_radius()
         self.tomogram.global_ft_params()
         self._need_save = True
         return None
@@ -2108,7 +2110,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (15., 3.),
         x_rotation: Tuple[float, float] = (3., 3.),
         bin_size: int = 1,
-        method: str = "pcc",
+        method: str = "zncc",
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
@@ -2134,11 +2136,13 @@ class MTPropsWidget(MagicTemplate):
             Rotation in external degree around x-axis.
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
-        chunk_size : int, default is 64
-            How many subtomograms will be loaded at the same time.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis. Be careful! 
             This may cause unexpected fitting result.
+        method : str, default is "zncc"
+            Alignment method.
+        chunk_size : int, default is 200
+            How many subtomograms will be loaded at the same time.
         """
         mole: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2240,7 +2244,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 90.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
@@ -2256,8 +2260,8 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 1,
-        method: str = "pcc",
+        interpolation: int = 3,
+        method: str = "zncc",
         bin_size: int = 1,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2281,8 +2285,10 @@ class MTPropsWidget(MagicTemplate):
             Rotation in external degree around x-axis.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 1
+        interpolation : int, default is 3
             Interpolation order.
+        method : str, default is "zncc"
+            Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         chunk_size : int, default is 64
@@ -2334,7 +2340,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 180.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (template-free)")
@@ -2349,8 +2355,8 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 1,
-        method: str = "pcc",
+        interpolation: int = 3,
+        method: str = "zncc",
         bin_size: int = 1,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2372,8 +2378,10 @@ class MTPropsWidget(MagicTemplate):
             Rotation in external degree around x-axis.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 1
+        interpolation : int, default is 3
             Interpolation order.
+        method : str, default is "zncc"
+            Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         chunk_size : int, default is 64
@@ -2427,7 +2435,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation={"options": {"max": 5.0, "step": 0.1}},
         x_rotation={"options": {"max": 5.0, "step": 0.1}},
         interpolation={"choices": [("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (multi-template)")
@@ -2444,7 +2452,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 1,
+        interpolation: int = 3,
         method: str = "pcc",
         bin_size: int = 1,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
@@ -2471,8 +2479,10 @@ class MTPropsWidget(MagicTemplate):
             Rotation in external degree around x-axis.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 1
+        interpolation : int, default is 3
             Interpolation order.
+        method : str, default is "zncc"
+            Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         chunk_size : int, default is 200
@@ -2539,6 +2549,7 @@ class MTPropsWidget(MagicTemplate):
         seed: Optional[int] = 0,
         interpolation: int = 1,
         n_set: int = 1,
+        show_average: bool = True,
         dfreq: Optional[float] = None,
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
@@ -2560,6 +2571,8 @@ class MTPropsWidget(MagicTemplate):
             Interpolation order.
         n_set : int, default is 1
             How many sets of image pairs will be generated to average FSC.
+        show_average : bool, default is True
+            If true, subtomogram averaging will be shown after FSC calculation.
         dfreq : float, default is 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
@@ -2590,12 +2603,17 @@ class MTPropsWidget(MagicTemplate):
                 img0, img1 = img[i]
                 freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
                 fsc_all.append(fsc)
+            if show_average:
+                img_avg = (img[0, 0] + img[0, 1]) / len(mole)
+            else:
+                img_avg = None
+            
         fsc_all = np.stack(fsc_all, axis=1)
-        return freq, fsc_all, layer
+        return freq, fsc_all, layer, img_avg
     
     @calculate_fsc.returned.connect
-    def _calculate_fsc_on_return(self, out: Tuple[np.ndarray, np.ndarray, MonomerLayer]):
-        freq, fsc_all, layer = out
+    def _calculate_fsc_on_return(self, out: Tuple[np.ndarray, np.ndarray, MonomerLayer, ip.ImgArray]):
+        freq, fsc_all, layer, img_avg = out
         fsc_mean = np.mean(fsc_all, axis=1)
         fsc_std = np.std(fsc_all, axis=1)
         crit_0143 = 0.143
@@ -2613,6 +2631,9 @@ class MTPropsWidget(MagicTemplate):
         self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
         self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
         self._LoggerWindow.show()
+        
+        if img_avg is not None:
+            self._subtomogram_averaging._show_reconstruction(img_avg, f"[AVG]{layer.name}")
         return None    
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2629,7 +2650,7 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
-        interpolation: int = 1,
+        interpolation: int = 3,
         npf: Optional[int] = None,
     ):
         """

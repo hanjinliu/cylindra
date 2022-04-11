@@ -44,7 +44,8 @@ class Molecules:
                 )
         
         self._pos = pos
-        self._rotator = rot   
+        self._rotator = rot
+        self._features: pd.DataFrame | None = None
         self.features = features
     
     def __repr__(self) -> str:
@@ -113,7 +114,7 @@ class Molecules:
         return self._features
     
     @features.setter
-    def features(self, value) -> None:
+    def features(self, value):
         if value is None:
             self._features = None
         else:

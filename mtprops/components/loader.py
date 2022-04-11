@@ -426,10 +426,10 @@ class SubtomogramLoader(Generic[_V]):
                 rotvec,
             )
         
-        mole_aligned.features = pd.concat(
-            [self.molecules.features,
-             get_features(method, corr_max, local_shifts, rotvec)],
-            axis=1)
+        mole_aligned.features = update_features(
+            self.molecules.features.copy(),
+            get_features(method, corr_max, local_shifts, rotvec),
+        )
 
         out = self.__class__(
             self.image_ref,
@@ -527,10 +527,9 @@ class SubtomogramLoader(Generic[_V]):
                 rotvec,
             )
         
-        mole_aligned.features = pd.concat(
-            [self.molecules.features,
-             get_features(method, corr_max, local_shifts, rotvec)],
-            axis=1,
+        mole_aligned.features = update_features(
+            self.molecules.features.copy(),
+            get_features(method, corr_max, local_shifts, rotvec),
         )
         
         out = self.__class__(
@@ -590,6 +589,15 @@ class SubtomogramLoader(Generic[_V]):
              get_features(method, corr_max, local_shifts, rotvec),
              pd.DataFrame({"labels": labels})],
             axis=1,
+        )
+        
+        mole_aligned.features = update_features(
+            self.molecules.features.copy(),
+            get_features(method, corr_max, local_shifts, rotvec),
+        )
+        mole_aligned.features = update_features(
+            mole_aligned.features,
+            {"labels": labels},
         )
         
         out = self.__class__(
@@ -964,15 +972,23 @@ def get_features(method: str, corr_max, local_shifts, rotvec) -> pd.DataFrame:
     
     features = {
         feature_key: corr_max,
-        Align.zShift: local_shifts[:, 0],
-        Align.yShift: local_shifts[:, 1],
-        Align.xShift: local_shifts[:, 2],
-        Align.zRotvec: rotvec[:, 0],
-        Align.yRotvec: rotvec[:, 1],
-        Align.xRotvec: rotvec[:, 2],
+        Align.zShift: np.round(local_shifts[:, 0], 2),
+        Align.yShift: np.round(local_shifts[:, 1], 2),
+        Align.xShift: np.round(local_shifts[:, 2], 2),
+        Align.zRotvec: np.round(rotvec[:, 0], 5),
+        Align.yRotvec: np.round(rotvec[:, 1], 5),
+        Align.xRotvec: np.round(rotvec[:, 2], 5),
     }
     return pd.DataFrame(features)
 
+def update_features(
+    features: pd.DataFrame,
+    values: dict | pd.DataFrame,
+):
+    """Update features with new values."""
+    for name, value in values.items():
+        features[name] = value
+    return features
 
 def _allocate(size: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # shift in local Cartesian
