@@ -1094,7 +1094,7 @@ class MTPropsWidget(MagicTemplate):
         with ip.silent():
             polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-            pw = pw.max()
+            pw /= pw.max()
         
         canvas = QtImageCanvas()
         canvas.image = pw.value
@@ -1337,7 +1337,7 @@ class MTPropsWidget(MagicTemplate):
             npf = roundint(np.max(mole.features[Mole.pf]) + 1)
             all_coords = mole.pos.reshape(-1, npf, 3)
             mean_coords = np.mean(all_coords, axis=1)
-            spl.fit(mean_coords, variance=GVar.splError**2)
+            spl.fit(mean_coords, variance=0.2**2)
             splines.append(spl)
         
         self.tomogram.splines.clear()
@@ -2096,7 +2096,7 @@ class MTPropsWidget(MagicTemplate):
         y_rotation={"options": {"max": 180.0, "step": 1.0}},
         x_rotation={"options": {"max": 90.0, "step": 1.0}},
         bin_size={"choices": _get_available_binsize},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "ZNCC")]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
     )
     @set_design(text="Align averaged")
     @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}"),
