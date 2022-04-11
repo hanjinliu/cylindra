@@ -62,8 +62,7 @@ class ImageProcessor(MagicTemplate):
         """Apply Butterworth's low-pass filter to the input image."""
         img = self._imread(self.input_image)
         out = img.tiled_lowpass_filter(cutoff, overlap=32, order=order)
-        with ip.silent():
-            out.imsave(self.output_image)
+        out.imsave(self.output_image)
         return None
     
     @set_design(text="Preview input image.")

@@ -51,8 +51,7 @@ class Volume(MagicTemplate):
         if layer is None:
             return None
         img = _convert_array(layer.data, layer.scale[-1])
-        with ip.silent():
-            out = img.binning(binsize=bin_size, check_edges=False)
+        out = img.binning(binsize=bin_size, check_edges=False)
         translate: List[float] = []
         for k, v in img.scale.items():
             if k in "zyx":
@@ -132,7 +131,7 @@ class Volume(MagicTemplate):
         if layer is None:
             return None
         img = _convert_array(layer.data, layer.scale[-1])
-        with ip.silent(), set_gpu():
+        with set_gpu():
             out = getattr(img, method_name)(*args, **kwargs)
         return (
             out,

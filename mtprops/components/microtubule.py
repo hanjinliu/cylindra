@@ -176,8 +176,7 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
     @wraps(func)
     def _func(self: MtTomogram, i=None, **kwargs):
         if isinstance(i, int):
-            with ip.silent():
-                out = func(self, i=i, **kwargs)
+            out = func(self, i=i, **kwargs)
             return out
         
         # Determine along which spline function will be executed.
@@ -200,16 +199,15 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
         
         # Run function along each spline
         out = []
-        with ip.silent():
-            for i_ in i_list:
-                try:
-                    result = func(self, i=i_, **kwargs)
-                except Exception as e:
-                    errname = type(e).__name__
-                    msg = str(e)
-                    raise RuntimeError(f"Exception at spline-{i_}.\n{errname}: {msg}") from e
-                else:
-                    out.append(result)
+        for i_ in i_list:
+            try:
+                result = func(self, i=i_, **kwargs)
+            except Exception as e:
+                errname = type(e).__name__
+                msg = str(e)
+                raise RuntimeError(f"Exception at spline-{i_}.\n{errname}: {msg}") from e
+            else:
+                out.append(result)
             
         return out
 
@@ -794,20 +792,19 @@ class MtTomogram(Tomogram):
         rmin = spl.radius * GVar.inner / _scale
         rmax = spl.radius * GVar.outer / _scale
         out: list[ip.ImgArray] = []
-        with ip.silent():
-            if pos is None:
-                anchors = spl.anchors
-            else:
-                anchors = [spl.anchors[pos]]
-            with set_gpu():
-                for anc in anchors:
-                    coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-                    polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
-                    polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
-                    polar.set_scale(r=_scale, y=_scale, a=_scale)
-                    polar.scale_unit = self.image.scale_unit
-                    polar[:] -= np.mean(polar)
-                    out.append(polar.fft(dims="rya"))
+        if pos is None:
+            anchors = spl.anchors
+        else:
+            anchors = [spl.anchors[pos]]
+        with set_gpu():
+            for anc in anchors:
+                coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
+                polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
+                polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
+                polar.set_scale(r=_scale, y=_scale, a=_scale)
+                polar.scale_unit = self.image.scale_unit
+                polar[:] -= np.mean(polar)
+                out.append(polar.fft(dims="rya"))
         
         return np.stack(out, axis="p")
     

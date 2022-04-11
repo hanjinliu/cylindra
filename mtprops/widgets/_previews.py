@@ -42,12 +42,11 @@ class ImagePreview(MagicTemplate):
     @Fft.apply_filter.connect
     @Fft.cutoff.connect
     def _update_canvas(self):
-        with ip.silent():
-            img_slice = self._img[self.sl.value].compute()
-            if self.Fft.apply_filter:
-                img_slice = img_slice.tiled_lowpass_filter(
-                    cutoff=self.Fft.cutoff, chunks=(496, 496)
-                )
+        img_slice = self._img[self.sl.value].compute()
+        if self.Fft.apply_filter:
+            img_slice = img_slice.tiled_lowpass_filter(
+                cutoff=self.Fft.cutoff, chunks=(496, 496)
+            )
         self.canvas.image = np.asarray(img_slice)
     
     @classmethod

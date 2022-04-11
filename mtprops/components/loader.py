@@ -347,12 +347,11 @@ class SubtomogramLoader(Generic[_V]):
         n = 0
         if classifier is None:
             classifier = lambda x: True
-        with ip.silent():
-            for subvol in self.iter_subtomograms():
-                if classifier(subvol):
-                    aligned += subvol.value
-                n += 1
-                yield aligned
+        for subvol in self.iter_subtomograms():
+            if classifier(subvol):
+                aligned += subvol.value
+            n += 1
+            yield aligned
         avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
         avg.set_scale(self.image_ref)
         return avg
@@ -365,7 +364,7 @@ class SubtomogramLoader(Generic[_V]):
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
-        method: str = "pcc",
+        method: str = "zncc",
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
         """
         Create an iterator that align subtomograms to the template image.
@@ -386,7 +385,7 @@ class SubtomogramLoader(Generic[_V]):
             Rotation between subtomograms and template in external Euler angles.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
-        method : {"pcc", "zncc"}, default is "pcc"
+        method : {"pcc", "zncc"}, default is "zncc"
             Alignment method. "pcc": phase cross correlation; "zncc": zero-mean normalized
             cross correlation.
 
@@ -406,7 +405,7 @@ class SubtomogramLoader(Generic[_V]):
         local_shifts, local_rot, corr_max = _allocate(len(self))
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         
-        with ip.silent(), set_gpu():
+        with set_gpu():
             model = AlignmentModel(
                 template=template, 
                 mask=mask, 
@@ -448,7 +447,7 @@ class SubtomogramLoader(Generic[_V]):
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
-        method: str = "pcc",
+        method: str = "zncc",
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
         """
         Create an iterator that align subtomograms without template image.
@@ -463,14 +462,14 @@ class SubtomogramLoader(Generic[_V]):
         template : ip.ImgArray, optional
             Template image.
         mask : ip.ImgArray, optional
-            Mask image. Must in the same shae as the template.
+            Mask image. Must in the same shap as the template.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template.
         rotations : (float, float) or three-tuple of (float, float) or None, optional
             Rotation between subtomograms and template in external Euler angles.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
-        method : {"pcc", "zncc"}, default is "pcc"
+        method : {"pcc", "zncc"}, default is "zncc"
             Alignment method. "pcc": phase cross correlation; "zncc": zero-mean normalized
             cross correlation.
 
@@ -488,17 +487,15 @@ class SubtomogramLoader(Generic[_V]):
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         all_subvols = yield from self.iter_to_memmap(path=None)
         
-        with ip.silent():
-            template = all_subvols.proj("p").compute()
+        template = all_subvols.proj("p").compute()
         
         # get mask image
         if isinstance(mask_params, tuple):
             _sigma, _radius = mask_params
-            with ip.silent():
-                mask = template.threshold().smooth_mask(
-                    sigma=_sigma/self.scale,
-                    dilate_radius=int(round(_radius/self.scale)),
-                )
+            mask = template.threshold().smooth_mask(
+                sigma=_sigma/self.scale,
+                dilate_radius=int(round(_radius/self.scale)),
+            )
         elif isinstance(mask_params, np.ndarray):
             mask = mask_params
         elif callable(mask_params):
@@ -507,7 +504,7 @@ class SubtomogramLoader(Generic[_V]):
             mask = mask_params
             
         
-        with ip.silent(), set_gpu():
+        with set_gpu():
             model = AlignmentModel(
                 template=template,
                 mask=mask,
@@ -543,14 +540,47 @@ class SubtomogramLoader(Generic[_V]):
     
     def iter_align_multi_templates(
         self,
-        *,
         templates: list[ip.ImgArray],
+        *,
         mask: ip.ImgArray | None = None,
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
-        method: str = "pcc",
+        method: str = "zncc",
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
+        """
+        Create an iterator that align subtomograms with multiple template images.
+        
+        A multi-template version of :func:`iter_align`. This method calculate cross
+        correlation for every template and uses the best local shift, rotation and
+        template.
+        
+        Parameters
+        ----------
+        templates: list of ImgArray
+            Template images.
+        mask : ip.ImgArray, optional
+            Mask image. Must in the same shape as the template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template.
+        rotations : (float, float) or three-tuple of (float, float) or None, optional
+            Rotation between subtomograms and template in external Euler angles.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        method : {"pcc", "zncc"}, default is "zncc"
+            Alignment method. "pcc": phase cross correlation; "zncc": zero-mean normalized
+            cross correlation.
+
+        Returns
+        -------
+        SubtomogramLoader
+            An loader instance with updated molecules.
+
+        Yields
+        ------
+        AlignmentResult
+            An tuple representing the current alignment result.
+        """
         n_templates = len(templates)
         self._check_shape(templates[0])
         
@@ -560,7 +590,7 @@ class SubtomogramLoader(Generic[_V]):
         labels = np.zeros(len(self), dtype=np.uint32)
         
         _max_shifts_px = np.asarray(max_shifts) / self.scale
-        with ip.silent(), set_gpu():
+        with set_gpu():
             model = AlignmentModel(
                 template=np.stack(list(templates), axis="p"),
                 mask=mask,
@@ -621,13 +651,12 @@ class SubtomogramLoader(Generic[_V]):
         if mask is None:
             mask = 1
         template_masked = template * mask
-        with ip.silent():
-            for i, subvol in enumerate(self.iter_subtomograms()):
-                for _prop in properties:
-                    prop = _prop(subvol*mask, template_masked)
-                    results[_prop.__name__][i] = prop
-                n += 1
-                yield
+        for i, subvol in enumerate(self.iter_subtomograms()):
+            for _prop in properties:
+                prop = _prop(subvol*mask, template_masked)
+                results[_prop.__name__][i] = prop
+            n += 1
+            yield
         
         return pd.DataFrame(results)
 
@@ -640,7 +669,7 @@ class SubtomogramLoader(Generic[_V]):
     #     max_shifts: nm | tuple[nm, nm, nm] = 1.,
     #     rotations: Ranges | None = None,
     #     cutoff: float = 0.5,
-    #     method: str = "pcc",
+    #     method: str = "zncc",
     #     npf: int = 13,
     # ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
     #     from scipy.optimize import dual_annealing
@@ -654,7 +683,7 @@ class SubtomogramLoader(Generic[_V]):
     #     _max_shifts_px = np.asarray(max_shifts) / self.scale
     #     _landscapes: list[np.ndarray] = []
         
-    #     with ip.silent(), set_gpu():
+    #     with set_gpu():
     #         model = AlignmentModel(
     #             template=template, 
     #             mask=mask, 
@@ -733,17 +762,16 @@ class SubtomogramLoader(Generic[_V]):
             sl = res % 2 == 0
             labels.append(sl)
         
-        with ip.silent():
-            for idx_chunk, subvols in enumerate(self._iter_chunks()):
-                chunk_offset = idx_chunk * self.chunksize
-                for j, label in enumerate(labels):
-                    sl = label[chunk_offset:chunk_offset + self.chunksize]
-                    sum_image[j] += np.sum(subvols[sl], axis=0)
-                yield
-        
-            _n = len(self.molecules) / 2
-            avg_image = ip.asarray(sum_image/_n, axes="pzyx")
-            corrs = [ip.zncc(avg*mask, masked_template) for avg in avg_image]
+        for idx_chunk, subvols in enumerate(self._iter_chunks()):
+            chunk_offset = idx_chunk * self.chunksize
+            for j, label in enumerate(labels):
+                sl = label[chunk_offset:chunk_offset + self.chunksize]
+                sum_image[j] += np.sum(subvols[sl], axis=0)
+            yield
+    
+        _n = len(self.molecules) / 2
+        avg_image = ip.asarray(sum_image/_n, axes="pzyx")
+        corrs = [ip.zncc(avg*mask, masked_template) for avg in avg_image]
         
         avg_image.set_scale(self.image_ref)
         return np.array(corrs), avg_image, labels
@@ -897,11 +925,10 @@ class SubtomogramLoader(Generic[_V]):
         
         img = self.average_split(n_set=n_set, seed=seed)
         fsc_all: dict[str, np.ndarray] = {}
-        with ip.silent():
-            for i in range(n_set):
-                img0, img1 = img[i]
-                freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
-                fsc_all[f"FSC-{i}"] = fsc
+        for i in range(n_set):
+            img0, img1 = img[i]
+            freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+            fsc_all[f"FSC-{i}"] = fsc
         
         df = pd.DataFrame({"freq": freq})
         return df.update(fsc_all)
@@ -941,16 +968,15 @@ class SubtomogramLoader(Generic[_V]):
         image = self.image_ref
         scale = image.scale.x
         
-        with ip.silent():
-            for coords in self.molecules.iter_cartesian(self.output_shape, scale, self.chunksize):
-                with set_gpu():
-                    subvols = np.stack(
-                        multi_map_coordinates(image, coords, order=self.order, cval=np.mean),
-                        axis=0,
-                    )
-                subvols = ip.asarray(subvols, axes="pzyx")
-                subvols.set_scale(image)
-                yield subvols
+        for coords in self.molecules.iter_cartesian(self.output_shape, scale, self.chunksize):
+            with set_gpu():
+                subvols = np.stack(
+                    multi_map_coordinates(image, coords, order=self.order, cval=np.mean),
+                    axis=0,
+                )
+            subvols = ip.asarray(subvols, axes="pzyx")
+            subvols.set_scale(image)
+            yield subvols
     
     def _resolve_iterator(self, it: Generator[Any, Any, _V], callback: Callable) -> _V:
         """Iterate over an iterator until it returns something."""

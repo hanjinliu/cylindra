@@ -59,10 +59,9 @@ def crop_tomogram(
     reg = img[sl_z, sl_y, sl_x]
     if isinstance(reg, ip.LazyImgArray):
         reg = reg.compute()
-    with ip.silent():
-        pads = [pad_z, pad_y, pad_x]
-        if np.any(np.array(pads) > 0):
-            reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
+    pads = [pad_z, pad_y, pad_x]
+    if np.any(np.array(pads) > 0):
+        reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
     
     return reg
 
@@ -81,9 +80,8 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
 def rotational_average(img: ip.ImgArray, fold: int = 13):
     angles = np.arange(fold)*360/fold
     average_img = img.copy()
-    with ip.silent():
-        for angle in angles[1:]:
-            average_img.value[:] += img.rotate(angle, dims="zx", mode=Mode.nearest)
+    for angle in angles[1:]:
+        average_img.value[:] += img.rotate(angle, dims="zx", mode=Mode.nearest)
     average_img /= fold
     return average_img
 
@@ -516,9 +514,8 @@ class Projections:
     # in ``pyqtgraph``, we must **flip along X axis**.
 
     def __init__(self, image: ip.ImgArray):
-        with ip.silent():
-            self.yx = image.proj("z")
-            self.zx = image.proj("y")["x=::-1"]
+        self.yx = image.proj("z")
+        self.zx = image.proj("y")["x=::-1"]
         self.zx_ave = None
         
         self.shape = image.shape

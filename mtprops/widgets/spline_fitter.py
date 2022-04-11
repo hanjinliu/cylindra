@@ -83,13 +83,12 @@ class SplineFitter(MagicTemplate):
         i = self.mt.num.value
         j = self.mt.pos.value
                 
-        with ip.silent():
-            img = self._get_parent()._current_cartesian_img(i, j)
-            cutoff = self.Rotational_averaging.frame.cutoff.value
-            if 0 < cutoff < 0.866:
-                img = img.lowpass_filter(cutoff=cutoff)
-            proj = Projections(img)
-            proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
+        img = self._get_parent()._current_cartesian_img(i, j)
+        cutoff = self.Rotational_averaging.frame.cutoff.value
+        if 0 < cutoff < 0.866:
+            img = img.lowpass_filter(cutoff=cutoff)
+        proj = Projections(img)
+        proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
         self.Rotational_averaging.canvas_rot.image = proj.zx_ave
         return None
     
@@ -184,11 +183,10 @@ class SplineFitter(MagicTemplate):
             scale=tomo.scale*self.binsize
         )
         out: list[ip.ImgArray] = []
-        with ip.silent():
-            for crds in coords:
-                out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
-            subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")
-            self.subtomograms = subtomo.proj("y")["x=::-1"]
+        for crds in coords:
+            out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
+        subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+        self.subtomograms = subtomo.proj("y")["x=::-1"]
             
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1

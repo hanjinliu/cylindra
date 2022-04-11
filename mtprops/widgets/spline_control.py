@@ -135,17 +135,16 @@ class SplineControl(MagicTemplate):
             scale=tomo.scale * binsize
         )
         out: List[ip.ImgArray] = []
-        with ip.silent():
-            for crds in coords:
-                mapped = map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
-                out.append(ip.asarray(mapped, axes="zyx"))
-        
-            projections = []
-            for img, npf in zip(out, npf_list):
-                proj = Projections(img)
-                if npf > 1:
-                    proj.rotational_average(npf)
-                projections.append(proj)
+        for crds in coords:
+            mapped = map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
+            out.append(ip.asarray(mapped, axes="zyx"))
+    
+        projections = []
+        for img, npf in zip(out, npf_list):
+            proj = Projections(img)
+            if npf > 1:
+                proj.rotational_average(npf)
+            projections.append(proj)
         
         self.projections = projections
         return None
@@ -165,16 +164,15 @@ class SplineControl(MagicTemplate):
             return
         spl = tomo.splines[i]
         # Set projections
-        with ip.silent():
-            proj = self.projections[j]
-            for ic in range(3):
-                self.canvas[ic].layers.clear()
-            self.canvas[0].image = proj.yx
-            self.canvas[1].image = proj.zx
-            if proj.zx_ave is not None:
-                self.canvas[2].image = proj.zx_ave
-            else:
-                del self.canvas[2].image
+        proj = self.projections[j]
+        for ic in range(3):
+            self.canvas[ic].layers.clear()
+        self.canvas[0].image = proj.yx
+        self.canvas[1].image = proj.zx
+        if proj.zx_ave is not None:
+            self.canvas[2].image = proj.zx_ave
+        else:
+            del self.canvas[2].image
         
         # Update text overlay
         self.canvas[0].text_overlay.text = f"{i}-{j}"

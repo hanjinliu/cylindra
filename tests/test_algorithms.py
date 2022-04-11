@@ -64,9 +64,8 @@ def test_chunked_straightening():
     from mtprops.components.microtubule import _local_dft_params_pd
     
     spl = tomo.splines[0]
-    with ip.silent():
-        prop0 = _local_dft_params_pd(st0, spl.radius)
-        prop1 = _local_dft_params_pd(st1, spl.radius)
+    prop0 = _local_dft_params_pd(st0, spl.radius)
+    prop1 = _local_dft_params_pd(st1, spl.radius)
     
     assert abs(prop0[H.yPitch] - prop1[H.yPitch]) < 1e-6
     assert abs(prop0[H.skewAngle] - prop1[H.skewAngle]) < 1e-6

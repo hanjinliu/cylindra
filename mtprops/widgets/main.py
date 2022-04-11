@@ -944,7 +944,7 @@ class MTPropsWidget(MagicTemplate):
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
-        with ip.silent(), set_gpu():
+        with set_gpu():
             img: ip.ImgArray = self.layer_image.data
             overlap = [min(s, 32) for s in img.shape]
             self.layer_image.data = img.tiled_lowpass_filter(
@@ -955,8 +955,7 @@ class MTPropsWidget(MagicTemplate):
     @filter_reference_image.returned.connect
     def _filter_reference_image_on_return(self, contrast_limits):
         self.layer_image.contrast_limits = contrast_limits
-        with ip.silent():
-            proj = self.layer_image.data.proj("z")
+        proj = self.layer_image.data.proj("z")
         self.overview.image = proj
         self.overview.contrast_limits = contrast_limits
         return None
@@ -991,8 +990,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_image.name = f"{imgb.name} (bin {bin_size})"
         self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
         self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
-        with ip.silent():
-            self.overview.image = imgb.proj("z")
+        self.overview.image = imgb.proj("z")
         self.layer_image.metadata["current_binsize"] = bin_size
         return None
         
@@ -1050,8 +1048,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """Show radial projection of cylindrical image around the current MT fragment."""
-        with ip.silent():
-            polar = self._current_cylindrical_img().proj("r")
+        polar = self._current_cylindrical_img().proj("r")
         
         canvas = QtImageCanvas()
         canvas.image = polar.value
@@ -1064,8 +1061,7 @@ class MTPropsWidget(MagicTemplate):
     def show_global_r_proj(self):
         """Show radial projection of cylindrical image along current MT."""        
         i = self.SplineControl.num
-        with ip.silent():
-            polar = self.tomogram.straighten_cylindric(i).proj("r")
+        polar = self.tomogram.straighten_cylindric(i).proj("r")
         canvas = QtImageCanvas()
         canvas.image = polar.value
         canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
@@ -1076,10 +1072,9 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="2D-FT")
     def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
         """View Fourier space of local cylindrical coordinate system at current position."""        
-        with ip.silent():
-            polar = self._current_cylindrical_img(i, j)
-            pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-            pw /= pw.max()
+        polar = self._current_cylindrical_img(i, j)
+        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        pw /= pw.max()
         
         canvas = QtImageCanvas()
         canvas.image = pw.value
@@ -1091,11 +1086,10 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound[SplineControl.num]):
         """View Fourier space along current MT."""  
-        with ip.silent():
-            polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
-            pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-            pw /= pw.max()
-        
+        polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
+        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        pw /= pw.max()
+    
         canvas = QtImageCanvas()
         canvas.image = pw.value
         canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
@@ -1758,8 +1752,7 @@ class MTPropsWidget(MagicTemplate):
             if parent.tomogram is not None and rescale:
                 scale_ratio = img.scale.x / parent.tomogram.scale
                 if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                    with ip.silent():
-                        img = img.rescale(scale_ratio)
+                    img = img.rescale(scale_ratio)
             self._template = img
             return img
         
@@ -1800,13 +1793,12 @@ class MTPropsWidget(MagicTemplate):
             if params is None:
                 return None
             elif isinstance(params, tuple):
-                with ip.silent():
-                    thr = self._template.threshold()
-                    scale: nm = thr.scale.x
-                    mask_image = thr.smooth_mask(
-                        sigma=params[1]/scale, 
-                        dilate_radius=roundint(params[0]/scale),
-                    )
+                thr = self._template.threshold()
+                scale: nm = thr.scale.x
+                mask_image = thr.smooth_mask(
+                    sigma=params[1]/scale, 
+                    dilate_radius=roundint(params[0]/scale),
+                )
             else:
                 mask_image = ip.imread(self.mask_path.mask_path)
             
@@ -1814,8 +1806,7 @@ class MTPropsWidget(MagicTemplate):
                 raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
             scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                with ip.silent():
-                    mask_image = mask_image.rescale(scale_ratio)
+                ask_image = mask_image.rescale(scale_ratio)
             return mask_image
         
         def _set_mask_params(self, params):
@@ -1845,11 +1836,10 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
-            with ip.silent():
-                self._viewer.add_image(
-                    image.rescale_intensity(dtype=np.float32), scale=image.scale, name=name,
-                    rendering="iso",
-                )
+            self._viewer.add_image(
+                image.rescale_intensity(dtype=np.float32), scale=image.scale, name=name,
+                rendering="iso",
+            )
             
             return self._viewer
         
@@ -1902,8 +1892,7 @@ class MTPropsWidget(MagicTemplate):
                 raise ValueError("Set save path.")
             scale = template.scale.x
             shape = tuple(roundint(s/scale) for s in new_shape)
-            with ip.silent():
-                reshaped = pad_template(template, shape)
+            reshaped = pad_template(template, shape)
             reshaped.imsave(save_as)
             if update_template_path:
                 self.template_path = save_as
@@ -2079,15 +2068,14 @@ class MTPropsWidget(MagicTemplate):
         )
         if binsize > 1:
             binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
-            with ip.silent():
-                if template is None:
-                    pass
-                elif isinstance(template, list):
-                    template = [tmp.binning(binsize, check_edges=False) for tmp in template]
-                else:
-                    template = template.binning(binsize, check_edges=False)
-                if mask is not None:
-                    mask = mask.binning(binsize, check_edges=False)
+            if template is None:
+                pass
+            elif isinstance(template, list):
+                template = [tmp.binning(binsize, check_edges=False) for tmp in template]
+            else:
+                template = template.binning(binsize, check_edges=False)
+            if mask is not None:
+                mask = mask.binning(binsize, check_edges=False)
         return loader, template, mask
     
     @_subtomogram_averaging.Refinement.wraps
@@ -2173,22 +2161,21 @@ class MTPropsWidget(MagicTemplate):
             
         from ..components.align import transform_molecules
         from scipy.spatial.transform import Rotation
-        with ip.silent():
             # if multiscaled image is used, there could be shape mismatch
-            model = AlignmentModel(
-                template,
-                mask,
-                cutoff=1.0,
-                rotations=(z_rotation, y_rotation, x_rotation),
-                method=method,
-            )
-            img_trans, result = model.fit(img, max_shifts=max_shifts)
-            rotvec = Rotation.from_quat(result.quat).as_rotvec()
-            mole_trans = transform_molecules(
-                mole, 
-                result.shift * img.scale, 
-                rotvec,
-            )
+        model = AlignmentModel(
+            template,
+            mask,
+            cutoff=1.0,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            method=method,
+        )
+        img_trans, result = model.fit(img, max_shifts=max_shifts)
+        rotvec = Rotation.from_quat(result.quat).as_rotvec()
+        mole_trans = transform_molecules(
+            mole, 
+            result.shift * img.scale, 
+            rotvec,
+        )
         yield
         # logging
         shift_nm = result.shift * img.scale
@@ -2209,9 +2196,8 @@ class MTPropsWidget(MagicTemplate):
             mole,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
-        with ip.silent():
-            img_norm = img.rescale_intensity(dtype=np.uint8).value
-            temp_norm = template.rescale_intensity(dtype=np.uint8).value
+        img_norm = img.rescale_intensity(dtype=np.uint8).value
+        temp_norm = template.rescale_intensity(dtype=np.uint8).value
         merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
         layer.visible = False
         self.log.print(f"{layer.name!r} --> {points.name!r}")
@@ -2491,13 +2477,12 @@ class MTPropsWidget(MagicTemplate):
         
         molecules = layer.metadata[MOLECULES]
         templates = [self._subtomogram_averaging._get_template(path=template_path)]
-        with ip.silent():
-            for path in other_templates:
-                img = ip.imread(path)
-                scale_ratio = img.scale.x / self.tomogram.scale
-                if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                    img = img.rescale(scale_ratio)
-                templates.append(img)
+        for path in other_templates:
+            img = ip.imread(path)
+            scale_ratio = img.scale.x / self.tomogram.scale
+            if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                img = img.rescale(scale_ratio)
+            templates.append(img)
 
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         loader, templates, mask = self._check_binning_for_alignment(
@@ -2598,15 +2583,14 @@ class MTPropsWidget(MagicTemplate):
         img = yield from loader.iter_average_split(n_set=n_set, seed=seed)
         
         fsc_all: List[np.ndarray] = []
-        with ip.silent():
-            for i in range(n_set):
-                img0, img1 = img[i]
-                freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
-                fsc_all.append(fsc)
-            if show_average:
-                img_avg = (img[0, 0] + img[0, 1]) / len(mole)
-            else:
-                img_avg = None
+        for i in range(n_set):
+            img0, img1 = img[i]
+            freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+            fsc_all.append(fsc)
+        if show_average:
+            img_avg = (img[0, 0] + img[0, 1]) / len(mole)
+        else:
+            img_avg = None
             
         fsc_all = np.stack(fsc_all, axis=1)
         return freq, fsc_all, layer, img_avg
@@ -2759,7 +2743,7 @@ class MTPropsWidget(MagicTemplate):
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
-            with ip.silent(), set_gpu():
+            with set_gpu():
                 template.lowpass_filter(cutoff=cutoff, update=True)
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
@@ -2817,7 +2801,7 @@ class MTPropsWidget(MagicTemplate):
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
-            with ip.silent(), set_gpu():
+            with set_gpu():
                 template.lowpass_filter(cutoff=cutoff, update=True)
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
@@ -2858,21 +2842,20 @@ class MTPropsWidget(MagicTemplate):
         
         shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
         
-        with ip.silent():
-            orientation = point1[1:] - point0[1:]
-            img = crop_tomogram(imgb, point1, shape)
-            center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-            angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=ceilint(angle_dev/angle_pre))
-            angle_rad = np.deg2rad(angle_deg)
-            dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
-            if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
-                point2 = point1 + dr
-            else:
-                point2 = point1 - dr
-            img_next = crop_tomogram(imgb, point2, shape)
-            drot = 5.0
-            max_shifts = (stride_nm/tomo.scale) * np.tan(np.deg2rad(drot))
-            centering(img_next, point2, angle_deg, drot=drot, max_shifts=max_shifts)
+        orientation = point1[1:] - point0[1:]
+        img = crop_tomogram(imgb, point1, shape)
+        center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
+        angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=ceilint(angle_dev/angle_pre))
+        angle_rad = np.deg2rad(angle_deg)
+        dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
+        if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
+            point2 = point1 + dr
+        else:
+            point2 = point1 - dr
+        img_next = crop_tomogram(imgb, point2, shape)
+        drot = 5.0
+        max_shifts = (stride_nm/tomo.scale) * np.tan(np.deg2rad(drot))
+        centering(img_next, point2, angle_deg, drot=drot, max_shifts=max_shifts)
             
         next_data = point2 * imgb.scale.x
         self.layer_work.add(next_data)
@@ -2901,14 +2884,13 @@ class MTPropsWidget(MagicTemplate):
         
         points = self.layer_work.data / imgb.scale.x
         last_i = -1
-        with ip.silent():
-            for i, point in enumerate(points):
-                if i not in selected:
-                    continue
-                img_input = crop_tomogram(imgb, point, shape)
-                angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
-                centering(img_input, point, angle_deg, drot=3, nrots=7)
-                last_i = i
+        for i, point in enumerate(points):
+            if i not in selected:
+                continue
+            img_input = crop_tomogram(imgb, point, shape)
+            angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
+            centering(img_input, point, angle_deg, drot=3, nrots=7)
+            last_i = i
         
         self.layer_work.data = points * imgb.scale.x
         if len(selected) == 1:
@@ -2935,36 +2917,35 @@ class MTPropsWidget(MagicTemplate):
         ft_size = self._current_ft_size
         
         lz, ly, lx = [roundint(r/bin_scale*1.4)*2 + 1 for r in [15, ft_size/2, 15]]
-        with ip.silent():
-            center = np.array([lz, ly, lx])/2 + 0.5
-            z, y, x = np.indices((lz, ly, lx))
-            cylinders = []
-            matrices = []
-            for i, spl in enumerate(tomo.splines):
-                # Prepare template hollow image
-                r0 = spl.radius/tomo.scale*0.9/binsize
-                r1 = spl.radius/tomo.scale*1.1/binsize
-                _sq = (z - lz/2 - 0.5)**2 + (x - lx/2 - 0.5)**2
-                domains = []
-                dist = [-np.inf] + list(spl.distances()) + [np.inf]
-                for j in range(spl.anchors.size):
-                    domain = (r0**2 < _sq) & (_sq < r1**2)
-                    ry = min((dist[j+1] - dist[j]) / 2, 
-                             (dist[j+2] - dist[j+1]) / 2, 
-                              ft_size/2) / bin_scale + 0.5 
-                        
-                    ry = max(ceilint(ry), 1)
-                    domain[:, :ly//2-ry] = 0
-                    domain[:, ly//2+ry+1:] = 0
-                    domain = domain.astype(np.float32)
-                    domains.append(domain)
+        center = np.array([lz, ly, lx])/2 + 0.5
+        z, y, x = np.indices((lz, ly, lx))
+        cylinders = []
+        matrices = []
+        for i, spl in enumerate(tomo.splines):
+            # Prepare template hollow image
+            r0 = spl.radius/tomo.scale*0.9/binsize
+            r1 = spl.radius/tomo.scale*1.1/binsize
+            _sq = (z - lz/2 - 0.5)**2 + (x - lx/2 - 0.5)**2
+            domains = []
+            dist = [-np.inf] + list(spl.distances()) + [np.inf]
+            for j in range(spl.anchors.size):
+                domain = (r0**2 < _sq) & (_sq < r1**2)
+                ry = min((dist[j+1] - dist[j]) / 2, 
+                            (dist[j+2] - dist[j+1]) / 2, 
+                            ft_size/2) / bin_scale + 0.5 
                     
-                cylinders.append(domains)
-                matrices.append(spl.affine_matrix(center=center, inverse=True))
-            
-            cylinders = np.concatenate(cylinders, axis=0)
-            matrices = np.concatenate(matrices, axis=0)
-            out = _multi_affine(cylinders, matrices) > 0.3
+                ry = max(ceilint(ry), 1)
+                domain[:, :ly//2-ry] = 0
+                domain[:, ly//2+ry+1:] = 0
+                domain = domain.astype(np.float32)
+                domains.append(domain)
+                
+            cylinders.append(domains)
+            matrices.append(spl.affine_matrix(center=center, inverse=True))
+        
+        cylinders = np.concatenate(cylinders, axis=0)
+        matrices = np.concatenate(matrices, axis=0)
+        out = _multi_affine(cylinders, matrices) > 0.3
             
         # paint roughly
         for i, crd in enumerate(tomo.collect_anchor_coords()):
@@ -3206,8 +3187,7 @@ class MTPropsWidget(MagicTemplate):
             self.layer_paint.translate = [tr, tr, tr]
         
         # update overview
-        with ip.silent():
-            proj = imgb.proj("z")
+        proj = imgb.proj("z")
         self.overview.image = proj
         self.overview.ylim = (0, proj.shape[0])
         

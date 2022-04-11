@@ -68,7 +68,7 @@ class Tomogram:
     ) -> Self:
         """Read a image as a dask array."""
         self = cls()
-        img = ip.lazy_imread(path, chunks=GVar.daskChunk).as_float()
+        img = ip.lazy_imread(path, chunks=GVar.daskChunk, name="tomogram").as_float()
         if scale is not None:
             img.set_scale(xyz=scale)
         else:
@@ -132,20 +132,19 @@ class Tomogram:
 
     def add_multiscale(self, binsize: int) -> ip.ImgArray:
         """Add new multiscaled image of given binsize."""
-        with ip.silent():
-            # iterate from the larger bin size
-            for _b, _img in reversed(self._multiscaled):
-                if binsize == _b:
-                    warnings.warn(
-                        f"Binsize {binsize} already exists in multiscale images. "
-                        "Skip binning process.",UserWarning
-                    )
-                    return
-                if binsize % _b == 0:
-                    imgb = _img.binning(binsize//_b, check_edges=False)
-                    break
-            else:
-                imgb = self.image.binning(binsize, check_edges=False).compute()
+        # iterate from the larger bin size
+        for _b, _img in reversed(self._multiscaled):
+            if binsize == _b:
+                warnings.warn(
+                    f"Binsize {binsize} already exists in multiscale images. "
+                    "Skip binning process.",UserWarning
+                )
+                return
+            if binsize % _b == 0:
+                imgb = _img.binning(binsize//_b, check_edges=False)
+                break
+        else:
+            imgb = self.image.binning(binsize, check_edges=False).compute()
         self._multiscaled.append((binsize, imgb))
         self._multiscaled.sort(key=lambda x: x[0])
         return imgb
@@ -167,8 +166,7 @@ class Tomogram:
     def invert(self) -> Self:
         """Invert tomogram intensities **in-place**."""
         img_inv = -self.image
-        with ip.silent():
-            img_inv.release()
+        img_inv.release()
         self._set_image(img_inv)
         for i in range(len(self._multiscaled)):
             _b, _img = self._multiscaled[i]
@@ -178,9 +176,8 @@ class Tomogram:
     def lowpass_filter(self, cutoff: float) -> Self:
         """Low-pass filtering the original image **in-place**"""
         if 0 < cutoff < 0.866:
-            with ip.silent():
-                self.image.tiled_lowpass_filter(cutoff, update=True, overlap=32)
-                self.image.release()
+            self.image.tiled_lowpass_filter(cutoff, update=True, overlap=32)
+            self.image.release()
         return self
     
     def get_subtomogram_loader(

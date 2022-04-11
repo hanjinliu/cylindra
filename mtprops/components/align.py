@@ -453,7 +453,6 @@ def pcc_landscape(
 #     template: ip.ImgArray,
 #     max_shift: tuple[int, int, int],
 # ) -> tuple[int, np.ndarray, float]:
-#     with ip.silent():    
 #         subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
 #         input = subvol_filt * mask
 #         shift = [0, 0, 0]
@@ -464,5 +463,5 @@ def pcc_landscape(
 #                 input, _zncc_opt.rotated, upsample_factor=20, max_shifts=max_shift
 #             )
 #             quat = result.x
-            
+    
 #     return 0, shift, zncc
