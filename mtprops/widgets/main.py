@@ -224,6 +224,7 @@ class MTPropsWidget(MagicTemplate):
             stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
             angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
             angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1, "tooltip": "Angle precision (degree) of auto picker"}, record=False)
+            max_shifts = vfield(5.0, options={"min": 1., "max": 20., "step": 0.5, "tooltip": "Maximum shift (nm) in auto centering"}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
@@ -2397,7 +2398,7 @@ class MTPropsWidget(MagicTemplate):
             method=method,
         )
         
-        self.log.print_html(f"<code>Align_all</code>")
+        self.log.print_html(f"<code>Align_all (template-free)</code>")
                 
         self._need_save = True
         return aligned_loader, layer
@@ -2848,7 +2849,9 @@ class MTPropsWidget(MagicTemplate):
             else:
                 point2 = point1 - dr
             img_next = crop_tomogram(imgb, point2, shape)
-            centering(img_next, point2, angle_deg)
+            drot = 5.0
+            max_shifts = (stride_nm/tomo.scale) * np.tan(np.deg2rad(drot))
+            centering(img_next, point2, angle_deg, drot=drot, max_shifts=max_shifts)
             
         next_data = point2 * imgb.scale.x
         self.layer_work.add(next_data)
@@ -3424,13 +3427,14 @@ def centering(
     point: np.ndarray,
     angle: float,
     drot: float = 5, 
-    nrots: int = 7
+    nrots: int = 7,
+    max_shifts: int = None,
 ):
     angle_deg2 = angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
     
     img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
     proj = img_next_rot.proj("y")
-    shift = mirror_zncc(proj)
+    shift = mirror_zncc(proj, max_shifts=max_shifts)
     
     shiftz, shiftx = shift/2
     shift = np.array([shiftz, 0, shiftx])

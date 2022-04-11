@@ -321,6 +321,28 @@ class SubtomogramLoader(Generic[_V]):
         self,
         classifier: Callable[[np.ndarray], bool] | None = None,
     ) -> Generator[ip.ImgArray, None, ip.ImgArray]:
+        """
+        Create an iterator that calculate the averaged image from a tomogram.
+        
+        This function execute so-called "subtomogram averaging". The size of 
+        subtomograms is determined by the ``self.output_shape`` attribute.
+
+        Parameters
+        ----------
+        classifier : callable, optional
+            If provided, only subtomograms that satisfy ``classifier(img)==True`` will
+            be used.
+
+        Returns
+        -------
+        ImgArray
+            Averaged image
+
+        Yields
+        ------
+        ImgArray
+            Subtomogram at each position
+        """
         aligned = np.zeros(self.output_shape, dtype=np.float32)
         n = 0
         if classifier is None:
@@ -337,17 +359,48 @@ class SubtomogramLoader(Generic[_V]):
     
     def iter_align(
         self,
+        template: ip.ImgArray,
         *,
-        template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
         method: str = "pcc",
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
+        """
+        Create an iterator that align subtomograms to the template image.
         
-        if template is None:
-            raise NotImplementedError("Template image is needed.")
+        This method conduct so called "subtomogram refinement". Only shifts and rotations
+        are calculated in this method. To get averaged image, you'll have to run "average"
+        method using the resulting SubtomogramLoader instance.
+        
+        Parameters
+        ----------
+        template : ip.ImgArray, optional
+            Template image.
+        mask : ip.ImgArray, optional
+            Mask image. Must in the same shae as the template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template.
+        rotations : (float, float) or three-tuple of (float, float) or None, optional
+            Rotation between subtomograms and template in external Euler angles.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        method : {"pcc", "zncc"}, default is "pcc"
+            Alignment method. "pcc": phase cross correlation; "zncc": zero-mean normalized
+            cross correlation.
+
+        Returns
+        -------
+        SubtomogramLoader
+            An loader instance with updated molecules.
+
+        Yields
+        ------
+        AlignmentResult
+            An tuple representing the current alignment result.
+        """
+
         self._check_shape(template)
         
         local_shifts, local_rot, corr_max = _allocate(len(self))
@@ -397,6 +450,40 @@ class SubtomogramLoader(Generic[_V]):
         cutoff: float = 0.5,
         method: str = "pcc",
     ) -> Generator[AlignmentResult, None, SubtomogramLoader]:
+        """
+        Create an iterator that align subtomograms without template image.
+        
+        A template-free version of :func:`iter_align`. This method first calculates averaged
+        image and uses it for the alignment template. To avoid loading same subtomograms
+        twice, a memory-mapped array is created internally (so the second subtomogram 
+        loading is faster).
+        
+        Parameters
+        ----------
+        template : ip.ImgArray, optional
+            Template image.
+        mask : ip.ImgArray, optional
+            Mask image. Must in the same shae as the template.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template.
+        rotations : (float, float) or three-tuple of (float, float) or None, optional
+            Rotation between subtomograms and template in external Euler angles.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        method : {"pcc", "zncc"}, default is "pcc"
+            Alignment method. "pcc": phase cross correlation; "zncc": zero-mean normalized
+            cross correlation.
+
+        Returns
+        -------
+        SubtomogramLoader
+            An loader instance with updated molecules.
+
+        Yields
+        ------
+        AlignmentResult
+            An tuple representing the current alignment result.
+        """
         local_shifts, local_rot, corr_max = _allocate(len(self))
         _max_shifts_px = np.asarray(max_shifts) / self.scale
         all_subvols = yield from self.iter_to_memmap(path=None)
@@ -520,7 +607,6 @@ class SubtomogramLoader(Generic[_V]):
         template: ip.ImgArray = None,
         mask: ip.ImgArray = None,
         properties=(ip.zncc,),
-        nbatch: int = 24,
     ) -> Generator[None, None, pd.DataFrame]:
         results = {f.__name__: np.zeros(len(self), dtype=np.float32) for f in properties}
         n = 0
@@ -533,8 +619,7 @@ class SubtomogramLoader(Generic[_V]):
                     prop = _prop(subvol*mask, template_masked)
                     results[_prop.__name__][i] = prop
                 n += 1
-                if n % nbatch == nbatch - 1:
-                    yield
+                yield
         
         return pd.DataFrame(results)
 
@@ -690,9 +775,6 @@ class SubtomogramLoader(Generic[_V]):
     ) -> ip.ImgArray:
         """
         A non-iterator version of :func:`iter_average`.
-        
-        This function execute so-called "subtomogram averaging". The size of subtomograms
-        is determined by the ``self.output_shape`` attribute.
 
         Parameters
         ----------
@@ -723,10 +805,6 @@ class SubtomogramLoader(Generic[_V]):
     ) -> SubtomogramLoader:        
         """
         A non-iterator version of :func:`iter_align`.
-        
-        This method conduct so called "subtomogram refinement". Only shifts and rotations
-        are calculated in this method. To get averaged image, you'll have to run "average"
-        method using the resulting SubtomogramLoader instance.
         
         Parameters
         ----------
