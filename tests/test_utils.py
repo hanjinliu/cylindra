@@ -116,20 +116,19 @@ def test_multi_map_coordinates():
 
 def test_mirror_pcc():
     np.random.seed(1234)
-    with ip.SetConst(SHOW_PROGRESS=False):
-        # Even number
-        img = ip.random.normal(size=(128, 128))
-        img_mirror = img[::-1, ::-1]
-        shift1 = ip.pcc_maximum(img, img_mirror)
-        shift2 = utils.mirror_pcc(img)
-        assert_allclose(shift1, shift2)
-        
-        # Odd number
-        img = ip.random.normal(size=(127, 127))
-        img_mirror = img[::-1, ::-1]
-        shift1 = ip.pcc_maximum(img, img_mirror)
-        shift2 = utils.mirror_pcc(img)
-        assert_allclose(shift1, shift2)
+    # Even number
+    img = ip.random.normal(size=(128, 128))
+    img_mirror = img[::-1, ::-1]
+    shift1 = ip.pcc_maximum(img, img_mirror)
+    shift2 = utils.mirror_pcc(img)
+    assert_allclose(shift1, shift2)
+    
+    # Odd number
+    img = ip.random.normal(size=(127, 127))
+    img_mirror = img[::-1, ::-1]
+    shift1 = ip.pcc_maximum(img, img_mirror)
+    shift2 = utils.mirror_pcc(img)
+    assert_allclose(shift1, shift2)
     np.random.seed()
 
 def test_mt_pad():
