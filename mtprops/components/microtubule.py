@@ -524,7 +524,9 @@ class MtTomogram(Tomogram):
         level = LOGGER.level
         LOGGER.setLevel(logging.WARNING)
         try:
-            props = self.global_ft_params(i, binsize=binsize)
+            props = self.splines[i].globalprops
+            if props is None:
+                props = self.global_ft_params(i, binsize=binsize)
         finally:
             LOGGER.setLevel(level)
         spl.make_anchors(max_interval=max_interval)
@@ -555,7 +557,7 @@ class MtTomogram(Tomogram):
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
-        scale = self.scale * binsize
+        scale = input_img.scale.x
         # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
         if isinstance(input_img, ip.LazyImgArray):
             chunksize = max(int(GVar.fitLength*2/interval), 1)
@@ -631,7 +633,9 @@ class MtTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to measure.
-
+        binsize : int, default is 1
+            Multiscale bin size used for radius calculation.
+        
         Returns
         -------
         float (nm)
@@ -724,9 +728,6 @@ class MtTomogram(Tomogram):
         """        
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
         spl = self.splines[i]
-        if spl.localprops is not None:
-            LOGGER.info(" >> cache is returned")
-            return spl.localprops
         
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
@@ -877,11 +878,7 @@ class MtTomogram(Tomogram):
             Global properties.
         """        
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
-        spl = self._splines[i]
-        if spl.globalprops is not None:
-            LOGGER.info(f" >> cache is returned")
-            return spl.globalprops
-        
+        spl = self._splines[i]        
         img_st = self.straighten_cylindric(i, binsize=binsize)
         series = _local_dft_params_pd(img_st, spl.radius)
         spl.globalprops = series
@@ -1108,7 +1105,9 @@ class MtTomogram(Tomogram):
     ) -> Molecules:
         
         spl = self.splines[i]
-        props = self.global_ft_params(i)
+        props = self.splines[i].globalprops
+        if props is None:
+            props = self.global_ft_params(i)
         
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
@@ -1161,7 +1160,9 @@ class MtTomogram(Tomogram):
             length = spl.length()
             
         # Get structural parameters
-        props = self.global_ft_params(i)
+        props = self.splines[i].globalprops
+        if props is None:
+            props = self.global_ft_params(i)
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
@@ -1218,7 +1219,9 @@ class MtTomogram(Tomogram):
         Molecules
             Object that represents protofilament positions and angles.
         """        
-        props = self.global_ft_params(i)
+        props = self.splines[i].globalprops
+        if props is None:
+            props = self.global_ft_params(i)
         lp = props[H.yPitch] * 2
         skew = props[H.skewAngle]
         spl = self._splines[i]
@@ -1318,11 +1321,15 @@ class MtTomogram(Tomogram):
             df = None
         return df
     
-    def plot_localprops(self, i: int | Iterable[int] = None,
-                        x=None, y=None, hue=None, **kwargs):
-        """
-        Simple plot function for visualizing local properties.
-        """        
+    def plot_localprops(
+        self,
+        i: int | Iterable[int] = None,
+        x: str | None = None,
+        y: str | None = None,
+        hue: str | None = None,
+        **kwargs,
+    ):
+        """Simple plot function for visualizing local properties."""        
         import seaborn as sns
         df = self.collect_localprops(i)
         data = df.reset_index()
@@ -1396,13 +1403,14 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     y0 = ceilint(ylength_nm/GVar.yPitchMax) - 1
     y1 = max(ceilint(ylength_nm/GVar.yPitchMin), y0+1)
     up_a = 20
-    up_y = max(int(1500/ylength_nm), 1)
+    up_y = max(int(6000/img.shape.y), 1)
     npfrange = ceilint(npfmax/2) # The peak of longitudinal periodicity is always in this range. 
     
-    power = img.local_power_spectra(key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}", 
-                                    upsample_factor=[1, up_y, up_a], 
-                                    dims="rya",
-                                    ).proj("r")
+    power = img.local_power_spectra(
+        key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}", 
+        upsample_factor=[1, up_y, up_a], 
+        dims="rya",
+    ).proj("r")
     
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     ymaxp = np.argmax(power.proj("a"))
@@ -1422,12 +1430,13 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     dy_min = ceilint(tandg(GVar.minSkew)*y_factor*npfmin) - 1
     dy_max = max(ceilint(tandg(GVar.maxSkew)*y_factor*npfmax), dy_min+1)
     up_a = 20
-    up_y = max(int(5400/(img.shape.y*img.scale.y)), 1)
+    up_y = max(int(21600/(img.shape.y)), 1)
     
-    power = img.local_power_spectra(key=f"y={dy_min}:{dy_max};a={npfmin}:{npfmax}", 
-                                    upsample_factor=[1, up_y, up_a], 
-                                    dims="rya",
-                                    ).proj("r")
+    power = img.local_power_spectra(
+        key=f"y={dy_min}:{dy_max};a={npfmin}:{npfmax}", 
+        upsample_factor=[1, up_y, up_a], 
+        dims="rya",
+    ).proj("r")
     
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     amaxp = np.argmax(power.proj("y"))

@@ -949,7 +949,7 @@ class MTPropsWidget(MagicTemplate):
             overlap = [min(s, 32) for s in img.shape]
             self.layer_image.data = img.tiled_lowpass_filter(
                 cutoff, chunks=(96, 96, 96), overlap=overlap,
-                )
+            )
         return np.percentile(self.layer_image.data, [1, 97])
 
     @filter_reference_image.returned.connect
@@ -983,6 +983,14 @@ class MTPropsWidget(MagicTemplate):
     @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Set multi-scale")
     def set_multiscale(self, bin_size: int):
+        """
+        Set multiscale used for image display.
+        
+        Parameters
+        ----------
+        bin_size: int
+            Bin size of multiscaled image.
+        """
         tomo = self.tomogram
         imgb = tomo.get_multiscale(bin_size)
         self.layer_image.data = imgb
@@ -1195,11 +1203,15 @@ class MTPropsWidget(MagicTemplate):
         ----------
         max_interval : nm, default is 30.0
             Maximum interval of sampling points in nm unit.
+        bin_size : int, default is 1
+            Bin size of multiscale images.
         degree_precision : float, default is 0.5
             Precision of MT xy-tilt degree in angular correlation.
-        dense_mode : bool, default is False
+        edge_sigma : bool, default is False
             Check if microtubules are densely packed. Initial spline position must be "almost" fitted
             in dense mode.
+        max_shift : nm, default is 5.0
+            Maximum shift to be applied to each point of splines.
         """        
         self.tomogram.fit(
             max_interval=max_interval,
@@ -1250,12 +1262,15 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Analysis.wraps
-    @set_options(radius={"text": "Measure radii by radial profile."})
+    @set_options(
+        radius={"text": "Measure radii by radial profile."},
+        bin_size={"choices": _get_available_binsize},
+    )
     @set_design(text="Set radius")
     @thread_worker(progress={"desc": "Measuring Radius"})
-    def set_radius(self, radius: Optional[nm] = None):
+    def set_radius(self, radius: Optional[nm] = None, bin_size: int = 1):
         """Measure MT radius for each spline path."""        
-        self.tomogram.set_radius(radius=radius)
+        self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
         return None
     
@@ -1271,7 +1286,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         max_interval: nm = 30,
         corr_allowed: float = 0.9,
-        bin_size: int = 1
+        bin_size: int = 1,
     ):
         """
         Refine splines using the global MT structural parameters.
@@ -1283,13 +1298,15 @@ class MTPropsWidget(MagicTemplate):
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
+        bin_size : int, default is 1
+            Bin size of multiscale images.
         """
         tomo = self.tomogram
         
         tomo.refine(
             max_interval=max_interval,
             corr_allowed=corr_allowed,
-            binsize = bin_size,
+            binsize=bin_size,
         )
         
         self._need_save = True
@@ -1342,9 +1359,18 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Analysis.wraps
+    @set_options(
+        ft_size={"min": 2.0},
+        bin_size={"choices": _get_available_binsize},
+    )
     @set_design(text="Local FT analysis")
     @thread_worker(progress={"desc": "Local Fourier transform"})
-    def local_ft_analysis(self, interval: nm = 24.5, ft_size: nm = 32.0):
+    def local_ft_analysis(
+        self,
+        interval: nm = 24.5,
+        ft_size: nm = 32.0,
+        bin_size: int = 1,
+    ):
         """
         Determine MT structural parameters by local Fourier transformation.
 
@@ -1355,32 +1381,56 @@ class MTPropsWidget(MagicTemplate):
         ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
+        bin_size : int, default is 1
+            Bin size of multiscale images.
         """
         tomo = self.tomogram
         if tomo.splines[0].radius is None:
             self.tomogram.set_radius()
         tomo.make_anchors(interval=interval)
-        tomo.local_ft_params(ft_size=ft_size)
+        for i in range(self.tomogram.n_splines):
+            tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
+            yield i
         self._current_ft_size = ft_size
         self._need_save = True
         return None
     
-    @local_ft_analysis.returned.connect
-    def _local_ft_analysis_on_return(self, _=None):
-        self.sample_subtomograms()
+    @local_ft_analysis.yielded.connect
+    def _local_ft_analysis_on_yield(self, i: int):
+        if i == 0:
+            self.sample_subtomograms()        
         self._update_splines_in_images()
         self._update_local_properties_in_widget()
         return None
         
     @Analysis.wraps
+    @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Global FT analysis")
     @thread_worker(progress={"desc": "Global Fourier transform"})
-    def global_ft_analysis(self):
-        """Determine MT global structural parameters by Fourier transformation."""
+    def global_ft_analysis(self, bin_size: int = 1):
+        """
+        Determine MT global structural parameters by Fourier transformation.
+        
+        Parameters
+        ----------
+        bin_size : int, default is 1
+            Bin size of multiscale images."""
+            
+        tomo = self.tomogram
         if self.tomogram.splines[0].radius is None:
             self.tomogram.set_radius()
-        self.tomogram.global_ft_params()
+        for i in range(self.tomogram.n_splines):
+            tomo.global_ft_params(i=i, binsize=bin_size)
+            yield i
         self._need_save = True
+        return None
+    
+    @global_ft_analysis.yielded.connect
+    def _global_ft_analysis_on_yield(self, i: int):
+        if i == 0:
+            self.sample_subtomograms()        
+        self._update_splines_in_images()
+        self._update_local_properties_in_widget()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -2067,7 +2117,6 @@ class MTPropsWidget(MagicTemplate):
             molecules, shape, binsize=binsize, order=order, chunksize=chunk_size
         )
         if binsize > 1:
-            binsize = roundint(self.layer_image.scale[0]/self.tomogram.scale)
             if template is None:
                 pass
             elif isinstance(template, list):
@@ -2156,12 +2205,13 @@ class MTPropsWidget(MagicTemplate):
         self.log.print_html(f"<code>Align_averaged</code>")
         
         if bin_size > 1 and img.shape != template.shape:
+            # if multiscaled image is used, there could be shape mismatch
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
             
         from ..components.align import transform_molecules
         from scipy.spatial.transform import Rotation
-            # if multiscaled image is used, there could be shape mismatch
+        
         model = AlignmentModel(
             template,
             mask,
@@ -3412,15 +3462,15 @@ class MTPropsWidget(MagicTemplate):
     
     @mark_preview(load_project)
     def _preview_text(self, path: str):
-        view_text(path, parent=self)
+        return view_text(path, parent=self)
     
     @mark_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
-        view_tables(paths, parent=self)
+        return view_tables(paths, parent=self)
     
     @mark_preview(open_image)
     def _preview_image(self, path: str):
-        view_image(path, parent=self)
+        return view_image(path, parent=self)
         
 
 def centering(
