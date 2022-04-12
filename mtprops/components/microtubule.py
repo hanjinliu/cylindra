@@ -64,9 +64,9 @@ class MtSpline(Spline):
         """        
         super().__init__(degree=degree, lims=lims)
         self.orientation = Ori.none
-        self.radius: nm = None
-        self.localprops: pd.DataFrame = None
-        self.globalprops: pd.Series = None
+        self.radius: nm | None = None
+        self.localprops: pd.DataFrame | None = None
+        self.globalprops: pd.Series | None = None
     
     def invert(self) -> MtSpline:
         """
@@ -338,7 +338,7 @@ class MtTomogram(Tomogram):
         max_shift: nm = 5.0,
     ) -> Self:
         """
-        Roughly fit i-th spline to MT.
+        Roughly fit splines to MT.
         
         Subtomograms will be sampled at every ``max_interval`` nm. In dense mode,
         Subtomograms will be masked relative to XY-plane, using sigmoid function.
@@ -385,14 +385,7 @@ class MtTomogram(Tomogram):
             centers = spl()
         center_px = self.nm2pixel(centers, binsize=binsize)
         size_px = (width_px,) + (roundint((width_px + length_px)/1.41),)*2
-        
-        if binsize > 1:
-            input_img = self.get_multiscale(binsize)
-        else:
-            try:
-                input_img = self.get_multiscale(1)
-            except ValueError:
-                input_img = self.image
+        input_img = self._get_multiscale_or_original(binsize)
             
         subtomograms: ip.ImgArray = np.stack(
             [crop_tomogram(input_img, c, size_px) for c in center_px],
@@ -496,6 +489,8 @@ class MtTomogram(Tomogram):
         max_shift: nm = 2.0,
     ) -> Self:
         """
+        Spline refinement using global lattice structural parameters.
+        
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
         thus is much more precise than the coarse fitting.
@@ -529,7 +524,7 @@ class MtTomogram(Tomogram):
         level = LOGGER.level
         LOGGER.setLevel(logging.WARNING)
         try:
-            props = self.global_ft_params(i)
+            props = self.global_ft_params(i, binsize=binsize)
         finally:
             LOGGER.setLevel(level)
         spl.make_anchors(max_interval=max_interval)
@@ -545,18 +540,13 @@ class MtTomogram(Tomogram):
         
         LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}")
         
+        # complement skewing
         skew_angles = np.arange(npoints) * interval/lp * skew
         pf_ang = 360/npf
         skew_angles %= pf_ang
         skew_angles[skew_angles > pf_ang/2] -= pf_ang
         
-        if binsize > 1:
-            input_img = self.get_multiscale(binsize)
-        else:
-            try:
-                input_img = self.get_multiscale(1)
-            except ValueError:
-                input_img = self.image
+        input_img = self._get_multiscale_or_original(binsize)
         
         length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
@@ -705,9 +695,16 @@ class MtTomogram(Tomogram):
         return r_peak_sub
     
     @batch_process
-    def local_ft_params(self, i: int = None, ft_size: nm = 32.0) -> pd.DataFrame:
+    def local_ft_params(
+        self,
+        *, 
+        i: int = None,
+        ft_size: nm = 32.0,
+        binsize: int = 1,
+    ) -> pd.DataFrame:
         """
         Calculate MT local structural parameters from cylindrical Fourier space.
+        
         To determine the peaks upsampled discrete Fourier transformation is used
         for every subtomogram.
 
@@ -717,6 +714,8 @@ class MtTomogram(Tomogram):
             Spline ID that you want to analyze.
         ft_size : nm, default is 32.0
             Length of subtomogram for calculation of local parameters.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
 
         Returns
         -------
@@ -733,7 +732,8 @@ class MtTomogram(Tomogram):
             raise ValueError("Radius has not been determined yet.")
         
         ylen = self.nm2pixel(ft_size)
-        _scale = self.scale
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
         rmin = spl.radius * GVar.inner / _scale
         rmax = spl.radius * GVar.outer / _scale
         tasks = []
@@ -742,7 +742,7 @@ class MtTomogram(Tomogram):
             coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
             tasks.append(
                 da.from_delayed(
-                    lazy_ft_params(self.image, coords, spl.radius), 
+                    lazy_ft_params(input_img, coords, spl.radius), 
                     shape=(5,), 
                     meta=np.array([], dtype=np.float32)
                 )
@@ -765,7 +765,14 @@ class MtTomogram(Tomogram):
         return spl.localprops
     
     @batch_process
-    def local_cft(self, *, i: int = None, ft_size: nm = 32.0, pos: int | None = None) -> ip.ImgArray:
+    def local_cft(
+        self,
+        *,
+        i: int = None,
+        ft_size: nm = 32.0,
+        pos: int | None = None,
+        binsize: int = 1,
+    ) -> ip.ImgArray:
         """
         Calculate non-upsampled local cylindric Fourier transormation along spline. 
 
@@ -777,6 +784,8 @@ class MtTomogram(Tomogram):
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
 
         Returns
         -------
@@ -787,8 +796,9 @@ class MtTomogram(Tomogram):
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
         
-        ylen = self.nm2pixel(ft_size)
-        _scale = self.scale
+        ylen = self.nm2pixel(ft_size, binsize=binsize)
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
         rmin = spl.radius * GVar.inner / _scale
         rmax = spl.radius * GVar.outer / _scale
         out: list[ip.ImgArray] = []
@@ -796,10 +806,11 @@ class MtTomogram(Tomogram):
             anchors = spl.anchors
         else:
             anchors = [spl.anchors[pos]]
+            
         with set_gpu():
             for anc in anchors:
                 coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-                polar = map_coordinates(self.image, coords, order=3, mode=Mode.constant, cval=np.mean)
+                polar = map_coordinates(input_img, coords, order=3, mode=Mode.constant, cval=np.mean)
                 polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
                 polar.set_scale(r=_scale, y=_scale, a=_scale)
                 polar.scale_unit = self.image.scale_unit
@@ -809,7 +820,14 @@ class MtTomogram(Tomogram):
         return np.stack(out, axis="p")
     
     @batch_process
-    def local_cps(self, *, i: int = None, ft_size: nm = 32.0, pos: int | None = None) -> ip.ImgArray:
+    def local_cps(
+        self,
+        *,
+        i: int = None,
+        ft_size: nm = 32.0,
+        pos: int | None = None,
+        binsize: int = 1
+    ) -> ip.ImgArray:
         """
         Calculate non-upsampled local cylindric power spectra along spline.
 
@@ -821,19 +839,28 @@ class MtTomogram(Tomogram):
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
 
         Returns
         -------
         ip.ImgArray
             FT images stacked along "p" axis.
         """
-        cft = self.local_cft(i=i, ft_size=ft_size, pos=pos)
+        cft = self.local_cft(i=i, ft_size=ft_size, pos=pos, binsize=binsize)
         return cft.real ** 2 + cft.imag ** 2
         
     @batch_process
-    def global_ft_params(self, i: int = None) -> pd.Series:
+    def global_ft_params(
+        self,
+        *,
+        i: int = None,
+        binsize: int = 1,
+    ) -> pd.Series:
         """
-        Calculate MT global structural parameters from cylindrical Fourier space along 
+        Calculate MT global structural parameters.
+        
+        This function transforms tomogram using cylindrical coordinate system along
         spline. This function calls ``straighten`` beforehand, so that Fourier space is 
         distorted if MT is curved.
 
@@ -841,6 +868,8 @@ class MtTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
 
         Returns
         -------
@@ -853,13 +882,13 @@ class MtTomogram(Tomogram):
             LOGGER.info(f" >> cache is returned")
             return spl.globalprops
         
-        img_st = self.straighten_cylindric(i)
+        img_st = self.straighten_cylindric(i, binsize=binsize)
         series = _local_dft_params_pd(img_st, spl.radius)
         spl.globalprops = series
         return series
     
     @batch_process
-    def global_cft(self, i: int = None) -> ip.ImgArray:
+    def global_cft(self, i: int = None, binsize: int = 1) -> ip.ImgArray:
         """
         Calculate global cylindrical fast Fourier tranformation.
         
@@ -867,14 +896,15 @@ class MtTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
         
         Returns
         -------
         ip.ImgArray
             Complex image.
         """
-        img_st: ip.ImgArray = self.straighten_cylindric(i)
+        img_st: ip.ImgArray = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
 
@@ -885,7 +915,9 @@ class MtTomogram(Tomogram):
         *,
         size: nm | tuple[nm, nm] = None,
         range_: tuple[float, float] = (0.0, 1.0), 
-        chunk_length: nm = 72.0) -> ip.ImgArray:
+        chunk_length: nm | None = None,
+        binsize: int = 1,
+    ) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
@@ -898,9 +930,10 @@ class MtTomogram(Tomogram):
             Vertical/horizontal box size.
         range_ : tuple[float, float], default is (0.0, 1.0)
             Range of spline domain.
-        chunk_length : nm, default is 72.0
-            If spline is longer than this, it will be first split into chunks, straightened respectively and
-            all the straightened images are concatenated afterward, to avoid loading entire image into memory.
+        chunk_length : nm, optional
+            If spline is longer than this, it will be first split into chunks, 
+            straightened respectively and all the straightened images are concatenated
+            afterward, to avoid loading entire image into memory.
 
         Returns
         -------
@@ -911,6 +944,12 @@ class MtTomogram(Tomogram):
         
         length = self._splines[i].length(nknots=512)
         
+        if chunk_length is None:
+            if binsize == 1:
+                chunk_length = 72.0
+            else:
+                chunk_length = 999999
+        
         if length > chunk_length:
             transformed = self._chunked_straighten(
                 i, length, range_, function=self.straighten, 
@@ -919,25 +958,29 @@ class MtTomogram(Tomogram):
             
         else:
             if size is None:
-                rz = rx = self.nm2pixel(self._splines[i].radius * GVar.outer) * 2 + 1
+                rz = rx = 1 + 2 * self.nm2pixel(
+                    self._splines[i].radius * GVar.outer, binsize=binsize
+                )
             
             else:
                 if isinstance(size, Iterable):
-                    rz, rx = self.nm2pixel(size)
+                    rz, rx = self.nm2pixel(size, binsize=binsize)
                 else:
-                    rz = rx = self.nm2pixel(size)
-                    
+                    rz = rx = self.nm2pixel(size, binsize=binsize)
+            
+            input_img = self._get_multiscale_or_original(binsize)
+            _scale = input_img.scale.x
             coords = spl.cartesian(
                 shape=(rz, rx),
                 s_range=range_,
-                scale=self.scale
+                scale=_scale
             )
             with set_gpu():
-                transformed = map_coordinates(self.image, coords, order=1)
+                transformed = map_coordinates(input_img, coords, order=1)
             
             axes = "zyx"
             transformed = ip.asarray(transformed, axes=axes)
-            transformed.set_scale({k: self.scale for k in axes})
+            transformed.set_scale({k: _scale for k in axes})
             transformed.scale_unit = "nm"
         
         return transformed
@@ -949,7 +992,8 @@ class MtTomogram(Tomogram):
         *,
         radii: tuple[nm, nm] = None,
         range_: tuple[float, float] = (0.0, 1.0), 
-        chunk_length: nm = 72.0
+        chunk_length: nm | None = None,
+        binsize: int = 1,
     ) -> ip.ImgArray:
         """
         MT straightening by building curved coordinate system around splines. Currently
@@ -963,9 +1007,10 @@ class MtTomogram(Tomogram):
             Lower/upper limit of radius.
         range_ : tuple[float, float], default is (0.0, 1.0)
             Range of spline domain.
-        chunk_length : nm, default is 72.0
-            If spline is longer than this, it will be first split into chunks, straightened respectively and
-            all the straightened images are concatenated afterward, to avoid loading entire image into memory.
+        chunk_length : nm, optional
+            If spline is longer than this, it will be first split into chunks, 
+            straightened respectively and all the straightened images are concatenated 
+            afterward, to avoid loading entire image into memory.
 
         Returns
         -------
@@ -976,44 +1021,54 @@ class MtTomogram(Tomogram):
         
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
-        
+        if chunk_length is None:
+            if binsize == 1:
+                chunk_length = 72.0
+            else:
+                chunk_length = 999999
         length = self._splines[i].length(nknots=512)
         
         if length > chunk_length:
             transformed = self._chunked_straighten(
                 i, length, range_, function=self.straighten_cylindric, 
-                chunk_length=chunk_length, radii=radii
+                chunk_length=chunk_length, radii=radii, binsize=binsize,
                 )
             
         else:
+            input_img = self._get_multiscale_or_original(binsize)
+            _scale = input_img.scale.x
             if radii is None:
-                inner_radius = spl.radius * GVar.inner / self.scale
-                outer_radius = spl.radius * GVar.outer / self.scale
+                inner_radius = spl.radius * GVar.inner / _scale
+                outer_radius = spl.radius * GVar.outer / _scale
                 
             else:
-                inner_radius, outer_radius = radii / self.scale
+                inner_radius, outer_radius = radii / _scale
 
             if outer_radius <= inner_radius:
-                raise ValueError("For cylindrical straightening, 'radius' must be (rmin, rmax)")
+                raise ValueError(
+                    "For cylindrical straightening, 'radius' must be (rmin, rmax)"
+                )
             
             coords = spl.cylindrical(
                 r_range=(inner_radius, outer_radius),
                 s_range=range_,
-                scale=self.scale
+                scale=_scale,
             )
             
             with set_gpu():
-                transformed = map_coordinates(self.image, coords, order=3)
+                transformed = map_coordinates(input_img, coords, order=3)
             
             axes = "rya"
             transformed = ip.asarray(transformed, axes=axes)
-            transformed.set_scale({k: self.scale for k in axes})
+            transformed.set_scale({k: _scale for k in axes})
             transformed.scale_unit = "nm"
         
         return transformed
     
-    def _chunked_straighten(self, i: int, length: nm, range_: tuple[float, float],
-                            function: Callable, chunk_length: nm = 72.0, **kwargs):
+    def _chunked_straighten(
+        self, i: int, length: nm, range_: tuple[float, float],
+        function: Callable, chunk_length: nm = 72.0, **kwargs
+    ):
         out = []
         current_distance: nm = 0.0
         start, end = range_
@@ -1409,7 +1464,7 @@ def _local_dft_params_pd(img: ip.ImgArray, radius: nm):
     series[H.start] = results[4]
     return series
 
-def ft_params(img: ip.LazyImgArray, coords: np.ndarray, radius: nm):
+def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
     polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)

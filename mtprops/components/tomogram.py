@@ -137,7 +137,8 @@ class Tomogram:
             if binsize == _b:
                 warnings.warn(
                     f"Binsize {binsize} already exists in multiscale images. "
-                    "Skip binning process.",UserWarning
+                    "Skip binning process.",
+                    UserWarning,
                 )
                 return
             if binsize % _b == 0:
@@ -158,6 +159,17 @@ class Tomogram:
             return self.add_multiscale(binsize)
         else:
             raise ValueError(f"Multiscale = {binsize} not found.")
+    
+    def _get_multiscale_or_original(self, binsize: int) -> ip.ImgArray | ip.LazyImgArray:
+        """Get multiscaled image of given binsize but use original one if needed."""
+        if binsize > 1:
+            out = self.get_multiscale(binsize)
+        else:
+            try:
+                out = self.get_multiscale(1)
+            except ValueError:
+                out = self.image
+        return out
     
     def multiscale_translation(self, binsize: int) -> nm:
         """Get lateral translation of binned image in nm."""

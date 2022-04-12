@@ -15,7 +15,6 @@ import weakref
 import tempfile
 import pandas as pd
 from scipy.spatial.transform import Rotation
-from scipy import ndimage as ndi
 import numpy as np
 import impy as ip
 from dask import array as da
@@ -81,7 +80,7 @@ class SubtomogramLoader(Generic[_V]):
                 image = ip.LazyImgArray(image, axes="zyx")
             else:
                 raise TypeError("'image' must be a 3D numpy ndarray like object.")
-        self.image_ref = image
+        self.image = image
         self._molecules = mole
         self._order = order
         self._chunksize = max(chunksize, 1)
@@ -93,27 +92,27 @@ class SubtomogramLoader(Generic[_V]):
                     
     
     def __repr__(self) -> str:
-        shape = self.image_ref.shape
+        shape = str(self.image.shape).lstrip("AxesShape")
         mole_repr = repr(self.molecules)
-        return f"{self.__class__.__name__}(tomogram shape: {shape}, molecules: {mole_repr})"
+        return f"{self.__class__.__name__}(tomogram={shape}, molecules={mole_repr})"
     
     @property
-    def image_ref(self) -> ip.ImgArray | ip.LazyImgArray:
-        """Return tomogram."""
+    def image(self) -> ip.ImgArray | ip.LazyImgArray:
+        """Return tomogram image."""
         image = self._image_ref()
         if image is None:
             raise ValueError("No tomogram found.")
         return image
     
-    @image_ref.setter
-    def image_ref(self, image: ip.ImgArray | ip.LazyImgArray):
+    @image.setter
+    def image(self, image: ip.ImgArray | ip.LazyImgArray):
         """Set tomogram as a weak reference."""
         self._image_ref = weakref.ref(image)
     
     @property
     def scale(self) -> nm:
         """Get the scale (nm/px) of tomogram."""
-        return self.image_ref.scale.x
+        return self.image.scale.x
 
     @property
     def output_shape(self) -> tuple[int, ...]:
@@ -156,7 +155,7 @@ class SubtomogramLoader(Generic[_V]):
         if chunksize is None:
             chunksize = self.chunksize
         return self.__class__(
-            self.image_ref, 
+            self.image, 
             self.molecules,
             output_shape=output_shape, 
             order=order,
@@ -248,7 +247,7 @@ class SubtomogramLoader(Generic[_V]):
             yield subvol
         darr = da.from_array(mmap, chunks=(1,) + self.output_shape, meta=np.array([], dtype=np.float32))
         arr = ip.LazyImgArray(darr, name="All_subtomograms", axes="pzyx")
-        arr.set_scale(self.image_ref)
+        arr.set_scale(self.image)
         return arr
         
     def to_lazy_imgarray(self, path: str | None = None) -> ip.LazyImgArray:
@@ -286,7 +285,7 @@ class SubtomogramLoader(Generic[_V]):
         """Create a 4D image stack of all the subtomograms."""
         images = list(self.iter_subtomograms(binsize=binsize))
         stack: ip.ImgArray = np.stack(images, axis="p")
-        stack.set_scale(xyz=self.image_ref.scale.x*binsize)
+        stack.set_scale(xyz=self.image.scale.x*binsize)
         return stack
 
     def subset(self, spec: int | slice | list[int] | np.ndarray) -> SubtomogramLoader:
@@ -310,7 +309,7 @@ class SubtomogramLoader(Generic[_V]):
         """
         mole = self.molecules.subset(spec)
         return self.__class__(
-            self.image_ref, 
+            self.image, 
             mole,
             self.output_shape, 
             order=self.order,
@@ -353,7 +352,7 @@ class SubtomogramLoader(Generic[_V]):
             n += 1
             yield aligned
         avg = ip.asarray(aligned / n, name="Avg", axes="zyx")
-        avg.set_scale(self.image_ref)
+        avg.set_scale(self.image)
         return avg
     
     def iter_align(
@@ -369,7 +368,7 @@ class SubtomogramLoader(Generic[_V]):
         """
         Create an iterator that align subtomograms to the template image.
         
-        This method conduct so called "subtomogram refinement". Only shifts and rotations
+        This method conduct so called "subtomogram alignment". Only shifts and rotations
         are calculated in this method. To get averaged image, you'll have to run "average"
         method using the resulting SubtomogramLoader instance.
         
@@ -431,7 +430,7 @@ class SubtomogramLoader(Generic[_V]):
         )
 
         out = self.__class__(
-            self.image_ref,
+            self.image,
             mole_aligned, 
             self.output_shape,
             order=self.order,
@@ -530,7 +529,7 @@ class SubtomogramLoader(Generic[_V]):
         )
         
         out = self.__class__(
-            self.image_ref,
+            self.image,
             mole_aligned, 
             self.output_shape,
             order=self.order,
@@ -631,7 +630,7 @@ class SubtomogramLoader(Generic[_V]):
         )
         
         out = self.__class__(
-            self.image_ref,
+            self.image,
             mole_aligned, 
             self.output_shape, 
             order=self.order,
@@ -737,55 +736,39 @@ class SubtomogramLoader(Generic[_V]):
         
     #     return out
     
-    def iter_each_seam(
-        self,
-        npf: int,
-        template: ip.ImgArray,
-        mask: ip.ImgArray | None = None,
-    ) -> Generator[tuple[float, ip.ImgArray, np.ndarray],
-                   None,
-                   tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]]:
-        sum_image: np.ndarray = np.zeros((2*npf,) + self.output_shape)
-        corrs: list[float] = []
-        labels: list[np.ndarray] = []  # list of boolean arrays
-        
-        if mask is None:
-            mask = 1
-        
-        self._check_shape(template)
-        masked_template = template * mask
-        _id = np.arange(len(self.molecules))
-        
-        # prepare all the labels in advance (only takes up ~0.5 MB at most)
-        for pf in range(2*npf):
-            res = (_id - pf) // npf
-            sl = res % 2 == 0
-            labels.append(sl)
-        
-        for idx_chunk, subvols in enumerate(self._iter_chunks()):
-            chunk_offset = idx_chunk * self.chunksize
-            for j, label in enumerate(labels):
-                sl = label[chunk_offset:chunk_offset + self.chunksize]
-                sum_image[j] += np.sum(subvols[sl], axis=0)
-            yield
-    
-        _n = len(self.molecules) / 2
-        avg_image = ip.asarray(sum_image/_n, axes="pzyx")
-        corrs = [ip.zncc(avg*mask, masked_template) for avg in avg_image]
-        
-        avg_image.set_scale(self.image_ref)
-        return np.array(corrs), avg_image, labels
-    
-    
     def iter_average_split(
         self, 
         *,
         n_set: int = 1,
         seed: int | float | str | bytes | bytearray | None = 0,
     ):
+        """
+        Create an iterator that calculate the averaged images for split pairs.
+        
+        This method executes pairwise subtomogram averaging using randomly selected
+        molecules, which is useful for calculation of such as Fourier shell 
+        correlation.
+        
+        Parameters
+        ----------
+        n_set : int, default is 1
+            Number of split set of averaged image.
+        seed : random seed, default is 0
+            Random seed to determine how subtomograms will be split.
+
+        Returns
+        -------
+        ImgArray
+            Averaged image
+
+        Yields
+        ------
+        ImgArray
+            Split images in a stack.
+        """
         np.random.seed(seed)
         try:
-            sum_images = np.zeros((n_set, 2) + self.output_shape, dtype=np.float32)
+            sum_images = ip.zeros((n_set, 2) + self.output_shape, dtype=np.float32)
             res = 0
             for subvols in self._iter_chunks():
                 lc, res = divmod(len(subvols) + res, 2)
@@ -798,7 +781,7 @@ class SubtomogramLoader(Generic[_V]):
             np.random.seed(None)
         
         img = ip.asarray(sum_images, axes="pqzyx")
-        img.set_scale(self.image_ref)
+        img.set_scale(self.image)
         
         return img
     
@@ -837,6 +820,7 @@ class SubtomogramLoader(Generic[_V]):
         max_shifts: nm | tuple[nm, nm, nm] = 1.,
         rotations: Ranges | None = None,
         cutoff: float = 0.5,
+        method: str = "zncc",
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> SubtomogramLoader:        
         """
@@ -854,7 +838,7 @@ class SubtomogramLoader(Generic[_V]):
             Rotation between subtomograms and template in external Euler angles.
         cutoff : float, default is 0.5
             Cutoff frequency of low-pass filter applied in each subtomogram.
-        callback : Callable[[SubtomogramLoader], Any], optional
+        callback : callable, optional
             Callback function that will get called after each iteration.
 
         Returns
@@ -868,20 +852,11 @@ class SubtomogramLoader(Generic[_V]):
             mask=mask,
             max_shifts=max_shifts,
             rotations=rotations,
-            cutoff=cutoff
+            cutoff=cutoff,
+            method=method,
         )
         
-        mole_aligned = self._resolve_iterator(align_iter, callback)
-        
-        out = self.__class__(
-            self.image_ref,
-            mole_aligned, 
-            self.output_shape,
-            order=self.order,
-            chunksize=self.chunksize,
-        )
-        
-        return out
+        return self._resolve_iterator(align_iter, callback)
 
     def average_split(
         self, 
@@ -890,9 +865,62 @@ class SubtomogramLoader(Generic[_V]):
         seed: int | float | str | bytes | bytearray | None = 0,
         callback: Callable[[SubtomogramLoader], Any] = None,
     ) -> tuple[ip.ImgArray, ip.ImgArray]:
+        """
+        A non-iterator version of :func:`iter_average_split`.
+
+        Parameters
+        ----------
+        n_set : int, default is 1
+            Number of split set of averaged image.
+        seed : random seed, default is 0
+            Random seed to determine how subtomograms will be split.
+
+        Returns
+        -------
+        ImgArray
+            Averaged image.
+        """
         it = self.iter_average_split(n_set=n_set, seed=seed)
         return self._resolve_iterator(it, callback)
+
+    def iter_each_seam(
+        self,
+        npf: int,
+        template: ip.ImgArray,
+        mask: ip.ImgArray | None = None,
+    ) -> Generator[tuple[float, ip.ImgArray, np.ndarray],
+                   None,
+                   tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]]:
+        sum_image: np.ndarray = np.zeros((2*npf,) + self.output_shape)
+        corrs: list[float] = []
+        labels: list[np.ndarray] = []  # list of boolean arrays
         
+        if mask is None:
+            mask = 1
+        
+        self._check_shape(template)
+        masked_template = template * mask
+        _id = np.arange(len(self.molecules))
+        
+        # prepare all the labels in advance (only takes up ~0.5 MB at most)
+        for pf in range(2*npf):
+            res = (_id - pf) // npf
+            sl = res % 2 == 0
+            labels.append(sl)
+        
+        for idx_chunk, subvols in enumerate(self._iter_chunks()):
+            chunk_offset = idx_chunk * self.chunksize
+            for j, label in enumerate(labels):
+                sl = label[chunk_offset:chunk_offset + self.chunksize]
+                sum_image[j] += np.sum(subvols[sl], axis=0)
+            yield
+    
+        _n = len(self.molecules) / 2
+        avg_image = ip.asarray(sum_image/_n, axes="pzyx")
+        corrs = [ip.zncc(avg*mask, masked_template) for avg in avg_image]
+        
+        avg_image.set_scale(self.image)
+        return np.array(corrs), avg_image, labels
     
     def try_all_seams(
         self,
@@ -916,8 +944,26 @@ class SubtomogramLoader(Generic[_V]):
         seed: int | float | str | bytes | bytearray | None = 0,
         n_set: int = 1,
         dfreq: float = 0.05,
-        ) -> pd.DataFrame:
-        
+    ) -> pd.DataFrame:
+        """
+        Calculate Fourier shell correlation.
+
+        Parameters
+        ----------
+        mask : ip.ImgArray, optional
+            Mask image, by default None
+        seed : random seed, default is 0
+            Random seed used to split subtomograms.
+        n_set : int, default is 1
+            Number of split set of averaged images.
+        dfreq : float, default is 0.05
+            Frequency sampling width.
+
+        Returns
+        -------
+        pd.DataFrame
+            A data frame with FSC results.
+        """
         if mask is None:
             mask = 1
         else:
@@ -965,7 +1011,7 @@ class SubtomogramLoader(Generic[_V]):
     
     def _iter_chunks(self) -> Iterator[ip.ImgArray]:  # axes: pzyx
         """Generate subtomogram list chunk-wise."""
-        image = self.image_ref
+        image = self.image
         scale = image.scale.x
         
         for coords in self.molecules.iter_cartesian(self.output_shape, scale, self.chunksize):

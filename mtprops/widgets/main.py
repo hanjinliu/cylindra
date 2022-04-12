@@ -428,15 +428,15 @@ class MTPropsWidget(MagicTemplate):
             for _ in range(n_refine):
                 yield
                 tomo.refine(i=i_spl, max_interval=max(interval, 30), binsize=bin_size)
-            tomo.set_radius(i=i_spl)
+            tomo.set_radius(i=i_spl, binsize=bin_size)
                 
             tomo.make_anchors(i=i_spl, interval=interval)
             if local_props:
                 yield
-                tomo.local_ft_params(i=i_spl, ft_size=ft_size)
+                tomo.local_ft_params(i=i_spl, ft_size=ft_size, binsize=bin_size)
             if global_props:
                 yield
-                tomo.global_ft_params(i=i_spl)
+                tomo.global_ft_params(i=i_spl, binsize=bin_size)
             yield
                     
         tomo.metadata["ft_size"] = self._current_ft_size

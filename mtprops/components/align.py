@@ -263,22 +263,17 @@ class AlignmentModel:
                 f = align_subvolume_multitemplates_zncc
             else:
                 f = align_subvolume_zncc
-        elif self._method == "opt-zncc":
-            if self.is_multi_templates or self.has_rotation:
-                raise NotImplementedError()
-            else:
-                f = align_subvolume_zncc_opt
         else:
             raise ValueError(f"Unsupported method {self._method}.")
         return f
 
     def _get_landscape_function(self):
         if self._method == "pcc":
-            f = zncc_landscape
-        elif self._method == "zncc":
             f = pcc_landscape
+        elif self._method == "zncc":
+            f = zncc_landscape
         else:
-            raise ValueError(f"Unsupported method {self._method}.")
+            f = None
         return f
 
 def _compose_rotation_matrices(
@@ -445,35 +440,3 @@ def pcc_landscape(
     subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
     input = subvol_filt * mask
     return ip.ft_pcc_landscape(input.fft(), template_ft, max_shift)
-        
-def _zncc_opt(quat, subvol: ip.ImgArray, template: ip.ImgArray, max_shifts):
-    rotated = template.affine(
-        rotation=Rotation.from_quat(quat).as_matrix(), 
-    )
-    _, corr = ip.zncc_maximum_with_corr(
-        subvol, rotated, upsample_factor=20, max_shifts=max_shifts,
-    )
-    return -corr
-
-def align_subvolume_zncc_opt(
-    subvol: ip.ImgArray,
-    cutoff: float,
-    mask: ip.ImgArray,
-    template: ip.ImgArray,
-    max_shifts: tuple[int, int, int],
-) -> tuple[int, np.ndarray, float]:
-    from scipy.optimize import minimize
-    subvol_filt = subvol.lowpass_filter(cutoff=cutoff)
-    input = subvol_filt * mask
-    shift = [0, 0, 0]
-    quat = [0, 0, 0, 1]
-    result = minimize(_zncc_opt, quat, args=(input, template, max_shifts))
-    quat = result.x
-    rotated = template.affine(
-        rotation=Rotation.from_quat(quat).as_matrix(), 
-    )
-    shift, zncc = ip.zncc_maximum_with_corr(
-        input, rotated, upsample_factor=20, max_shifts=max_shifts
-    )
-    
-    return 0, shift, zncc
