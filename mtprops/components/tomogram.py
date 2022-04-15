@@ -140,7 +140,7 @@ class Tomogram:
                     "Skip binning process.",
                     UserWarning,
                 )
-                return
+                return _img
             if binsize % _b == 0:
                 imgb = _img.binning(binsize//_b, check_edges=False)
                 break

@@ -46,7 +46,7 @@ def change_viewer_focus(
     zoom = viewer.camera.zoom
     viewer.camera.events.zoom()
     viewer.camera.zoom = zoom
-    viewer.dims.current_step = list(np.round(center*scale).astype(int))
+    viewer.dims.current_step = list(np.round(center).astype(int))
     return None
 
 def update_features(

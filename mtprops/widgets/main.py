@@ -224,7 +224,7 @@ class MTPropsWidget(MagicTemplate):
             stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
             angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
             angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1, "tooltip": "Angle precision (degree) of auto picker"}, record=False)
-            max_shifts = vfield(5.0, options={"min": 1., "max": 20., "step": 0.5, "tooltip": "Maximum shift (nm) in auto centering"}, record=False)
+            max_shifts = vfield(20.0, options={"min": 1., "max": 50., "step": 0.5, "tooltip": "Maximum shift (nm) in auto centering"}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
@@ -2876,11 +2876,13 @@ class MTPropsWidget(MagicTemplate):
         stride_nm = self.toolbar.Adjust.stride
         angle_pre = self.toolbar.Adjust.angle_precision
         angle_dev = self.toolbar.Adjust.angle_deviation
+        max_shifts = self.toolbar.Adjust.max_shifts
         imgb: ip.ImgArray = self.layer_image.data
+        binned_scale = imgb.scale.x
         try:
             # orientation is point0 -> point1
-            point0: np.ndarray = self.layer_work.data[-2]/imgb.scale.x  # unit: pixel
-            point1: np.ndarray = self.layer_work.data[-1]/imgb.scale.x
+            point0: np.ndarray = self.layer_work.data[-2] / binned_scale  # unit: pixel
+            point1: np.ndarray = self.layer_work.data[-1] / binned_scale
         except IndexError:
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
@@ -2897,23 +2899,22 @@ class MTPropsWidget(MagicTemplate):
         center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
         angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=ceilint(angle_dev/angle_pre))
         angle_rad = np.deg2rad(angle_deg)
-        dr = np.array([0.0, stride_nm*np.cos(angle_rad), -stride_nm*np.sin(angle_rad)])
+        dr = np.array([0.0, stride_nm * np.cos(angle_rad), -stride_nm * np.sin(angle_rad)])
         if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
-            point2 = point1 + dr
+            point2 = point1 + dr / binned_scale
         else:
-            point2 = point1 - dr
+            point2 = point1 - dr / binned_scale
         img_next = crop_tomogram(imgb, point2, shape)
-        drot = 5.0
-        max_shifts = (stride_nm/tomo.scale) * np.tan(np.deg2rad(drot))
-        centering(img_next, point2, angle_deg, drot=drot, max_shifts=max_shifts)
-            
-        next_data = point2 * imgb.scale.x
+
+        centering(img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts/binned_scale)
+
+        next_data = point2 * binned_scale
         self.layer_work.add(next_data)
         msg = self._check_path()
         if msg:
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
-        change_viewer_focus(self.parent_viewer, point2, imgb.scale.x)
+        change_viewer_focus(self.parent_viewer, point2, binned_scale)
         return None
     
     @toolbar.wraps
@@ -3479,7 +3480,7 @@ def centering(
     angle: float,
     drot: float = 5, 
     nrots: int = 7,
-    max_shifts: int = None,
+    max_shifts: float = None,
 ):
     angle_deg2 = angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
     

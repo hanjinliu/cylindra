@@ -52,7 +52,7 @@ class SplineFitter(MagicTemplate):
         class frame:
             nPF = field(10, options={"min": 1, "max": 48, "tooltip": "Number of protofilament (if nPF=12, rotational average will be calculated by summing up every 30° rotated images)."}, record=False)
             cutoff = field(0.2, options={"min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass filter."}, record=False)
-            def Average(self): ...
+            def average(self): ...
     
     def _get_shifts(self, _=None):
         i = self.mt.num.value
