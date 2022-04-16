@@ -7,8 +7,8 @@
     "minSkew": -7.0, 
     "maxSkew": 7.0, 
     "splError": 0.8, 
-    "inner": 0.30000000000000016, 
-    "outer": 1.5000000000000002, 
+    "inner": 0.3, 
+    "outer": 1.5, 
     "fitLength": 48.0, 
     "fitWidth": 24.0, 
     "daskChunk": [

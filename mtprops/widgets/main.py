@@ -1364,7 +1364,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Local FT analysis")
-    @thread_worker(progress={"desc": "Local Fourier transform"})
+    @thread_worker(progress={"desc": "Local Fourier transform", "total": "self.tomogram.n_splines"})
     def local_ft_analysis(
         self,
         interval: nm = 24.5,
@@ -1406,7 +1406,7 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.wraps
     @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Global FT analysis")
-    @thread_worker(progress={"desc": "Global Fourier transform"})
+    @thread_worker(progress={"desc": "Global Fourier transform", "total": "self.tomogram.n_splines"})
     def global_ft_analysis(self, bin_size: int = 1):
         """
         Determine MT global structural parameters by Fourier transformation.
@@ -3229,6 +3229,8 @@ class MTPropsWidget(MagicTemplate):
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit
         viewer.dims.axis_labels = ("z", "y", "x")
+        if viewer.dims.ndim == 3:
+            viewer.dims.ndim = 2
         change_viewer_focus(viewer, np.asarray(imgb.shape)/2, imgb.scale.x)
         
         # update labels layer
