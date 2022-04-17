@@ -10,8 +10,7 @@ from ..const import nm, GVar
 
 if TYPE_CHECKING:
     from typing_extensions import Self
-    from .molecules import Molecules
-    from .loader import SubtomogramLoader
+    from acryo import Molecules, SubtomogramLoader
 
 
 class Tomogram:
@@ -198,10 +197,9 @@ class Tomogram:
         shape: tuple[nm, nm, nm], 
         binsize: int = 1,
         order: int = 1,
-        chunksize: int = 128,
     ) -> SubtomogramLoader:
         """Create a subtomogram loader from molecules."""
-        from .loader import SubtomogramLoader
+        from acryo import SubtomogramLoader
         output_shape = tuple(self.nm2pixel(shape, binsize=binsize))
         if binsize == 1:
             try:
@@ -213,5 +211,9 @@ class Tomogram:
             mole = mole.translate([tr, tr, tr])
             img = self.get_multiscale(binsize)
         return SubtomogramLoader(
-            img, mole, output_shape=output_shape, order=order, chunksize=chunksize
+            img.value,
+            mole,
+            output_shape=output_shape,
+            order=order,
+            scale=self.scale*binsize,
         )

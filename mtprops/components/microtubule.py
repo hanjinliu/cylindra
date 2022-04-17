@@ -7,13 +7,12 @@ from functools import partial, wraps
 import numpy as np
 from numpy.typing import ArrayLike
 import pandas as pd
-from scipy import ndimage as ndi
 from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
+from acryo import Molecules, SubtomogramLoader
 import impy as ip
 
-from .molecules import Molecules
 from .spline import Spline
 from .tomogram import Tomogram
 from ..const import Mole, nm, H, K, Ori, Mode, GVar
@@ -454,7 +453,6 @@ class MtTomogram(Tomogram):
             for i in range(npoints):
                 img = subtomo_proj[i]
                 shifts[i] = mirror_zncc(img, max_shifts=max_shift_px) / 2
-                # shifts[i] = mirror_pcc(img, max_shifts=max_shift_px) / 2
         
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -553,29 +551,26 @@ class MtTomogram(Tomogram):
         length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
         
-        images: list[ip.ImgArray] = []
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
         scale = input_img.scale.x
-        # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
-        if isinstance(input_img, ip.LazyImgArray):
-            chunksize = max(int(GVar.fitLength*2/interval), 1)
-        else:
-            chunksize = len(mole)
-        with set_gpu():
-            for coords in mole.iter_cartesian(
-                shape=(width_px, length_px, width_px),
-                scale=scale, 
-                chunksize=chunksize,
-            ):
-                _subtomo = multi_map_coordinates(input_img, coords, order=1, cval=np.mean)
-                images.extend(_subtomo)
         
-            subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
-            subtomograms[:] -= subtomograms.mean()  # normalize
-            subtomograms.set_scale(input_img)
-
+        # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
+        arr = input_img.value
+        loader = SubtomogramLoader(
+            arr,
+            mole,
+            order=1,
+            scale=scale,
+            output_shape=(width_px, length_px, width_px),
+            corner_safe=True,
+        )
+        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
+        subtomograms[:] -= subtomograms.mean()  # normalize
+        subtomograms.set_scale(input_img)
+            
+        with set_gpu():
             inputs = subtomograms.proj("y")["x=::-1"]
             
             # Coarsely align skew-corrected images                
@@ -665,22 +660,17 @@ class MtTomogram(Tomogram):
         mole = spl.anchors_to_molecules()
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
-        images: list[ip.ImgArray] = []
         
-        if isinstance(input_img, ip.LazyImgArray):
-            chunksize = 1
-        else:
-            chunksize = len(mole)
-        with set_gpu():
-            for coords in mole.iter_cartesian(
-                shape=(width_px, length_px, width_px), 
-                scale=scale,
-                chunksize=chunksize,
-            ):
-                _subtomo = map_coordinates(input_img, coords[0], order=1, cval=np.mean)
-                images.append(_subtomo)
-        
-        subtomograms = ip.asarray(np.stack(images, axis=0), axes="pzyx")
+        arr = input_img.value
+        loader = SubtomogramLoader(
+            arr,
+            mole,
+            order=1,
+            scale=scale,
+            output_shape=(width_px, length_px, width_px),
+            corner_safe=True,
+            )
+        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(input_img)
         
@@ -1484,20 +1474,32 @@ def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm
 lazy_ft_params = delayed(ft_params)
 
 
-def _affine(img, matrix, mode: str, cval: float, order):
-    out = ndi.affine_transform(img[0], matrix[0,:,:,0], mode=mode, cval=cval, 
-                               order=order, prefilter=order>1)
-    return out[np.newaxis]
-
-
-def dask_affine(images, matrices, mode: str = Mode.constant, cval: float = 0, order=1):
-    imgs = da.from_array(images, chunks=(1,)+images.shape[1:])
-    mtxs = da.from_array(matrices[..., np.newaxis], chunks=(1,)+matrices.shape[1:]+(1,))
-    return imgs.map_blocks(
-        _affine,
-        mtxs,
-        mode=mode,
-        cval=cval,
-        order=order,
-        meta=np.array([], dtype=np.float32),
-    ).compute()
+def try_all_seams(
+    loader: SubtomogramLoader,
+    npf: int,
+    template: ip.ImgArray,
+    mask: ip.ImgArray | None = None,
+) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
+    corrs: list[float] = []
+    labels: list[np.ndarray] = []  # list of boolean arrays
+    
+    if mask is None:
+        mask = 1
+    
+    masked_template = template * mask
+    _id = np.arange(len(loader.molecules))
+    
+    # prepare all the labels in advance (only takes up ~0.5 MB at most)
+    for pf in range(2*npf):
+        res = (_id - pf) // npf
+        sl = res % 2 == 0
+        labels.append(sl)
+    
+    dask_array = loader.construct_dask(output_shape=template.shape)
+    averaged_images = da.compute([da.mean(dask_array[sl], axis=0) for sl in labels])[0]
+    averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
+    averaged_images.set_scale(loader.image)
+    
+    corrs = [ip.zncc(avg*mask, masked_template) for avg in averaged_images]
+    
+    return np.array(corrs), averaged_images, labels

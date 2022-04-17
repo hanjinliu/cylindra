@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 
 from magicclass import magicmenu, set_options, MagicTemplate
+from acryo import Molecules
 
-from ...components import Molecules
 from ...utils import roundint
 from ...const import EulerAxes, Mole
 from ...types import MOLECULES, MonomerLayer, get_monomer_layers

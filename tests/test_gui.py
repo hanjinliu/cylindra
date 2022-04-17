@@ -1,6 +1,6 @@
 from mtprops import start, MTPropsWidget
-from mtprops.components import Molecules
 from mtprops.const import H
+from acryo import Molecules
 from pathlib import Path
 from numpy.testing import assert_allclose
 

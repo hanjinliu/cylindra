@@ -15,10 +15,10 @@ from magicgui.widgets import ProgressBar
 from magicclass.types import Bound
 import numpy as np
 import impy as ip
+from acryo import Molecules
 
 from .widget_utils import FileFilter, get_versions
 from .project import MTPropsProject, SubtomogramAveragingProject
-from ..components.molecules import Molecules
 
 @magicclass(widget_type="frame")
 class SubProject(MagicTemplate):
