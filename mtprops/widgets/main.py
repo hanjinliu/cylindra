@@ -651,7 +651,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load project")
-    @dask_thread_worker(progress={"desc": "Reading project"})
+    @thread_worker(progress={"desc": "Reading project"})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     def load_project(self, path: Path):
         """Load a project json file."""
