@@ -39,16 +39,13 @@ from magicclass.widgets import (
     FloatRangeSlider,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.ext.dask import dask_thread_worker
 from magicclass.utils import thread_worker
+from acryo import SubtomogramLoader, Molecules
+from acryo.alignment import PCCAlignment, ZNCCAlignment
 
-from ..components import (
-    SubtomogramLoader,
-    Molecules,
-    MtSpline,
-    MtTomogram,
-    AlignmentModel,
-)
-from ..components.microtubule import angle_corr
+from ..components import MtSpline, MtTomogram
+from ..components.microtubule import angle_corr, try_all_seams
 from ..utils import (
     crop_tomogram,
     interval_filter,
@@ -97,6 +94,13 @@ def _fmt_layer_name(fmt: str):
         return fmt.format(layer.name)
     return _formatter
 
+def _get_alignment(method: str):
+    if method == "zncc":
+        return ZNCCAlignment
+    elif method == "pcc":
+        return PCCAlignment
+    else:
+        raise ValueError(f"Method {method!r} is unknown.")
 
 @magicclass(widget_type="scrollable", name="MTProps")
 class MTPropsWidget(MagicTemplate):
@@ -604,7 +608,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"min": 1, "max": 8}
     )
     @set_design(text="Open image")
-    @thread_worker(progress={"desc": "Reading image"})
+    @dask_thread_worker(progress={"desc": "Reading image"})
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     def open_image(
         self, 
@@ -733,7 +737,6 @@ class MTPropsWidget(MagicTemplate):
         # load subtomogram analyzer state
         self._subtomogram_averaging.template_path = project.template_image or ""
         self._subtomogram_averaging._set_mask_params(project.mask_parameters)
-        self._subtomogram_averaging.chunk_size = project.chunksize or 200
         self.reset_choices()
         self._need_save = False
         return None
@@ -750,7 +753,9 @@ class MTPropsWidget(MagicTemplate):
         
         The json file contains paths of images and results, parameters of splines,
         scales and version. Local and global properties, molecule coordinates and
-        features will be exported as csv files.
+        features will be exported as csv files. If results are saved at the default
+        directory, they will be written as relative paths in the project json file
+        so that moving root directory does not affect loading behavior.
 
         Parameters
         ----------
@@ -799,7 +804,7 @@ class MTPropsWidget(MagicTemplate):
         from datetime import datetime
         
         file_dir = json_path.parent
-        def as_relative(p):
+        def as_relative(p: Path):
             try:
                 out = p.relative_to(file_dir)
             except Exception:
@@ -821,7 +826,6 @@ class MTPropsWidget(MagicTemplate):
             global_variables = as_relative(gvar_path),
             template_image = as_relative(self._subtomogram_averaging.template_path),
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
-            chunksize = self._subtomogram_averaging.chunk_size,
             macro = as_relative(macro_path),
         )
         
@@ -854,6 +858,14 @@ class MTPropsWidget(MagicTemplate):
     @set_options(paths={"filter": FileFilter.JSON})
     @set_design(text="Load splines")
     def load_splines(self, paths: List[Path]):
+        """
+        Load splines using a list of json paths.
+
+        Parameters
+        ----------
+        paths : list of path-like objects
+            Paths to json files that describe spline parameters in the correct format.
+        """
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
         splines = [MtSpline.from_json(path) for path in paths]
@@ -894,7 +906,7 @@ class MTPropsWidget(MagicTemplate):
         save_path: Path,
     ):
         """
-        Save monomer coordinates.
+        Save monomer coordinates, orientation and features as a csv file.
 
         Parameters
         ----------
@@ -940,7 +952,7 @@ class MTPropsWidget(MagicTemplate):
         
     @Image.wraps
     @set_design(text="Filter reference image")
-    @thread_worker(progress={"desc": "Low-pass filtering"})
+    @dask_thread_worker(progress={"desc": "Low-pass filtering"})
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
@@ -963,7 +975,7 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
     @set_design(text="Add multi-scale")
-    @thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
+    @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
     def add_multiscale(self, bin_size: int = 2):
         """
         Add a new multi-scale image of current tomogram.
@@ -1222,7 +1234,7 @@ class MTPropsWidget(MagicTemplate):
         )
         self._need_save = True
         return None
-    
+
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
     @set_design(text="Fit splines manually")
@@ -1239,7 +1251,7 @@ class MTPropsWidget(MagicTemplate):
         self._SplineFitter._load_parent_state(max_interval=max_interval)
         self._SplineFitter.show()
         return None
-    
+
     @Splines.wraps
     @set_design(text="Add anchors")
     @set_options(interval={"label": "Interval between anchors (nm)", "min": 1.0})
@@ -1260,7 +1272,7 @@ class MTPropsWidget(MagicTemplate):
         self._update_splines_in_images()
         self._need_save = True
         return None
-    
+
     @Analysis.wraps
     @set_options(
         radius={"text": "Measure radii by radial profile."},
@@ -1428,9 +1440,16 @@ class MTPropsWidget(MagicTemplate):
     @global_ft_analysis.yielded.connect
     def _global_ft_analysis_on_yield(self, i: int):
         if i == 0:
-            self.sample_subtomograms()        
+            self.sample_subtomograms()
         self._update_splines_in_images()
         self._update_local_properties_in_widget()
+        return None
+    
+    @global_ft_analysis.returned.connect
+    def _global_ft_analysis_on_return(self, out):
+        df = self.tomogram.collect_globalprops().transpose()
+        df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+        self.log.print_table(df, precision=3)
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -1775,8 +1794,6 @@ class MTPropsWidget(MagicTemplate):
         class mask_path(MagicTemplate):
             mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
         
-        chunk_size = vfield(200, options={"min": 1, "max": 600, "step": 10, "tooltip": "How many subtomograms will be loaded at the same time."}, record=False)
-        
         @mask.connect
         def _on_switch(self):
             v = self.mask
@@ -1856,7 +1873,7 @@ class MTPropsWidget(MagicTemplate):
                 raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
             scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                ask_image = mask_image.rescale(scale_ratio)
+                mask_image = mask_image.rescale(scale_ratio)
             return mask_image
         
         def _set_mask_params(self, params):
@@ -1886,9 +1903,12 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
+            input_image = image.rescale_intensity(dtype=np.float32, in_range=(0., 1.,))
+            from skimage.filters.thresholding import threshold_yen
+            thr = threshold_yen(input_image.value)
             self._viewer.add_image(
-                image.rescale_intensity(dtype=np.float32), scale=image.scale, name=name,
-                rendering="iso",
+                input_image, scale=image.scale, name=name,
+                rendering="iso", iso_threshold=thr,
             )
             
             return self._viewer
@@ -1955,13 +1975,11 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
-    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}")})
     def average_all(
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
         interpolation: int = 1,
         bin_size: int = 1,
     ):
@@ -1970,7 +1988,7 @@ class MTPropsWidget(MagicTemplate):
 
         .. code-block:: python
         
-            loader = ui.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            loader = ui.tomogram.get_subtomogram_loader(molecules, shape)
             averaged = ui.tomogram
             
         Parameters
@@ -1979,8 +1997,6 @@ class MTPropsWidget(MagicTemplate):
             Layer of subtomogram positions and angles.
         size : nm, optional
             Size of subtomograms. Use template size by default.
-        chunk_size : int, default is 64
-            How many subtomograms will be loaded at the same time.
         interpolation : int, default is 1
             Interpolation order used in ``ndi.map_coordinates``.
         bin_size : int, default is 1
@@ -1993,9 +2009,10 @@ class MTPropsWidget(MagicTemplate):
         else:
             shape = (size,) * 3
         loader = tomo.get_subtomogram_loader(
-            molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
+            molecules, shape, binsize=bin_size, order=interpolation
         )
-        img = yield from loader.iter_average()
+        img = ip.asarray(loader.average(), axes="zyx")
+        img.set_scale(zyx=loader.scale)
         return img, f"[AVG]{layer.name}"
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2005,8 +2022,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
-    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}"),
-                             "total": "number"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}")})
     def average_subset(
         self,
         layer: MonomerLayer,
@@ -2060,11 +2076,11 @@ class MTPropsWidget(MagicTemplate):
             raise NotImplementedError(method)
         mole = molecules.subset(sl)
         loader = self.tomogram.get_subtomogram_loader(
-            mole, shape, binsize=bin_size, order=1, chunksize=1
+            mole, shape, binsize=bin_size, order=1
         )
         
-        img = yield from loader.iter_average()
-        
+        img = ip.asarray(loader.average(), axes="zyx")
+        img.set_scale(zyx=loader.scale)
         return img, f"[AVG(n={number})]{layer.name}"
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -2075,14 +2091,12 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Split-and-average")
-    @thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}")})
     def split_and_average(
         self,
         layer: MonomerLayer,
         n_set: int = 1,
         size: Optional[nm] = None,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
         interpolation: int = 1,
         bin_size: int = 1,
     ):
@@ -2093,10 +2107,11 @@ class MTPropsWidget(MagicTemplate):
         else:
             shape = (size,) * 3
         loader = tomo.get_subtomogram_loader(
-            molecules, shape, binsize=bin_size, order=interpolation, chunksize=chunk_size
+            molecules, shape, binsize=bin_size, order=interpolation
         )
-        img = yield from loader.iter_average_split(n_set=n_set)
-        
+        axes = "ipzyx" if n_set > 1 else "pzyx"
+        img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
+        img.set_scale(zyx=loader.scale)
         return img, f"[Split]{layer.name}"
     
     def _check_binning_for_alignment(
@@ -2106,15 +2121,14 @@ class MTPropsWidget(MagicTemplate):
         binsize: int,
         molecules: Molecules,
         order: int,
-        chunk_size: int,
-    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[ip.ImgArray, None]]:
+    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
         """
         Returns proper subtomogram loader, template image and mask image that matche the 
         bin size.
         """
         shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=binsize, order=order, chunksize=chunk_size
+            molecules, shape, binsize=binsize, order=order
         )
         if binsize > 1:
             if template is None:
@@ -2125,6 +2139,8 @@ class MTPropsWidget(MagicTemplate):
                 template = template.binning(binsize, check_edges=False)
             if mask is not None:
                 mask = mask.binning(binsize, check_edges=False)
+        if isinstance(mask, np.ndarray):
+            mask = np.asarray(mask)
         return loader, template, mask
     
     @_subtomogram_averaging.Refinement.wraps
@@ -2136,8 +2152,7 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
     )
     @set_design(text="Align averaged")
-    @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])+1"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}")})
     def align_averaged(
         self,
         layer: MonomerLayer,
@@ -2148,7 +2163,6 @@ class MTPropsWidget(MagicTemplate):
         x_rotation: Tuple[float, float] = (3., 3.),
         bin_size: int = 1,
         method: str = "zncc",
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Align the averaged image at current monomers to the template image.
@@ -2178,8 +2192,6 @@ class MTPropsWidget(MagicTemplate):
             This may cause unexpected fitting result.
         method : str, default is "zncc"
             Alignment method.
-        chunk_size : int, default is 200
-            How many subtomograms will be loaded at the same time.
         """
         mole: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2191,7 +2203,7 @@ class MTPropsWidget(MagicTemplate):
             )
         
         loader, template, mask = self._check_binning_for_alignment(
-            template, mask, bin_size, mole, order=1, chunk_size=chunk_size
+            template, mask, bin_size, mole, order=1
         )
         _scale = self.tomogram.scale * bin_size
         max_shifts = tuple()
@@ -2200,7 +2212,7 @@ class MTPropsWidget(MagicTemplate):
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
         
         max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
-        img = yield from loader.iter_average()
+        img = loader.average()
             
         self.log.print_html(f"<code>Align_averaged</code>")
         
@@ -2209,33 +2221,32 @@ class MTPropsWidget(MagicTemplate):
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
             
-        from ..components.align import transform_molecules
         from scipy.spatial.transform import Rotation
-        
-        model = AlignmentModel(
-            template,
+        model_cls = _get_alignment(method)
+        model = model_cls(
+            template.value,
             mask,
             cutoff=1.0,
             rotations=(z_rotation, y_rotation, x_rotation),
-            method=method,
         )
         img_trans, result = model.fit(img, max_shifts=max_shifts)
-        rotvec = Rotation.from_quat(result.quat).as_rotvec()
-        mole_trans = transform_molecules(
-            mole, 
-            result.shift * img.scale, 
-            rotvec,
+        rotator = Rotation.from_quat(result.quat)
+        mole_trans = mole.linear_transform(
+            result.shift * _scale,
+            rotator,
         )
-        yield
+        
         # logging
-        shift_nm = result.shift * img.scale
+        shift_nm = result.shift * _scale
         vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
         rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
         shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-        rot_str = ", ".join(f"{s:.2f}" for s in rotvec[::-1])
+        rot_str = ", ".join(f"{s:.2f}" for s in rotator.as_rotvec()[::-1])
         self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
 
         self._need_save = True
+        img_trans = ip.asarray(img_trans, axes="zyx")
+        img_trans.set_scale(zyx=_scale)
         return img_trans, template, mole_trans, layer
 
     @align_averaged.returned.connect
@@ -2284,8 +2295,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}"),
+                                  "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all(
         self,
         layer: MonomerLayer,
@@ -2299,7 +2310,6 @@ class MTPropsWidget(MagicTemplate):
         interpolation: int = 3,
         method: str = "zncc",
         bin_size: int = 1,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2327,8 +2337,6 @@ class MTPropsWidget(MagicTemplate):
             Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
-        chunk_size : int, default is 64
-            How many subtomograms will be loaded at the same time.
         """
         
         molecules = layer.metadata[MOLECULES]
@@ -2341,15 +2349,15 @@ class MTPropsWidget(MagicTemplate):
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-            chunk_size=chunk_size
         )
-        aligned_loader = yield from loader.iter_align(
-            template=template, 
+        model_cls = _get_alignment(method)
+        aligned_loader = loader.align(
+            template=template.value, 
             mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            method=method,
+            alignment_model=model_cls,
         )
         
         self.log.print_html(f"<code>Align_all</code>")
@@ -2380,8 +2388,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (template-free)")
-    @thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])*2"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}")})
     def align_all_template_free(
         self,
         layer: MonomerLayer,
@@ -2394,7 +2401,6 @@ class MTPropsWidget(MagicTemplate):
         interpolation: int = 3,
         method: str = "zncc",
         bin_size: int = 1,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2420,8 +2426,6 @@ class MTPropsWidget(MagicTemplate):
             Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
-        chunk_size : int, default is 64
-            How many subtomograms will be loaded at the same time.
         """
         
         molecules = layer.metadata[MOLECULES]
@@ -2432,14 +2436,15 @@ class MTPropsWidget(MagicTemplate):
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-            chunk_size=chunk_size
         )
-        aligned_loader = yield from loader.iter_align_no_template(
+        model_cls = _get_alignment(method)
+        aligned_loader = loader.align_no_template(
             mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             method=method,
+            alignment_model=model_cls,
         )
         
         self.log.print_html(f"<code>Align_all (template-free)</code>")
@@ -2475,8 +2480,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (multi-template)")
-    @thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}")})
     def align_all_multi_template(
         self,
         layer: MonomerLayer,
@@ -2491,7 +2495,6 @@ class MTPropsWidget(MagicTemplate):
         interpolation: int = 3,
         method: str = "pcc",
         bin_size: int = 1,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2521,8 +2524,6 @@ class MTPropsWidget(MagicTemplate):
             Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
-        chunk_size : int, default is 200
-            How many subtomograms will be loaded at the same time.
         """
         
         molecules = layer.metadata[MOLECULES]
@@ -2541,15 +2542,15 @@ class MTPropsWidget(MagicTemplate):
             binsize=bin_size,
             molecules=molecules, 
             order=interpolation,
-            chunk_size=chunk_size,
         )
-        aligned_loader = yield from loader.iter_align_multi_templates(
-            templates=templates, 
+        model_cls = _get_alignment(method)
+        aligned_loader = loader.align_multi_templates(
+            templates=[np.asarray(t) for t in templates], 
             mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            method=method,
+            alignment_model=model_cls,
         )
         
         self._need_save = True
@@ -2574,8 +2575,7 @@ class MTPropsWidget(MagicTemplate):
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
     @set_design(text="Calculate FSC")
-    @thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}")})
     def calculate_fsc(
         self,
         layer: MonomerLayer,
@@ -2586,7 +2586,6 @@ class MTPropsWidget(MagicTemplate):
         n_set: int = 1,
         show_average: bool = True,
         dfreq: Optional[float] = None,
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 200,
     ):
         """
         Calculate Fourier Shell Correlation using the selected monomer layer.
@@ -2611,8 +2610,6 @@ class MTPropsWidget(MagicTemplate):
         dfreq : float, default is 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
-        chunk_size : int, default is 200
-            How many subtomograms will be loaded at the same time.
         """
         mole: Molecules = layer.metadata[MOLECULES]
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
@@ -2622,15 +2619,15 @@ class MTPropsWidget(MagicTemplate):
             mole,
             shape,
             order=interpolation,
-            chunksize=chunk_size
         )
         if mask is None:
-            mask = 1
-        else:
-            loader._check_shape(mask, "mask")
+            mask = 1.
         if dfreq is None:
             dfreq = 1.5 / min(shape) * loader.scale
-        img = yield from loader.iter_average_split(n_set=n_set, seed=seed)
+        img = ip.asarray(
+            loader.average_split(n_set=n_set, seed=seed, squeeze=False),
+            axes="ipzyx",
+        )
         
         fsc_all: List[np.ndarray] = []
         for i in range(n_set):
@@ -2638,7 +2635,8 @@ class MTPropsWidget(MagicTemplate):
             freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
             fsc_all.append(fsc)
         if show_average:
-            img_avg = (img[0, 0] + img[0, 1]) / len(mole)
+            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / len(mole)
+            img_avg.set_scale(zyx=loader.scale)
         else:
             img_avg = None
             
@@ -2676,14 +2674,12 @@ class MTPropsWidget(MagicTemplate):
         npf={"text": "Use global properties"},
     )
     @set_design(text="Seam search")
-    @thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])//chunk_size+1"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}")})
     def seam_search(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
         interpolation: int = 3,
         npf: Optional[int] = None,
     ):
@@ -2711,20 +2707,19 @@ class MTPropsWidget(MagicTemplate):
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            mole, shape, order=interpolation, chunksize=chunk_size
-        )
+        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
 
-        result = yield from loader.iter_each_seam(
+        result = try_all_seams(
+            loader=loader, 
             npf=npf,
             template=template,
             mask=mask,
         )
         
         self._need_save = True
-        return result + (layer, npf)
+        return *result, layer, npf
 
     @seam_search.returned.connect
     def _seam_search_on_return(
@@ -3136,7 +3131,6 @@ class MTPropsWidget(MagicTemplate):
         self,
         name: str = None,
         order: int = 1,
-        chunksize: int = 64
     ) -> SubtomogramLoader:
         """
         Create a subtomogram loader using current tomogram and a molecules layer.
@@ -3147,14 +3141,10 @@ class MTPropsWidget(MagicTemplate):
             Name of the molecules layer.
         order : int, default is 1
             Interpolation order of the subtomogram loader.
-        chunksize : int, default is 64
-            Chunk size of the subtomogram loader.
         """        
         mole = self.get_molecules(name)
         shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            mole, shape, order=order, chunksize=chunksize
-        )
+        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=order)
         return loader
     
     @nogui
@@ -3229,8 +3219,6 @@ class MTPropsWidget(MagicTemplate):
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit
         viewer.dims.axis_labels = ("z", "y", "x")
-        if viewer.dims.ndim == 3:
-            viewer.dims.ndim = 2
         change_viewer_focus(viewer, np.asarray(imgb.shape)/2, imgb.scale.x)
         
         # update labels layer

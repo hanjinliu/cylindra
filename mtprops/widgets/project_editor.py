@@ -15,10 +15,10 @@ from magicgui.widgets import ProgressBar
 from magicclass.types import Bound
 import numpy as np
 import impy as ip
+from acryo import Molecules
 
 from .widget_utils import FileFilter, get_versions
 from .project import MTPropsProject, SubtomogramAveragingProject
-from ..components.molecules import Molecules
 
 @magicclass(widget_type="frame")
 class SubProject(MagicTemplate):
@@ -113,12 +113,9 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
         if info is None:
             info = self.DataSets._get_project_info()
         shape_nm = np.zeros(3)  # initialize
-        chunksize = 99999  # initialize
         for subproject_path, molecules_path in info:
             datasets[str(subproject_path)] = molecules_path
             subproject = MTPropsProject.from_json(subproject_path)
-            # use smaller chunk size
-            chunksize = min(chunksize, subproject.chunksize)
             # use larger template shape
             template = ip.lazy_imread(subproject.template_image)
             shape_nm = np.maximum(
@@ -135,7 +132,6 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
             dependency_versions = _versions,
             datasets = datasets,
             shape = tuple(shape_nm),
-            chunksize=chunksize,
         )
         project.to_json(path)
         self.project_path = path
@@ -172,13 +168,13 @@ class SubtomogramAveragingProjectEditor(MagicTemplate):
                 mole=allmole,
                 shape=project.shape,
                 order=order,
-                chunksize=subproject.chunksize
             )
-            ave = yield from loader.iter_average()
+            ave = loader.average()
             size = len(loader.molecules)
             sum_img += ave * size
             total_size += size
-            
+        
+        sum_img = ip.asarray(sum_img, axes="zyx", name="Average")
         sum_img.set_scale(ave)
         return sum_img / total_size
     

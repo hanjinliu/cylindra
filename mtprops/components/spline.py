@@ -7,9 +7,10 @@ import json
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
+from acryo import Molecules
+from acryo.molecules import axes_to_rotator
 from ..utils import ceilint, interval_divmod, roundint
 from ..const import Mode, nm
-from .molecules import Molecules, axes_to_rotator
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -633,7 +634,11 @@ class Spline:
         """
         
         mole = self.anchors_to_molecules(u)
-        coords = mole.cartesian((shape[0], n_pixels, shape[1]), scale)
+        coords = mole.cartesian_at(
+            slice(None), 
+            shape=(shape[0], n_pixels, shape[1]), 
+            scale=scale
+        )
         if np.isscalar(u):
             coords = coords[0]
         return coords

@@ -1,13 +1,16 @@
 from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 import numpy as np
 from scipy import ndimage as ndi
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
-from ..components import Molecules, MtSpline
+from ..components import MtSpline
 from ..const import MOLECULES, GVar, Mole
+
+if TYPE_CHECKING:
+    from acryo import Molecules
 
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
