@@ -159,7 +159,6 @@ class MTPropsProject(ProjectDescriptor):
     global_variables: PathLike
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, Tuple[float, float], PathLike]
-    chunksize: int
     macro: PathLike
 
 
@@ -171,5 +170,4 @@ class SubtomogramAveragingProject(ProjectDescriptor):
     dependency_versions: Dict[str, str]
     datasets: Dict[PathLike, List[PathLike]]  # {subproject-path: [molecules-path-0, molecules-path-1, ...]}
     shape: Tuple[float, float ,float]
-    chunksize: int
     

@@ -1495,7 +1495,7 @@ def try_all_seams(
     dask_array = loader.construct_dask(output_shape=template.shape)
     averaged_images = da.compute([da.mean(dask_array[sl], axis=0) for sl in labels])[0]
     averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
-    averaged_images.set_scale(loader.image)
+    averaged_images.set_scale(zyx=loader.scale)
     
     corrs = [ip.zncc(avg*mask, masked_template) for avg in averaged_images]
     

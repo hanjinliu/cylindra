@@ -737,7 +737,6 @@ class MTPropsWidget(MagicTemplate):
         # load subtomogram analyzer state
         self._subtomogram_averaging.template_path = project.template_image or ""
         self._subtomogram_averaging._set_mask_params(project.mask_parameters)
-        self._subtomogram_averaging.chunk_size = project.chunksize or 200
         self.reset_choices()
         self._need_save = False
         return None
@@ -825,7 +824,6 @@ class MTPropsWidget(MagicTemplate):
             global_variables = as_relative(gvar_path),
             template_image = as_relative(self._subtomogram_averaging.template_path),
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
-            chunksize = self._subtomogram_averaging.chunk_size,
             macro = as_relative(macro_path),
         )
         
@@ -1786,8 +1784,6 @@ class MTPropsWidget(MagicTemplate):
         class mask_path(MagicTemplate):
             mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
         
-        chunk_size = vfield(200, options={"min": 1, "max": 600, "step": 10, "tooltip": "How many subtomograms will be loaded at the same time."}, record=False)
-        
         @mask.connect
         def _on_switch(self):
             v = self.mask
@@ -1979,7 +1975,7 @@ class MTPropsWidget(MagicTemplate):
 
         .. code-block:: python
         
-            loader = ui.tomogram.get_subtomogram_loader(molecules, shape, chunksize=chunk_size)
+            loader = ui.tomogram.get_subtomogram_loader(molecules, shape)
             averaged = ui.tomogram
             
         Parameters
@@ -2328,8 +2324,6 @@ class MTPropsWidget(MagicTemplate):
             Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
-        chunk_size : int, default is 64
-            How many subtomograms will be loaded at the same time.
         """
         
         molecules = layer.metadata[MOLECULES]
@@ -2517,8 +2511,6 @@ class MTPropsWidget(MagicTemplate):
             Alignment method.
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
-        chunk_size : int, default is 200
-            How many subtomograms will be loaded at the same time.
         """
         
         molecules = layer.metadata[MOLECULES]
@@ -2675,7 +2667,6 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        chunk_size: Bound[_subtomogram_averaging.chunk_size] = 64,
         interpolation: int = 3,
         npf: Optional[int] = None,
     ):
@@ -2703,9 +2694,7 @@ class MTPropsWidget(MagicTemplate):
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            mole, shape, order=interpolation, chunksize=chunk_size
-        )
+        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
 
@@ -3129,7 +3118,6 @@ class MTPropsWidget(MagicTemplate):
         self,
         name: str = None,
         order: int = 1,
-        chunksize: int = 64
     ) -> SubtomogramLoader:
         """
         Create a subtomogram loader using current tomogram and a molecules layer.
@@ -3140,14 +3128,10 @@ class MTPropsWidget(MagicTemplate):
             Name of the molecules layer.
         order : int, default is 1
             Interpolation order of the subtomogram loader.
-        chunksize : int, default is 64
-            Chunk size of the subtomogram loader.
         """        
         mole = self.get_molecules(name)
         shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            mole, shape, order=order, chunksize=chunksize
-        )
+        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=order)
         return loader
     
     @nogui

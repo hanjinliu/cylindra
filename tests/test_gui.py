@@ -110,11 +110,10 @@ def test_spline_switch():
                      seed=0, interpolation=1)
     template_path = TEST_PATH / "template.mrc"
     ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
-                      mask_params=(1, 1), chunk_size=78)
+                      mask_params=(1, 1))
     ui.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
-                 max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), chunk_size=78,)
-    ui.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1),
-                   chunk_size=78)
+                 max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0))
+    ui.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1))
     ui.save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
                       save_path=TEST_PATH/"monomers.txt"
                       )
@@ -156,8 +155,8 @@ def test_io():
 #     ui.register_path(coords=[[18.974, 195.011, 27.41], [18.974, 40.587, 75.181]])
 #     ui.run_mtprops(splines=[], bin_size=1, interval=32.0, ft_size=32.0, n_refine=1, max_shift=5.0, edge_sigma=2.0, local_props=False, global_props=True, paint=True)
 #     ui.map_monomers(splines=[0], length=None)
-#     ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), bin_size=1, chunk_size=100)
-#     ui.align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1, chunk_size=100)
+#     ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), bin_size=1)
+#     ui.align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1)
 #     ui.save_project(json_path=TEST_PATH/"project_13.json", results_dir=None)
 #     mole = Molecules.from_csv(TEST_PATH/"project_13_results"/"Mono-0-ALN1.csv")
 #     assert_allclose(mole.features, ui.parent_viewer.layers['Mono-0-ALN1'].features)
@@ -167,8 +166,8 @@ def test_io():
 #     ui.run_mtprops(splines=[], bin_size=1, interval=32.0, ft_size=32.0, n_refine=1, max_shift=5.0, edge_sigma=2.0, local_props=False, global_props=True, paint=True)
 #     ui.invert_spline(spline=0)
 #     ui.map_monomers(splines=[0], length=None)
-#     ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), bin_size=1, chunk_size=100)
-#     ui.align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1, chunk_size=100)
+#     ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), bin_size=1)
+#     ui.align_all(layer=ui.parent_viewer.layers['Mono-0-ALN1'], template_path=TEST_PATH/"template.mrc", mask_params=(1.0, 1.0), max_shifts=(1.0, 1.0, 1.0), z_rotation=(0.0, 0.0), y_rotation=(0.0, 0.0), x_rotation=(0.0, 0.0), cutoff=0.5, interpolation=1, bin_size=1)
 #     ui.save_project(json_path=TEST_PATH/"project_14.json", results_dir=None)
 #     ui._STAProjectEditor.save(path=TEST_PATH/"STA_project.json", info=[(TEST_PATH/"project_13.json", [TEST_PATH/"project_13_results"/"Mono-0-ALN2.csv"]), (TEST_PATH/"project_14.json", [TEST_PATH/"project_14_results"/"Mono-0-ALN2.csv"])])
 #     ui._STAProjectEditor.run(path=TEST_PATH/"STA_project.json", order=1)
