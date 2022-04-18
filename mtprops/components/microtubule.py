@@ -20,7 +20,6 @@ from ..utils import (
     crop_tomogram,
     centroid,
     map_coordinates,
-    multi_map_coordinates,
     roundint,
     ceilint,
     oblique_meshgrid,
@@ -669,7 +668,7 @@ class MtTomogram(Tomogram):
             scale=scale,
             output_shape=(width_px, length_px, width_px),
             corner_safe=True,
-            )
+        )
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(input_img)
@@ -678,13 +677,11 @@ class MtTomogram(Tomogram):
         nbin = roundint(r_max/scale/2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
-        
         imax = np.nanargmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
 
         # prof[0] is radial profile at r=0.5 (not r=0.0)
         r_peak_sub = (imax_sub + 0.5) / nbin * r_max
-
         spl.radius = r_peak_sub
         return r_peak_sub
     

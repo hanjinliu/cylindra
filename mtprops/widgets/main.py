@@ -39,6 +39,7 @@ from magicclass.widgets import (
     FloatRangeSlider,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.ext.dask import dask_thread_worker
 from magicclass.utils import thread_worker
 from acryo import SubtomogramLoader, Molecules
 from acryo.alignment import PCCAlignment, ZNCCAlignment
@@ -607,7 +608,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"min": 1, "max": 8}
     )
     @set_design(text="Open image")
-    @thread_worker(progress={"desc": "Reading image"})
+    @dask_thread_worker(progress={"desc": "Reading image"})
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     def open_image(
         self, 
@@ -650,7 +651,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load project")
-    @thread_worker(progress={"desc": "Reading project"})
+    @dask_thread_worker(progress={"desc": "Reading project"})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     def load_project(self, path: Path):
         """Load a project json file."""
@@ -943,7 +944,7 @@ class MTPropsWidget(MagicTemplate):
         
     @Image.wraps
     @set_design(text="Filter reference image")
-    @thread_worker(progress={"desc": "Low-pass filtering"})
+    @dask_thread_worker(progress={"desc": "Low-pass filtering"})
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
@@ -966,7 +967,7 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     @set_options(bin_size={"min": 2, "max": 64})
     @set_design(text="Add multi-scale")
-    @thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
+    @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
     def add_multiscale(self, bin_size: int = 2):
         """
         Add a new multi-scale image of current tomogram.
@@ -1431,9 +1432,16 @@ class MTPropsWidget(MagicTemplate):
     @global_ft_analysis.yielded.connect
     def _global_ft_analysis_on_yield(self, i: int):
         if i == 0:
-            self.sample_subtomograms()        
+            self.sample_subtomograms()
         self._update_splines_in_images()
         self._update_local_properties_in_widget()
+        return None
+    
+    @global_ft_analysis.returned.connect
+    def _global_ft_analysis_on_return(self, out):
+        df = self.tomogram.collect_globalprops().transpose()
+        df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+        self.log.print_table(df, precision=3)
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -1958,7 +1966,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
-    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}")})
     def average_all(
         self,
         layer: MonomerLayer,
@@ -2005,7 +2013,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
-    @thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}")})
     def average_subset(
         self,
         layer: MonomerLayer,
@@ -2074,7 +2082,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Split-and-average")
-    @thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}")})
     def split_and_average(
         self,
         layer: MonomerLayer,
@@ -2104,7 +2112,7 @@ class MTPropsWidget(MagicTemplate):
         binsize: int,
         molecules: Molecules,
         order: int,
-    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[ip.ImgArray, None]]:
+    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
         """
         Returns proper subtomogram loader, template image and mask image that matche the 
         bin size.
@@ -2122,6 +2130,8 @@ class MTPropsWidget(MagicTemplate):
                 template = template.binning(binsize, check_edges=False)
             if mask is not None:
                 mask = mask.binning(binsize, check_edges=False)
+        if isinstance(mask, np.ndarray):
+            mask = np.asarray(mask)
         return loader, template, mask
     
     @_subtomogram_averaging.Refinement.wraps
@@ -2133,7 +2143,7 @@ class MTPropsWidget(MagicTemplate):
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
     )
     @set_design(text="Align averaged")
-    @thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}")})
     def align_averaged(
         self,
         layer: MonomerLayer,
@@ -2276,8 +2286,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}"),
-                             "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}"),
+                                  "total": f"len(layer.metadata[{MOLECULES!r}])"})
     def align_all(
         self,
         layer: MonomerLayer,
@@ -2371,7 +2381,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (template-free)")
-    @thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}")})
     def align_all_template_free(
         self,
         layer: MonomerLayer,
@@ -2463,7 +2473,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (multi-template)")
-    @thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}")})
     def align_all_multi_template(
         self,
         layer: MonomerLayer,
@@ -2530,7 +2540,7 @@ class MTPropsWidget(MagicTemplate):
         )
         model_cls = _get_alignment(method)
         aligned_loader = loader.align_multi_templates(
-            templates=[t.value for t in templates], 
+            templates=[np.asarray(t) for t in templates], 
             mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
@@ -2560,7 +2570,7 @@ class MTPropsWidget(MagicTemplate):
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
     @set_design(text="Calculate FSC")
-    @thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}")})
     def calculate_fsc(
         self,
         layer: MonomerLayer,
@@ -2659,7 +2669,7 @@ class MTPropsWidget(MagicTemplate):
         npf={"text": "Use global properties"},
     )
     @set_design(text="Seam search")
-    @thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}")})
     def seam_search(
         self,
         layer: MonomerLayer,
