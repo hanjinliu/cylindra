@@ -753,7 +753,9 @@ class MTPropsWidget(MagicTemplate):
         
         The json file contains paths of images and results, parameters of splines,
         scales and version. Local and global properties, molecule coordinates and
-        features will be exported as csv files.
+        features will be exported as csv files. If results are saved at the default
+        directory, they will be written as relative paths in the project json file
+        so that moving root directory does not affect loading behavior.
 
         Parameters
         ----------
@@ -802,7 +804,7 @@ class MTPropsWidget(MagicTemplate):
         from datetime import datetime
         
         file_dir = json_path.parent
-        def as_relative(p):
+        def as_relative(p: Path):
             try:
                 out = p.relative_to(file_dir)
             except Exception:
@@ -856,6 +858,14 @@ class MTPropsWidget(MagicTemplate):
     @set_options(paths={"filter": FileFilter.JSON})
     @set_design(text="Load splines")
     def load_splines(self, paths: List[Path]):
+        """
+        Load splines using a list of json paths.
+
+        Parameters
+        ----------
+        paths : list of path-like objects
+            Paths to json files that describe spline parameters in the correct format.
+        """
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
         splines = [MtSpline.from_json(path) for path in paths]
@@ -896,7 +906,7 @@ class MTPropsWidget(MagicTemplate):
         save_path: Path,
     ):
         """
-        Save monomer coordinates.
+        Save monomer coordinates, orientation and features as a csv file.
 
         Parameters
         ----------
@@ -1224,7 +1234,7 @@ class MTPropsWidget(MagicTemplate):
         )
         self._need_save = True
         return None
-    
+
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
     @set_design(text="Fit splines manually")
@@ -1241,7 +1251,7 @@ class MTPropsWidget(MagicTemplate):
         self._SplineFitter._load_parent_state(max_interval=max_interval)
         self._SplineFitter.show()
         return None
-    
+
     @Splines.wraps
     @set_design(text="Add anchors")
     @set_options(interval={"label": "Interval between anchors (nm)", "min": 1.0})
@@ -1262,7 +1272,7 @@ class MTPropsWidget(MagicTemplate):
         self._update_splines_in_images()
         self._need_save = True
         return None
-    
+
     @Analysis.wraps
     @set_options(
         radius={"text": "Measure radii by radial profile."},
@@ -1863,7 +1873,7 @@ class MTPropsWidget(MagicTemplate):
                 raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
             scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                ask_image = mask_image.rescale(scale_ratio)
+                mask_image = mask_image.rescale(scale_ratio)
             return mask_image
         
         def _set_mask_params(self, params):
@@ -1893,9 +1903,12 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
+            input_image = image.rescale_intensity(dtype=np.float32, in_range=(0., 1.,))
+            from skimage.filters.thresholding import threshold_yen
+            thr = threshold_yen(input_image.value)
             self._viewer.add_image(
-                image.rescale_intensity(dtype=np.float32), scale=image.scale, name=name,
-                rendering="iso",
+                input_image, scale=image.scale, name=name,
+                rendering="iso", iso_threshold=thr,
             )
             
             return self._viewer
