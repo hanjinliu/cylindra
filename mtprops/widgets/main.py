@@ -1,6 +1,7 @@
 import os
 import re
 from typing import Iterable, Union, Tuple, List
+from timeit import default_timer
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -651,7 +652,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load project")
-    @thread_worker(progress={"desc": "Reading project"})
+    @dask_thread_worker(progress={"desc": "Reading project"})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     def load_project(self, path: Path):
         """Load a project json file."""
@@ -1971,7 +1972,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
@@ -2002,6 +2003,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         """
+        t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
         if size is None:
@@ -2013,7 +2015,9 @@ class MTPropsWidget(MagicTemplate):
         )
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale)
+        self.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
         return img, f"[AVG]{layer.name}"
+
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2053,6 +2057,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         """
+        t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
         if size is None:
@@ -2081,13 +2086,14 @@ class MTPropsWidget(MagicTemplate):
         
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale)
+        self.log.print_html(f"<code>average_subset</code> ({default_timer() - t0:.1f} sec)")
         return img, f"[AVG(n={number})]{layer.name}"
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
         n_set={"min": 1, "label": "number of image pairs"},
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Split-and-average")
@@ -2100,6 +2106,7 @@ class MTPropsWidget(MagicTemplate):
         interpolation: int = 1,
         bin_size: int = 1,
     ):
+        t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
         if size is None:
@@ -2112,6 +2119,8 @@ class MTPropsWidget(MagicTemplate):
         axes = "ipzyx" if n_set > 1 else "pzyx"
         img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
         img.set_scale(zyx=loader.scale)
+        self.log.print_html(f"<code>split_and_average</code> ({default_timer() - t0:.1f} sec)")
+
         return img, f"[Split]{layer.name}"
     
     def _check_binning_for_alignment(
@@ -2193,6 +2202,7 @@ class MTPropsWidget(MagicTemplate):
         method : str, default is "zncc"
             Alignment method.
         """
+        t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
@@ -2213,8 +2223,6 @@ class MTPropsWidget(MagicTemplate):
         
         max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
         img = loader.average()
-            
-        self.log.print_html(f"<code>Align_averaged</code>")
         
         if bin_size > 1 and img.shape != template.shape:
             # if multiscaled image is used, there could be shape mismatch
@@ -2237,6 +2245,7 @@ class MTPropsWidget(MagicTemplate):
         )
         
         # logging
+        self.log.print_html(f"<code>align_averaged</code> ({default_timer() - t0:.1f} sec)")
         shift_nm = result.shift * _scale
         vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
         rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
@@ -2290,7 +2299,7 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 180.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 90.0, "step": 0.1}},
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
     )
@@ -2338,7 +2347,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         """
-        
+        t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
@@ -2360,7 +2369,7 @@ class MTPropsWidget(MagicTemplate):
             alignment_model=model_cls,
         )
         
-        self.log.print_html(f"<code>Align_all</code>")
+        self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
         return aligned_loader, layer
 
@@ -2383,7 +2392,7 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 90.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 180.0, "step": 0.1}},
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
     )
@@ -2427,9 +2436,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         """
-        
+        t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
-
         loader, _, _ = self._check_binning_for_alignment(
             None, 
             None, 
@@ -2447,8 +2455,7 @@ class MTPropsWidget(MagicTemplate):
             alignment_model=model_cls,
         )
         
-        self.log.print_html(f"<code>Align_all (template-free)</code>")
-                
+        self.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
         return aligned_loader, layer
     
@@ -2475,7 +2482,7 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 5.0, "step": 0.1}},
         y_rotation={"options": {"max": 5.0, "step": 0.1}},
         x_rotation={"options": {"max": 5.0, "step": 0.1}},
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
     )
@@ -2525,7 +2532,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size : int, default is 1
             Set to >1 if you want to use binned image to boost image analysis.
         """
-        
+        t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
         templates = [self._subtomogram_averaging._get_template(path=template_path)]
         for path in other_templates:
@@ -2552,7 +2559,7 @@ class MTPropsWidget(MagicTemplate):
             cutoff=cutoff,
             alignment_model=model_cls,
         )
-        
+        self.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
         return aligned_loader, layer
     
@@ -2569,7 +2576,7 @@ class MTPropsWidget(MagicTemplate):
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         shape={"text": "Use template shape"},
         n_set={"min": 1, "label": "number of image pairs"},
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
@@ -2611,6 +2618,7 @@ class MTPropsWidget(MagicTemplate):
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
+        t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         if shape is None:
@@ -2641,6 +2649,7 @@ class MTPropsWidget(MagicTemplate):
             img_avg = None
             
         fsc_all = np.stack(fsc_all, axis=1)
+        self.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
         return freq, fsc_all, layer, img_avg
     
     @calculate_fsc.returned.connect
@@ -2670,7 +2679,7 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        interpolation={"choices": [("linear", 1), ("cubic", 3)]},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         npf={"text": "Use global properties"},
     )
     @set_design(text="Seam search")
