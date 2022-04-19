@@ -1932,6 +1932,7 @@ class MTPropsWidget(MagicTemplate):
             def average_subset(self): ...
             def split_and_average(self): ...
             # def calculate_properties(self): ...
+            def calculate_correlation(self): ...
             def calculate_fsc(self): ...
             def seam_search(self): ...
         
@@ -1941,6 +1942,7 @@ class MTPropsWidget(MagicTemplate):
             def align_all(self): ...
             def align_all_template_free(self): ...
             def align_all_multi_template(self): ...
+            def polarity_check(self): ...
         
         @magicmenu
         class Tools(MagicTemplate):
@@ -2241,10 +2243,7 @@ class MTPropsWidget(MagicTemplate):
         )
         img_trans, result = model.fit(img, max_shifts=max_shifts)
         rotator = Rotation.from_quat(result.quat)
-        mole_trans = mole.linear_transform(
-            result.shift * _scale,
-            rotator,
-        )
+        mole_trans = mole.linear_transform(result.shift * _scale, rotator)
         
         # logging
         self.log.print_html(f"<code>align_averaged</code> ({default_timer() - t0:.1f} sec)")
@@ -2280,7 +2279,7 @@ class MTPropsWidget(MagicTemplate):
             axes[0].set_ylabel("Y")
             axes[1].imshow(np.max(merge, axis=1))
             axes[1].set_xlabel("X")
-            axes[0].set_ylabel("Z")
+            axes[1].set_ylabel("Z")
             plt.tight_layout()
             plt.show()
             
@@ -2502,7 +2501,7 @@ class MTPropsWidget(MagicTemplate):
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
         interpolation: int = 3,
-        method: str = "pcc",
+        method: str = "zncc",
         bin_size: int = 1,
     ):
         """
@@ -2575,6 +2574,163 @@ class MTPropsWidget(MagicTemplate):
         )
         layer.visible = False
         return None
+
+
+    @_subtomogram_averaging.Refinement.wraps
+    @set_options(
+        cutoff={"max": 1.0, "step": 0.05},
+        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        z_rotation={"options": {"max": 5.0, "step": 0.1}},
+        y_rotation={"options": {"max": 5.0, "step": 0.1}},
+        x_rotation={"options": {"max": 5.0, "step": 0.1}},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
+    )
+    @set_design(text="Polarity check")
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
+    def polarity_check(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
+        z_rotation: Tuple[float, float] = (0., 0.),
+        y_rotation: Tuple[float, float] = (0., 0.),
+        x_rotation: Tuple[float, float] = (0., 0.),
+        cutoff: float = 0.5,
+        interpolation: int = 1,
+        method: str = "zncc",
+    ):
+        """
+        Align all the molecules for subtomogram averaging.
+        
+        Parameters
+        ----------
+        template_path : Path or str
+            Template image path.
+        max_shifts : int or tuple of int, default is (1., 1., 1.)
+            Maximum shift between subtomograms and template in nm. ZYX order.
+        z_rotation : tuple of float, optional
+            Rotation in external degree around z-axis.
+        y_rotation : tuple of float, optional
+            Rotation in external degree around y-axis.
+        x_rotation : tuple of float, optional
+            Rotation in external degree around x-axis.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        interpolation : int, default is 3
+            Interpolation order.
+        method : str, default is "zncc"
+            Alignment method.
+        """
+        t0 = default_timer()
+        molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        shape = self._subtomogram_averaging._get_shape_in_nm()
+        loader = self.tomogram.get_subtomogram_loader(
+            molecules, shape, order=interpolation
+        )
+        
+        # center template image by its centroid
+        from skimage.measure import moments
+        mom = moments(template, order=1)
+        centroid = np.array([mom[1, 0, 0], mom[0, 1, 0], mom[0, 0, 1]]) / mom[0, 0, 0]
+        shift = centroid - np.array(template.shape)/2 + 0.5
+        template_centered_fw = template.affine(translation=shift)
+        mask_fw = template_centered_fw.threshold().smooth_mask(sigma=1., dilate_radius=1.)
+        template_centered_rv = template_centered_fw[:, ::-1, ::-1]
+        mask_rv = mask_fw[:, ::-1, ::-1]
+        
+        model_cls = _get_alignment(method)
+        loader_kwargs = dict(
+            max_shifts=max_shifts,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=cutoff,
+            alignment_model=model_cls,
+        )
+        aligned_loader_fw = loader.align(
+            template=template_centered_fw,
+            mask=mask_fw,
+            **loader_kwargs,
+        )
+        aligned_loader_rv = loader.align(
+            template=template_centered_rv,
+            mask=mask_rv,
+            **loader_kwargs,
+        )
+        
+        dask_array_fw = aligned_loader_fw.construct_dask()
+        dask_array_rv = aligned_loader_rv.construct_dask()
+        from dask import array as da
+        avg_fw, avg_rv = da.compute(
+            [da.mean(dask_array_fw, axis=0), 
+             da.mean(dask_array_rv, axis=0)]
+        )[0]
+        
+        avg_fw = ip.asarray(avg_fw, axes="zyx")
+        avg_fw.set_scale(template)
+        avg_rv = ip.asarray(avg_rv, axes="zyx")
+        avg_rv.set_scale(template)
+        
+        self.log.print_html(f"<code>polarity_check</code> ({default_timer() - t0:.1f} sec)")
+    
+        return (avg_fw, template_centered_fw, mask_fw), (avg_rv, template_centered_rv, mask_rv)
+    
+    @polarity_check.returned.connect
+    def _polarity_check_on_return(self, out: Tuple[Tuple[ip.ImgArray, ip.ImgArray, ip.ImgArray], Tuple[ip.ImgArray, ip.ImgArray, ip.ImgArray]]):
+        (avg_fw, template_centered_fw, mask_fw), (avg_rv, template_centered_rv, mask_rv) = out
+        zncc_fw = ip.zncc(template_centered_fw, avg_fw, mask=mask_fw>0.5)
+        zncc_rv = ip.zncc(template_centered_rv, avg_rv, mask=mask_rv>0.5)
+        
+        with self.log.set_plt():
+            self.log.print_html(f"Forward-correlation = <b>{zncc_fw:.3f}</b>")
+            self.log.print_html(f"Reverse-correlation = <b>{zncc_rv:.3f}</b>")
+            fig, axes = plt.subplots(nrows=2, ncols=2)
+            axes[0][0].imshow(np.max(template_centered_fw, axis=1), cmap="gray")
+            axes[0][1].imshow(np.max(avg_fw, axis=1), cmap="gray")
+            axes[1][0].imshow(np.max(template_centered_rv, axis=1), cmap="gray")
+            axes[1][1].imshow(np.max(avg_rv, axis=1), cmap="gray")
+            plt.tight_layout()
+            plt.show()
+        return None
+
+    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @set_options(
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
+    )
+    @set_design(text="Calculate correlation")
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}")})
+    def calculate_correlation(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging._get_template],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        interpolation: int = 1,
+        show_average: bool = True,
+    ):
+        t0 = default_timer()
+        molecules: Molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        shape = self._subtomogram_averaging._get_shape_in_nm()
+        
+        loader = self.tomogram.get_subtomogram_loader(
+            molecules, shape, binsize=1, order=interpolation
+        )
+        img_avg = ip.asarray(loader.average(), axes="zyx")
+        img_avg.set_scale(zyx=loader.scale)
+        zncc = ip.zncc(img_avg * mask, template * mask)
+        self.log.print_html(f"<code>calculate_correlation</code> ({default_timer() - t0:.1f} sec)")
+        self.log.print_html(f"Cross correlation with template = <b>{zncc:.3f}</b>")
+        if not show_average:
+            img_avg = None
+        return img_avg, f"[AVG]{layer.name}"
+    
+    @calculate_correlation.returned.connect
+    def _calculate_correlation_on_return(self, out: Tuple[ip.ImgArray, str]):
+        img_avg, name = out
+        if img_avg is not None:
+            self._subtomogram_averaging._show_reconstruction(img_avg, name)
+        return None    
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
