@@ -243,7 +243,7 @@ class MTPropsWidget(MagicTemplate):
     
     def __init__(self):
         self.tomogram: MtTomogram = None
-        self._current_ft_size: nm = None
+        self._current_ft_size: nm = 50.
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -1013,6 +1013,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
         self.overview.image = imgb.proj("z")
         self.layer_image.metadata["current_binsize"] = bin_size
+        self.reset_choices()
         return None
         
     @SplineControl.num.connect
@@ -1904,7 +1905,8 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
-            input_image = image.rescale_intensity(dtype=np.float32, in_range=(0., 1.,))
+            input_image = image.rescale_intensity(dtype=np.float32)
+            input_image = (input_image + 1) / 2
             from skimage.filters.thresholding import threshold_yen
             thr = threshold_yen(input_image.value)
             self._viewer.add_image(
