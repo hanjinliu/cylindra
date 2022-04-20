@@ -164,6 +164,7 @@ class MTPropsWidget(MagicTemplate):
         def invert_spline(self): ...
         def align_to_polarity(self): ...
         def clip_spline(self): ...
+        def delete_spline(self): ...
         sep1 = field(Separator)
         def fit_splines(self): ...
         def fit_splines_manually(self): ...
@@ -1180,7 +1181,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         auto_call=True,
         spline={"choices": _get_splines},
-        limits = {"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
+        limits={"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
     )
     @set_design(text="Clip splines")
     def clip_spline(self, spline: int, limits: Tuple[float, float] = (0., 1.)):
@@ -1192,6 +1193,20 @@ class MTPropsWidget(MagicTemplate):
         self.tomogram.splines[spline] = spl.restore().clip(start, stop)
         self._update_splines_in_images()
         self._need_save = True
+        return None
+    
+    @Splines.wraps
+    @set_design(text="Delete spline")
+    def delete_spline(self, i: Bound[SplineControl.num]):
+        """Delete currently selected spline."""
+        self.tomogram.splines.pop(i)
+        self.reset_choices()
+        
+        need_resample = self.SplineControl.canvas[0].image is not None
+        if need_resample:
+            self.sample_subtomograms()
+        self._need_save = True
+        
         return None
         
     @Splines.wraps
@@ -1585,7 +1600,7 @@ class MTPropsWidget(MagicTemplate):
         orientation : {"x", "y", "z"}, default is "z"
             Which orientation will be shown. "z" is the spline-to-molecule direction,
             "y" is parallel to the spline and "x" is defined by right-handedness.
-        color : Color, default is "crimson
+        color : Color, default is "crimson"
             Vector color shown in viewer.
         """
         mol: Molecules = layer.metadata[MOLECULES]
@@ -1594,9 +1609,12 @@ class MTPropsWidget(MagicTemplate):
         vector_data = np.stack([mol.pos, getattr(mol, orientation)], axis=1)
         
         self.parent_viewer.add_vectors(
-            vector_data, edge_width=0.3, edge_color=color, length=2.4,
+            vector_data,
+            edge_width=0.3,
+            edge_color=[color] * len(mol), 
+            length=2.4,
             name=name,
-            )
+        )
         return None
     
     @Molecules_.wraps
@@ -2327,6 +2345,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
         template_path : ip.ImgArray, optional
             Template image.
         mask_params : str or (float, float), optional
@@ -2418,6 +2438,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
@@ -2510,6 +2532,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
         template_path : Path or str
             Template image path.
         other_templates : list of Path or str
@@ -2597,10 +2621,16 @@ class MTPropsWidget(MagicTemplate):
         method: str = "zncc",
     ):
         """
-        Align all the molecules for subtomogram averaging.
+        Check/determine the polarity by forward/reverse alignment using averaged images.
+
+        This method conducts forward/reverse alignment using subtomogram averaging result,
+        so that the calculation only takes two times of ``align_averaged``. The orientations
+        of molecules will be updated **in-place**.
         
         Parameters
         ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
         template_path : Path or str
             Template image path.
         z_rotation : tuple of float, optional
@@ -2639,6 +2669,10 @@ class MTPropsWidget(MagicTemplate):
         template_centered_rv = template_centered_fw[:, ::-1, ::-1]
         mask_rv = mask_fw[:, ::-1, ::-1]
         
+        # calculate average.
+        avg = loader.average()
+        
+        # alignment using forward/reverse alignment.
         model_cls = _get_alignment(method)
         model_fw = model_cls(
             template_centered_fw,
@@ -2652,7 +2686,6 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=1.,
         )
-        avg = loader.average()
         if avg.shape != template.shape:
             sl = tuple(slice(0, s) for s in template.shape)
             avg = avg[sl]
@@ -2662,6 +2695,9 @@ class MTPropsWidget(MagicTemplate):
         
         self.log.print_html(f"<code>polarity_check_fast</code> ({default_timer() - t0:.1f} sec)")
     
+        if result_fw.score < result_rv.score:
+            molecules.rotate_by_rotvec_internal([np.pi, 0., 0.], copy=False)
+            
         return (
             (fit_fw, template_centered_fw, result_fw.score),
             (fit_rv, template_centered_rv, result_rv.score),
@@ -2711,8 +2747,16 @@ class MTPropsWidget(MagicTemplate):
         """
         Check/determine the polarity by forward/reverse alignment.
         
+        This method first conducts two alignment tasks using forward and revernse templates.
+        Input template image will be considered as the forward template, while reverse
+        template will be created by 180-degree rotation in XY plane. To avoid template bias,
+        input template image will first be centered at its geometrical centroid. The
+        orientations of molecules will be updated **in-place**.
+        
         Parameters
         ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
         template_path : Path or str
             Template image path.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
@@ -2729,6 +2773,9 @@ class MTPropsWidget(MagicTemplate):
             Interpolation order.
         method : str, default is "zncc"
             Alignment method.
+        molecule_subset : int, optional
+            If specified, only a subset of molecules will be used to speed up polarity 
+            determination.
         """
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
@@ -2751,6 +2798,7 @@ class MTPropsWidget(MagicTemplate):
         template_centered_rv = template_centered_fw[:, ::-1, ::-1]
         mask_rv = mask_fw[:, ::-1, ::-1]
         
+        # forward/reverse alignment
         model_cls = _get_alignment(method)
         loader_kwargs = dict(
             max_shifts=max_shifts,
@@ -2769,6 +2817,7 @@ class MTPropsWidget(MagicTemplate):
             **loader_kwargs,
         )
         
+        # calculate forward/reverse averages.
         dask_array_fw = aligned_loader_fw.construct_dask()
         dask_array_rv = aligned_loader_rv.construct_dask()
         from dask import array as da
@@ -2782,15 +2831,21 @@ class MTPropsWidget(MagicTemplate):
         avg_rv = ip.asarray(avg_rv, axes="zyx")
         avg_rv.set_scale(template)
         
+        # calculate cross correlations.
+        zncc_fw = ip.zncc(template_centered_fw, avg_fw, mask=mask_fw>0.5)
+        zncc_rv = ip.zncc(template_centered_rv, avg_rv, mask=mask_rv>0.5)
+        if zncc_fw < zncc_rv:
+            molecules.rotate_by_rotvec_internal([np.pi, 0., 0.], copy=False)
         self.log.print_html(f"<code>polarity_check</code> ({default_timer() - t0:.1f} sec)")
     
-        return (avg_fw, template_centered_fw, mask_fw), (avg_rv, template_centered_rv, mask_rv)
+        return (
+            (avg_fw, template_centered_fw, zncc_fw),
+            (avg_rv, template_centered_rv, zncc_rv),
+        )
     
     @polarity_check.returned.connect
     def _polarity_check_on_return(self, out: Tuple[Tuple[ip.ImgArray, ip.ImgArray, ip.ImgArray], Tuple[ip.ImgArray, ip.ImgArray, ip.ImgArray]]):
-        (avg_fw, template_centered_fw, mask_fw), (avg_rv, template_centered_rv, mask_rv) = out
-        zncc_fw = ip.zncc(template_centered_fw, avg_fw, mask=mask_fw>0.5)
-        zncc_rv = ip.zncc(template_centered_rv, avg_rv, mask=mask_rv>0.5)
+        (avg_fw, template_centered_fw, zncc_fw), (avg_rv, template_centered_rv, zncc_rv) = out
         
         with self.log.set_plt():
             _plot_forward_and_reverse(
