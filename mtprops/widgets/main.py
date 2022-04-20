@@ -2152,13 +2152,15 @@ class MTPropsWidget(MagicTemplate):
         mask: Union[ip.ImgArray, None],
         binsize: int,
         molecules: Molecules,
-        order: int,
+        order: int = 1,
+        shape: Tuple[nm, nm, nm] = None,
     ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
         """
         Returns proper subtomogram loader, template image and mask image that matche the 
         bin size.
         """
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        if shape is None:
+            shape = self._subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=binsize, order=order
         )
@@ -2409,11 +2411,12 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
-        cutoff={"max": 1.0, "step": 0.05},
+        shape={"options": {"min": 1., "max": 100.}, "label": "Z, Y, X shape (nm)"},
         max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
         z_rotation={"options": {"max": 90.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 180.0, "step": 0.1}},
+        cutoff={"max": 1.0, "step": 0.05},
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         bin_size={"choices": _get_available_binsize},
@@ -2423,7 +2426,7 @@ class MTPropsWidget(MagicTemplate):
     def align_all_template_free(
         self,
         layer: MonomerLayer,
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        shape: Tuple[nm, nm, nm] = (32., 32., 32.),
         max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -2440,9 +2443,8 @@ class MTPropsWidget(MagicTemplate):
         ----------
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
+        shape : tuple of nm, default is (32., 32., 32.)
+
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
@@ -2468,14 +2470,13 @@ class MTPropsWidget(MagicTemplate):
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
+            shape=shape,
         )
         model_cls = _get_alignment(method)
         aligned_loader = loader.align_no_template(
-            mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            method=method,
             alignment_model=model_cls,
         )
         
