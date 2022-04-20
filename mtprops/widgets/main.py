@@ -2652,7 +2652,6 @@ class MTPropsWidget(MagicTemplate):
             template, None, bin_size, molecules, order=1
         )
         _scale = self.tomogram.scale * bin_size
-        max_shifts = tuple()
         npf = np.max(molecules.features[Mole.pf]) + 1
         dy = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[1])**2))  # longitudinal shift
         dx = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[npf])**2))  # lateral shift
