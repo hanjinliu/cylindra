@@ -2662,10 +2662,16 @@ class MTPropsWidget(MagicTemplate):
         
         self.log.print_html(f"<code>polarity_check_fast</code> ({default_timer() - t0:.1f} sec)")
     
-        return (fit_fw, template_centered_fw, result_fw.score), (fit_rv, template_centered_rv, result_rv.score)
-    
+        return (
+            (fit_fw, template_centered_fw, result_fw.score),
+            (fit_rv, template_centered_rv, result_rv.score),
+        )
+
     @polarity_check_fast.returned.connect
-    def _polarity_check_fast_on_return(self, out: Tuple[Tuple[np.ndarray, np.ndarray, float], Tuple[np.ndarray, np.ndarray, float]]):
+    def _polarity_check_fast_on_return(
+        self,
+        out: Tuple[Tuple[np.ndarray, np.ndarray, float], Tuple[np.ndarray, np.ndarray, float]]
+    ):
         (fit_fw, template_centered_fw, zncc_fw), (fit_rv, template_centered_rv, zncc_rv) = out
         
         with self.log.set_plt():
@@ -2673,6 +2679,8 @@ class MTPropsWidget(MagicTemplate):
                 template_centered_fw, fit_fw, zncc_fw,
                 template_centered_rv, fit_rv, zncc_rv,
             )
+            plt.tight_layout()
+            plt.show()
         
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2683,7 +2691,7 @@ class MTPropsWidget(MagicTemplate):
         x_rotation={"options": {"max": 5.0, "step": 0.1}},
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
-        molecule_subset={"text": "Use all molecules", "options": {"value": 100, "min": 1}}
+        molecule_subset={"text": "Use all molecules", "options": {"value": 200, "min": 1}}
     )
     @set_design(text="Polarity check")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
@@ -3857,22 +3865,35 @@ def _calc_resolution(
     return resolution
 
 def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv):
-    fig, axes = plt.subplots(nrows=2, ncols=2)
-    # img_norm = img.rescale_intensity(dtype=np.uint8).value
-    # temp_norm = template.rescale_intensity(dtype=np.uint8).value
-    # merge_fw: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
-    axes[0][0].imshow(np.max(template_fw, axis=1), cmap="gray")
-    axes[0][1].imshow(np.max(fit_fw, axis=1), cmap="gray")
+    fig, axes = plt.subplots(nrows=2, ncols=3)
+    template_proj_fw = np.max(template_fw, axis=1)
+    fit_proj_fw = np.max(fit_fw, axis=1)
+    merge_fw =_merge_images(fit_proj_fw, template_proj_fw)
+    template_proj_rv = np.max(template_rv, axis=1)
+    fit_proj_rv = np.max(fit_rv, axis=1)
+    merge_rv =_merge_images(fit_proj_rv, template_proj_rv)
+    axes[0][0].imshow(template_proj_fw, cmap="gray")
+    axes[0][1].imshow(fit_proj_fw, cmap="gray")
+    axes[0][2].imshow(merge_fw)
     axes[0][0].text(0, 0, f"{zncc_fw:.3f}", va="top", fontsize=14)
-    axes[1][0].imshow(np.max(template_rv, axis=1), cmap="gray")
-    axes[1][1].imshow(np.max(fit_rv, axis=1), cmap="gray")
+    axes[1][0].imshow(template_proj_rv, cmap="gray")
+    axes[1][1].imshow(fit_proj_rv, cmap="gray")
+    axes[1][2].imshow(merge_rv)
     axes[1][0].text(0, 0, f"{zncc_rv:.3f}", va="top", fontsize=14)
     axes[0][0].set_title("Template")
     axes[0][1].set_title("Average")
+    axes[0][2].set_title("Merge")
     axes[0][0].set_ylabel("Forward")
     axes[1][0].set_ylabel("Reverse")
-    plt.tight_layout()
-    plt.show()
+    
+    return None
 
-# def _merge_images(img0, img1):
+def _merge_images(img0: np.ndarray, img1: np.ndarray):
+    img0 = np.asarray(img0)
+    img1 = np.asarray(img1)
+    img0_norm = img0 - img0.min()
+    img0_norm /= img0_norm.max()
+    img1_norm = img1 - img1.min()
+    img1_norm /= img1_norm.max()
+    return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
     
