@@ -1943,6 +1943,7 @@ class MTPropsWidget(MagicTemplate):
             def align_all_template_free(self): ...
             def align_all_multi_template(self): ...
             def polarity_check(self): ...
+            def polarity_check_fast(self): ...
         
         @magicmenu
         class Tools(MagicTemplate):
@@ -2575,7 +2576,104 @@ class MTPropsWidget(MagicTemplate):
         layer.visible = False
         return None
 
-
+    @_subtomogram_averaging.Refinement.wraps
+    @set_options(
+        z_rotation={"options": {"max": 180.0, "step": 1.}},
+        y_rotation={"options": {"max": 180.0, "step": 1.}},
+        x_rotation={"options": {"max": 180.0, "step": 1.}},
+        bin_size={"choices": _get_available_binsize},
+        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
+    )
+    @set_design(text="Polarity check (fast)")
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
+    def polarity_check_fast(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        z_rotation: Tuple[float, float] = (3., 3.),
+        y_rotation: Tuple[float, float] = (15., 3.),
+        x_rotation: Tuple[float, float] = (3., 3.),
+        bin_size: int = 1,
+        method: str = "zncc",
+    ):
+        """
+        Align all the molecules for subtomogram averaging.
+        
+        Parameters
+        ----------
+        template_path : Path or str
+            Template image path.
+        z_rotation : tuple of float, optional
+            Rotation in external degree around z-axis.
+        y_rotation : tuple of float, optional
+            Rotation in external degree around y-axis.
+        x_rotation : tuple of float, optional
+            Rotation in external degree around x-axis.
+        interpolation : int, default is 3
+            Interpolation order.
+        method : str, default is "zncc"
+            Alignment method.
+        """
+        t0 = default_timer()
+        molecules: Molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        
+        loader, template, _ = self._check_binning_for_alignment(
+            template, None, bin_size, molecules, order=1
+        )
+        _scale = self.tomogram.scale * bin_size
+        max_shifts = tuple()
+        npf = np.max(molecules.features[Mole.pf]) + 1
+        dy = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[1])**2))  # longitudinal shift
+        dx = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[npf])**2))  # lateral shift
+        
+        max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
+        
+        # center template image by its centroid
+        from skimage.measure import moments
+        mom = moments(template, order=1)
+        centroid = np.array([mom[1, 0, 0], mom[0, 1, 0], mom[0, 0, 1]]) / mom[0, 0, 0]
+        shift = centroid - np.array(template.shape)/2 + 0.5
+        template_centered_fw = template.affine(translation=shift)
+        mask_fw = template_centered_fw.threshold().smooth_mask(sigma=1., dilate_radius=1.)
+        template_centered_rv = template_centered_fw[:, ::-1, ::-1]
+        mask_rv = mask_fw[:, ::-1, ::-1]
+        
+        model_cls = _get_alignment(method)
+        model_fw = model_cls(
+            template_centered_fw,
+            mask_fw,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=1.,
+        )
+        model_rv = model_cls(
+            template_centered_rv,
+            mask_rv,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=1.,
+        )
+        avg = loader.average()
+        if avg.shape != template.shape:
+            sl = tuple(slice(0, s) for s in template.shape)
+            avg = avg[sl]
+        
+        fit_fw, result_fw = model_fw.fit(avg, max_shifts)
+        fit_rv, result_rv = model_rv.fit(avg, max_shifts)
+        
+        self.log.print_html(f"<code>polarity_check_fast</code> ({default_timer() - t0:.1f} sec)")
+    
+        return (fit_fw, template_centered_fw, result_fw.score), (fit_rv, template_centered_rv, result_rv.score)
+    
+    @polarity_check_fast.returned.connect
+    def _polarity_check_fast_on_return(self, out: Tuple[Tuple[np.ndarray, np.ndarray, float], Tuple[np.ndarray, np.ndarray, float]]):
+        (fit_fw, template_centered_fw, zncc_fw), (fit_rv, template_centered_rv, zncc_rv) = out
+        
+        with self.log.set_plt():
+            _plot_forward_and_reverse(
+                template_centered_fw, fit_fw, zncc_fw,
+                template_centered_rv, fit_rv, zncc_rv,
+            )
+        
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
@@ -2585,6 +2683,7 @@ class MTPropsWidget(MagicTemplate):
         x_rotation={"options": {"max": 5.0, "step": 0.1}},
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
+        molecule_subset={"text": "Use all molecules", "options": {"value": 100, "min": 1}}
     )
     @set_design(text="Polarity check")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
@@ -2599,9 +2698,10 @@ class MTPropsWidget(MagicTemplate):
         cutoff: float = 0.5,
         interpolation: int = 1,
         method: str = "zncc",
+        molecule_subset: Optional[int] = None,
     ):
         """
-        Align all the molecules for subtomogram averaging.
+        Check/determine the polarity by forward/reverse alignment.
         
         Parameters
         ----------
@@ -2623,9 +2723,12 @@ class MTPropsWidget(MagicTemplate):
             Alignment method.
         """
         t0 = default_timer()
-        molecules = layer.metadata[MOLECULES]
+        molecules: Molecules = layer.metadata[MOLECULES]
+        if molecule_subset is not None:
+            molecules = molecules.subset(slice(0, molecule_subset))
         template = self._subtomogram_averaging._get_template(path=template_path)
         shape = self._subtomogram_averaging._get_shape_in_nm()
+        
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape, order=interpolation
         )
@@ -2682,13 +2785,10 @@ class MTPropsWidget(MagicTemplate):
         zncc_rv = ip.zncc(template_centered_rv, avg_rv, mask=mask_rv>0.5)
         
         with self.log.set_plt():
-            self.log.print_html(f"Forward-correlation = <b>{zncc_fw:.3f}</b>")
-            self.log.print_html(f"Reverse-correlation = <b>{zncc_rv:.3f}</b>")
-            fig, axes = plt.subplots(nrows=2, ncols=2)
-            axes[0][0].imshow(np.max(template_centered_fw, axis=1), cmap="gray")
-            axes[0][1].imshow(np.max(avg_fw, axis=1), cmap="gray")
-            axes[1][0].imshow(np.max(template_centered_rv, axis=1), cmap="gray")
-            axes[1][1].imshow(np.max(avg_rv, axis=1), cmap="gray")
+            _plot_forward_and_reverse(
+                template_centered_fw, avg_fw, zncc_fw,
+                template_centered_rv, avg_rv, zncc_rv,
+            )
             plt.tight_layout()
             plt.show()
         return None
@@ -3755,3 +3855,24 @@ def _calc_resolution(
     else:
         resolution = 0
     return resolution
+
+def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv):
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    # img_norm = img.rescale_intensity(dtype=np.uint8).value
+    # temp_norm = template.rescale_intensity(dtype=np.uint8).value
+    # merge_fw: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
+    axes[0][0].imshow(np.max(template_fw, axis=1), cmap="gray")
+    axes[0][1].imshow(np.max(fit_fw, axis=1), cmap="gray")
+    axes[0][0].text(0, 0, f"{zncc_fw:.3f}", va="top", fontsize=14)
+    axes[1][0].imshow(np.max(template_rv, axis=1), cmap="gray")
+    axes[1][1].imshow(np.max(fit_rv, axis=1), cmap="gray")
+    axes[1][0].text(0, 0, f"{zncc_rv:.3f}", va="top", fontsize=14)
+    axes[0][0].set_title("Template")
+    axes[0][1].set_title("Average")
+    axes[0][0].set_ylabel("Forward")
+    axes[1][0].set_ylabel("Reverse")
+    plt.tight_layout()
+    plt.show()
+
+# def _merge_images(img0, img1):
+    
