@@ -121,7 +121,8 @@ class SplineFitter(MagicTemplate):
     def _update_cross(self, x: float, z: float):
         i = self.mt.num.value
         j = self.mt.pos.value
-        
+        if self.shifts[i] is None:
+            return
         itemv = self.canvas.layers[0]
         itemh = self.canvas.layers[1]
         item_circ_inner = self.canvas.layers[2]
