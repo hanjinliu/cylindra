@@ -2157,6 +2157,22 @@ class MTPropsWidget(MagicTemplate):
         interpolation: int = 1,
         bin_size: int = 1,
     ):
+        """
+        Split molecules into two groups and average separately.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Select a monomer layer for averaging.
+        n_set : int, default is 1
+            How many pairs of average will be calculated.
+        size : nm, optional
+            Output image size. By default template image size will be used.
+        interpolation : int, default is 1
+            Interpolation order.
+        bin_size : int, default is 1
+            Bin size of averaging.
+        """
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
