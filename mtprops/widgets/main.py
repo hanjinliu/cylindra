@@ -182,6 +182,7 @@ class MTPropsWidget(MagicTemplate):
             def map_along_pf(self): ...
         def show_orientation(self): ...
         def extend_molecules(self): ...
+        def concatenate_molecules(self): ...
         def calculate_intervals(self): ...
         sep0 = field(Separator)
         def open_feature_control(self): ...
@@ -1683,6 +1684,33 @@ class MTPropsWidget(MagicTemplate):
             points_layer.selected_data = set()
             points_layer.metadata[MOLECULES] = mole_new
             update_features(points_layer, features)
+        return None
+    
+    @Molecules_.wraps
+    @set_options(layers={"widget_type": "Select", "choices": get_monomer_layers})
+    @set_design(text="Concatenate molecules")
+    def concatenate_molecules(self, layers: List[MonomerLayer]):
+        """
+        Concatenate selected monomer layers and create a new layer.
+
+        Parameters
+        ----------
+        layers : List[MonomerLayer]
+            Layers to be concatenated.
+        """
+        if len(layers) == 0:
+            raise ValueError("No layer selected.")
+        molecules: List[Molecules] = [layer.metadata[MOLECULES] for layer in layers]
+        all_molecules = Molecules.concat(molecules)
+        points = add_molecules(self.parent_viewer, all_molecules, name="Mono-concat")
+        layer_names: List[str] = []
+        for layer in layers:
+            layer.visible = False
+            layer_names.append(layer_names)
+        
+        self.log.print_html("<code>concatenate_molecules</code>")
+        self.log.print("Concatenated:", ", ".join(layer_names))
+        self.log.print(f"{points.name!r}: n = {len(all_molecules)}")
         return None
 
     @Molecules_.wraps
