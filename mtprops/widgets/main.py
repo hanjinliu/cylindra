@@ -1706,7 +1706,7 @@ class MTPropsWidget(MagicTemplate):
         layer_names: List[str] = []
         for layer in layers:
             layer.visible = False
-            layer_names.append(layer_names)
+            layer_names.append(layer.name)
         
         self.log.print_html("<code>concatenate_molecules</code>")
         self.log.print("Concatenated:", ", ".join(layer_names))

@@ -6,7 +6,7 @@
     "yPitchMax": 4.3, 
     "minSkew": -7.0, 
     "maxSkew": 7.0, 
-    "splError": 0.8, 
+    "splError": 0.5000000000000001, 
     "inner": 0.3, 
     "outer": 1.5, 
     "fitLength": 48.0, 
