@@ -107,11 +107,13 @@ class CoordinateSystem {
 		}
 };
 
+// Convert local coordinates to world coordinates.
 template <typename T>
 Vector3D<T> CoordinateSystem<T>::at(T z, T y, T x){
 	return origin + ez * z + ey * y + ex * x;
 }
 
+// Convert local coordinates to world coordinates, using 3D vector.
 template <typename T>
 Vector3D<T> CoordinateSystem<T>::at(Vector3D<T> vec){
 	return origin + ez * vec.z + ey * vec.y + ex * vec.x;
@@ -127,6 +129,9 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 	double dist_max
 )
 {
+	auto dist_min2 = dist_min * dist_min;
+	auto dist_max2 = dist_max * dist_max;
+
 	// get buffers
 	py::buffer_info _score_info = score.request();
 
@@ -141,18 +146,20 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 	auto viterbi_lattice_ = py::array_t<double>{{nmole, nz, ny, nx}};
 	auto state_sequence = state_sequence_.mutable_unchecked<2>();
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
+	auto nogil = py::gil_scoped_release{};  // without GIL
 
 	// initialization at t = 0
-	for (int z = 0; z < nz; ++z) {
-	for (int y = 0; y < ny; ++y) {
-	for (int x = 0; x < nx; ++x) {
+	for (auto z = 0; z < nz; ++z) {
+	for (auto y = 0; y < ny; ++y) {
+	for (auto x = 0; x < nx; ++x) {
 		viterbi_lattice(0, z, y, x) = *score.data(0, z, y, x);
 	}}}
 	
-	// allocation of object arrays
+	// Allocation of arrays of coordinate system.
+	// Offsets and orientations of local coordinates of score landscape are well-defined by this.
 	auto coords = new CoordinateSystem<double>[nmole];
 	
-	for (int t = 0; t < nmole; ++t) {
+	for (auto t = 0; t < nmole; ++t) {
 		auto _ori = Vector3D<double>(*origin.data(t, 0), *origin.data(t, 1), *origin.data(t, 2));
 		auto _ez = Vector3D<double>(*zvec.data(t, 0), *zvec.data(t, 1), *zvec.data(t, 2));
 		auto _ey = Vector3D<double>(*yvec.data(t, 0), *yvec.data(t, 1), *yvec.data(t, 2));
@@ -162,26 +169,21 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 
 	// forward
 	for (auto t = 1; t < nmole; ++t) {
-		for (int z1 = 0; z1 < nz; ++z1) {
-		for (int y1 = 0; y1 < ny; ++y1) {
-		for (int x1 = 0; x1 < nx; ++x1) {
+		for (auto z1 = 0; z1 < nz; ++z1) {
+		for (auto y1 = 0; y1 < ny; ++y1) {
+		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
 			bool neighbor_found = false;
-			for (int z0 = 0; z0 < nz; ++z0) {
-			for (int y0 = 0; y0 < ny; ++y0) {
-			for (int x0 = 0; x0 < nx; ++x0) {
-				auto distance = (coords[t-1].at(z0, y0, x0) - coords[t].at(z1, y1, x1)).length();
-				if (distance < dist_min || dist_max < distance) {
+			for (auto z0 = 0; z0 < nz; ++z0) {
+			for (auto y0 = 0; y0 < ny; ++y0) {
+			for (auto x0 = 0; x0 < nx; ++x0) {
+				auto distance2 = (coords[t-1].at(z0, y0, x0) - coords[t].at(z1, y1, x1)).length2();
+				if (distance2 < dist_min2 || dist_max2 < distance2) {
 					continue;
 				}
 				neighbor_found = true;
 				max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
 			}}}
-			if (!neighbor_found) {
-				char buf[128];
-				std::sprintf(buf, "No neighbor found between %d and %d.", t-1, t);
-				throw py::value_error(buf);
-			}
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
 		}}}
@@ -191,9 +193,9 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 	double max_score = -std::numeric_limits<double>::infinity();
 	auto prev = Vector3D<int>(0, 0, 0);
 	
-	for (int z = 0; z < nz; ++z) {
-	for (int y = 0; y < ny; ++y) {
-	for (int x = 0; x < nx; ++x) {
+	for (auto z = 0; z < nz; ++z) {
+	for (auto y = 0; y < ny; ++y) {
+	for (auto x = 0; x < nx; ++x) {
 		auto s = viterbi_lattice(nmole - 1, z, y, x);
 		if (s > max_score) {
 			max_score = s;
@@ -213,11 +215,11 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 		auto argmax = Vector3D<int>(0, 0, 0);
 		auto point_prev = coords[t+1].at(prev.z, prev.y, prev.x);
 		bool neighbor_found = false;
-		for (int z0 = 0; z0 < nz; ++z0) {
-		for (int y0 = 0; y0 < ny; ++y0) {
-		for (int x0 = 0; x0 < nx; ++x0) {
-			auto distance = (point_prev - coords[t].at(z0, y0, x0)).length();
-			if (distance < dist_min || dist_max < distance) {
+		for (auto z0 = 0; z0 < nz; ++z0) {
+		for (auto y0 = 0; y0 < ny; ++y0) {
+		for (auto x0 = 0; x0 < nx; ++x0) {
+			auto distance2 = (point_prev - coords[t].at(z0, y0, x0)).length2();
+			if (distance2 < dist_min2 || dist_max2 < distance2) {
 				continue;
 			}
 			neighbor_found = true;
@@ -227,11 +229,6 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 				argmax = Vector3D<int>(z0, y0, x0);
 			}
 		}}}
-		if (!neighbor_found) {
-			char buf[128];
-			std::sprintf(buf, "No neighbor found between %d and %d, during backward tracking.", t, t+1);
-			throw py::value_error(buf);
-		}
 		prev = argmax;
 		state_sequence(t, 0) = prev.z;
 		state_sequence(t, 1) = prev.y;

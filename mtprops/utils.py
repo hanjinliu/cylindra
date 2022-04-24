@@ -423,6 +423,43 @@ def viterbi(
     dist_min: float,
     dist_max: float,
 ) -> tuple[np.ndarray, float]:
+    """
+    One-dimensional Viterbi algorithm for contexted subtomogram alignment.
+
+    Parameters
+    ----------
+    score : (N, Nz, Ny, Nx) array
+        Array of score landscape.
+    origin : (N, 3) array
+        World coordinates of origin of local coordinates.
+    zvec : (N, 3) array
+        World coordinate vectors of z-axis.
+    yvec : (N, 3) array
+        World coordinate vectors of y-axis.
+    xvec : (N, 3) array
+        World coordinate vectors of x-axis.
+    dist_min : float
+        Minimum distance between subtomograms.
+    dist_max : float
+        Maximum distance between subtomograms.
+
+    Returns
+    -------
+    (N, 3) int array and float
+        Optimal indices and optimal score.
+    """
+    nmole, nz, ny, nx = score.shape
+    if origin.shape != (nmole, 3):
+        raise ValueError(f"Shape of 'origin' must be ({nmole}, 3) but got {origin.shape}.")
+    if zvec.shape != (nmole, 3):
+        raise ValueError(f"Shape of 'zvec' must be ({nmole}, 3) but got {zvec.shape}.")
+    if yvec.shape != (nmole, 3):
+        raise ValueError(f"Shape of 'yvec' must be ({nmole}, 3) but got {yvec.shape}.")
+    if xvec.shape != (nmole, 3):
+        raise ValueError(f"Shape of 'xvec' must be ({nmole}, 3) but got {xvec.shape}.")
+    if dist_min >= dist_max:
+        raise ValueError("'dist_min' must be smaller than 'dist_max'.")
+    
     return _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
     
 
