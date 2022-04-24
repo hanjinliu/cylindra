@@ -1,11 +1,14 @@
 from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
-from dask import array as da, delayed
 import impy as ip
 from typing import Callable, ContextManager
 from .const import Mode, GVar
-
+try:
+    from . import _cpp_ext
+except ImportError:
+    # In case build failed
+    pass
 
 def roundint(a: float):
     return int(round(a))
@@ -169,83 +172,6 @@ def map_coordinates(
         cval=cval,
     )
 
-@delayed
-def lazy_map_coordinates(
-    input: ip.ImgArray,
-    coordinates: np.ndarray,
-    order: int = 3, 
-    mode: str = Mode.constant,
-    cval: float | Callable[[ip.ImgArray], float] = 0.0
-) -> np.ndarray:
-    """Delayed version of ndi.map_coordinates."""
-    return input.map_coordinates(
-        coordinates=coordinates,
-        order=order,
-        mode=mode, 
-        cval=cval,
-    )
-
-def multi_map_coordinates(
-    input: ip.ImgArray | ip.LazyImgArray, 
-    coordinates: np.ndarray,
-    order: int = 3, 
-    mode: str = Mode.constant,
-    cval: float | Callable[[ip.ImgArray], float] = 0.0,
-) -> list[np.ndarray]:
-    """
-    Multiple map-coordinate in parallel.
-
-    Result of this function is identical to following code.
-    
-    .. code-block:: python
-    
-        outputs = []
-        for i in range(len(coordinates)):
-            out = ndi.map_coordinates(input, coordinates[i], ...)
-            outputs.append(out)
-            
-    """
-    shape = input.shape
-    coordinates = coordinates.copy()
-    
-    if coordinates.ndim != input.ndim + 2:
-        if coordinates.ndim == input.ndim + 1:
-            coordinates = coordinates[np.newaxis]
-        else:
-            raise ValueError(
-                f"Coordinates have wrong dimension: {coordinates.shape}."
-                )
-    
-    sl = []
-    for i in range(coordinates.shape[1]):
-        imin = int(np.min(coordinates[:, i])) - order
-        imax = ceilint(np.max(coordinates[:, i])) + order + 1
-        _sl, _pad = make_slice_and_pad(imin, imax, shape[i])
-        sl.append(_sl)
-        coordinates[:, i] -= _sl.start
-    
-    img = input[tuple(sl)]
-    if isinstance(img, ip.LazyImgArray):
-        img = img.compute()
-    if callable(cval):
-        cval = cval(img)
-    input_img = img
-    
-    tasks = []
-    for crds in coordinates:
-        mapped = lazy_map_coordinates(
-            input_img,
-            coordinates=crds,
-            order=order,
-            mode=mode, 
-            cval=cval,
-        )
-        
-        tasks.append(da.from_delayed(mapped, coordinates.shape[2:], dtype=np.float32))
-    
-    out = da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
-
-    return np.stack(out, axis=0)
 
 def oblique_meshgrid(
     shape: tuple[int, int], 
@@ -486,6 +412,18 @@ def interval_filter(
     y_interval = sheared_convolve(y_interval, ker, start=start)
     
     return y_interval
+
+
+def viterbi(
+    score: np.ndarray,
+    origin: np.ndarray,
+    zvec: np.ndarray,
+    yvec: np.ndarray,
+    xvec: np.ndarray,
+    dist_min: float,
+    dist_max: float,
+) -> tuple[np.ndarray, float]:
+    return _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
     
 
 class Projections:
