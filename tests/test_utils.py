@@ -91,28 +91,6 @@ def test_map_coordinates():
     
     isclose(coords)
 
-def test_multi_map_coordinates():
-    from scipy import ndimage as ndi
-    yy, xx = np.indices((100, 100))
-    img = ip.asarray(np.sin(yy/4)*np.sin(xx/3))
-    
-    coords = np.array([[[10, 13], [11, 16], [12, 19]],
-                       [[3, 32], [7, 26], [10, 18]]], dtype=np.float64
-                      )
-    all_coords = np.stack([coords + i for i in range(20)], axis=0)
-    
-    out0 = [ndi.map_coordinates(img.value, crds, order=3) for crds in all_coords]
-    
-    out1 = sum([list(utils.multi_map_coordinates(img, crds, order=3))
-               for crds in np.split(all_coords, 4)], start=[])
-    for a, b in zip(out0, out1):
-        assert_allclose(a, b)
-    
-    out1 = sum([list(utils.multi_map_coordinates(img, crds, order=3))
-               for crds in np.split(all_coords, [3, 7, 12, 17])], start=[])
-    for a, b in zip(out0, out1):
-        assert_allclose(a, b)
-    
 
 def test_mirror_pcc():
     np.random.seed(1234)
@@ -171,3 +149,42 @@ def test_mt_pad():
          [a32, a33, a20, a21, a22, a23, a10, a11]],
         out
     )
+
+def test_viterbi():
+    from mtprops.utils import viterbi
+    score = np.zeros((10, 5, 5, 5))
+    for i in range(10):
+        score[i, 0, 0, 0] = 1.0
+    score[4, 0, 0, 0] = 0.0
+    score[4, 1, 2, 1] = 1.0
+    score[7, 0, 0, 0] = 0.0
+    score[7, 4, 4, 4] = 1.0
+    zvec = np.array([[1., 0., 0.]]*10)
+    yvec = np.array([[0., 1., 0.]]*10)
+    xvec = np.array([[0., 0., 1.]]*10)
+    origin = np.array([[i*5, i*5, i*5] for i in range(10)])
+
+    states, z = viterbi(score, origin, zvec, yvec, xvec, 0., 10000.)
+    assert_allclose(
+        states, 
+        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
+                  [0, 0, 0], [0, 0, 0], [4, 4, 4], [0, 0, 0], [0, 0, 0]])
+    )
+    assert z == 10.0
+    
+    states, z = viterbi(score, origin, zvec, yvec, xvec, 2*np.sqrt(3), 10000)
+    assert_allclose(
+        states, 
+        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
+                  [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
+    )
+    assert z == 9.0
+
+    states, z = viterbi(score, origin, zvec, yvec, xvec, 0., 7*np.sqrt(3))
+    assert_allclose(
+        states, 
+        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
+                  [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
+    )
+    assert z == 9.0
+    
