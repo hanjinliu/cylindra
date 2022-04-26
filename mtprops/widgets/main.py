@@ -50,7 +50,6 @@ from ..components import MtSpline, MtTomogram
 from ..components.microtubule import angle_corr, try_all_seams
 from ..utils import (
     crop_tomogram,
-    interval_filter,
     make_slice_and_pad,
     map_coordinates,
     mirror_zncc,
@@ -1718,16 +1717,12 @@ class MTPropsWidget(MagicTemplate):
 
     @Molecules_.wraps
     @set_options(
-        filter_length={"min": 3, "max": 49, "step": 2},
-        filter_width={"min": 1, "max": 15, "step": 2},
         spline_precision={"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}
     )
     @set_design(text="Calculate intervals")
     def calculate_intervals(
         self,
         layer: MonomerLayer,
-        filter_length: int = 3,
-        filter_width: int = 3,
         spline_precision: nm = 0.2,
     ):
         """
@@ -1741,21 +1736,12 @@ class MTPropsWidget(MagicTemplate):
         ----------
         layer : MonomerLayer
             Select which layer will be calculated.
-        filter_length : int, default is 1
-            Length of uniform filter kernel. Must be an odd number. If 1, no filter will be 
-            applied.
-        filter_width : int, default is 1
-            Width (lateral length) of uniform filter kernel. Must be an odd number. If 1, no
-            filter will be applied.
         spline_precision : nm, optional
             Precision in nm that is used to define the direction of molecules for calculating
             projective interval.
         """
-        if filter_length % 2 == 0 or filter_width % 2 == 0:
-            raise ValueError("'filter_length' and 'filter_width' must be odd numbers.")
         mole: Molecules = layer.metadata[MOLECULES]
         spl = molecules_to_spline(layer)
-        npf = roundint(np.max(mole.features[Mole.pf]) + 1)
         try:
             pf_label = mole.features[Mole.pf]
             pos_list: List[np.ndarray] = []  # each shape: (y, ndim)
@@ -1772,20 +1758,16 @@ class MTPropsWidget(MagicTemplate):
         
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
-        start = y_coords_to_start_number(u, npf)
-        self.log.print(f"Predicted geometry of {layer.name}: {npf}_{start}")
-        y_interval = interval_filter(
-            pos,
-            spl_vec,
-            filter_length=filter_length, 
-            filter_width=filter_width,
-            start=-start
-        )
+        
+        from ..utils import diff
+        y_interval = diff(pos, spl_vec)
         
         properties = y_interval.ravel()
+        if properties[0] < 0:
+            properties = -properties
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
         
-        update_features(layer, {Mole.interval: np.abs(properties)})
+        update_features(layer, {Mole.interval: properties})
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
@@ -1954,7 +1936,7 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
-            input_image = image.rescale_intensity(dtype=np.float32)
+            input_image = image.rescale_intensity(dtype=np.float32) / 2 + 0.5  # between 0 and 1
             from skimage.filters.thresholding import threshold_yen
             thr = threshold_yen(input_image.value)
             self._viewer.add_image(
@@ -2335,8 +2317,8 @@ class MTPropsWidget(MagicTemplate):
             mole,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
-        img_norm = img.rescale_intensity(dtype=np.float32).value
-        temp_norm = template.rescale_intensity(dtype=np.float32).value
+        img_norm = img.rescale_intensity(dtype=np.float32).value / 2 + 0.5
+        temp_norm = template.rescale_intensity(dtype=np.float32).value / 2 + 0.5
         merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
         layer.visible = False
         self.log.print(f"{layer.name!r} --> {points.name!r}")
@@ -2630,6 +2612,31 @@ class MTPropsWidget(MagicTemplate):
         constraint: Tuple[nm, nm] = (3.9, 4.4),
         upsample_factor: int = 5,
     ):
+        """
+        Constrained subtomogram alignment using ZNCC landscaping and Viterbi algorithm.
+
+        Parameters
+        ----------
+        layer : MonomerLayer
+            Layer of subtomogram positions and angles.
+        template_path : Path or str
+            Template image path.
+        mask_params : str or (float, float), optional
+            Mask image path or dilation/Gaussian blur parameters. If a path is given,
+            image must in the same shape as the template.
+        max_shifts : int or tuple of int, default is (0.6, 0.6, 0.6)
+            Maximum shift between subtomograms and template in nm. ZYX order.
+        cutoff : float, default is 1.0
+            Cutoff frequency of low-pass filter applied in each subtomogram.
+        interpolation : int, default is 3
+            Interpolation order.
+        constraint : tuple of float, default is (3.9, 4.4)
+            Range of allowed distance between monomers.
+        upsample_factor : int, default is 5
+            Upsampling factor of ZNCC landscape. Be careful not to set this parameter too 
+            large. Calculation will take much longer for larger ``upsample_factor``. 
+            Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
+        """
         from dask import array as da, delayed
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
@@ -2684,7 +2691,7 @@ class MTPropsWidget(MagicTemplate):
         molecules_opt.features["shift-z"] = all_shifts[:, 0]
         molecules_opt.features["shift-y"] = all_shifts[:, 1]
         molecules_opt.features["shift-x"] = all_shifts[:, 2]
-        self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
+        self.log.print_html(f"<code>align_all_viterbi</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
         aligned_loader = SubtomogramLoader(
             self.tomogram.image.value, 
