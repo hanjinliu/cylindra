@@ -459,10 +459,33 @@ def viterbi(
         raise ValueError(f"Shape of 'xvec' must be ({nmole}, 3) but got {xvec.shape}.")
     if dist_min >= dist_max:
         raise ValueError("'dist_min' must be smaller than 'dist_max'.")
+    if nmole < 2 or nz < 2 or ny < 2 or nx < 2:
+        raise ValueError(f"Invalid shape of 'score': {score.shape}.")
     
     return _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
-    
 
+
+def zncc_landscape(
+    img0: ip.ImgArray,
+    img1: ip.ImgArray,
+    max_shifts: tuple[float, float ,float], 
+    upsample_factor: int = 10,
+):
+    lds = ip.zncc_landscape(img0, img1, max_shifts=max_shifts)
+    
+    upsampled_max_shifts = (np.asarray(max_shifts) * upsample_factor).astype(np.int32)
+    center = np.array(lds.shape) / 2 - 0.5
+    mesh = np.meshgrid(
+        *[np.arange(-width, width+1)/upsample_factor + c
+          for c, width in zip(center, upsampled_max_shifts)], 
+        indexing="ij",
+    )
+    coords = np.stack(mesh, axis=0)
+    
+    return ndi.map_coordinates(
+        lds, coords, order=3, mode="constant", cval=0., prefilter=True
+    )
+    
 class Projections:
     """Class that stores projections of a 3D image."""
 

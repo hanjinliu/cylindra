@@ -184,6 +184,12 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 				neighbor_found = true;
 				max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
 			}}}
+			
+			if (!neighbor_found) {
+				char buf[128];
+				std::sprintf(buf, "No neighbor found between %d and %d.", t-1, t);
+				throw py::value_error(buf);
+			}
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
 		}}}
@@ -214,7 +220,6 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 		double max = -std::numeric_limits<double>::infinity();
 		auto argmax = Vector3D<int>(0, 0, 0);
 		auto point_prev = coords[t+1].at(prev.z, prev.y, prev.x);
-		bool neighbor_found = false;
 		for (auto z0 = 0; z0 < nz; ++z0) {
 		for (auto y0 = 0; y0 < ny; ++y0) {
 		for (auto x0 = 0; x0 < nx; ++x0) {
@@ -222,13 +227,13 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 			if (distance2 < dist_min2 || dist_max2 < distance2) {
 				continue;
 			}
-			neighbor_found = true;
 			auto value = viterbi_lattice(t, z0, y0, x0);
 			if (max < value) {
 				max = value;
 				argmax = Vector3D<int>(z0, y0, x0);
 			}
 		}}}
+		
 		prev = argmax;
 		state_sequence(t, 0) = prev.z;
 		state_sequence(t, 1) = prev.y;

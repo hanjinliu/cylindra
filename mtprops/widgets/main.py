@@ -1,3 +1,4 @@
+from functools import partial
 import os
 import re
 from typing import Iterable, Union, Tuple, List
@@ -56,7 +57,9 @@ from ..utils import (
     pad_template, 
     roundint,
     ceilint,
-    set_gpu
+    set_gpu,
+    viterbi,
+    zncc_landscape,
 )
 
 from .global_variables import GlobalVariables
@@ -1988,6 +1991,7 @@ class MTPropsWidget(MagicTemplate):
             def align_all(self): ...
             def align_all_template_free(self): ...
             def align_all_multi_template(self): ...
+            def align_viterbi(self): ...
             def polarity_check(self): ...
             def polarity_check_fast(self): ...
         
@@ -2370,8 +2374,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}"),
-                                  "total": f"len(layer.metadata[{MOLECULES!r}])"})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}")})
     def align_all(
         self,
         layer: MonomerLayer,
@@ -2440,18 +2443,6 @@ class MTPropsWidget(MagicTemplate):
         self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
         return aligned_loader, layer
-
-    @align_all.returned.connect
-    def _align_all_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
-        aligned_loader, layer = out
-        points = add_molecules(
-            self.parent_viewer, 
-            aligned_loader.molecules,
-            name=_coerce_aligned_name(layer.name, self.parent_viewer),
-        )
-        layer.visible = False
-        self.log.print(f"{layer.name!r} --> {points.name!r}")
-        return None
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2528,21 +2519,6 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         return aligned_loader, layer
     
-    @align_all_template_free.returned.connect
-    def _align_all_template_free_on_return(
-        self,
-        out: Tuple[SubtomogramLoader, MonomerLayer]
-    ):
-        aligned_loader, layer = out
-        points = add_molecules(
-            self.parent_viewer, 
-            aligned_loader.molecules,
-            name=_coerce_aligned_name(layer.name, self.parent_viewer),
-        )
-        layer.visible = False
-        self.log.print(f"{layer.name!r} --> {points.name!r}")
-        return None
-
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         other_templates={"filter": FileFilter.IMAGE},
@@ -2634,15 +2610,96 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         return aligned_loader, layer
     
+    @_subtomogram_averaging.Refinement.wraps
+    @set_options(
+        cutoff={"max": 1.0, "step": 0.05},
+        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
+        constraint={"options": {"min": 0.0, "max": 10.0, "step": 0.1}},
+    )
+    @set_design(text="Align Viterbi")
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}")})
+    def align_viterbi(
+        self,
+        layer: MonomerLayer,
+        template_path: Bound[_subtomogram_averaging.template_path],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
+        cutoff: float = 1.0,
+        interpolation: int = 3,
+        constraint: Tuple[nm, nm] = (3.9, 4.4),
+        upsample_factor: int = 5,
+    ):
+        from dask import array as da, delayed
+        t0 = default_timer()
+        molecules: Molecules = layer.metadata[MOLECULES]
+        template = self._subtomogram_averaging._get_template(path=template_path)
+        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        shape_nm = self._subtomogram_averaging._get_shape_in_nm()
+        loader = self.tomogram.get_subtomogram_loader(
+            molecules, shape=shape_nm, order=interpolation
+        )
+        max_shifts_px = tuple(s/self.tomogram.scale for s in max_shifts)
+        
+        def func(img0: np.ndarray, template_filt: ip.ImgArray, max_shifts):
+            img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
+            lds = zncc_landscape(img0, template_filt, max_shifts=max_shifts, upsample_factor=upsample_factor)
+            return np.asarray(lds)
+        
+        tasks = loader.construct_mapping_tasks(
+            func, (template*mask).lowpass_filter(cutoff=cutoff), max_shifts=max_shifts_px
+        )
+        
+        out = da.compute(tasks)[0]
+        score = np.stack(out, axis=0)
+        
+        scale = self.tomogram.scale
+        npf = np.max(molecules.features[Mole.pf]) + 1
+        
+        slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
+        offset = np.array(shape_nm)/2 - scale
+        molecules_origin = molecules.translate_internal(-offset)
+        mole_list = [molecules_origin.subset(sl) for sl in slices]
+        
+        dist_min, dist_max = np.array(constraint) / scale * upsample_factor
+        scores = [score[sl] for sl in slices]
+        
+        delayed_viterbi = delayed(viterbi)
+        viterbi_tasks = [
+            delayed_viterbi(s, m.pos / scale * upsample_factor, m.z, m.y, m.x, dist_min, dist_max) 
+            for s, m in zip(scores, mole_list)
+        ]
+        
+        out = da.compute(viterbi_tasks)[0]
+        all_shifts = np.empty((len(molecules), 3), dtype=np.float32)
+        for i, (shift, zncc) in enumerate(out):
+            all_shifts[slices[i], :] = shift / upsample_factor
+        
+        molecules_opt = molecules_origin.translate_internal(all_shifts*scale + offset)
+        self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
+        self._need_save = True
+        aligned_loader = SubtomogramLoader(
+            self.tomogram.image.value, 
+            molecules_opt, 
+            order=interpolation, 
+            output_shape=template.shape,
+            corner_safe=True
+        )
+        return aligned_loader, layer
+
+    @align_all.returned.connect
+    @align_all_template_free.returned.connect
     @align_all_multi_template.returned.connect
-    def _align_all_multi_template_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
+    @align_viterbi.returned.connect
+    def _align_allon_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
         aligned_loader, layer = out
-        add_molecules(
+        points = add_molecules(
             self.parent_viewer, 
             aligned_loader.molecules,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
         layer.visible = False
+        self.log.print(f"{layer.name!r} --> {points.name!r}")
         return None
 
     @_subtomogram_averaging.Refinement.wraps
