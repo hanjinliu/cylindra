@@ -90,8 +90,8 @@ class CoordinateSystem {
 		Vector3D<T> ex;		// world coordinate of x-axis unit vector
 		Vector3D<T> at(T, T, T);
 		Vector3D<T> at(Vector3D<T>);
-		CoordinateSystem(Vector3D<T> &origin, Vector3D<T> &ez, Vector3D<T> &ey, Vector3D<T> &ex) {
-			origin = origin; ez = ez; ey = ey; ex = ex;
+		CoordinateSystem(Vector3D<T> &origin_, Vector3D<T> &ez_, Vector3D<T> &ey_, Vector3D<T> &ex_) {
+			origin = origin_; ez = ez_; ey = ey_; ex = ex_;
 		}
 		CoordinateSystem(py::array_t<T> &origin, py::array_t<T> &ez, py::array_t<T> &ey, py::array_t<T> &ex)
 			: CoordinateSystem(Vector3D<T>(origin), Vector3D<T>(ez), Vector3D<T>(ey), Vector3D<T>(ex))
@@ -174,10 +174,11 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
 			bool neighbor_found = false;
+			auto end_point = coords[t].at(z1, y1, x1);
 			for (auto z0 = 0; z0 < nz; ++z0) {
 			for (auto y0 = 0; y0 < ny; ++y0) {
 			for (auto x0 = 0; x0 < nx; ++x0) {
-				auto distance2 = (coords[t-1].at(z0, y0, x0) - coords[t].at(z1, y1, x1)).length2();
+				auto distance2 = (coords[t-1].at(z0, y0, x0) - end_point).length2();
 				if (distance2 < dist_min2 || dist_max2 < distance2) {
 					continue;
 				}
