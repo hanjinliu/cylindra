@@ -176,15 +176,28 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 			bool neighbor_found = false;
 			auto end_point = coords[t].at(z1, y1, x1);
 			for (auto z0 = 0; z0 < nz; ++z0) {
-			for (auto y0 = 0; y0 < ny; ++y0) {
-			for (auto x0 = 0; x0 < nx; ++x0) {
-				auto distance2 = (coords[t-1].at(z0, y0, x0) - end_point).length2();
-				if (distance2 < dist_min2 || dist_max2 < distance2) {
+			for (auto y0 = 0; y0 < nx; ++y0) {
+				// If distances are not in the range of [dist_min, dist_max] at the edges, i.e., 
+				// x=0 and x=nx-1, then other points are not in the range either.
+				// Since valid range of distance is relatively small, this check largely improves
+				// performance.
+				auto distance2_0 = (coords[t-1].at(z0, y0, 0) - end_point).length2();
+				auto distance2_1 = (coords[t-1].at(z0, y0, nx-1) - end_point).length2();
+				auto both_smaller = distance2_0 < dist_min2 && distance2_1 < dist_min2;
+				auto both_larger = dist_max2 < distance2_0 && dist_max2 < distance2_1;
+				
+				if (both_smaller || both_larger) {
 					continue;
 				}
-				neighbor_found = true;
-				max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
-			}}}
+
+				for (auto x0 = 1; x0 < nx-1; ++x0) {
+					auto distance2 = (coords[t-1].at(z0, y0, x0) - end_point).length2();
+					if (distance2 < dist_min2 || dist_max2 < distance2) {
+						continue;
+					}
+					neighbor_found = true;
+					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
+				}}}
 			
 			if (!neighbor_found) {
 				char buf[128];
