@@ -273,7 +273,8 @@ class MTPropsWidget(MagicTemplate):
             img = ip.lazy_imread(path, chunks=GVar.daskChunk)
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
-            mgui.bin_size.value = ceilint(0.96 / scale)
+            if len(mgui.bin_size.value) < 2:
+                mgui.bin_size.value = [ceilint(0.96 / scale)]
         
         return None
 
@@ -448,7 +449,6 @@ class MTPropsWidget(MagicTemplate):
                 tomo.global_ft_params(i=i_spl, binsize=bin_size)
             yield
                     
-        tomo.metadata["ft_size"] = self._current_ft_size
         self._current_ft_size = ft_size
         self._need_save = True
         
@@ -610,7 +610,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         path={"filter": FileFilter.IMAGE},
         scale={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"},
-        bin_size={"min": 1, "max": 8}
+        bin_size={"options": {"min": 1, "max": 8}},
     )
     @set_design(text="Open image")
     @dask_thread_worker(progress={"desc": "Reading image"})
@@ -619,7 +619,7 @@ class MTPropsWidget(MagicTemplate):
         self, 
         path: Path,
         scale: float = 1.0,
-        bin_size: int = 1,
+        bin_size: List[int] = [1],
     ):
         """
         Load an image file and process it before sending it to the viewer.
@@ -630,7 +630,7 @@ class MTPropsWidget(MagicTemplate):
             Path to the tomogram. Must be 3-D image.
         scale : float, defaul is 1.0
             Pixel size in nm/pixel unit.
-        bin_size : int, default is 1
+        bin_size : int or list of int, default is [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
         """
@@ -640,15 +640,17 @@ class MTPropsWidget(MagicTemplate):
             img.scale.x = img.scale.y = img.scale.z = scale
         else:
             scale = img.scale.x
-        
+        if isinstance(bin_size, int):
+            bin_size = [bin_size]
+        elif len(bin_size) == 0:
+            raise ValueError("You must specify at least one bin size.")
+        bin_size = list(set(bin_size))  # delete duplication
         tomo = self._imread(
             path=path,
             scale=scale,
             binsize=bin_size,
         )
 
-        if self._current_ft_size is not None:
-            tomo.metadata["ft_size"] = self._current_ft_size
         self._macro_offset = len(self.macro)
         self.tomogram = tomo
         return tomo
@@ -663,13 +665,10 @@ class MTPropsWidget(MagicTemplate):
         project = MTPropsProject.from_json(path)
         file_dir = Path(path).parent
         
-        # load image and multiscales
-        multiscales = project.multiscales
-        
         self.tomogram = self._imread(
             path=resolve_path(project.image, file_dir), 
             scale=project.scale, 
-            binsize=multiscales.pop(-1), 
+            binsize=project.multiscales, 
         )
         
         # resolve paths
@@ -682,9 +681,6 @@ class MTPropsWidget(MagicTemplate):
         
         self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
-        
-        for size in multiscales:
-            self.tomogram.add_multiscale(size)
             
         return project
 
@@ -978,7 +974,7 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Image.wraps
-    @set_options(bin_size={"min": 2, "max": 64})
+    @set_options(bin_size={"choices": range(2, 17)})
     @set_design(text="Add multi-scale")
     @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
     def add_multiscale(self, bin_size: int = 4):
@@ -1947,7 +1943,7 @@ class MTPropsWidget(MagicTemplate):
                 self._viewer.window.activate()
             self._viewer.scale_bar.visible = True
             self._viewer.scale_bar.unit = "nm"
-            input_image = image.rescale_intensity(dtype=np.float32) / 2 + 0.5  # between 0 and 1
+            input_image = _normalize_image(image)
             from skimage.filters.thresholding import threshold_yen
             thr = threshold_yen(input_image.value)
             self._viewer.add_image(
@@ -2328,8 +2324,8 @@ class MTPropsWidget(MagicTemplate):
             mole,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
-        img_norm = img.rescale_intensity(dtype=np.float32).value / 2 + 0.5
-        temp_norm = template.rescale_intensity(dtype=np.float32).value / 2 + 0.5
+        img_norm = _normalize_image(img)
+        temp_norm = _normalize_image(template)
         merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
         layer.visible = False
         self.log.print(f"{layer.name!r} --> {points.name!r}")
@@ -3624,11 +3620,12 @@ class MTPropsWidget(MagicTemplate):
         self.layer_paint.color = color
         return None
 
-    def _imread(self, path: str, scale: nm, binsize: int):
+    def _imread(self, path: str, scale: nm, binsize: Union[int, Iterable[int]]):
         tomo = MtTomogram.imread(path, scale=scale)
-        tomo.add_multiscale(binsize)
-        if self._current_ft_size is not None:
-            tomo.metadata["ft_size"] = self._current_ft_size
+        if isinstance(binsize, int):
+            binsize = [binsize]
+        for b in binsize:
+            tomo.add_multiscale(b)
         return tomo
     
     @refine_splines.returned.connect
@@ -4077,4 +4074,8 @@ def _merge_images(img0: np.ndarray, img1: np.ndarray):
     img1_norm = img1 - img1.min()
     img1_norm /= img1_norm.max()
     return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
-    
+
+def _normalize_image(img: np.ndarray) -> np.ndarray:
+    min = img.min()
+    max = img.max()
+    return (img - min)/(max - min)
