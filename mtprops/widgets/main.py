@@ -981,13 +981,13 @@ class MTPropsWidget(MagicTemplate):
     @set_options(bin_size={"min": 2, "max": 64})
     @set_design(text="Add multi-scale")
     @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
-    def add_multiscale(self, bin_size: int = 2):
+    def add_multiscale(self, bin_size: int = 4):
         """
         Add a new multi-scale image of current tomogram.
 
         Parameters
         ----------
-        bin_size : int, default is 2
+        bin_size : int, default is 4
             Bin size of the new image
         """
         tomo = self.tomogram        
@@ -1010,12 +1010,23 @@ class MTPropsWidget(MagicTemplate):
         """
         tomo = self.tomogram
         imgb = tomo.get_multiscale(bin_size)
+        factor = self.layer_image.scale[0] / imgb.scale.x
+        current_z = self.parent_viewer.dims.current_step[0]
         self.layer_image.data = imgb
         self.layer_image.scale = imgb.scale
         self.layer_image.name = f"{imgb.name} (bin {bin_size})"
         self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
         self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
+        self.parent_viewer.dims.set_current_step(axis=0, value=current_z*factor)
+        
+        if self.layer_paint is not None:
+            self.layer_paint.scale = self.layer_image.scale
+            self.layer_paint.translate = self.layer_image.translate
+        
+        # update overview
         self.overview.image = imgb.proj("z")
+        self.overview.xlim = [x*factor for x in self.overview.xlim]
+        self.overview.ylim = [y*factor for y in self.overview.ylim]
         self.layer_image.metadata["current_binsize"] = bin_size
         self.reset_choices()
         return None

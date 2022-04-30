@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Iterable, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 import numpy as np
 from scipy import ndimage as ndi
 import napari
@@ -41,20 +41,21 @@ def add_molecules(viewer: napari.Viewer, mol: Molecules, name):
 
 def change_viewer_focus(
     viewer: "napari.Viewer",
-    center: Iterable[float],
+    center: Sequence[float],
     scale: float = 1.0,
 ) -> None:
     center = np.asarray(center)
+    v_scale = np.array([r[2] for r in viewer.dims.range])
     viewer.camera.center = center * scale
     zoom = viewer.camera.zoom
     viewer.camera.events.zoom()
     viewer.camera.zoom = zoom
-    viewer.dims.current_step = list(np.round(center).astype(int))
+    viewer.dims.set_current_step(axis=0, value=center[0]/v_scale[0]*scale)
     return None
 
 def update_features(
     layer: Points | Vectors | Tracks | Labels,
-    values: dict[str, Iterable] = None,
+    values: dict[str, Sequence] = None,
     **kwargs,
 ):
     """Update layer features with new values."""

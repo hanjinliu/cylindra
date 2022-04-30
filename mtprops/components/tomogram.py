@@ -37,7 +37,7 @@ class Tomogram:
     
     def __str__(self) -> str:
         shape = str(self._image.shape).lstrip("AxesShape")
-        return f"{self.__class__.__name__}{shape!r}"
+        return f"{self.__class__.__name__}{shape}"
     
     @property
     def metadata(self) -> dict[str, Any]:
