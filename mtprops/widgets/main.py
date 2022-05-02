@@ -57,8 +57,8 @@ from ..utils import (
     roundint,
     ceilint,
     set_gpu,
-    viterbi,
     zncc_landscape,
+    ViterbiLandscape,
 )
 
 from .global_variables import GlobalVariables
@@ -2680,14 +2680,11 @@ class MTPropsWidget(MagicTemplate):
         
         dist_min, dist_max = np.array(constraint) / scale * upsample_factor
         scores = [score[sl] for sl in slices]
-        
-        delayed_viterbi = delayed(viterbi)
-        viterbi_tasks = [
-            delayed_viterbi(
-                s, m.pos / scale * upsample_factor, m.z, m.y, m.x, dist_min, dist_max
-            )
-            for s, m in zip(scores, mole_list)
-        ]
+
+        viterbi_tasks = []
+        for s, m in zip(scores, mole_list):
+            vit = ViterbiLandscape(s, m.pos / scale * upsample_factor, m.z, m.y, m.x)
+            viterbi_tasks.append(delayed(vit.run_distance_constrained)(dist_min, dist_max))
         
         out = da.compute(viterbi_tasks)[0]
         

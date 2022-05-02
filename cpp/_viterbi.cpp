@@ -67,8 +67,8 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 				// x=0 and x=nx-1, then other points are not in the range either.
 				// Since valid range of distance is relatively small, this check largely improves
 				// performance.
-				auto distance2_0 = (coords[t-1].at(z0, y0, 0) - end_point).length2();
-				auto distance2_1 = (coords[t-1].at(z0, y0, nx-1) - end_point).length2();
+				auto distance2_0 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
+				auto distance2_1 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
 				bool is_0_smaller = distance2_0 < dist_min2;
 				bool is_0_larger = dist_max2 < distance2_0;
 				bool is_1_smaller = distance2_1 < dist_min2;
@@ -233,8 +233,8 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 				// x=0 and x=nx-1, then other points are not in the range either.
 				// Since valid range of distance is relatively small, this check largely improves
 				// performance.
-				auto distance2_0 = (coords[t-1].at(z0, y0, 0) - end_point).length2();
-				auto distance2_1 = (coords[t-1].at(z0, y0, nx-1) - end_point).length2();
+				auto distance2_0 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
+				auto distance2_1 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
 				bool is_0_smaller = distance2_0 < dist_min2;
 				bool is_0_larger = dist_max2 < distance2_0;
 				bool is_1_smaller = distance2_1 < dist_min2;
@@ -251,15 +251,19 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 					auto distance2 = vec.length2();
 
 					if (distance2 < dist_min2 || dist_max2 < distance2) {
+						// check distance between two points
 						continue;
 					}
 
+					// Use formula: a.dot(b) = a**2 + b**2 - 2*a*b*cos(C)
 					auto dot_prod = vec.dot(origin_vector);
 					auto a2 = vec.length2();
 					auto ab = std::sqrt(a2 * b2);
 					auto cos = std::abs(dot_prod / (a2 + b2 - 2 * ab));
 
 					if (cos < cos_skew) {
+						// check angle of displacement vector of origins and that of
+						// points of interests. Smaller cosine means larger skew.
 						continue;
 					}
 
@@ -302,14 +306,29 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 		double max = -std::numeric_limits<double>::infinity();
 		auto argmax = Vector3D<int>(0, 0, 0);
 		auto point_prev = coords[t+1].at(prev.z, prev.y, prev.x);
+		auto origin_vector = coords[t].origin - coords[t+1].origin;
+		auto b2 = origin_vector.length2();
 		for (auto z0 = 0; z0 < nz; ++z0) {
 		for (auto y0 = 0; y0 < ny; ++y0) {
 		for (auto x0 = 0; x0 < nx; ++x0) {
-			auto distance2 = (point_prev - coords[t].at(z0, y0, x0)).length2();
+			auto vec = point_prev - coords[t].at(z0, y0, x0);
+			auto distance2 = vec.length2();
+
 			if (distance2 < dist_min2 || dist_max2 < distance2) {
+				// check distance.
 				continue;
 			}
-			// TODO: angle check
+
+			auto dot_prod = vec.dot(origin_vector);
+			auto a2 = vec.length2();
+			auto ab = std::sqrt(a2 * b2);
+			auto cos = std::abs(dot_prod / (a2 + b2 - 2 * ab));
+
+			if (cos < cos_skew) {
+				// check angle.
+				continue;
+			}
+
 			auto value = viterbi_lattice(t, z0, y0, x0);
 			if (max < value) {
 				max = value;
@@ -329,5 +348,6 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 
 PYBIND11_MODULE(_cpp_ext, m) {
 	m.doc() = "C++ extensions";
-  	m.def("viterbi", &viterbi, "Viterbi algorithm.");
+  	m.def("viterbi", &viterbi, "Viterbi algorithm for alignment.");
+  	m.def("viterbiAngularConstraint", &viterbiAngularConstraint, "Viterbi algorithm for alignment.");
 }
