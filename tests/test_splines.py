@@ -1,3 +1,4 @@
+import pytest
 from mtprops.utils import map_coordinates
 from mtprops.components.microtubule import MtSpline
 import numpy as np
@@ -8,7 +9,7 @@ import impy as ip
 def test_inverse_mapping():
     spl = MtSpline()
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
-    spl.fit(coords)
+    spl.fit_variance(coords)
     coords = np.array([[1, 1.5, 0], 
                        [0, 1.5, 1],
                        [-1, 1.5, 0], 
@@ -43,7 +44,7 @@ def test_inverse_mapping():
 def test_coordinate_transformation():
     spl = MtSpline()
     coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
-    spl.fit(coords)
+    spl.fit_variance(coords)
     
     # Cartesian
     img = ip.array(np.arange(5*6*5).reshape(5, 6, 5), dtype=np.float32, axes="zyx")
@@ -91,7 +92,7 @@ def test_invert():
     spl = MtSpline()
    
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl.fit(coords)
+    spl.fit_variance(coords)
     spl.make_anchors(n=5)
     spl.orientation = "PlusToMinus"
     
@@ -118,7 +119,7 @@ def test_clip():
     spl.orientation = "PlusToMinus"
     
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl.fit(coords)
+    spl.fit_variance(coords)
     spl.orientation = "PlusToMinus"
     
     spl_c0 = spl.clip(0.2, 0.7)
@@ -137,9 +138,9 @@ def test_shift_fit():
     spl = MtSpline()
    
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl.fit(coords)
+    spl.fit_variance(coords)
     spl.make_anchors(n=4)
-    spl.shift_fit(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
+    spl.shift_fit_variance(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
     spl.make_anchors(n=4)
     assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
 
@@ -147,10 +148,23 @@ def test_dict():
     spl = MtSpline()
    
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl.fit(coords)
+    spl.fit_variance(coords)
     spl.orientation = "PlusToMinus"
     spl.clip(0.2, 0.8)
     
     d = spl.to_dict()
     spl_from_dict = MtSpline.from_dict(d)
     assert spl == spl_from_dict
+
+@pytest.mark.parametrize("radius", [0.5, 2.0, 4.0, 10.0])
+def test_curvature(radius):
+    spl = MtSpline()
+    u = np.linspace(0, 2*np.pi, 100)
+    coords = np.stack([np.zeros(100), radius*np.sin(u), radius*np.cos(u)], axis=1)
+    spl = spl.fit_variance(coords, variance=0)
+    spl.make_anchors(n=100)
+    cr = spl.curvature_radii()
+    cr_mean = np.mean(cr)
+    assert (cr_mean / radius - 1) ** 2 < 1e-4
+    assert np.std(cr) / cr_mean < 1e-3
+

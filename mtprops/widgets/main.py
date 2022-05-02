@@ -1387,7 +1387,7 @@ class MTPropsWidget(MagicTemplate):
             npf = roundint(np.max(mole.features[Mole.pf]) + 1)
             all_coords = mole.pos.reshape(-1, npf, 3)
             mean_coords = np.mean(all_coords, axis=1)
-            spl.fit(mean_coords, variance=0.2**2)
+            spl.fit_variance(mean_coords, variance=0.2**2)
             splines.append(spl)
         
         self.tomogram.splines.clear()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
-from typing import Callable, Iterable, TypedDict, TYPE_CHECKING
+from typing import Callable, Sequence, TypedDict, TYPE_CHECKING
 import warnings
 import numpy as np
 import json
@@ -161,7 +161,7 @@ class Spline:
         return self._anchors
     
     @anchors.setter
-    def anchors(self, positions: float | Iterable[float]) -> None:
+    def anchors(self, positions: float | Sequence[float]) -> None:
         positions = np.atleast_1d(np.asarray(positions, dtype=np.float32))
         if positions.ndim != 1:
             raise TypeError(f"Could not convert positions into 1D array.")
@@ -270,15 +270,59 @@ class Spline:
         original._u = self._u
         return original
 
+    def fit_curvature(
+        self, 
+        coords: np.ndarray,
+        weight: np.ndarray = None,
+        n: int = 256,
+        max_radius: nm = 1.0,
+        tol = 1e-2,
+        max_iter: int = 100,
+    ) -> Self:
+        npoints = coords.shape[0]
+        if npoints < 2:
+            raise ValueError("npoins must be > 1.")
+        elif npoints <= self.degree:
+            self._tck = self._tck[:2] + (npoints - 1,)
+        if self.inverted:
+            coords = coords[::-1]
+        # initialize
+        s = 0.
+        smax = np.sum(np.var(coords, axis=0)) * npoints
+        u = np.linspace(0, 1, n)
+        niter = 0
+        
+        while True:
+            niter += 1
+            self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
+            curvature = self.curvature(u)
+            ratio = np.max(curvature) * max_radius
+            if ratio < 1. - tol:  # curvature too small = underfit
+                smax = s
+                s /= 2
+            elif 1. < ratio:  # curvature too large = overfit
+                s = s / 2 + smax / 2
+            else:
+                break
+            if niter > max_iter:
+                raise ValueError("Max iteration")
+            
+        del self.anchors  # Anchor should be deleted after spline is updated
+        self.clear_cache(loc=True, glob=True)
+        return self
 
-    def fit(
+    def fit_variance(
         self,
         coords: np.ndarray,
         weight: np.ndarray = None,
         variance: float = None
     ) -> Self:
         """
-        Fit spline model using a list of coordinates.
+        Fit spline model to coordinates.
+        
+        This method conduct variance-based fitting, which is well-formulated by the function
+        ``scipy.interpolate.splprep``. The fitting result confirms that total variance 
+        between spline and given coordinates does not exceed the value ``variance``. 
 
         Parameters
         ----------
@@ -306,14 +350,30 @@ class Spline:
         if self.inverted:
             coords = coords[::-1]
         self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
-        del self.anchors # Anchor should be deleted after spline is updated
+        del self.anchors  # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
         return self
     
-
-    def shift_fit(
+    def shift_fit_curvature(
         self,
-        positions: Iterable[float] | None = None,
+        positions: Sequence[float] | None = None,
+        shifts: np.ndarray | None = None,
+        n: int = 256,
+        max_radius: nm = 1.0,
+        tol = 1e-2,
+        max_iter: int = 100,
+    ):
+        coords = self(positions)
+        rot = self.get_rotator(positions)
+        # insert 0 in y coordinates. 
+        shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
+        coords += rot.apply(shifts)
+        self.fit_curvature(coords, n=n, max_radius=max_radius, tol=tol, max_iter=max_iter)
+        return self
+
+    def shift_fit_variance(
+        self,
+        positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
         variance: float = None
     ) -> Self:
@@ -322,7 +382,7 @@ class Spline:
 
         Parameters
         ----------
-        positions : Iterable[float], optional
+        positions : sequence of float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
@@ -339,17 +399,17 @@ class Spline:
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit(coords, variance=variance)
+        self.fit_variance(coords, variance=variance)
         return self
 
     
-    def distances(self, positions: Iterable[float] = None) -> np.ndarray:
+    def distances(self, positions: Sequence[float] = None) -> np.ndarray:
         """
         Get the distances from u=0.
 
         Parameters
         ----------
-        positions : Iterable[float], optional
+        positions : sequence of float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
@@ -425,13 +485,13 @@ class Spline:
             inverted.anchors = 1 - anchors[::-1]
         return inverted
     
-    def curvature(self, positions: Iterable[float] = None) -> np.ndarray:
+    def curvature(self, positions: Sequence[float] = None) -> np.ndarray:
         """
         Calculate curvature of spline curve.
 
         Parameters
         ----------
-        positions : Iterable[float], optional
+        positions : sequence of float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
 
         Returns
@@ -452,6 +512,8 @@ class Spline:
         a = (ddz*dy - ddy*dz)**2 + (ddx*dz - ddz*dx)**2 + (ddy*dx - ddx*dy)**2
         return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5
 
+    def curvature_radii(self, positions: Sequence[float] = None) -> np.ndarray:
+        return 1. / self.curvature(positions)
     
     def to_dict(self) -> SplineInfo:
         """Convert spline info into a dict."""
@@ -516,8 +578,8 @@ class Spline:
         
     def affine_matrix(
         self, 
-        positions: Iterable[float] = None,
-        center: Iterable[float] = None, 
+        positions: Sequence[float] = None,
+        center: Sequence[float] = None, 
         inverse: bool = False,
     ) -> np.ndarray:
         """
@@ -575,7 +637,7 @@ class Spline:
     
     def get_rotator(
         self, 
-        positions: Iterable[float] = None,
+        positions: Sequence[float] = None,
         inverse: bool = False,
     ) -> Rotation:
         """
@@ -608,7 +670,7 @@ class Spline:
         self,
         shape: tuple[int, int],
         n_pixels: int,
-        u: float | Iterable[float] = None,
+        u: float | Sequence[float] = None,
         scale: nm = 1.,
     ):
         """
@@ -838,8 +900,8 @@ class Spline:
 
     def anchors_to_molecules(
         self, 
-        positions: float | Iterable[float] | None = None,
-        rotation: Iterable[float] | None = None,
+        positions: float | Sequence[float] | None = None,
+        rotation: Sequence[float] | None = None,
     ) -> Molecules:
         """
         Convert coordinates of anchors to ``Molecules`` instance.
