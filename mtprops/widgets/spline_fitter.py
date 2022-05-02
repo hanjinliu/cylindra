@@ -67,7 +67,7 @@ class SplineFitter(MagicTemplate):
         _scale = parent.tomogram.scale
         spl = self.splines[i]
         var = GVar.splError**2
-        spl.shift_fit(shifts=shifts*self.binsize*_scale, variance=var)
+        spl.shift_fit_variance(shifts=shifts*self.binsize*_scale, variance=var)
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._mt_changed()
