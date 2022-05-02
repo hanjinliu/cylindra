@@ -5,9 +5,10 @@ from magicclass import (
     set_options,
     set_design,
     MagicTemplate,
+    get_function_gui,
     )
 from magicclass.types import Tuple as _Tuple
-from magicclass import get_function_gui
+from magicclass.utils import show_messagebox
 
 from .widget_utils import FileFilter
 
@@ -80,7 +81,27 @@ class GlobalVariables(MagicTemplate):
     @set_design(text="Load variables")
     def load_variables(self, path: Path = INITIAL_PATH):
         with open(path, mode="r") as f:
-            gvar = json.load(f)
+            gvar: dict = json.load(f)
+        
+        # for version compatibility
+        annots = GVar.__annotations__.keys()
+        _undef = set()
+        for k in gvar.keys():
+            if k not in annots:
+                _undef.add(k)
+        if _undef:
+            for k in _undef:
+                gvar.pop(k)
+            show_messagebox(
+                mode="warn",
+                title="Warning",
+                text=(
+                    "Could not load following variables, maybe due to version "
+                    f"incompatibility: {_undef!r}"
+                ),
+                parent=self.native,
+            )
+        
         get_function_gui(self, "set_variables")(**gvar, update_widget=True)
         return None
     
