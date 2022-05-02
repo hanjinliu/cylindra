@@ -1,4 +1,3 @@
-from functools import partial
 import os
 import re
 from typing import Iterable, Union, Tuple, List
@@ -39,6 +38,7 @@ from magicclass.widgets import (
     ConsoleTextEdit,
     Select,
     FloatRangeSlider,
+    OptionalWidget,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.dask import dask_thread_worker
@@ -76,7 +76,6 @@ from .widget_utils import (
     change_viewer_focus,
     update_features,
     molecules_to_spline,
-    y_coords_to_start_number,
     get_versions,
     resolve_path,
 )
@@ -827,6 +826,7 @@ class MTPropsWidget(MagicTemplate):
             global_variables = as_relative(gvar_path),
             template_image = as_relative(self._subtomogram_averaging.template_path),
             mask_parameters = self._subtomogram_averaging._get_mask_params(),
+            tilt_range = self._subtomogram_averaging.tilt_range,
             macro = as_relative(macro_path),
         )
         
@@ -1358,7 +1358,7 @@ class MTPropsWidget(MagicTemplate):
     )
     @set_design(text="Molecules to spline")
     @confirm(
-        text="The existing splines will be removed.\n Do you want to run?",
+        text="The existing splines will be removed.\nDo you want to run?",
         condition="len(self.SplineControl._get_splines()) > 0",
     )
     def molecules_to_spline(
@@ -1382,12 +1382,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         splines: List[MtSpline] = []
         for layer in layers:
-            mole: Molecules = layer.metadata[MOLECULES]
-            spl = MtSpline(degree=GVar.splOrder)
-            npf = roundint(np.max(mole.features[Mole.pf]) + 1)
-            all_coords = mole.pos.reshape(-1, npf, 3)
-            mean_coords = np.mean(all_coords, axis=1)
-            spl.fit_variance(mean_coords, variance=0.2**2)
+            spl = molecules_to_spline(layer)
             splines.append(spl)
         
         self.tomogram.splines.clear()
@@ -1399,6 +1394,7 @@ class MTPropsWidget(MagicTemplate):
         
     @Analysis.wraps
     @set_options(
+        interval={"min": 1.0, "step": 0.5},
         ft_size={"min": 2.0},
         bin_size={"choices": _get_available_binsize},
     )
@@ -1833,6 +1829,8 @@ class MTPropsWidget(MagicTemplate):
         @magicclass(layout="horizontal", widget_type="frame")
         class mask_path(MagicTemplate):
             mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
+        
+        tilt_range = vfield(Optional[Tuple[nm, nm]], options={"label": "Tilt range (deg)", "value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
         
         @mask.connect
         def _on_switch(self):
@@ -2297,6 +2295,7 @@ class MTPropsWidget(MagicTemplate):
             mask,
             cutoff=1.0,
             rotations=(z_rotation, y_rotation, x_rotation),
+            tilt_range=None,  # NOTE: because input is an average
         )
         img_trans, result = model.fit(img, max_shifts=max_shifts)
         rotator = Rotation.from_quat(result.quat)
@@ -2426,6 +2425,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=model_cls,
+            tilt_range=self._subtomogram_averaging.tilt_range,
         )
         
         self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
@@ -2501,6 +2501,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=model_cls,
+            tilt_range=self._subtomogram_averaging.tilt_range,
         )
         
         self.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
@@ -2593,6 +2594,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=model_cls,
+            tilt_range=self._subtomogram_averaging.tilt_range,
         )
         self.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
@@ -2656,6 +2658,7 @@ class MTPropsWidget(MagicTemplate):
         max_shifts_px = tuple(s/self.tomogram.scale for s in max_shifts)
         
         def _func(img0: np.ndarray, template_filt: ip.ImgArray, max_shifts):
+            # TODO: missing_wedge
             img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
             lds = zncc_landscape(
                 img0, template_filt, max_shifts=max_shifts, upsample_factor=upsample_factor

@@ -159,6 +159,7 @@ class MTPropsProject(ProjectDescriptor):
     global_variables: PathLike
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, Tuple[float, float], PathLike]
+    tilt_range: Union[Tuple[float, float], None]
     macro: PathLike
 
 
