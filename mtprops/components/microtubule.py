@@ -258,8 +258,7 @@ class MtTomogram(Tomogram):
         """        
         spl = MtSpline(degree=GVar.splOrder)
         coords = np.asarray(coords)
-        sqsum = GVar.splError**2 * coords.shape[0] # unit: nm^2
-        spl.fit(coords, variance=sqsum)
+        spl.fit_curvature(coords, min_radius=GVar.minCurvatureRadius)
         interval: nm = 30.0
         length = spl.length()
         
@@ -470,8 +469,7 @@ class MtTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
         
         # Update spline parameters
-        var = GVar.splError**2  # unit: nm^2
-        spl.fit(coords, variance=var)
+        spl.fit_curvature(coords, min_radius=GVar.minCurvatureRadius)
         LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
@@ -607,8 +605,7 @@ class MtTomogram(Tomogram):
                 shifts[i] = shift @ zxrot
 
         # Update spline parameters
-        var = GVar.splError**2  # unit: nm^2
-        spl.shift_fit(shifts=shifts*scale, variance=var)
+        spl.shift_fit_curvature(shifts=shifts*scale, min_radius=GVar.minCurvatureRadius)
         LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
@@ -1477,11 +1474,30 @@ def try_all_seams(
     template: ip.ImgArray,
     mask: ip.ImgArray | None = None,
 ) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
+    """
+    Try all the possible seam positions and compare correlations.
+
+    Parameters
+    ----------
+    loader : SubtomogramLoader
+        An aligned ``acryo.SubtomogramLoader`` object.
+    npf : int
+        Number of protofilament.
+    template : ip.ImgArray
+        Template image.
+    mask : ip.ImgArray, optional
+        Mask image.
+
+    Returns
+    -------
+    tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]
+        Correlation, average and boolean array correspond to each seam position.
+    """    
     corrs: list[float] = []
     labels: list[np.ndarray] = []  # list of boolean arrays
     
     if mask is None:
-        mask = 1
+        mask = 1.
     
     masked_template = template * mask
     _id = np.arange(len(loader.molecules))

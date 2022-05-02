@@ -5,9 +5,10 @@ from magicclass import (
     set_options,
     set_design,
     MagicTemplate,
+    get_function_gui,
     )
 from magicclass.types import Tuple as _Tuple
-from magicclass import get_function_gui
+from magicclass.utils import show_messagebox
 
 from .widget_utils import FileFilter
 
@@ -22,7 +23,7 @@ class GlobalVariables(MagicTemplate):
         yPitchMax={"step": 0.1},
         minSkew={"min": -90, "max": 90},
         maxSkew={"min": -90, "max": 90},
-        splError={"max": 5.0, "step": 0.1},
+        minCurvatureRadius={"max": 10000.0},
         inner={"step": 0.1},
         outer={"step": 0.1},
         fitLength={"min": 3.0, "max": 100.0},
@@ -40,7 +41,7 @@ class GlobalVariables(MagicTemplate):
         yPitchMax: nm = GVar.yPitchMax,
         minSkew: float = GVar.minSkew,
         maxSkew: float = GVar.maxSkew,
-        splError: nm = GVar.splError,
+        minCurvatureRadius: nm = GVar.minCurvatureRadius,
         inner: float = GVar.inner,
         outer: float = GVar.outer,
         fitLength: nm = GVar.fitLength,
@@ -67,8 +68,8 @@ class GlobalVariables(MagicTemplate):
             Minimum skew angle for estimation.
         maxSkew : float
             Maximum skew angle for estimation.
-        splError : nm
-            Average error of spline fitting.
+        minCurvatureRadius : nm
+            Minimum curvature radius of spline.
         inner : float
             Radius x inner will be the inner surface of MT.
         outer : float
@@ -80,7 +81,27 @@ class GlobalVariables(MagicTemplate):
     @set_design(text="Load variables")
     def load_variables(self, path: Path = INITIAL_PATH):
         with open(path, mode="r") as f:
-            gvar = json.load(f)
+            gvar: dict = json.load(f)
+        
+        # for version compatibility
+        annots = GVar.__annotations__.keys()
+        _undef = set()
+        for k in gvar.keys():
+            if k not in annots:
+                _undef.add(k)
+        if _undef:
+            for k in _undef:
+                gvar.pop(k)
+            show_messagebox(
+                mode="warn",
+                title="Warning",
+                text=(
+                    "Could not load following variables, maybe due to version "
+                    f"incompatibility: {_undef!r}"
+                ),
+                parent=self.native,
+            )
+        
         get_function_gui(self, "set_variables")(**gvar, update_widget=True)
         return None
     

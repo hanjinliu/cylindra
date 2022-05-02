@@ -146,7 +146,7 @@ class GVar:
     yPitchMax: nm = 4.3
     minSkew: float = -1.0
     maxSkew: float = 1.0
-    splError: nm = 0.8
+    minCurvatureRadius: nm = 400.0
     inner: float = 0.8
     outer: float = 1.3
     fitLength: nm = 48.0
