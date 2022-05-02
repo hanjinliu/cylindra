@@ -275,7 +275,7 @@ class Spline:
         coords: np.ndarray,
         weight: np.ndarray = None,
         n: int = 256,
-        max_radius: nm = 1.0,
+        min_radius: nm = 1.0,
         tol = 1e-2,
         max_iter: int = 100,
     ) -> Self:
@@ -296,7 +296,7 @@ class Spline:
             niter += 1
             self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
             curvature = self.curvature(u)
-            ratio = np.max(curvature) * max_radius
+            ratio = np.max(curvature) * min_radius
             if ratio < 1. - tol:  # curvature too small = underfit
                 smax = s
                 s /= 2
@@ -305,7 +305,7 @@ class Spline:
             else:
                 break
             if niter > max_iter:
-                raise ValueError("Max iteration")
+                break
             
         del self.anchors  # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
@@ -359,7 +359,7 @@ class Spline:
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
         n: int = 256,
-        max_radius: nm = 1.0,
+        min_radius: nm = 1.0,
         tol = 1e-2,
         max_iter: int = 100,
     ):
@@ -368,7 +368,7 @@ class Spline:
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_curvature(coords, n=n, max_radius=max_radius, tol=tol, max_iter=max_iter)
+        self.fit_curvature(coords, n=n, min_radius=min_radius, tol=tol, max_iter=max_iter)
         return self
 
     def shift_fit_variance(

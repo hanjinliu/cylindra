@@ -6,7 +6,7 @@
     "yPitchMax": 2.5, 
     "minSkew": -20.0, 
     "maxSkew": -10.0, 
-    "splError": 0.8, 
+    "minCurvatureRadius": 10000.0, 
     "inner": 0.3, 
     "outer": 1.5, 
     "fitLength": 48.0, 
