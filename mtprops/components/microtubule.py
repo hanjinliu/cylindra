@@ -1477,11 +1477,30 @@ def try_all_seams(
     template: ip.ImgArray,
     mask: ip.ImgArray | None = None,
 ) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
+    """
+    Try all the possible seam positions and compare correlations.
+
+    Parameters
+    ----------
+    loader : SubtomogramLoader
+        An aligned ``acryo.SubtomogramLoader`` object.
+    npf : int
+        Number of protofilament.
+    template : ip.ImgArray
+        Template image.
+    mask : ip.ImgArray, optional
+        Mask image.
+
+    Returns
+    -------
+    tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]
+        Correlation, average and boolean array correspond to each seam position.
+    """    
     corrs: list[float] = []
     labels: list[np.ndarray] = []  # list of boolean arrays
     
     if mask is None:
-        mask = 1
+        mask = 1.
     
     masked_template = template * mask
     _id = np.arange(len(loader.molecules))

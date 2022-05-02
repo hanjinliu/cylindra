@@ -3138,7 +3138,7 @@ class MTPropsWidget(MagicTemplate):
         """
         Search for the best seam position.
         
-        Try all patterns of seam positions.
+        Try all patterns of seam positions and compare cross correlation values.
 
         Parameters
         ----------
