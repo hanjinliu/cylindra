@@ -112,7 +112,7 @@ def test_spline_switch():
     ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
                       mask_params=(1, 1))
     ui.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
-                 max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0))
+                 tilt_range=(-60., 60.), max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0))
     ui.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1))
     ui.save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
                       save_path=TEST_PATH/"monomers.txt"

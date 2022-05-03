@@ -2366,6 +2366,7 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -2387,6 +2388,8 @@ class MTPropsWidget(MagicTemplate):
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
+        tilt_range : (float, float), optional
+            Tilt range of tomogram tilt series in degree.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
@@ -2424,7 +2427,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=model_cls,
-            tilt_range=self._subtomogram_averaging.tilt_range,
+            tilt_range=tilt_range,
         )
         
         self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
@@ -2433,8 +2436,8 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
-        shape={"options": {"min": 1., "max": 100.}, "label": "Z, Y, X shape (nm)"},
-        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        size={"min": 1., "max": 100., "label": "sub-volume size (nm)"},
+        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "max shifts (nm)"},
         z_rotation={"options": {"max": 90.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 180.0, "step": 0.1}},
@@ -2448,7 +2451,8 @@ class MTPropsWidget(MagicTemplate):
     def align_all_template_free(
         self,
         layer: MonomerLayer,
-        shape: Tuple[nm, nm, nm] = (32., 32., 32.),
+        size: nm = 32.,
+        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -2465,8 +2469,10 @@ class MTPropsWidget(MagicTemplate):
         ----------
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
-        shape : tuple of nm, default is (32., 32., 32.)
-
+        size : nm, default is 32.
+            Sub-volume size used for alignment.
+        tilt_range : (float, float), optional
+            Tilt range of tomogram tilt series in degree.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
@@ -2492,7 +2498,7 @@ class MTPropsWidget(MagicTemplate):
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-            shape=shape,
+            shape=(size,)*3,
         )
         model_cls = _get_alignment(method)
         aligned_loader = loader.align_no_template(
@@ -2500,7 +2506,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=model_cls,
-            tilt_range=self._subtomogram_averaging.tilt_range,
+            tilt_range=tilt_range,
         )
         
         self.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
@@ -2511,7 +2517,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         other_templates={"filter": FileFilter.IMAGE},
         cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "max shifts (nm)"},
         z_rotation={"options": {"max": 180.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 90.0, "step": 0.1}},
@@ -2527,6 +2533,7 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         other_templates: List[Path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -2550,6 +2557,8 @@ class MTPropsWidget(MagicTemplate):
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
+        tilt_range : (float, float), optional
+            Tilt range of tomogram tilt series in degree.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
@@ -2593,7 +2602,7 @@ class MTPropsWidget(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=model_cls,
-            tilt_range=self._subtomogram_averaging.tilt_range,
+            tilt_range=tilt_range,
         )
         self.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
@@ -2602,23 +2611,24 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
+        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "max shifts (nm)"},
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
     )
     @set_design(text="Align Viterbi")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Viterbi-alignment of {!r}")})
     def align_all_viterbi(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        mask_params: Bound[_subtomogram_averaging._get_mask_params] = None,
+        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
         cutoff: float = 1.0,
         interpolation: int = 3,
         distance_range: Tuple[nm, nm] = (3.9, 4.4),
-        max_angle: Optional[float] = 1.0,
+        max_angle: Optional[float] = 6.0,
         upsample_factor: int = 5,
     ):
         """
@@ -2633,6 +2643,8 @@ class MTPropsWidget(MagicTemplate):
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
+        tilt_range : (float, float), optional
+            Tilt range of tomogram tilt series in degree.
         max_shifts : int or tuple of int, default is (0.6, 0.6, 0.6)
             Maximum shift between subtomograms and template in nm. ZYX order.
         cutoff : float, default is 1.0
@@ -2658,7 +2670,12 @@ class MTPropsWidget(MagicTemplate):
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s/self.tomogram.scale for s in max_shifts)
-        model = ZNCCAlignment(template.value, mask, cutoff=cutoff, tilt_range=self._subtomogram_averaging.tilt_range)
+        model = ZNCCAlignment(
+            template.value,
+            mask,
+            cutoff=cutoff,
+            tilt_range=tilt_range
+        )
         template_ft = ip.asarray(model.pre_transform(template * model.mask), axes="zyx")
         
         def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):

@@ -63,10 +63,10 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 			auto end_point = coords[t].at(z1, y1, x1);
 			for (auto z0 = 0; z0 < nz; ++z0) {
 			for (auto y0 = 0; y0 < nx; ++y0) {
-				// If distances are not in the range of [dist_min, dist_max] at the edges, i.e., 
-				// x=0 and x=nx-1, then other points are not in the range either.
-				// Since valid range of distance is relatively small, this check largely improves
-				// performance.
+				// If distances are not in the range of [dist_min, dist_max] at the edges,
+				// i.e., x=0 and x=nx-1, then other points are not in the range either.
+				// Since valid range of distance is relatively small, this check largely
+				// improves performance.
 				double z0_d = static_cast<double>(z0);
 				double y0_d = static_cast<double>(y0);
 				auto distance2_0 = (coords[t-1].at(z0_d, y0_d, 0.0) - end_point).length2();
@@ -109,12 +109,11 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 					}
 					neighbor_found = true;
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
-				}}}
+				}
+			}}
 			
 			if (!neighbor_found) {
-				char buf[128];
-				std::sprintf(buf, "No neighbor found between %d and %d.", t-1, t);
-				throw py::value_error(buf);
+				viterbi_lattice(t, z1, y1, x1) = -std::numeric_limits<double>::infinity();
 			}
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
@@ -177,7 +176,7 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 	py::array_t<double> xvec,
 	double dist_min,  // NOTE: upsample factor must be considered
 	double dist_max,
-	double skew_max
+	double skew_max  // NOTE: this parameter must be in radian
 )
 {
 	auto dist_min2 = dist_min * dist_min;
@@ -206,14 +205,6 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 	for (auto x = 0; x < nx; ++x) {
 		viterbi_lattice(0, z, y, x) = *score.data(0, z, y, x);
 	}}}
-	
-	for (auto t=1; t < nmole; ++t) {
-		for (auto z = 0; z < nz; ++z) {
-		for (auto y = 0; y < ny; ++y) {
-		for (auto x = 0; x < nx; ++x) {
-			viterbi_lattice(t, z, y, x) = -std::numeric_limits<double>::infinity();
-		}}}
-	}
 	
 	// Allocation of arrays of coordinate system.
 	// Offsets and orientations of local coordinates of score landscape are well-defined by this.
@@ -280,11 +271,9 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 				}
 			}}
 			
-			// if (!neighbor_found) {
-			// 	char buf[128];
-			// 	std::sprintf(buf, "No neighbor found between %d and %d.", t-1, t);
-			// 	throw py::value_error(buf);
-			// }
+			if (!neighbor_found) {
+				viterbi_lattice(t, z1, y1, x1) = -std::numeric_limits<double>::infinity();
+			}
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
 		}}}
