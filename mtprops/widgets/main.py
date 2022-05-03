@@ -38,7 +38,6 @@ from magicclass.widgets import (
     ConsoleTextEdit,
     Select,
     FloatRangeSlider,
-    OptionalWidget,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.dask import dask_thread_worker
@@ -2657,16 +2656,42 @@ class MTPropsWidget(MagicTemplate):
         )
         max_shifts_px = tuple(s/self.tomogram.scale for s in max_shifts)
         
-        def _func(img0: np.ndarray, template_filt: ip.ImgArray, max_shifts):
-            # TODO: missing_wedge
-            img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
+        from acryo.alignment import ZNCCAlignment
+        from scipy.fft import ifftn
+        model = ZNCCAlignment(
+            template=template,
+            mask=mask,
+            cutoff=cutoff,
+            tilt_range=self._subtomogram_averaging.tilt_range,
+        )
+        
+        template_input = model.pre_transform(model._get_template_input() * mask)
+        
+        def _func(
+            img0,
+            template_input: np.ndarray,
+            model: ZNCCAlignment,
+            max_shifts,
+            upsample_factor,
+            quaternion: np.ndarray
+        ):
+            img0 = model.pre_transform(img0 * mask)
+            mw = model._get_missing_wedge_mask(quaternion)
             lds = zncc_landscape(
-                img0, template_filt, max_shifts=max_shifts, upsample_factor=upsample_factor
+                ifftn(img0).real, 
+                ifftn(template_input * mw).real, 
+                max_shifts=max_shifts, 
+                upsample_factor=upsample_factor
             )
             return np.asarray(lds)
         
         tasks = loader.construct_mapping_tasks(
-            _func, (template*mask).lowpass_filter(cutoff=cutoff), max_shifts=max_shifts_px
+            _func,
+            template_input=template_input,
+            max_shifts=max_shifts_px,
+            upsample_factor=upsample_factor,
+            output_shape=template.shape,
+            var_kwarg=dict(quaternion=molecules.quaternion()),
         )
         
         out = da.compute(tasks)[0]

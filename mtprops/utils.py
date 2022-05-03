@@ -548,8 +548,8 @@ def viterbi(
 
 
 def zncc_landscape(
-    img0: ip.ImgArray,
-    img1: ip.ImgArray,
+    img0: np.ndarray,
+    img1: np.ndarray,
     max_shifts: tuple[float, float ,float], 
     upsample_factor: int = 10,
 ):
