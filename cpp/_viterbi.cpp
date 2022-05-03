@@ -67,14 +67,16 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 				// x=0 and x=nx-1, then other points are not in the range either.
 				// Since valid range of distance is relatively small, this check largely improves
 				// performance.
-				auto distance2_0 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
-				auto distance2_1 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
+				double z0_d = static_cast<double>(z0);
+				double y0_d = static_cast<double>(y0);
+				auto distance2_0 = (coords[t-1].at(z0_d, y0_d, 0.0) - end_point).length2();
+				auto distance2_1 = (coords[t-1].at(z0_d, y0_d, static_cast<double>(nx-1)) - end_point).length2();
 				bool is_0_smaller = distance2_0 < dist_min2;
 				bool is_0_larger = dist_max2 < distance2_0;
 				bool is_1_smaller = distance2_1 < dist_min2;
 				bool is_1_larger = dist_max2 < distance2_1;
-				auto both_smaller = is_0_smaller && is_1_smaller;
-				auto both_larger = is_0_larger && is_1_larger;
+				bool both_smaller = is_0_smaller && is_1_smaller;
+				bool both_larger = is_0_larger && is_1_larger;
 				
 				if (both_smaller || both_larger) {
 					continue;
@@ -205,6 +207,14 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 		viterbi_lattice(0, z, y, x) = *score.data(0, z, y, x);
 	}}}
 	
+	for (auto t=1; t < nmole; ++t) {
+		for (auto z = 0; z < nz; ++z) {
+		for (auto y = 0; y < ny; ++y) {
+		for (auto x = 0; x < nx; ++x) {
+			viterbi_lattice(t, z, y, x) = -std::numeric_limits<double>::infinity();
+		}}}
+	}
+	
 	// Allocation of arrays of coordinate system.
 	// Offsets and orientations of local coordinates of score landscape are well-defined by this.
 	auto coords = new CoordinateSystem<double>[nmole];
@@ -248,18 +258,16 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 
 				for (auto x0 = 0; x0 < nx; ++x0) {
 					auto vec = coords[t-1].at(z0, y0, x0) - end_point;
-					auto distance2 = vec.length2();
+					auto a2 = vec.length2();
 
-					if (distance2 < dist_min2 || dist_max2 < distance2) {
+					if (a2 < dist_min2 || dist_max2 < a2) {
 						// check distance between two points
 						continue;
 					}
 
-					// Use formula: a.dot(b) = a**2 + b**2 - 2*a*b*cos(C)
-					auto dot_prod = vec.dot(origin_vector);
-					auto a2 = vec.length2();
+					// Use formula: a.dot(b) = |a|*|b|*cos(C)
 					auto ab = std::sqrt(a2 * b2);
-					auto cos = std::abs(dot_prod / (a2 + b2 - 2 * ab));
+					auto cos = vec.dot(origin_vector) / ab;
 
 					if (cos < cos_skew) {
 						// check angle of displacement vector of origins and that of
@@ -269,13 +277,14 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 
 					neighbor_found = true;
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
-				}}}
+				}
+			}}
 			
-			if (!neighbor_found) {
-				char buf[128];
-				std::sprintf(buf, "No neighbor found between %d and %d.", t-1, t);
-				throw py::value_error(buf);
-			}
+			// if (!neighbor_found) {
+			// 	char buf[128];
+			// 	std::sprintf(buf, "No neighbor found between %d and %d.", t-1, t);
+			// 	throw py::value_error(buf);
+			// }
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
 		}}}
@@ -311,19 +320,16 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 		for (auto z0 = 0; z0 < nz; ++z0) {
 		for (auto y0 = 0; y0 < ny; ++y0) {
 		for (auto x0 = 0; x0 < nx; ++x0) {
-			auto vec = point_prev - coords[t].at(z0, y0, x0);
-			auto distance2 = vec.length2();
+			auto vec = coords[t].at(z0, y0, x0) - point_prev;
+			auto a2 = vec.length2();
 
-			if (distance2 < dist_min2 || dist_max2 < distance2) {
+			if (a2 < dist_min2 || dist_max2 < a2) {
 				// check distance.
 				continue;
 			}
 
-			auto dot_prod = vec.dot(origin_vector);
-			auto a2 = vec.length2();
 			auto ab = std::sqrt(a2 * b2);
-			auto cos = std::abs(dot_prod / (a2 + b2 - 2 * ab));
-
+			auto cos = vec.dot(origin_vector) / ab;
 			if (cos < cos_skew) {
 				// check angle.
 				continue;

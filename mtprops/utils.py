@@ -429,73 +429,6 @@ def interval_filter(
     return y_interval
 
 
-class ViterbiLandscape:
-    def __init__(
-        self,
-        score: np.ndarray,
-        origin: np.ndarray,
-        zvec: np.ndarray,
-        yvec: np.ndarray,
-        xvec: np.ndarray,
-    ):
-        nmole, nz, ny, nx = score.shape
-        if origin.shape != (nmole, 3):
-            raise ValueError(f"Shape of 'origin' must be ({nmole}, 3) but got {origin.shape}.")
-        if zvec.shape != (nmole, 3):
-            raise ValueError(f"Shape of 'zvec' must be ({nmole}, 3) but got {zvec.shape}.")
-        if yvec.shape != (nmole, 3):
-            raise ValueError(f"Shape of 'yvec' must be ({nmole}, 3) but got {yvec.shape}.")
-        if xvec.shape != (nmole, 3):
-            raise ValueError(f"Shape of 'xvec' must be ({nmole}, 3) but got {xvec.shape}.")
-        if nmole < 2 or nz < 2 or ny < 2 or nx < 2:
-            raise ValueError(f"Invalid shape of 'score': {score.shape}.")
-        
-        self._score = score
-        self._origin = origin
-        self._zvec = zvec
-        self._yvec = yvec
-        self._xvec = xvec
-    
-    def run_distance_constrained(
-        self,
-        distance_range: tuple[float, float]
-    ) -> tuple[np.ndarray, float]:
-        dist_min, dist_max = distance_range
-        if dist_min >= dist_max:
-            raise ValueError("'dist_min' must be smaller than 'dist_max'.")
-        
-        return _cpp_ext.viterbi(
-            self._score,
-            self._origin,
-            self._zvec, 
-            self._yvec,
-            self._xvec,
-            dist_min,
-            dist_max
-        )
-    
-    def run_distance_angle_constrained(
-        self,
-        distance_range: tuple[float, float],
-        max_skew_radian: float,
-    ) -> tuple[np.ndarray, float]:
-        dist_min, dist_max = distance_range
-        if dist_min >= dist_max:
-            raise ValueError("'dist_min' must be smaller than 'dist_max'.")
-        if not (0 < max_skew_radian < np.pi / 2):
-            raise ValueError("max_skew_radian must be between 0 degree and 90 degree.")
-        
-        return _cpp_ext.viterbiAngularConstraint(
-            self._score,
-            self._origin,
-            self._zvec, 
-            self._yvec,
-            self._xvec,
-            dist_min,
-            dist_max,
-            max_skew_radian,
-        )
-
 def viterbi(
     score: np.ndarray,
     origin: np.ndarray,
@@ -504,6 +437,7 @@ def viterbi(
     xvec: np.ndarray,
     dist_min: float,
     dist_max: float,
+    skew_max: float | None = None,
 ) -> tuple[np.ndarray, float]:
     """
     One-dimensional Viterbi algorithm for contexted subtomogram alignment.
@@ -524,6 +458,8 @@ def viterbi(
         Minimum distance between subtomograms.
     dist_max : float
         Maximum distance between subtomograms.
+    skew_max : float, optional
+        Maximum skew between subtomograms, if given.
 
     Returns
     -------
@@ -544,7 +480,11 @@ def viterbi(
     if nmole < 2 or nz < 2 or ny < 2 or nx < 2:
         raise ValueError(f"Invalid shape of 'score': {score.shape}.")
     
-    return _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
+    if skew_max is None:
+        out = _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
+    else:
+        out = _cpp_ext.viterbiAngularConstraint(score, origin, zvec, yvec, xvec, dist_min, dist_max, skew_max)
+    return out
 
 
 def zncc_landscape(
@@ -553,7 +493,11 @@ def zncc_landscape(
     max_shifts: tuple[float, float ,float], 
     upsample_factor: int = 10,
 ):
-    lds = ip.zncc_landscape(img0, img1, max_shifts=max_shifts)
+    lds = ip.zncc_landscape(
+        ip.asarray(img0, axes="zyx"),
+        ip.asarray(img1, axes="zyx"),
+        max_shifts=max_shifts
+    )
     
     upsampled_max_shifts = (np.asarray(max_shifts) * upsample_factor).astype(np.int32)
     center = np.array(lds.shape) / 2 - 0.5

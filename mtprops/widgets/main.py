@@ -57,7 +57,7 @@ from ..utils import (
     ceilint,
     set_gpu,
     zncc_landscape,
-    ViterbiLandscape,
+    viterbi,
 )
 
 from .global_variables import GlobalVariables
@@ -2604,7 +2604,7 @@ class MTPropsWidget(MagicTemplate):
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        constraint={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "constraint (nm)"},
+        distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
     )
     @set_design(text="Align Viterbi")
@@ -2617,7 +2617,8 @@ class MTPropsWidget(MagicTemplate):
         max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
         cutoff: float = 1.0,
         interpolation: int = 3,
-        constraint: Tuple[nm, nm] = (3.9, 4.4),
+        distance_range: Tuple[nm, nm] = (3.9, 4.4),
+        max_angle: Optional[float] = 1.0,
         upsample_factor: int = 5,
     ):
         """
@@ -2638,7 +2639,7 @@ class MTPropsWidget(MagicTemplate):
             Cutoff frequency of low-pass filter applied in each subtomogram.
         interpolation : int, default is 3
             Interpolation order.
-        constraint : tuple of float, default is (3.9, 4.4)
+        distance_range : tuple of float, default is (3.9, 4.4)
             Range of allowed distance between monomers.
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape. Be careful not to set this parameter too 
@@ -2654,44 +2655,23 @@ class MTPropsWidget(MagicTemplate):
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape=shape_nm, order=interpolation
         )
+        if max_angle is not None:
+            max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s/self.tomogram.scale for s in max_shifts)
+        model = ZNCCAlignment(template.value, mask, cutoff=cutoff, tilt_range=self._subtomogram_averaging.tilt_range)
+        template_ft = ip.asarray(model.pre_transform(template * model.mask), axes="zyx")
         
-        from acryo.alignment import ZNCCAlignment
-        from scipy.fft import ifftn
-        model = ZNCCAlignment(
-            template=template,
-            mask=mask,
-            cutoff=cutoff,
-            tilt_range=self._subtomogram_averaging.tilt_range,
-        )
-        
-        template_input = model.pre_transform(model._get_template_input() * mask)
-        
-        def _func(
-            img0,
-            template_input: np.ndarray,
-            model: ZNCCAlignment,
-            max_shifts,
-            upsample_factor,
-            quaternion: np.ndarray
-        ):
-            img0 = model.pre_transform(img0 * mask)
-            mw = model._get_missing_wedge_mask(quaternion)
-            lds = zncc_landscape(
-                ifftn(img0).real, 
-                ifftn(template_input * mw).real, 
-                max_shifts=max_shifts, 
-                upsample_factor=upsample_factor
-            )
+        def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
+            img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
+            template_ft = template_ft * model._get_missing_wedge_mask(quat)
+            lds = zncc_landscape(img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor)
             return np.asarray(lds)
         
         tasks = loader.construct_mapping_tasks(
-            _func,
-            template_input=template_input,
+            func,
+            template_ft,
             max_shifts=max_shifts_px,
-            upsample_factor=upsample_factor,
-            output_shape=template.shape,
-            var_kwarg=dict(quaternion=molecules.quaternion()),
+            var_kwarg={"quat": molecules.quaternion()},
         )
         
         out = da.compute(tasks)[0]
@@ -2701,16 +2681,18 @@ class MTPropsWidget(MagicTemplate):
         npf = np.max(molecules.features[Mole.pf]) + 1
         
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-        mole_list = [molecules.subset(sl) for sl in slices]
+        offset = np.array(shape_nm)/2 - scale
+        molecules_origin = molecules.translate_internal(-offset)
+        mole_list = [molecules_origin.subset(sl) for sl in slices]
         
-        dist_min, dist_max = np.array(constraint) / scale * upsample_factor
+        dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
         scores = [score[sl] for sl in slices]
 
-        viterbi_tasks = []
-        for s, m in zip(scores, mole_list):
-            vit = ViterbiLandscape(s, m.pos / scale * upsample_factor, m.z, m.y, m.x)
-            viterbi_tasks.append(delayed(vit.run_distance_constrained)(dist_min, dist_max))
-        
+        delayed_viterbi = delayed(viterbi)
+        viterbi_tasks = [
+            delayed_viterbi(s, m.pos / scale * upsample_factor, m.z, m.y, m.x, dist_min, dist_max, max_angle)
+            for s, m in zip(scores, mole_list)
+        ]
         out = da.compute(viterbi_tasks)[0]
         
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
