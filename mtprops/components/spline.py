@@ -283,29 +283,37 @@ class Spline:
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
         elif npoints <= self.degree:
-            self._tck = self._tck[:2] + (npoints - 1,)
+            degree = npoints - 1
+        else:
+            degree = self.degree
         if self.inverted:
             coords = coords[::-1]
+            
         # initialize
         s = 0.
         smax = np.sum(np.var(coords, axis=0)) * npoints
         u = np.linspace(0, 1, n)
         niter = 0
         
-        while True:
-            niter += 1
-            self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
-            curvature = self.curvature(u)
-            ratio = np.max(curvature) * min_radius
-            if ratio < 1. - tol:  # curvature too small = underfit
-                smax = s
-                s /= 2
-            elif 1. < ratio:  # curvature too large = overfit
-                s = s / 2 + smax / 2
-            else:
-                break
-            if niter > max_iter:
-                break
+        if degree == 1:
+            # curvature is not defined for a linear spline curve
+            self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=0.)
+        
+        else:
+            while True:
+                niter += 1
+                self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=s)
+                curvature = self.curvature(u)
+                ratio = np.max(curvature) * min_radius
+                if ratio < 1. - tol:  # curvature too small = underfit
+                    smax = s
+                    s /= 2
+                elif 1. < ratio:  # curvature too large = overfit
+                    s = s / 2 + smax / 2
+                else:
+                    break
+                if niter > max_iter:
+                    break
             
         del self.anchors  # Anchor should be deleted after spline is updated
         self.clear_cache(loc=True, glob=True)
