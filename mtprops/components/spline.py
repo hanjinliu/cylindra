@@ -270,15 +270,41 @@ class Spline:
         original._u = self._u
         return original
 
-    def fit_curvature(
+    def fit_coa(
         self, 
         coords: np.ndarray,
+        *,
         weight: np.ndarray = None,
         n: int = 256,
         min_radius: nm = 1.0,
-        tol = 1e-2,
+        tol: float = 1e-2,
         max_iter: int = 100,
     ) -> Self:
+        """
+        Fit spline model to coordinates by "Curvature-Oriented Approximation".
+
+        Parameters
+        ----------
+        coords : np.ndarray
+            Coordinates. Must be (N, 3).
+        weight : np.ndarray, optional
+            Weight of each coordinate.
+        n : int, default is 256
+            Number of partition for curvature sampling.
+        min_radius : nm, default is 1.0
+            Minimum allowed curvature radius. Fitting iteration continues until curvature
+            radii are larger at any sampled points.
+        tol : float, default is 1e-2
+            Tolerance of fitting. Fitting iteration continues until ratio of maximum
+            curvature to curvature upper limit is larger than 1 - tol.
+        max_iter : int, default is 100
+            Maximum number of iteration. Fitting stops when exceeded.
+        
+        Returns
+        -------
+        Spline
+            Spline fit to given coordinates.
+        """        
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
@@ -319,14 +345,15 @@ class Spline:
         self.clear_cache(loc=True, glob=True)
         return self
 
-    def fit_variance(
+    def fit_voa(
         self,
         coords: np.ndarray,
+        *,
         weight: np.ndarray = None,
         variance: float = None
     ) -> Self:
         """
-        Fit spline model to coordinates.
+        Fit spline model to coordinates by "Variance-Oriented Approximation".
         
         This method conduct variance-based fitting, which is well-formulated by the function
         ``scipy.interpolate.splprep``. The fitting result confirms that total variance 
@@ -362,7 +389,7 @@ class Spline:
         self.clear_cache(loc=True, glob=True)
         return self
     
-    def shift_fit_curvature(
+    def shift_coa(
         self,
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
@@ -376,10 +403,10 @@ class Spline:
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_curvature(coords, n=n, min_radius=min_radius, tol=tol, max_iter=max_iter)
+        self.fit_coa(coords, n=n, min_radius=min_radius, tol=tol, max_iter=max_iter)
         return self
 
-    def shift_fit_variance(
+    def shift_voa(
         self,
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
@@ -407,7 +434,7 @@ class Spline:
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_variance(coords, variance=variance)
+        self.fit_voa(coords, variance=variance)
         return self
 
     

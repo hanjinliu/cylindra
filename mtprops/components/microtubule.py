@@ -258,7 +258,7 @@ class MtTomogram(Tomogram):
         """        
         spl = MtSpline(degree=GVar.splOrder)
         coords = np.asarray(coords)
-        spl.fit_curvature(coords, min_radius=GVar.minCurvatureRadius)
+        spl.fit_coa(coords, min_radius=GVar.minCurvatureRadius)
         interval: nm = 30.0
         length = spl.length()
         
@@ -469,7 +469,7 @@ class MtTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
         
         # Update spline parameters
-        spl.fit_curvature(coords, min_radius=GVar.minCurvatureRadius)
+        spl.fit_coa(coords, min_radius=GVar.minCurvatureRadius)
         LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     
@@ -605,7 +605,7 @@ class MtTomogram(Tomogram):
                 shifts[i] = shift @ zxrot
 
         # Update spline parameters
-        spl.shift_fit_curvature(shifts=shifts*scale, min_radius=GVar.minCurvatureRadius)
+        spl.shift_coa(shifts=shifts*scale, min_radius=GVar.minCurvatureRadius)
         LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
         return self
     

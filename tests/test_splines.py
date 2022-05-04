@@ -9,7 +9,7 @@ import impy as ip
 def test_inverse_mapping():
     spl = MtSpline()
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
-    spl.fit_variance(coords)
+    spl.fit_voa(coords)
     coords = np.array([[1, 1.5, 0], 
                        [0, 1.5, 1],
                        [-1, 1.5, 0], 
@@ -44,7 +44,7 @@ def test_inverse_mapping():
 def test_coordinate_transformation():
     spl = MtSpline()
     coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
-    spl.fit_variance(coords)
+    spl.fit_voa(coords)
     
     # Cartesian
     img = ip.array(np.arange(5*6*5).reshape(5, 6, 5), dtype=np.float32, axes="zyx")
@@ -92,7 +92,7 @@ def test_invert():
     spl = MtSpline()
    
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl.fit_variance(coords)
+    spl.fit_voa(coords)
     spl.make_anchors(n=5)
     spl.orientation = "PlusToMinus"
     
@@ -119,7 +119,7 @@ def test_clip():
     spl.orientation = "PlusToMinus"
     
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl.fit_variance(coords)
+    spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
     
     spl_c0 = spl.clip(0.2, 0.7)
@@ -138,9 +138,9 @@ def test_shift_fit():
     spl = MtSpline()
    
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl.fit_variance(coords)
+    spl.fit_voa(coords)
     spl.make_anchors(n=4)
-    spl.shift_fit_variance(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
+    spl.shift_voa(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
     spl.make_anchors(n=4)
     assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
 
@@ -148,7 +148,7 @@ def test_dict():
     spl = MtSpline()
    
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl.fit_variance(coords)
+    spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
     spl.clip(0.2, 0.8)
     
@@ -161,7 +161,7 @@ def test_curvature(radius):
     spl = MtSpline()
     u = np.linspace(0, 2*np.pi, 100)
     coords = np.stack([np.zeros(100), radius*np.sin(u), radius*np.cos(u)], axis=1)
-    spl = spl.fit_variance(coords, variance=0)
+    spl = spl.fit_voa(coords, variance=0)
     spl.make_anchors(n=100)
     cr = spl.curvature_radii()
     cr_mean = np.mean(cr)

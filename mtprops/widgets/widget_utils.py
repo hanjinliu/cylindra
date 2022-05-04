@@ -79,7 +79,7 @@ def molecules_to_spline(layer: Points) -> MtSpline:
     npf = int(round(np.max(mole.features[Mole.pf]) + 1))
     all_coords = mole.pos.reshape(-1, npf, 3)
     mean_coords = np.mean(all_coords, axis=1)
-    spl.fit_curvature(mean_coords, min_radius=GVar.minCurvatureRadius)
+    spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
     return spl
 
 def y_coords_to_start_number(u: np.ndarray, npf: int):

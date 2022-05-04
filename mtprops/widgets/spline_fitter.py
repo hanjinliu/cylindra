@@ -66,7 +66,7 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         _scale = parent.tomogram.scale
         spl = self.splines[i]
-        spl.shift_fit_curvature(
+        spl.shift_coa(
             shifts=shifts*self.binsize*_scale,
             min_radius=GVar.minCurvatureRadius
         )
