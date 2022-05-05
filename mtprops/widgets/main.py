@@ -2451,8 +2451,8 @@ class MTPropsWidget(MagicTemplate):
     def align_all_template_free(
         self,
         layer: MonomerLayer,
-        size: nm = 32.,
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
+        size: nm = 32.,
         max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -2469,10 +2469,10 @@ class MTPropsWidget(MagicTemplate):
         ----------
         layer : MonomerLayer
             Layer of subtomogram positions and angles.
-        size : nm, default is 32.
-            Sub-volume size used for alignment.
         tilt_range : (float, float), optional
             Tilt range of tomogram tilt series in degree.
+        size : nm, default is 32.
+            Sub-volume size used for alignment.
         max_shifts : int or tuple of int, default is (1., 1., 1.)
             Maximum shift between subtomograms and template in nm. ZYX order.
         z_rotation : tuple of float, optional
