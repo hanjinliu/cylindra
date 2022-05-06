@@ -565,6 +565,19 @@ class Spline:
     
     @classmethod
     def from_dict(cls: type[Self], d: SplineInfo) -> Self:
+        """
+        Construct a spline model from a dictionary.
+
+        Parameters
+        ----------
+        d: dict
+            Dictionary with keys {"t", "c", "k", "u", "lims"}.
+
+        Returns
+        -------
+        Spline
+            Spline object constructed from the dictionary.
+        """
         self = cls(degree=d.get("k", 3), lims=d.get("lims", (0, 1)))
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]
