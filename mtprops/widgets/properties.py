@@ -4,13 +4,27 @@ from magicclass import (
     magicclass,
     field,
     vfield,
-    MagicTemplate
+    MagicTemplate,
+    FieldGroup,
     )
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 from ..const import H
 
 if TYPE_CHECKING:
     import pandas as pd
+
+class LabeledText(FieldGroup):
+    lbl = field("pitch", widget_type="Label")
+    txt = vfield("", options={"enabled": False})
+    
+    def __init__(self, label_text: str):
+        super().__init__(labels=False)
+        self.lbl.value = label_text
+        self.margins = (0, 0, 0, 0)
+    
+    def __newlike__(self):
+        return self.__class__(self.lbl.value)
+    
 
 @magicclass(widget_type="collapsible", name="Local Properties")
 class LocalPropertiesWidget(MagicTemplate):
@@ -20,23 +34,10 @@ class LocalPropertiesWidget(MagicTemplate):
     class params(MagicTemplate):
         """Structural parameters at the current position"""
         
-        @magicclass(labels=False)
-        class pitch(MagicTemplate):
-            """Longitudinal pitch length (interval between monomers)"""
-            lbl = field("pitch", widget_type="Label")
-            txt = vfield("", options={"enabled": False})
-            
-        @magicclass(labels=False)
-        class skew(MagicTemplate):
-            """Skew angle """
-            lbl = field("skew angle", widget_type="Label")
-            txt = vfield("", options={"enabled": False})
-            
-        @magicclass(labels=False)
-        class structure(MagicTemplate):
-            lbl = field("structure", widget_type="Label")
-            txt = vfield("", options={"enabled": False})
-
+        pitch = LabeledText("pitch")
+        skew = LabeledText("skew angle")
+        structure = LabeledText("structure")
+        
     plot = field(QtMultiPlotCanvas,
                  name="Plot", 
                  options={"nrows": 2, 
@@ -126,38 +127,16 @@ class GlobalPropertiesWidget(MagicTemplate):
         @magicclass(layout="horizontal", labels=False)
         class params1(MagicTemplate):
             
-            @magicclass(labels=False)
-            class pitch(MagicTemplate):
-                """Longitudinal pitch length (interval between monomers)"""
-                lbl = field("pitch", widget_type="Label")
-                txt = vfield("", options={"enabled": False})
-                
-            @magicclass(labels=False)
-            class skew(MagicTemplate):
-                """Skew angle """
-                lbl = field("skew angle", widget_type="Label")
-                txt = vfield("", options={"enabled": False})
-                
-            @magicclass(labels=False)
-            class structure(MagicTemplate):
-                lbl = field("structure", widget_type="Label")
-                txt = vfield("", options={"enabled": False})
-        
+            pitch = LabeledText("pitch")
+            skew = LabeledText("skew angle")
+            structure = LabeledText("structure")
+            
         @magicclass(layout="horizontal", labels=False)
         class params2(MagicTemplate):
         
-            @magicclass(labels=False)
-            class radius(MagicTemplate):
-                """radius"""
-                lbl = field("radius", widget_type="Label")
-                txt = vfield("", options={"enabled": False})
-                
-            @magicclass(labels=False)
-            class polarity(MagicTemplate):
-                """polarity of MT"""
-                lbl = field("polarity", widget_type="Label")
-                txt = vfield("", options={"enabled": False})
-
+            radius = LabeledText("radius")
+            polarity = LabeledText("polarity")
+            
     def _init_text(self):
         self.params.params1.pitch.txt = " -- nm"
         self.params.params1.skew.txt = " -- °"

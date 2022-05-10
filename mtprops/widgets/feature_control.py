@@ -212,6 +212,8 @@ class FeatureControl(MagicTemplate):
         self.feature_name.reset_choices()
     
     def _update_table_and_expr(self):
+        if self.layer is None:
+            return
         self.table.value = self.layer.features
         self.Tabs.Filter.expression =""
     

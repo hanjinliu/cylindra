@@ -962,7 +962,7 @@ class MTPropsWidget(MagicTemplate):
             self.layer_image.data = img.tiled_lowpass_filter(
                 cutoff, chunks=(96, 96, 96), overlap=overlap,
             )
-        return np.percentile(self.layer_image.data, [1, 97])
+        return np.percentile(self.layer_image.data, [1, 99.9])
 
     @filter_reference_image.returned.connect
     def _filter_reference_image_on_return(self, contrast_limits):
