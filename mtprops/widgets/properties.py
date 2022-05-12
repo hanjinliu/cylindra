@@ -22,9 +22,6 @@ class LabeledText(FieldGroup):
         self.lbl.value = label_text
         self.margins = (0, 0, 0, 0)
     
-    def __newlike__(self):
-        return self.__class__(self.lbl.value)
-    
 
 @magicclass(widget_type="collapsible", name="Local Properties")
 class LocalPropertiesWidget(MagicTemplate):
