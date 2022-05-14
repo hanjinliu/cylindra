@@ -143,7 +143,7 @@ class Volume(MagicTemplate):
 
 @magicclass
 class PlaneClip(MagicTemplate):
-    layer: Layer = vfield(Layer)
+    layer = vfield(Layer)
     x = vfield(FloatRangeSlider)
     y = vfield(FloatRangeSlider)
     z = vfield(FloatRangeSlider)

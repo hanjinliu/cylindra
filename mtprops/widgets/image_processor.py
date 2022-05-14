@@ -18,6 +18,16 @@ from ..const import GVar
 
 @magicclass
 class ImageProcessor(MagicTemplate):
+    """
+    Process image files.
+    
+    Attributes
+    ----------
+    input_image : Path
+        Path to the input image file.
+    output_image : Path
+        Path to the output image file.
+    """
     input_image = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
     output_image = vfield(Path, options={"filter": FileFilter.IMAGE, "mode": "w"}, record=False)
     pbar = vfield(ProgressBar, options={"visible": False}, record=False)

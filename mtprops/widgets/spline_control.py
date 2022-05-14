@@ -11,7 +11,18 @@ from ..components.microtubule import MtSpline
 
 @magicclass(widget_type="groupbox")
 class SplineControl(MagicTemplate):
-    """MT sub-regions"""
+    """
+    Control and visualization along splines
+    
+    Attributes
+    ----------
+    num : int
+        Splines in current tomogram.
+    pos : int
+        Position along the spline.
+    canvas : QtMultiImageCanvas
+        2-D projections of subtomogram at current position.
+    """
     def __post_init__(self):
         self.projections: List[Projections] = []
         self.canvas.min_height = 200
@@ -34,9 +45,9 @@ class SplineControl(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
-    num = vfield(int, widget_type="ComboBox", options={"choices": _get_splines, "tooltip": "Spline in current tomogram.", "label": "Spline No."}, record=False)
-    pos = vfield(int, widget_type="Slider", options={"max": 0, "tooltip": "Position along a MT.", "label": "Position"}, record=False)
-    canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3, "tooltip": "Projections"})
+    num = vfield(int, widget_type="ComboBox", options={"choices": _get_splines, "label": "Spline No."}, record=False)
+    pos = vfield(int, widget_type="Slider", label="Position", options={"max": 0}, record=False)
+    canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3})
     
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):

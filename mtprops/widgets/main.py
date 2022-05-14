@@ -67,7 +67,6 @@ from .spline_fitter import SplineFitter
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
-from .project_editor import SubtomogramAveragingProjectEditor
 from ._previews import view_tables, view_text, view_image, view_surface
 from .widget_utils import (
     FileFilter,
@@ -110,7 +109,6 @@ class MTPropsWidget(MagicTemplate):
     _SplineFitter = field(SplineFitter, name="Spline fitter")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
     _FeatureControl = field(FeatureControl, name="Feature Control")
-    _STAProjectEditor = field(SubtomogramAveragingProjectEditor, name="Subtomogram Averaging project editor")
     
     @magicclass(labels=False, name="Logger")
     @set_design(min_height=200)
@@ -195,7 +193,6 @@ class MTPropsWidget(MagicTemplate):
         def global_ft_analysis(self): ...
         sep0 = field(Separator)
         def open_subtomogram_analyzer(self): ...
-        def open_project_editor(self): ...
     
     @magicmenu
     class Others(MagicTemplate):
@@ -227,11 +224,24 @@ class MTPropsWidget(MagicTemplate):
         def auto_center(self): ...
         @magicmenu(icon_path=ICON_DIR/"adjust_intervals.png")
         class Adjust(MagicTemplate):
-            """Adjust auto picker"""
-            stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100, "tooltip": "Stride length (nm) of auto picker"}, record=False)
-            angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5, "tooltip": "Angle deviation (degree) of auto picker"}, record=False)
-            angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1, "tooltip": "Angle precision (degree) of auto picker"}, record=False)
-            max_shifts = vfield(20.0, options={"min": 1., "max": 50., "step": 0.5, "tooltip": "Maximum shift (nm) in auto centering"}, record=False)
+            """
+            Adjust auto picker parameters.
+            
+            Attributes
+            ----------
+            stride : nm
+                Stride length (nm) of auto picker.
+            angle_deviation : float
+                Angle deviation (degree) of auto picker.
+            angle_precision : float
+                Angle precision (degree) of auto picker.
+            max_shifts : nm
+                Maximum shift (nm) in auto centering.
+            """
+            stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100}, record=False)
+            angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5}, record=False)
+            angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1}, record=False)
+            max_shifts = vfield(20.0, options={"min": 1., "max": 50., "step": 0.5}, record=False)
         sep1 = field(Separator)
         def clear_current(self): ...
         def clear_all(self): ...
@@ -327,6 +337,25 @@ class MTPropsWidget(MagicTemplate):
     
     @magicclass(name="Run MTProps")
     class _runner(MagicTemplate):
+        """
+        Attributes
+        ----------
+        all_splines : bool
+            Uncheck to select along which spline algorithms will be executed.
+        splines : list of int
+            Splines that will be analyzed
+        bin_size : int
+            Set to >1 to use binned image for fitting.
+        dense_mode : bool
+            Check if microtubules are densely packed. Initial spline position
+            must be 'almost' fitted in dense mode.
+        n_refine : int
+            Iteration number of spline refinement.
+        local_props : bool
+            Check if calculate local properties.
+        global_props : bool
+            Check if calculate global properties.
+        """
         def _get_splines(self, _=None) -> List[Tuple[str, int]]:
             """Get list of spline objects for categorical widgets."""
             try:
@@ -349,24 +378,45 @@ class MTPropsWidget(MagicTemplate):
                 out = [1] + out
             return out
         
-        all_splines = vfield(True, options={"text": "Run for all the splines.", "tooltip": "Uncheck to select along which spline algorithms will be executed."}, record=False)
+        all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
         splines = vfield(Select, options={"choices": _get_splines, "visible": False}, record=False)
-        bin_size = vfield(1, options={"choices": _get_available_binsize, "tooltip": "Set to >1 to use binned image for fitting."}, record=False)
-        dense_mode = vfield(True, options={"label": "Use dense-mode", "tooltip": "Check if microtubules are densely packed. Initial spline position must be 'almost' fitted in dense mode."}, record=False)
+        bin_size = vfield(1, options={"choices": _get_available_binsize}, record=False)
+        dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
         @magicclass(widget_type="groupbox", name="Parameters")
         class params1:
-            """Parameters used in spline fitting."""
-            edge_sigma = vfield(2.0, options={"label": "edge sigma", "tooltip": "Sharpness of dense-mode mask at the edges."}, record=False)
-            max_shift = vfield(5.0, options={"label": "Maximum shift (nm)", "max": 50.0, "step": 0.5, "tooltip": "Maximum shift in nm of manually selected spline to the true center."}, record=False)
-        n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4, "tooltip": "Iteration number of spline refinement."}, record=False)
-        local_props = vfield(True, options={"label": "Calculate local properties", "tooltip": "Check if calculate local properties."}, record=False)
+            """
+            Parameters used in spline fitting.
+            
+            Attributes
+            ----------
+            edge_sigma : nm
+                Sharpness of dense-mode mask at the edges.
+            max_shift : nm
+                Maximum shift in nm of manually selected spline to the true center.
+            """
+            edge_sigma = vfield(2.0, options={"label": "edge sigma"}, record=False)
+            max_shift = vfield(5.0, options={"label": "Maximum shift (nm)", "max": 50.0, "step": 0.5}, record=False)
+        n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4}, record=False)
+        local_props = vfield(True, options={"label": "Calculate local properties"}, record=False)
         @magicclass(widget_type="groupbox", name="Parameters")
         class params2:
-            """Parameters used in calculation of local properties."""
-            interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)", "tooltip": "Interval of sampling points of microtubule fragments."}, record=False)
-            ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)", "tooltip": "Longitudinal length of local discrete Fourier transformation used for structural analysis."}, record=False)
-            paint = vfield(True, options={"tooltip": "Check if paint microtubules after local properties are calculated."}, record=False)
-        global_props = vfield(True, options={"label": "Calculate global properties", "tooltip": "Check if calculate global properties."}, record=False)
+            """
+            Parameters used in calculation of local properties.
+            
+            Attributes
+            ----------
+            interval : nm
+                Interval of sampling points of microtubule fragments.
+            ft_size: nm
+                Longitudinal length of local discrete Fourier transformation used 
+                for structural analysis.
+            paint : bool
+                Check if paint the tomogram with the local properties.
+            """
+            interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)"}, record=False)
+            ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)"}, record=False)
+            paint = vfield(True, record=False)
+        global_props = vfield(True, label="Calculate global properties", record=False)
 
         @all_splines.connect
         def _toggle_spline_list(self):
@@ -1800,36 +1850,48 @@ class MTPropsWidget(MagicTemplate):
         """Open the subtomogram analyzer dock widget."""
         self._subtomogram_averaging.show()
     
-    @Analysis.wraps
-    @set_design(text="Open project editor")
-    @do_not_record
-    def open_project_editor(self):
-        """Open the subtomogram averaging project editor."""
-        self._STAProjectEditor.show()
-        
     @magicclass(name="Subtomogram averaging")
     class _subtomogram_averaging(MagicTemplate):
-        # Widget for subtomogram averaging
+        """
+        Widget for subtomogram averaging.
         
+        Attributes
+        ----------
+        template_path : Path
+            Path to the template (reference) image file.
+        mask : str
+            Select how to create a mask.
+        tilt_range : tuple of float, options
+            Tilt range (degree) of the tomogram.
+        """
         def __post_init__(self):
             self._template = None
             self._viewer: Union[napari.Viewer, None] = None
             self._next_layer_name = None
             self.mask = MASK_CHOICES[0]
             
-        template_path = vfield(Path, options={"label": "Template", "filter": FileFilter.IMAGE}, record=False)
-        mask = vfield(RadioButtons, options={"label": "Mask", "choices": MASK_CHOICES}, record=False)
+        template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
+        mask = vfield(RadioButtons, label="Mask", options={"choices": MASK_CHOICES}, record=False)
         
         @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
         class params(MagicTemplate):
-            dilate_radius = vfield(1.0, options={"tooltip": "Radius of dilation applied to binarized template (unit: nm).", "step": 0.5, "max": 20}, record=False)
-            sigma = vfield(1.0, options={"tooltip": "Standard deviation of Gaussian blur applied to the edge of binary image (unit: nm).", "step": 0.5, "max": 20}, record=False)
+            """
+            Parameter for mask creation.
+
+            dilate_radius : nm
+                Radius of dilation (nm) applied to binarized template.
+            sigma : nm
+                Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
+            """
+            dilate_radius = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
+            sigma = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
             
         @magicclass(layout="horizontal", widget_type="frame")
         class mask_path(MagicTemplate):
+            """Path to the mask image."""
             mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
         
-        tilt_range = vfield(Optional[Tuple[nm, nm]], options={"label": "Tilt range (deg)", "value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
+        tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
         
         @mask.connect
         def _on_switch(self):
@@ -1962,6 +2024,7 @@ class MTPropsWidget(MagicTemplate):
         
         @magicmenu
         class Subtomogram_analysis(MagicTemplate):
+            """Analysis of subtomograms."""
             def average_all(self): ...
             def average_subset(self): ...
             def split_and_average(self): ...
@@ -1972,6 +2035,7 @@ class MTPropsWidget(MagicTemplate):
         
         @magicmenu
         class Refinement(MagicTemplate):
+            """Refinement and alignment of subtomograms."""
             def align_averaged(self): ...
             def align_all(self): ...
             def align_all_template_free(self): ...
@@ -1982,6 +2046,7 @@ class MTPropsWidget(MagicTemplate):
         
         @magicmenu
         class Tools(MagicTemplate):
+            """Other tools."""
             def reshape_template(self): ...
             def render_molecules(self): ...
         

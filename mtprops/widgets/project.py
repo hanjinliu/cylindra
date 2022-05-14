@@ -161,14 +161,3 @@ class MTPropsProject(ProjectDescriptor):
     mask_parameters: Union[None, Tuple[float, float], PathLike]
     tilt_range: Union[Tuple[float, float], None]
     macro: PathLike
-
-
-class SubtomogramAveragingProject(ProjectDescriptor):
-    """A project of subtomogram averaging using multiple tomograms."""
-    
-    datetime: str
-    version: str
-    dependency_versions: Dict[str, str]
-    datasets: Dict[PathLike, List[PathLike]]  # {subproject-path: [molecules-path-0, molecules-path-1, ...]}
-    shape: Tuple[float, float ,float]
-    

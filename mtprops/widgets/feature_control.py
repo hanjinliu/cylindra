@@ -21,6 +21,16 @@ if TYPE_CHECKING:
 
 @magicclass
 class FeatureControl(MagicTemplate):
+    """
+    Feature control widget.
+
+    Attributes
+    ----------
+    layer : Points
+        Select a monomers layer.
+    feature_name : str
+        Select target feature of the layer.
+    """
     def _get_feature_names(self, _=None):
         try:
             layer: Points = self.layer
@@ -31,8 +41,8 @@ class FeatureControl(MagicTemplate):
         cols = layer.features.columns
         return cols
     
-    layer = vfield(Points, options={"choices": get_monomer_layers, "tooltip": "Select a monomers layer"}, record=False)
-    feature_name = field(options={"choices": _get_feature_names, "tooltip": "Select target feature of the layer"}, record=False)
+    layer = vfield(Points, options={"choices": get_monomer_layers}, record=False)
+    feature_name = field(options={"choices": _get_feature_names}, record=False)
     table = field(Table, record=False)
     
     def _get_feature_dataframe(self) -> "pd.DataFrame":
@@ -55,13 +65,30 @@ class FeatureControl(MagicTemplate):
             class Colors(MagicTemplate):
                 @magicclass(labels=False, widget_type="scrollable")
                 class ContinuousColorMap(MagicTemplate):
-                    """Colormap editor for sequencial features."""
+                    """
+                    Colormap editor for sequencial features.
                     
+                    Attributes
+                    ----------
+                    limits : tuple of float
+                        Contrast limits of features
+                    """
                     @magicclass(layout="horizontal", labels=False)
                     class LUT(MagicTemplate):
-                        start = vfield("blue", widget_type=ColorEdit, options={"tooltip": "Color that represents lower component of LUT."}, record=False)
-                        end = vfield("red", widget_type=ColorEdit, options={"tooltip": "Color that represents higher component of LUT."}, record=False)
-                    limits = field(FloatRangeSlider, options={"tooltip": "Contrast limits of features"}, record=False)
+                        """
+                        Look up table of a continuous color map.
+                        
+                        Attributes
+                        ----------
+                        start : Color
+                            Color that represents lower component of LUT.
+                        end : Color
+                            Color that represents higher component of LUT.
+                        """
+                        start = vfield("blue", widget_type=ColorEdit, record=False)
+                        end = vfield("red", widget_type=ColorEdit, record=False)
+                        
+                    limits = field(FloatRangeSlider, record=False)
                     
                     def _set_params(self, min: float, max: float):
                         self.limits.min = min

@@ -28,9 +28,18 @@ class SplineFitter(MagicTemplate):
         
     @magicclass(layout="horizontal")
     class mt(MagicTemplate):
-        """MT sub-regions"""
-        num = field(int, options={"max": 0, "tooltip": "Number of MT", "label": "Spline No."}, record=False)
-        pos = field(int, options={"max": 0, "tooltip": "Position in a MT", "label": "Position"}, record=False)
+        """
+        Control spline positions.
+        
+        Attributes
+        ----------
+        num : int
+            Spline number in current tomogram.
+        pos : int
+            Position along the spline.
+        """
+        num = field(int, label="Spline No.", options={"max": 0}, record=False)
+        pos = field(int, label="Position", options={"max": 0}, record=False)
         def fit(self): ...
         
         @bind_key("Up")
