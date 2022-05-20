@@ -43,7 +43,7 @@ setup(
     **INFO,
     license="BSD 3-Clause",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    package_data={"magicclass": ["**/*.pyi", "*.pyi"]},
+    package_data={"mtprops": ["**/*.pyi", "*.pyi"]},
     setup_requires=["pybind11>=2.9.2"],
     cmdclass={"build_ext": build_ext},
     py_modules=[],
