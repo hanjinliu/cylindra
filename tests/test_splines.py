@@ -168,3 +168,14 @@ def test_curvature(radius):
     assert (cr_mean / radius - 1) ** 2 < 1e-4
     assert np.std(cr) / cr_mean < 1e-3
 
+def test_translate():
+    spl = MtSpline()
+    spl.fit_voa([[3,2,1], [4,6,7], [5,2,3], [9,5,6]])
+    ds = np.array([3, 1, -2])
+    spl_trans = spl.translate(ds)
+    assert_allclose(
+        spl_trans.partition(100), 
+        ds + spl.partition(100),
+        rtol=1e-6,
+        atol=1e-6,
+    )

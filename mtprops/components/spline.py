@@ -14,6 +14,7 @@ from ..const import Mode, nm
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+    from numpy.typing import ArrayLike
 
 class Coords3D(TypedDict):
     """3D coordinates in list used in json."""
@@ -129,7 +130,6 @@ class Spline:
             )
     
     def translate(self, shift: tuple[nm, nm, nm]):
-        # TODO: need test
         new = self.copy()
         c = [x + s for x, s in zip(self.coeff, shift)]
         new._tck = (self.knots, c, self.degree)
@@ -272,9 +272,9 @@ class Spline:
 
     def fit_coa(
         self, 
-        coords: np.ndarray,
+        coords: ArrayLike,
         *,
-        weight: np.ndarray = None,
+        weight: ArrayLike = None,
         n: int = 256,
         min_radius: nm = 1.0,
         tol: float = 1e-2,
@@ -305,6 +305,7 @@ class Spline:
         Spline
             Spline fit to given coordinates.
         """        
+        coords = np.asarray(coords)
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
@@ -347,9 +348,9 @@ class Spline:
 
     def fit_voa(
         self,
-        coords: np.ndarray,
+        coords: ArrayLike,
         *,
-        weight: np.ndarray = None,
+        weight: ArrayLike = None,
         variance: float = None
     ) -> Self:
         """
@@ -373,6 +374,7 @@ class Spline:
         Spline
             Spline fit to given coordinates.
         """        
+        coords = np.asarray(coords)
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")

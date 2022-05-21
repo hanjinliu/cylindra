@@ -723,8 +723,11 @@ class MtTomogram(Tomogram):
         rmax = spl.radius * GVar.outer / _scale
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
-        for anc in spl.anchors:
-            coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        for anc in spl_trans.anchors:
+            coords = spl_trans.local_cylindrical(
+                (rmin, rmax), ylen, anc, scale=_scale
+            )
             tasks.append(
                 da.from_delayed(
                     lazy_ft_params(input_img, coords, spl.radius), 
@@ -791,11 +794,15 @@ class MtTomogram(Tomogram):
             anchors = spl.anchors
         else:
             anchors = [spl.anchors[pos]]
-            
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         with set_gpu():
             for anc in anchors:
-                coords = spl.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-                polar = map_coordinates(input_img, coords, order=3, mode=Mode.constant, cval=np.mean)
+                coords = spl_trans.local_cylindrical(
+                    (rmin, rmax), ylen, anc, scale=_scale
+                )
+                polar = map_coordinates(
+                    input_img, coords, order=3, mode=Mode.constant, cval=np.mean
+                )
                 polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
                 polar.set_scale(r=_scale, y=_scale, a=_scale)
                 polar.scale_unit = self.image.scale_unit
@@ -1029,8 +1036,8 @@ class MtTomogram(Tomogram):
                 raise ValueError(
                     "For cylindrical straightening, 'radius' must be (rmin, rmax)"
                 )
-            
-            coords = spl.cylindrical(
+            spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+            coords = spl_trans.cylindrical(
                 r_range=(inner_radius, outer_radius),
                 s_range=range_,
                 scale=_scale,
