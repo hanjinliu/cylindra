@@ -3503,7 +3503,7 @@ class MTPropsWidget(MagicTemplate):
         binsize = roundint(bin_scale/tomo.scale)
         ft_size = self._current_ft_size
         
-        lz, ly, lx = [roundint(r/bin_scale*1.4)*2 + 1 for r in [15, ft_size/2, 15]]
+        lz, ly, lx = [roundint(r/bin_scale*1.73)*2 + 1 for r in [15, ft_size/2, 15]]
         center = np.array([lz, ly, lx])/2 + 0.5
         z, y, x = np.indices((lz, ly, lx))
         cylinders = []
@@ -3581,7 +3581,7 @@ class MTPropsWidget(MagicTemplate):
                 lbl, color=color, scale=self.layer_image.scale,
                 translate=self.layer_image.translate, opacity=0.33, name="Label",
                 properties=props
-                )
+            )
         else:
             self.layer_paint.data = lbl
             self.layer_paint.properties = props

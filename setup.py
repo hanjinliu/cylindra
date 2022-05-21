@@ -57,5 +57,5 @@ setup(
         "napari>=0.4.15",
     ],
     python_requires=">=3.8",
-    ext_modules=[Extension("", [], language='c++')],
+    ext_modules=[Extension("", [], language="c++")],
 )
