@@ -568,7 +568,7 @@ class MtTomogram(Tomogram):
         subtomograms.set_scale(input_img)
             
         with set_gpu():
-            inputs = subtomograms.proj("y")["x=::-1"]
+            inputs = subtomograms.proj("y")[ip.slicer.x[::-1]]
             
             # Coarsely align skew-corrected images                
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
@@ -581,7 +581,7 @@ class MtTomogram(Tomogram):
                 
             if corr_allowed < 1:
                 # remove low correlation image from calculation of template image.
-                corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned["z=::-1;x=::-1"]))
+                corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned[ip.slicer.z[::-1].x[::-1]]))
                 threshold = np.quantile(corrs, 1 - corr_allowed)
                 indices: np.ndarray = np.where(corrs >= threshold)[0]
                 imgs_aligned = imgs_aligned[indices.tolist()]
@@ -1398,7 +1398,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     npfrange = ceilint(npfmax/2) # The peak of longitudinal periodicity is always in this range. 
     
     power = img.local_power_spectra(
-        key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}", 
+        key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}",
         upsample_factor=[1, up_y, up_a], 
         dims="rya",
     ).proj("r")
