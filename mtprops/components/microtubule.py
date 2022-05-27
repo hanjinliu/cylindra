@@ -4,6 +4,7 @@ from typing_extensions import ParamSpecKwargs
     
 from typing import Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING
 from functools import partial, wraps
+from matplotlib import pyplot as plt
 import numpy as np
 from numpy.typing import ArrayLike
 import pandas as pd
@@ -535,7 +536,7 @@ class MtTomogram(Tomogram):
         skew = props[H.skewAngle]
         npf = roundint(props[H.nPF])
         
-        LOGGER.info(f" >> Parameters: pitch = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}")
+        LOGGER.info(f" >> Parameters: spacing = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}")
         
         # complement skewing
         skew_angles = np.arange(npoints) * interval/lp * skew
@@ -564,9 +565,10 @@ class MtTomogram(Tomogram):
             corner_safe=True,
         )
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
-        subtomograms[:] -= subtomograms.mean()  # normalize
+        bg = subtomograms.mean()
+        subtomograms[:] -= bg  # normalize
         subtomograms.set_scale(input_img)
-            
+
         with set_gpu():
             inputs = subtomograms.proj("y")["x=::-1"]
             
@@ -575,7 +577,7 @@ class MtTomogram(Tomogram):
             max_shift_px = max_shift / scale
             
             for i in range(npoints):
-                img: ip.ImgArray = inputs[i]
+                img = inputs[i]
                 shift = mirror_zncc(img, max_shifts=max_shift_px*2) / 2
                 imgs_aligned.value[i] = img.affine(translation=shift, mode=Mode.constant, cval=0)
                 
@@ -588,9 +590,9 @@ class MtTomogram(Tomogram):
                 LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
             
             # Make template using coarse aligned images.
-            imgcory: ip.ImgArray = imgs_aligned.proj("p")
+            imgcory = imgs_aligned.proj("p")
             center_shift = mirror_zncc(imgcory, max_shifts=max_shift_px*2) / 2
-            template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0)
+            template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0.)
             
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))

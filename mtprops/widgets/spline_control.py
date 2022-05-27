@@ -141,6 +141,8 @@ class SplineControl(MagicTemplate):
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
         mole = spl.anchors_to_molecules()
+        if binsize > 1:
+            mole = mole.translate(-parent.tomogram.multiscale_translation(binsize))
         coords = mole.cartesian_at(
             index=slice(None),
             shape=(width_px, length_px, width_px), 

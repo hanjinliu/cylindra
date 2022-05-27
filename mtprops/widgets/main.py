@@ -1444,7 +1444,7 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.wraps
     @set_options(
         interval={"min": 1.0, "step": 0.5},
-        ft_size={"min": 2.0},
+        ft_size={"min": 2.0, "step": 0.5},
         bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Local FT analysis")
@@ -1452,7 +1452,7 @@ class MTPropsWidget(MagicTemplate):
     def local_ft_analysis(
         self,
         interval: nm = 24.5,
-        ft_size: nm = 32.0,
+        ft_size: nm = 24.5,
         bin_size: int = 1,
     ):
         """
