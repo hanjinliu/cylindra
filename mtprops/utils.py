@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
-from typing import Callable, ContextManager
+from typing import Callable, ContextManager, Iterable
 from .const import Mode, GVar
 try:
     from . import _cpp_ext
@@ -138,6 +138,22 @@ def mirror_zncc(img0: ip.ImgArray, max_shifts=None):
     img1 = img0[(slice(None, None, -1),) * img0.ndim]
     return ip.zncc_maximum(img0, img1, max_shifts=max_shifts)
 
+def rotated_auto_zncc(img0: ip.ImgArray, degrees: Iterable[float], max_shifts=None):
+    results: list[tuple[np.ndarray, float, float]] = []
+    for deg in degrees:
+        img1 = img0.rotate(deg, mode="constant", dims=2)
+        results.append(
+            ip.zncc_maximum_with_corr(img0, img1, max_shifts=max_shifts) + (deg,)
+        )
+
+    shift, corr, optimal_deg = max(results, key=lambda x: x[1])
+
+    rad = np.deg2rad(optimal_deg - 180.0) / 2
+    cos, sin = np.cos(rad), np.sin(rad)
+    rot = np.array([[cos, sin],[-sin, cos]], dtype=np.float32)
+
+    return shift @ rot / (2 * cos)
+    
 def map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray,
     coordinates: np.ndarray,

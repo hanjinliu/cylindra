@@ -21,6 +21,7 @@ from ..utils import (
     crop_tomogram,
     centroid,
     map_coordinates,
+    rotated_auto_zncc,
     roundint,
     ceilint,
     oblique_meshgrid,
@@ -591,9 +592,9 @@ class MtTomogram(Tomogram):
             
             # Make template using coarse aligned images.
             imgcory = imgs_aligned.proj("p")
-            center_shift = mirror_zncc(imgcory, max_shifts=max_shift_px*2) / 2
-            template = imgcory.affine(translation=center_shift, mode=Mode.constant, cval=0.)
-            
+            degrees = np.linspace(-pf_ang/2, pf_ang/2, 7) + 180
+            shift = rotated_auto_zncc(imgcory, degrees=degrees, max_shifts=max_shift_px*2)
+            template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.)
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
             for i in range(npoints):

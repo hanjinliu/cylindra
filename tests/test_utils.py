@@ -109,6 +109,19 @@ def test_mirror_pcc():
     assert_allclose(shift1, shift2)
     np.random.seed()
 
+def test_rotated_auto_zncc():
+    yy, xx = np.indices((63, 63))
+    img = ip.asarray(np.exp(-(yy - 24)**2/10 - (xx - 48)**2/10))
+    
+    shift = utils.rotated_auto_zncc(img, [170, 190])
+    out = img.affine(translation=shift)
+    assert out.argmax_nd() == (31, 31)
+    
+    shift = utils.rotated_auto_zncc(img, [150, 210])
+    out = img.affine(translation=shift)
+    assert out.argmax_nd() == (31, 31)
+    
+
 def test_mt_pad():
     arr = \
     [[a00, a01, a02, a03],
