@@ -530,8 +530,16 @@ class MTPropsWidget(MagicTemplate):
     @set_design(icon_path=ICON_DIR/"clear_last.png")
     @do_not_record
     def clear_current(self):
-        """Clear current selection."""        
-        self.layer_work.data = []
+        """Clear current selection."""
+        if self.layer_work.data.size > 0:
+            self.layer_work.data = []
+        else:
+            spline_id = self.layer_prof.features[SPLINE_ID]
+            idmax = np.max(spline_id)
+            spec = spline_id != idmax
+            self.layer_prof.data = self.layer_prof.data[spec]
+            self.layer_prof.features = self.layer_prof.features.iloc[[spec], :]
+        
         return None
     
     @toolbar.wraps
@@ -3669,10 +3677,10 @@ class MTPropsWidget(MagicTemplate):
             plt.show()
         return None
     
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Non-GUI methods
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+        
     @nogui
     @do_not_record
     def get_molecules(self, name: str = None) -> Molecules:
@@ -3886,7 +3894,7 @@ class MTPropsWidget(MagicTemplate):
     
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules 
-        # from the viewer layer list must be always monitored.
+        # from the viewer layer list must always be monitored.
         layer: Layer = self.parent_viewer.layers[event.index]
         if MOLECULES in layer.metadata.keys():
             expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
@@ -3917,8 +3925,8 @@ class MTPropsWidget(MagicTemplate):
             features={SPLINE_ID: []},
             opacity=0.4, 
             edge_color="black",
-            face_color="black",
-            )
+            face_color="blue",
+        )
         self.layer_prof.feature_defaults[SPLINE_ID] = 0
         self.layer_prof.editable = False
             
@@ -3929,7 +3937,7 @@ class MTPropsWidget(MagicTemplate):
             **common_properties,
             name=WORKING_LAYER_NAME,
             face_color="yellow"
-            )
+        )
 
         self.layer_work.mode = "add"
         
@@ -3954,7 +3962,7 @@ class MTPropsWidget(MagicTemplate):
                 layer.color = "lime"
         
         spec = self.layer_prof.features[SPLINE_ID] == i
-        self.layer_prof.face_color = "black"
+        self.layer_prof.face_color = "blue"
         self.layer_prof.face_color[spec] = [0.8, 0.0, 0.5, 1]
         self.layer_prof.refresh()
         return None
@@ -4028,6 +4036,10 @@ class MTPropsWidget(MagicTemplate):
                 size=10,
                 name=f"spline-{i}-anc",
             )
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Preview methods
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
     @mark_preview(load_project)
     def _preview_text(self, path: str):
