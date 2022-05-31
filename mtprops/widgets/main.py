@@ -673,8 +673,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"options": {"min": 1, "max": 8}},
     )
     @set_design(text="Open image")
-    @dask_thread_worker(progress={"desc": "Reading image"})
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
+    @dask_thread_worker(progress={"desc": "Reading image"})
     def open_image(
         self, 
         path: Path,
@@ -4011,7 +4011,8 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
         self.overview.add_curve(
-            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",)
+            fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",
+        )
         return None
     
     @fit_splines.returned.connect
@@ -4209,7 +4210,7 @@ def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv,
 
 _A = TypeVar("_A", bound=np.ndarray)
 
-def _merge_images(img0: _A, img1: _A):
+def _merge_images(img0: _A, img1: _A) -> _A:
     img0 = np.asarray(img0)
     img1 = np.asarray(img1)
     img0_norm = img0 - img0.min()
