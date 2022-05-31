@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Iterable, Union, Tuple, List
+from typing import Iterable, TypeVar, Union, Tuple, List
 from timeit import default_timer
 from pathlib import Path
 import numpy as np
@@ -34,7 +34,6 @@ from magicclass.types import Color, Bound, Optional
 from magicclass.widgets import (
     Logger,
     Separator,
-    RadioButtons,
     ConsoleTextEdit,
     Select,
     FloatRangeSlider,
@@ -101,6 +100,11 @@ def _get_alignment(method: str):
         return PCCAlignment
     else:
         raise ValueError(f"Method {method!r} is unknown.")
+
+
+############################################################################################
+#   The Main Widget of MTProps
+############################################################################################
 
 @magicclass(widget_type="scrollable", name="MTProps")
 class MTPropsWidget(MagicTemplate):
@@ -668,6 +672,7 @@ class MTPropsWidget(MagicTemplate):
         path: Path,
         scale: float = 1.0,
         bin_size: List[int] = [1],
+        filter_reference_image: bool = True,
     ):
         """
         Load an image file and process it before sending it to the viewer.
@@ -676,11 +681,13 @@ class MTPropsWidget(MagicTemplate):
         ----------
         path : Path
             Path to the tomogram. Must be 3-D image.
-        scale : float, defaul is 1.0
+        scale : float, default is 1.0
             Pixel size in nm/pixel unit.
         bin_size : int or list of int, default is [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
+        filter_reference_image : bool, default is True
+            Apply low-pass filter on the reference image (does not affect image data itself).
         """
         img = ip.lazy_imread(path, chunks=GVar.daskChunk)
         if scale is not None:
@@ -701,14 +708,14 @@ class MTPropsWidget(MagicTemplate):
 
         self._macro_offset = len(self.macro)
         self.tomogram = tomo
-        return tomo
+        return filter_reference_image
     
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load project")
     @dask_thread_worker(progress={"desc": "Reading project"})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
-    def load_project(self, path: Path):
+    def load_project(self, path: Path, filter_reference_image: bool = True):
         """Load a project json file."""
         project = MTPropsProject.from_json(path)
         file_dir = Path(path).parent
@@ -730,11 +737,12 @@ class MTPropsWidget(MagicTemplate):
         self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
             
-        return project
+        return project, filter_reference_image
 
     @load_project.returned.connect
-    def _load_project_on_return(self, project: MTPropsProject):
-        self._send_tomogram_to_viewer()
+    def _load_project_on_return(self, out: tuple[MTPropsProject, bool]):
+        project, filt = out
+        self._send_tomogram_to_viewer(filt=filt)
         
         # load splines
         splines = [MtSpline.from_json(path) for path in project.splines]
@@ -999,10 +1007,11 @@ class MTPropsWidget(MagicTemplate):
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
         return None
-        
+
     @Image.wraps
     @set_design(text="Filter reference image")
     @dask_thread_worker(progress={"desc": "Low-pass filtering"})
+    @do_not_record
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
@@ -1858,7 +1867,7 @@ class MTPropsWidget(MagicTemplate):
         Attributes
         ----------
         template_path : Path
-            Path to the template (reference) image file.
+            Path to the template (reference) image file, or layer name of reconstruction.
         mask : str
             Select how to create a mask.
         tilt_range : tuple of float, options
@@ -1871,13 +1880,20 @@ class MTPropsWidget(MagicTemplate):
             self.mask = MASK_CHOICES[0]
             
         template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
-        mask = vfield(RadioButtons, label="Mask", options={"choices": MASK_CHOICES}, record=False)
+        mask = vfield(label="Mask", options={"choices": MASK_CHOICES}, record=False)
         
-        @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters")
+        @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False)
         class params(MagicTemplate):
             """
-            Parameter for mask creation.
+            Parameters for soft mask creation.
+            
+            Soft mask creation has three steps. 
+            (1) Create binary mask by applying thresholding to the template image.
+            (2) Morphological dilation of the binary mask.
+            (3) Gaussian filtering the mask.
 
+            Attributes
+            ----------
             dilate_radius : nm
                 Radius of dilation (nm) applied to binarized template.
             sigma : nm
@@ -1886,7 +1902,7 @@ class MTPropsWidget(MagicTemplate):
             dilate_radius = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
             sigma = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
             
-        @magicclass(layout="horizontal", widget_type="frame")
+        @magicclass(layout="horizontal", widget_type="frame", visible=False)
         class mask_path(MagicTemplate):
             """Path to the mask image."""
             mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
@@ -1899,19 +1915,28 @@ class MTPropsWidget(MagicTemplate):
             self.params.visible = (v == MASK_CHOICES[1])
             self.mask_path.visible = (v == MASK_CHOICES[2])
         
-        def _get_template(self, path: Union[str, None] = None, rescale: bool = True) -> ip.ImgArray:
+        def _get_template(self, path: Union[Path, None] = None, rescale: bool = True) -> ip.ImgArray:
             if path is None:
                 path = self.template_path
             else:
                 self.template_path = path
             
             # check path
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"Path {path!r} does not exist.")
-            if not os.path.isfile(path):
-                raise FileNotFoundError(f"Path {path!r} is not a file.")
+            if not os.path.exists(path) or not os.path.isfile(path):
+                # BUG: using other viewer may be forbidden? 
+                # img = None
+                # s = str(path)
+                # if self._viewer is not None and s in self._viewer.layers:
+                #     data = self._viewer.layers[s].data
+                #     if isinstance(data, ip.ImgArray) and data.ndim == 3:
+                #         img: ip.ImgArray = data
+                
+                # if img is None:
+                raise FileNotFoundError(f"Path '{path}' is not a valid file.")
             
-            img = ip.imread(path)
+            else:
+                img = ip.imread(path)
+                
             if img.ndim != 3:
                 raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
             parent = self.find_ancestor(MTPropsWidget)
@@ -1984,8 +2009,8 @@ class MTPropsWidget(MagicTemplate):
             else:
                 self.mask = MASK_CHOICES[2]
                 self.mask_path.mask_path = params
-        
-        def _show_reconstruction(self, image: ip.ImgArray, name: str) -> napari.Viewer:
+            
+        def _show_reconstruction(self, image: ip.ImgArray, name: str) -> Image:
             if self._viewer is not None:
                 try:
                     # This line will raise RuntimeError if viewer window had been closed by user.
@@ -2005,12 +2030,12 @@ class MTPropsWidget(MagicTemplate):
             input_image = _normalize_image(image)
             from skimage.filters.thresholding import threshold_yen
             thr = threshold_yen(input_image.value)
-            self._viewer.add_image(
+            layer = self._viewer.add_image(
                 input_image, scale=image.scale, name=name,
                 rendering="iso", iso_threshold=thr,
             )
             
-            return self._viewer
+            return layer
         
         @do_not_record
         def Show_template(self):
@@ -2028,7 +2053,6 @@ class MTPropsWidget(MagicTemplate):
             def average_all(self): ...
             def average_subset(self): ...
             def split_and_average(self): ...
-            # def calculate_properties(self): ...
             def calculate_correlation(self): ...
             def calculate_fsc(self): ...
             def seam_search(self): ...
@@ -2076,7 +2100,7 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
+        size={"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"},
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         bin_size={"choices": _get_available_binsize},
     )
@@ -2517,7 +2541,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
-        size: nm = 32.,
+        size: nm = 12.,
         max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
         z_rotation: Tuple[float, float] = (0., 0.),
         y_rotation: Tuple[float, float] = (0., 0.),
@@ -2558,8 +2582,8 @@ class MTPropsWidget(MagicTemplate):
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
         loader, _, _ = self._check_binning_for_alignment(
-            None, 
-            None, 
+            template=None, 
+            mask=None, 
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
@@ -3072,7 +3096,7 @@ class MTPropsWidget(MagicTemplate):
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
     )
     @set_design(text="Calculate correlation")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}")})
+    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating correlation of {!r}")})
     def calculate_correlation(
         self,
         layer: MonomerLayer,
@@ -3109,7 +3133,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        shape={"text": "Use template shape"},
+        size={"text": "Use template shape", "options": {"value": 12., "max": 100.}},
         n_set={"min": 1, "label": "number of image pairs"},
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
@@ -3119,7 +3143,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        shape: Optional[Tuple[nm, nm, nm]] = None,
+        size: Optional[nm] = None,
         seed: Optional[int] = 0,
         interpolation: int = 1,
         n_set: int = 1,
@@ -3136,7 +3160,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
-        shape : (nm, nm, nm), optional
+        size : nm, optional
             Shape of subtomograms. Use mask shape by default.
         seed : int, optional
             Random seed used for subtomogram sampling.
@@ -3153,8 +3177,10 @@ class MTPropsWidget(MagicTemplate):
         t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        if shape is None:
+        if size is None:
             shape = self._subtomogram_averaging._get_shape_in_nm()
+        else:
+            shape = (size,) * 3
         loader = self.tomogram.get_subtomogram_loader(
             mole,
             shape,
@@ -3206,7 +3232,11 @@ class MTPropsWidget(MagicTemplate):
         self._LoggerWindow.show()
         
         if img_avg is not None:
-            self._subtomogram_averaging._show_reconstruction(img_avg, f"[AVG]{layer.name}")
+            layer = self._subtomogram_averaging._show_reconstruction(
+                img_avg, name = f"[AVG]{layer.name}",
+            )
+            layer.metadata["FSC-freq"] = freq
+            layer.metadata["FSC-mean"] = fsc_mean
         return None    
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
@@ -3287,6 +3317,7 @@ class MTPropsWidget(MagicTemplate):
         self.sub_viewer.layers[-1].metadata["Score"] = score
         
         update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
+        layer.metadata["seam-search-score"] = score
         return None
 
     @_subtomogram_averaging.Tools.wraps
@@ -3488,7 +3519,7 @@ class MTPropsWidget(MagicTemplate):
     @set_design(text="Paint MT")
     def paint_mt(self):
         """
-        Paint microtubule fragments by its pitch length.
+        Paint microtubule fragments by its local properties.
         
         1. Prepare small boxes and make masks inside them.
         2. Map the masks to the reference image.
@@ -3499,6 +3530,9 @@ class MTPropsWidget(MagicTemplate):
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, List[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
+        all_localprops = tomo.collect_localprops()
+        if all_localprops is None:
+            raise ValueError("No local property found.")
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = roundint(bin_scale/tomo.scale)
         ft_size = self._current_ft_size
@@ -3561,7 +3595,7 @@ class MTPropsWidget(MagicTemplate):
         _id = "ID"
         _structure = "structure"
         columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _structure]
-        df = tomo.collect_localprops()[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
+        df = all_localprops[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
         df_reset = df.reset_index()
         df_reset[_id] = df_reset.apply(
             lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), 
@@ -3733,7 +3767,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @open_image.returned.connect
-    def _send_tomogram_to_viewer(self, _=None):
+    def _send_tomogram_to_viewer(self, filt: bool):
         viewer = self.parent_viewer
         tomo = self.tomogram
         bin_size = max(x[0] for x in tomo.multiscaled)
@@ -3781,6 +3815,8 @@ class MTPropsWidget(MagicTemplate):
             _name = f"Tomogram<{hex(id(tomo))}>"
         self.log.print_html(f"<h2>{_name}</h2>")
         self.clear_all()
+        if filt:
+            self.filter_reference_image()
         return None
     
     def _check_path(self) -> str:
@@ -4004,7 +4040,11 @@ class MTPropsWidget(MagicTemplate):
     @mark_preview(open_image)
     def _preview_image(self, path: str):
         return view_image(path, parent=self)
-        
+
+
+############################################################################################
+#   Other helper functions
+############################################################################################
 
 def centering(
     imgb: ip.ImgArray,
@@ -4155,7 +4195,9 @@ def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv,
     
     return None
 
-def _merge_images(img0: np.ndarray, img1: np.ndarray):
+_A = TypeVar("_A", bound=np.ndarray)
+
+def _merge_images(img0: _A, img1: _A):
     img0 = np.asarray(img0)
     img1 = np.asarray(img1)
     img0_norm = img0 - img0.min()
@@ -4164,7 +4206,7 @@ def _merge_images(img0: np.ndarray, img1: np.ndarray):
     img1_norm /= img1_norm.max()
     return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
 
-def _normalize_image(img: np.ndarray) -> np.ndarray:
+def _normalize_image(img: _A) -> _A:
     min = img.min()
     max = img.max()
     return (img - min)/(max - min)

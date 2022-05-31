@@ -5,7 +5,7 @@ import impy as ip
 import magicgui
 from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
-from napari.layers import Points
+from napari.layers import Points, Image
 from .const import MOLECULES
 
 

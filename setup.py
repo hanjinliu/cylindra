@@ -48,7 +48,7 @@ setup(
     cmdclass={"build_ext": build_ext},
     py_modules=[],
     install_requires=[
-        "impy-array>=2.0.0",
+        "impy-array>=2.1.0",
         "acryo>=0.0.2",
         "magicgui>=0.4.0",
         "magic-class>=0.6.4",
