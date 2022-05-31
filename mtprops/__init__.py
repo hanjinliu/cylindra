@@ -1,4 +1,4 @@
-__version__ = "0.9.1.dev0"
+__version__ = "0.9.1.dev1"
 __author__ = "Hanjin Liu"
 __email__ = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp"
 
@@ -11,6 +11,6 @@ if sys.platform == "darwin":
 from .core import start
 from .components import MtTomogram
 from .widgets import MTPropsWidget
-from .widgets.widget_utils import add_molecules
+from .widgets.widget_utils import add_molecules, layer_to_coordinates
 
-__all__ = ["start", "MtTomogram", "MTPropsWidget", "add_molecules"]
+__all__ = ["start", "MtTomogram", "MTPropsWidget", "add_molecules", "layer_to_coordinates"]

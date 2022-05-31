@@ -139,3 +139,16 @@ def resolve_path(path: str | Path | None, root: Path) -> Path | None:
     if path_joined.exists():
         return path_joined
     raise ValueError(f"Path {path} could not be resolved.")
+
+
+def layer_to_coordinates(layer: Points, npf: int | None = None):
+    """Convert point coordinates of a Points layer into a structured array."""
+    if npf is None:
+        npf = layer.features[Mole.pf].max() + 1
+    data = layer.data.reshape(-1, npf, 3)
+    import impy as ip
+
+    data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
+    data.axes["dim"].labels = ("z", "y", "x")
+    return data
+    
