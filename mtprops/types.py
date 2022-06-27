@@ -1,11 +1,10 @@
-from __future__ import annotations
-from typing import NewType
+from typing import NewType, List
 import numpy as np
 import impy as ip
 import magicgui
 from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
-from napari.layers import Points, Image
+from napari.layers import Points
 from .const import MOLECULES
 
 
@@ -13,7 +12,7 @@ from .const import MOLECULES
 
 MonomerLayer = NewType("MonomerLayer", Points)
 
-def get_monomer_layers(gui: CategoricalWidget) -> list[Points]:
+def get_monomer_layers(gui: CategoricalWidget) -> List[Points]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []

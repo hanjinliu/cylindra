@@ -30,7 +30,7 @@ from magicclass import (
     nogui,
     mark_preview,
     )
-from magicclass.types import Color, Bound, Optional
+from magicclass.types import Color, Bound, Optional, Choices, SomeOf
 from magicclass.widgets import (
     Logger,
     Separator,
@@ -86,6 +86,9 @@ from ..ext.etomo import PEET
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
+
+INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
+METHOD_CHOICES = (("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc"))
 
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
@@ -384,7 +387,7 @@ class MTPropsWidget(MagicTemplate):
             return out
         
         all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
-        splines = vfield(Select, options={"choices": _get_splines, "visible": False}, record=False)
+        splines = vfield(SomeOf[_get_splines], options={"visible": False}, record=False)
         bin_size = vfield(1, options={"choices": _get_available_binsize}, record=False)
         dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
         params1 = subwidgets.runner_params1
@@ -924,12 +927,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @File.wraps
-    @set_options(
-        spline={"choices": _get_splines},
-        save_path={"mode": "w", "filter": FileFilter.JSON}
-    )
+    @set_options(save_path={"mode": "w", "filter": FileFilter.JSON})
     @set_design(text="Save spline")
-    def save_spline(self, spline: int, save_path: Path):
+    def save_spline(self, spline: Choices[_get_splines], save_path: Path):
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
         return None
@@ -1011,10 +1011,9 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Image.wraps
-    @set_options(bin_size={"choices": range(2, 17)})
     @set_design(text="Add multi-scale")
     @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
-    def add_multiscale(self, bin_size: int = 4):
+    def add_multiscale(self, bin_size: Choices[range(2, 7)] = 4):
         """
         Add a new multi-scale image of current tomogram.
 
@@ -1030,9 +1029,8 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @add_multiscale.returned.connect
-    @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Set multi-scale")
-    def set_multiscale(self, bin_size: int):
+    def set_multiscale(self, bin_size: Choices[_get_available_binsize]):
         """
         Set multiscale used for image display.
         
@@ -1203,9 +1201,8 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    @set_options(orientation={"choices": ["MinusToPlus", "PlusToMinus"]})
     @set_design(text="Align to polarity")
-    def align_to_polarity(self, orientation: Ori = "MinusToPlus"):
+    def align_to_polarity(self, orientation: Choices["MinusToPlus", "PlusToMinus"] = "MinusToPlus"):
         """
         Align all the splines in the direction parallel to microtubule polarity.
 
@@ -1227,11 +1224,10 @@ class MTPropsWidget(MagicTemplate):
     @Splines.wraps
     @set_options(
         auto_call=True,
-        spline={"choices": _get_splines},
         limits={"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
     )
     @set_design(text="Clip splines")
-    def clip_spline(self, spline: int, limits: Tuple[float, float] = (0., 1.)):
+    def clip_spline(self, spline: Choices[_get_splines], limits: Tuple[float, float] = (0., 1.)):
         # BUG: properties may be inherited in a wrong way
         if spline is None:
             return
@@ -1259,7 +1255,6 @@ class MTPropsWidget(MagicTemplate):
     @Splines.wraps
     @set_options(
         max_interval={"label": "Max interval (nm)"},
-        bin_size={"choices": _get_available_binsize},
         edge_sigma={"text": "Do not mask image"},
     )
     @set_design(text="Fit splines")
@@ -1267,7 +1262,7 @@ class MTPropsWidget(MagicTemplate):
     def fit_splines(
         self, 
         max_interval: nm = 30,
-        bin_size: int = 1,
+        bin_size: Choices[_get_available_binsize] = 1,
         degree_precision: float = 0.5,
         edge_sigma: Optional[nm] = 2.0,
         max_shift: nm = 5.0,
@@ -1338,13 +1333,10 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Analysis.wraps
-    @set_options(
-        radius={"text": "Measure radii by radial profile."},
-        bin_size={"choices": _get_available_binsize},
-    )
+    @set_options(radius={"text": "Measure radii by radial profile."})
     @set_design(text="Set radius")
     @thread_worker(progress={"desc": "Measuring Radius"})
-    def set_radius(self, radius: Optional[nm] = None, bin_size: int = 1):
+    def set_radius(self, radius: Optional[nm] = None, bin_size: Choices[_get_available_binsize] = 1):
         """Measure MT radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
@@ -1354,7 +1346,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         max_interval={"label": "Maximum interval (nm)"},
         corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Refine splines")
     @thread_worker(progress={"desc": "Refining splines"})
@@ -1362,7 +1353,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         max_interval: nm = 30,
         corr_allowed: float = 0.9,
-        bin_size: int = 1,
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Refine splines using the global MT structural parameters.
@@ -1389,10 +1380,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    @set_options(
-        layers={"widget_type": "Select", "choices": get_monomer_layers},
-        interval={"label": "Interval (nm)", "min": 1.0},
-    )
+    @set_options(interval={"label": "Interval (nm)", "min": 1.0})
     @set_design(text="Molecules to spline")
     @confirm(
         text="The existing splines will be removed.\nDo you want to run?",
@@ -1400,7 +1388,7 @@ class MTPropsWidget(MagicTemplate):
     )
     def molecules_to_spline(
         self, 
-        layers: List[MonomerLayer],
+        layers: SomeOf[get_monomer_layers],
         interval: nm = 24.5,
     ):
         """
@@ -1433,7 +1421,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         interval={"min": 1.0, "step": 0.5},
         ft_size={"min": 2.0, "step": 0.5},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Local FT analysis")
     @thread_worker(progress={"desc": "Local Fourier transform", "total": "self.tomogram.n_splines"})
@@ -1441,7 +1428,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         interval: nm = 24.5,
         ft_size: nm = 24.5,
-        bin_size: int = 1,
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Determine MT structural parameters by local Fourier transformation.
@@ -1476,10 +1463,9 @@ class MTPropsWidget(MagicTemplate):
         return None
         
     @Analysis.wraps
-    @set_options(bin_size={"choices": _get_available_binsize})
     @set_design(text="Global FT analysis")
     @thread_worker(progress={"desc": "Global Fourier transform", "total": "self.tomogram.n_splines"})
-    def global_ft_analysis(self, bin_size: int = 1):
+    def global_ft_analysis(self, bin_size: Choices[_get_available_binsize] = 1):
         """
         Determine MT global structural parameters by Fourier transformation.
         
@@ -1517,15 +1503,12 @@ class MTPropsWidget(MagicTemplate):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
     @Molecules_.Mapping.wraps
-    @set_options(
-        splines={"widget_type": "Select", "choices": _get_splines},
-        length={"text": "Use full length"}
-    )
+    @set_options(length={"text": "Use full length"})
     @set_design(text="Map monomers")
     @bind_key("M")
     def map_monomers(
         self,
-        splines: Iterable[int] = (),
+        splines: SomeOf[_get_splines] = (),
         length: Optional[nm] = None,
     ):
         """
@@ -1554,14 +1537,13 @@ class MTPropsWidget(MagicTemplate):
 
     @Molecules_.Mapping.wraps
     @set_options(
-        splines={"widget_type": "Select", "choices": _get_splines},
         interval={"text": "Set to dimer length"},
         length={"text": "Use full length"}
     )
     @set_design(text="Map centers")
     def map_centers(
         self,
-        splines: Iterable[int] = (),
+        splines: SomeOf[_get_splines] = (),
         interval: Optional[nm] = None,
         length: Optional[nm] = None,
     ):
@@ -1591,14 +1573,13 @@ class MTPropsWidget(MagicTemplate):
     
     @Molecules_.Mapping.wraps
     @set_options(
-        splines={"widget_type": "Select", "choices": _get_splines},
         interval={"text": "Set to dimer length"},
         angle_offset={"max": 360}
     )
     @set_design(text="Map alogn PF")
     def map_along_pf(
         self,
-        splines: Iterable[int],
+        splines: SomeOf[_get_splines],
         interval: Optional[nm] = None,
         angle_offset: float = 0.0,
     ):
@@ -1625,12 +1606,11 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @Molecules_.wraps
-    @set_options(orientation={"choices": ["x", "y", "z"]})
     @set_design(text="Show orientation")
     def show_orientation(
         self,
         layer: MonomerLayer,
-        orientation: str = "z",
+        orientation: Choices["x", "y", "z"] = "z",
         color: Color = "crimson",
     ):
         """
@@ -1731,7 +1711,7 @@ class MTPropsWidget(MagicTemplate):
     @Molecules_.wraps
     @set_options(layers={"widget_type": "Select", "choices": get_monomer_layers})
     @set_design(text="Concatenate molecules")
-    def concatenate_molecules(self, layers: List[MonomerLayer]):
+    def concatenate_molecules(self, layers: SomeOf[get_monomer_layers]):
         """
         Concatenate selected monomer layers and create a new layer.
 
@@ -2056,8 +2036,6 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average all")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}")})
@@ -2065,8 +2043,8 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        interpolation: int = 1,
-        bin_size: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Subtomogram averaging using all the subvolumes.
@@ -2106,8 +2084,6 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
-        method={"choices": ["steps", "first", "last", "random"]},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Average subset")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}")})
@@ -2115,9 +2091,9 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        method="steps", 
+        method: Choices["steps", "first", "last", "random"] ="steps", 
         number: int = 64,
-        bin_size: int = 1,
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Subtomogram averaging using a subset of subvolumes.
@@ -2177,8 +2153,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
         n_set={"min": 1, "label": "number of image pairs"},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Split-and-average")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}")})
@@ -2187,8 +2161,8 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         n_set: int = 1,
         size: Optional[nm] = None,
-        interpolation: int = 1,
-        bin_size: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Split molecules into two groups and average separately.
@@ -2259,8 +2233,6 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 180.0, "step": 1.0}},
         y_rotation={"options": {"max": 180.0, "step": 1.0}},
         x_rotation={"options": {"max": 90.0, "step": 1.0}},
-        bin_size={"choices": _get_available_binsize},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
     )
     @set_design(text="Align averaged")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}")})
@@ -2272,8 +2244,8 @@ class MTPropsWidget(MagicTemplate):
         z_rotation: Tuple[float, float] = (3., 3.),
         y_rotation: Tuple[float, float] = (15., 3.),
         x_rotation: Tuple[float, float] = (3., 3.),
-        bin_size: int = 1,
-        method: str = "zncc",
+        bin_size: Choices[_get_available_binsize] = 1,
+        method: Choices[METHOD_CHOICES] = "zncc",
     ):
         """
         Align the averaged image at current monomers to the template image.
@@ -2399,9 +2371,6 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 180.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 90.0, "step": 0.1}},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}")})
@@ -2416,9 +2385,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 3,
-        method: str = "zncc",
-        bin_size: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
+        method: Choices[METHOD_CHOICES] = "zncc",
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2486,9 +2455,6 @@ class MTPropsWidget(MagicTemplate):
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 180.0, "step": 0.1}},
         cutoff={"max": 1.0, "step": 0.05},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (template-free)")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}")})
@@ -2502,9 +2468,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 3,
-        method: str = "zncc",
-        bin_size: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
+        method: Choices[METHOD_CHOICES] = "zncc",
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2565,9 +2531,6 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 180.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 90.0, "step": 0.1}},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
-        bin_size={"choices": _get_available_binsize},
     )
     @set_design(text="Align all (multi-template)")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}")})
@@ -2583,9 +2546,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 3,
-        method: str = "zncc",
-        bin_size: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
+        method: Choices[METHOD_CHOICES] = "zncc",
+        bin_size: Choices[_get_available_binsize] = 1,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2656,7 +2619,6 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "max shifts (nm)"},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
     )
@@ -2670,7 +2632,7 @@ class MTPropsWidget(MagicTemplate):
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
         cutoff: float = 1.0,
-        interpolation: int = 3,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
         distance_range: Tuple[nm, nm] = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
         upsample_factor: int = 5,
@@ -2796,8 +2758,6 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 180.0, "step": 1.}},
         y_rotation={"options": {"max": 180.0, "step": 1.}},
         x_rotation={"options": {"max": 180.0, "step": 1.}},
-        bin_size={"choices": _get_available_binsize},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
     )
     @set_design(text="Polarity check (fast)")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
@@ -2808,8 +2768,8 @@ class MTPropsWidget(MagicTemplate):
         z_rotation: Tuple[float, float] = (3., 3.),
         y_rotation: Tuple[float, float] = (15., 3.),
         x_rotation: Tuple[float, float] = (3., 3.),
-        bin_size: int = 1,
-        method: str = "zncc",
+        bin_size: Choices[_get_available_binsize] = 1,
+        method: Choices[METHOD_CHOICES] = "zncc",
     ):
         """
         Check/determine the polarity by forward/reverse alignment using averaged images.
@@ -2830,8 +2790,6 @@ class MTPropsWidget(MagicTemplate):
             Rotation in external degree around y-axis.
         x_rotation : tuple of float, optional
             Rotation in external degree around x-axis.
-        interpolation : int, default is 3
-            Interpolation order.
         method : str, default is "zncc"
             Alignment method.
         """
@@ -2915,8 +2873,6 @@ class MTPropsWidget(MagicTemplate):
         z_rotation={"options": {"max": 180.0, "step": 0.1}},
         y_rotation={"options": {"max": 180.0, "step": 0.1}},
         x_rotation={"options": {"max": 90.0, "step": 0.1}},
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        method={"choices": [("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc")]},
         molecule_subset={"text": "Use all molecules", "options": {"value": 200, "min": 1}}
     )
     @set_design(text="Polarity check")
@@ -2930,8 +2886,8 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: int = 1,
-        method: str = "zncc",
+        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
+        method: Choices[METHOD_CHOICES] = "zncc",
         molecule_subset: Optional[int] = None,
     ):
         """
@@ -3047,9 +3003,6 @@ class MTPropsWidget(MagicTemplate):
         return None
 
     @_subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-    )
     @set_design(text="Calculate correlation")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating correlation of {!r}")})
     def calculate_correlation(
@@ -3057,7 +3010,7 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging._get_template],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        interpolation: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
         show_average: bool = True,
     ):
         t0 = default_timer()
@@ -3087,7 +3040,6 @@ class MTPropsWidget(MagicTemplate):
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
         size={"text": "Use template shape", "options": {"value": 12., "max": 100.}},
         n_set={"min": 1, "label": "number of image pairs"},
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
@@ -3100,7 +3052,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         size: Optional[nm] = None,
         seed: Optional[int] = 0,
-        interpolation: int = 1,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
         n_set: int = 1,
         show_average: bool = True,
         dfreq: Optional[float] = None,
@@ -3195,10 +3147,7 @@ class MTPropsWidget(MagicTemplate):
         return None    
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        interpolation={"choices": [("nearest", 0), ("linear", 1), ("cubic", 3)]},
-        npf={"text": "Use global properties"},
-    )
+    @set_options(npf={"text": "Use global properties"})
     @set_design(text="Seam search")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}")})
     def seam_search(
@@ -3206,7 +3155,7 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        interpolation: int = 3,
+        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
         npf: Optional[int] = None,
     ):
         """
@@ -3223,7 +3172,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params : str or (float, float), optional
             Mask image path or dilation/Gaussian blur parameters. If a path is given,
             image must in the same shape as the template.
-        interpolation : int, default is 1
+        interpolation : int, default is 3
             Interpolation order.
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the 
@@ -3580,8 +3529,7 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     @set_options(
         limit={"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
-        color_by={"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]},
-        auto_call=True
+        auto_call=True,
     )
     @set_design(text="Set colormap")
     def set_colormap(
@@ -3589,7 +3537,7 @@ class MTPropsWidget(MagicTemplate):
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
         limit: Tuple[float, float] = (4.00, 4.24), 
-        color_by: str = H.yPitch,
+        color_by: Choices[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
     ):
         """
         Set the color-map for painting microtubules.

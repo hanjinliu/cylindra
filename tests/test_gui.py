@@ -3,7 +3,7 @@ from mtprops.const import H
 from acryo import Molecules
 from pathlib import Path
 from numpy.testing import assert_allclose
-
+import napari
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
@@ -23,8 +23,9 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
     assert_allclose(mole0.z, mole1.z, atol=1e-8, rtol=1e-8)
     
 
-def test_spline_switch():
-    ui = start()
+def test_spline_switch(make_napari_viewer):
+    viewer = make_napari_viewer()
+    ui = start(viewer=viewer)
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.filter_reference_image()
@@ -125,9 +126,12 @@ def test_spline_switch():
     assert_canvas(ui, [True, True, True])
     assert ui.LocalProperties.params.pitch.txt == " -- nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
+    
+    ui.sub_viewer.close()
 
 
 def test_io():
+    # viewer = make_napari_viewer()  TODO: fixture not working...
     ui = start()
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=1)
