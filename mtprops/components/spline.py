@@ -550,6 +550,7 @@ class Spline:
         return np.sqrt(a)/(dx**2 + dy**2 + dz**2)**1.5
 
     def curvature_radii(self, positions: Sequence[float] = None) -> np.ndarray:
+        """Inverse of curvature."""
         return 1. / self.curvature(positions)
     
     def to_dict(self) -> SplineInfo:
