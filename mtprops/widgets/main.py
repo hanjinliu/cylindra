@@ -78,7 +78,7 @@ from .widget_utils import (
     resolve_path,
 )
 
-from ..const import nm, H, Ori, GVar, Mole
+from ..const import nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer, get_monomer_layers
 from ..ext.etomo import PEET
@@ -88,7 +88,10 @@ SPLINE_ID = "spline-id"
 MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
-METHOD_CHOICES = (("Phase Cross Correlation", "pcc"), ("Zero-mean Normalized Cross Correlation", "zncc"))
+METHOD_CHOICES = (
+    ("Phase Cross Correlation", "pcc"),
+    ("Zero-mean Normalized Cross Correlation", "zncc"),
+)
 
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
@@ -125,6 +128,7 @@ class MTPropsWidget(MagicTemplate):
     
     @property
     def log(self):
+        """Return the logger widget."""
         return self._LoggerWindow.log
     
     @magicmenu
@@ -388,7 +392,7 @@ class MTPropsWidget(MagicTemplate):
         
         all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
         splines = vfield(SomeOf[_get_splines], options={"visible": False}, record=False)
-        bin_size = vfield(1, options={"choices": _get_available_binsize}, record=False)
+        bin_size = vfield(Choices[_get_available_binsize], record=False)
         dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
         params1 = subwidgets.runner_params1
         n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4}, record=False)
@@ -1709,7 +1713,6 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Molecules_.wraps
-    @set_options(layers={"widget_type": "Select", "choices": get_monomer_layers})
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(self, layers: SomeOf[get_monomer_layers]):
         """
@@ -1839,7 +1842,7 @@ class MTPropsWidget(MagicTemplate):
             self.mask = MASK_CHOICES[0]
 
         template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
-        mask = vfield(label="Mask", options={"choices": MASK_CHOICES}, record=False)
+        mask = vfield(Choices[MASK_CHOICES], label="Mask", record=False)
         params = field(subwidgets.params)
         mask_path = field(subwidgets.mask_path)
         tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
@@ -2091,7 +2094,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        method: Choices["steps", "first", "last", "random"] ="steps", 
+        method: Choices["steps", "first", "last", "random"] = "steps", 
         number: int = 64,
         bin_size: Choices[_get_available_binsize] = 1,
     ):
@@ -3041,6 +3044,7 @@ class MTPropsWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"value": 12., "max": 100.}},
+        seed={"text": "Do not use random seed."},
         n_set={"min": 1, "label": "number of image pairs"},
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
