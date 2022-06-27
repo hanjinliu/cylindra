@@ -651,8 +651,8 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"options": {"min": 1, "max": 8}},
     )
     @set_design(text="Open image")
+    @dask_thread_worker(progress={"desc": "Reading image"})  # TODO: fix magic-class to make confirm and dask_thread_worker compatible.
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
-    @dask_thread_worker(progress={"desc": "Reading image"})
     def open_image(
         self, 
         path: Path,
