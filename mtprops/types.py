@@ -25,4 +25,4 @@ magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
 
 from macrokit import register_type
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
-register_type(ip.ImgArray, lambda img: f"<image from {img.dirpath}>")
+register_type(ip.ImgArray, lambda img: f"<image from {img.source}>")

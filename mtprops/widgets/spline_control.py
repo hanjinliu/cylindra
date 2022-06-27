@@ -25,6 +25,7 @@ class SplineControl(MagicTemplate):
     """
     def __post_init__(self):
         self.projections: List[Projections] = []
+        
         self.canvas.min_height = 200
         self.canvas.max_height = 230
         self.canvas[0].lock_contrast_limits = True
@@ -33,6 +34,8 @@ class SplineControl(MagicTemplate):
         self.canvas[1].title = "XZ-Projection"
         self.canvas[2].lock_contrast_limits = True
         self.canvas[2].title = "Rot. average"
+        
+        self.canvas.enabled = False
         
     def _get_splines(self, widget=None) -> List[int]:
         """Get list of spline objects for categorical widgets."""

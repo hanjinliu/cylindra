@@ -1857,7 +1857,7 @@ class MTPropsWidget(MagicTemplate):
             self._viewer: Union[napari.Viewer, None] = None
             self._next_layer_name = None
             self.mask = MASK_CHOICES[0]
-            
+
         template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
         mask = vfield(label="Mask", options={"choices": MASK_CHOICES}, record=False)
         params = field(subwidgets.params)
