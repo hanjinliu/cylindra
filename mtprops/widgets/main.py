@@ -59,6 +59,7 @@ from ..utils import (
     viterbi,
 )
 
+from . import subwidgets
 from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
@@ -386,40 +387,10 @@ class MTPropsWidget(MagicTemplate):
         splines = vfield(Select, options={"choices": _get_splines, "visible": False}, record=False)
         bin_size = vfield(1, options={"choices": _get_available_binsize}, record=False)
         dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
-        @magicclass(widget_type="groupbox", name="Parameters")
-        class params1:
-            """
-            Parameters used in spline fitting.
-            
-            Attributes
-            ----------
-            edge_sigma : nm
-                Sharpness of dense-mode mask at the edges.
-            max_shift : nm
-                Maximum shift in nm of manually selected spline to the true center.
-            """
-            edge_sigma = vfield(2.0, options={"label": "edge sigma"}, record=False)
-            max_shift = vfield(5.0, options={"label": "Maximum shift (nm)", "max": 50.0, "step": 0.5}, record=False)
+        params1 = subwidgets.runner_params1
         n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4}, record=False)
         local_props = vfield(True, options={"label": "Calculate local properties"}, record=False)
-        @magicclass(widget_type="groupbox", name="Parameters")
-        class params2:
-            """
-            Parameters used in calculation of local properties.
-            
-            Attributes
-            ----------
-            interval : nm
-                Interval of sampling points of microtubule fragments.
-            ft_size: nm
-                Longitudinal length of local discrete Fourier transformation used 
-                for structural analysis.
-            paint : bool
-                Check if paint the tomogram with the local properties.
-            """
-            interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)"}, record=False)
-            ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)"}, record=False)
-            paint = vfield(True, record=False)
+        params2 = subwidgets.runner_params2
         global_props = vfield(True, label="Calculate global properties", record=False)
 
         @all_splines.connect
@@ -1889,32 +1860,8 @@ class MTPropsWidget(MagicTemplate):
             
         template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
         mask = vfield(label="Mask", options={"choices": MASK_CHOICES}, record=False)
-        
-        @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False)
-        class params(MagicTemplate):
-            """
-            Parameters for soft mask creation.
-            
-            Soft mask creation has three steps. 
-            (1) Create binary mask by applying thresholding to the template image.
-            (2) Morphological dilation of the binary mask.
-            (3) Gaussian filtering the mask.
-
-            Attributes
-            ----------
-            dilate_radius : nm
-                Radius of dilation (nm) applied to binarized template.
-            sigma : nm
-                Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
-            """
-            dilate_radius = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
-            sigma = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
-            
-        @magicclass(layout="horizontal", widget_type="frame", visible=False)
-        class mask_path(MagicTemplate):
-            """Path to the mask image."""
-            mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
-        
+        params = field(subwidgets.params)
+        mask_path = field(subwidgets.mask_path)
         tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
         
         @mask.connect
@@ -1931,7 +1878,7 @@ class MTPropsWidget(MagicTemplate):
             
             # check path
             if not os.path.exists(path) or not os.path.isfile(path):
-                # BUG: using other viewer may be forbidden? 
+                # BUG: using other viewer from other thread may be forbidden.
                 # img = None
                 # s = str(path)
                 # if self._viewer is not None and s in self._viewer.layers:
