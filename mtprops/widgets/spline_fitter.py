@@ -59,8 +59,19 @@ class SplineFitter(MagicTemplate):
 
         @magicclass(layout="horizontal")
         class frame:
-            nPF = field(10, options={"min": 1, "max": 48, "tooltip": "Number of protofilament (if nPF=12, rotational average will be calculated by summing up every 30° rotated images)."}, record=False)
-            cutoff = field(0.2, options={"min": 0.0, "max": 0.85, "step": 0.05, "tooltip": "Relative cutoff frequency of low-pass filter."}, record=False)
+            """
+            Parameters of rotational averaging.
+            
+            Attributes
+            ----------
+            nPF : int
+                Number of protofilament (if nPF=12, rotational average will be calculated by 
+                summing up every 30° rotated images).
+            cutoff : float
+                Relative cutoff frequency of low-pass filter.
+            """
+            nPF = field(10, options={"min": 1, "max": 48}, record=False)
+            cutoff = field(0.2, options={"min": 0.0, "max": 0.85, "step": 0.05}, record=False)
             def average(self): ...
     
     def _get_shifts(self, _=None):
@@ -199,8 +210,8 @@ class SplineFitter(MagicTemplate):
         for crds in coords:
             out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
         subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")
-        self.subtomograms = subtomo.proj("y")["x=::-1"]
-            
+        self.subtomograms = subtomo.proj("y")[ip.slicer.x[::-1]]
+        
         self.canvas.image = self.subtomograms[0]
         self.mt.pos.max = npos - 1
         self.canvas.xlim = (0, self.canvas.image.shape[1])

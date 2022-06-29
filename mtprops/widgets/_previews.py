@@ -57,6 +57,7 @@ class ImagePreview(MagicTemplate):
 
         
 def view_tables(paths: list[str], parent: MagicTemplate = None, **kwargs) -> SpreadSheet:
+    """Preview a list of tables."""
     xl = SpreadSheet()
     for i, path in enumerate(paths):
         df = pd.read_csv(path, **kwargs)
@@ -67,6 +68,7 @@ def view_tables(paths: list[str], parent: MagicTemplate = None, **kwargs) -> Spr
     return xl
 
 def view_text(path: str, parent: MagicTemplate = None, **kwargs) -> ConsoleTextEdit:
+    """Preview a text file."""
     with open(path, mode="r", **kwargs) as f:
         txt = f.read()
     
@@ -76,6 +78,7 @@ def view_text(path: str, parent: MagicTemplate = None, **kwargs) -> ConsoleTextE
     return textedit
 
 def view_image(path: str, parent: MagicTemplate = None) -> ImagePreview:
+    """Preview an image."""
     prev = ImagePreview()
     prev._load_image(path)
     prev.native.setParent(parent.native, prev.native.windowFlags())
@@ -83,6 +86,7 @@ def view_image(path: str, parent: MagicTemplate = None) -> ImagePreview:
     return prev
 
 def view_surface(data, parent: MagicTemplate = None) -> Vispy3DCanvas:
+    """Preview a 3D surface."""
     prev = Vispy3DCanvas()
     prev.add_surface(data)
     prev.native.setParent(parent.native, prev.native.windowFlags())

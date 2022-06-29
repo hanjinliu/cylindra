@@ -50,7 +50,7 @@ setup(
     install_requires=[
         "impy-array>=2.1.1",
         "acryo>=0.0.2",
-        "magicgui>=0.4.0",
+        "magicgui>=0.5.1",
         "magic-class>=0.6.7",
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",

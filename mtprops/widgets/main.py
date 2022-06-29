@@ -35,7 +35,6 @@ from magicclass.widgets import (
     Logger,
     Separator,
     ConsoleTextEdit,
-    Select,
     FloatRangeSlider,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -462,48 +461,47 @@ class MTPropsWidget(MagicTemplate):
             splines = range(self.tomogram.n_splines)
         
         tomo = self.tomogram
+        _on_yield = thread_worker.to_callback(self._update_splines_in_images)
         for i_spl in splines:
             tomo.fit(i=i_spl, edge_sigma=edge_sigma, max_shift=max_shift, binsize=bin_size)
             
             for _ in range(n_refine):
-                yield
+                yield _on_yield
                 tomo.refine(i=i_spl, max_interval=max(interval, 30), binsize=bin_size)
             tomo.set_radius(i=i_spl, binsize=bin_size)
                 
             tomo.make_anchors(i=i_spl, interval=interval)
             if local_props:
-                yield
+                yield _on_yield
                 tomo.local_ft_params(i=i_spl, ft_size=ft_size, binsize=bin_size)
             if global_props:
-                yield
+                yield _on_yield
                 tomo.global_ft_params(i=i_spl, binsize=bin_size)
-            yield
-                    
+            yield _on_yield
+
         self._current_ft_size = ft_size
         self._need_save = True
         
-        return local_props, global_props, splines, paint
+        @thread_worker.to_callback
+        def _run_mtprops_on_return():
+            if local_props or global_props:
+                self.sample_subtomograms()
+                if global_props:
+                    df = self.tomogram.collect_globalprops(i=splines).transpose()
+                    df.columns = [f"Spline-{i}" for i in splines]
+                    self.log.print_table(df, precision=3)
+            if local_props and paint:
+                self.paint_mt()
+            if global_props:
+                self._update_global_properties_in_widget()
+            self._update_splines_in_images()
+        
+        return _run_mtprops_on_return
     
     @run_mtprops.started.connect
     def _run_mtprops_on_start(self):
         return self._runner.close()
-    
-    @run_mtprops.returned.connect
-    def _run_mtprops_on_return(self, out):
-        local_props, global_props, splines, paint = out
-        if local_props or global_props:
-            self.sample_subtomograms()
-            if global_props:
-                df = self.tomogram.collect_globalprops(i=splines).transpose()
-                df.columns = [f"Spline-{i}" for i in splines]
-                self.log.print_table(df, precision=3)
-        if local_props and paint:
-            self.paint_mt()
-        if global_props:
-            self._update_global_properties_in_widget()
-        self._update_splines_in_images()
-        return None
-    
+
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"clear_last.png")
     @do_not_record
@@ -550,7 +548,7 @@ class MTPropsWidget(MagicTemplate):
         return macro.format([(mk.symbol(self.parent_viewer), v)])
     
     @Others.Macro.wraps
-    @set_options(path={"filter": "Python (*.py);;All files (*)"})
+    @set_options(path={"filter": FileFilter.PY})
     @set_design(text="Run file")
     @do_not_record
     def run_file(self, path: Path):
@@ -651,7 +649,7 @@ class MTPropsWidget(MagicTemplate):
         bin_size={"options": {"min": 1, "max": 8}},
     )
     @set_design(text="Open image")
-    @dask_thread_worker(progress={"desc": "Reading image"})  # TODO: fix magic-class to make confirm and dask_thread_worker compatible.
+    @dask_thread_worker(progress={"desc": "Reading image"})
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     def open_image(
         self, 
@@ -694,7 +692,7 @@ class MTPropsWidget(MagicTemplate):
 
         self._macro_offset = len(self.macro)
         self.tomogram = tomo
-        return filter_reference_image
+        return thread_worker.to_callback(self._send_tomogram_to_viewer, filter_reference_image)
     
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
@@ -722,67 +720,65 @@ class MTPropsWidget(MagicTemplate):
         
         self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
+        
+        @thread_worker.to_callback
+        def _load_project_on_return():
+            self._send_tomogram_to_viewer(filt=filter_reference_image)
             
-        return project, filter_reference_image
-
-    @load_project.returned.connect
-    def _load_project_on_return(self, out: tuple[MTPropsProject, bool]):
-        project, filt = out
-        self._send_tomogram_to_viewer(filt=filt)
+            # load splines
+            splines = [MtSpline.from_json(path) for path in project.splines]
+            localprops_path = project.localprops
+            if localprops_path is not None:
+                all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
+            else:
+                all_localprops = {}
+            globalprops_path = project.globalprops
+            if globalprops_path is not None:
+                all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
+            else:
+                all_globalprops = {}
+            
+            for i, spl in enumerate(splines):
+                spl.localprops = all_localprops.get(i, None)
+                if spl.localprops is not None:
+                    spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
+                    spl.localprops.pop("SplineID")
+                    spl.localprops.pop("PosID")
+                    spl.localprops.index = range(len(spl.localprops))
+                spl.globalprops = all_globalprops.get(i, None)
+                if spl.globalprops is not None:
+                    try:
+                        spl.radius = spl.globalprops.pop("radius")
+                    except KeyError:
+                        pass
+                    try:
+                        spl.orientation = spl.globalprops.pop("orientation")
+                    except KeyError:
+                        pass
+            
+            if splines:
+                self.tomogram._splines = splines
+                self._update_splines_in_images()
+                with self.macro.blocked():
+                    self.sample_subtomograms()
+            
+            # load molecules
+            for path in project.molecules:
+                mole = Molecules.from_csv(path)
+                add_molecules(self.parent_viewer, mole, name=Path(path).stem)
+            
+            # load global variables
+            if project.global_variables:
+                with self.macro.blocked():
+                    self.Others.Global_variables.load_variables(project.global_variables)
+            
+            # load subtomogram analyzer state
+            self._subtomogram_averaging.template_path = project.template_image or ""
+            self._subtomogram_averaging._set_mask_params(project.mask_parameters)
+            self.reset_choices()
+            self._need_save = False
         
-        # load splines
-        splines = [MtSpline.from_json(path) for path in project.splines]
-        localprops_path = project.localprops
-        if localprops_path is not None:
-            all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
-        else:
-            all_localprops = {}
-        globalprops_path = project.globalprops
-        if globalprops_path is not None:
-            all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
-        else:
-            all_globalprops = {}
-        
-        for i, spl in enumerate(splines):
-            spl.localprops = all_localprops.get(i, None)
-            if spl.localprops is not None:
-                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
-                spl.localprops.pop("SplineID")
-                spl.localprops.pop("PosID")
-                spl.localprops.index = range(len(spl.localprops))
-            spl.globalprops = all_globalprops.get(i, None)
-            if spl.globalprops is not None:
-                try:
-                    spl.radius = spl.globalprops.pop("radius")
-                except KeyError:
-                    pass
-                try:
-                    spl.orientation = spl.globalprops.pop("orientation")
-                except KeyError:
-                    pass
-        
-        if splines:
-            self.tomogram._splines = splines
-            self._update_splines_in_images()
-            with self.macro.blocked():
-                self.sample_subtomograms()
-        
-        # load molecules
-        for path in project.molecules:
-            mole = Molecules.from_csv(path)
-            add_molecules(self.parent_viewer, mole, name=Path(path).stem)
-        
-        # load global variables
-        if project.global_variables:
-            with self.macro.blocked():
-                self.Others.Global_variables.load_variables(project.global_variables)
-        
-        # load subtomogram analyzer state
-        self._subtomogram_averaging.template_path = project.template_image or ""
-        self._subtomogram_averaging._set_mask_params(project.mask_parameters)
-        self.reset_choices()
-        self._need_save = False
-        return None
+        return _load_project_on_return
     
     @File.wraps
     @set_options(
@@ -941,11 +937,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_design(text="Save molecules")
     @set_options(save_path={"mode": "w", "filter": FileFilter.CSV})
-    def save_molecules(
-        self,
-        layer: MonomerLayer, 
-        save_path: Path,
-    ):
+    def save_molecules(self, layer: MonomerLayer, save_path: Path):
         """
         Save monomer coordinates, orientation and features as a csv file.
 
@@ -967,8 +959,7 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def process_images(self):
         """Open image processor."""
-        self._ImageProcessor.show()
-        return None
+        return self._ImageProcessor.show()
     
     @Image.wraps
     @set_design(text="Show image info")
@@ -1004,15 +995,16 @@ class MTPropsWidget(MagicTemplate):
             self.layer_image.data = img.tiled_lowpass_filter(
                 cutoff, chunks=(96, 96, 96), overlap=overlap,
             )
-        return np.percentile(self.layer_image.data, [1, 99.9])
-
-    @filter_reference_image.returned.connect
-    def _filter_reference_image_on_return(self, contrast_limits):
-        self.layer_image.contrast_limits = contrast_limits
-        proj = self.layer_image.data.proj("z")
-        self.overview.image = proj
-        self.overview.contrast_limits = contrast_limits
-        return None
+        contrast_limits = np.percentile(self.layer_image.data, [1, 99.9])
+        
+        @thread_worker.to_callback
+        def _filter_reference_image_on_return():
+            self.layer_image.contrast_limits = contrast_limits
+            proj = self.layer_image.data.proj("z")
+            self.overview.image = proj
+            self.overview.contrast_limits = contrast_limits
+        
+        return _filter_reference_image_on_return
 
     @Image.wraps
     @set_design(text="Add multi-scale")
@@ -1029,10 +1021,9 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram        
         tomo.get_multiscale(binsize=bin_size, add=True)
         self._need_save = True
-        return bin_size
+        return thread_worker.to_callback(self.set_multiscale, bin_size)
     
     @Image.wraps
-    @add_multiscale.returned.connect
     @set_design(text="Set multi-scale")
     def set_multiscale(self, bin_size: Choices[_get_available_binsize]):
         """
@@ -1296,7 +1287,7 @@ class MTPropsWidget(MagicTemplate):
             max_shift=max_shift,
         )
         self._need_save = True
-        return None
+        return thread_worker.to_callback(self._update_splines_in_images)
 
     @Splines.wraps
     @set_options(max_interval={"label": "Max interval (nm)"})
@@ -1381,7 +1372,13 @@ class MTPropsWidget(MagicTemplate):
         )
         
         self._need_save = True
-        return None
+        
+        @thread_worker.to_callback
+        def _refine_splines_on_return():
+            self._init_widget_state()
+            self._update_splines_in_images()
+            
+        return _refine_splines_on_return
     
     @Splines.wraps
     @set_options(interval={"label": "Interval (nm)", "min": 1.0})
@@ -1451,21 +1448,21 @@ class MTPropsWidget(MagicTemplate):
         if tomo.splines[0].radius is None:
             self.tomogram.set_radius()
         tomo.make_anchors(interval=interval)
+        
+        @thread_worker.to_callback
+        def _local_ft_analysis_on_yield(i: int):
+            if i == 0:
+                self.sample_subtomograms()        
+            self._update_splines_in_images()
+            self._update_local_properties_in_widget()
+        
         for i in range(self.tomogram.n_splines):
             tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
-            yield i
+            yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size
         self._need_save = True
         return None
-    
-    @local_ft_analysis.yielded.connect
-    def _local_ft_analysis_on_yield(self, i: int):
-        if i == 0:
-            self.sample_subtomograms()        
-        self._update_splines_in_images()
-        self._update_local_properties_in_widget()
-        return None
-        
+
     @Analysis.wraps
     @set_design(text="Global FT analysis")
     @thread_worker(progress={"desc": "Global Fourier transform", "total": "self.tomogram.n_splines"})
@@ -1481,27 +1478,27 @@ class MTPropsWidget(MagicTemplate):
         tomo = self.tomogram
         if self.tomogram.splines[0].radius is None:
             self.tomogram.set_radius()
+            
+        @thread_worker.to_callback
+        def _global_ft_analysis_on_yield(i: int):
+            if i == 0:
+                self.sample_subtomograms()
+            self._update_splines_in_images()
+            self._update_local_properties_in_widget()
+        
+        @thread_worker.to_callback
+        def _global_ft_analysis_on_return():
+            df = self.tomogram.collect_globalprops().transpose()
+            df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+            self.log.print_table(df, precision=3)
+            self._update_global_properties_in_widget()
+        
         for i in range(self.tomogram.n_splines):
             tomo.global_ft_params(i=i, binsize=bin_size)
-            yield i
+            yield _global_ft_analysis_on_yield(i)
         self._need_save = True
-        return None
-    
-    @global_ft_analysis.yielded.connect
-    def _global_ft_analysis_on_yield(self, i: int):
-        if i == 0:
-            self.sample_subtomograms()
-        self._update_splines_in_images()
-        self._update_local_properties_in_widget()
-        return None
-    
-    @global_ft_analysis.returned.connect
-    def _global_ft_analysis_on_return(self, out):
-        df = self.tomogram.collect_globalprops().transpose()
-        df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
-        self.log.print_table(df, precision=3)
-        return None
-    
+        return _global_ft_analysis_on_return
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -1819,7 +1816,7 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
-        self._subtomogram_averaging.show()
+        return self._subtomogram_averaging.show()
     
     @magicclass(name="Subtomogram averaging")
     class _subtomogram_averaging(MagicTemplate):
@@ -2081,8 +2078,10 @@ class MTPropsWidget(MagicTemplate):
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale)
         self.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
-        return img, f"[AVG]{layer.name}"
-
+        
+        return thread_worker.to_callback(
+            self._subtomogram_averaging._show_reconstruction, img, f"[AVG]{layer.name}"
+        )
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2150,7 +2149,11 @@ class MTPropsWidget(MagicTemplate):
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale)
         self.log.print_html(f"<code>average_subset</code> ({default_timer() - t0:.1f} sec)")
-        return img, f"[AVG(n={number})]{layer.name}"
+        return thread_worker.to_callback(
+            self._subtomogram_averaging._show_reconstruction,
+            img,
+            f"[AVG(n={number})]{layer.name}"
+        )
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2198,7 +2201,9 @@ class MTPropsWidget(MagicTemplate):
         img.set_scale(zyx=loader.scale)
         self.log.print_html(f"<code>split_and_average</code> ({default_timer() - t0:.1f} sec)")
 
-        return img, f"[Split]{layer.name}"
+        return thread_worker.to_callback(
+            self._subtomogram_averaging._show_reconstruction, img, f"[Split]{layer.name}"
+        )
     
     def _check_binning_for_alignment(
         self,
@@ -2331,42 +2336,32 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         img_trans = ip.asarray(img_trans, axes="zyx")
         img_trans.set_scale(zyx=_scale)
-        return img_trans, template, mole_trans, layer
+        
+        @thread_worker.to_callback
+        def _align_averaged_on_return():
+            points = add_molecules(
+                self.parent_viewer, 
+                mole_trans,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+            )
+            img_norm = _normalize_image(img_trans)
+            temp_norm = _normalize_image(template)
+            merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
+            layer.visible = False
+            self.log.print(f"{layer.name!r} --> {points.name!r}")
+            with self.log.set_plt():
+                fig, axes = plt.subplots(nrows=1, ncols=2)
+                axes[0].imshow(np.max(merge, axis=0))
+                axes[0].set_xlabel("X")
+                axes[0].set_ylabel("Y")
+                axes[1].imshow(np.max(merge, axis=1))
+                axes[1].set_xlabel("X")
+                axes[1].set_ylabel("Z")
+                plt.tight_layout()
+                plt.show()
+        
+        return _align_averaged_on_return
 
-    @align_averaged.returned.connect
-    def _align_averaged_on_return(self, out: Tuple[ip.ImgArray, ip.ImgArray, Molecules, MonomerLayer]):
-        img, template, mole, layer = out
-        points = add_molecules(
-            self.parent_viewer, 
-            mole,
-            name=_coerce_aligned_name(layer.name, self.parent_viewer),
-        )
-        img_norm = _normalize_image(img)
-        temp_norm = _normalize_image(template)
-        merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
-        layer.visible = False
-        self.log.print(f"{layer.name!r} --> {points.name!r}")
-        with self.log.set_plt():
-            fig, axes = plt.subplots(nrows=1, ncols=2)
-            axes[0].imshow(np.max(merge, axis=0))
-            axes[0].set_xlabel("X")
-            axes[0].set_ylabel("Y")
-            axes[1].imshow(np.max(merge, axis=1))
-            axes[1].set_xlabel("X")
-            axes[1].set_ylabel("Z")
-            plt.tight_layout()
-            plt.show()
-            
-        return None
-    
-    @average_all.returned.connect
-    @average_subset.returned.connect
-    @split_and_average.returned.connect
-    def _average_all_on_return(self, out: Tuple[ip.ImgArray, str]):
-        img, layer_name = out
-        self._subtomogram_averaging._show_reconstruction(img, layer_name)
-        return None
-    
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
@@ -2448,7 +2443,7 @@ class MTPropsWidget(MagicTemplate):
         
         self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
-        return aligned_loader, layer
+        return self._align_all_on_return(aligned_loader, layer)
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2524,7 +2519,7 @@ class MTPropsWidget(MagicTemplate):
         
         self.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
-        return aligned_loader, layer
+        return self._align_all_on_return(aligned_loader, layer)
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2616,7 +2611,7 @@ class MTPropsWidget(MagicTemplate):
         )
         self.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
-        return aligned_loader, layer
+        return self._align_all_on_return(aligned_loader, layer)
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -2739,14 +2734,10 @@ class MTPropsWidget(MagicTemplate):
             order=interpolation, 
             output_shape=template.shape,
         )
-        return aligned_loader, layer
+        return self._align_all_on_return(aligned_loader, layer)
 
-    @align_all.returned.connect
-    @align_all_template_free.returned.connect
-    @align_all_multi_template.returned.connect
-    @align_all_viterbi.returned.connect
-    def _align_all_on_return(self, out: Tuple[SubtomogramLoader, MonomerLayer]):
-        aligned_loader, layer = out
+    @thread_worker.to_callback
+    def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
         points = add_molecules(
             self.parent_viewer, 
             aligned_loader.molecules,
@@ -2848,27 +2839,19 @@ class MTPropsWidget(MagicTemplate):
     
         if result_fw.score < result_rv.score:
             molecules.rotate_by_rotvec_internal([np.pi, 0., 0.], copy=False)
-            
-        return (
-            (fit_fw, template_centered_fw, result_fw.score),
-            (fit_rv, template_centered_rv, result_rv.score),
-        )
+        
+        @thread_worker.to_callback
+        def _polarity_check_fast_on_return():
+            with self.log.set_plt():
+                _plot_forward_and_reverse(
+                    template_centered_fw, fit_fw, result_fw.score,
+                    template_centered_rv, fit_rv, result_rv.score,
+                )
+                plt.tight_layout()
+                plt.show()
 
-    @polarity_check_fast.returned.connect
-    def _polarity_check_fast_on_return(
-        self,
-        out: Tuple[Tuple[np.ndarray, np.ndarray, float], Tuple[np.ndarray, np.ndarray, float]]
-    ):
-        (fit_fw, template_centered_fw, zncc_fw), (fit_rv, template_centered_rv, zncc_rv) = out
-        
-        with self.log.set_plt():
-            _plot_forward_and_reverse(
-                template_centered_fw, fit_fw, zncc_fw,
-                template_centered_rv, fit_rv, zncc_rv,
-            )
-            plt.tight_layout()
-            plt.show()
-        
+        return _polarity_check_fast_on_return
+            
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
@@ -2986,24 +2969,18 @@ class MTPropsWidget(MagicTemplate):
         if zncc_fw < zncc_rv:
             molecules.rotate_by_rotvec_internal([np.pi, 0., 0.], copy=False)
         self.log.print_html(f"<code>polarity_check</code> ({default_timer() - t0:.1f} sec)")
-    
-        return (
-            (avg_fw, template_centered_fw, zncc_fw),
-            (avg_rv, template_centered_rv, zncc_rv),
-        )
-    
-    @polarity_check.returned.connect
-    def _polarity_check_on_return(self, out: Tuple[Tuple[ip.ImgArray, ip.ImgArray, ip.ImgArray], Tuple[ip.ImgArray, ip.ImgArray, ip.ImgArray]]):
-        (avg_fw, template_centered_fw, zncc_fw), (avg_rv, template_centered_rv, zncc_rv) = out
-        
-        with self.log.set_plt():
-            _plot_forward_and_reverse(
-                template_centered_fw, avg_fw, zncc_fw,
-                template_centered_rv, avg_rv, zncc_rv,
-            )
-            plt.tight_layout()
-            plt.show()
-        return None
+
+        @thread_worker.to_callback
+        def _polarity_check_on_return():
+            with self.log.set_plt():
+                _plot_forward_and_reverse(
+                    template_centered_fw, avg_fw, zncc_fw,
+                    template_centered_rv, avg_rv, zncc_rv,
+                )
+                plt.tight_layout()
+                plt.show()
+
+        return _polarity_check_on_return
 
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Calculate correlation")
@@ -3031,16 +3008,11 @@ class MTPropsWidget(MagicTemplate):
         self.log.print_html(f"<code>calculate_correlation</code> ({default_timer() - t0:.1f} sec)")
         self.log.print_html(f"Cross correlation with template = <b>{zncc:.3f}</b>")
         if not show_average:
-            img_avg = None
-        return img_avg, f"[AVG]{layer.name}"
-    
-    @calculate_correlation.returned.connect
-    def _calculate_correlation_on_return(self, out: Tuple[ip.ImgArray, str]):
-        img_avg, name = out
-        if img_avg is not None:
-            self._subtomogram_averaging._show_reconstruction(img_avg, name)
-        return None    
-        
+            return
+        return thread_worker.to_callback(
+            self._subtomogram_averaging._show_reconstruction, img_avg, f"[AVG]{layer.name}"
+        )
+
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         size={"text": "Use template shape", "options": {"value": 12., "max": 100.}},
@@ -3119,36 +3091,34 @@ class MTPropsWidget(MagicTemplate):
             
         fsc_all = np.stack(fsc_all, axis=1)
         self.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
-        return freq, fsc_all, layer, img_avg
-    
-    @calculate_fsc.returned.connect
-    def _calculate_fsc_on_return(self, out: Tuple[np.ndarray, np.ndarray, MonomerLayer, ip.ImgArray]):
-        freq, fsc_all, layer, img_avg = out
-        fsc_mean = np.mean(fsc_all, axis=1)
-        fsc_std = np.std(fsc_all, axis=1)
-        crit_0143 = 0.143
-        crit_0500 = 0.500
         
-        self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
-        with self.log.set_plt(rc_context={"font.size": 15}):
-            _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
-        
-        resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
-        resolution_0500 = _calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
-        str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
-        str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
-        
-        self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
-        self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
-        self._LoggerWindow.show()
-        
-        if img_avg is not None:
-            layer = self._subtomogram_averaging._show_reconstruction(
-                img_avg, name = f"[AVG]{layer.name}",
-            )
-            layer.metadata["FSC-freq"] = freq
-            layer.metadata["FSC-mean"] = fsc_mean
-        return None    
+        @thread_worker.to_callback
+        def _calculate_fsc_on_return():
+            fsc_mean = np.mean(fsc_all, axis=1)
+            fsc_std = np.std(fsc_all, axis=1)
+            crit_0143 = 0.143
+            crit_0500 = 0.500
+            
+            self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
+            with self.log.set_plt(rc_context={"font.size": 15}):
+                _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
+            
+            resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
+            resolution_0500 = _calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
+            str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
+            str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
+            
+            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
+            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
+            self._LoggerWindow.show()
+            
+            if img_avg is not None:
+                _rec_layer = self._subtomogram_averaging._show_reconstruction(
+                    img_avg, name = f"[AVG]{layer.name}",
+                )
+                _rec_layer.metadata["FSC-freq"] = freq
+                _rec_layer.metadata["FSC-mean"] = fsc_mean
+        return _calculate_fsc_on_return
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(npf={"text": "Use global properties"})
@@ -3190,7 +3160,7 @@ class MTPropsWidget(MagicTemplate):
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
 
-        result = try_all_seams(
+        corrs, img_ave, all_labels = try_all_seams(
             loader=loader, 
             npf=npf,
             template=template,
@@ -3198,35 +3168,31 @@ class MTPropsWidget(MagicTemplate):
         )
         
         self._need_save = True
-        return *result, layer, npf
 
-    @seam_search.returned.connect
-    def _seam_search_on_return(
-        self, 
-        out: Tuple[np.ndarray, ip.ImgArray, np.ndarray, MonomerLayer, int]
-    ):
-        corrs, img_ave, all_labels, layer, npf = out
-        self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
-        self._LoggerWindow.show()
-        
-        # calculate score and the best PF position
-        corr1, corr2 = corrs[:npf], corrs[npf:]
-        score = np.empty_like(corrs)
-        score[:npf] = corr1 - corr2
-        score[npf:] = corr2 - corr1
-        imax = np.argmax(score)
+        @thread_worker.to_callback
+        def _seam_search_on_return():
+            self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
+            self._LoggerWindow.show()
             
-        # plot all the correlation
-        self.log.print_html("<code>Seam_search</code>")
-        with self.log.set_plt(rc_context={"font.size": 15}):
-            _plot_seam_search_result(corrs, score, npf)
+            # calculate score and the best PF position
+            corr1, corr2 = corrs[:npf], corrs[npf:]
+            score = np.empty_like(corrs)
+            score[:npf] = corr1 - corr2
+            score[npf:] = corr2 - corr1
+            imax = np.argmax(score)
+                
+            # plot all the correlation
+            self.log.print_html("<code>Seam_search</code>")
+            with self.log.set_plt(rc_context={"font.size": 15}):
+                _plot_seam_search_result(corrs, score, npf)
+                
+            self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
+            self.sub_viewer.layers[-1].metadata["Score"] = score
             
-        self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
-        self.sub_viewer.layers[-1].metadata["Score"] = score
+            update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
+            layer.metadata["seam-search-score"] = score
         
-        update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
-        layer.metadata["seam-search-score"] = score
-        return None
+        return _seam_search_on_return
 
     @_subtomogram_averaging.Tools.wraps
     @set_options(
@@ -3657,8 +3623,7 @@ class MTPropsWidget(MagicTemplate):
         for b in binsize:
             tomo.add_multiscale(b)
         return tomo
-    
-    @refine_splines.returned.connect
+
     def _init_widget_state(self, _=None):
         """Initialize widget state of spline control and local properties for new plot."""
         self.SplineControl.pos = 0
@@ -3672,8 +3637,7 @@ class MTPropsWidget(MagicTemplate):
         for i in range(2):
             self.LocalProperties.plot[i].layers.clear()
         return None
-    
-    @open_image.returned.connect
+
     def _send_tomogram_to_viewer(self, filt: bool):
         viewer = self.parent_viewer
         tomo = self.tomogram
@@ -3865,8 +3829,7 @@ class MTPropsWidget(MagicTemplate):
         self.layer_prof.face_color[spec] = [0.8, 0.0, 0.5, 1]
         self.layer_prof.refresh()
         return None
-    
-    @global_ft_analysis.returned.connect
+
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self, _=None):
         i = self.SplineControl.num
@@ -3913,11 +3876,7 @@ class MTPropsWidget(MagicTemplate):
             fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",
         )
         return None
-    
-    @fit_splines.returned.connect
-    @refine_splines.returned.connect
-    @run_mtprops.yielded.connect
-    @run_mtprops.returned.connect
+
     def _update_splines_in_images(self, _=None):
         self.overview.layers.clear()
         self.layer_prof.data = []
@@ -3936,6 +3895,7 @@ class MTPropsWidget(MagicTemplate):
                 size=10,
                 name=f"spline-{i}-anc",
             )
+        return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Preview methods

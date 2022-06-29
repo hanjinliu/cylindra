@@ -18,6 +18,7 @@ class FileFilter(SimpleNamespace):
     IMAGE = "Tomograms (*.mrc;*.rec;*.tif;*.tiff;*.map);;All files (*)"
     JSON = "JSON(*.json;*.txt);;All files (*)"
     CSV = "CSV(*.csv;*.txt);*.dat;;All files (*)"
+    PY = "Python (*.py);;All files (*)"
 
 
 def add_molecules(viewer: napari.Viewer, mol: Molecules, name):

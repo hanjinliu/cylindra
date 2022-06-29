@@ -67,7 +67,7 @@ class SplineControl(MagicTemplate):
         parent = self.find_ancestor(MTPropsWidget)
         if parent.tomogram is None or i is None:
             return None
-        spl: MtSpline = parent.tomogram.splines[i]
+        spl = parent.tomogram.splines[i]
         if spl.localprops is not None:
             spl.localprops[H.nPF].values[:] = npf
             parent._update_local_properties_in_widget()
@@ -87,7 +87,7 @@ class SplineControl(MagicTemplate):
         parent = self.find_ancestor(MTPropsWidget)
         if parent.tomogram is None or i is None:
             return None
-        spl: MtSpline = parent.tomogram.splines[i]
+        spl = parent.tomogram.splines[i]
         spl.orientation = orientation
         parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
         return None

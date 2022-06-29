@@ -80,6 +80,7 @@ class GlobalVariables(MagicTemplate):
     @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load variables")
     def load_variables(self, path: Path = INITIAL_PATH):
+        """Load global variables from a Json file."""
         with open(path, mode="r") as f:
             gvar: dict = json.load(f)
         
@@ -108,6 +109,7 @@ class GlobalVariables(MagicTemplate):
     @set_options(path={"filter": FileFilter.JSON, "mode": "w"})
     @set_design(text="Save variables")
     def save_variables(self, path: Path = INITIAL_PATH):
+        """Save current global variables to a Json file."""
         gvar = GVar.get_value()
         with open(path, mode="w") as f:
             json.dump(gvar, f, indent=4, separators=(", ", ": "))
