@@ -9,7 +9,7 @@ from magicclass import (
     set_design,
 )
 from magicclass.widgets import FloatRangeSlider, ColorEdit, ListEdit
-from magicclass.types import Color, Bound, Choices
+from magicclass.types import Color, Bound, OneOf
 import numpy as np
 from ..types import get_monomer_layers
 from napari.utils.colormaps import Colormap, label_colormap
@@ -41,8 +41,8 @@ class FeatureControl(MagicTemplate):
         cols = layer.features.columns
         return cols
     
-    layer = vfield(Choices[get_monomer_layers], record=False)
-    feature_name = field(Choices[_get_feature_names], record=False)
+    layer = vfield(OneOf[get_monomer_layers], record=False)
+    feature_name = field(OneOf[_get_feature_names], record=False)
     table = field(Table, record=False)
     
     def _get_feature_dataframe(self) -> "pd.DataFrame":

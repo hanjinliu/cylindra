@@ -30,7 +30,7 @@ from magicclass import (
     nogui,
     mark_preview,
     )
-from magicclass.types import Color, Bound, Optional, Choices, SomeOf
+from magicclass.types import Color, Bound, Optional, OneOf, SomeOf
 from magicclass.widgets import (
     Logger,
     Separator,
@@ -391,7 +391,7 @@ class MTPropsWidget(MagicTemplate):
         
         all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
         splines = vfield(SomeOf[_get_splines], options={"visible": False}, record=False)
-        bin_size = vfield(Choices[_get_available_binsize], record=False)
+        bin_size = vfield(OneOf[_get_available_binsize], record=False)
         dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
         params1 = subwidgets.runner_params1
         n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4}, record=False)
@@ -929,7 +929,7 @@ class MTPropsWidget(MagicTemplate):
     @File.wraps
     @set_options(save_path={"mode": "w", "filter": FileFilter.JSON})
     @set_design(text="Save spline")
-    def save_spline(self, spline: Choices[_get_splines], save_path: Path):
+    def save_spline(self, spline: OneOf[_get_splines], save_path: Path):
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
         return None
@@ -1009,7 +1009,7 @@ class MTPropsWidget(MagicTemplate):
     @Image.wraps
     @set_design(text="Add multi-scale")
     @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
-    def add_multiscale(self, bin_size: Choices[range(2, 7)] = 4):
+    def add_multiscale(self, bin_size: OneOf[2:9] = 4):
         """
         Add a new multi-scale image of current tomogram.
 
@@ -1025,7 +1025,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="Set multi-scale")
-    def set_multiscale(self, bin_size: Choices[_get_available_binsize]):
+    def set_multiscale(self, bin_size: OneOf[_get_available_binsize]):
         """
         Set multiscale used for image display.
         
@@ -1197,7 +1197,7 @@ class MTPropsWidget(MagicTemplate):
     
     @Splines.wraps
     @set_design(text="Align to polarity")
-    def align_to_polarity(self, orientation: Choices["MinusToPlus", "PlusToMinus"] = "MinusToPlus"):
+    def align_to_polarity(self, orientation: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus"):
         """
         Align all the splines in the direction parallel to microtubule polarity.
 
@@ -1222,7 +1222,7 @@ class MTPropsWidget(MagicTemplate):
         limits={"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
     )
     @set_design(text="Clip splines")
-    def clip_spline(self, spline: Choices[_get_splines], limits: Tuple[float, float] = (0., 1.)):
+    def clip_spline(self, spline: OneOf[_get_splines], limits: Tuple[float, float] = (0., 1.)):
         # BUG: properties may be inherited in a wrong way
         if spline is None:
             return
@@ -1257,7 +1257,7 @@ class MTPropsWidget(MagicTemplate):
     def fit_splines(
         self, 
         max_interval: nm = 30,
-        bin_size: Choices[_get_available_binsize] = 1,
+        bin_size: OneOf[_get_available_binsize] = 1,
         degree_precision: float = 0.5,
         edge_sigma: Optional[nm] = 2.0,
         max_shift: nm = 5.0,
@@ -1331,7 +1331,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(radius={"text": "Measure radii by radial profile."})
     @set_design(text="Set radius")
     @thread_worker(progress={"desc": "Measuring Radius"})
-    def set_radius(self, radius: Optional[nm] = None, bin_size: Choices[_get_available_binsize] = 1):
+    def set_radius(self, radius: Optional[nm] = None, bin_size: OneOf[_get_available_binsize] = 1):
         """Measure MT radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
@@ -1348,7 +1348,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         max_interval: nm = 30,
         corr_allowed: float = 0.9,
-        bin_size: Choices[_get_available_binsize] = 1,
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Refine splines using the global MT structural parameters.
@@ -1429,7 +1429,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         interval: nm = 24.5,
         ft_size: nm = 24.5,
-        bin_size: Choices[_get_available_binsize] = 1,
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Determine MT structural parameters by local Fourier transformation.
@@ -1466,7 +1466,7 @@ class MTPropsWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Global FT analysis")
     @thread_worker(progress={"desc": "Global Fourier transform", "total": "self.tomogram.n_splines"})
-    def global_ft_analysis(self, bin_size: Choices[_get_available_binsize] = 1):
+    def global_ft_analysis(self, bin_size: OneOf[_get_available_binsize] = 1):
         """
         Determine MT global structural parameters by Fourier transformation.
         
@@ -1611,7 +1611,7 @@ class MTPropsWidget(MagicTemplate):
     def show_orientation(
         self,
         layer: MonomerLayer,
-        orientation: Choices["x", "y", "z"] = "z",
+        orientation: OneOf["x", "y", "z"] = "z",
         color: Color = "crimson",
     ):
         """
@@ -1839,7 +1839,7 @@ class MTPropsWidget(MagicTemplate):
             self.mask = MASK_CHOICES[0]
 
         template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
-        mask = vfield(Choices[MASK_CHOICES], label="Mask", record=False)
+        mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
         params = field(subwidgets.params)
         mask_path = field(subwidgets.mask_path)
         tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
@@ -2043,8 +2043,8 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
-        bin_size: Choices[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Subtomogram averaging using all the subvolumes.
@@ -2093,9 +2093,9 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         size: Optional[nm] = None,
-        method: Choices["steps", "first", "last", "random"] = "steps", 
+        method: OneOf["steps", "first", "last", "random"] = "steps", 
         number: int = 64,
-        bin_size: Choices[_get_available_binsize] = 1,
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Subtomogram averaging using a subset of subvolumes.
@@ -2167,8 +2167,8 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         n_set: int = 1,
         size: Optional[nm] = None,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
-        bin_size: Choices[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Split molecules into two groups and average separately.
@@ -2252,8 +2252,8 @@ class MTPropsWidget(MagicTemplate):
         z_rotation: Tuple[float, float] = (3., 3.),
         y_rotation: Tuple[float, float] = (15., 3.),
         x_rotation: Tuple[float, float] = (3., 3.),
-        bin_size: Choices[_get_available_binsize] = 1,
-        method: Choices[METHOD_CHOICES] = "zncc",
+        bin_size: OneOf[_get_available_binsize] = 1,
+        method: OneOf[METHOD_CHOICES] = "zncc",
     ):
         """
         Align the averaged image at current monomers to the template image.
@@ -2383,9 +2383,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
-        method: Choices[METHOD_CHOICES] = "zncc",
-        bin_size: Choices[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        method: OneOf[METHOD_CHOICES] = "zncc",
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2466,9 +2466,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
-        method: Choices[METHOD_CHOICES] = "zncc",
-        bin_size: Choices[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        method: OneOf[METHOD_CHOICES] = "zncc",
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2544,9 +2544,9 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
-        method: Choices[METHOD_CHOICES] = "zncc",
-        bin_size: Choices[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        method: OneOf[METHOD_CHOICES] = "zncc",
+        bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
         Align all the molecules for subtomogram averaging.
@@ -2630,7 +2630,7 @@ class MTPropsWidget(MagicTemplate):
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
         cutoff: float = 1.0,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         distance_range: Tuple[nm, nm] = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
         upsample_factor: int = 5,
@@ -2762,8 +2762,8 @@ class MTPropsWidget(MagicTemplate):
         z_rotation: Tuple[float, float] = (3., 3.),
         y_rotation: Tuple[float, float] = (15., 3.),
         x_rotation: Tuple[float, float] = (3., 3.),
-        bin_size: Choices[_get_available_binsize] = 1,
-        method: Choices[METHOD_CHOICES] = "zncc",
+        bin_size: OneOf[_get_available_binsize] = 1,
+        method: OneOf[METHOD_CHOICES] = "zncc",
     ):
         """
         Check/determine the polarity by forward/reverse alignment using averaged images.
@@ -2872,8 +2872,8 @@ class MTPropsWidget(MagicTemplate):
         y_rotation: Tuple[float, float] = (0., 0.),
         x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 0.5,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
-        method: Choices[METHOD_CHOICES] = "zncc",
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        method: OneOf[METHOD_CHOICES] = "zncc",
         molecule_subset: Optional[int] = None,
     ):
         """
@@ -2990,7 +2990,7 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging._get_template],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         show_average: bool = True,
     ):
         t0 = default_timer()
@@ -3028,7 +3028,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         size: Optional[nm] = None,
         seed: Optional[int] = 0,
-        interpolation: Choices[INTERPOLATION_CHOICES] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         n_set: int = 1,
         show_average: bool = True,
         dfreq: Optional[float] = None,
@@ -3129,7 +3129,7 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        interpolation: Choices[INTERPOLATION_CHOICES] = 3,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         npf: Optional[int] = None,
     ):
         """
@@ -3507,7 +3507,7 @@ class MTPropsWidget(MagicTemplate):
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
         limit: Tuple[float, float] = (4.00, 4.24), 
-        color_by: Choices[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
+        color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
     ):
         """
         Set the color-map for painting microtubules.

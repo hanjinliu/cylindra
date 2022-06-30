@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 import impy as ip
 from magicclass import magicclass, MagicTemplate, field, vfield, set_options, set_design
-from magicclass.types import Bound, Choices
+from magicclass.types import Bound, OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
 from ..const import GVar, Ori, H, Mode
@@ -48,7 +48,7 @@ class SplineControl(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
-    num = vfield(Choices[_get_splines], options={"label": "Spline No."}, record=False)
+    num = vfield(OneOf[_get_splines], options={"label": "Spline No."}, record=False)
     pos = vfield(int, widget_type="Slider", label="Position", options={"max": 0}, record=False)
     canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3})
     
