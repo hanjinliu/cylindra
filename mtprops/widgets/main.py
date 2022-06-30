@@ -45,19 +45,7 @@ from acryo.alignment import PCCAlignment, ZNCCAlignment
 
 from ..components import MtSpline, MtTomogram
 from ..components.microtubule import angle_corr, try_all_seams
-from ..utils import (
-    crop_tomogram,
-    make_slice_and_pad,
-    map_coordinates,
-    mirror_zncc,
-    pad_template, 
-    roundint,
-    ceilint,
-    set_gpu,
-    zncc_landscape,
-    viterbi,
-)
-
+from .. import utils
 from . import subwidgets
 from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
@@ -84,7 +72,6 @@ from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
-MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
 METHOD_CHOICES = (
@@ -293,7 +280,7 @@ class MTPropsWidget(MagicTemplate):
             scale = img.scale.x
             mgui.scale.value = f"{scale:.4f}"
             if len(mgui.bin_size.value) < 2:
-                mgui.bin_size.value = [ceilint(0.96 / scale)]
+                mgui.bin_size.value = [utils.ceilint(0.96 / scale)]
         
         return None
 
@@ -346,85 +333,7 @@ class MTPropsWidget(MagicTemplate):
         self.reset_choices()
         return None
     
-    @magicclass(name="Run MTProps")
-    class _runner(MagicTemplate):
-        """
-        Attributes
-        ----------
-        all_splines : bool
-            Uncheck to select along which spline algorithms will be executed.
-        splines : list of int
-            Splines that will be analyzed
-        bin_size : int
-            Set to >1 to use binned image for fitting.
-        dense_mode : bool
-            Check if microtubules are densely packed. Initial spline position
-            must be 'almost' fitted in dense mode.
-        n_refine : int
-            Iteration number of spline refinement.
-        local_props : bool
-            Check if calculate local properties.
-        global_props : bool
-            Check if calculate global properties.
-        """
-        def _get_splines(self, _=None) -> List[Tuple[str, int]]:
-            """Get list of spline objects for categorical widgets."""
-            try:
-                tomo = self.find_ancestor(MTPropsWidget).tomogram
-            except Exception:
-                return []
-            if tomo is None:
-                return []
-            return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
-        
-        def _get_available_binsize(self, _=None) -> List[int]:
-            try:
-                parent = self.find_ancestor(MTPropsWidget)
-            except Exception:
-                return [1]
-            if parent.tomogram is None:
-                return [1]
-            out = [x[0] for x in parent.tomogram.multiscaled]
-            if 1 not in out:
-                out = [1] + out
-            return out
-        
-        all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
-        splines = vfield(SomeOf[_get_splines], options={"visible": False}, record=False)
-        bin_size = vfield(OneOf[_get_available_binsize], record=False)
-        dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
-        params1 = subwidgets.runner_params1
-        n_refine = vfield(1, options={"label": "Refinement iteration", "max": 4}, record=False)
-        local_props = vfield(True, options={"label": "Calculate local properties"}, record=False)
-        params2 = subwidgets.runner_params2
-        global_props = vfield(True, label="Calculate global properties", record=False)
-
-        @all_splines.connect
-        def _toggle_spline_list(self):
-            self["splines"].visible = not self.all_splines
-            
-        @dense_mode.connect
-        def _toggle_dense_mode_sigma(self):
-            self.params1["edge_sigma"].visible = self.dense_mode
-        
-        @local_props.connect
-        def _toggle_localprops_params(self):
-            self.params2.visible = self.local_props
-        
-        def _get_splines_to_run(self, w=None) -> List[int]:
-            if self.all_splines:
-                n_choices = len(self["splines"].choices)
-                return list(range(n_choices))
-            else:
-                return self.splines
-        
-        def _get_edge_sigma(self, w=None) -> Union[float, None]:
-            if self.dense_mode:
-                return self.params1.edge_sigma
-            else:
-                return None
-        
-        def run_mtprops(self): ...
+    _runner = subwidgets.Runner
     
     @toolbar.wraps
     @set_design(icon_path=ICON_DIR/"run_all.png")
@@ -989,7 +898,7 @@ class MTPropsWidget(MagicTemplate):
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
         cutoff = 0.2
-        with set_gpu():
+        with utils.set_gpu():
             img: ip.ImgArray = self.layer_image.data
             overlap = [min(s, 32) for s in img.shape]
             self.layer_image.data = img.tiled_lowpass_filter(
@@ -1664,7 +1573,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         ndim = 3
         mole: Molecules = layer.metadata[MOLECULES]
-        npf = roundint(np.max(mole.features[Mole.pf]) + 1)
+        npf = utils.roundint(np.max(mole.features[Mole.pf]) + 1)
         pos = mole.pos.reshape(-1, npf, ndim)
         quat = mole.rotator.as_quat()
         if prepend > 0:
@@ -1818,220 +1727,7 @@ class MTPropsWidget(MagicTemplate):
         """Open the subtomogram analyzer dock widget."""
         return self._subtomogram_averaging.show()
     
-    @magicclass(name="Subtomogram averaging")
-    class _subtomogram_averaging(MagicTemplate):
-        """
-        Widget for subtomogram averaging.
-        
-        Attributes
-        ----------
-        template_path : Path
-            Path to the template (reference) image file, or layer name of reconstruction.
-        mask : str
-            Select how to create a mask.
-        tilt_range : tuple of float, options
-            Tilt range (degree) of the tomogram.
-        """
-        def __post_init__(self):
-            self._template = None
-            self._viewer: Union[napari.Viewer, None] = None
-            self._next_layer_name = None
-            self.mask = MASK_CHOICES[0]
-
-        template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
-        mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
-        params = field(subwidgets.params)
-        mask_path = field(subwidgets.mask_path)
-        tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
-        
-        @mask.connect
-        def _on_switch(self):
-            v = self.mask
-            self.params.visible = (v == MASK_CHOICES[1])
-            self.mask_path.visible = (v == MASK_CHOICES[2])
-        
-        def _get_template(self, path: Union[Path, None] = None, rescale: bool = True) -> ip.ImgArray:
-            if path is None:
-                path = self.template_path
-            else:
-                self.template_path = path
-            
-            # check path
-            if not os.path.exists(path) or not os.path.isfile(path):
-                # BUG: using other viewer from other thread may be forbidden.
-                # img = None
-                # s = str(path)
-                # if self._viewer is not None and s in self._viewer.layers:
-                #     data = self._viewer.layers[s].data
-                #     if isinstance(data, ip.ImgArray) and data.ndim == 3:
-                #         img: ip.ImgArray = data
-                
-                # if img is None:
-                raise FileNotFoundError(f"Path '{path}' is not a valid file.")
-            
-            else:
-                img = ip.imread(path)
-                
-            if img.ndim != 3:
-                raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
-            parent = self.find_ancestor(MTPropsWidget)
-            if parent.tomogram is not None and rescale:
-                scale_ratio = img.scale.x / parent.tomogram.scale
-                if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                    img = img.rescale(scale_ratio)
-            self._template = img
-            return img
-        
-        def _get_shape_in_nm(self) -> Tuple[int, ...]:
-            if self._template is None:
-                self._get_template()
-            
-            return tuple(s * self._template.scale.x for s in self._template.shape)
-        
-        def _get_mask_params(self, params=None) -> Union[str, Tuple[nm, nm], None]:
-            v = self.mask
-            if v == MASK_CHOICES[0]:
-                params = None
-            elif v == MASK_CHOICES[1]:
-                if self._template is None:
-                    self._get_template()
-                params = (self.params.dilate_radius, self.params.sigma)
-            else:
-                params = self.mask_path.mask_path
-            return params
-        
-        _sentinel = object()
-        
-        def _get_mask(
-            self,
-            params: Union[str, Tuple[int, float], None] = _sentinel
-        ) -> Union[ip.ImgArray, None]:
-            if params is self._sentinel:
-                params = self._get_mask_params()
-            else:
-                if params is None:
-                    self.mask = MASK_CHOICES[0]
-                elif isinstance(params, tuple):
-                    self.mask = MASK_CHOICES[1]
-                else:
-                    self.mask_path.mask_path = params
-            
-            if params is None:
-                return None
-            elif isinstance(params, tuple):
-                thr = self._template.threshold()
-                scale: nm = thr.scale.x
-                mask_image = thr.smooth_mask(
-                    sigma=params[1]/scale, 
-                    dilate_radius=roundint(params[0]/scale),
-                )
-            else:
-                mask_image = ip.imread(self.mask_path.mask_path)
-            
-            if mask_image.ndim != 3:
-                raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
-            scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                mask_image = mask_image.rescale(scale_ratio)
-            return mask_image
-        
-        def _set_mask_params(self, params):
-            if params is None:
-                self.mask = MASK_CHOICES[0]
-            elif isinstance(params, (tuple, list, np.ndarray)):
-                self.mask = MASK_CHOICES[1]
-                self.params.dilate_radius, self.params.sigma = params
-            else:
-                self.mask = MASK_CHOICES[2]
-                self.mask_path.mask_path = params
-            
-        def _show_reconstruction(self, image: ip.ImgArray, name: str) -> Image:
-            if self._viewer is not None:
-                try:
-                    # This line will raise RuntimeError if viewer window had been closed by user.
-                    self._viewer.window.activate()
-                except RuntimeError:
-                    self._viewer = None
-            if self._viewer is None:
-                from .function_menu import Volume
-                self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
-                volume_menu = Volume()
-                self._viewer.window.main_menu.addMenu(volume_menu.native)
-                volume_menu.native.setParent(self._viewer.window.main_menu, volume_menu.native.windowFlags())
-                self._viewer.window.resize(10, 10)
-                self._viewer.window.activate()
-            self._viewer.scale_bar.visible = True
-            self._viewer.scale_bar.unit = "nm"
-            input_image = _normalize_image(image)
-            from skimage.filters.thresholding import threshold_yen
-            thr = threshold_yen(input_image.value)
-            layer = self._viewer.add_image(
-                input_image, scale=image.scale, name=name,
-                rendering="iso", iso_threshold=thr,
-            )
-            
-            return layer
-        
-        @do_not_record
-        def Show_template(self):
-            """Load and show template image."""
-            self._show_reconstruction(self._get_template(), name="Template image")
-        
-        @do_not_record
-        def Show_mask(self):
-            """Load and show mask image."""
-            self._show_reconstruction(self._get_mask(), name="Mask image")
-        
-        @magicmenu
-        class Subtomogram_analysis(MagicTemplate):
-            """Analysis of subtomograms."""
-            def average_all(self): ...
-            def average_subset(self): ...
-            def split_and_average(self): ...
-            def calculate_correlation(self): ...
-            def calculate_fsc(self): ...
-            def seam_search(self): ...
-        
-        @magicmenu
-        class Refinement(MagicTemplate):
-            """Refinement and alignment of subtomograms."""
-            def align_averaged(self): ...
-            def align_all(self): ...
-            def align_all_template_free(self): ...
-            def align_all_multi_template(self): ...
-            def align_all_viterbi(self): ...
-            def polarity_check(self): ...
-            def polarity_check_fast(self): ...
-        
-        @magicmenu
-        class Tools(MagicTemplate):
-            """Other tools."""
-            def reshape_template(self): ...
-            def render_molecules(self): ...
-        
-        @Tools.wraps
-        @do_not_record
-        @set_options(
-            new_shape={"options": {"min": 2, "max": 100}},
-            save_as={"mode": "w", "filter": FileFilter.IMAGE}
-        )
-        @set_design(text="Reshape template")
-        def reshape_template(
-            self, 
-            new_shape: Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
-            save_as: Path = "",
-            update_template_path: bool = True,
-        ):
-            template = self._get_template()
-            if save_as == "":
-                raise ValueError("Set save path.")
-            scale = template.scale.x
-            shape = tuple(roundint(s/scale) for s in new_shape)
-            reshaped = pad_template(template, shape)
-            reshaped.imsave(save_as)
-            if update_template_path:
-                self.template_path = save_as
-            return None
+    _subtomogram_averaging = subwidgets.SubtomogramAveraging
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
@@ -2049,10 +1745,8 @@ class MTPropsWidget(MagicTemplate):
         """
         Subtomogram averaging using all the subvolumes.
 
-        .. code-block:: python
-        
-            loader = ui.tomogram.get_subtomogram_loader(molecules, shape)
-            averaged = ui.tomogram
+        >>> loader = ui.tomogram.get_subtomogram_loader(molecules, shape)
+        >>> averaged = ui.tomogram
             
         Parameters
         ----------
@@ -2344,8 +2038,8 @@ class MTPropsWidget(MagicTemplate):
                 mole_trans,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
             )
-            img_norm = _normalize_image(img_trans)
-            temp_norm = _normalize_image(template)
+            img_norm = utils.normalize_image(img_trans)
+            temp_norm = utils.normalize_image(template)
             merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
             layer.visible = False
             self.log.print(f"{layer.name!r} --> {points.name!r}")
@@ -2685,7 +2379,9 @@ class MTPropsWidget(MagicTemplate):
         def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
             img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
             template_ft = template_ft * model._get_missing_wedge_mask(quat)
-            lds = zncc_landscape(img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor)
+            lds = utils.zncc_landscape(
+                img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor
+            )
             return np.asarray(lds)
         
         tasks = loader.construct_mapping_tasks(
@@ -2709,7 +2405,7 @@ class MTPropsWidget(MagicTemplate):
         dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
         scores = [score[sl] for sl in slices]
 
-        delayed_viterbi = delayed(viterbi)
+        delayed_viterbi = delayed(utils.viterbi)
         viterbi_tasks = [
             delayed_viterbi(s, m.pos / scale * upsample_factor, m.z, m.y, m.x, dist_min, dist_max, max_angle)
             for s, m in zip(scores, mole_list)
@@ -3234,7 +2930,7 @@ class MTPropsWidget(MagicTemplate):
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
-            with set_gpu():
+            with utils.set_gpu():
                 template.lowpass_filter(cutoff=cutoff, update=True)
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
@@ -3292,7 +2988,7 @@ class MTPropsWidget(MagicTemplate):
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
-            with set_gpu():
+            with utils.set_gpu():
                 template.lowpass_filter(cutoff=cutoff, update=True)
         soft_mask = self._subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
@@ -3328,24 +3024,24 @@ class MTPropsWidget(MagicTemplate):
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
         tomo = self.tomogram
-        binsize = roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
+        binsize = utils.roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
         
         length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
-        shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
+        shape = (width_px,) + (utils.roundint((width_px+length_px)/1.41),)*2
         
         orientation = point1[1:] - point0[1:]
-        img = crop_tomogram(imgb, point1, shape)
+        img = utils.crop_tomogram(imgb, point1, shape)
         center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-        angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=ceilint(angle_dev/angle_pre))
+        angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=utils.ceilint(angle_dev/angle_pre))
         angle_rad = np.deg2rad(angle_deg)
         dr = np.array([0.0, stride_nm * np.cos(angle_rad), -stride_nm * np.sin(angle_rad)])
         if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
             point2 = point1 + dr / binned_scale
         else:
             point2 = point1 - dr / binned_scale
-        img_next = crop_tomogram(imgb, point2, shape)
+        img_next = utils.crop_tomogram(imgb, point2, shape)
 
         centering(img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts/binned_scale)
 
@@ -3366,20 +3062,20 @@ class MTPropsWidget(MagicTemplate):
         """Auto centering of selected points."""        
         imgb: ip.ImgArray = self.layer_image.data
         tomo = self.tomogram
-        binsize = roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
+        binsize = utils.roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
         selected = self.layer_work.selected_data
         
         length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
-        shape = (width_px,) + (roundint((width_px+length_px)/1.41),)*2
+        shape = (width_px,) + (utils.roundint((width_px+length_px)/1.41),)*2
         
         points = self.layer_work.data / imgb.scale.x
         last_i = -1
         for i, point in enumerate(points):
             if i not in selected:
                 continue
-            img_input = crop_tomogram(imgb, point, shape)
+            img_input = utils.crop_tomogram(imgb, point, shape)
             angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
             centering(img_input, point, angle_deg, drot=3, nrots=7)
             last_i = i
@@ -3408,10 +3104,10 @@ class MTPropsWidget(MagicTemplate):
         if all_localprops is None:
             raise ValueError("No local property found.")
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
-        binsize = roundint(bin_scale/tomo.scale)
+        binsize = utils.roundint(bin_scale/tomo.scale)
         ft_size = self._current_ft_size
         
-        lz, ly, lx = [roundint(r/bin_scale*1.73)*2 + 1 for r in [15, ft_size/2, 15]]
+        lz, ly, lx = [utils.roundint(r/bin_scale*1.73)*2 + 1 for r in [15, ft_size/2, 15]]
         center = np.array([lz, ly, lx])/2 + 0.5
         z, y, x = np.indices((lz, ly, lx))
         cylinders = []
@@ -3429,7 +3125,7 @@ class MTPropsWidget(MagicTemplate):
                             (dist[j+2] - dist[j+1]) / 2, 
                             ft_size/2) / bin_scale + 0.5 
                     
-                ry = max(ceilint(ry), 1)
+                ry = max(utils.ceilint(ry), 1)
                 domain[:, :ly//2-ry] = 0
                 domain[:, ly//2+ry+1:] = 0
                 domain = domain.astype(np.float32)
@@ -3449,7 +3145,7 @@ class MTPropsWidget(MagicTemplate):
             outsl = []
             # We should deal with the borders of image.
             for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
-                _sl, _pad = make_slice_and_pad(c - l//2, c + l//2 + 1, size)
+                _sl, _pad = utils.make_slice_and_pad(c - l//2, c + l//2 + 1, size)
                 sl.append(_sl)
                 outsl.append(
                     slice(_pad[0] if _pad[0] > 0 else None,
@@ -3722,7 +3418,7 @@ class MTPropsWidget(MagicTemplate):
             scale=tomo.scale
         )
         img = tomo.image
-        out = map_coordinates(img, coords, order=1)
+        out = utils.map_coordinates(img, coords, order=1)
         out = ip.asarray(out, axes="zyx")
         out.set_scale(img)
         out.scale_unit = img.scale_unit
@@ -3749,7 +3445,7 @@ class MTPropsWidget(MagicTemplate):
             scale=tomo.scale
         )
         img = tomo.image
-        polar = map_coordinates(img, coords, order=1)
+        polar = utils.map_coordinates(img, coords, order=1)
         polar = ip.asarray(polar, axes="rya") # radius, y, angle
         polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
         polar.scale_unit = img.scale_unit
@@ -3930,7 +3626,7 @@ def centering(
     
     img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
     proj = img_next_rot.proj("y")
-    shift = mirror_zncc(proj, max_shifts=max_shifts)
+    shift = utils.mirror_zncc(proj, max_shifts=max_shifts)
     
     shiftz, shiftx = shift/2
     shift = np.array([shiftz, 0, shiftx])
@@ -4047,10 +3743,10 @@ def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv,
     fig, axes = plt.subplots(nrows=2, ncols=3)
     template_proj_fw = np.max(template_fw, axis=1)
     fit_proj_fw = np.max(fit_fw, axis=1)
-    merge_fw =_merge_images(fit_proj_fw, template_proj_fw)
+    merge_fw = utils.merge_images(fit_proj_fw, template_proj_fw)
     template_proj_rv = np.max(template_rv, axis=1)
     fit_proj_rv = np.max(fit_rv, axis=1)
-    merge_rv =_merge_images(fit_proj_rv, template_proj_rv)
+    merge_rv = utils.merge_images(fit_proj_rv, template_proj_rv)
     axes[0][0].imshow(template_proj_fw, cmap="gray")
     axes[0][1].imshow(fit_proj_fw, cmap="gray")
     axes[0][2].imshow(merge_fw)
@@ -4066,19 +3762,3 @@ def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv,
     axes[1][0].set_ylabel("Reverse")
     
     return None
-
-_A = TypeVar("_A", bound=np.ndarray)
-
-def _merge_images(img0: _A, img1: _A) -> _A:
-    img0 = np.asarray(img0)
-    img1 = np.asarray(img1)
-    img0_norm = img0 - img0.min()
-    img0_norm /= img0_norm.max()
-    img1_norm = img1 - img1.min()
-    img1_norm /= img1_norm.max()
-    return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
-
-def _normalize_image(img: _A) -> _A:
-    min = img.min()
-    max = img.max()
-    return (img - min)/(max - min)

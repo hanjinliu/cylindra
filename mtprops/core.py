@@ -22,10 +22,11 @@ def start(
     from .widgets import MTPropsWidget
     import logging
     
+    ui = MTPropsWidget()
+    
     if viewer is None:
         import napari
         viewer = napari.Viewer()
-    ui = MTPropsWidget()
     
     logger = logging.getLogger(__name__.split(".")[0])
     logger.addHandler(ui.log)

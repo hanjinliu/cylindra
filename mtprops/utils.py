@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
 import impy as ip
-from typing import Callable, ContextManager, Iterable
+from typing import Callable, ContextManager, Iterable, TypeVar
 from .const import Mode, GVar
 try:
     from . import _cpp_ext
@@ -239,6 +239,23 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     phase = np.exp(1j*input)
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)
+
+_A = TypeVar("_A", bound=np.ndarray)
+
+def merge_images(img0: _A, img1: _A) -> _A:
+    img0 = np.asarray(img0)
+    img1 = np.asarray(img1)
+    img0_norm = img0 - img0.min()
+    img0_norm /= img0_norm.max()
+    img1_norm = img1 - img1.min()
+    img1_norm /= img1_norm.max()
+    return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
+
+
+def normalize_image(img: _A) -> _A:
+    min = img.min()
+    max = img.max()
+    return (img - min)/(max - min)
 
 def pad_template(template: ip.ImgArray, shape: tuple[int, ...]) -> ip.ImgArray:
     """
