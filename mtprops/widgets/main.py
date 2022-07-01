@@ -465,7 +465,7 @@ class MTPropsWidget(MagicTemplate):
         elif len(bin_size) == 0:
             raise ValueError("You must specify at least one bin size.")
         bin_size = list(set(bin_size))  # delete duplication
-        tomo = self._imread(
+        tomo = MtTomogram.imread(
             path=path,
             scale=scale,
             binsize=bin_size,
@@ -485,7 +485,7 @@ class MTPropsWidget(MagicTemplate):
         project = MTPropsProject.from_json(path)
         file_dir = Path(path).parent
         
-        self.tomogram = self._imread(
+        self.tomogram = MtTomogram.imread(
             path=resolve_path(project.image, file_dir), 
             scale=project.scale, 
             binsize=project.multiscales, 
@@ -838,33 +838,6 @@ class MTPropsWidget(MagicTemplate):
         self.reset_choices()
         return None
         
-    @SplineControl.num.connect
-    @SplineControl.pos.connect
-    @SplineControl.footer.focus.connect
-    def _focus_on(self):
-        """Change camera focus to the position of current MT fragment."""
-        if self.layer_paint is None:
-            return None
-        if not self.SplineControl.footer.focus:
-            self.layer_paint.show_selected_label = False
-            return None
-        
-        viewer = self.parent_viewer
-        i = self.SplineControl.num
-        j = self.SplineControl.pos
-        
-        tomo = self.tomogram
-        spl = tomo.splines[i]
-        pos = spl.anchors[j]
-        next_center = spl(pos) / tomo.scale
-        change_viewer_focus(viewer, next_center, tomo.scale)
-        
-        self.layer_paint.show_selected_label = True
-        
-        j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
-        self.layer_paint.selected_label = j_offset + j + 1
-        return None
-    
     @Image.wraps
     @set_design(text="Sample subtomograms")
     def sample_subtomograms(self):
@@ -1771,37 +1744,6 @@ class MTPropsWidget(MagicTemplate):
             self._subtomogram_averaging._show_reconstruction, img, f"[Split]{layer.name}"
         )
     
-    def _check_binning_for_alignment(
-        self,
-        template: Union[ip.ImgArray, List[ip.ImgArray]],
-        mask: Union[ip.ImgArray, None],
-        binsize: int,
-        molecules: Molecules,
-        order: int = 1,
-        shape: Tuple[nm, nm, nm] = None,
-    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
-        """
-        Returns proper subtomogram loader, template image and mask image that matche the 
-        bin size.
-        """
-        if shape is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=binsize, order=order
-        )
-        if binsize > 1:
-            if template is None:
-                pass
-            elif isinstance(template, list):
-                template = [tmp.binning(binsize, check_edges=False) for tmp in template]
-            else:
-                template = template.binning(binsize, check_edges=False)
-            if mask is not None:
-                mask = mask.binning(binsize, check_edges=False)
-        if isinstance(mask, np.ndarray):
-            mask = np.asarray(mask)
-        return loader, template, mask
-    
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
         z_rotation={"options": {"max": 180.0, "step": 1.0}},
@@ -2303,17 +2245,6 @@ class MTPropsWidget(MagicTemplate):
             output_shape=template.shape,
         )
         return self._align_all_on_return(aligned_loader, layer)
-
-    @thread_worker.to_callback
-    def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
-        points = add_molecules(
-            self.parent_viewer, 
-            aligned_loader.molecules,
-            name=_coerce_aligned_name(layer.name, self.parent_viewer),
-        )
-        layer.visible = False
-        self.log.print(f"{layer.name!r} --> {points.name!r}")
-        return None
 
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
@@ -3111,7 +3042,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # Non-GUI methods
+    #   Non-GUI methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         
     @nogui
@@ -3172,6 +3103,75 @@ class MTPropsWidget(MagicTemplate):
             i = self.SplineControl.num
         return tomo.splines[i]
     
+    @SplineControl.num.connect
+    @SplineControl.pos.connect
+    @SplineControl.footer.focus.connect
+    def _focus_on(self):
+        """Change camera focus to the position of current MT fragment."""
+        if self.layer_paint is None:
+            return None
+        if not self.SplineControl.footer.focus:
+            self.layer_paint.show_selected_label = False
+            return None
+        
+        viewer = self.parent_viewer
+        i = self.SplineControl.num
+        j = self.SplineControl.pos
+        
+        tomo = self.tomogram
+        spl = tomo.splines[i]
+        pos = spl.anchors[j]
+        next_center = spl(pos) / tomo.scale
+        change_viewer_focus(viewer, next_center, tomo.scale)
+        
+        self.layer_paint.show_selected_label = True
+        
+        j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
+        self.layer_paint.selected_label = j_offset + j + 1
+        return None
+    
+    def _check_binning_for_alignment(
+        self,
+        template: Union[ip.ImgArray, List[ip.ImgArray]],
+        mask: Union[ip.ImgArray, None],
+        binsize: int,
+        molecules: Molecules,
+        order: int = 1,
+        shape: Tuple[nm, nm, nm] = None,
+    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
+        """
+        Returns proper subtomogram loader, template image and mask image that matche the 
+        bin size.
+        """
+        if shape is None:
+            shape = self._subtomogram_averaging._get_shape_in_nm()
+        loader = self.tomogram.get_subtomogram_loader(
+            molecules, shape, binsize=binsize, order=order
+        )
+        if binsize > 1:
+            if template is None:
+                pass
+            elif isinstance(template, list):
+                template = [tmp.binning(binsize, check_edges=False) for tmp in template]
+            else:
+                template = template.binning(binsize, check_edges=False)
+            if mask is not None:
+                mask = mask.binning(binsize, check_edges=False)
+        if isinstance(mask, np.ndarray):
+            mask = np.asarray(mask)
+        return loader, template, mask
+    
+    @thread_worker.to_callback
+    def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
+        points = add_molecules(
+            self.parent_viewer, 
+            aligned_loader.molecules,
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+        )
+        layer.visible = False
+        self.log.print(f"{layer.name!r} --> {points.name!r}")
+        return None
+
     def _update_colormap(self, prop: str = H.yPitch):
         if self.layer_paint is None:
             return None
@@ -3183,14 +3183,6 @@ class MTPropsWidget(MagicTemplate):
             color[i+1] = self.label_colormap.map((value - lim0)/(lim1 - lim0))
         self.layer_paint.color = color
         return None
-
-    def _imread(self, path: str, scale: nm, binsize: Union[int, Iterable[int]]):
-        tomo = MtTomogram.imread(path, scale=scale)
-        if isinstance(binsize, int):
-            binsize = [binsize]
-        for b in binsize:
-            tomo.add_multiscale(b)
-        return tomo
 
     def _init_widget_state(self, _=None):
         """Initialize widget state of spline control and local properties for new plot."""
@@ -3345,6 +3337,7 @@ class MTPropsWidget(MagicTemplate):
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer
         viewer.layers.events.removing.disconnect(self._on_layer_removing)
+        viewer.layers.events.removed.disconnect(self._on_layer_removed)
         
         # remove all the molecules layers
         _layers_to_remove: List[str] = []
@@ -3387,10 +3380,9 @@ class MTPropsWidget(MagicTemplate):
             self.layer_paint.scale = self.layer_image.scale
         self.GlobalProperties._init_text()
         
-        if self._macro_offset == 1:
-            # on GUI startup, connect layer events.
-            viewer.layers.events.removing.connect(self._on_layer_removing)
-            viewer.layers.events.removed.connect(self._on_layer_removed)
+        # Connect layer events.
+        viewer.layers.events.removing.connect(self._on_layer_removing)
+        viewer.layers.events.removed.connect(self._on_layer_removed)
         return None
     
     @SplineControl.num.connect

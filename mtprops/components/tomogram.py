@@ -64,6 +64,7 @@ class Tomogram:
         path: str,
         *, 
         scale: float = None,
+        binsize: int | Iterable[int] = (),
     ) -> Self:
         """Read a image as a dask array."""
         self = cls()
@@ -79,6 +80,11 @@ class Tomogram:
         self._set_image(img)
         self._metadata["source"] = Path(path).resolve()
         self._metadata["scale"] = scale
+        
+        if isinstance(binsize, int):
+            binsize = [binsize]
+        for b in binsize:
+            self.add_multiscale(b)
         return self
         
     @property
