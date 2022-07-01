@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Iterable, TypeVar, Union, Tuple, List
+from typing import Iterable, Union, Tuple, List
 from timeit import default_timer
 from pathlib import Path
 import numpy as np
@@ -15,10 +15,7 @@ import impy as ip
 import macrokit as mk
 from magicclass import (
     magicclass,
-    magictoolbar,
-    magicmenu,
     field,
-    vfield,
     set_design,
     set_options,
     do_not_record,
@@ -29,11 +26,10 @@ from magicclass import (
     confirm,
     nogui,
     mark_preview,
-    )
+)
 from magicclass.types import Color, Bound, Optional, OneOf, SomeOf
 from magicclass.widgets import (
     Logger,
-    Separator,
     ConsoleTextEdit,
     FloatRangeSlider,
 )
@@ -47,7 +43,6 @@ from ..components import MtSpline, MtTomogram
 from ..components.microtubule import angle_corr, try_all_seams
 from .. import utils
 from . import subwidgets
-from .global_variables import GlobalVariables
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
@@ -68,7 +63,6 @@ from .widget_utils import (
 from ..const import nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer, get_monomer_layers
-from ..ext.etomo import PEET
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
@@ -117,132 +111,13 @@ class MTPropsWidget(MagicTemplate):
         """Return the logger widget."""
         return self._LoggerWindow.log
     
-    @magicmenu
-    class File(MagicTemplate):
-        """File I/O."""  
-        def open_image(self): ...
-        def load_project(self): ...
-        def load_splines(self): ...
-        def load_molecules(self): ...
-        sep0 = field(Separator)
-        def save_project(self): ...
-        def save_spline(self): ...
-        def save_molecules(self): ...
-        sep1 = field(Separator)
-        def process_images(self): ...
-        PEET = PEET
-
-    @magicmenu
-    class Image(MagicTemplate):
-        """Image processing and visualization"""
-        def show_image_info(self): ...
-        def filter_reference_image(self): ...
-        def add_multiscale(self): ...
-        def set_multiscale(self): ...
-        @magicmenu
-        class Cylindric(MagicTemplate):
-            def show_current_ft(self): ...
-            def show_global_ft(self): ...
-            def show_r_proj(self): ...
-            def show_global_r_proj(self): ...
-        sep0 = field(Separator)
-        def sample_subtomograms(self): ...
-        def paint_mt(self): ...
-        def set_colormap(self): ...
-        def show_colorbar(self): ...
-    
-    @magicmenu
-    class Splines(MagicTemplate):
-        """Operations on splines"""
-        def show_splines(self): ...
-        def add_anchors(self): ...
-        sep0 = field(Separator)
-        def invert_spline(self): ...
-        def align_to_polarity(self): ...
-        def clip_spline(self): ...
-        def delete_spline(self): ...
-        sep1 = field(Separator)
-        def fit_splines(self): ...
-        def fit_splines_manually(self): ...
-        def refine_splines(self): ...
-        def molecules_to_spline(self): ...
-
-    @magicmenu
-    class Molecules_(MagicTemplate):
-        """Operations on molecules"""
-        @magicmenu
-        class Mapping(MagicTemplate):
-            def map_monomers(self): ...
-            def map_monomers_manually(self): ...
-            def map_centers(self): ...
-            def map_along_pf(self): ...
-        def show_orientation(self): ...
-        def extend_molecules(self): ...
-        def concatenate_molecules(self): ...
-        def calculate_intervals(self): ...
-        sep0 = field(Separator)
-        def open_feature_control(self): ...
-        
-    @magicmenu
-    class Analysis(MagicTemplate):
-        """Analysis of tomograms."""
-        def set_radius(self): ...
-        def local_ft_analysis(self): ...
-        def global_ft_analysis(self): ...
-        sep0 = field(Separator)
-        def open_subtomogram_analyzer(self): ...
-    
-    @magicmenu
-    class Others(MagicTemplate):
-        """Other menus."""
-        @magicmenu
-        class Macro:
-            def show_macro(self): ...
-            def show_full_macro(self): ...
-            def show_native_macro(self): ...
-            sep0 = field(Separator)
-            def run_file(self): ...
-        Global_variables = GlobalVariables
-        def open_logger(self): ...
-        def clear_cache(self): ...
-        def restore_layers(self): ...
-        @magicmenu
-        class Help(MagicTemplate):
-            def open_help(self): ...
-            def MTProps_info(self): ...
-            def report_issues(self): ...
-        
-    @magictoolbar(labels=False)
-    class toolbar(MagicTemplate):
-        """Frequently used operations."""        
-        def register_path(self): ...
-        def open_runner(self): ...
-        sep0 = field(Separator)
-        def pick_next(self): ...
-        def auto_center(self): ...
-        @magicmenu(icon_path=ICON_DIR/"adjust_intervals.png")
-        class Adjust(MagicTemplate):
-            """
-            Adjust auto picker parameters.
-            
-            Attributes
-            ----------
-            stride : nm
-                Stride length (nm) of auto picker.
-            angle_deviation : float
-                Angle deviation (degree) of auto picker.
-            angle_precision : float
-                Angle precision (degree) of auto picker.
-            max_shifts : nm
-                Maximum shift (nm) in auto centering.
-            """
-            stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100}, record=False)
-            angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5}, record=False)
-            angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1}, record=False)
-            max_shifts = vfield(20.0, options={"min": 1., "max": 50., "step": 0.5}, record=False)
-        sep1 = field(Separator)
-        def clear_current(self): ...
-        def clear_all(self): ...
+    File = subwidgets.File
+    Image = subwidgets.Image
+    Splines = subwidgets.Splines
+    Molecules_ = subwidgets.Molecules_
+    Analysis = subwidgets.Analysis
+    Others = subwidgets.Others
+    toolbar = subwidgets.toolbar
     
     SplineControl = SplineControl
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
@@ -341,8 +216,7 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def open_runner(self):
         """Run MTProps with various settings."""
-        self._runner.show(run=False)
-        return None
+        return self._runner.show(run=False)
     
     @_runner.wraps
     @set_design(text="Run")
@@ -521,13 +395,11 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Others.wraps
-    @set_design(text="Restore layers")
+    @set_design(text="Send UI to console")
     @do_not_record
-    def restore_layers(self):
-        """Restore mistakenly deleted layers."""
-        for layer in (self.layer_image, self.layer_work, self.layer_prof, self.layer_paint):
-            if layer not in self.parent_viewer.layers:
-                self.parent_viewer.add_layer(layer)
+    def send_ui_to_console(self, identifier: str = "ui"):
+        """Send this widget instance to napari console by any identifier."""
+        self.parent_viewer.update_console({identifier: self})
         return None
     
     @Others.Help.wraps
@@ -3460,6 +3332,16 @@ class MTPropsWidget(MagicTemplate):
             self.macro.append(mk.Expr("del", [expr]))
         return
     
+    def _on_layer_removed(self, event):
+        idx: int = event.index
+        layer: Layer = event.value
+        if layer in (self.layer_image, self.layer_prof, self.layer_work, self.layer_paint):
+            self.parent_viewer.layers.insert(idx, layer)
+            e = ValueError(f"Cannot remove layer {layer.name!r}")
+            from magicclass.utils import show_messagebox
+            show_messagebox(mode="error", title="Error", text=str(e), parent=self.native)
+            raise e
+    
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer
         viewer.layers.events.removing.disconnect(self._on_layer_removing)
@@ -3505,7 +3387,10 @@ class MTPropsWidget(MagicTemplate):
             self.layer_paint.scale = self.layer_image.scale
         self.GlobalProperties._init_text()
         
-        viewer.layers.events.removing.connect(self._on_layer_removing)
+        if self._macro_offset == 1:
+            # on GUI startup, connect layer events.
+            viewer.layers.events.removing.connect(self._on_layer_removing)
+            viewer.layers.events.removed.connect(self._on_layer_removed)
         return None
     
     @SplineControl.num.connect

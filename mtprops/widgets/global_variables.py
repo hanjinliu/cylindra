@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Tuple
 import json
 from magicclass import (
     magicmenu,
@@ -6,8 +7,7 @@ from magicclass import (
     set_design,
     MagicTemplate,
     get_function_gui,
-    )
-from magicclass.types import Tuple as _Tuple
+)
 from magicclass.utils import show_messagebox
 
 from .widget_utils import FileFilter
@@ -46,7 +46,7 @@ class GlobalVariables(MagicTemplate):
         outer: float = GVar.outer,
         fitLength: nm = GVar.fitLength,
         fitWidth: nm = GVar.fitWidth,
-        daskChunk: _Tuple[int, int, int] = GVar.daskChunk,
+        daskChunk: Tuple[int, int, int] = GVar.daskChunk,
         GPU: bool = GVar.GPU,
     ):
         """
