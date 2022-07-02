@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Iterable, Union, Tuple, List
+from typing import Union, Tuple, List
 from timeit import default_timer
 from pathlib import Path
 import numpy as np

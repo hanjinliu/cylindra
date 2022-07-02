@@ -7,6 +7,7 @@ from magicclass import (
 from magicclass.widgets import Separator
 from magicclass.types import OneOf, SomeOf, Optional
 from pathlib import Path
+from superqt import ensure_main_thread
 import numpy as np
 import impy as ip
 import napari
@@ -156,7 +157,8 @@ class toolbar(MagicTemplate):
 
 # STA widget
 
-MASK_CHOICES = ("No mask", "Use blurred template as a mask", "Supply a image")
+# TEMPLATE_CHOICES = ("From file", "From layer")
+MASK_CHOICES = ("No mask", "Blur template", "From file")
 
 @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False)
 class params(MagicTemplate):
@@ -202,19 +204,20 @@ class SubtomogramAveraging(MagicTemplate):
         self._viewer: Union[napari.Viewer, None] = None
         self._next_layer_name = None
         self.mask = MASK_CHOICES[0]
-
+    
     template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
     mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
     params = field(params)
     mask_path = field(mask_path)
     tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
-    
+        
     @mask.connect
-    def _on_switch(self):
+    def _on_mask_switch(self):
         v = self.mask
         self.params.visible = (v == MASK_CHOICES[1])
         self.mask_path.visible = (v == MASK_CHOICES[2])
     
+    @ensure_main_thread(await_return=True)
     def _get_template(self, path: Union[Path, None] = None, rescale: bool = True) -> ip.ImgArray:
         if path is None:
             path = self.template_path
@@ -223,16 +226,15 @@ class SubtomogramAveraging(MagicTemplate):
         
         # check path
         if not os.path.exists(path) or not os.path.isfile(path):
-            # BUG: using other viewer from other thread may be forbidden.
-            # img = None
-            # s = str(path)
-            # if self._viewer is not None and s in self._viewer.layers:
-            #     data = self._viewer.layers[s].data
-            #     if isinstance(data, ip.ImgArray) and data.ndim == 3:
-            #         img: ip.ImgArray = data
+            img = None
+            s = str(path)
+            if self._viewer is not None and s in self._viewer.layers:
+                data = self._viewer.layers[s].data
+                if isinstance(data, ip.ImgArray) and data.ndim == 3:
+                    img: ip.ImgArray = data
             
-            # if img is None:
-            raise FileNotFoundError(f"Path '{path}' is not a valid file.")
+            if img is None:
+                raise FileNotFoundError(f"Path '{path}' is not a valid file.")
         
         else:
             img = ip.imread(path)
@@ -342,12 +344,14 @@ class SubtomogramAveraging(MagicTemplate):
         return layer
     
     @do_not_record
-    def Show_template(self):
+    @set_design(text="Show template")
+    def show_template(self):
         """Load and show template image."""
         self._show_reconstruction(self._get_template(), name="Template image")
     
     @do_not_record
-    def Show_mask(self):
+    @set_design(text="Show mask")
+    def show_mask(self):
         """Load and show mask image."""
         self._show_reconstruction(self._get_mask(), name="Mask image")
     
