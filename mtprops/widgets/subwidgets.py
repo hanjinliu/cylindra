@@ -131,7 +131,7 @@ class toolbar(MagicTemplate):
     sep0 = field(Separator)
     def pick_next(self): ...
     def auto_center(self): ...
-    @magicmenu(icon_path=ICON_DIR/"adjust_intervals.png")
+    @magicmenu(icon=ICON_DIR/"adjust_intervals.png")
     class Adjust(MagicTemplate):
         """
         Adjust auto picker parameters.

@@ -185,7 +185,7 @@ class MTPropsWidget(MagicTemplate):
         return out
     
     @toolbar.wraps
-    @set_design(icon_path=ICON_DIR/"add_spline.png")
+    @set_design(icon=ICON_DIR/"add_spline.png")
     @bind_key("F1")
     def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a MT path."""        
@@ -211,7 +211,7 @@ class MTPropsWidget(MagicTemplate):
     _runner = subwidgets.Runner
     
     @toolbar.wraps
-    @set_design(icon_path=ICON_DIR/"run_all.png")
+    @set_design(icon=ICON_DIR/"run_all.png")
     @bind_key("F2")
     @do_not_record
     def open_runner(self):
@@ -286,7 +286,7 @@ class MTPropsWidget(MagicTemplate):
         return self._runner.close()
 
     @toolbar.wraps
-    @set_design(icon_path=ICON_DIR/"clear_last.png")
+    @set_design(icon=ICON_DIR/"clear_last.png")
     @do_not_record
     def clear_current(self):
         """Clear current selection."""
@@ -302,7 +302,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @toolbar.wraps
-    @set_design(icon_path=ICON_DIR/"clear_all.png")
+    @set_design(icon=ICON_DIR/"clear_all.png")
     @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
     def clear_all(self):
         """Clear all the splines and results."""
@@ -711,6 +711,7 @@ class MTPropsWidget(MagicTemplate):
     @set_options(save_path={"mode": "w", "filter": FileFilter.JSON})
     @set_design(text="Save spline")
     def save_spline(self, spline: OneOf[_get_splines], save_path: Path):
+        """Save splines as a json file."""
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
         return None
@@ -2808,7 +2809,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @toolbar.wraps
-    @set_design(icon_path=ICON_DIR/"pick_next.png")
+    @set_design(icon=ICON_DIR/"pick_next.png")
     @bind_key("F3")
     @do_not_record
     def pick_next(self):
@@ -2858,7 +2859,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @toolbar.wraps
-    @set_design(icon_path=ICON_DIR/"auto_center.png")
+    @set_design(icon=ICON_DIR/"auto_center.png")
     @bind_key("F4")
     @do_not_record
     def auto_center(self):

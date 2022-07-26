@@ -3,7 +3,7 @@ display_name: MTProps
 contributions:
   commands:
     - id: MTProps.make_qwidget
-      python_name: mtprops.widgets.main:FilamentAnalyzer
+      python_name: mtprops.widgets.main:MTPropsWidget
       title: Start MTprops
   widgets:
     - command: MTProps.make_qwidget
