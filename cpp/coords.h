@@ -4,6 +4,9 @@
 namespace py = pybind11;
 using ssize_t = Py_ssize_t;
 
+// NOTE: The definition of Vector3D and CoordinateSystem cannot be moved into another
+// cpp file because they are templated.
+
 // A 3-D vector (or coordinate) object.
 // Implemented with simple operations.
 template <typename T>
@@ -69,16 +72,19 @@ inline Vector3D<T> Vector3D<T>::operator/(T other) {
    return Vector3D<T>(z / other, y / other, x / other);
 }
 
+// dot product of two vectors
 template<typename T>
 inline T Vector3D<T>::dot(Vector3D<T> other) {
     return z * other.z + y * other.y + x * other.x;
 }
 
+// the square of length.
 template<typename T>
 T Vector3D<T>::length2() {
 	return z*z + y*y + x*x;
 }
 
+// return the cosine angle between two vectors.
 template<typename T>
 T Vector3D<T>::angle(Vector3D<T> other) {
     T dot_prod = dot(other);
@@ -88,6 +94,7 @@ T Vector3D<T>::angle(Vector3D<T> other) {
     return dot_prod / (a2 + b2 - 2 * ab);
 }
 
+// length of the vector.
 template<typename T>
 T Vector3D<T>::length() {
 	return std::sqrt(length2());
@@ -102,6 +109,7 @@ py::array_t<T> Vector3D<T>::asarray() {
 	return arr_;
 }
 
+// A CoordinateSystem defines a local Cartesian coordinate system.
 template <typename T>
 class CoordinateSystem {
 	public:
