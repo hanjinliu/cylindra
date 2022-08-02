@@ -340,7 +340,7 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 	return {state_sequence_, max_score};
 }
 
-
+// define pybind11 module
 PYBIND11_MODULE(_cpp_ext, m) {
 	m.doc() = "C++ extensions";
   	m.def("viterbi", &viterbi, "Viterbi algorithm for alignment.");
