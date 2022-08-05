@@ -1,10 +1,11 @@
-__version__ = "0.10.0"
+__version__ = "0.10.1.dev0"
 __author__ = "Hanjin Liu"
 __email__ = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp"
 
 import sys
 
 if sys.platform == "darwin":
+    # MTProps has menu bars in sub widgets.
     from qtpy.QtCore import QCoreApplication, Qt
     QCoreApplication.setAttribute(Qt.AA_DontUseNativeMenuBar)
 
