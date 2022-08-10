@@ -29,12 +29,6 @@ from mtprops import start
 ui = start()  # launch a napari viewer with a MTProps dock widget.
 ```
 
-- From console
-
-```shell
-python launch.py
-```
-
 ## Issues
 
 If you encountered any bugs or have any requests, feel free to [report an issue](https://github.com/hanjinliu/MTProps/issues).

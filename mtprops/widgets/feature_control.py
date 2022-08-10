@@ -194,11 +194,11 @@ class FeatureControl(MagicTemplate):
         self,
         layer: Bound[layer],
         feature_name: Bound[feature_name], 
-        expr: Bound[Tabs.Filter.expression]
+        expr: Bound[Tabs.Filter.expression],
     ):
         """Create molecules object with current table state."""
         X = "X"
-        if X not in self.Tabs.Filter.expression:
+        if X not in expr:
             raise ValueError("Expression does not contain variable 'X'.")
         df = layer.features
         arr = df[feature_name].values
