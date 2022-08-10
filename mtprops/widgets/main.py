@@ -515,7 +515,7 @@ class MTPropsWidget(MagicTemplate):
                 all_localprops = {}
             globalprops_path = project.globalprops
             if globalprops_path is not None:
-                all_globalprops = dict(pd.read_csv(globalprops_path).iterrows())
+                all_globalprops = dict(pd.read_csv(globalprops_path, index_col=0).iterrows())
             else:
                 all_globalprops = {}
             
