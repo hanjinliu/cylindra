@@ -100,6 +100,8 @@ class SplineControl(MagicTemplate):
             return
         parent = self.find_ancestor(MTPropsWidget)
         tomo = parent.tomogram
+        if i >= len(tomo.splines):
+            return
         spl = tomo.splines[i]
         
         if spl.localprops is not None:
@@ -124,6 +126,8 @@ class SplineControl(MagicTemplate):
         i = self.num
         parent = self.find_ancestor(MTPropsWidget)
         tomo = parent.tomogram
+        if i >= len(tomo.splines):
+            return
         spl = tomo.splines[i]
         
         # update plots in pyqtgraph, if properties exist
@@ -174,7 +178,8 @@ class SplineControl(MagicTemplate):
         binsize = parent.layer_image.metadata["current_binsize"]
         i = self.num
         j = self.pos
-        
+        if i >= len(tomo.splines):
+            return
         if not self.projections or i is None or j is None:
             for ic in range(3):
                 self.canvas[ic].layers.clear()
