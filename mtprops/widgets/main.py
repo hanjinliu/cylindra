@@ -2684,6 +2684,8 @@ class MTPropsWidget(MagicTemplate):
             # plot all the correlation
             self.log.print_html("<code>Seam_search</code>")
             with self.log.set_plt(rc_context={"font.size": 15}):
+                self.log.print(f"layer = {layer.name!r}")
+                self.log.print(f"template = {str(template_path)!r}")
                 _plot_seam_search_result(score, npf)
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
@@ -3543,6 +3545,7 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
 def _plot_seam_search_result(score: np.ndarray, npf: int):
     imax = np.argmax(score)
     # plot the score
+    plt.figure(figsize=(6, 2.4))
     plt.axvline(imax, color="gray", alpha=0.6)
     plt.axhline(score[imax], color="gray", alpha=0.6)
     plt.plot(score)
