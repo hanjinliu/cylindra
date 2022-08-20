@@ -1469,7 +1469,7 @@ def _local_dft_params_pd(img: ip.ImgArray, radius: nm):
 
 def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
     polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
-    polar = ip.asarray(polar, axes="rya", dtype=np.float32) # radius, y, angle
+    polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
     polar.scale_unit = img.scale_unit
     return _local_dft_params(polar, radius)
