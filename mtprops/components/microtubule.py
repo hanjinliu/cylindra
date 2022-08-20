@@ -1511,6 +1511,7 @@ def try_all_seams(
     
     masked_template = template * mask
     _id = np.arange(len(loader.molecules))
+    assert _id.size % npf == 0
     
     # prepare all the labels in advance (only takes up ~0.5 MB at most)
     for pf in range(2*npf):

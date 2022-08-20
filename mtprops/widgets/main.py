@@ -2684,7 +2684,9 @@ class MTPropsWidget(MagicTemplate):
             # plot all the correlation
             self.log.print_html("<code>Seam_search</code>")
             with self.log.set_plt(rc_context={"font.size": 15}):
-                _plot_seam_search_result(corrs, score, npf)
+                self.log.print(f"layer = {layer.name!r}")
+                self.log.print(f"template = {str(template_path)!r}")
+                _plot_seam_search_result(score, npf)
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
@@ -3540,19 +3542,12 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
 
-def _plot_seam_search_result(corrs: np.ndarray, score: np.ndarray, npf: int):
+def _plot_seam_search_result(score: np.ndarray, npf: int):
     imax = np.argmax(score)
-    plt.axvline(imax, color="gray", alpha=0.6)
-    plt.axhline(corrs[imax], color="gray", alpha=0.6)
-    plt.plot(corrs)
-    plt.xlabel("Seam position")
-    plt.ylabel("Correlation")
-    plt.xticks(np.arange(0, 2*npf+1, 4))
-    plt.title("Seam search result")
-    plt.tight_layout()
-    plt.show()
-    
     # plot the score
+    plt.figure(figsize=(6, 2.4))
+    plt.axvline(imax, color="gray", alpha=0.6)
+    plt.axhline(score[imax], color="gray", alpha=0.6)
     plt.plot(score)
     plt.xlabel("PF position")
     plt.ylabel("ΔCorr")

@@ -71,12 +71,14 @@ class Volume(MagicTemplate):
     @set_design(text="Gaussian filter")
     @do_not_record
     def gaussian_filter(self, layer: Image, sigma: float = 1.0) -> LayerDataTuple:
+        """Apply Gaussian filter to an image."""
         return self._apply_method(layer, "gaussian_filter", sigma=sigma)
     
     @set_options(quantile={"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}, auto_call=True)
     @set_design(text="Threshold")
     @do_not_record
     def threshold(self, layer: Image, quantile: float = 0.5) -> LayerDataTuple:
+        """Apply threshold to an image."""
         thr = np.quantile(layer.data, quantile)
         return self._apply_method(layer, "threshold", thr)
 
