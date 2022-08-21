@@ -29,9 +29,7 @@ from magicclass import (
 )
 from magicclass.types import Color, Bound, Optional, OneOf, SomeOf
 from magicclass.widgets import (
-    Logger,
-    ConsoleTextEdit,
-    FloatRangeSlider,
+    Logger, ConsoleTextEdit, FloatRangeSlider,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.dask import dask_thread_worker
@@ -39,10 +37,7 @@ from magicclass.utils import thread_worker
 from acryo import SubtomogramLoader, Molecules
 from acryo.alignment import PCCAlignment, ZNCCAlignment
 
-from ..components import MtSpline, MtTomogram
-from ..components.microtubule import angle_corr, try_all_seams
-from .. import utils
-from . import subwidgets
+from . import subwidgets, _shared_doc
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
@@ -60,6 +55,9 @@ from .widget_utils import (
     resolve_path,
 )
 
+from ..components import MtSpline, MtTomogram
+from ..components.microtubule import angle_corr, try_all_seams
+from .. import utils
 from ..const import nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer, get_monomer_layers
@@ -94,6 +92,7 @@ def _get_alignment(method: str):
 ############################################################################################
 
 @magicclass(widget_type="scrollable", name="MTProps")
+@_shared_doc.update_cls
 class MTPropsWidget(MagicTemplate):
     # Main GUI class.
     
@@ -725,8 +724,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : Points
-            Select the points layer to save.
+        {layer}
         save_path : Path
             Where to save the molecules.
         save_features : bool, default is True
@@ -1022,10 +1020,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        max_interval : nm, default is 30.0
-            Maximum interval of sampling points in nm unit.
-        bin_size : int, default is 1
-            Bin size of multiscale images.
+        {max_interval}{bin_size}
         degree_precision : float, default is 0.5
             Precision of MT xy-tilt degree in angular correlation.
         edge_sigma : bool, default is False
@@ -1054,8 +1049,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        max_interval : nm, default is 50.0
-            Maximum interval between new anchors.
+        {max_interval}
         """        
         self._SplineFitter._load_parent_state(max_interval=max_interval)
         self._SplineFitter.show()
@@ -1070,8 +1064,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        interval : nm, default is 25.0
-            Anchor interval.
+        {interval}
         """        
         tomo = self.tomogram
         if tomo.n_splines == 0:
@@ -1110,13 +1103,11 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        max_interval : nm, default is 30
-            Maximum interval between anchors.
+        {max_interval}
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
-        bin_size : int, default is 1
-            Bin size of multiscale images.
+        {bin_size}
         """
         tomo = self.tomogram
         
@@ -1156,10 +1147,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layers : list of MonomerLayer
-            Select which monomer layers will be used for spline creation.
-        interval : nm, default is 24.5
-            Interval of spline anchors.
+        {layers}{interval}
         """        
         splines: List[MtSpline] = []
         for layer in layers:
@@ -1191,13 +1179,11 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        interval : nm, default is 24.5
-            Interval of subtomogram analysis.
+        {interval}
         ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for 
             structural analysis.
-        bin_size : int, default is 1
-            Bin size of multiscale images.
+        {bin_size}
         """
         tomo = self.tomogram
         if tomo.splines[0].radius is None:
@@ -1227,9 +1213,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        bin_size : int, default is 1
-            Bin size of multiscale images."""
-            
+        {bin_size}
+        """
         tomo = self.tomogram
         if self.tomogram.splines[0].radius is None:
             self.tomogram.set_radius()
@@ -1310,8 +1295,7 @@ class MTPropsWidget(MagicTemplate):
         ----------
         splines : iterable of int
             Select splines to map monomers.
-        interval : nm, otional
-            Interval between molecules.
+        {interval}
         length : nm, optional
             Length from the tip where monomers will be mapped.
         """
@@ -1346,8 +1330,7 @@ class MTPropsWidget(MagicTemplate):
         ----------
         splines : iterable of int
             Select splines to map monomers.
-        interval : nm, otional
-            Interval between molecules.
+        {interval}
         angle_offset : float, default is 0.0
             Offset of PF angle in radian.
         """
@@ -1374,9 +1357,8 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        orientation : {"x", "y", "z"}, default is "z"
+        {layer}
+        orientation : "x", "y" or "z", default is "z"
             Which orientation will be shown. "z" is the spline-to-molecule direction,
             "y" is parallel to the spline and "x" is defined by right-handedness.
         color : Color, default is "crimson"
@@ -1410,8 +1392,7 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        layer : MonomerLayer
-            Points layer that contain the molecules.
+        {layer}
         prepend : int, default is 0
             Number of molecules to be prepended for each protofilament.
         append : int, default is 0
@@ -1472,8 +1453,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layers : List[MonomerLayer]
-            Layers to be concatenated.
+        {layers}
         """
         if len(layers) == 0:
             raise ValueError("No layer selected.")
@@ -1509,8 +1489,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Select which layer will be calculated.
+        {layer}
         spline_precision : nm, optional
             Precision in nm that is used to define the direction of molecules for calculating
             projective interval.
@@ -1596,14 +1575,7 @@ class MTPropsWidget(MagicTemplate):
             
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        size : nm, optional
-            Size of subtomograms. Use template size by default.
-        interpolation : int, default is 1
-            Interpolation order used in ``ndi.map_coordinates``.
-        bin_size : int, default is 1
-            Set to >1 if you want to use binned image to boost image analysis.
+        {layer}{size}{interpolation}{bin_size}
         """
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
@@ -1644,10 +1616,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        size : nm, optional
-            Size of subtomograms. Use template size by default.
+        {layer}{size}
         method : str, optional
             How to choose subtomogram subset. 
             (1) steps: Each 'steps' subtomograms from the tip of spline. 
@@ -1656,8 +1625,7 @@ class MTPropsWidget(MagicTemplate):
             (4) random: choose randomly.
         number : int, default is 64
             Number of subtomograms to use.
-        bin_size : int, default is 1
-            Set to >1 if you want to use binned image to boost image analysis.
+        {bin_size}
         """
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
@@ -1715,16 +1683,10 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Select a monomer layer for averaging.
+        {layer}
         n_set : int, default is 1
             How many pairs of average will be calculated.
-        size : nm, optional
-            Output image size. By default template image size will be used.
-        interpolation : int, default is 1
-            Interpolation order.
-        bin_size : int, default is 1
-            Bin size of averaging.
+        {size}{interpolation}{bin_size}
         """
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
@@ -1772,26 +1734,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        template_path : str
-            Template image.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
-        z_rotation : tuple of float, optional
-            Rotation in external degree around z-axis.
-        y_rotation : tuple of float, optional
-            Rotation in external degree around y-axis.
-        x_rotation : tuple of float, optional
-            Rotation in external degree around x-axis.
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        bin_size : int, default is 1
-            Set to >1 if you want to use binned image to boost image analysis. Be careful! 
-            This may cause unexpected fitting result.
-        method : str, default is "zncc"
-            Alignment method.
+        {layer}{template_path}{mask_params}{z_rotation}{y_rotation}{x_rotation}{bin_size}{method}
         """
         t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
@@ -1901,31 +1844,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        template_path : ip.ImgArray, optional
-            Template image.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
-        tilt_range : (float, float), optional
-            Tilt range of tomogram tilt series in degree.
-        max_shifts : int or tuple of int, default is (1., 1., 1.)
-            Maximum shift between subtomograms and template in nm. ZYX order.
-        z_rotation : tuple of float, optional
-            Rotation in external degree around z-axis.
-        y_rotation : tuple of float, optional
-            Rotation in external degree around y-axis.
-        x_rotation : tuple of float, optional
-            Rotation in external degree around x-axis.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 3
-            Interpolation order.
-        method : str, default is "zncc"
-            Alignment method.
-        bin_size : int, default is 1
-            Set to >1 if you want to use binned image to boost image analysis.
+        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
+        {x_rotation}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
@@ -1933,11 +1853,7 @@ class MTPropsWidget(MagicTemplate):
         mask = self._subtomogram_averaging._get_mask(params=mask_params)
         
         loader, template, mask = self._check_binning_for_alignment(
-            template, 
-            mask, 
-            binsize=bin_size,
-            molecules=molecules,
-            order=interpolation,
+            template, mask, binsize=bin_size, molecules=molecules, order=interpolation,
         )
         model_cls = _get_alignment(method)
         aligned_loader = loader.align(
@@ -1984,28 +1900,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        tilt_range : (float, float), optional
-            Tilt range of tomogram tilt series in degree.
-        size : nm, default is 32.
-            Sub-volume size used for alignment.
-        max_shifts : int or tuple of int, default is (1., 1., 1.)
-            Maximum shift between subtomograms and template in nm. ZYX order.
-        z_rotation : tuple of float, optional
-            Rotation in external degree around z-axis.
-        y_rotation : tuple of float, optional
-            Rotation in external degree around y-axis.
-        x_rotation : tuple of float, optional
-            Rotation in external degree around x-axis.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 3
-            Interpolation order.
-        method : str, default is "zncc"
-            Alignment method.
-        bin_size : int, default is 1
-            Set to >1 if you want to use binned image to boost image analysis.
+        {layer}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
+        {interpolation}{method}{bin_size}
         """
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
@@ -2062,33 +1958,11 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        template_path : Path or str
-            Template image path.
+        {layer}{template_path}
         other_templates : list of Path or str
             Path to other template images.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
-        tilt_range : (float, float), optional
-            Tilt range of tomogram tilt series in degree.
-        max_shifts : int or tuple of int, default is (1., 1., 1.)
-            Maximum shift between subtomograms and template in nm. ZYX order.
-        z_rotation : tuple of float, optional
-            Rotation in external degree around z-axis.
-        y_rotation : tuple of float, optional
-            Rotation in external degree around y-axis.
-        x_rotation : tuple of float, optional
-            Rotation in external degree around x-axis.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 3
-            Interpolation order.
-        method : str, default is "zncc"
-            Alignment method.
-        bin_size : int, default is 1
-            Set to >1 if you want to use binned image to boost image analysis.
+        {mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
+        {interpolation}{method}{bin_size}
         """
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
@@ -2126,6 +2000,9 @@ class MTPropsWidget(MagicTemplate):
     @set_options(
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "max shifts (nm)"},
+        z_rotation={"options": {"max": 180.0, "step": 0.1}},
+        y_rotation={"options": {"max": 180.0, "step": 0.1}},
+        x_rotation={"options": {"max": 90.0, "step": 0.1}},
         distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
     )
@@ -2138,6 +2015,9 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params] = None,
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
+        z_rotation: Tuple[float, float] = (0., 0.),
+        y_rotation: Tuple[float, float] = (0., 0.),
+        x_rotation: Tuple[float, float] = (0., 0.),
         cutoff: float = 1.0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         distance_range: Tuple[nm, nm] = (3.9, 4.4),
@@ -2149,21 +2029,8 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        template_path : Path or str
-            Template image path.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
-        tilt_range : (float, float), optional
-            Tilt range of tomogram tilt series in degree.
-        max_shifts : int or tuple of int, default is (0.6, 0.6, 0.6)
-            Maximum shift between subtomograms and template in nm. ZYX order.
-        cutoff : float, default is 1.0
-            Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 3
-            Interpolation order.
+        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
+        {x_rotation}{cutoff}{interpolation}
         distance_range : tuple of float, default is (3.9, 4.4)
             Range of allowed distance between monomers.
         upsample_factor : int, default is 5
@@ -2205,6 +2072,12 @@ class MTPropsWidget(MagicTemplate):
             max_shifts=max_shifts_px,
             var_kwarg={"quat": molecules.quaternion()},
         )
+        
+        # TODO: rotation here
+        # all_tasks = ...
+        # all_tasks = da.stack([task for task in all_tasks], axis=0)
+        # best_landscape = da.max(all_tasks, axis=0)
+        # argmax = da.argmax(all_tasks, axis=0)
         
         out = da.compute(tasks)[0]
         score = np.stack(out, axis=0)
@@ -2249,111 +2122,6 @@ class MTPropsWidget(MagicTemplate):
 
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
-        z_rotation={"options": {"max": 180.0, "step": 1.}},
-        y_rotation={"options": {"max": 180.0, "step": 1.}},
-        x_rotation={"options": {"max": 180.0, "step": 1.}},
-    )
-    @set_design(text="Polarity check (fast)")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
-    def polarity_check_fast(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        z_rotation: Tuple[float, float] = (3., 3.),
-        y_rotation: Tuple[float, float] = (15., 3.),
-        x_rotation: Tuple[float, float] = (3., 3.),
-        bin_size: OneOf[_get_available_binsize] = 1,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-    ):
-        """
-        Check/determine the polarity by forward/reverse alignment using averaged images.
-
-        This method conducts forward/reverse alignment using subtomogram averaging result,
-        so that the calculation only takes two times of ``align_averaged``. The orientations
-        of molecules will be updated **in-place**.
-        
-        Parameters
-        ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        template_path : Path or str
-            Template image path.
-        z_rotation : tuple of float, optional
-            Rotation in external degree around z-axis.
-        y_rotation : tuple of float, optional
-            Rotation in external degree around y-axis.
-        x_rotation : tuple of float, optional
-            Rotation in external degree around x-axis.
-        method : str, default is "zncc"
-            Alignment method.
-        """
-        t0 = default_timer()
-        molecules: Molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        
-        loader, template, _ = self._check_binning_for_alignment(
-            template, None, bin_size, molecules, order=1
-        )
-        _scale = self.tomogram.scale * bin_size
-        npf = np.max(molecules.features[Mole.pf]) + 1
-        dy = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[1])**2))  # longitudinal shift
-        dx = np.sqrt(np.sum((molecules.pos[0] - molecules.pos[npf])**2))  # lateral shift
-        
-        max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
-        
-        # center template image by its centroid
-        from skimage.measure import moments
-        mom = moments(template, order=1)
-        centroid = np.array([mom[1, 0, 0], mom[0, 1, 0], mom[0, 0, 1]]) / mom[0, 0, 0]
-        shift = centroid - np.array(template.shape)/2 + 0.5
-        template_centered_fw = template.affine(translation=shift)
-        mask_fw = template_centered_fw.threshold().smooth_mask(sigma=1., dilate_radius=1.)
-        template_centered_rv = template_centered_fw[:, ::-1, ::-1]
-        mask_rv = mask_fw[:, ::-1, ::-1]
-        
-        # calculate average.
-        avg = loader.average()
-        
-        # alignment using forward/reverse alignment.
-        model_cls = _get_alignment(method)
-        model_fw = model_cls(
-            template_centered_fw,
-            mask_fw,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=1.,
-        )
-        model_rv = model_cls(
-            template_centered_rv,
-            mask_rv,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=1.,
-        )
-        if avg.shape != template.shape:
-            sl = tuple(slice(0, s) for s in template.shape)
-            avg = avg[sl]
-        
-        fit_fw, result_fw = model_fw.fit(avg, max_shifts)
-        fit_rv, result_rv = model_rv.fit(avg, max_shifts)
-        
-        self.log.print_html(f"<code>polarity_check_fast</code> ({default_timer() - t0:.1f} sec)")
-    
-        if result_fw.score < result_rv.score:
-            molecules.rotate_by_rotvec_internal([np.pi, 0., 0.], copy=False)
-        
-        @thread_worker.to_callback
-        def _polarity_check_fast_on_return():
-            with self.log.set_plt():
-                _plot_forward_and_reverse(
-                    template_centered_fw, fit_fw, result_fw.score,
-                    template_centered_rv, fit_rv, result_rv.score,
-                )
-                plt.tight_layout()
-                plt.show()
-
-        return _polarity_check_fast_on_return
-            
-    @_subtomogram_averaging.Refinement.wraps
-    @set_options(
         cutoff={"max": 1.0, "step": 0.05},
         max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
         z_rotation={"options": {"max": 180.0, "step": 0.1}},
@@ -2387,24 +2155,8 @@ class MTPropsWidget(MagicTemplate):
         
         Parameters
         ----------
-        layer : MonomerLayer
-            Layer of subtomogram positions and angles.
-        template_path : Path or str
-            Template image path.
-        max_shifts : int or tuple of int, default is (1., 1., 1.)
-            Maximum shift between subtomograms and template in nm. ZYX order.
-        z_rotation : tuple of float, optional
-            Rotation in external degree around z-axis.
-        y_rotation : tuple of float, optional
-            Rotation in external degree around y-axis.
-        x_rotation : tuple of float, optional
-            Rotation in external degree around x-axis.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter applied in each subtomogram.
-        interpolation : int, default is 3
-            Interpolation order.
-        method : str, default is "zncc"
-            Alignment method.
+        {layer}{template_path}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
+        {interpolation}{method}
         molecule_subset : int, optional
             If specified, only a subset of molecules will be used to speed up polarity 
             determination.
@@ -2439,14 +2191,10 @@ class MTPropsWidget(MagicTemplate):
             alignment_model=model_cls,
         )
         aligned_loader_fw = loader.align(
-            template=template_centered_fw,
-            mask=mask_fw,
-            **loader_kwargs,
+            template=template_centered_fw, mask=mask_fw, **loader_kwargs,
         )
         aligned_loader_rv = loader.align(
-            template=template_centered_rv,
-            mask=mask_rv,
-            **loader_kwargs,
+            template=template_centered_rv, mask=mask_rv, **loader_kwargs,
         )
         
         # calculate forward/reverse averages.
@@ -2538,17 +2286,10 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Select which monomer layer to be used for subtomogram sampling.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
-        size : nm, optional
-            Shape of subtomograms. Use mask shape by default.
+        {layer}{mask_params}{size}
         seed : int, optional
             Random seed used for subtomogram sampling.
-        interpolation : int, default is 1
-            Interpolation order.
+        {interpolation}
         n_set : int, default is 1
             How many sets of image pairs will be generated to average FSC.
         show_average : bool, default is True
@@ -2635,19 +2376,12 @@ class MTPropsWidget(MagicTemplate):
         """
         Search for the best seam position.
         
-        Try all patterns of seam positions and compare cross correlation values.
+        Try all patterns of seam positions and compare cross correlation values. If molecule
+        assembly has 13 protofilaments, this method will try 26 patterns.
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Select which monomer layer to be used for subtomogram sampling.
-        template_path : ip.ImgArray, optional
-            Template image.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
-        interpolation : int, default is 3
-            Interpolation order.
+        {layer}{template_path}{mask_params}{interpolation}
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the 
             corresponding spline will be used.
@@ -2719,13 +2453,7 @@ class MTPropsWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MonomerLayer
-            Select which monomer layer to be used for subtomogram sampling.
-        template_path : ip.ImgArray, optional
-            Template image.
-        mask_params : str or (float, float), optional
-            Mask image path or dilation/Gaussian blur parameters. If a path is given,
-            image must in the same shape as the template.
+        {layer}{template_path}{mask_params}
         feature_name : str, optional
             Feature name used for coloring.
         cutoff : float, optional
