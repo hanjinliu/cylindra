@@ -44,7 +44,6 @@ setup(
     license="BSD 3-Clause",
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"mtprops": ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]},
-    entry_points={"napari.manifest": "MTProps=mtprops:napari.yaml"},
     include_package_data=True,
     setup_requires=["pybind11>=2.9.2"],
     cmdclass={"build_ext": build_ext},

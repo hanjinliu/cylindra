@@ -1519,6 +1519,7 @@ def try_all_seams(
         sl = res % 2 == 0
         labels.append(sl)
     
+    # here, dask_array is (N, Z, Y, X) array where dask_array[i] is i-th subtomogram.
     dask_array = loader.construct_dask(output_shape=template.shape)
     averaged_images = da.compute([da.mean(dask_array[sl], axis=0) for sl in labels])[0]
     averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
