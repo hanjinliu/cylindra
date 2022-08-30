@@ -2186,7 +2186,7 @@ class MTPropsWidget(MagicTemplate):
         @thread_worker.to_callback
         def _polarity_check_on_return():
             with self.log.set_plt():
-                widget_utils._plot_forward_and_reverse(
+                widget_utils.plot_forward_and_reverse(
                     template_centered_fw, avg_fw, zncc_fw,
                     template_centered_rv, avg_rv, zncc_rv,
                 )
@@ -2307,10 +2307,10 @@ class MTPropsWidget(MagicTemplate):
             
             self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
             with self.log.set_plt(rc_context={"font.size": 15}):
-                widget_utils._plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
+                widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
             
-            resolution_0143 = widget_utils._calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
-            resolution_0500 = widget_utils._calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
+            resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
+            resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
             str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
             str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
             
@@ -2383,7 +2383,7 @@ class MTPropsWidget(MagicTemplate):
             with self.log.set_plt(rc_context={"font.size": 15}):
                 self.log.print(f"layer = {layer.name!r}")
                 self.log.print(f"template = {str(template_path)!r}")
-                widget_utils._plot_seam_search_result(score, npf)
+                widget_utils.plot_seam_search_result(score, npf)
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
