@@ -2006,7 +2006,7 @@ class MTPropsWidget(MagicTemplate):
         distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
     )
-    @set_design(text="Align Viterbi")
+    @set_design(text="Viterbi Alignment")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Viterbi-alignment of {!r}")})
     def align_all_viterbi(
         self,
@@ -2354,7 +2354,7 @@ class MTPropsWidget(MagicTemplate):
             self._LoggerWindow.show()
             
             if img_avg is not None:
-                _rec_layer = self._subtomogram_averaging._show_reconstruction(
+                _rec_layer: "Image" = self._subtomogram_averaging._show_reconstruction(
                     img_avg, name = f"[AVG]{layer.name}",
                 )
                 _rec_layer.metadata["FSC-freq"] = freq
@@ -2372,6 +2372,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         npf: Optional[int] = None,
+        
     ):
         """
         Search for the best seam position.
@@ -2395,10 +2396,7 @@ class MTPropsWidget(MagicTemplate):
             npf = np.max(mole.features[Mole.pf]) + 1
 
         corrs, img_ave, all_labels = try_all_seams(
-            loader=loader, 
-            npf=npf,
-            template=template,
-            mask=mask,
+            loader=loader, npf=npf, template=template, mask=mask,
         )
         
         self._need_save = True

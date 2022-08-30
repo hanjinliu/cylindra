@@ -22,7 +22,7 @@ class build_ext(build_ext):
 
 INFO = {}
 
-with open("mtprops/__init__.py", encoding="utf-8") as f:
+with open("mtprops/_info.py", encoding="utf-8") as f:
     for line in f:
         if line.startswith("__version__"):
             INFO["version"] = line.strip().split()[-1][1:-1]
@@ -55,8 +55,11 @@ setup(
         "magic-class>=0.6.8",
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
-        "napari>=0.4.15",
+        "napari>=0.4.16",
     ],
     python_requires=">=3.8",
     ext_modules=[Extension("", [], language="c++")],
+    entry_points={
+        "console_scripts": ["mtprops=mtprops.__main__:main"],
+    },
 )
