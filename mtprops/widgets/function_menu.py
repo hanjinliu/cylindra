@@ -4,7 +4,6 @@ from typing import List
 from magicclass import (
     magicclass,
     vfield,
-    magicmenu,
     MagicTemplate,
     set_options,
     set_design,
@@ -40,7 +39,7 @@ OPERATORS = [
     ("<", "lt"),
 ]
 
-@magicmenu
+@magicclass
 class Volume(MagicTemplate):
     """A custom menu that provides useful functions for volumeric data visualization."""
 
@@ -54,7 +53,7 @@ class Volume(MagicTemplate):
         out = img.binning(binsize=bin_size, check_edges=False)
         translate: List[float] = []
         for k, v in img.scale.items():
-            if k in "zyx":
+            if k in ["z", "y", "x"]:
                 translate.append((bin_size - 1) / 2 * v)
             else:
                 translate.append(0.)
@@ -149,6 +148,9 @@ class PlaneClip(MagicTemplate):
     x = vfield(FloatRangeSlider)
     y = vfield(FloatRangeSlider)
     z = vfield(FloatRangeSlider)
+
+    def __post_init__(self):
+        self.margins = (0, 0, 0, 0)
 
     @property
     def xmin_plane(self):

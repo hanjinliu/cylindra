@@ -327,9 +327,7 @@ class SubtomogramAveraging(MagicTemplate):
             from .function_menu import Volume
             self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
             volume_menu = Volume()
-            volume_menu.native.setParent(self._viewer.window.main_menu, volume_menu.native.windowFlags())
-            self._viewer.window.main_menu.addMenu(volume_menu.native)
-            self._viewer.layers.events.connect(volume_menu.reset_choices)
+            self._viewer.window.add_dock_widget(volume_menu)
             self._viewer.window.resize(10, 10)
             self._viewer.window.activate()
         self._viewer.scale_bar.visible = True

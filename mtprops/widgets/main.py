@@ -37,14 +37,13 @@ from magicclass.utils import thread_worker
 from acryo import SubtomogramLoader, Molecules
 from acryo.alignment import PCCAlignment, ZNCCAlignment
 
-from . import subwidgets, _shared_doc
+from . import subwidgets, _shared_doc, _previews
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import MTPropsProject
-from ._previews import view_tables, view_text, view_image, view_surface
 from .widget_utils import (
     FileFilter,
     add_molecules,
@@ -2351,6 +2350,7 @@ class MTPropsWidget(MagicTemplate):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the 
             corresponding spline will be used.
+        {cutoff}
         """
         mole: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2495,7 +2495,7 @@ class MTPropsWidget(MagicTemplate):
         verts, faces, _, _ = marching_cubes(
             template, step_size=1, spacing=template.scale, mask=mask > 0.2,
         )
-        view_surface([verts, faces], parent=self)
+        _previews.view_surface([verts, faces], parent=self)
         return None
     
     @toolbar.wraps
@@ -2570,7 +2570,7 @@ class MTPropsWidget(MagicTemplate):
             if i not in selected:
                 continue
             img_input = utils.crop_tomogram(imgb, point, shape)
-            angle_deg = MT.MT.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
+            angle_deg = MT.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
             centering(img_input, point, angle_deg, drot=3, nrots=7)
             last_i = i
         
@@ -3167,15 +3167,15 @@ class MTPropsWidget(MagicTemplate):
     
     @mark_preview(load_project)
     def _preview_text(self, path: str):
-        return view_text(path, parent=self)
+        return _previews.view_text(path, parent=self)
     
     @mark_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
-        return view_tables(paths, parent=self)
+        return _previews.view_tables(paths, parent=self)
     
     @mark_preview(open_image)
     def _preview_image(self, path: str):
-        return view_image(path, parent=self)
+        return _previews.view_image(path, parent=self)
 
 
 ############################################################################################
