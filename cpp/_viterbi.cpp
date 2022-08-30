@@ -55,12 +55,14 @@ std::tuple<py::array_t<ssize_t>, double> viterbi(
 
 	// forward
 	for (auto t = 1; t < nmole; ++t) {
+		// iterate over all the end points
 		for (auto z1 = 0; z1 < nz; ++z1) {
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
 			bool neighbor_found = false;
 			auto end_point = coords[t].at(z1, y1, x1);
+			// iterate over all the start points
 			for (auto z0 = 0; z0 < nz; ++z0) {
 			for (auto y0 = 0; y0 < nx; ++y0) {
 				// If distances are not in the range of [dist_min, dist_max] at the edges,
@@ -234,8 +236,8 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 				// x=0 and x=nx-1, then other points are not in the range either.
 				// Since valid range of distance is relatively small, this check largely improves
 				// performance.
-				auto distance2_0 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
-				auto distance2_1 = (coords[t-1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
+				auto distance2_0 = (coords[t - 1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
+				auto distance2_1 = (coords[t - 1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
 				bool is_0_smaller = distance2_0 < dist_min2;
 				bool is_0_larger = dist_max2 < distance2_0;
 				bool is_1_smaller = distance2_1 < dist_min2;

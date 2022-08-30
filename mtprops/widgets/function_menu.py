@@ -18,7 +18,7 @@ from napari.layers import Image, Layer
 
 from ..utils import set_gpu
 
-def _convert_array(arr, scale: float) -> ip.ImgArray:
+def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:
     if not isinstance(arr, ip.ImgArray):
         if len(arr.shape) == 3:
             arr = ip.asarray(arr, axes="zyx")
@@ -124,7 +124,7 @@ class Volume(MagicTemplate):
     def plane_clip(self):
         """Open a plane clipper as an dock widget."""
         widget = PlaneClip()
-        self.parent_viewer.window.add_dock_widget(widget, area="left")
+        self.parent_viewer.window.add_dock_widget(widget, area="right")
         widget._connect_layer()
         return None
 
@@ -148,9 +148,6 @@ class PlaneClip(MagicTemplate):
     x = vfield(FloatRangeSlider)
     y = vfield(FloatRangeSlider)
     z = vfield(FloatRangeSlider)
-
-    def __post_init__(self):
-        self.margins = (0, 0, 0, 0)
 
     @property
     def xmin_plane(self):
