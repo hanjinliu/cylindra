@@ -50,10 +50,8 @@ from .widget_utils import (
     add_molecules,
     change_viewer_focus,
     update_features,
-    molecules_to_spline,
-    get_versions,
-    resolve_path,
 )
+from . import widget_utils
 
 from ..components import MtSpline, MtTomogram, microtubule as MT
 from .. import utils
@@ -410,7 +408,7 @@ class MTPropsWidget(MagicTemplate):
     @do_not_record
     def MTProps_info(self):
         """Show information of dependencies."""
-        versions = get_versions()
+        versions = widget_utils.get_versions()
         value = "\n".join(f"{k}: {v}" for k, v in versions.items())
         w = ConsoleTextEdit(value=value)
         w.read_only = True
@@ -489,6 +487,7 @@ class MTPropsWidget(MagicTemplate):
         project = MTPropsProject.from_json(path)
         file_dir = Path(path).parent
         
+        resolve_path = widget_utils.resolve_path
         self.tomogram = MtTomogram.imread(
             path=resolve_path(project.image, file_dir), 
             scale=project.scale, 
@@ -588,7 +587,7 @@ class MTPropsWidget(MagicTemplate):
         results_dir : Path, optional
             Optionally you can specify the directory to save csv files.
         """
-        _versions = get_versions()
+        _versions = widget_utils.get_versions()
         tomo = self.tomogram
         localprops = tomo.collect_localprops()    
         globalprops = tomo.collect_globalprops()
@@ -1156,7 +1155,7 @@ class MTPropsWidget(MagicTemplate):
         """        
         splines: List[MtSpline] = []
         for layer in layers:
-            spl = molecules_to_spline(layer)
+            spl = widget_utils.molecules_to_spline(layer)
             splines.append(spl)
         
         self.tomogram.splines.clear()
@@ -1382,7 +1381,7 @@ class MTPropsWidget(MagicTemplate):
             name=name,
         )
         return None
-    
+
     @Molecules_.wraps
     @set_options(auto_call=True)
     @set_design(text="Extend molecules")
@@ -1500,7 +1499,7 @@ class MTPropsWidget(MagicTemplate):
             projective interval.
         """
         mole: Molecules = layer.metadata[MOLECULES]
-        spl = molecules_to_spline(layer)
+        spl = widget_utils.molecules_to_spline(layer)
         try:
             pf_label = mole.features[Mole.pf]
             pos_list: List[np.ndarray] = []  # each shape: (y, ndim)
@@ -2187,7 +2186,7 @@ class MTPropsWidget(MagicTemplate):
         @thread_worker.to_callback
         def _polarity_check_on_return():
             with self.log.set_plt():
-                _plot_forward_and_reverse(
+                widget_utils._plot_forward_and_reverse(
                     template_centered_fw, avg_fw, zncc_fw,
                     template_centered_rv, avg_rv, zncc_rv,
                 )
@@ -2308,10 +2307,10 @@ class MTPropsWidget(MagicTemplate):
             
             self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
             with self.log.set_plt(rc_context={"font.size": 15}):
-                _plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
+                widget_utils._plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
             
-            resolution_0143 = _calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
-            resolution_0500 = _calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
+            resolution_0143 = widget_utils._calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
+            resolution_0500 = widget_utils._calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
             str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
             str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
             
@@ -2362,7 +2361,7 @@ class MTPropsWidget(MagicTemplate):
             npf = np.max(mole.features[Mole.pf]) + 1
 
         corrs, img_ave, all_labels = MT.try_all_seams(
-            loader=loader, npf=npf, template=template, mask=mask,
+            loader=loader, npf=npf, template=template, mask=mask, cutoff=cutoff
         )
         
         self._need_save = True
@@ -2384,7 +2383,7 @@ class MTPropsWidget(MagicTemplate):
             with self.log.set_plt(rc_context={"font.size": 15}):
                 self.log.print(f"layer = {layer.name!r}")
                 self.log.print(f"template = {str(template_path)!r}")
-                _plot_seam_search_result(score, npf)
+                widget_utils._plot_seam_search_result(score, npf)
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
@@ -3230,97 +3229,3 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
-
-def _plot_seam_search_result(score: np.ndarray, npf: int):
-    imax = np.argmax(score)
-    # plot the score
-    plt.figure(figsize=(6, 2.4))
-    plt.axvline(imax, color="gray", alpha=0.6)
-    plt.axhline(score[imax], color="gray", alpha=0.6)
-    plt.plot(score)
-    plt.xlabel("PF position")
-    plt.ylabel("ΔCorr")
-    plt.xticks(np.arange(0, 2*npf+1, 4))
-    plt.title("Score")
-    plt.tight_layout()
-    plt.show()
-
-def _plot_fsc(
-    freq: np.ndarray,
-    fsc_mean: np.ndarray,
-    fsc_std: np.ndarray,
-    crit: List[float],
-    scale: nm,
-):
-    ind = (freq <= 0.7)
-    plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
-    plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
-    for cr in crit:
-        plt.axhline(cr, color="violet", alpha=0.5, ls="--")
-    plt.plot(freq[ind], fsc_mean[ind], color="gold")
-    plt.fill_between(
-        freq[ind],
-        y1=fsc_mean[ind] - fsc_std[ind],
-        y2=fsc_mean[ind] + fsc_std[ind],
-        color="gold",
-        alpha=0.3
-    )
-    plt.xlabel("Spatial frequence (1/nm)")
-    plt.ylabel("FSC")
-    plt.ylim(-0.1, 1.1)
-    xticks = np.linspace(0, 0.7, 8)
-    per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in scale / xticks[1:]]
-    plt.xticks(xticks, per_nm)
-    plt.tight_layout()
-    plt.show()
-
-def _calc_resolution(
-    freq: np.ndarray,
-    fsc: np.ndarray,
-    crit: float = 0.143,
-    scale: nm = 1.0
-) -> nm:
-    """
-    Calculate resolution using arrays of frequency and FSC.
-    This function uses linear interpolation to find the solution.
-    If the inputs are not accepted, 0 will be returned.
-    """
-    freq0 = None
-    for i, fsc1 in enumerate(fsc):
-        if fsc1 < crit:
-            if i == 0:
-                resolution = 0
-                break
-            f0 = freq[i-1]
-            f1 = freq[i]
-            fsc0 = fsc[i-1]
-            freq0 = (crit - fsc1)/(fsc0 - fsc1) * (f0 - f1) + f1
-            resolution = scale / freq0
-            break
-    else:
-        resolution = 0
-    return resolution
-
-def _plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv):
-    fig, axes = plt.subplots(nrows=2, ncols=3)
-    template_proj_fw = np.max(template_fw, axis=1)
-    fit_proj_fw = np.max(fit_fw, axis=1)
-    merge_fw = utils.merge_images(fit_proj_fw, template_proj_fw)
-    template_proj_rv = np.max(template_rv, axis=1)
-    fit_proj_rv = np.max(fit_rv, axis=1)
-    merge_rv = utils.merge_images(fit_proj_rv, template_proj_rv)
-    axes[0][0].imshow(template_proj_fw, cmap="gray")
-    axes[0][1].imshow(fit_proj_fw, cmap="gray")
-    axes[0][2].imshow(merge_fw)
-    axes[0][0].text(0, 0, f"{zncc_fw:.3f}", va="top", fontsize=14)
-    axes[1][0].imshow(template_proj_rv, cmap="gray")
-    axes[1][1].imshow(fit_proj_rv, cmap="gray")
-    axes[1][2].imshow(merge_rv)
-    axes[1][0].text(0, 0, f"{zncc_rv:.3f}", va="top", fontsize=14)
-    axes[0][0].set_title("Template")
-    axes[0][1].set_title("Average")
-    axes[0][2].set_title("Merge")
-    axes[0][0].set_ylabel("Forward")
-    axes[1][0].set_ylabel("Reverse")
-    
-    return None

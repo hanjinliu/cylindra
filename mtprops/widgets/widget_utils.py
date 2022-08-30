@@ -11,6 +11,7 @@ from ..const import MOLECULES, GVar, Mole
 
 if TYPE_CHECKING:
     from acryo import Molecules
+    from ..const import nm
 
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
@@ -152,4 +153,102 @@ def layer_to_coordinates(layer: Points, npf: int | None = None):
     data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
     data.axes["dim"].labels = ("z", "y", "x")
     return data
+
+
+def plot_seam_search_result(score: np.ndarray, npf: int):
+    import matplotlib.pyplot as plt
+    imax = np.argmax(score)
+    # plot the score
+    plt.figure(figsize=(6, 2.4))
+    plt.axvline(imax, color="gray", alpha=0.6)
+    plt.axhline(score[imax], color="gray", alpha=0.6)
+    plt.plot(score)
+    plt.xlabel("PF position")
+    plt.ylabel("ΔCorr")
+    plt.xticks(np.arange(0, 2*npf+1, 4))
+    plt.title("Score")
+    plt.tight_layout()
+    plt.show()
+
+def plot_fsc(
+    freq: np.ndarray,
+    fsc_mean: np.ndarray,
+    fsc_std: np.ndarray,
+    crit: list[float],
+    scale: nm,
+):
+    import matplotlib.pyplot as plt
+    ind = (freq <= 0.7)
+    plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
+    plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
+    for cr in crit:
+        plt.axhline(cr, color="violet", alpha=0.5, ls="--")
+    plt.plot(freq[ind], fsc_mean[ind], color="gold")
+    plt.fill_between(
+        freq[ind],
+        y1=fsc_mean[ind] - fsc_std[ind],
+        y2=fsc_mean[ind] + fsc_std[ind],
+        color="gold",
+        alpha=0.3
+    )
+    plt.xlabel("Spatial frequence (1/nm)")
+    plt.ylabel("FSC")
+    plt.ylim(-0.1, 1.1)
+    xticks = np.linspace(0, 0.7, 8)
+    per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in scale / xticks[1:]]
+    plt.xticks(xticks, per_nm)
+    plt.tight_layout()
+    plt.show()
+
+def calc_resolution(
+    freq: np.ndarray,
+    fsc: np.ndarray,
+    crit: float = 0.143,
+    scale: nm = 1.0
+) -> nm:
+    """
+    Calculate resolution using arrays of frequency and FSC.
+    This function uses linear interpolation to find the solution.
+    If the inputs are not accepted, 0 will be returned.
+    """
+    freq0 = None
+    for i, fsc1 in enumerate(fsc):
+        if fsc1 < crit:
+            if i == 0:
+                resolution = 0
+                break
+            f0 = freq[i-1]
+            f1 = freq[i]
+            fsc0 = fsc[i-1]
+            freq0 = (crit - fsc1)/(fsc0 - fsc1) * (f0 - f1) + f1
+            resolution = scale / freq0
+            break
+    else:
+        resolution = 0
+    return resolution
+
+def plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv):
+    import matplotlib.pyplot as plt
+    from .. import utils
+    fig, axes = plt.subplots(nrows=2, ncols=3)
+    template_proj_fw = np.max(template_fw, axis=1)
+    fit_proj_fw = np.max(fit_fw, axis=1)
+    merge_fw = utils.merge_images(fit_proj_fw, template_proj_fw)
+    template_proj_rv = np.max(template_rv, axis=1)
+    fit_proj_rv = np.max(fit_rv, axis=1)
+    merge_rv = utils.merge_images(fit_proj_rv, template_proj_rv)
+    axes[0][0].imshow(template_proj_fw, cmap="gray")
+    axes[0][1].imshow(fit_proj_fw, cmap="gray")
+    axes[0][2].imshow(merge_fw)
+    axes[0][0].text(0, 0, f"{zncc_fw:.3f}", va="top", fontsize=14)
+    axes[1][0].imshow(template_proj_rv, cmap="gray")
+    axes[1][1].imshow(fit_proj_rv, cmap="gray")
+    axes[1][2].imshow(merge_rv)
+    axes[1][0].text(0, 0, f"{zncc_rv:.3f}", va="top", fontsize=14)
+    axes[0][0].set_title("Template")
+    axes[0][1].set_title("Average")
+    axes[0][2].set_title("Merge")
+    axes[0][0].set_ylabel("Forward")
+    axes[1][0].set_ylabel("Reverse")
     
+    return None
