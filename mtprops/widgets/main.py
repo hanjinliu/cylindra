@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Union, Tuple, List
+from typing import Annotated, Union, Tuple, List
 from timeit import default_timer
 from pathlib import Path
 import numpy as np
@@ -55,8 +55,7 @@ from .widget_utils import (
     resolve_path,
 )
 
-from ..components import MtSpline, MtTomogram
-from ..components.microtubule import angle_corr, try_all_seams
+from ..components import MtSpline, MtTomogram, microtubule as MT
 from .. import utils
 from ..const import nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
@@ -70,6 +69,12 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
+
+_CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
+_ZRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
+_YRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
+_XRotation = Annotated[Tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
+_MaxShifts = Annotated[Tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
 
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
@@ -1708,11 +1713,6 @@ class MTPropsWidget(MagicTemplate):
         )
     
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(
-        z_rotation={"options": {"max": 180.0, "step": 1.0}},
-        y_rotation={"options": {"max": 180.0, "step": 1.0}},
-        x_rotation={"options": {"max": 90.0, "step": 1.0}},
-    )
     @set_design(text="Align averaged")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}")})
     def align_averaged(
@@ -1720,9 +1720,9 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        z_rotation: Tuple[float, float] = (3., 3.),
-        y_rotation: Tuple[float, float] = (15., 3.),
-        x_rotation: Tuple[float, float] = (3., 3.),
+        z_rotation: _ZRotation = (3., 3.),
+        y_rotation: _YRotation = (15., 3.),
+        x_rotation: _XRotation = (3., 3.),
         bin_size: OneOf[_get_available_binsize] = 1,
         method: OneOf[METHOD_CHOICES] = "zncc",
     ):
@@ -1750,7 +1750,6 @@ class MTPropsWidget(MagicTemplate):
             template, mask, bin_size, mole, order=1
         )
         _scale = self.tomogram.scale * bin_size
-        max_shifts = tuple()
         npf = np.max(mole.features[Mole.pf]) + 1
         dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
@@ -1815,13 +1814,6 @@ class MTPropsWidget(MagicTemplate):
         return _align_averaged_on_return
 
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(
-        cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
-        z_rotation={"options": {"max": 180.0, "step": 0.1}},
-        y_rotation={"options": {"max": 180.0, "step": 0.1}},
-        x_rotation={"options": {"max": 90.0, "step": 0.1}},
-    )
     @set_design(text="Align all")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}")})
     def align_all(
@@ -1830,11 +1822,11 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
-        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
-        cutoff: float = 0.5,
+        max_shifts: _MaxShifts = (1., 1., 1.),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1871,14 +1863,7 @@ class MTPropsWidget(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
     
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(
-        size={"min": 1., "max": 100., "label": "sub-volume size (nm)"},
-        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "max shifts (nm)"},
-        z_rotation={"options": {"max": 90.0, "step": 0.1}},
-        y_rotation={"options": {"max": 180.0, "step": 0.1}},
-        x_rotation={"options": {"max": 180.0, "step": 0.1}},
-        cutoff={"max": 1.0, "step": 0.05},
-    )
+    @set_options(size={"min": 1., "max": 100., "label": "sub-volume size (nm)"})
     @set_design(text="Align all (template-free)")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}")})
     def align_all_template_free(
@@ -1886,11 +1871,11 @@ class MTPropsWidget(MagicTemplate):
         layer: MonomerLayer,
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         size: nm = 12.,
-        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
-        cutoff: float = 0.5,
+        max_shifts: _MaxShifts = (1., 1., 1.),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1927,14 +1912,7 @@ class MTPropsWidget(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
     
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(
-        other_templates={"filter": FileFilter.IMAGE},
-        cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "max shifts (nm)"},
-        z_rotation={"options": {"max": 180.0, "step": 0.1}},
-        y_rotation={"options": {"max": 180.0, "step": 0.1}},
-        x_rotation={"options": {"max": 90.0, "step": 0.1}},
-    )
+    @set_options(other_templates={"filter": FileFilter.IMAGE})
     @set_design(text="Align all (multi-template)")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}")})
     def align_all_multi_template(
@@ -1944,11 +1922,11 @@ class MTPropsWidget(MagicTemplate):
         other_templates: List[Path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
-        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
-        cutoff: float = 0.5,
+        max_shifts: _MaxShifts = (1., 1., 1.),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1998,11 +1976,6 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Refinement.wraps
     @set_options(
-        cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 10.0, "step": 0.1}, "label": "max shifts (nm)"},
-        z_rotation={"options": {"max": 180.0, "step": 0.1}},
-        y_rotation={"options": {"max": 180.0, "step": 0.1}},
-        x_rotation={"options": {"max": 90.0, "step": 0.1}},
         distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
     )
@@ -2014,11 +1987,11 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params] = None,
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
-        max_shifts: Tuple[nm, nm, nm] = (0.6, 0.6, 0.6),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
-        cutoff: float = 1.0,
+        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         distance_range: Tuple[nm, nm] = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
@@ -2121,25 +2094,18 @@ class MTPropsWidget(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @_subtomogram_averaging.Refinement.wraps
-    @set_options(
-        cutoff={"max": 1.0, "step": 0.05},
-        max_shifts={"options": {"max": 8.0, "step": 0.1}, "label": "Max shifts (nm)"},
-        z_rotation={"options": {"max": 180.0, "step": 0.1}},
-        y_rotation={"options": {"max": 180.0, "step": 0.1}},
-        x_rotation={"options": {"max": 90.0, "step": 0.1}},
-        molecule_subset={"text": "Use all molecules", "options": {"value": 200, "min": 1}}
-    )
+    @set_options(molecule_subset={"text": "Use all molecules", "options": {"value": 200, "min": 1}})
     @set_design(text="Polarity check")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
     def polarity_check(
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
-        max_shifts: Tuple[nm, nm, nm] = (1., 1., 1.),
-        z_rotation: Tuple[float, float] = (0., 0.),
-        y_rotation: Tuple[float, float] = (0., 0.),
-        x_rotation: Tuple[float, float] = (0., 0.),
-        cutoff: float = 0.5,
+        max_shifts: _MaxShifts = (1., 1., 1.),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         method: OneOf[METHOD_CHOICES] = "zncc",
         molecule_subset: Optional[int] = None,
@@ -2372,7 +2338,7 @@ class MTPropsWidget(MagicTemplate):
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         npf: Optional[int] = None,
-        
+        cutoff: _CutoffFreq = 0.5,
     ):
         """
         Search for the best seam position.
@@ -2395,7 +2361,7 @@ class MTPropsWidget(MagicTemplate):
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
 
-        corrs, img_ave, all_labels = try_all_seams(
+        corrs, img_ave, all_labels = MT.try_all_seams(
             loader=loader, npf=npf, template=template, mask=mask,
         )
         
@@ -2429,10 +2395,7 @@ class MTPropsWidget(MagicTemplate):
         return _seam_search_on_return
 
     @_subtomogram_averaging.Tools.wraps
-    @set_options(
-        feature_name={"text": "Do not color molecules."},
-        cutoff={"options": {"min": 0.05, "max": 0.8, "step": 0.05}},
-    )
+    @set_options(feature_name={"text": "Do not color molecules."})
     @set_design(text="Render molecules")
     def render_molecules(
         self,
@@ -2440,7 +2403,7 @@ class MTPropsWidget(MagicTemplate):
         template_path: Bound[_subtomogram_averaging.template_path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         feature_name: Optional[str] = None,
-        cutoff: Optional[float] = None,
+        cutoff: _CutoffFreq = 0.5,
     ):
         """
         Render molecules using the template image.
@@ -2566,7 +2529,7 @@ class MTPropsWidget(MagicTemplate):
         orientation = point1[1:] - point0[1:]
         img = utils.crop_tomogram(imgb, point1, shape)
         center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-        angle_deg = angle_corr(img, ang_center=center, drot=angle_dev, nrots=utils.ceilint(angle_dev/angle_pre))
+        angle_deg = MT.angle_corr(img, ang_center=center, drot=angle_dev, nrots=utils.ceilint(angle_dev/angle_pre))
         angle_rad = np.deg2rad(angle_deg)
         dr = np.array([0.0, stride_nm * np.cos(angle_rad), -stride_nm * np.sin(angle_rad)])
         if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
@@ -2608,7 +2571,7 @@ class MTPropsWidget(MagicTemplate):
             if i not in selected:
                 continue
             img_input = utils.crop_tomogram(imgb, point, shape)
-            angle_deg = angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
+            angle_deg = MT.MT.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
             centering(img_input, point, angle_deg, drot=3, nrots=7)
             last_i = i
         
@@ -3228,7 +3191,7 @@ def centering(
     nrots: int = 7,
     max_shifts: float = None,
 ):
-    angle_deg2 = angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
+    angle_deg2 = MT.angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
     
     img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
     proj = img_next_rot.proj("y")

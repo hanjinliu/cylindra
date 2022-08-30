@@ -1483,6 +1483,7 @@ def try_all_seams(
     npf: int,
     template: ip.ImgArray,
     mask: ip.ImgArray | None = None,
+    cutoff: float = 0.5,
 ) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
     """
     Try all the possible seam positions and compare correlations.
@@ -1497,6 +1498,8 @@ def try_all_seams(
         Template image.
     mask : ip.ImgArray, optional
         Mask image.
+    cutoff : float, default is 0.5
+        Cutoff frequency applied before calculating correlations.
 
     Returns
     -------
@@ -1509,7 +1512,7 @@ def try_all_seams(
     if mask is None:
         mask = 1.
     
-    masked_template = template * mask
+    masked_template = (template * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
     _id = np.arange(len(loader.molecules))
     assert _id.size % npf == 0
     
@@ -1525,6 +1528,10 @@ def try_all_seams(
     averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
     averaged_images.set_scale(zyx=loader.scale)
     
-    corrs = [ip.zncc(avg*mask, masked_template) for avg in averaged_images]
-    
+    corrs: list[float] = []
+    for avg in averaged_images:
+        avg: ip.ImgArray
+        corr = ip.zncc((avg * mask).lowpass_filter(cutoff=cutoff), masked_template)
+        corrs.append(corr)
+        
     return np.array(corrs), averaged_images, labels
