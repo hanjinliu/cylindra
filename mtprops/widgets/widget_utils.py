@@ -104,7 +104,7 @@ def get_versions() -> dict[str, str]:
     import napari
     import impy as ip
     import magicgui
-    from .. import __version__
+    from .._info import __version__
     import magicclass as mcls
     import dask
     
@@ -226,6 +226,19 @@ def calc_resolution(
     else:
         resolution = 0
     return resolution
+
+def plot_projections(merge: np.ndarray):
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(nrows=1, ncols=2)
+    axes[0].imshow(np.max(merge, axis=0))
+    axes[0].set_xlabel("X")
+    axes[0].set_ylabel("Y")
+    axes[1].imshow(np.max(merge, axis=1))
+    axes[1].set_xlabel("X")
+    axes[1].set_ylabel("Z")
+    plt.tight_layout()
+    plt.show()
+    return None
 
 def plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv):
     import matplotlib.pyplot as plt

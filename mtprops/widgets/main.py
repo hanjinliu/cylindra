@@ -67,6 +67,7 @@ METHOD_CHOICES = (
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
 
+# annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _ZRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
 _YRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
@@ -1799,16 +1800,8 @@ class MTPropsWidget(MagicTemplate):
             layer.visible = False
             self.log.print(f"{layer.name!r} --> {points.name!r}")
             with self.log.set_plt():
-                fig, axes = plt.subplots(nrows=1, ncols=2)
-                axes[0].imshow(np.max(merge, axis=0))
-                axes[0].set_xlabel("X")
-                axes[0].set_ylabel("Y")
-                axes[1].imshow(np.max(merge, axis=1))
-                axes[1].set_xlabel("X")
-                axes[1].set_ylabel("Z")
-                plt.tight_layout()
-                plt.show()
-        
+                widget_utils.plot_projections(merge)
+
         return _align_averaged_on_return
 
     @_subtomogram_averaging.Refinement.wraps
@@ -3019,12 +3012,10 @@ class MTPropsWidget(MagicTemplate):
         idx: int = event.index
         layer: Layer = event.value
         if layer in (self.layer_image, self.layer_prof, self.layer_work, self.layer_paint):
+            import warnings
             self.parent_viewer.layers.insert(idx, layer)
-            e = ValueError(f"Cannot remove layer {layer.name!r}")
-            from magicclass.utils import show_messagebox
-            show_messagebox(mode="error", title="Error", text=str(e), parent=self.native)
-            raise e
-    
+            warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
+
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer
         viewer.layers.events.removing.disconnect(self._on_layer_removing)
