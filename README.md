@@ -12,14 +12,22 @@ git clone git+https://github.com/hanjinliu/MTProps
 
 ## Implemented Functions
 
-- Fitting splines to microtubules in 3D (automatically, or manually in GUI).
-- Calculating structural parameters (radius, pitch length, skew angle, protofilament number and starting number like 13_3).
+- Automatic/maual fitting of splines to microtubules in 3D.
+- Calculating structural parameters (radius, lattice spacing, skew angle, protofilament number and starting number like 13_3).
 - Coordinate transformation along splines. Straightening and opening are included.
-- Determination of microtubule polarity by seeing projection images along splines.
+- Automatic/manual determination of microtubule polarity.
 - Monomer mapping along splines.
 - Subtomogram averaging and template-based alignment.
+- Microtubule seam search without any binding proteins.
+- Viterbi alignment.
 
 ## Usage
+
+- From shell
+
+```
+mtprops
+```
 
 - From a Python interpreter
 

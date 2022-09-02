@@ -11,15 +11,16 @@ from ...const import EulerAxes, Mole
 from ...types import MOLECULES, MonomerLayer, get_monomer_layers
 from ...widgets.widget_utils import add_molecules, FileFilter
 
-if TYPE_CHECKING:
-    from ...widgets.project_editor import SubProject
+# BUG: MTProps coordinates and PEET coordinates do not match (slight difference).
 
 @magicmenu
 class PEET(MagicTemplate):
     """PEET extension."""
-    @set_options(mod_path={"label": "Path to MOD file", "mode": "r", "filter": "Model files (*.mod);;All files (*.txt;*.csv)"},
-                 ang_path={"label": "Path to csv file", "mode": "r", "filter": FileFilter.CSV},
-                 shift_mol={"label": "Apply shifts to monomers if offsets are available."})
+    @set_options(
+        mod_path={"label": "Path to MOD file", "mode": "r", "filter": "Model files (*.mod);;All files (*.txt;*.csv)"},
+        ang_path={"label": "Path to csv file", "mode": "r", "filter": FileFilter.CSV},
+        shift_mol={"label": "Apply shifts to monomers if offsets are available."}
+    )
     def Read_monomers(self, mod_path: Path, ang_path: Path, shift_mol: bool = True):
         """
         Read monomer coordinates and angles from PEET-format files.
@@ -133,41 +134,6 @@ class PEET(MagicTemplate):
             layer.metadata[MOLECULES] = mol_shifted
         else:
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
-    
-    def Create_project(self, path: Path):
-        path = Path(path)
-        from ...widgets import MTPropsWidget
-        parent = self.find_ancestor(MTPropsWidget)
-        images: List[str] = []
-        coordinates: List[str] = []
-        angles: List[str] = []
-        templates: Set[str] = set()
-        
-        for i, sub in enumerate(parent._STAProjectEditor.DataSets):
-            sub: SubProject
-            subproject_path, molecules_path = sub.value
-            mole = Molecules.concat([Molecules.from_csv(mp) for mp in molecules_path])
-            images.append(sub.image)
-            mod_name = f"coordinates-{i}.mod"
-            csv_name = "angles-{i}.mod"
-            _save_molecules(
-                save_dir=path, mol=mole, scale=self.scale, mod_name=mod_name, csv_name=csv_name
-            )
-            coordinates.append(path/mod_name)
-            angles.append(path/csv_name)
-            templates.add(sub.project.template_image)
-        
-                
-        table = str.maketrans({
-            "$(Tomograms)": _list_to_cell(images),
-            "$(Coordinates)": _list_to_cell(coordinates),
-            "$(Angles)": _list_to_cell(angles),
-            "$(Template)": '.',
-            "$(ProjectName)": '.',
-            "$(Shape)": '.',
-        })
-        prm = PEET_TEMPLATE.translate(table)
-        
     
     @property
     def scale(self) -> float:
