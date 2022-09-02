@@ -22,9 +22,8 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
     assert_allclose(mole0.z, mole1.z, atol=1e-8, rtol=1e-8)
     
 
-def test_spline_switch(make_napari_viewer):
-    viewer = make_napari_viewer()
-    ui = start(viewer=viewer)
+def test_spline_switch():
+    ui = start()
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.filter_reference_image()
@@ -130,11 +129,11 @@ def test_spline_switch(make_napari_viewer):
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
     ui.sub_viewer.close()
+    ui.parent_viewer.close()
 
 
-def test_io(make_napari_viewer):
-    viewer = make_napari_viewer()
-    ui = start(viewer=viewer)
+def test_io():
+    ui = start()
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=1)
     ui.register_path(coords=coords_13pf)
@@ -157,3 +156,5 @@ def test_io(make_napari_viewer):
     # cleanup
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
+    
+    ui.parent_viewer.close()

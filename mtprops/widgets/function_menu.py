@@ -62,7 +62,9 @@ class Volume(MagicTemplate):
             out, 
             dict(scale=out.scale, 
                  translate=translate, 
-                 name=layer.name + "-binning"), 
+                 name=layer.name + "-binning",
+                 rendering=layer.rendering,
+                 ), 
             "image",
         )
     
@@ -94,7 +96,8 @@ class Volume(MagicTemplate):
             out,
             dict(scale=layer_1.scale, 
                  translate=layer_1.translate, 
-                 name=f"{layer_1.name}-binary_op"), 
+                 name=f"{layer_1.name}-binary_op", 
+                 rendering=layer_1.rendering,),
             "image",
         )
     
@@ -138,7 +141,9 @@ class Volume(MagicTemplate):
             out,
             dict(scale=layer.scale, 
                  translate=layer.translate, 
-                 name=f"{layer.name}-{method_name}"), 
+                 name=f"{layer.name}-{method_name}",
+                 rendering=layer.rendering,
+                 ), 
             "image",
         )
 
