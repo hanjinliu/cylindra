@@ -52,7 +52,7 @@ setup(
         "impy-array>=2.1.2",
         "acryo>=0.0.2",
         "magicgui>=0.5.1",
-        "magic-class>=0.6.8",
+        "magic-class>=0.6.9",
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
         "napari>=0.4.16",
