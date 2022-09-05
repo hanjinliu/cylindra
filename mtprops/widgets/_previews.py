@@ -16,12 +16,24 @@ import pandas as pd
 
 @magicclass
 class ImagePreview(MagicTemplate):
+    """A widget to preview 3D image by 2D slices."""
+
     canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
     sl = field(Slider, name="slice")
     @magicclass(widget_type="frame", layout="horizontal")
     class Fft(MagicTemplate):
+        """
+        FFT parameters.
+
+        Attributes
+        ----------
+        apply_filter : bool
+            Apply low-pass filter to image.
+        cutoff : float
+            Cutoff frequency for low-pass filter.
+        """
         apply_filter = vfield(False)
-        cutoff = vfield(0.5, options={"min": 0.05, "max": 0.85, "step": 0.05, "visible": False})
+        cutoff = vfield(0.2, options={"min": 0.05, "max": 0.85, "step": 0.05, "visible": False})
         @apply_filter.connect
         def _toggle(self):
             self["cutoff"].visible = self.apply_filter
