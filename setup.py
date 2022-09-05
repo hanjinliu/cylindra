@@ -37,7 +37,7 @@ with open("README.md", "r") as f:
     
 setup(
     name="MTProps",
-    description="Fourier analysis and subtomogram averaging of cylindrical structures",
+    description="Fourier analysis and subtomogram averaging of heterogenic cylindrical structures",
     long_description=readme,
     long_description_content_type="text/markdown",
     **INFO,
