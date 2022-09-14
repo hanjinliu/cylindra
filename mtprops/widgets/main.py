@@ -54,7 +54,7 @@ from . import widget_utils
 
 from ..components import MtSpline, MtTomogram, microtubule as MT
 from .. import utils
-from ..const import nm, H, GVar, Mole
+from ..const import Ori, nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
 from ..types import MonomerLayer, get_monomer_layers
 
@@ -112,6 +112,13 @@ class MTPropsWidget(MagicTemplate):
     def log(self):
         """Return the logger widget."""
         return self._LoggerWindow.log
+    
+    @property
+    def project_directory(self) -> Union[Path, None]:
+        """The current project directory."""
+        if source := self.tomogram.source:
+            return source.parent
+        return None
     
     File = subwidgets.File
     Image = subwidgets.Image
@@ -949,6 +956,7 @@ class MTPropsWidget(MagicTemplate):
         self._init_widget_state()
         if need_resample:
             self.sample_subtomograms()
+        self._set_orientation_marker(spline)
         self._need_save = True
         return None
     
@@ -970,6 +978,8 @@ class MTPropsWidget(MagicTemplate):
         self.reset_choices()
         if need_resample:
             self.sample_subtomograms()
+        for i in range(len(self.tomogram.splines)):
+            self._set_orientation_marker(i)
         self._need_save = True
         return None
     
@@ -2932,7 +2942,6 @@ class MTPropsWidget(MagicTemplate):
         self.clear_all()
         if filt:
             self.filter_reference_image()
-        return None
     
     def _check_path(self) -> str:
         tomo = self.tomogram
@@ -3131,6 +3140,25 @@ class MTPropsWidget(MagicTemplate):
             fit[:, 2]/scale, fit[:, 1]/scale, color="lime", lw=2, name=f"spline-{i}",
         )
         return None
+    
+    def _set_orientation_marker(self, idx: int):
+        spline_id = self.layer_prof.features[SPLINE_ID]
+        spec = spline_id == idx
+        # TODO: show orientation
+        # texts = list(self.layer_prof.text.string)
+        # spl = self.tomogram.splines[idx]
+        # if spl.orientation == Ori.none:
+        #     texts[spec] = ""
+        # elif spl.orientation == Ori.MinusToPlus:
+        #     texts[spec][0], texts[spec][-1] = "-", "+"
+        # elif spl.orientation == Ori.PlusToMinus:
+        #     texts[spec][0], texts[spec][-1] = "+", "-"
+        # else:
+        #     raise RuntimeError(spl.orientation)
+        
+        # # update
+        # self.layer_prof.text.string = texts
+        # return self.layer_prof.refresh()
 
     def _update_splines_in_images(self, _=None):
         self.overview.layers.clear()

@@ -90,6 +90,7 @@ class SplineControl(MagicTemplate):
         spl = parent.tomogram.splines[i]
         spl.orientation = orientation
         parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
+        parent._set_orientation_marker(i)
         return None
     
     @num.connect
