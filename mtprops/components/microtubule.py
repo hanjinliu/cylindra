@@ -4,7 +4,6 @@ from typing_extensions import ParamSpecKwargs
     
 from typing import Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING
 from functools import partial, wraps
-from matplotlib import pyplot as plt
 import numpy as np
 from numpy.typing import ArrayLike
 import pandas as pd
@@ -25,6 +24,7 @@ from ..utils import (
     roundint,
     ceilint,
     oblique_meshgrid,
+    oblique_meshgrid_hetero,
     set_gpu,
     mirror_zncc, 
     angle_uniform_filter,
@@ -1171,14 +1171,56 @@ class MtTomogram(Tomogram):
         # If starting number is non-integer, we must determine the seam position to correctly
         # map monomers. Use integer here.
         shape = [ny, npf]
-        tilts = [np.deg2rad(skew)/(4*np.pi)*npf,
-                 roundint(-tan_rise*2*np.pi*radius/pitch)/npf]
-        intervals = [pitch, 2*np.pi/npf]
+        tilts = [np.deg2rad(skew) / (4 * np.pi) * npf,
+                 roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf]
+        intervals = [pitch, 2 * np.pi / npf]
         
         if offsets is None:
             offsets = [0., 0.]
         
         mesh = oblique_meshgrid(shape, tilts, intervals, offsets).reshape(-1, 2)
+        radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
+        mesh = np.concatenate([radius_arr, mesh], axis=1)
+
+        mole = spl.cylindrical_to_molecules(mesh)
+        mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % npf}
+        return mole
+
+    def map_monomers_hetero(
+        self, 
+        i: int,
+        *, 
+        pitch: np.ndarray | None = None,
+        skew: np.ndarray | None = None,
+        rise: float | None = None,
+        radius: float | None = None,
+        offsets: tuple[nm, float] = None
+    ):
+        spl = self._splines[i]
+            
+        # Get structural parameters
+        props = self.splines[i].globalprops
+        if props is None:
+            props = self.global_ft_params(i)
+        if rise is None:
+            rise = props[H.riseAngle]
+        ny, npf = pitch.shape
+        if radius is None:
+            radius = spl.radius
+        
+        if skew is None:
+            skew = np.full(ny, props[H.skewAngle])
+        radius = spl.radius
+        tan_rise = tandg(rise)
+        
+        tilts = (np.deg2rad(skew) / (4 * np.pi) * npf,
+                 roundint(-tan_rise * 2 * np.pi * radius / np.mean(pitch)) / npf)
+        intervals = (pitch, 2 * np.pi / npf)
+        
+        if offsets is None:
+            offsets = (0., 0.)
+        
+        mesh = oblique_meshgrid_hetero((ny, npf), tilts, intervals, offsets).reshape(-1, 2)
         radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
         mesh = np.concatenate([radius_arr, mesh], axis=1)
 
