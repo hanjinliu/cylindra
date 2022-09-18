@@ -13,10 +13,11 @@ import impy as ip
 import napari
 
 from .widget_utils import FileFilter
-from .global_variables import GlobalVariables
+from .global_variables import GlobalVariables, GVar
+from ._previews import view_image
 
 from ..const import nm
-from ..utils import pad_template, roundint, normalize_image
+from ..utils import pad_template, roundint, normalize_image, ceilint
 from ..ext.etomo import PEET
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ ICON_DIR = Path(__file__).parent / "icons"
 @magicmenu
 class File(MagicTemplate):
     """File I/O."""  
-    def open_image(self): ...
+    def open_image_loader(self): ...
     def load_project(self): ...
     def load_splines(self): ...
     def load_molecules(self): ...
@@ -524,3 +525,57 @@ class Runner(MagicTemplate):
             return None
     
     def run_mtprops(self): ...
+
+@magicclass(name="Open image")
+class ImageLoader(MagicTemplate):
+    """
+    Load an image file and process it before sending it to the viewer.
+
+    Attributes
+    ----------
+    path : Path
+        Path to the tomogram. Must be 3-D image.
+    bin_size : int or list of int, default is [1]
+        Initial bin size of image. Binned image will be used for visualization in the viewer.
+        You can use both binned and non-binned image for analysis.
+    filter_reference_image : bool, default is True
+        Apply low-pass filter on the reference image (does not affect image data itself).
+    """
+    path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
+    
+    @magicclass(layout="horizontal", labels=False)
+    class scale(MagicTemplate):
+        """
+        Scale of the image.
+
+        Attributes
+        ----------
+        scale_value : float
+            Scale of the image in nm/pixel.
+        """
+        scale_label = vfield("scale (nm)", widget_type="Label")
+        scale_value = vfield(1.0, options={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"}, record=False)
+        def read_header(self): ...
+            
+    bin_size = vfield([1], options={"options": {"min": 1, "max": 8}}, record=False)
+    filter_reference_image = vfield(True, record=False)
+    
+    @scale.wraps
+    @do_not_record
+    def read_header(self):
+        """Read scale from image header."""
+        path = self.path
+        if not os.path.exists(path) or not os.path.isfile(path):
+            return
+        img = ip.lazy_imread(path, chunks=GVar.daskChunk)
+        scale = img.scale.x
+        self.scale.scale_value = f"{scale:.4f}"
+        if len(self.bin_size) < 2:
+            self.bin_size = [ceilint(0.96 / scale)]
+    
+    def open_image(self): ...
+    
+    @do_not_record
+    @set_design(text="Preview")
+    def preview_image(self):
+        return view_image(self.path, parent=self)

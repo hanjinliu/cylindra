@@ -155,19 +155,6 @@ class MTPropsWidget(MagicTemplate):
         self.GlobalProperties.collapsed = False
         self.overview.min_height = 300
         
-        # automatically set scale and binsize
-        mgui = get_function_gui(self, "open_image")
-        @mgui.path.changed.connect
-        def _read_scale():
-            path = mgui.path.value
-            if not os.path.exists(path):
-                return
-            img = ip.lazy_imread(path, chunks=GVar.daskChunk)
-            scale = img.scale.x
-            mgui.scale.value = f"{scale:.4f}"
-            if len(mgui.bin_size.value) < 2:
-                mgui.bin_size.value = [utils.ceilint(0.96 / scale)]
-        
         return None
 
     @property
@@ -220,6 +207,7 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     _runner = subwidgets.Runner
+    _image_loader = subwidgets.ImageLoader
     
     @toolbar.wraps
     @set_design(icon=ICON_DIR/"run_all.png")
@@ -434,22 +422,24 @@ class MTPropsWidget(MagicTemplate):
         from magicclass.utils import open_url
         open_url("https://github.com/hanjinliu/MTProps/issues/new")
         return None
-        
+    
     @File.wraps
-    @set_options(
-        path={"filter": FileFilter.IMAGE},
-        scale={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"},
-        bin_size={"options": {"min": 1, "max": 8}},
-    )
     @set_design(text="Open image")
+    @do_not_record
+    def open_image_loader(self):
+        """Load an image file and process it before sending it to the viewer."""
+        return self._image_loader.show()
+    
+    @_image_loader.wraps
+    @set_design(text="Run")
     @dask_thread_worker(progress={"desc": "Reading image"})
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     def open_image(
         self, 
-        path: Path,
-        scale: float = 1.0,
-        bin_size: List[int] = [1],
-        filter_reference_image: bool = True,
+        path: Bound[_image_loader.path],
+        scale: Bound[_image_loader.scale.scale_value] = 1.0,
+        bin_size: Bound[_image_loader.bin_size] = [1],
+        filter_reference_image: Bound[_image_loader.filter_reference_image] = True,
     ):
         """
         Load an image file and process it before sending it to the viewer.
@@ -487,6 +477,10 @@ class MTPropsWidget(MagicTemplate):
         self.tomogram = tomo
         return thread_worker.to_callback(self._send_tomogram_to_viewer, filter_reference_image)
     
+    @open_image.started.connect
+    def _open_image_on_start(self):
+        return self._image_loader.close()
+        
     @File.wraps
     @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load project")
@@ -3196,10 +3190,6 @@ class MTPropsWidget(MagicTemplate):
     @mark_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
         return _previews.view_tables(paths, parent=self)
-    
-    @mark_preview(open_image)
-    def _preview_image(self, path: str):
-        return _previews.view_image(path, parent=self)
 
 
 ############################################################################################
