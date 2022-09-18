@@ -75,6 +75,7 @@ _XRotation = Annotated[Tuple[float, float], {"options": {"max": 90.0, "step": 0.
 _MaxShifts = Annotated[Tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
 
+
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
     def _formatter(**kwargs):
@@ -306,8 +307,9 @@ class MTPropsWidget(MagicTemplate):
             spline_id = self.layer_prof.features[SPLINE_ID]
             idmax = np.max(spline_id)
             spec = spline_id != idmax
+            features = self.layer_prof.features.iloc[[spec], :]
             self.layer_prof.data = self.layer_prof.data[spec]
-            self.layer_prof.features = self.layer_prof.features.iloc[[spec], :]
+            self.layer_prof.features = features
         
         return None
     
@@ -2759,6 +2761,9 @@ class MTPropsWidget(MagicTemplate):
                 raise ValueError("No molecules found in the layer list.")
         return self.parent_viewer.layers[name].metadata[MOLECULES]
 
+    def add_molecules(self, molecules: Molecules, name: str = None):
+        return add_molecules(self.parent_viewer, molecules, name)
+
     @nogui
     @do_not_record
     def get_loader(
@@ -2784,7 +2789,7 @@ class MTPropsWidget(MagicTemplate):
     @nogui
     @do_not_record
     def get_spline(self, i: int = None) -> MtSpline:
-        """Get a spline object"""
+        """Get the i-th spline object. Return current one by default."""
         tomo = self.tomogram
         if i is None:
             i = self.SplineControl.num
@@ -3044,6 +3049,7 @@ class MTPropsWidget(MagicTemplate):
             opacity=0.4, 
             edge_color="black",
             face_color="blue",
+            text={"color": "yellow"},
         )
         self.layer_prof.feature_defaults[SPLINE_ID] = 0
         self.layer_prof.editable = False
@@ -3137,21 +3143,27 @@ class MTPropsWidget(MagicTemplate):
     def _set_orientation_marker(self, idx: int):
         spline_id = self.layer_prof.features[SPLINE_ID]
         spec = spline_id == idx
-        # TODO: show orientation
-        # texts = list(self.layer_prof.text.string)
-        # spl = self.tomogram.splines[idx]
-        # if spl.orientation == Ori.none:
-        #     texts[spec] = ""
-        # elif spl.orientation == Ori.MinusToPlus:
-        #     texts[spec][0], texts[spec][-1] = "-", "+"
-        # elif spl.orientation == Ori.PlusToMinus:
-        #     texts[spec][0], texts[spec][-1] = "+", "-"
-        # else:
-        #     raise RuntimeError(spl.orientation)
+        if self.layer_prof.text.string.encoding_type == "ConstantStringEncoding":
+            # if text uses constant string encoding, update it to ManualStringEncoding
+            string_arr = np.zeros(len(self.layer_prof.data), dtype="<U1")
+        else:
+            string_arr = np.asarray(self.layer_prof.text.string.array, dtype="<U1")
         
-        # # update
-        # self.layer_prof.text.string = texts
-        # return self.layer_prof.refresh()
+        spl = self.tomogram.splines[idx]
+        str_of_interest = string_arr[spec]
+        if spl.orientation == Ori.none:
+            str_of_interest[:] = ""
+        elif spl.orientation == Ori.MinusToPlus:
+            str_of_interest[0], str_of_interest[-1] = "-", "+"
+        elif spl.orientation == Ori.PlusToMinus:
+            str_of_interest[0], str_of_interest[-1] = "+", "-"
+        else:
+            raise RuntimeError(spl.orientation)
+        
+        # update
+        string_arr[spec] = str_of_interest
+        self.layer_prof.text.string = list(string_arr)
+        return self.layer_prof.refresh()
 
     def _update_splines_in_images(self, _=None):
         self.overview.layers.clear()

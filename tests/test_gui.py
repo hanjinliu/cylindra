@@ -20,7 +20,17 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
     assert_allclose(mole0.x, mole1.x, atol=1e-8, rtol=1e-8)
     assert_allclose(mole0.y, mole1.y, atol=1e-8, rtol=1e-8)
     assert_allclose(mole0.z, mole1.z, atol=1e-8, rtol=1e-8)
+
+def assert_orientation(ui: MTPropsWidget, ori: str):
+    assert ui.get_spline().orientation == ori
+    assert ui.GlobalProperties.params.params2.polarity.txt == ori
     
+    spec = ui.layer_prof.features["spline-id"] == ui.SplineControl.num
+    arr = ui.layer_prof.text.string.array[spec]
+    if ori == "MinusToPlus":
+        assert (arr[0], arr[-1]) == ("-", "+")
+    elif ori == "PlusToMinus":
+        assert (arr[0], arr[-1]) == ("+", "-")
 
 def test_spline_switch():
     ui = start()
@@ -50,7 +60,7 @@ def test_spline_switch():
     spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
     ypitch_glob = spl.globalprops[H.yPitch]
-    assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has pitch length in this range
+    assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has lattice spacing in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.011
     assert all(spl.localprops[H.nPF] == 13)
     assert all(spl.localprops[H.riseAngle] > 8.3)
@@ -70,19 +80,14 @@ def test_spline_switch():
     # switch spline 0 and 1 and check if orientation is correctly set
     ui.SplineControl.num = 0
     ui.SplineControl.set_orientation(i=0, orientation="PlusToMinus")
-    assert ui.get_spline().orientation == "PlusToMinus"
-    assert ui.GlobalProperties.params.params2.polarity.txt == "PlusToMinus"
+    assert_orientation(ui, "PlusToMinus")
     ui.SplineControl.num = 1
     ui.SplineControl.set_orientation(i=1, orientation="MinusToPlus")
-    assert ui.get_spline().orientation == "MinusToPlus"
-    assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
-    
+    assert_orientation(ui, "MinusToPlus")
     ui.SplineControl.num = 0
-    assert ui.get_spline().orientation == "PlusToMinus"
-    assert ui.GlobalProperties.params.params2.polarity.txt == "PlusToMinus"
+    assert_orientation(ui, "PlusToMinus")
     ui.SplineControl.num = 1
-    assert ui.get_spline().orientation == "MinusToPlus"
-    assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
+    assert_orientation(ui, "MinusToPlus")
     assert_canvas(ui, [False, False, False])
     
     # Check align polarity.
@@ -90,13 +95,13 @@ def test_spline_switch():
     ui.align_to_polarity(orientation="MinusToPlus")
     ui.SplineControl.num = 0
     ui.SplineControl.pos = 1
-    assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
+    assert_orientation(ui, "MinusToPlus")
     assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch].values[1]:.2f} nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
     
     ui.SplineControl.num = 1
     assert ui.SplineControl.pos == 1
-    assert ui.GlobalProperties.params.params2.polarity.txt == "MinusToPlus"
+    assert_orientation(ui, "MinusToPlus")
     assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch].values[1]:.2f} nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
     
