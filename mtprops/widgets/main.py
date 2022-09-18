@@ -73,6 +73,7 @@ _ZRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0
 _YRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
 _XRotation = Annotated[Tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
 _MaxShifts = Annotated[Tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
+_SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
 
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
@@ -1569,15 +1570,12 @@ class MTPropsWidget(MagicTemplate):
     _subtomogram_averaging = subwidgets.SubtomogramAveraging
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        size={"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"},
-    )
     @set_design(text="Average all")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}")})
     def average_all(
         self,
         layer: MonomerLayer,
-        size: Optional[nm] = None,
+        size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
@@ -1610,15 +1608,12 @@ class MTPropsWidget(MagicTemplate):
         )
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        size={"text": "Use template shape", "options": {"max": 100.}, "label": "Subtomogram size (nm)"},
-    )
     @set_design(text="Average subset")
     @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}")})
     def average_subset(
         self,
         layer: MonomerLayer,
-        size: Optional[nm] = None,
+        size: _SubVolumeSize = None,
         method: OneOf["steps", "first", "last", "random"] = "steps", 
         number: int = 64,
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1679,7 +1674,6 @@ class MTPropsWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        size={"text": "Use template shape", "options": {"max": 100.}, "label": "size (nm)"},
         n_set={"min": 1, "label": "number of image pairs"},
     )
     @set_design(text="Split-and-average")
@@ -1688,7 +1682,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         n_set: int = 1,
-        size: Optional[nm] = None,
+        size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
@@ -2230,7 +2224,6 @@ class MTPropsWidget(MagicTemplate):
 
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
-        size={"text": "Use template shape", "options": {"value": 12., "max": 100.}},
         seed={"text": "Do not use random seed."},
         n_set={"min": 1, "label": "number of image pairs"},
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
@@ -2241,7 +2234,7 @@ class MTPropsWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        size: Optional[nm] = None,
+        size: _SubVolumeSize = None,
         seed: Optional[int] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         n_set: int = 1,
