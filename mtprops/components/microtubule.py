@@ -1057,8 +1057,13 @@ class MtTomogram(Tomogram):
         return transformed
     
     def _chunked_straighten(
-        self, i: int, length: nm, range_: tuple[float, float],
-        function: Callable, chunk_length: nm = 72.0, **kwargs
+        self,
+        i: int,
+        length: nm,
+        range_: tuple[float, float],
+        function: Callable[..., ip.ImgArray], 
+        chunk_length: nm = 72.0,
+        **kwargs,
     ):
         out = []
         current_distance: nm = 0.0
@@ -1577,3 +1582,48 @@ def try_all_seams(
         corrs.append(corr)
         
     return np.array(corrs), averaged_images, labels
+
+
+def centering(
+    img: ip.ImgArray,
+    point: np.ndarray,
+    angle: float,
+    drot: float = 5, 
+    nrots: int = 7,
+    max_shifts: float | None = None,
+):
+    """
+    Find the center of MT using self-correlation.
+
+    Parameters
+    ----------
+    img : ip.ImgArray
+        Target image.
+    point : np.ndarray
+        Current center of MT.
+    angle : float
+        The central angle of the MT.
+    drot : float, default is 5
+        Deviation of the rotation angle.
+    nrots : int, default is 7
+        Number of rotations to try.
+    max_shifts : float, optional
+        Maximum shift in pixel.
+
+    """
+    angle_deg2 = angle_corr(img, ang_center=angle, drot=drot, nrots=nrots)
+    
+    img_next_rot = img.rotate(-angle_deg2, cval=np.mean(img))
+    proj = img_next_rot.proj("y")
+    shift = mirror_zncc(proj, max_shifts=max_shifts)
+    
+    shiftz, shiftx = shift/2
+    shift = np.array([shiftz, 0, shiftx])
+    rad = -np.deg2rad(angle_deg2)
+    cos = np.cos(rad)
+    sin = np.sin(rad)
+    shift = shift @ [[1.,   0.,  0.],
+                     [0.,  cos, sin],
+                     [0., -sin, cos]]
+    point += shift
+    return point

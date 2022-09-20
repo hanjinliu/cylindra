@@ -6,7 +6,7 @@ from magicclass import (
     vfield,
     MagicTemplate,
     FieldGroup,
-    )
+)
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 from ..const import H
 
@@ -35,13 +35,14 @@ class LocalPropertiesWidget(MagicTemplate):
         skew = LabeledText("skew angle")
         structure = LabeledText("structure")
         
-    plot = field(QtMultiPlotCanvas,
-                 name="Plot", 
-                 options={"nrows": 2, 
-                          "ncols": 1, 
-                          "sharex": True, 
-                          "tooltip": "Plot of local properties"}
-                 )
+    plot = field(
+        QtMultiPlotCanvas,
+        name="Plot", 
+        options={"nrows": 2, 
+                 "ncols": 1, 
+                 "sharex": True, 
+                 "tooltip": "Plot of local properties"}
+    )
     
     def __post_init__(self):
         # Initialize multi-plot canvas

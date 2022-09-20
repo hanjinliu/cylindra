@@ -2529,7 +2529,7 @@ class MTPropsWidget(MagicTemplate):
             point2 = point1 - dr / binned_scale
         img_next = utils.crop_tomogram(imgb, point2, shape)
 
-        centering(img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts/binned_scale)
+        MT.centering(img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts/binned_scale)
 
         next_data = point2 * binned_scale
         self.layer_work.add(next_data)
@@ -2563,7 +2563,7 @@ class MTPropsWidget(MagicTemplate):
                 continue
             img_input = utils.crop_tomogram(imgb, point, shape)
             angle_deg = MT.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
-            centering(img_input, point, angle_deg, drot=3, nrots=7)
+            MT.centering(img_input, point, angle_deg, drot=3, nrots=7)
             last_i = i
         
         self.layer_work.data = points * imgb.scale.x
@@ -3195,31 +3195,6 @@ class MTPropsWidget(MagicTemplate):
 ############################################################################################
 #   Other helper functions
 ############################################################################################
-
-def centering(
-    imgb: ip.ImgArray,
-    point: np.ndarray,
-    angle: float,
-    drot: float = 5, 
-    nrots: int = 7,
-    max_shifts: float = None,
-):
-    angle_deg2 = MT.angle_corr(imgb, ang_center=angle, drot=drot, nrots=nrots)
-    
-    img_next_rot = imgb.rotate(-angle_deg2, cval=np.mean(imgb))
-    proj = img_next_rot.proj("y")
-    shift = utils.mirror_zncc(proj, max_shifts=max_shifts)
-    
-    shiftz, shiftx = shift/2
-    shift = np.array([shiftz, 0, shiftx])
-    rad = -np.deg2rad(angle_deg2)
-    cos = np.cos(rad)
-    sin = np.sin(rad)
-    shift = shift @ [[1.,   0.,  0.],
-                     [0.,  cos, sin],
-                     [0., -sin, cos]]
-    point += shift
-
 
 def _multi_affine(images, matrices, cval: float = 0, order=1):
     out = np.empty_like(images)
