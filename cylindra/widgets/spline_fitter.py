@@ -137,8 +137,8 @@ class SplineFitter(MagicTemplate):
             self._update_cross(x, z)
     
     def _get_parent(self):
-        from .main import MTPropsWidget
-        return self.find_ancestor(MTPropsWidget)
+        from .main import CylindraMainWidget
+        return self.find_ancestor(CylindraMainWidget)
     
     def _update_cross(self, x: float, z: float):
         i = self.mt.num.value

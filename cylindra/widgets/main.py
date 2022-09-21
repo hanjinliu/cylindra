@@ -42,7 +42,7 @@ from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
-from .project import MTPropsProject
+from .project import CylindraProject
 from .widget_utils import (
     FileFilter,
     add_molecules,
@@ -92,12 +92,12 @@ def _get_alignment(method: str):
 
 
 ############################################################################################
-#   The Main Widget of MTProps
+#   The Main Widget of cylindra
 ############################################################################################
 
-@magicclass(widget_type="scrollable", name="MTProps")
+@magicclass(widget_type="scrollable", name="cylindra")
 @_shared_doc.update_cls
-class MTPropsWidget(MagicTemplate):
+class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")
@@ -213,14 +213,14 @@ class MTPropsWidget(MagicTemplate):
     @bind_key("F2")
     @do_not_record
     def open_runner(self):
-        """Run MTProps with various settings."""
+        """Run cylindrical fitting algorithm with various settings."""
         return self._runner.show(run=False)
     
     @_runner.wraps
     @set_design(text="Run")
-    @thread_worker(progress={"desc": "Running MTProps", 
+    @thread_worker(progress={"desc": "Running cylindrical fitting", 
                              "total": "(1+n_refine+int(local_props)+int(global_props))*len(splines)"})
-    def run_mtprops(
+    def cylindrical_fit(
         self,
         splines: Bound[_runner._get_splines_to_run] = (),
         bin_size: Bound[_runner.bin_size] = 1,
@@ -233,7 +233,7 @@ class MTPropsWidget(MagicTemplate):
         global_props: Bound[_runner.global_props] = True,
         paint: Bound[_runner.params2.paint] = True,
     ):
-        """Run MTProps"""     
+        """Run cylindrical fitting."""     
         if self.layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
         if self.tomogram.n_splines == 0:
@@ -264,7 +264,7 @@ class MTPropsWidget(MagicTemplate):
         self._need_save = True
         
         @thread_worker.to_callback
-        def _run_mtprops_on_return():
+        def _cylindrical_fit_on_return():
             if local_props or global_props:
                 self.sample_subtomograms()
                 if global_props:
@@ -277,10 +277,10 @@ class MTPropsWidget(MagicTemplate):
                 self._update_global_properties_in_widget()
             self._update_splines_in_images()
         
-        return _run_mtprops_on_return
+        return _cylindrical_fit_on_return
     
-    @run_mtprops.started.connect
-    def _run_mtprops_on_start(self):
+    @cylindrical_fit.started.connect
+    def _cylindrical_fit_on_start(self):
         return self._runner.close()
 
     @toolbar.wraps
@@ -402,8 +402,9 @@ class MTPropsWidget(MagicTemplate):
         return None
     
     @Others.Help.wraps
+    @set_design(text="Info")
     @do_not_record
-    def MTProps_info(self):
+    def cylindra_info(self):
         """Show information of dependencies."""
         versions = widget_utils.get_versions()
         value = "\n".join(f"{k}: {v}" for k, v in versions.items())
@@ -419,7 +420,7 @@ class MTPropsWidget(MagicTemplate):
     def report_issues(self):
         """Report issues on GitHub."""
         from magicclass.utils import open_url
-        open_url("https://github.com/hanjinliu/MTProps/issues/new")
+        open_url("https://github.com/hanjinliu/cylindra/issues/new")
         return None
     
     @File.wraps
@@ -487,7 +488,7 @@ class MTPropsWidget(MagicTemplate):
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     def load_project(self, path: Path, filter_reference_image: bool = True):
         """Load a project json file."""
-        project = MTPropsProject.from_json(path)
+        project = CylindraProject.from_json(path)
         file_dir = Path(path).parent
         
         resolve_path = widget_utils.resolve_path
@@ -636,10 +637,10 @@ class MTPropsWidget(MagicTemplate):
             except Exception:
                 out = p
             return out
-        
-        project = MTPropsProject(
+        self.__module__
+        project = CylindraProject(
             datetime = datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-            version = _versions.pop("MTProps"),
+            version = next(iter(_versions.values())),
             dependency_versions = _versions,
             image = as_relative(tomo.source),
             scale = tomo.scale,
@@ -3189,7 +3190,19 @@ class MTPropsWidget(MagicTemplate):
     @mark_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
         return _previews.view_tables(paths, parent=self)
-
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Deprecated
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    @nogui
+    @do_not_record
+    def run_mtprops(self, *args, **kwargs):
+        import warnings
+        warnings.warn(
+            "run_mtprops is deprecated. Use cylindrical_fit instead.", UserWarning
+        )
+        return self.cylindrical_fit(*args, **kwargs)
 
 ############################################################################################
 #   Other helper functions

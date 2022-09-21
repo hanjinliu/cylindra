@@ -3,14 +3,14 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import napari
-    from .widgets import MTPropsWidget
+    from .widgets import CylindraMainWidget
     
 
 def start(
     project_file: str | None = None,
     globals_file: str | None = None,
     viewer: "napari.Viewer" = None,
-) -> "MTPropsWidget":
+) -> "CylindraMainWidget":
     """
     Start napari viewer and dock MTProfiler widget as a dock widget.
     
@@ -19,10 +19,10 @@ def start(
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
     """
-    from .widgets import MTPropsWidget
+    from .widgets import CylindraMainWidget
     import logging
     
-    ui = MTPropsWidget()
+    ui = CylindraMainWidget()
     
     if viewer is None:
         import napari
@@ -38,7 +38,7 @@ def start(
         ui,
         area="right",
         allowed_areas=["right"],
-        name="MTProps"
+        name="cylindra"
     )
     dock.setMinimumHeight(300)
     viewer.window.add_dock_widget(ui._LoggerWindow)

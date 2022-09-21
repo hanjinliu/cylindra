@@ -1,5 +1,5 @@
-from mtprops import MtTomogram
-from mtprops.const import H
+from cylindra import MtTomogram
+from cylindra.const import H
 from pathlib import Path
 import numpy as np
 import impy as ip
@@ -61,7 +61,7 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200) 
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
     
-    from mtprops.components.microtubule import _local_dft_params_pd
+    from cylindra.components.microtubule import _local_dft_params_pd
     
     spl = tomo.splines[0]
     prop0 = _local_dft_params_pd(st0, spl.radius)

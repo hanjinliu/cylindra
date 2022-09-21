@@ -1,6 +1,6 @@
 import pytest
-from mtprops.utils import map_coordinates
-from mtprops.components.microtubule import MtSpline
+from cylindra.utils import map_coordinates
+from cylindra.components.microtubule import MtSpline
 import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip

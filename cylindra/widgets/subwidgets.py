@@ -119,7 +119,7 @@ class Others(MagicTemplate):
     @magicmenu
     class Help(MagicTemplate):
         def open_help(self): ...
-        def MTProps_info(self): ...
+        def cylindra_info(self): ...
         def report_issues(self): ...
 
 # Toolbar
@@ -243,8 +243,8 @@ class SubtomogramAveraging(MagicTemplate):
         if img.ndim != 3:
             raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
         
-        from .main import MTPropsWidget
-        parent = self.find_ancestor(MTPropsWidget)
+        from .main import CylindraMainWidget
+        parent = self.find_ancestor(CylindraMainWidget)
         if parent.tomogram is not None and rescale:
             scale_ratio = img.scale.x / parent.tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
@@ -276,7 +276,7 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         params: Union[str, Tuple[int, float], None] = _sentinel
     ) -> Union[ip.ImgArray, None]:
-        from .main import MTPropsWidget
+        from .main import CylindraMainWidget
         
         if params is self._sentinel:
             params = self._get_mask_params()
@@ -302,7 +302,7 @@ class SubtomogramAveraging(MagicTemplate):
         
         if mask_image.ndim != 3:
             raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
-        scale_ratio = mask_image.scale.x/self.find_ancestor(MTPropsWidget).tomogram.scale
+        scale_ratio = mask_image.scale.x/self.find_ancestor(CylindraMainWidget).tomogram.scale
         if scale_ratio < 0.99 or 1.01 < scale_ratio:
             mask_image = mask_image.rescale(scale_ratio)
         return mask_image
@@ -444,7 +444,7 @@ class runner_params2:
     paint = vfield(True, record=False)
 
 
-@magicclass(name="Run MTProps")
+@magicclass(name="Run cylindrical fitting")
 class Runner(MagicTemplate):
     """
     Attributes
@@ -467,9 +467,9 @@ class Runner(MagicTemplate):
     """
     def _get_splines(self, _=None) -> List[Tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
-        from .main import MTPropsWidget
+        from .main import CylindraMainWidget
         try:
-            tomo = self.find_ancestor(MTPropsWidget).tomogram
+            tomo = self.find_ancestor(CylindraMainWidget).tomogram
         except Exception:
             return []
         if tomo is None:
@@ -477,9 +477,9 @@ class Runner(MagicTemplate):
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
     def _get_available_binsize(self, _=None) -> List[int]:
-        from .main import MTPropsWidget
+        from .main import CylindraMainWidget
         try:
-            parent = self.find_ancestor(MTPropsWidget)
+            parent = self.find_ancestor(CylindraMainWidget)
         except Exception:
             return [1]
         if parent.tomogram is None:
@@ -524,7 +524,7 @@ class Runner(MagicTemplate):
         else:
             return None
     
-    def run_mtprops(self): ...
+    def cylindrical_fit(self): ...
 
 @magicclass(name="Open image")
 class ImageLoader(MagicTemplate):

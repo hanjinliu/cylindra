@@ -9,7 +9,7 @@ class build_ext(build_ext):
     def finalize_options(self):
         from pybind11.setup_helpers import Pybind11Extension
         self.distribution.ext_modules[:] = [Pybind11Extension(
-            "mtprops._cpp_ext", ["cpp/_viterbi.cpp"], cxx_std=11)]
+            "cylindra._cpp_ext", ["cpp/_viterbi.cpp"], cxx_std=11)]
         super().finalize_options()
 
     def build_extensions(self):
@@ -22,7 +22,7 @@ class build_ext(build_ext):
 
 INFO = {}
 
-with open("mtprops/_info.py", encoding="utf-8") as f:
+with open("cylindra/_info.py", encoding="utf-8") as f:
     for line in f:
         if line.startswith("__version__"):
             INFO["version"] = line.strip().split()[-1][1:-1]
@@ -36,14 +36,14 @@ with open("README.md", "r") as f:
     readme = f.read()
     
 setup(
-    name="MTProps",
-    description="Fourier analysis and subtomogram averaging of heterogenic cylindrical structures",
+    name="cylindra",
+    description="Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical structures",
     long_description=readme,
     long_description_content_type="text/markdown",
     **INFO,
     license="BSD 3-Clause",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    package_data={"mtprops": ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]},
+    package_data={"cylindra": ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]},
     include_package_data=True,
     setup_requires=["pybind11>=2.9.2"],
     cmdclass={"build_ext": build_ext},
@@ -60,6 +60,6 @@ setup(
     python_requires=">=3.8",
     ext_modules=[Extension("", [], language="c++")],
     entry_points={
-        "console_scripts": ["mtprops=mtprops.__main__:main"],
+        "console_scripts": ["cylindra=cylindra.__main__:main"],
     },
 )

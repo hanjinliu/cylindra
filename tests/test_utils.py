@@ -1,4 +1,4 @@
-from mtprops import utils
+from cylindra import utils
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
@@ -164,7 +164,7 @@ def test_mt_pad():
     )
 
 def test_viterbi():
-    from mtprops.utils import viterbi
+    from cylindra.utils import viterbi
     score = np.zeros((10, 5, 5, 5))
     for i in range(10):
         score[i, 0, 0, 0] = 1.0

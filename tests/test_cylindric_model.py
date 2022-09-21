@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from mtprops.components import CylindricModel, Spline
+from cylindra.components import CylindricModel, Spline
 
 def test_cylindric_model_construction():
     # Test the constructor

@@ -7,10 +7,10 @@ class Namespace(argparse.Namespace):
 class Args(argparse.ArgumentParser):
     def __init__(self):
         from ._info import __version__
-        super().__init__(description="Command line interface of MTProps.")
+        super().__init__(description="Command line interface of cylindra.")
         self.add_argument("--project", type=str, default="None")
         self.add_argument("--globals", type=str, default="None")    
-        self.add_argument("-v", "--version", action="version", version=f"MTProps version {__version__}")
+        self.add_argument("-v", "--version", action="version", version=f"cylindra version {__version__}")
     
     @classmethod
     def from_args(cls) -> Namespace:

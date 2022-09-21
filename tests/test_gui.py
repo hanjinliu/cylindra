@@ -1,5 +1,5 @@
-from mtprops import start, MTPropsWidget
-from mtprops.const import H
+from cylindra import start, CylindraMainWidget
+from cylindra.const import H
 from acryo import Molecules
 from pathlib import Path
 from numpy.testing import assert_allclose
@@ -8,7 +8,7 @@ coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
 TEST_PATH = Path(__file__).parent
 
-def assert_canvas(ui: MTPropsWidget, isnone):
+def assert_canvas(ui: CylindraMainWidget, isnone):
     for i in range(3):
         if isnone[i]:
             assert ui.SplineControl.canvas[i].image is None, f"{i}-th canvas"
@@ -21,7 +21,7 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
     assert_allclose(mole0.y, mole1.y, atol=1e-8, rtol=1e-8)
     assert_allclose(mole0.z, mole1.z, atol=1e-8, rtol=1e-8)
 
-def assert_orientation(ui: MTPropsWidget, ori: str):
+def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.get_spline().orientation == ori
     assert ui.GlobalProperties.params.params2.polarity.txt == ori
     
@@ -54,7 +54,7 @@ def test_spline_switch():
     ui.SplineControl.pos = 0
     assert_canvas(ui, [False, False, True])
     
-    ui.run_mtprops(interval=16.0)
+    ui.cylindrical_fit(interval=16.0)
     
     # check results
     spl = ui.tomogram.splines[0]
@@ -143,7 +143,7 @@ def test_io():
     ui.open_image(path=path, scale=1.052, bin_size=1)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
-    ui.run_mtprops(interval=24.0)
+    ui.cylindrical_fit(interval=24.0)
     ui.map_monomers(splines=[0, 1])
     
     # Save project

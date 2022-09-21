@@ -30,8 +30,8 @@ def json_encoder(obj):
 
 PathLike = Union[Path, str]
 
-class MTPropsProject(BaseModel):
-    """A project of MTProps."""
+class CylindraProject(BaseModel):
+    """A project of cylindra."""
     
     datetime: str
     version: str

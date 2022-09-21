@@ -109,7 +109,7 @@ def get_versions() -> dict[str, str]:
     import dask
     
     return {
-        "MTProps": __version__,
+        "cylindra": __version__,
         "numpy": np.__version__,
         "impy": ip.__version__,
         "magicgui": magicgui.__version__,

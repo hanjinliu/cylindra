@@ -1,13 +1,13 @@
-# MTProps
+# cylindra
 
-`MTProps` is a GUI-integrated, GPU-supported cryo-ET image analysis tool for cylindric periodic structures such as microtubules.
+`cylindra` is a GUI-integrated, GPU-supported cryo-ET image analysis tool for cylindric periodic structures such as microtubules.
 
 ## Installation
 
 - From source
 
 ```
-git clone git+https://github.com/hanjinliu/MTProps
+git clone git+https://github.com/hanjinliu/cylindra
 ```
 
 ## Implemented Functions
@@ -26,18 +26,18 @@ git clone git+https://github.com/hanjinliu/MTProps
 - From shell
 
 ```
-mtprops
+cylindra
 ```
 
 - From a Python interpreter
 
 ```python
-from mtprops import start
+from cylindra import start
 
-ui = start()  # launch a napari viewer with a MTProps dock widget.
+ui = start()  # launch a napari viewer with a cylindra dock widget.
 ```
 
 ## Issues
 
-If you encountered any bugs or have any requests, feel free to [report an issue](https://github.com/hanjinliu/MTProps/issues).
-For better reproducibility, please copy your environments from `Others > MTProps info` and the recorded macro from `Others > Show full macro`.
+If you encountered any bugs or have any requests, feel free to [report an issue](https://github.com/hanjinliu/cylindra/issues).
+For better reproducibility, please copy your environments from `Others > cylindra info` and the recorded macro from `Others > Show full macro`.

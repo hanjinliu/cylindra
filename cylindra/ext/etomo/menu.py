@@ -11,7 +11,7 @@ from ...const import EulerAxes, Mole
 from ...types import MOLECULES, MonomerLayer, get_monomer_layers
 from ...widgets.widget_utils import add_molecules, FileFilter
 
-# BUG: MTProps coordinates and PEET coordinates do not match (slight difference).
+# BUG: cylindra coordinates and PEET coordinates do not match (slight difference).
 
 @magicmenu
 class PEET(MagicTemplate):
@@ -137,8 +137,8 @@ class PEET(MagicTemplate):
     
     @property
     def scale(self) -> float:
-        from ...widgets import MTPropsWidget
-        return self.find_ancestor(MTPropsWidget).tomogram.scale
+        from ...widgets import CylindraMainWidget
+        return self.find_ancestor(CylindraMainWidget).tomogram.scale
 
 
 def _read_angle(ang_path: str) -> np.ndarray:

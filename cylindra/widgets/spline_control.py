@@ -39,9 +39,9 @@ class SplineControl(MagicTemplate):
         
     def _get_splines(self, widget=None) -> List[int]:
         """Get list of spline objects for categorical widgets."""
-        from .main import MTPropsWidget
+        from .main import CylindraMainWidget
         try:
-            tomo = self.find_ancestor(MTPropsWidget).tomogram
+            tomo = self.find_ancestor(CylindraMainWidget).tomogram
         except Exception:
             return []
         if tomo is None:
@@ -63,8 +63,8 @@ class SplineControl(MagicTemplate):
     @set_options(labels=False)
     def set_pf_number(self, i: Bound[num], npf: int = 13):
         """Manually update protofilament number."""
-        from .main import MTPropsWidget
-        parent = self.find_ancestor(MTPropsWidget)
+        from .main import CylindraMainWidget
+        parent = self.find_ancestor(CylindraMainWidget)
         if parent.tomogram is None or i is None:
             return None
         spl = parent.tomogram.splines[i]
@@ -83,8 +83,8 @@ class SplineControl(MagicTemplate):
     @set_options(labels=False, orientation={"widget_type": "RadioButtons"})
     def set_orientation(self, i: Bound[num], orientation: Ori = Ori.none):
         """Manually set polarity."""
-        from .main import MTPropsWidget
-        parent = self.find_ancestor(MTPropsWidget)
+        from .main import CylindraMainWidget
+        parent = self.find_ancestor(CylindraMainWidget)
         if parent.tomogram is None or i is None:
             return None
         spl = parent.tomogram.splines[i]
@@ -95,11 +95,11 @@ class SplineControl(MagicTemplate):
     
     @num.connect
     def _num_changed(self):
-        from .main import MTPropsWidget
+        from .main import CylindraMainWidget
         i = self.num
         if i is None:
             return
-        parent = self.find_ancestor(MTPropsWidget)
+        parent = self.find_ancestor(CylindraMainWidget)
         tomo = parent.tomogram
         if i >= len(tomo.splines):
             return
@@ -123,9 +123,9 @@ class SplineControl(MagicTemplate):
         return None
     
     def _load_projection(self):
-        from .main import MTPropsWidget
+        from .main import CylindraMainWidget
         i = self.num
-        parent = self.find_ancestor(MTPropsWidget)
+        parent = self.find_ancestor(CylindraMainWidget)
         tomo = parent.tomogram
         if i >= len(tomo.splines):
             return
@@ -173,8 +173,8 @@ class SplineControl(MagicTemplate):
 
     @pos.connect
     def _update_canvas(self):
-        from .main import MTPropsWidget
-        parent = self.find_ancestor(MTPropsWidget)
+        from .main import CylindraMainWidget
+        parent = self.find_ancestor(CylindraMainWidget)
         tomo = parent.tomogram
         binsize = parent.layer_image.metadata["current_binsize"]
         i = self.num
