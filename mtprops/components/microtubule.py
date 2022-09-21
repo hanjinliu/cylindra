@@ -1162,7 +1162,7 @@ class MtTomogram(Tomogram):
         if offsets is None:
             offsets = (0., 0.)
         
-        return CylindricModel.from_params(
+        return CylindricModel(
             shape=(ny, npf),
             tilts=tilts,
             intervals=intervals,
