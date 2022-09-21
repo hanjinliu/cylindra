@@ -15,6 +15,7 @@ import impy as ip
 
 from .spline import Spline
 from .tomogram import Tomogram
+from .cylindric import CylindricModel
 from ..const import Mole, nm, H, K, Ori, Mode, GVar
 from ..utils import (
     crop_tomogram,
@@ -1126,37 +1127,12 @@ class MtTomogram(Tomogram):
         u = np.arange(npoints) * interval / length
         return spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
 
-    @batch_process
-    def map_monomers(
-        self, 
-        i: int = None,
-        *, 
+    def get_cylindric_model(
+        self,
+        i: int,
         length: nm | None = None,
-        offsets: tuple[nm, float] = None,
-        shifts: np.ndarray | None = None,
-    ) -> Molecules:
-        """
-        Map coordinates of monomers in world coordinate.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that mapping will be calculated.
-        length : nm, optional
-            If given, only map monomer coordinates in this length of range from the starting 
-            point of spline. Cannot use this if ``ranges`` is set.
-        offsets : tuple of float, optional
-            The offset of origin of oblique coordinate system to map monomers.
-        shifts : np.ndarray, optional
-            If given, the monomers will be shifted by this amount in cylindrical coordinates.
-            Shape of this array should be (Ny, Npf, 3) and the order of axes should be radial,
-            y and angle direction.
-
-        Returns
-        -------
-        Molecules
-            Object that represents monomer positions and angles.
-        """
+        offsets: tuple[float, float] = (0., 0.,),
+    ) -> CylindricModel:
         spl = self._splines[i]
         
         if length is None:
@@ -1186,14 +1162,42 @@ class MtTomogram(Tomogram):
         if offsets is None:
             offsets = (0., 0.)
         
-        mesh = oblique_meshgrid((ny, npf), tilts, intervals, offsets)  # (Ny, Npf, 2)
-        radius_arr = np.full(mesh.shape[:2] + (1,), radius, dtype=np.float32)
-        mesh_input = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
-        if shifts is not None:
-            mesh_input += shifts
+        return CylindricModel.from_params(
+            shape=(ny, npf),
+            tilts=tilts,
+            intervals=intervals,
+            radius=radius,
+            offsets=offsets,
+        )
 
-        mole = spl.cylindrical_to_molecules(mesh_input.reshape(-1, 3))
-        mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % npf}
+    @batch_process
+    def map_monomers(
+        self, 
+        i: int = None,
+        *, 
+        length: nm | None = None,
+        offsets: tuple[nm, float] = None,
+    ) -> Molecules:
+        """
+        Map coordinates of monomers in world coordinate.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that mapping will be calculated.
+        length : nm, optional
+            If given, only map monomer coordinates in this length of range from the starting 
+            point of spline. Cannot use this if ``ranges`` is set.
+        offsets : tuple of float, optional
+            The offset of origin of oblique coordinate system to map monomers.
+
+        Returns
+        -------
+        Molecules
+            Object that represents monomer positions and angles.
+        """
+        model = self.get_cylindric_model(i, length=length, offsets=offsets)
+        mole = model.to_molecules(self._splines[i])
         return mole
     
     @batch_process
