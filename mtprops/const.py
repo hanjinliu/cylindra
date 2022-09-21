@@ -4,7 +4,8 @@ import numpy as np
 from types import SimpleNamespace
 from typing import Any
 
-nm = float  # type alias for clearer annotation.
+nm = float  # type alias for nanometer
+pf = float  # type alias for protofilament numbering
 
 # Constant strings for layer names and metadata keys
 WORKING_LAYER_NAME = "Working Layer"

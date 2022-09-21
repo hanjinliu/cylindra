@@ -22,7 +22,6 @@ from magicclass import (
     MagicTemplate,
     bind_key,
     build_help,
-    get_function_gui,
     confirm,
     nogui,
     mark_preview,

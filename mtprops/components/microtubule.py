@@ -24,7 +24,6 @@ from ..utils import (
     roundint,
     ceilint,
     oblique_meshgrid,
-    oblique_meshgrid_hetero,
     set_gpu,
     mirror_zncc, 
     angle_uniform_filter,
@@ -1126,14 +1125,15 @@ class MtTomogram(Tomogram):
         skew_angles = np.arange(npoints) * interval/lp * skew
         u = np.arange(npoints) * interval / length
         return spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
-    
+
     @batch_process
     def map_monomers(
         self, 
         i: int = None,
         *, 
         length: nm | None = None,
-        offsets: tuple[nm, float] = None
+        offsets: tuple[nm, float] = None,
+        shifts: np.ndarray | None = None,
     ) -> Molecules:
         """
         Map coordinates of monomers in world coordinate.
@@ -1147,6 +1147,10 @@ class MtTomogram(Tomogram):
             point of spline. Cannot use this if ``ranges`` is set.
         offsets : tuple of float, optional
             The offset of origin of oblique coordinate system to map monomers.
+        shifts : np.ndarray, optional
+            If given, the monomers will be shifted by this amount in cylindrical coordinates.
+            Shape of this array should be (Ny, Npf, 3) and the order of axes should be radial,
+            y and angle direction.
 
         Returns
         -------
@@ -1175,61 +1179,20 @@ class MtTomogram(Tomogram):
         # a-coordinate must be radian.
         # If starting number is non-integer, we must determine the seam position to correctly
         # map monomers. Use integer here.
-        shape = [ny, npf]
-        tilts = [np.deg2rad(skew) / (4 * np.pi) * npf,
-                 roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf]
-        intervals = [pitch, 2 * np.pi / npf]
-        
-        if offsets is None:
-            offsets = [0., 0.]
-        
-        mesh = oblique_meshgrid(shape, tilts, intervals, offsets).reshape(-1, 2)
-        radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
-        mesh = np.concatenate([radius_arr, mesh], axis=1)
-
-        mole = spl.cylindrical_to_molecules(mesh)
-        mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % npf}
-        return mole
-
-    def map_monomers_hetero(
-        self, 
-        i: int,
-        *, 
-        pitch: np.ndarray | None = None,
-        skew: np.ndarray | None = None,
-        rise: float | None = None,
-        radius: float | None = None,
-        offsets: tuple[nm, float] = None
-    ):
-        spl = self._splines[i]
-            
-        # Get structural parameters
-        props = self.splines[i].globalprops
-        if props is None:
-            props = self.global_ft_params(i)
-        if rise is None:
-            rise = props[H.riseAngle]
-        ny, npf = pitch.shape
-        if radius is None:
-            radius = spl.radius
-        
-        if skew is None:
-            skew = np.full(ny, props[H.skewAngle])
-        radius = spl.radius
-        tan_rise = tandg(rise)
-        
         tilts = (np.deg2rad(skew) / (4 * np.pi) * npf,
-                 roundint(-tan_rise * 2 * np.pi * radius / np.mean(pitch)) / npf)
+                 roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf)
         intervals = (pitch, 2 * np.pi / npf)
         
         if offsets is None:
             offsets = (0., 0.)
         
-        mesh = oblique_meshgrid_hetero((ny, npf), tilts, intervals, offsets).reshape(-1, 2)
-        radius_arr = np.full((mesh.shape[0], 1), radius, dtype=np.float32)
-        mesh = np.concatenate([radius_arr, mesh], axis=1)
+        mesh = oblique_meshgrid((ny, npf), tilts, intervals, offsets)  # (Ny, Npf, 2)
+        radius_arr = np.full(mesh.shape[:2] + (1,), radius, dtype=np.float32)
+        mesh_input = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
+        if shifts is not None:
+            mesh_input += shifts
 
-        mole = spl.cylindrical_to_molecules(mesh)
+        mole = spl.cylindrical_to_molecules(mesh_input.reshape(-1, 3))
         mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % npf}
         return mole
     

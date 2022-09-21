@@ -234,35 +234,6 @@ def oblique_meshgrid(
     out[:, :, 1] = out[:, :, 1] * d1 + c1
     return out
 
-def oblique_meshgrid_hetero(
-    shape: tuple[int, int], 
-    tilts: tuple[np.ndarray, float],  # (skew angles, rise)
-    intervals: tuple[np.ndarray, float],  # (lattice spacing, lateral spacing)
-    offsets: tuple[float, float] = (0., 0.),
-) -> np.ndarray:
-    tan_skews, tan1 = tilts
-    c0, c1 = offsets
-    ny, npf = shape
-    spaces, d1 = intervals
-
-    assert tan_skews.shape == (shape[0],)
-    assert spaces.shape == shape
-    
-    vy = np.stack([np.ones(tan_skews.size), tan_skews], axis=1)
-    v1 = np.array([tan1, 1.0], dtype=np.float32)
-    
-    vy_cum = np.cumsum(vy[:, np.newaxis] * np.stack([spaces, np.ones_like(spaces)], axis=2), axis=0)  # shape: (N, npf, 2)
-    
-    out = np.empty((ny, npf, 2), dtype=np.float32)
-    
-    for i in range(ny):
-        for j in range(npf):
-            out[i, j, :] = vy_cum[i, j] + v1 * j
-    
-    out[:, :, 0] = out[:, :, 0] + c0
-    out[:, :, 1] = out[:, :, 1] * d1 + c1
-    return out
-
 def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     """Uniform filter of angles."""
     phase = np.exp(1j*input)
