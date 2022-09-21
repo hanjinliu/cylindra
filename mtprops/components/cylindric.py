@@ -23,8 +23,8 @@ class CylindricModel:
         Shape of the molecule grid in (axial, angular) shape.
     tilts : (float, float)
         Relative tilt tangent in (axial, angular) direction.
-    intervals : (float, float)
-        Intervals in (axial, angular) direction.
+    interval : float
+        Axial interval.
     radius : float
         Radius of the cylindrical structure.
     offsets : (float, float)
@@ -37,14 +37,14 @@ class CylindricModel:
         self,
         shape: tuple[int, int],
         tilts: tuple[float, float],
-        intervals: tuple[float, float] = (1., 1.),
+        interval: float = 1.0,
         radius: float = 1.0,
         offsets: tuple[float, float] = (0., 0.),
         displace: np.ndarray | None = None
     ):
         self._shape = shape
         self._tilts = tilts
-        self._intervals = intervals
+        self._intervals = (interval, 2 * np.pi / shape[1])
         self._offsets = offsets
         self._radius = radius
         if displace is None:
@@ -57,7 +57,7 @@ class CylindricModel:
     def replace(
         self,
         tilts: tuple[float, float] | None = None,
-        intervals: tuple[float, float] | None = None,
+        interval: float | None = None,
         radius: float | None = None,
         offsets: tuple[float, float] | None = None,
         displace: np.ndarray | None = None,
@@ -66,8 +66,8 @@ class CylindricModel:
 
         if tilts is None:
             tilts = self._tilts
-        if intervals is None:
-            intervals = self._intervals
+        if interval is None:
+            interval = self._intervals[0]
         if radius is None:
             radius = self._radius
         if offsets is None:
@@ -77,7 +77,7 @@ class CylindricModel:
         return self.__class__(
             shape=self._shape,
             tilts=tilts,
-            intervals=intervals,
+            interval=interval,
             radius=radius,
             offsets=offsets,
             displace=displace,
@@ -136,13 +136,6 @@ class CylindricModel:
             "radius": self._radius,
             "offsets": self._offsets,
         }
-    
-    def _create_mesh(self) -> np.ndarray:
-        mesh = oblique_meshgrid(
-            self._shape, self._tilts, self._intervals, self._offsets
-        )  # (Ny, Npf, 2)
-        radius_arr = np.full(mesh.shape[:2] + (1,), self._radius, dtype=np.float32)
-        return np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
     
     def to_molecules(self, spl: Spline) -> Molecules:
         """Generate molecules from the coordinates and given spline."""

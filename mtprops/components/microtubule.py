@@ -1157,15 +1157,14 @@ class MtTomogram(Tomogram):
         # map monomers. Use integer here.
         tilts = (np.deg2rad(skew) / (4 * np.pi) * npf,
                  roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf)
-        intervals = (pitch, 2 * np.pi / npf)
-        
+
         if offsets is None:
             offsets = (0., 0.)
         
         return CylindricModel(
             shape=(ny, npf),
             tilts=tilts,
-            intervals=intervals,
+            interval=pitch,
             radius=radius,
             offsets=offsets,
         )
