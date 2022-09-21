@@ -87,6 +87,32 @@ class CylindricModel:
         """Make a copy of the model object."""
         return self.replace()
     
+    __copy__ = copy
+    
+    @property
+    def shape(self) -> tuple[int, int]:
+        return self._shape
+    
+    @property
+    def radius(self) -> float:
+        return self._radius
+    
+    @property
+    def tilts(self) -> tuple[float, float]:
+        return self._tilts
+
+    @property
+    def intervals(self) -> tuple[float, float]:
+        return self._intervals
+
+    @property
+    def offsets(self) -> tuple[float, float]:
+        return self._offsets
+
+    @property
+    def displace(self) -> np.ndarray:
+        return self._displace
+    
     def __repr__(self) -> str:
         _cls = type(self).__name__
         strs: list[str] = []
@@ -131,10 +157,12 @@ class CylindricModel:
         return mole
 
     def add_offsets(self, offsets: tuple[float, float]) -> Self:
+        """Increment offsets attribute of the model."""
         _offsets = tuple(x + y for x, y in zip(self._offsets, offsets))
         return replace(offsets=_offsets)
     
     def add_shift(self, shift: np.ndarray) -> Self:
+        """Increment displace attribute of the model."""
         displace = self._displace + shift
         return replace(displace=displace)
     

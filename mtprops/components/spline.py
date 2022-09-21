@@ -47,11 +47,11 @@ class Spline:
       https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
     """    
     # global cache will be re-initialized every time spline curve is updated.
-    _global_cache: tuple[str] = ()
+    _global_cache: tuple[str, ...] = ()
     
     # local cache will be re-initialized every time spline curve is updated or anchor
     # is changed.
-    _local_cache: tuple[str] = ()
+    _local_cache: tuple[str, ...] = ()
     
     def __init__(
         self, 
@@ -127,7 +127,28 @@ class Spline:
             k0 == k1 and
             np.allclose(self._u, other._u) and
             np.allclose(self._lims, other._lims)
-            )
+        )
+    
+    @classmethod
+    def line(cls, start: ArrayLike, end: ArrayLike) -> Self:
+        """
+        Create a line spline.
+
+        Parameters
+        ----------
+        start : array_like
+            Start point of the line.
+        end : array_like
+            End point of the line.
+
+        Returns
+        -------
+        Spline
+            Line spline.
+        """
+        spl = cls()
+        coords = np.stack([start, end], axis=0)
+        return spl.fit_voa(coords)
     
     def translate(self, shift: tuple[nm, nm, nm]):
         new = self.copy()
