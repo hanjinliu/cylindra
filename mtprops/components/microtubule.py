@@ -16,7 +16,7 @@ import impy as ip
 from .spline import Spline
 from .tomogram import Tomogram
 from .cylindric import CylindricModel
-from ..const import Mole, nm, H, K, Ori, Mode, GVar
+from ..const import nm, H, K, Ori, Mode, GVar
 from ..utils import (
     crop_tomogram,
     centroid,
@@ -24,7 +24,6 @@ from ..utils import (
     rotated_auto_zncc,
     roundint,
     ceilint,
-    oblique_meshgrid,
     set_gpu,
     mirror_zncc, 
     angle_uniform_filter,
@@ -32,6 +31,7 @@ from ..utils import (
 
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
+    Degenerative = Callable[[ArrayLike], Any]
 
 
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
@@ -1289,7 +1289,7 @@ class MtTomogram(Tomogram):
         elif isinstance(i, int):
             i = [i]
         try:
-            df = pd.concat(
+            df: pd.DataFrame = pd.concat(
                 [self._splines[i_].localprops for i_ in i], keys=list(i)
             )
             df.index = df.index.rename(["SplineID", "PosID"])
@@ -1348,7 +1348,7 @@ class MtTomogram(Tomogram):
         self, 
         i: int | Iterable[int] = None, 
         by: str | list[str] = "SplineID", 
-        functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
+        functions: Degenerative | list[Degenerative] | None = None,
     ) -> pd.DataFrame:
         """Simple summary of local properties."""
         df = self.collect_localprops(i).reset_index()
@@ -1361,7 +1361,7 @@ class MtTomogram(Tomogram):
     
     def summarize_globalprops(
         self, 
-        functions: Callable[[ArrayLike], Any] | list[Callable[[ArrayLike], Any]] | None = None,
+        functions: Degenerative | list[Degenerative] | None = None,
     ) -> pd.DataFrame:
         """Simple summary of global properties."""
         df = self.collect_globalprops()

@@ -22,7 +22,7 @@ class CylindricModel:
     shape : (int, int)
         Shape of the molecule grid in (axial, angular) shape.
     tilts : (float, float)
-        Tilt angles in (axial, angular) direction.
+        Relative tilt tangent in (axial, angular) direction.
     intervals : (float, float)
         Intervals in (axial, angular) direction.
     radius : float
@@ -130,34 +130,38 @@ class CylindricModel:
         mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % self._shape[1]}
         return mole
 
-    def apply_shift(self, displace: np.ndarray) -> Self:
-        displace = self._displace + displace
+    def add_offsets(self, offsets: tuple[float, float]) -> Self:
+        _offsets = tuple(x + y for x, y in zip(self._offsets, offsets))
+        return replace(offsets=_offsets)
+    
+    def add_shift(self, shift: np.ndarray) -> Self:
+        displace = self._displace + shift
         return replace(displace=displace)
     
-    def apply_radius_shift(self, displace: np.ndarray) -> Self:
-        return self._apply_directional_shift(displace, 0)
+    def add_radial_shift(self, shift: np.ndarray) -> Self:
+        return self._add_directional_shift(shift, 0)
 
-    def apply_axial_shift(self, displace: np.ndarray) -> Self:
-        return self._apply_directional_shift(displace, 1)
+    def add_axial_shift(self, shift: np.ndarray) -> Self:
+        return self._add_directional_shift(shift, 1)
     
-    def apply_skew_shift(self, displace: np.ndarray) -> Self:
-        return self._apply_directional_shift(displace, 2)
+    def add_skew_shift(self, shift: np.ndarray) -> Self:
+        return self._add_directional_shift(shift, 2)
     
     def dilate(self, radius_shift: float, start: int, stop: int) -> Self:
-        return self._apply_local_uniform_directional_shift(radius_shift, start, stop, 0)
+        return self._add_local_uniform_directional_shift(radius_shift, start, stop, 0)
     
     def expand(self, yshift: float, start: int, stop: int) -> Self:
-        return self._apply_local_uniform_directional_shift(yshift, start, stop, 1)
+        return self._add_local_uniform_directional_shift(yshift, start, stop, 1)
         
     def screw(self, angle_shift: float, start: int, stop: int) -> Self:
-        return self._apply_local_uniform_directional_shift(angle_shift, start, stop, 2)
+        return self._add_local_uniform_directional_shift(angle_shift, start, stop, 2)
     
-    def _apply_directional_shift(self, displace: np.ndarray, axis: int) -> Self:
+    def _add_directional_shift(self, displace: np.ndarray, axis: int) -> Self:
         displace = self._displace.copy()
         displace[:, :, axis] += displace
         return replace(displace=displace)
     
-    def _apply_local_uniform_directional_shift(
+    def _add_local_uniform_directional_shift(
         self, shift: float, start: int, stop: int, axis: int
     ) -> Self:
         displace = self._displace.copy()
