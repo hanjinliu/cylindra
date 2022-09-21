@@ -6,7 +6,6 @@ from acryo import Molecules
 import numpy as np
 
 from .spline import Spline
-from ..utils import oblique_meshgrid
 from ..const import Mole
 
 if TYPE_CHECKING:
@@ -189,4 +188,48 @@ class CylindricModel:
         for idx in range(start, stop):
             displace[idx:, :, axis] += shift
         return self.replace(displace=displace)
-        
+
+def oblique_meshgrid(
+    shape: tuple[int, int], 
+    tilts: tuple[float, float] = (0., 0.),
+    intervals: tuple[float, float] = (1., 1.),
+    offsets: tuple[float, float] = (0., 0.),
+) -> np.ndarray:
+    """
+    Construct 2-D meshgrid in oblique coordinate system.
+
+    Parameters
+    ----------
+    shape : tuple[int, int]
+        Output shape. If ``shape = (a, b)``, length of the output mesh will be ``a`` along
+        the first axis, and will be ``b`` along the second one.
+    tilts : tuple[float, float], optional
+        Tilt tangents of each axis in world coordinate. Positive tangent means that the 
+        corresponding axis tilt toward the line "y=x".
+    intervals : tuple[float, float], optional
+        The intervals (or scale) of new axes. 
+    offsets : tuple[float, float], optional
+        The origin of new coordinates.
+
+    Returns
+    -------
+    np.ndarray
+        World coordinates of lattice points of new coordinates.
+    """
+    tan0, tan1 = tilts
+    d0, d1 = intervals
+    c0, c1 = offsets
+    n0, n1 = shape
+    
+    v0 = np.array([1, tan0], dtype=np.float32)
+    v1 = np.array([tan1, 1], dtype=np.float32)
+
+    out = np.empty((n0, n1, 2), dtype=np.float32)
+    
+    for i in range(n0):
+        for j in range(n1):
+            out[i, j, :] = v0 * i + v1 * j
+    
+    out[:, :, 0] = out[:, :, 0] * d0 + c0
+    out[:, :, 1] = out[:, :, 1] * d1 + c1
+    return out

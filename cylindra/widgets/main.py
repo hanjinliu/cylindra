@@ -27,9 +27,7 @@ from magicclass import (
     mark_preview,
 )
 from magicclass.types import Color, Bound, Optional, OneOf, SomeOf
-from magicclass.widgets import (
-    Logger, ConsoleTextEdit, FloatRangeSlider,
-)
+from magicclass.widgets import Logger, ConsoleTextEdit, FloatRangeSlider
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.utils import thread_worker
@@ -43,12 +41,7 @@ from .spline_fitter import SplineFitter
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import CylindraProject
-from .widget_utils import (
-    FileFilter,
-    add_molecules,
-    change_viewer_focus,
-    update_features,
-)
+from .widget_utils import FileFilter, add_molecules, change_viewer_focus, update_features
 from . import widget_utils
 
 from ..components import MtSpline, MtTomogram, microtubule as MT

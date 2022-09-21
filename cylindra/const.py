@@ -15,6 +15,8 @@ ALN_SUFFIX = "ALN"
 
 
 class strEnum(Enum):
+    """Enum with string values"""
+
     def __str__(self):
         return self.value
     
