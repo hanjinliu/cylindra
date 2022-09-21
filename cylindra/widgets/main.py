@@ -44,7 +44,7 @@ from .project import CylindraProject
 from .widget_utils import FileFilter, add_molecules, change_viewer_focus, update_features
 from . import widget_utils
 
-from ..components import MtSpline, MtTomogram, microtubule as MT
+from ..components import CylSpline, CylTomogram, cyl_tomogram as Cyl
 from .. import utils
 from ..const import Ori, nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
@@ -130,7 +130,7 @@ class CylindraMainWidget(MagicTemplate):
     ### methods ###
     
     def __init__(self):
-        self.tomogram: MtTomogram = None
+        self.tomogram: CylTomogram = None
         self._current_ft_size: nm = 50.
         self.layer_image: Image = None
         self.layer_prof: Points = None
@@ -178,7 +178,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(icon=ICON_DIR/"add_spline.png")
     @bind_key("F1")
     def register_path(self, coords: Bound[_get_spline_coordinates] = None):
-        """Register current selected points as a MT path."""        
+        """Register current selected points as a spline path."""        
         if coords is None:
             coords = self.layer_work.data
         else:
@@ -265,7 +265,7 @@ class CylindraMainWidget(MagicTemplate):
                     df.columns = [f"Spline-{i}" for i in splines]
                     self.log.print_table(df, precision=3)
             if local_props and paint:
-                self.paint_mt()
+                self.paint_cylinders()
             if global_props:
                 self._update_global_properties_in_widget()
             self._update_splines_in_images()
@@ -460,7 +460,7 @@ class CylindraMainWidget(MagicTemplate):
         elif len(bin_size) == 0:
             raise ValueError("You must specify at least one bin size.")
         bin_size = list(set(bin_size))  # delete duplication
-        tomo = MtTomogram.imread(
+        tomo = CylTomogram.imread(
             path=path,
             scale=scale,
             binsize=bin_size,
@@ -485,7 +485,7 @@ class CylindraMainWidget(MagicTemplate):
         file_dir = Path(path).parent
         
         resolve_path = widget_utils.resolve_path
-        self.tomogram = MtTomogram.imread(
+        self.tomogram = CylTomogram.imread(
             path=resolve_path(project.image, file_dir), 
             scale=project.scale, 
             binsize=project.multiscales, 
@@ -507,7 +507,7 @@ class CylindraMainWidget(MagicTemplate):
             self._send_tomogram_to_viewer(filt=filter_reference_image)
             
             # load splines
-            splines = [MtSpline.from_json(path) for path in project.splines]
+            splines = [CylSpline.from_json(path) for path in project.splines]
             localprops_path = project.localprops
             if localprops_path is not None:
                 all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
@@ -689,7 +689,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
-        splines = [MtSpline.from_json(path) for path in paths]
+        splines = [CylSpline.from_json(path) for path in paths]
         self.tomogram.splines.extend(splines)
         self.reset_choices()
         return None
@@ -864,7 +864,7 @@ class CylindraMainWidget(MagicTemplate):
     @Image.Cylindric.wraps
     @set_design(text="R-projection")
     def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
-        """Show radial projection of cylindrical image around the current MT fragment."""
+        """Show radial projection of cylindrical image around the current spline fragment."""
         polar = self._current_cylindrical_img().proj("r")
         
         canvas = QtImageCanvas()
@@ -876,7 +876,7 @@ class CylindraMainWidget(MagicTemplate):
     @Image.Cylindric.wraps
     @set_design(text="R-projection (Global)")
     def show_global_r_proj(self):
-        """Show radial projection of cylindrical image along current MT."""        
+        """Show radial projection of cylindrical image along current spline."""        
         i = self.SplineControl.num
         polar = self.tomogram.straighten_cylindric(i).proj("r")
         canvas = QtImageCanvas()
@@ -902,7 +902,7 @@ class CylindraMainWidget(MagicTemplate):
     @Image.Cylindric.wraps
     @set_design(text="2D-FT (Global)")
     def show_global_ft(self, i: Bound[SplineControl.num]):
-        """View Fourier space along current MT."""  
+        """View Fourier space along current spline."""  
         polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
         pw /= pw.max()
@@ -1020,16 +1020,16 @@ class CylindraMainWidget(MagicTemplate):
         max_shift: nm = 5.0,
     ):
         """
-        Fit MT with spline curve, using manually selected points.
+        Fit cylinder with spline curve, using manually selected points.
 
         Parameters
         ----------
         {max_interval}{bin_size}
         degree_precision : float, default is 0.5
-            Precision of MT xy-tilt degree in angular correlation.
+            Precision of xy-tilt degree in angular correlation.
         edge_sigma : bool, default is False
-            Check if microtubules are densely packed. Initial spline position must be "almost" fitted
-            in dense mode.
+            Check if microtubules are densely packed. Initial spline position must be "almost" 
+            fitted in dense mode.
         max_shift : nm, default is 5.0
             Maximum shift to be applied to each point of splines.
         """        
@@ -1049,7 +1049,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def fit_splines_manually(self, max_interval: nm = 50.0):
         """
-        Open a spline fitter window and fit MT with spline manually.
+        Open a spline fitter window and fit cylinder with spline manually.
 
         Parameters
         ----------
@@ -1084,7 +1084,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Set radius")
     @thread_worker(progress={"desc": "Measuring Radius"})
     def set_radius(self, radius: Optional[nm] = None, bin_size: OneOf[_get_available_binsize] = 1):
-        """Measure MT radius for each spline path."""        
+        """Measure cylinder radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
         return None
@@ -1103,7 +1103,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
-        Refine splines using the global MT structural parameters.
+        Refine splines using the global cylindric structural parameters.
         
         Parameters
         ----------
@@ -1153,7 +1153,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layers}{interval}
         """        
-        splines: List[MtSpline] = []
+        splines: List[CylSpline] = []
         for layer in layers:
             spl = widget_utils.molecules_to_spline(layer)
             splines.append(spl)
@@ -1179,7 +1179,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
-        Determine MT structural parameters by local Fourier transformation.
+        Determine cylindrical structural parameters by local Fourier transformation.
 
         Parameters
         ----------
@@ -1213,7 +1213,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker(progress={"desc": "Global Fourier transform", "total": "self.tomogram.n_splines"})
     def global_ft_analysis(self, bin_size: OneOf[_get_available_binsize] = 1):
         """
-        Determine MT global structural parameters by Fourier transformation.
+        Determine cylindrical global structural parameters by Fourier transformation.
         
         Parameters
         ----------
@@ -2345,7 +2345,7 @@ class CylindraMainWidget(MagicTemplate):
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
 
-        corrs, img_ave, all_labels = MT.try_all_seams(
+        corrs, img_ave, all_labels = utils.try_all_seams(
             loader=loader, npf=npf, template=template, mask=mask, cutoff=cutoff
         )
         
@@ -2488,7 +2488,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("F3")
     @do_not_record
     def pick_next(self):
-        """Automatically pick MT center using previous two points."""        
+        """Automatically pick cylinder center using previous two points."""        
         stride_nm = self.toolbar.Adjust.stride
         angle_pre = self.toolbar.Adjust.angle_precision
         angle_dev = self.toolbar.Adjust.angle_deviation
@@ -2513,7 +2513,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation = point1[1:] - point0[1:]
         img = utils.crop_tomogram(imgb, point1, shape)
         center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-        angle_deg = MT.angle_corr(img, ang_center=center, drot=angle_dev, nrots=utils.ceilint(angle_dev/angle_pre))
+        angle_deg = utils.angle_corr(img, ang_center=center, drot=angle_dev, nrots=utils.ceilint(angle_dev/angle_pre))
         angle_rad = np.deg2rad(angle_deg)
         dr = np.array([0.0, stride_nm * np.cos(angle_rad), -stride_nm * np.sin(angle_rad)])
         if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
@@ -2522,7 +2522,7 @@ class CylindraMainWidget(MagicTemplate):
             point2 = point1 - dr / binned_scale
         img_next = utils.crop_tomogram(imgb, point2, shape)
 
-        MT.centering(img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts/binned_scale)
+        utils.centering(img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts/binned_scale)
 
         next_data = point2 * binned_scale
         self.layer_work.add(next_data)
@@ -2555,8 +2555,8 @@ class CylindraMainWidget(MagicTemplate):
             if i not in selected:
                 continue
             img_input = utils.crop_tomogram(imgb, point, shape)
-            angle_deg = MT.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
-            MT.centering(img_input, point, angle_deg, drot=3, nrots=7)
+            angle_deg = utils.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
+            utils.centering(img_input, point, angle_deg, drot=3, nrots=7)
             last_i = i
         
         self.layer_work.data = points * imgb.scale.x
@@ -2565,10 +2565,10 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @set_design(text="Paint MT")
-    def paint_mt(self):
+    @set_design(text="Paint cylinders")
+    def paint_cylinders(self):
         """
-        Paint microtubule fragments by its local properties.
+        Paint cylinder fragments by its local properties.
         
         1. Prepare small boxes and make masks inside them.
         2. Map the masks to the reference image.
@@ -2775,7 +2775,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @nogui
     @do_not_record
-    def get_spline(self, i: int = None) -> MtSpline:
+    def get_spline(self, i: int = None) -> CylSpline:
         """Get the i-th spline object. Return current one by default."""
         tomo = self.tomogram
         if i is None:
@@ -2786,7 +2786,7 @@ class CylindraMainWidget(MagicTemplate):
     @SplineControl.pos.connect
     @SplineControl.footer.focus.connect
     def _focus_on(self):
-        """Change camera focus to the position of current MT fragment."""
+        """Change camera focus to the position of current spline fragment."""
         if self.layer_paint is None:
             return None
         if not self.SplineControl.footer.focus:
@@ -3113,7 +3113,7 @@ class CylindraMainWidget(MagicTemplate):
             self.LocalProperties._init_text()
         return None
     
-    def _add_spline_to_images(self, spl: MtSpline, i: int):
+    def _add_spline_to_images(self, spl: CylSpline, i: int):
         interval = 15
         length = spl.length()
         scale = self.layer_image.scale[0]
@@ -3196,6 +3196,15 @@ class CylindraMainWidget(MagicTemplate):
             "run_mtprops is deprecated. Use cylindrical_fit instead.", UserWarning
         )
         return self.cylindrical_fit(*args, **kwargs)
+    
+    @nogui
+    @do_not_record
+    def paint_mt(self, *args, **kwargs):
+        import warnings
+        warnings.warn(
+            "paint_mt is deprecated. Use paint_cylinders instead.", UserWarning
+        )
+        return self.paint_cylinders(*args, **kwargs)
 
 ############################################################################################
 #   Other helper functions

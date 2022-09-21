@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class Tomogram:
     """
     Tomogram object. It always connected to a 3D image but processed lazily. Thus
-    you can create a lot of MtTomogram objects without MemoryError. Subtomograms
+    you can create a lot of Tomogram objects without MemoryError. Subtomograms
     are temporarily loaded into memory via cache map. Once memory usage exceed
     certain amount, the subtomogram cache will automatically deleted from the old
     ones.

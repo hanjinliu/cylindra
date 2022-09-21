@@ -7,7 +7,7 @@ from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
 from ..const import GVar, Ori, H, Mode
 from ..utils import map_coordinates, Projections
-from ..components.microtubule import MtSpline
+from ..components.cyl_tomogram import CylSpline
 
 @magicclass(widget_type="groupbox")
 class SplineControl(MagicTemplate):

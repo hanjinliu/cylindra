@@ -12,10 +12,14 @@ def start(
     viewer: "napari.Viewer" = None,
 ) -> "CylindraMainWidget":
     """
-    Start napari viewer and dock MTProfiler widget as a dock widget.
+    Start napari viewer and dock cylindra widget as a dock widget.
     
     Parameters
     ----------
+    project_file : path-like, optional
+        If given, load the project file.
+    globals_file : path-like, optional
+        If given, load the global variable file.
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
     """

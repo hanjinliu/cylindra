@@ -71,9 +71,9 @@ class GlobalVariables(MagicTemplate):
         minCurvatureRadius : nm
             Minimum curvature radius of spline.
         inner : float
-            Radius x inner will be the inner surface of MT.
+            Radius x inner will be the inner surface of the cylinder.
         outer : float
-            Radius x outer will be the outer surface of MT.
+            Radius x outer will be the outer surface of the cylinder.
         """        
         GVar.set_value(**locals())
     

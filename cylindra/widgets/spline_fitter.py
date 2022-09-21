@@ -17,12 +17,12 @@ from ..utils import Projections, roundint, centroid, map_coordinates
 from ..const import nm, GVar, Mode
 
 if TYPE_CHECKING:
-    from ..components import MtTomogram
+    from ..components import CylTomogram
 
 
 @magicclass
 class SplineFitter(MagicTemplate):
-    # Manually fit MT with spline curve using longitudinal projections
+    # Manually fit cylinders with spline curve using longitudinal projections
     
     canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
         
@@ -190,7 +190,7 @@ class SplineFitter(MagicTemplate):
         self.mt.pos.value = 0
         parent = self._get_parent()
         imgb = parent.layer_image.data
-        tomo: MtTomogram = parent.tomogram
+        tomo: CylTomogram = parent.tomogram
         
         spl = tomo.splines[i]
         self.splines = tomo.splines

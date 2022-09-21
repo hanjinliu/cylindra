@@ -6,7 +6,7 @@ import numpy as np
 from scipy import ndimage as ndi
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
-from ..components import MtSpline
+from ..components import CylSpline
 from ..const import MOLECULES, GVar, Mole
 
 if TYPE_CHECKING:
@@ -74,10 +74,10 @@ def update_features(
         mole.features = features
     return None
 
-def molecules_to_spline(layer: Points) -> MtSpline:
+def molecules_to_spline(layer: Points) -> CylSpline:
     """Convert well aligned molecule positions into a spline."""
     mole: Molecules = layer.metadata[MOLECULES]
-    spl = MtSpline(degree=GVar.splOrder)
+    spl = CylSpline(degree=GVar.splOrder)
     npf = int(round(np.max(mole.features[Mole.pf]) + 1))
     all_coords = mole.pos.reshape(-1, npf, 3)
     mean_coords = np.mean(all_coords, axis=1)

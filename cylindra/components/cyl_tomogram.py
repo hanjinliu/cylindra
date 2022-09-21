@@ -7,13 +7,14 @@ from functools import partial, wraps
 import numpy as np
 from numpy.typing import ArrayLike
 import pandas as pd
+from scipy import ndimage as ndi
 from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
 from acryo import Molecules, SubtomogramLoader
 import impy as ip
 
-from .spline import Spline
+from .cyl_spline import CylSpline
 from .tomogram import Tomogram
 from .cylindric import CylindricModel
 from ..const import nm, H, K, Ori, Mode, GVar
@@ -26,7 +27,7 @@ from ..utils import (
     ceilint,
     set_gpu,
     mirror_zncc, 
-    angle_uniform_filter,
+    angle_corr,
 )
 
 if TYPE_CHECKING:
@@ -45,105 +46,6 @@ def tandg(x):
 def rmsd(shifts: ArrayLike) -> float:
     shifts = np.atleast_2d(shifts)
     return np.sqrt(np.sum(shifts**2)/shifts.shape[0])
-
-class MtSpline(Spline):
-    """
-    A spline object with information related to MT.
-    """    
-    _local_cache = (K.localprops,)
-    _global_cache = (K.globalprops, K.radius, K.orientation)
-    
-    def __init__(self, degree: int = 3, *, lims: tuple[float, float] = (0., 1.)):
-        """
-        Spline object for MT.
-        
-        Parameters
-        ----------
-        k : int, default is 3
-            Spline order.
-        """        
-        super().__init__(degree=degree, lims=lims)
-        self.orientation = Ori.none
-        self.radius: nm | None = None
-        self.localprops: pd.DataFrame | None = None
-        self.globalprops: pd.Series | None = None
-    
-    def invert(self) -> MtSpline:
-        """
-        Invert the direction of spline. Also invert orientation if exists.
-
-        Returns
-        -------
-        Spline3D
-            Inverted object
-        """
-        inverted = super().invert()
-        inverted.radius = self.radius
-        if self.localprops is not None:
-            inverted.localprops = self.localprops[::-1]
-        inverted.globalprops = self.globalprops
-        return inverted
-    
-    def clip(self, start: float, stop: float) -> MtSpline:
-        """
-        Clip spline and generate a new one.
-        
-        This method does not convert spline bases. ``_lims`` is updated instead.
-        For instance, if you want to clip spline at 20% to 80% position, call
-        ``spl.clip(0.2, 0.8)``. If ``stop < start``, the orientation of spline
-        will be inverted, thus the ``orientation`` attribute will also be inverted.
-
-        Parameters
-        ----------
-        start : float
-            New starting position.
-        stop : float
-            New stopping position.
-
-        Returns
-        -------
-        MtSpline
-            Clipped spline.
-        """
-        clipped = super().clip(start, stop)
-        
-        clipped.radius = self.radius
-        if start > stop:
-            clipped.orientation = Ori.invert(self.orientation)
-        else:
-            clipped.orientation = self.orientation
-        return clipped
-    
-    def restore(self) -> MtSpline:
-        """
-        Restore the original, not-clipped spline.
-
-        Returns
-        -------
-        Spline
-            Copy of the original spline.
-        """
-        original = super().restore()
-        start, stop = self._lims
-        if start > stop:
-            original.orientation = Ori.invert(self.orientation)
-        else:
-            original.orientation = self.orientation
-        return original
-    
-        
-    @property
-    def orientation(self) -> Ori:
-        """Orientation of spline."""
-        return self._orientation
-    
-    @orientation.setter
-    def orientation(self, value: Ori | str | None):
-        if value is None:
-            self._orientation = Ori.none
-        else:
-            self._orientation = Ori(value)
-
 
 _KW = ParamSpecKwargs("_KW")
 _RETURN = TypeVar("_RETURN")
@@ -170,11 +72,11 @@ class BatchCallable(Protocol[_RETURN]):
         ...
 
 
-def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCallable[_RETURN]:
+def batch_process(func: Callable[[CylTomogram, Any, _KW], _RETURN]) -> BatchCallable[_RETURN]:
     """Enable running function for every splines."""
     
     @wraps(func)
-    def _func(self: MtTomogram, i=None, **kwargs):
+    def _func(self: CylTomogram, i=None, **kwargs):
         if isinstance(i, int):
             out = func(self, i=i, **kwargs)
             return out
@@ -214,13 +116,15 @@ def batch_process(func: Callable[[MtTomogram, Any, _KW], _RETURN]) -> BatchCalla
     return _func
 
 
-class MtTomogram(Tomogram):
+class CylTomogram(Tomogram):
+    """Tomogram with cylindrical splines."""
+
     def __init__(self):
         super().__init__()
-        self._splines: list[MtSpline] = []
+        self._splines: list[CylSpline] = []
 
     @property
-    def splines(self) -> list[MtSpline]:
+    def splines(self) -> list[CylSpline]:
         """List of splines."""
         return self._splines
     
@@ -251,14 +155,14 @@ class MtTomogram(Tomogram):
     
     def add_spline(self, coords: ArrayLike) -> None:
         """
-        Add MtSpline path to tomogram.
+        Add spline path to tomogram.
 
         Parameters
         ----------
         coords : array-like
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """        
-        spl = MtSpline(degree=GVar.splOrder)
+        spl = CylSpline(degree=GVar.splOrder)
         coords = np.asarray(coords)
         spl.fit_coa(coords, min_radius=GVar.minCurvatureRadius)
         interval: nm = 30.0
@@ -282,7 +186,7 @@ class MtTomogram(Tomogram):
         max_interval: nm | None = None,
     ):
         """
-        Make anchors on MtSpline object(s).
+        Make anchors on spline object(s).
 
         Parameters
         ----------
@@ -311,7 +215,7 @@ class MtTomogram(Tomogram):
 
         Returns
         -------
-        MtTomogram
+        Tomogram object
             Same object with updated splines.
         """
         orientation = Ori(orientation)
@@ -337,7 +241,7 @@ class MtTomogram(Tomogram):
         max_shift: nm = 5.0,
     ) -> Self:
         """
-        Roughly fit splines to MT.
+        Roughly fit splines to cylindrical structures.
         
         Subtomograms will be sampled at every ``max_interval`` nm. In dense mode,
         Subtomograms will be masked relative to XY-plane, using sigmoid function.
@@ -351,7 +255,7 @@ class MtTomogram(Tomogram):
         max_interval : nm, default is 30.0
             Maximum interval of sampling points in nm unit.
         degree_precision : float, default is 0.5
-            Precision of MT xy-tilt degree in angular correlation.
+            Precision of xy-tilt degree in angular correlation.
         binsize : int, default is 1
             Multiscale bin size used for fitting.
         edge_sigma : nm, default is 2.0
@@ -364,8 +268,8 @@ class MtTomogram(Tomogram):
 
         Returns
         -------
-        MtTomogram
-            Same object with updated MtSpline objects.
+        Tomogram object
+            Same object with updated Spline objects.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.fit, i={i}")
         spl = self._splines[i]
@@ -489,8 +393,8 @@ class MtTomogram(Tomogram):
         Spline refinement using global lattice structural parameters.
         
         Refine spline using the result of previous fit and the global structural parameters.
-        During refinement, Y-projection of MT XZ cross section is rotated with the skew angle,
-        thus is much more precise than the coarse fitting.
+        During refinement, Y-projection of XZ cross section of cylinder is rotated with the
+        skew angle, thus is much more precise than the coarse fitting.
 
         Parameters
         ----------
@@ -509,8 +413,8 @@ class MtTomogram(Tomogram):
         
         Returns
         -------
-        MtTomogram
-            Same object with updated MtSpline objects.
+        Tomogram object
+            Same object with updated Spline objects.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.refine, i={i}")
         spl = self.splines[i]
@@ -633,7 +537,7 @@ class MtTomogram(Tomogram):
         Returns
         -------
         float (nm)
-            MT radius.
+            Cylinder radius.
         """        
         spl = self.splines[i]
         
@@ -694,7 +598,7 @@ class MtTomogram(Tomogram):
         binsize: int = 1,
     ) -> pd.DataFrame:
         """
-        Calculate MT local structural parameters from cylindrical Fourier space.
+        Calculate local structural parameters from cylindrical Fourier space.
         
         To determine the peaks upsampled discrete Fourier transformation is used
         for every subtomogram.
@@ -853,11 +757,11 @@ class MtTomogram(Tomogram):
         binsize: int = 1,
     ) -> pd.Series:
         """
-        Calculate MT global structural parameters.
+        Calculate global structural parameters.
         
         This function transforms tomogram using cylindrical coordinate system along
         spline. This function calls ``straighten`` beforehand, so that Fourier space is 
-        distorted if MT is curved.
+        distorted if the cylindrical structure is curved.
 
         Parameters
         ----------
@@ -910,7 +814,7 @@ class MtTomogram(Tomogram):
         binsize: int = 1,
     ) -> ip.ImgArray:
         """
-        MT straightening by building curved coordinate system around splines. Currently
+        Straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
 
         Parameters
@@ -987,7 +891,7 @@ class MtTomogram(Tomogram):
         binsize: int = 1,
     ) -> ip.ImgArray:
         """
-        MT straightening by building curved coordinate system around splines. Currently
+        Straightening by building curved coordinate system around splines. Currently
         Cartesian coordinate system and cylindrical coordinate system are supported.
 
         Parameters
@@ -1373,25 +1277,6 @@ class MtTomogram(Tomogram):
         return df[valid_colmuns].agg(functions)
     
 
-def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29):
-    # img: 3D
-    img_z = img.proj("z")
-    mask = ip.circular_mask(img_z.shape.y/2+2, img_z.shape)
-    img_mirror: ip.ImgArray = img_z["x=::-1"]
-    angs = np.linspace(ang_center-drot, ang_center+drot, nrots, endpoint=True)
-    corrs = []
-    f0 = np.sqrt(img_z.power_spectra(dims="yx", zero_norm=True))
-    cval = np.mean(img_z)
-    for ang in angs:
-        img_mirror_rot = img_mirror.rotate(ang*2, mode=Mode.constant, cval=cval)
-        f1 = np.sqrt(img_mirror_rot.power_spectra(dims="yx", zero_norm=True))
-        corr = ip.zncc(f0, f1, mask)
-        corrs.append(corr)
-        
-    angle = angs[np.argmax(corrs)]
-    return angle
-
-
 def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
     _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
     tasks = []
@@ -1491,105 +1376,8 @@ def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm
 lazy_ft_params = delayed(ft_params)
 
 
-def try_all_seams(
-    loader: SubtomogramLoader,
-    npf: int,
-    template: ip.ImgArray,
-    mask: ip.ImgArray | None = None,
-    cutoff: float = 0.5,
-) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
-    """
-    Try all the possible seam positions and compare correlations.
-
-    Parameters
-    ----------
-    loader : SubtomogramLoader
-        An aligned ``acryo.SubtomogramLoader`` object.
-    npf : int
-        Number of protofilament.
-    template : ip.ImgArray
-        Template image.
-    mask : ip.ImgArray, optional
-        Mask image.
-    cutoff : float, default is 0.5
-        Cutoff frequency applied before calculating correlations.
-
-    Returns
-    -------
-    tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]
-        Correlation, average and boolean array correspond to each seam position.
-    """    
-    corrs: list[float] = []
-    labels: list[np.ndarray] = []  # list of boolean arrays
-    
-    if mask is None:
-        mask = 1.
-    
-    masked_template = (template * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
-    _id = np.arange(len(loader.molecules))
-    assert _id.size % npf == 0
-    
-    # prepare all the labels in advance (only takes up ~0.5 MB at most)
-    for pf in range(2*npf):
-        res = (_id - pf) // npf
-        sl = res % 2 == 0
-        labels.append(sl)
-    
-    # here, dask_array is (N, Z, Y, X) array where dask_array[i] is i-th subtomogram.
-    dask_array = loader.construct_dask(output_shape=template.shape)
-    averaged_images = da.compute([da.mean(dask_array[sl], axis=0) for sl in labels])[0]
-    averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
-    averaged_images.set_scale(zyx=loader.scale)
-    
-    corrs: list[float] = []
-    for avg in averaged_images:
-        avg: ip.ImgArray
-        corr = ip.zncc((avg * mask).lowpass_filter(cutoff=cutoff), masked_template)
-        corrs.append(corr)
-        
-    return np.array(corrs), averaged_images, labels
-
-
-def centering(
-    img: ip.ImgArray,
-    point: np.ndarray,
-    angle: float,
-    drot: float = 5, 
-    nrots: int = 7,
-    max_shifts: float | None = None,
-):
-    """
-    Find the center of MT using self-correlation.
-
-    Parameters
-    ----------
-    img : ip.ImgArray
-        Target image.
-    point : np.ndarray
-        Current center of MT.
-    angle : float
-        The central angle of the MT.
-    drot : float, default is 5
-        Deviation of the rotation angle.
-    nrots : int, default is 7
-        Number of rotations to try.
-    max_shifts : float, optional
-        Maximum shift in pixel.
-
-    """
-    angle_deg2 = angle_corr(img, ang_center=angle, drot=drot, nrots=nrots)
-    
-    img_next_rot = img.rotate(-angle_deg2, cval=np.mean(img))
-    proj = img_next_rot.proj("y")
-    shift = mirror_zncc(proj, max_shifts=max_shifts)
-    
-    shiftz, shiftx = shift/2
-    shift = np.array([shiftz, 0, shiftx])
-    rad = -np.deg2rad(angle_deg2)
-    cos = np.cos(rad)
-    sin = np.sin(rad)
-    shift = shift @ [[1.,   0.,  0.],
-                     [0.,  cos, sin],
-                     [0., -sin, cos]]
-    point += shift
-    return point
+def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
+    """Uniform filter of angles."""
+    phase = np.exp(1j*input)
+    out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
+    return np.angle(out)

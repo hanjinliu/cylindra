@@ -1,12 +1,13 @@
 from .cylindric import CylindricModel
 from .spline import Spline
+from .cyl_spline import CylSpline
 from .tomogram import Tomogram
-from .microtubule import MtSpline, MtTomogram
+from .cyl_tomogram import CylTomogram
 
 __all__ = [
     "CylindricModel",
     "Spline",
-    "MtSpline",
-    "MtTomogram",
+    "CylSpline",
+    "CylTomogram",
     "Tomogram",
 ]

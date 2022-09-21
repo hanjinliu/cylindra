@@ -1,4 +1,4 @@
-from cylindra import MtTomogram
+from cylindra import CylTomogram
 from cylindra.const import H
 from pathlib import Path
 import numpy as np
@@ -15,7 +15,7 @@ params = [(coords_13pf, 13, 8.3, (-0.1, 0.1)),
 @pytest.mark.parametrize(["coords", "npf", "rise", "skew_range"], params)
 def test_run_all(coords, npf, rise, skew_range):
     path = Path(__file__).parent / f"{npf}pf_MT.tif"
-    tomo = MtTomogram.imread(path)
+    tomo = CylTomogram.imread(path)
     
     assert abs(tomo.scale - 1.052) < 1e-6
     
@@ -47,7 +47,7 @@ def test_run_all(coords, npf, rise, skew_range):
 
 def test_chunked_straightening():
     path = Path(__file__).parent / "14pf_MT.tif"
-    tomo = MtTomogram.imread(path)
+    tomo = CylTomogram.imread(path)
     
     # the length of spline is ~80 nm
     tomo.add_spline(np.array([[21.97, 123.1, 32.98],
@@ -61,7 +61,7 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200) 
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
     
-    from cylindra.components.microtubule import _local_dft_params_pd
+    from cylindra.components.cyl_tomogram import _local_dft_params_pd
     
     spl = tomo.splines[0]
     prop0 = _local_dft_params_pd(st0, spl.radius)
