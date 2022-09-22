@@ -108,4 +108,3 @@ class CylSpline(Spline):
             self._orientation = Ori.none
         else:
             self._orientation = Ori(value)
-

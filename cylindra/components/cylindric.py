@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import replace
 from typing import Any, TYPE_CHECKING
 
 from acryo import Molecules
@@ -151,12 +150,12 @@ class CylinderModel:
     def add_offsets(self, offsets: tuple[float, float]) -> Self:
         """Increment offsets attribute of the model."""
         _offsets = tuple(x + y for x, y in zip(self._offsets, offsets))
-        return replace(offsets=_offsets)
+        return self.replace(offsets=_offsets)
     
     def add_shift(self, shift: np.ndarray) -> Self:
         """Increment displace attribute of the model."""
         displace = self._displace + shift
-        return replace(displace=displace)
+        return self.replace(displace=displace)
     
     def add_radial_shift(self, shift: np.ndarray) -> Self:
         """Add shift to the radial (r-axis) direction."""
@@ -185,7 +184,7 @@ class CylinderModel:
     def _add_directional_shift(self, displace: np.ndarray, axis: int) -> Self:
         displace = self._displace.copy()
         displace[:, :, axis] += displace
-        return replace(displace=displace)
+        return self.replace(displace=displace)
     
     def _add_local_uniform_directional_shift(
         self, shift: float, start: int, stop: int, axis: int
