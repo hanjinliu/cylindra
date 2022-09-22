@@ -16,8 +16,8 @@ import impy as ip
 
 from .cyl_spline import CylSpline
 from .tomogram import Tomogram
-from .cylindric import CylindricModel
-from ..const import nm, H, K, Ori, Mode, GVar
+from .cylindric import CylinderModel
+from ..const import nm, H, Ori, Mode, GVar
 from ..utils import (
     crop_tomogram,
     centroid,
@@ -960,44 +960,6 @@ class CylTomogram(Tomogram):
         
         return transformed
     
-    def _chunked_straighten(
-        self,
-        i: int,
-        length: nm,
-        range_: tuple[float, float],
-        function: Callable[..., ip.ImgArray], 
-        chunk_length: nm = 72.0,
-        **kwargs,
-    ):
-        out = []
-        current_distance: nm = 0.0
-        start, end = range_
-        spl = self.splines[i]
-        while current_distance < length:
-            start = current_distance/length
-            stop = start + chunk_length/length
-            
-            # The last segment could be very short
-            if spl.length(start=stop, stop=end)/self.scale < 3:
-                stop = end
-            
-            # Sometimes divmod of floating values generates very small residuals.
-            if end - start < 1e-3:
-                break
-            
-            sub_range = (start, min(stop, end))
-            img_st = function(i, range_=sub_range, chunk_length=np.inf, **kwargs)
-            
-            out.append(img_st)
-            
-            # We have to sum up real distance instead of start/end, to precisely deal
-            # with the borders of chunks
-            current_distance += img_st.shape.y * self.scale
-        
-        # concatenate all the chunks
-        transformed = np.concatenate(out, axis="y")
-        return transformed
-    
     @batch_process
     def map_centers(
         self, 
@@ -1006,7 +968,24 @@ class CylTomogram(Tomogram):
         interval: nm | None = None,
         length: nm | None = None,
     ) -> Molecules:
-        
+        """
+        Mapping molecules along the center of a cylinder.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that mapping will be calculated.
+        interval : float (nm), optional
+            Interval of molecules.
+        length : float (nm), optional
+            Length of spline to be used for mapping. If not given, the whole spline
+            will be used.
+
+        Returns
+        -------
+        Molecules
+            Molecules object with mapped coordinates and angles.
+        """        
         spl = self.splines[i]
         props = self.splines[i].globalprops
         if props is None:
@@ -1031,12 +1010,12 @@ class CylTomogram(Tomogram):
         u = np.arange(npoints) * interval / length
         return spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
 
-    def get_cylindric_model(
+    def get_cylinder_model(
         self,
         i: int,
         length: nm | None = None,
         offsets: tuple[float, float] = (0., 0.,),
-    ) -> CylindricModel:
+    ) -> CylinderModel:
         spl = self._splines[i]
         
         if length is None:
@@ -1065,7 +1044,7 @@ class CylTomogram(Tomogram):
         if offsets is None:
             offsets = (0., 0.)
         
-        return CylindricModel(
+        return CylinderModel(
             shape=(ny, npf),
             tilts=tilts,
             interval=pitch,
@@ -1099,7 +1078,7 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylindric_model(i, length=length, offsets=offsets)
+        model = self.get_cylinder_model(i, length=length, offsets=offsets)
         mole = model.to_molecules(self._splines[i])
         return mole
     
@@ -1275,6 +1254,46 @@ class CylTomogram(Tomogram):
             functions = [np.mean, np.std, se, n]
 
         return df[valid_colmuns].agg(functions)
+    
+    
+    def _chunked_straighten(
+        self,
+        i: int,
+        length: nm,
+        range_: tuple[float, float],
+        function: Callable[..., ip.ImgArray], 
+        chunk_length: nm = 72.0,
+        **kwargs,
+    ):
+        out = []
+        current_distance: nm = 0.0
+        start, end = range_
+        spl = self.splines[i]
+        while current_distance < length:
+            start = current_distance/length
+            stop = start + chunk_length/length
+            
+            # The last segment could be very short
+            if spl.length(start=stop, stop=end)/self.scale < 3:
+                stop = end
+            
+            # Sometimes divmod of floating values generates very small residuals.
+            if end - start < 1e-3:
+                break
+            
+            sub_range = (start, min(stop, end))
+            img_st = function(i, range_=sub_range, chunk_length=np.inf, **kwargs)
+            
+            out.append(img_st)
+            
+            # We have to sum up real distance instead of start/end, to precisely deal
+            # with the borders of chunks
+            current_distance += img_st.shape.y * self.scale
+        
+        # concatenate all the chunks
+        transformed = np.concatenate(out, axis="y")
+        return transformed
+    
     
 
 def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):

@@ -15,11 +15,12 @@ if TYPE_CHECKING:
 
 class Tomogram:
     """
-    Tomogram object. It always connected to a 3D image but processed lazily. Thus
-    you can create a lot of Tomogram objects without MemoryError. Subtomograms
-    are temporarily loaded into memory via cache map. Once memory usage exceed
-    certain amount, the subtomogram cache will automatically deleted from the old
-    ones.
+    Lazy-loading/multi-scale tomogram object. 
+    
+    It is always connected to a 3D image but processed lazily. Thus you can create
+    a lot of Tomogram objects without MemoryError. Subtomograms are temporarily 
+    loaded into memory via cache map. Once memory usage exceed certain amount, the
+    subtomogram cache will automatically deleted from the old ones.
     """
     _image: ip.LazyImgArray
     _multiscaled: list[tuple[int, ip.ImgArray]]
@@ -30,6 +31,7 @@ class Tomogram:
         self._multiscaled = []
 
     def __hash__(self) -> int:
+        """Use unsafe hash."""
         return id(self)
     
     def __repr__(self) -> str:
@@ -45,7 +47,7 @@ class Tomogram:
         return self._metadata
     
     @metadata.setter
-    def metadata(self, v: dict):
+    def metadata(self, v: dict[str, Any]):
         if not isinstance(v, dict):
             raise TypeError(f"Cannot set type {type(v)} as a metadata.")
         self._metadata = v
@@ -61,12 +63,28 @@ class Tomogram:
     @classmethod
     def imread(
         cls, 
-        path: str,
+        path: str | Path,
         *, 
         scale: float = None,
         binsize: int | Iterable[int] = (),
     ) -> Self:
-        """Read a image as a dask array."""
+        """
+        Read a image as a dask array.
+        
+        Parameters
+        ----------
+        path : path-like
+            Path to the image file.
+        scale : float, optional
+            Pixel size in nm. If not given, will try to read from image header.
+        binsize : int or iterable of int, optional
+            Binsize to generate multiscale images. If not given, will not generate.
+        
+        Returns
+        -------
+        Tomogram
+            Tomogram object with the image that has just been read and multi-scales.
+        """
         self = cls()
         img = ip.lazy_imread(path, chunks=GVar.daskChunk, name="tomogram").as_float()
         if scale is not None:
@@ -94,6 +112,7 @@ class Tomogram:
     
     @property
     def multiscaled(self) -> list[tuple[int, ip.ImgArray]]:
+        """Get all multi-scale factor and the corresponding multiscaled images."""
         return self._multiscaled
     
     def _set_image(self, img: ip.LazyImgArray | np.ndarray) -> None:

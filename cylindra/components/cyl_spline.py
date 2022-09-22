@@ -103,6 +103,7 @@ class CylSpline(Spline):
     
     @orientation.setter
     def orientation(self, value: Ori | str | None):
+        """Set orientation of spline."""
         if value is None:
             self._orientation = Ori.none
         else:

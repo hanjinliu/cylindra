@@ -1,10 +1,10 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from cylindra.components import CylindricModel, Spline
+from cylindra.components import CylinderModel, Spline
 
 def test_cylindric_model_construction():
     # Test the constructor
-    model = CylindricModel(
+    model = CylinderModel(
         shape=(10, 10), 
         tilts=(0.1, 0.1), 
         interval=2.,
@@ -25,7 +25,7 @@ def test_cylindric_model_construction():
     assert model.replace(offsets=(1., 1.)).offsets == (1., 1.)
 
 def test_monomer_creation():
-    model = CylindricModel(
+    model = CylinderModel(
         shape=(10, 8), 
         tilts=(0.1, 0.1), 
         interval=2.,
@@ -40,7 +40,7 @@ def test_monomer_creation():
     assert_allclose(dy, 2., rtol=1e-6, atol=1e-6)
 
 def test_expand():
-    model = CylindricModel(
+    model = CylinderModel(
         shape=(10, 8), 
         tilts=(0.1, 0.1), 
         interval=2.,

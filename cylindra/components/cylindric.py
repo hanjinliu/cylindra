@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 
-class CylindricModel:
+class CylinderModel:
     """
     A model class that describes a heterogenic cylindrical structure.
     
