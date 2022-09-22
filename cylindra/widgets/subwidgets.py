@@ -405,7 +405,6 @@ class SubtomogramAveraging(MagicTemplate):
             self.template_path = save_as
         return None
 
-
 # Runner
 
 @magicclass(widget_type="groupbox", name="Parameters")
@@ -432,7 +431,7 @@ class runner_params2:
     Attributes
     ----------
     interval : nm
-        Interval of sampling points of microtubule fragments.
+        Interval of sampling points of cylinder fragments.
     ft_size: nm
         Longitudinal length of local discrete Fourier transformation used 
         for structural analysis.
@@ -456,7 +455,7 @@ class Runner(MagicTemplate):
     bin_size : int
         Set to >1 to use binned image for fitting.
     dense_mode : bool
-        Check if microtubules are densely packed. Initial spline position
+        Check if cylindric structures are densely packed. Initial spline position
         must be 'almost' fitted in dense mode.
     n_refine : int
         Iteration number of spline refinement.

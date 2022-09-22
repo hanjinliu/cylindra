@@ -206,7 +206,7 @@ class CylTomogram(Tomogram):
     
     def align_to_polarity(self, orientation: Ori | str = Ori.MinusToPlus) -> Self:
         """
-        Align all the splines in the direction parallel to microtubule polarity.
+        Align all the splines in the direction parallel to the given polarity.
 
         Parameters
         ----------
@@ -259,12 +259,12 @@ class CylTomogram(Tomogram):
         binsize : int, default is 1
             Multiscale bin size used for fitting.
         edge_sigma : nm, default is 2.0
-            Sharpness of mask at the edges. If not None, fitting will be executed after regions outside 
-            microtubule are masked. Soft mask is important for precision because sharp changes in intensity
-            cause strong correlation at the edges.
+            Sharpness of mask at the edges. If not None, fitting will be executed after regions 
+            outside the cylinder are masked. Soft mask is important for precision because sharp 
+            changes in intensity cause strong correlation at the edges.
         max_shift: nm, default is 5.0
-            Maximum shift from the true center of microtubule. This parameter is used in phase cross 
-            correlation.
+            Maximum shift from the true center of the cylinder. This parameter is used in phase
+            cross correlation.
 
         Returns
         -------
@@ -300,7 +300,7 @@ class CylTomogram(Tomogram):
 
         with set_gpu():        
             if edge_sigma is not None:
-                # mask XY-region outside the microtubules with sigmoid function.
+                # mask XY-region outside the cylinders with sigmoid function.
                 yy, xx = np.indices(subtomograms.sizesof("yx"))
                 yc, xc = np.array(subtomograms.sizesof("yx"))/2 - 0.5
                 yr = yy - yc
@@ -405,11 +405,11 @@ class CylTomogram(Tomogram):
         binsize : int, default is 1
             Multiscale bin size used for refining.
         corr_allowed : float, defaul is 0.9
-            How many images will be used to make template for alignment. If 0.9, then top 90%
-            will be used.
+            How many images will be used to make template for alignment. If 0.9, then top
+            90% will be used.
         max_shift: nm, default is 2.0
-            Maximum shift from the true center of microtubule. This parameter is used in phase cross 
-            correlation.
+            Maximum shift from the true center of the cylinder. This parameter is used in 
+            phase cross correlation.
         
         Returns
         -------

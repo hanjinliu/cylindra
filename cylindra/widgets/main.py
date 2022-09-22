@@ -44,7 +44,7 @@ from .project import CylindraProject
 from .widget_utils import FileFilter, add_molecules, change_viewer_focus, update_features
 from . import widget_utils
 
-from ..components import CylSpline, CylTomogram, cyl_tomogram as Cyl
+from ..components import CylSpline, CylTomogram
 from .. import utils
 from ..const import Ori, nm, H, GVar, Mole
 from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
@@ -916,7 +916,7 @@ class CylindraMainWidget(MagicTemplate):
     @Splines.wraps
     @set_design(text="Show splines")
     def show_splines(self):
-        """Show 3D spline paths of microtubule center axes as a layer."""        
+        """Show 3D spline paths of cylinder central axes as a layer."""        
         paths = [r.partition(100) for r in self.tomogram.splines]
         
         self.parent_viewer.add_shapes(
@@ -954,7 +954,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Align to polarity")
     def align_to_polarity(self, orientation: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus"):
         """
-        Align all the splines in the direction parallel to microtubule polarity.
+        Align all the splines in the direction parallel to the cylinder polarity.
 
         Parameters
         ----------
@@ -1028,8 +1028,8 @@ class CylindraMainWidget(MagicTemplate):
         degree_precision : float, default is 0.5
             Precision of xy-tilt degree in angular correlation.
         edge_sigma : bool, default is False
-            Check if microtubules are densely packed. Initial spline position must be "almost" 
-            fitted in dense mode.
+            Check if cylindric structures are densely packed. Initial spline position must 
+            be "almost" fitted in dense mode.
         max_shift : nm, default is 5.0
             Maximum shift to be applied to each point of splines.
         """        
@@ -1488,7 +1488,7 @@ class CylindraMainWidget(MagicTemplate):
         Calculate intervals between adjucent molecules.
         
         If filter is applied, connections and boundary padding mode are safely defined using 
-        global properties. For instance, with 13_3 microtubule, the 13th monomer in the first 
+        global properties. For instance, with 13_3 microtubule, the 13-th monomer in the first 
         round is connected to the 1st monomer in the 4th round.
 
         Parameters
@@ -2685,18 +2685,18 @@ class CylindraMainWidget(MagicTemplate):
         color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
     ):
         """
-        Set the color-map for painting microtubules.
+        Set the color-map for painting cylinders.
         
         Parameters
         ----------
         start : tuple, default is "blue"
-            RGB color that corresponds to the most compacted microtubule.
+            RGB color of the lower bound of the colormap.
         end : tuple, default is "red"
-            RGB color that corresponds to the most expanded microtubule.
+            RGB color of the higher bound of the colormap.
         limit : tuple, default is (4.00, 4.24)
             Color limit (nm).
         color_by : str, default is "yPitch"
-            Select what property will be colored.
+            Select what property image will be colored by.
         """        
         self.label_colormap = Colormap([start, end], name="LocalProperties")
         self.label_colorlimit = limit
@@ -2704,7 +2704,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @set_design(text="Show color-bar")
+    @set_design(text="Show colorbar")
     def show_colorbar(self):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)

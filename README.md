@@ -12,14 +12,14 @@ git clone git+https://github.com/hanjinliu/cylindra
 
 ## Implemented Functions
 
-- Automatic/maual fitting of splines to microtubules in 3D.
+- Automatic/maual fitting of splines to cylindrical structures in 3D.
 - Calculating structural parameters (radius, lattice spacing, skew angle, protofilament number and starting number like 13_3).
 - Coordinate transformation along splines. Straightening and opening are included.
-- Automatic/manual determination of microtubule polarity.
+- Automatic/manual determination of polarity.
 - Monomer mapping along splines.
 - Subtomogram averaging and template-based alignment.
-- Microtubule seam search without any binding proteins.
 - Viterbi alignment.
+- Microtubule seam search without any binding proteins.
 
 ## Usage
 

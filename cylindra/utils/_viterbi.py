@@ -63,7 +63,9 @@ def viterbi(
     if skew_max is None:
         out = _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
     else:
-        out = _cpp_ext.viterbiAngularConstraint(score, origin, zvec, yvec, xvec, dist_min, dist_max, skew_max)
+        out = _cpp_ext.viterbiAngularConstraint(
+            score, origin, zvec, yvec, xvec, dist_min, dist_max, skew_max
+        )
     return out
 
 

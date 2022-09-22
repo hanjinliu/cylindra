@@ -27,7 +27,7 @@ class strEnum(Enum):
 
 
 class Ori(strEnum):
-    """Microtubule orientation values."""
+    """Orientations"""
     
     none = "none"
     PlusToMinus = "PlusToMinus"
