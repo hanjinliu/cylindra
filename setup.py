@@ -9,7 +9,7 @@ class build_ext(build_ext):
     def finalize_options(self):
         from pybind11.setup_helpers import Pybind11Extension
         self.distribution.ext_modules[:] = [Pybind11Extension(
-            "cylindra._cpp_ext", ["cpp/_viterbi.cpp"], cxx_std=11)]
+            "cylindra._cpp_ext", ["cpp/main.cpp"], cxx_std=11)]
         super().finalize_options()
 
     def build_extensions(self):

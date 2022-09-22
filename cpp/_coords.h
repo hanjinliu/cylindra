@@ -1,8 +1,12 @@
+#ifndef COORDS_H
+#define COORDS_H
+
+#pragma once
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
 namespace py = pybind11;
-using ssize_t = Py_ssize_t;
 
 // NOTE: The definition of Vector3D and CoordinateSystem cannot be moved into another
 // cpp file because they are templated.
@@ -30,10 +34,6 @@ class Vector3D {
 		void update(T z0, T y0, T x0){z=z0; y=y0; x=x0;};
 		py::array_t<T> asarray();
 };
-
-
-namespace py = pybind11;
-using ssize_t = Py_ssize_t;
 
 
 // vector + vector
@@ -147,3 +147,5 @@ template <typename T>
 Vector3D<T> CoordinateSystem<T>::at(Vector3D<T> vec){
 	return origin + ez * vec.z + ey * vec.y + ex * vec.x;
 }
+
+#endif

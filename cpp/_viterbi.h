@@ -1,6 +1,11 @@
+#ifndef _VITERBI_H
+#define _VITERBI_H
+
+#pragma once
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
-#include "coords.h"
+#include "_coords.h"
 
 namespace py = pybind11;
 using ssize_t = Py_ssize_t;
@@ -342,9 +347,4 @@ std::tuple<py::array_t<ssize_t>, double> viterbiAngularConstraint(
 	return {state_sequence_, max_score};
 }
 
-// define pybind11 module
-PYBIND11_MODULE(_cpp_ext, m) {
-	m.doc() = "C++ extensions";
-  	m.def("viterbi", &viterbi, "Viterbi algorithm for alignment.");
-  	m.def("viterbiAngularConstraint", &viterbiAngularConstraint, "Viterbi algorithm for alignment.");
-}
+# endif
