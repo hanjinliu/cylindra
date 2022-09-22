@@ -159,21 +159,27 @@ class CylindricModel:
         return replace(displace=displace)
     
     def add_radial_shift(self, shift: np.ndarray) -> Self:
+        """Add shift to the radial (r-axis) direction."""
         return self._add_directional_shift(shift, 0)
 
     def add_axial_shift(self, shift: np.ndarray) -> Self:
+        """Add shift to the axial (y-axis) direction."""
         return self._add_directional_shift(shift, 1)
     
     def add_skew_shift(self, shift: np.ndarray) -> Self:
+        """Add shift to the skew (a-axis) direction."""
         return self._add_directional_shift(shift, 2)
     
     def dilate(self, radius_shift: float, start: int, stop: int) -> Self:
+        """Locally add uniform shift to the radial (r-axis) direction."""
         return self._add_local_uniform_directional_shift(radius_shift, start, stop, 0)
     
     def expand(self, yshift: float, start: int, stop: int) -> Self:
+        """Locally add uniform shift to the axial (y-axis) direction."""
         return self._add_local_uniform_directional_shift(yshift, start, stop, 1)
         
     def screw(self, angle_shift: float, start: int, stop: int) -> Self:
+        """Locally add uniform shift to the skew (a-axis) direction."""
         return self._add_local_uniform_directional_shift(angle_shift, start, stop, 2)
     
     def _add_directional_shift(self, displace: np.ndarray, axis: int) -> Self:

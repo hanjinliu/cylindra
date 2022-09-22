@@ -1,18 +1,20 @@
-from typing import NewType, List
+from typing import NewType, List, TYPE_CHECKING
 import numpy as np
 import impy as ip
 import magicgui
-from magicgui.widgets._bases import CategoricalWidget
 from napari.utils._magicgui import find_viewer_ancestor
 from napari.layers import Points
 from .const import MOLECULES
+
+if TYPE_CHECKING:
+    from magicgui.widgets._bases import CategoricalWidget
 
 # Define a new type to list up monomer-bound layers.
 # This new type is recognized by magicgui for type-to-widget mapping.
 MonomerLayer = NewType("MonomerLayer", Points)
 
 # This function will be called by magicgui to find all the available monomer layers.
-def get_monomer_layers(gui: CategoricalWidget) -> List[Points]:
+def get_monomer_layers(gui: "CategoricalWidget") -> List[Points]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
