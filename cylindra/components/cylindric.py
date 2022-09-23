@@ -3,6 +3,7 @@ from typing import Any, TYPE_CHECKING
 
 from acryo import Molecules
 import numpy as np
+from numpy.typing import ArrayLike
 
 from .spline import Spline
 from ..const import Mole
@@ -111,6 +112,10 @@ class CylinderModel:
     def displace(self) -> np.ndarray:
         return self._displace
     
+    @property
+    def nrise(self) -> int:
+        return int(np.round(self.tilts[1] * self.shape[1]))
+    
     def __repr__(self) -> str:
         _cls = type(self).__name__
         strs: list[str] = []
@@ -137,12 +142,7 @@ class CylinderModel:
     
     def to_molecules(self, spl: Spline) -> Molecules:
         """Generate molecules from the coordinates and given spline."""
-        mesh = oblique_meshgrid(
-            self._shape, self._tilts, self._intervals, self._offsets
-        )  # (Ny, Npf, 2)
-        radius_arr = np.full(mesh.shape[:2] + (1,), self._radius, dtype=np.float32)
-        mesh3d = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
-        shifted = mesh3d + self._displace
+        shifted = self._get_shifted()
         mole = spl.cylindrical_to_molecules(shifted.reshape(-1, 3))
         mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % self._shape[1]}
         return mole
@@ -181,6 +181,21 @@ class CylinderModel:
         """Locally add uniform shift to the skew (a-axis) direction."""
         return self._add_local_uniform_directional_shift(angle_shift, start, stop, 2)
     
+    def alleviate(self, label: ArrayLike, niter: int = 1) -> Self:
+        from .._cpp_ext import alleviate
+        label = np.asarray(label, dtype=np.int32)
+        if label.shape[1] != 2:
+            raise ValueError("Label shape mismatch")
+        mesh = oblique_meshgrid(
+            self._shape, self._tilts, self._intervals, self._offsets
+        )  # (Ny, Npf, 2)
+        radius_arr = np.full(mesh.shape[:2] + (1,), self._radius, dtype=np.float32)
+        mesh3d = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
+        shifted = mesh3d + self._displace
+        shifted = alleviate(shifted, label, self.nrise, niter)
+        displace = shifted - mesh3d
+        return self.replace(displace=displace)
+    
     def _add_directional_shift(self, displace: np.ndarray, axis: int) -> Self:
         displace = self._displace.copy()
         displace[:, :, axis] += displace
@@ -193,6 +208,14 @@ class CylinderModel:
         for idx in range(start, stop):
             displace[idx:, :, axis] += shift
         return self.replace(displace=displace)
+    
+    def _get_shifted(self):
+        mesh = oblique_meshgrid(
+            self._shape, self._tilts, self._intervals, self._offsets
+        )  # (Ny, Npf, 2)
+        radius_arr = np.full(mesh.shape[:2] + (1,), self._radius, dtype=np.float32)
+        mesh3d = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
+        return mesh3d + self._displace
 
 def oblique_meshgrid(
     shape: tuple[int, int], 

@@ -8,100 +8,102 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
-using uint = unsigned int;
+using ssize_t = Py_ssize_t;
+namespace py = pybind11;
 
 // tuple of unsigned ints
 struct Index {
-    uint r, y, a;
-    Index(uint r, uint y, uint a) : r(r), y(y), a(a) {}
+    ssize_t y, a;
+    Index(ssize_t y, ssize_t a) : y(y), a(a) {}
 };
 
 // tuple of signed ints
 struct SignedIndex {
-    int r, y, a;
-    SignedIndex(int r, int y, int a) : r(r), y(y), a(a) {}
-    SignedIndex(uint r, uint y, uint a) : 
-        r(static_cast<int>(r)),
-        y(static_cast<int>(y)), 
-        a(static_cast<int>(a)) {}
+    ssize_t y, a;
+    SignedIndex(ssize_t y, ssize_t a) : y(y), a(a) {}
 };
 
 class CylinderGeometry {
     public:
-        uint nR, nY, nA, nRise;
-        CylinderGeometry(uint nR, uint nY, uint nA, uint nRise){
-            nR = nR;
-            nY = nY;
-            nA = nA;
-            nRise = nRise;
+        ssize_t nY, nA, nRise;
+        CylinderGeometry(ssize_t _nY, ssize_t _nA, ssize_t _nRise){
+            nY = _nY;
+            nA = _nA;
+            nRise = _nRise;
         };
-        CylinderGeometry(uint nR, uint nY, uint nA) : CylinderGeometry(nR, nY, nA, 0){};
-        std::vector<Index> getNeighbor(uint, uint, uint);
+        CylinderGeometry(ssize_t nY, ssize_t nA) : CylinderGeometry(nY, nA, 0){};
+        std::vector<Index> getNeighbor(ssize_t, ssize_t);
         std::vector<Index> getNeighbors(std::vector<Index>);
-        Index getIndex(uint, uint, uint);
+        Index getIndex(ssize_t, ssize_t);
 
     private:
-        long compress(Index);
-        Index decompress(long);
-        SignedIndex getSignedIndex(int, int, int);
+        ssize_t compress(Index);
+        Index decompress(ssize_t);
+        SignedIndex getSignedIndex(ssize_t, ssize_t);
 };
 
-inline SignedIndex CylinderGeometry::getSignedIndex(int r, int y, int a){
+inline SignedIndex CylinderGeometry::getSignedIndex(ssize_t y, ssize_t a){
     while (a >= nA){
         a -= nA;
         y += nRise;
     }
-    while (a >= 0){
+    while (a < 0){
         a += nA;
         y -= nRise;
     }
-    return SignedIndex(r, y, a);
+    return SignedIndex(y, a);
 }
 
-inline Index CylinderGeometry::getIndex(uint r, uint y, uint a){
-    auto idx = getSignedIndex(r, y, a);
-    if (!(0 <= idx.r < nR && 0 <= idx.y < nY)){
+inline Index CylinderGeometry::getIndex(ssize_t y, ssize_t a){
+    auto idx = getSignedIndex(y, a);
+    if (idx.y < 0 || nY <= idx.y){
         char msg[64];
-        sprintf(msg, "Index (%d, %d, %d) out of bounds.", idx.r, idx.y, idx.a);
+        sprintf(msg, "Index (%lld, %lld) out of bounds.", idx.y, idx.a);
         throw py::index_error(msg);
     }
-    return Index(idx.r, idx.y, idx.a);
+    return Index(idx.y, idx.a);
 }
 
-inline std::vector<Index> CylinderGeometry::getNeighbor(uint r, uint y, uint a){
+// Get neighbors of a given index.
+// This function considers the connectivity of the cylinder and returns the
+// corrected indices.
+inline std::vector<Index> CylinderGeometry::getNeighbor(ssize_t y, ssize_t a){
     std::vector<Index> neighbors;
-    auto idx = getSignedIndex(r, y, a);
-    
-    if (r > 0){
-        neighbors.push_back(Index(r-1, y, a));
-    }
-    if (r < nR-1){
-        neighbors.push_back(Index(r+1, y, a));
-    }
+    auto idx = getSignedIndex(y, a);
+
     if (y > 0){
-        neighbors.push_back(Index(r, y-1, a));
+        neighbors.push_back(Index(y - 1, a));
     }
-    if (y < nY-1){
-        neighbors.push_back(Index(r, y+1, a));
+    if (y < nY - 1){
+        neighbors.push_back(Index(y + 1, a));
     }
+
+    // left neighbor
     if (a > 0){
-        neighbors.push_back(Index(r, y, a-1));
+        neighbors.push_back(Index(y, a - 1));
     }
-    if (a < nA-1){
-        neighbors.push_back(Index(r, y, a+1));
+    else {
+        neighbors.push_back(Index(y - nRise, nA - 1));
+    }
+    
+    // right neighbor
+    if (a < nA - 1){
+        neighbors.push_back(Index(y, a + 1));
+    }
+    else {
+        neighbors.push_back(Index(y + nRise, 0));
     }
     return neighbors;
 }
 
 // Get all the unique neighbors of a list of indices.
 inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<Index> indices){
-    std::set<long> uniqueNeighbors;
-    
+    std::set<ssize_t> uniqueNeighbors;
     // add all the neighbor candidates
     for (auto index : indices){
-        auto new_neighbors = getNeighbor(index.r, index.y, index.a);
+        auto new_neighbors = getNeighbor(index.y, index.a);
         for (auto neighbor : new_neighbors){
-            long compressed = compress(neighbor);
+            ssize_t compressed = compress(neighbor);
             uniqueNeighbors.insert(compressed);
         }
     }
@@ -113,24 +115,23 @@ inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<Index> indi
 
     // convert to a vector
     std::vector<Index> neighbors;
-    for (long neighbor : uniqueNeighbors){
+    for (ssize_t neighbor : uniqueNeighbors){
         neighbors.push_back(decompress(neighbor));
     }
     return neighbors;
 }
 
-// Compresses the index tuple into a single long.
+// Compresses the index tuple into a single ssize_t.
 // This method returns the absolute index of the index tuple.
-inline long CylinderGeometry::compress(Index idx){
-    return idx.r + idx.y * nR + idx.a * nR * nY;
+inline ssize_t CylinderGeometry::compress(Index idx){
+    return idx.y + idx.a * nY;
 }
 
-// Decompresses the index tuple from a single long
-inline Index CylinderGeometry::decompress(long idx){
-    uint a = idx / (nR * nY);
-    uint y = (idx - a * nR * nY) / nR;
-    uint r = idx - a * nR * nY - y * nR;
-    return Index(r, y, a);
+// Decompresses the index tuple from a single ssize_t
+inline Index CylinderGeometry::decompress(ssize_t val){
+    ssize_t y = val % nY;
+    ssize_t a = val / nY;
+    return Index(y, a);
 }
 
 #endif

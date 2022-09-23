@@ -23,3 +23,11 @@ def viterbiAngularConstraint(
     skew_max: float,
 ) -> tuple[np.ndarray, float]:
     ...
+
+def alleviate(
+    arr: np.ndarray,
+    label: np.ndarray,
+    nrise: int,
+    iterations: int,
+) -> None:
+    ...
