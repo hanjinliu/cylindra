@@ -11,18 +11,22 @@
 using ssize_t = Py_ssize_t;
 namespace py = pybind11;
 
-// tuple of unsigned ints
+// tuple of unsigned integers
 struct Index {
     ssize_t y, a;
     Index(ssize_t y, ssize_t a) : y(y), a(a) {}
 };
 
-// tuple of signed ints
+// Tuple of signed integers.
+// This struct is used for not-resolved-yet indices.
 struct SignedIndex {
     ssize_t y, a;
     SignedIndex(ssize_t y, ssize_t a) : y(y), a(a) {}
 };
 
+// Class that defines a geometry of a cylinder.
+// A "geometry" defines the connectivity of an assembly of molecules.
+// Currently only connectivity=1 is supported.
 class CylinderGeometry {
     public:
         ssize_t nY, nA, nRise;
