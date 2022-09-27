@@ -161,5 +161,4 @@ def test_io():
     # cleanup
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
-    
     ui.parent_viewer.close()

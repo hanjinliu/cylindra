@@ -4,7 +4,7 @@ from magicclass import (
     magicclass, magicmenu, magictoolbar, do_not_record, field, vfield, MagicTemplate, 
     set_options, set_design
 )
-from magicclass.widgets import Separator
+from magicclass.widgets import Separator, HistoryFileEdit
 from magicclass.types import OneOf, SomeOf, Optional
 from pathlib import Path
 from superqt import ensure_main_thread
@@ -206,7 +206,7 @@ class SubtomogramAveraging(MagicTemplate):
         self._next_layer_name = None
         self.mask = MASK_CHOICES[0]
     
-    template_path = vfield(Path, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
+    template_path = vfield(HistoryFileEdit, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
     mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
     params = field(params)
     mask_path = field(mask_path)
