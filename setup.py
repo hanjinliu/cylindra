@@ -50,7 +50,7 @@ setup(
     py_modules=[],
     install_requires=[
         "impy-array>=2.1.2",
-        "acryo>=0.0.2",
+        "acryo>=0.0.4",
         "magicgui>=0.5.1",
         "magic-class>=0.6.10",
         "pyqtgraph>=0.12.4",
