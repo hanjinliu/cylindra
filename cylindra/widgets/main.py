@@ -1753,6 +1753,8 @@ class CylindraMainWidget(MagicTemplate):
             # if multiscaled image is used, there could be shape mismatch
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
+        
+        img -= np.median(img)  # normalize
             
         from scipy.spatial.transform import Rotation
         model_cls = _get_alignment(method)
