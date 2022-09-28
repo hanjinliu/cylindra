@@ -2748,7 +2748,10 @@ class CylindraMainWidget(MagicTemplate):
                 raise ValueError("No molecules found in the layer list.")
         return self.parent_viewer.layers[name].metadata[MOLECULES]
 
+    @nogui
+    @do_not_record
     def add_molecules(self, molecules: Molecules, name: str = None):
+        """Add molecules as a points layer to the viewer."""
         return add_molecules(self.parent_viewer, molecules, name)
 
     @nogui
