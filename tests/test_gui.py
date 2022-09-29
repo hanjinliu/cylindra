@@ -32,6 +32,27 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
     elif ori == "PlusToMinus":
         assert (arr[0], arr[-1]) == ("+", "-")
 
+def test_spline_deletion():
+    ui = start()
+    path = TEST_PATH / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.register_path(coords=coords_13pf)
+    ui.register_path(coords=coords_13pf[::-1])
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.
+    assert ui.layer_prof.features["spline-id"].values[-1] == 1.
+    ui.clear_current()
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.
+    assert ui.layer_prof.features["spline-id"].values[-1] == 0.
+    ui.register_path(coords=coords_13pf[::-1])
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.
+    assert ui.layer_prof.features["spline-id"].values[-1] == 1.
+    ui.delete_spline(0)
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.
+    assert ui.layer_prof.features["spline-id"].values[-1] == 0.
+    
+    ui.parent_viewer.layers.events.removing.disconnect()
+    ui.parent_viewer.layers.events.removed.disconnect()
+
 def test_spline_switch():
     ui = start()
     path = TEST_PATH / "13pf_MT.tif"
@@ -134,8 +155,7 @@ def test_spline_switch():
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
     ui.sub_viewer.close()
-    ui.parent_viewer.close()
-
+ 
 
 def test_io():
     ui = start()

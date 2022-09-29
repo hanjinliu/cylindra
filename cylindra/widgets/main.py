@@ -192,7 +192,7 @@ class CylindraMainWidget(MagicTemplate):
         spl = tomo.splines[-1]
         
         # draw path
-        self._add_spline_to_images(spl, tomo.n_splines)
+        self._add_spline_to_images(spl, tomo.n_splines - 1)
         self.layer_work.data = []
         self.layer_prof.selected_data = set()
         self.reset_choices()
@@ -284,12 +284,7 @@ class CylindraMainWidget(MagicTemplate):
         if self.layer_work.data.size > 0:
             self.layer_work.data = []
         else:
-            spline_id = self.layer_prof.features[SPLINE_ID]
-            idmax = np.max(spline_id)
-            spec = spline_id != idmax
-            features = self.layer_prof.features.iloc[[spec], :]
-            self.layer_prof.data = self.layer_prof.data[spec]
-            self.layer_prof.features = features
+            self.delete_spline(-1)
         
         return None
     
@@ -994,14 +989,30 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Delete spline")
     def delete_spline(self, i: Bound[SplineControl.num]):
         """Delete currently selected spline."""
+        if i < 0:
+            i = len(self.tomogram.splines) - 1
         self.tomogram.splines.pop(i)
         self.reset_choices()
         
+        # update layer
+        features = self.layer_prof.features
+        spline_id = features[SPLINE_ID]
+        spec = spline_id != i
+        self.layer_prof.data = self.layer_prof.data[spec]
+        new_features = features[spec].copy()
+        spline_id = np.asarray(new_features[SPLINE_ID])
+        spline_id[spline_id >= i] -= 1
+        new_features[SPLINE_ID] = spline_id
+        self._update_splines_in_images()
+        print(0)
+        self.layer_prof.features = new_features
+        print(1)
+        self.layer_prof.feature_defaults[SPLINE_ID] = len(self.tomogram.splines)
+        print(2)
         need_resample = self.SplineControl.canvas[0].image is not None
         if need_resample:
             self.sample_subtomograms()
         self._need_save = True
-        
         return None
         
     @Splines.wraps
