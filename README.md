@@ -10,6 +10,20 @@
 git clone git+https://github.com/hanjinliu/cylindra
 ```
 
+To install using pip, run following commands under your desired environment.
+
+```
+cd cylindra
+pip install -e .
+```
+
+To build in place, run following commands.
+
+```
+cd cylindra
+python setup.py build_ext --inplace
+```
+
 ## Implemented Functions
 
 - Automatic/maual fitting of splines to cylindrical structures in 3D.
