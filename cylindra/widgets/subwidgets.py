@@ -177,8 +177,8 @@ class params(MagicTemplate):
     sigma : nm
         Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
     """
-    dilate_radius = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
-    sigma = vfield(1.0, options={"step": 0.5, "max": 20}, record=False)
+    dilate_radius = vfield(0.3, options={"step": 0.1, "max": 20}, record=False)
+    sigma = vfield(0.3, options={"step": 0.1, "max": 20}, record=False)
     
 @magicclass(layout="horizontal", widget_type="frame", visible=False)
 class mask_path(MagicTemplate):

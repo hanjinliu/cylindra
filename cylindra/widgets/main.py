@@ -2014,14 +2014,19 @@ class CylindraMainWidget(MagicTemplate):
         )
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
-        max_shifts_px = tuple(s/self.tomogram.scale for s in max_shifts)
+        max_shifts_px = tuple(s / self.tomogram.scale for s in max_shifts)
+        search_size = (px * upsample_factor * 2 + 1 for px in max_shifts_px)
+        self.log.print_html(f"Search size (px): {search_size}")
         model = ZNCCAlignment(
             template.value,
             mask,
+            rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             tilt_range=tilt_range
         )
-        template_ft = ip.asarray(model.pre_transform(template * model.mask), axes="zyx")
+        
+        templates_ft = model._get_template_input()  # 3D (no rotation) or 4D (has rotation)
+        # template_ft = ip.asarray(model.pre_transform(template * model.mask), axes="zyx")
         
         def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
             img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
@@ -2031,29 +2036,44 @@ class CylindraMainWidget(MagicTemplate):
             )
             return np.asarray(lds)
         
-        tasks = loader.construct_mapping_tasks(
-            func,
-            template_ft,
-            max_shifts=max_shifts_px,
-            var_kwarg={"quat": molecules.quaternion()},
-        )
-        
-        # TODO: rotation here
-        # all_tasks = ...
-        # all_tasks = da.stack([task for task in all_tasks], axis=0)
-        # best_landscape = da.max(all_tasks, axis=0)
-        # argmax = da.argmax(all_tasks, axis=0)
-        
-        out = da.compute(tasks)[0]
-        score = np.stack(out, axis=0)
-        
+        has_rotation = templates_ft.ndim > 3
+        if not has_rotation:
+            tasks = loader.construct_mapping_tasks(
+                func,
+                ip.asarray(templates_ft, axes="zyx"),
+                max_shifts=max_shifts_px,
+                var_kwarg={"quat": molecules.quaternion()},
+            )
+            score = np.stack(da.compute(tasks)[0], axis=0)
+        else:
+            all_tasks = [
+                da.from_delayed(
+                    da.stack(
+                        loader.construct_mapping_tasks(
+                            func,
+                            ip.asarray(template_ft, axes="zyx"),
+                            max_shifts=max_shifts_px,
+                            var_kwarg={"quat": molecules.quaternion()},
+                        ),
+                        axis=0,
+                    ),
+                    shape=search_size,
+                    dtype=np.float32,
+                )
+                for template_ft in templates_ft
+            ]
+            all_tasks = da.stack(all_tasks, axis=0)
+            tasks = da.max(all_tasks, axis=0)
+            argmax = da.argmax(all_tasks, axis=0)
+            score, argmax = da.compute(tasks, argmax)[0]
+
         scale = self.tomogram.scale
         npf = np.max(molecules.features[Mole.pf]) + 1
         
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-        offset = np.array(shape_nm)/2 - scale
+        offset = np.array(shape_nm) / 2 - scale
         molecules_origin = molecules.translate_internal(-offset)
-        mole_list = [molecules_origin.subset(sl) for sl in slices]
+        mole_list = [molecules_origin.subset(sl) for sl in slices]  # split each protofilament
         
         dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
         scores = [score[sl] for sl in slices]
@@ -2072,6 +2092,17 @@ class CylindraMainWidget(MagicTemplate):
         all_shifts = all_shifts_px * scale
         
         molecules_opt = molecules.translate_internal(all_shifts)
+        if has_rotation:
+            quats = np.empty((len(out), 4), dtype=np.float32)
+            for i, (shift, _) in enumerate(out):
+                quats[i] = model.quaternions[argmax[i, shift[0], shift[1], shift[2]]]
+            molecules_opt = molecules_opt.rotate_by_quaternion(quats)
+            from scipy.spatial.transform import Rotation
+            rotvec = Rotation.from_quat(quats).as_rotvec()
+            molecules_opt.features["rotvec-z"] = rotvec[:, 0]
+            molecules_opt.features["rotvec-y"] = rotvec[:, 1]
+            molecules_opt.features["rotvec-x"] = rotvec[:, 2]
+            
         molecules_opt.features["shift-z"] = all_shifts[:, 0]
         molecules_opt.features["shift-y"] = all_shifts[:, 1]
         molecules_opt.features["shift-x"] = all_shifts[:, 2]
