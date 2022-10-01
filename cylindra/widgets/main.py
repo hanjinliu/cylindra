@@ -1004,11 +1004,8 @@ class CylindraMainWidget(MagicTemplate):
         spline_id[spline_id >= i] -= 1
         new_features[SPLINE_ID] = spline_id
         self._update_splines_in_images()
-        print(0)
         self.layer_prof.features = new_features
-        print(1)
         self.layer_prof.feature_defaults[SPLINE_ID] = len(self.tomogram.splines)
-        print(2)
         need_resample = self.SplineControl.canvas[0].image is not None
         if need_resample:
             self.sample_subtomograms()
@@ -2537,8 +2534,7 @@ class CylindraMainWidget(MagicTemplate):
 
         next_data = point2 * binned_scale
         self.layer_work.add(next_data)
-        msg = self._check_path()
-        if msg:
+        if msg := self._check_path():
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
         change_viewer_focus(self.parent_viewer, point2, binned_scale)

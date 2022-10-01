@@ -1016,6 +1016,23 @@ class CylTomogram(Tomogram):
         length: nm | None = None,
         offsets: tuple[float, float] = (0., 0.,),
     ) -> CylinderModel:
+        """
+        Return the cylinder model at the given spline ID.
+
+        Parameters
+        ----------
+        i : int
+            Spline ID from which model will be created.
+        length : nm, optional
+            Length of the spline to be used for model construction.
+        offsets : tuple of float, optional
+            Offset of the model. See :meth:`map_monomers` for details.
+
+        Returns
+        -------
+        CylinderModel
+            The cylinder model.
+        """
         spl = self._splines[i]
         
         if length is None:
@@ -1293,8 +1310,7 @@ class CylTomogram(Tomogram):
         # concatenate all the chunks
         transformed = np.concatenate(out, axis="y")
         return transformed
-    
-    
+
 
 def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
     _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
