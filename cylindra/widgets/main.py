@@ -2015,7 +2015,7 @@ class CylindraMainWidget(MagicTemplate):
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / self.tomogram.scale for s in max_shifts)
-        search_size = (px * upsample_factor * 2 + 1 for px in max_shifts_px)
+        search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
         self.log.print_html(f"Search size (px): {search_size}")
         model = ZNCCAlignment(
             template.value,
@@ -2026,7 +2026,6 @@ class CylindraMainWidget(MagicTemplate):
         )
         
         templates_ft = model._get_template_input()  # 3D (no rotation) or 4D (has rotation)
-        # template_ft = ip.asarray(model.pre_transform(template * model.mask), axes="zyx")
         
         def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
             img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
@@ -2047,25 +2046,25 @@ class CylindraMainWidget(MagicTemplate):
             score = np.stack(da.compute(tasks)[0], axis=0)
         else:
             all_tasks = [
-                da.from_delayed(
-                    da.stack(
-                        loader.construct_mapping_tasks(
+                da.stack(
+                    [
+                        da.from_delayed(a, shape=search_size, dtype=np.float32)
+                        for a in loader.construct_mapping_tasks(
                             func,
                             ip.asarray(template_ft, axes="zyx"),
                             max_shifts=max_shifts_px,
                             var_kwarg={"quat": molecules.quaternion()},
-                        ),
-                        axis=0,
-                    ),
-                    shape=search_size,
-                    dtype=np.float32,
+                        )
+                    ],
+                    axis=0,
                 )
                 for template_ft in templates_ft
             ]
             all_tasks = da.stack(all_tasks, axis=0)
             tasks = da.max(all_tasks, axis=0)
             argmax = da.argmax(all_tasks, axis=0)
-            score, argmax = da.compute(tasks, argmax)[0]
+            out = da.compute([tasks, argmax], argmax)[0]
+            score, argmax = out
 
         scale = self.tomogram.scale
         npf = np.max(molecules.features[Mole.pf]) + 1
@@ -2083,19 +2082,25 @@ class CylindraMainWidget(MagicTemplate):
             delayed_viterbi(s, m.pos / scale * upsample_factor, m.z, m.y, m.x, dist_min, dist_max, max_angle)
             for s, m in zip(scores, mole_list)
         ]
-        out = da.compute(viterbi_tasks)[0]
+        vit_out: list[tuple[np.ndarray, float]] = da.compute(viterbi_tasks)[0]
         
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
         all_shifts_px = np.empty((len(molecules), 3), dtype=np.float32)
-        for i, (shift, _) in enumerate(out):
+        for i, (shift, _) in enumerate(vit_out):
             all_shifts_px[slices[i], :] = (shift - offset) / upsample_factor
         all_shifts = all_shifts_px * scale
         
         molecules_opt = molecules.translate_internal(all_shifts)
         if has_rotation:
-            quats = np.empty((len(out), 4), dtype=np.float32)
-            for i, (shift, _) in enumerate(out):
-                quats[i] = model.quaternions[argmax[i, shift[0], shift[1], shift[2]]]
+            quats = np.zeros((len(molecules), 4), dtype=np.float32)
+            for i, (shift, _) in enumerate(vit_out):
+                _sl = slices[i]
+                sub_quats = quats[_sl, :]
+                for j, each_shift in enumerate(shift):
+                    idx = argmax[_sl, :][j, each_shift[0], each_shift[1], each_shift[2]]
+                    sub_quats[j] = model.quaternions[idx]
+                quats[_sl, :] = sub_quats
+
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
             from scipy.spatial.transform import Rotation
             rotvec = Rotation.from_quat(quats).as_rotvec()
