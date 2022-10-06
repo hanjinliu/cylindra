@@ -856,58 +856,6 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl._reset_contrast_limits()
         return None
     
-    @Image.Cylindric.wraps
-    @set_design(text="R-projection")
-    def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
-        """Show radial projection of cylindrical image around the current spline fragment."""
-        polar = self._current_cylindrical_img().proj("r")
-        
-        canvas = QtImageCanvas()
-        canvas.image = polar.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        canvas.show()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="R-projection (Global)")
-    def show_global_r_proj(self):
-        """Show radial projection of cylindrical image along current spline."""        
-        i = self.SplineControl.num
-        polar = self.tomogram.straighten_cylindric(i).proj("r")
-        canvas = QtImageCanvas()
-        canvas.image = polar.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
-        canvas.show()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="2D-FT")
-    def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
-        """View Fourier space of local cylindrical coordinate system at current position."""        
-        polar = self._current_cylindrical_img(i, j)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw /= pw.max()
-        
-        canvas = QtImageCanvas()
-        canvas.image = pw.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        canvas.show()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="2D-FT (Global)")
-    def show_global_ft(self, i: Bound[SplineControl.num]):
-        """View Fourier space along current spline."""  
-        polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw /= pw.max()
-    
-        canvas = QtImageCanvas()
-        canvas.image = pw.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
-        canvas.show()
-        return None
-    
     @Splines.wraps
     @set_design(text="Show splines")
     def show_splines(self):
@@ -2988,56 +2936,6 @@ class CylindraMainWidget(MagicTemplate):
                 # outside image
                 return "Outside boundary."        
         return ""
-    
-    def _current_cartesian_img(self, i=None, j=None):
-        """Return local Cartesian image at the current position."""
-        i = i or self.SplineControl.num
-        j = j or self.SplineControl.pos
-        tomo = self.tomogram
-        spl = tomo._splines[i]
-        
-        length_px = tomo.nm2pixel(GVar.fitLength)
-        width_px = tomo.nm2pixel(GVar.fitWidth)
-        
-        coords = spl.local_cartesian(
-            shape=(width_px, width_px), 
-            n_pixels=length_px,
-            u=spl.anchors[j],
-            scale=tomo.scale
-        )
-        img = tomo.image
-        out = utils.map_coordinates(img, coords, order=1)
-        out = ip.asarray(out, axes="zyx")
-        out.set_scale(img)
-        out.scale_unit = img.scale_unit
-        return out
-    
-    def _current_cylindrical_img(self, i=None, j=None):
-        """Return cylindric-transformed image at the current position"""
-        i = i or self.SplineControl.num
-        j = j or self.SplineControl.pos
-        tomo = self.tomogram
-        if self._current_ft_size is None:
-            raise ValueError("Local structural parameters have not been determined yet.")
-        
-        ylen = tomo.nm2pixel(self._current_ft_size)
-        spl = tomo._splines[i]
-        
-        rmin = tomo.nm2pixel(spl.radius*GVar.inner)
-        rmax = tomo.nm2pixel(spl.radius*GVar.outer)
-        
-        coords = spl.local_cylindrical(
-            r_range=(rmin, rmax), 
-            n_pixels=ylen, 
-            u=spl.anchors[j],
-            scale=tomo.scale
-        )
-        img = tomo.image
-        polar = utils.map_coordinates(img, coords, order=1)
-        polar = ip.asarray(polar, axes="rya") # radius, y, angle
-        polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
-        polar.scale_unit = img.scale_unit
-        return polar
     
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules 
