@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .main import CylindraMainWidget
     
 @magicclass
-class Sweeper(MagicTemplate):
+class SplineSweeper(MagicTemplate):
     show_what = vfield(options={"choices": ["R-projection", "Y-projection", "CFT"]})
     depth = vfield(32.0, options={"min": 8.0, "max": 200.0})
     canvas = field(QtImageCanvas)
@@ -48,7 +48,6 @@ class Sweeper(MagicTemplate):
             
 
     def reset_choices(self, *args):
-        super().reset_choices(*args)
         self.parent.tomogram.splines
         self._load_parent_state()
     

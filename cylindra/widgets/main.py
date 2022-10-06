@@ -38,6 +38,7 @@ from . import subwidgets, _shared_doc, _previews
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
+from .sweeper import SplineSweeper
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import CylindraProject
@@ -94,6 +95,7 @@ class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")
+    _SplineSweeper = field(SplineSweeper, name="Spline sweeper")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
     _FeatureControl = field(FeatureControl, name="Feature Control")
     
@@ -832,6 +834,13 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_image.metadata["current_binsize"] = bin_size
         self.reset_choices()
         return None
+    
+    @Image.wraps
+    @do_not_record
+    @set_design(text="Open spline sweeper")
+    def open_sweeper(self):
+        """Open spline sweeper widget"""
+        return self._SplineSweeper.show()
         
     @Image.wraps
     @set_design(text="Sample subtomograms")
