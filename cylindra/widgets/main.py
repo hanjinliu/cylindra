@@ -840,7 +840,8 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open spline sweeper")
     def open_sweeper(self):
         """Open spline sweeper widget"""
-        return self._SplineSweeper.show()
+        self._SplineSweeper.show()
+        return self._SplineSweeper.update_widget_state()
         
     @Image.wraps
     @set_design(text="Sample subtomograms")

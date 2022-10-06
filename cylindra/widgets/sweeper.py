@@ -9,12 +9,13 @@ from ..const import GVar, nm
 
 if TYPE_CHECKING:
     from .main import CylindraMainWidget
-    
+    from ..components import CylSpline
+
 @magicclass
 class SplineSweeper(MagicTemplate):
     show_what = vfield(options={"choices": ["R-projection", "Y-projection", "CFT"]})
-    depth = vfield(32.0, options={"min": 8.0, "max": 200.0})
-    canvas = field(QtImageCanvas)
+    depth = vfield(32.0, options={"min": 1.0, "max": 200.0})
+    canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
 
     @property
     def parent(self) -> "CylindraMainWidget":
@@ -46,26 +47,37 @@ class SplineSweeper(MagicTemplate):
         def _prev_pos(self):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
             
-
-    def reset_choices(self, *args):
+    @do_not_record
+    def update_widget_state(self):
+        tomo = self.parent.tomogram
+        if tomo is None:
+            return None
         self.parent.tomogram.splines
-        self._load_parent_state()
-    
-    def _load_parent_state(self):
         parent = self.parent
         tomo = parent.tomogram
         
-        self.controller.num.max = tomo.n_splines - 1
+        self.controller.num.max = max(tomo.n_splines - 1, 0)
         self.controller.num.value = 0
-        if self.visible:
-            self._update_canvas()
+        self._num_changed(self.controller.num.value)
+        self._update_canvas()
+        return None
     
+    @controller.num.connect
+    def _num_changed(self, i: int):
+        try:
+            nanchors = len(self.parent.tomogram.splines[i].anchors)
+            self.controller.pos.max = max(nanchors - 1, 0)
+        except Exception:
+            pass
+    
+    @show_what.connect
+    @depth.connect
     @controller.num.connect
     @controller.pos.connect
     def _update_canvas(self):
         _type = self.show_what
-        num = self.controller.num
-        pos = self.controller.pos
+        num = self.controller.num.value
+        pos = self.controller.pos.value
         if _type == "R-projection":
             polar = self._current_cylindrical_img(num, pos, self.depth).proj("r")
             img = polar.value
@@ -82,9 +94,16 @@ class SplineSweeper(MagicTemplate):
         self.canvas.image = img
         self.canvas.text_overlay.update(visible=True, text=f"{num}-{pos}", color="lime")
     
+    @show_what.connect
+    def _update_clims(self):
+        img = self.canvas.image
+        if img is not None:
+            self.canvas.contrast_limits = (img.min(), img.max())
+        return None
+    
     def _show_global_r_proj(self):
         """Show radial projection of cylindrical image along current spline."""        
-        i = self.controller.num
+        i = self.controller.num.value
         polar = self.parent.tomogram.straighten_cylindric(i).proj("r")
         self.canvas.image = polar.value
         self.canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
