@@ -29,12 +29,20 @@ class SplineSweeper(MagicTemplate):
         
         Attributes
         ----------
-        num : int
-            Spline number in current tomogram.
+        spline : CylSpline
+            Current spline object to analyze.
         pos : int
             Position along the spline.
         """
-        num = field(int, label="Spline No.", options={"max": 0}, record=False)
+        def _get_spline_id(self, widget=None) -> "list[tuple[str, int]]":
+            from .main import CylindraMainWidget
+            try:
+                parent = self.find_ancestor(CylindraMainWidget)
+                return parent._get_splines(widget)
+            except Exception:
+                return []
+            
+        spline_id = vfield(options={"choices": _get_spline_id})
         pos = field(int, label="Position", options={"max": 0}, record=False)
         
         @bind_key("Up")
@@ -55,44 +63,42 @@ class SplineSweeper(MagicTemplate):
         self.parent.tomogram.splines
         parent = self.parent
         tomo = parent.tomogram
-        
-        self.controller.num.max = max(tomo.n_splines - 1, 0)
-        self.controller.num.value = 0
-        self._num_changed(self.controller.num.value)
+        self._spline_changed(self.controller.spline_id)
         self._update_canvas()
         return None
     
-    @controller.num.connect
-    def _num_changed(self, i: int):
+    @controller.spline_id.connect
+    def _spline_changed(self, idx: int):
         try:
-            nanchors = len(self.parent.tomogram.splines[i].anchors)
+            spl = self.parent.tomogram.splines[idx]
+            nanchors = len(spl.anchors)
             self.controller.pos.max = max(nanchors - 1, 0)
         except Exception:
             pass
     
     @show_what.connect
     @depth.connect
-    @controller.num.connect
+    @controller.spline_id.connect
     @controller.pos.connect
     def _update_canvas(self):
         _type = self.show_what
-        num = self.controller.num.value
+        idx = self.controller.spline_id
         pos = self.controller.pos.value
         if _type == "R-projection":
-            polar = self._current_cylindrical_img(num, pos, self.depth).proj("r")
+            polar = self._current_cylindrical_img(idx, pos, self.depth).proj("r")
             img = polar.value
         elif _type == "Y-projection":
-            block = self._current_cartesian_img(num, pos, self.depth).proj("y")
+            block = self._current_cartesian_img(idx, pos, self.depth).proj("y")
             img = block.value
         elif _type == "CFT":
-            polar = self._current_cylindrical_img(num, pos, self.depth)
+            polar = self._current_cylindrical_img(idx, pos, self.depth)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             img = pw.value
         else:
             raise RuntimeError
         self.canvas.image = img
-        self.canvas.text_overlay.update(visible=True, text=f"{num}-{pos}", color="lime")
+        # self.canvas.text_overlay.update(visible=True, text=f"{num}-{pos}", color="lime")
     
     @show_what.connect
     def _update_clims(self):
@@ -109,17 +115,7 @@ class SplineSweeper(MagicTemplate):
         self.canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         return None
     
-    def _show_current_ft(self, i: Bound[controller.num], j: Bound[controller.pos]):
-        """View Fourier space of local cylindrical coordinate system at current position."""        
-        polar = self._current_cylindrical_img(i, j, self.depth)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw /= pw.max()
-        
-        self.canvas.image = pw.value
-        self.canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        return None
-    
-    def _show_global_ft(self, i: Bound[controller.num]):
+    def _show_global_ft(self, i):
         """View Fourier space along current spline."""  
         polar: ip.ImgArray = self.parent.tomogram.straighten_cylindric(i)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
@@ -129,18 +125,17 @@ class SplineSweeper(MagicTemplate):
         self.canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
         return None
 
-    def _current_cartesian_img(self, i: int, j: int, depth: nm) -> ip.ImgArray:
+    def _current_cartesian_img(self, idx: int, pos: int, depth: nm) -> ip.ImgArray:
         """Return local Cartesian image at the current position."""
         tomo = self.parent.tomogram
-        spl = tomo._splines[i]
-        
+        spl = tomo.splines[idx]
         length_px = tomo.nm2pixel(depth)
         width_px = tomo.nm2pixel(2 * spl.radius * GVar.outer)
         
         coords = spl.local_cartesian(
             shape=(width_px, width_px), 
             n_pixels=length_px,
-            u=spl.anchors[j],
+            u=spl.anchors[pos],
             scale=tomo.scale
         )
         img = tomo.image
@@ -150,11 +145,11 @@ class SplineSweeper(MagicTemplate):
         out.scale_unit = img.scale_unit
         return out
     
-    def _current_cylindrical_img(self, i: int, j: int, depth: nm):
+    def _current_cylindrical_img(self, idx: int, pos: int, depth: nm):
         """Return cylindric-transformed image at the current position"""
         tomo = self.parent.tomogram
         ylen = tomo.nm2pixel(depth)
-        spl = tomo._splines[i]
+        spl = tomo.splines[idx]
         
         rmin = tomo.nm2pixel(spl.radius*GVar.inner)
         rmax = tomo.nm2pixel(spl.radius*GVar.outer)
@@ -162,7 +157,7 @@ class SplineSweeper(MagicTemplate):
         coords = spl.local_cylindrical(
             r_range=(rmin, rmax), 
             n_pixels=ylen, 
-            u=spl.anchors[j],
+            u=spl.anchors[pos],
             scale=tomo.scale
         )
         img = tomo.image
