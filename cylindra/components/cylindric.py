@@ -90,26 +90,32 @@ class CylinderModel:
     
     @property
     def shape(self) -> tuple[int, int]:
+        """Shape of the model in (axial, angular) orientation."""
         return self._shape
     
     @property
     def radius(self) -> float:
+        """Radius of the model."""
         return self._radius
     
     @property
     def tilts(self) -> tuple[float, float]:
+        """Normalized tilt of axial-to-angular direction and angular-to-axial one."""
         return self._tilts
 
     @property
     def intervals(self) -> tuple[float, float]:
+        """Canonical interval between each molecules."""
         return self._intervals
 
     @property
     def offsets(self) -> tuple[float, float]:
+        """Offset of the first molecule at the origin.."""
         return self._offsets
 
     @property
     def displace(self) -> np.ndarray:
+        """Displacement vector of the molecules."""
         return self._displace
     
     @property
