@@ -160,7 +160,7 @@ def diff(
     y_interval: np.ndarray = np.sum(pitch_vec * vec_norm, axis=2)  # inner product
     y_interval[-1] = -1.  # fill invalid values with -1
     return y_interval
-    
+
 
 class Projections:
     """Class that stores projections of a 3D image."""
