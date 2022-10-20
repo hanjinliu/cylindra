@@ -1,54 +1,44 @@
 import os
 import re
-from typing import Annotated, Union, Tuple, List
-from timeit import default_timer
 from pathlib import Path
-import numpy as np
-import pandas as pd
-from scipy import ndimage as ndi
-import matplotlib.pyplot as plt
-import napari
-from napari.utils import Colormap
-from napari.layers import Points, Image, Labels, Layer
+from timeit import default_timer
+from typing import Annotated, List, Tuple, Union
 
 import impy as ip
 import macrokit as mk
-from magicclass import (
-    magicclass,
-    field,
-    set_design,
-    set_options,
-    do_not_record,
-    MagicTemplate,
-    bind_key,
-    build_help,
-    confirm,
-    nogui,
-    mark_preview,
-)
-from magicclass.types import Color, Bound, Optional, OneOf, SomeOf
-from magicclass.widgets import Logger, ConsoleTextEdit, FloatRangeSlider
-from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.ext.dask import dask_thread_worker
-from magicclass.utils import thread_worker
-from acryo import SubtomogramLoader, Molecules
+import matplotlib.pyplot as plt
+import napari
+import numpy as np
+import pandas as pd
+from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
+from magicclass import (MagicTemplate, bind_key, build_help, confirm,
+                        do_not_record, field, magicclass, mark_preview, nogui,
+                        set_design, set_options)
+from magicclass.ext.dask import dask_thread_worker
+from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.types import Bound, Color, OneOf, Optional, SomeOf
+from magicclass.utils import thread_worker
+from magicclass.widgets import ConsoleTextEdit, FloatRangeSlider, Logger
+from napari.layers import Image, Labels, Layer, Points
+from napari.utils import Colormap
+from scipy import ndimage as ndi
 
-from . import subwidgets, _shared_doc, _previews
-from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
-from .spline_control import SplineControl
-from .spline_fitter import SplineFitter
+from .. import utils
+from ..components import CylSpline, CylTomogram
+from ..const import (ALN_SUFFIX, MOLECULES, SELECTION_LAYER_NAME,
+                     WORKING_LAYER_NAME, GVar, H, Mole, Ori, nm)
+from ..types import MonomerLayer, get_monomer_layers
+from . import _previews, _shared_doc, subwidgets, widget_utils
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor
 from .project import CylindraProject
-from .widget_utils import FileFilter, add_molecules, change_viewer_focus, update_features
-from . import widget_utils
-
-from ..components import CylSpline, CylTomogram
-from .. import utils
-from ..const import Ori, nm, H, GVar, Mole
-from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
-from ..types import MonomerLayer, get_monomer_layers
+from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
+from .spline_control import SplineControl
+from .spline_fitter import SplineFitter
+from .sweeper import SplineSweeper
+from .widget_utils import (FileFilter, add_molecules, change_viewer_focus,
+                           update_features)
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
@@ -94,6 +84,7 @@ class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")
+    _SplineSweeper = field(SplineSweeper, name="Spline sweeper")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
     _FeatureControl = field(FeatureControl, name="Feature Control")
     
@@ -832,6 +823,14 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_image.metadata["current_binsize"] = bin_size
         self.reset_choices()
         return None
+    
+    @Image.wraps
+    @do_not_record
+    @set_design(text="Open spline sweeper")
+    def open_sweeper(self):
+        """Open spline sweeper widget"""
+        self._SplineSweeper.show()
+        return self._SplineSweeper.update_widget_state()
         
     @Image.wraps
     @set_design(text="Sample subtomograms")
@@ -854,58 +853,6 @@ class CylindraMainWidget(MagicTemplate):
         
         # reset contrast limits
         self.SplineControl._reset_contrast_limits()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="R-projection")
-    def show_r_proj(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
-        """Show radial projection of cylindrical image around the current spline fragment."""
-        polar = self._current_cylindrical_img().proj("r")
-        
-        canvas = QtImageCanvas()
-        canvas.image = polar.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        canvas.show()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="R-projection (Global)")
-    def show_global_r_proj(self):
-        """Show radial projection of cylindrical image along current spline."""        
-        i = self.SplineControl.num
-        polar = self.tomogram.straighten_cylindric(i).proj("r")
-        canvas = QtImageCanvas()
-        canvas.image = polar.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
-        canvas.show()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="2D-FT")
-    def show_current_ft(self, i: Bound[SplineControl.num], j: Bound[SplineControl.pos]):
-        """View Fourier space of local cylindrical coordinate system at current position."""        
-        polar = self._current_cylindrical_img(i, j)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw /= pw.max()
-        
-        canvas = QtImageCanvas()
-        canvas.image = pw.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-{j}", color="lime")
-        canvas.show()
-        return None
-    
-    @Image.Cylindric.wraps
-    @set_design(text="2D-FT (Global)")
-    def show_global_ft(self, i: Bound[SplineControl.num]):
-        """View Fourier space along current spline."""  
-        polar: ip.ImgArray = self.tomogram.straighten_cylindric(i)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw /= pw.max()
-    
-        canvas = QtImageCanvas()
-        canvas.image = pw.value
-        canvas.text_overlay.update(visible=True, text=f"{i}-global", color="magenta")
-        canvas.show()
         return None
     
     @Splines.wraps
@@ -2003,7 +1950,8 @@ class CylindraMainWidget(MagicTemplate):
             large. Calculation will take much longer for larger ``upsample_factor``. 
             Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
         """
-        from dask import array as da, delayed
+        from dask import array as da
+        from dask import delayed
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2450,6 +2398,7 @@ class CylindraMainWidget(MagicTemplate):
             is for visualization only.
         """        
         from skimage.measure import marching_cubes
+
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
@@ -2508,6 +2457,7 @@ class CylindraMainWidget(MagicTemplate):
     @mark_preview(render_molecules)
     def _preview_rendering(self, template_path: str, mask_params, cutoff: float):
         from skimage.measure import marching_cubes
+
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
@@ -2988,56 +2938,6 @@ class CylindraMainWidget(MagicTemplate):
                 # outside image
                 return "Outside boundary."        
         return ""
-    
-    def _current_cartesian_img(self, i=None, j=None):
-        """Return local Cartesian image at the current position."""
-        i = i or self.SplineControl.num
-        j = j or self.SplineControl.pos
-        tomo = self.tomogram
-        spl = tomo._splines[i]
-        
-        length_px = tomo.nm2pixel(GVar.fitLength)
-        width_px = tomo.nm2pixel(GVar.fitWidth)
-        
-        coords = spl.local_cartesian(
-            shape=(width_px, width_px), 
-            n_pixels=length_px,
-            u=spl.anchors[j],
-            scale=tomo.scale
-        )
-        img = tomo.image
-        out = utils.map_coordinates(img, coords, order=1)
-        out = ip.asarray(out, axes="zyx")
-        out.set_scale(img)
-        out.scale_unit = img.scale_unit
-        return out
-    
-    def _current_cylindrical_img(self, i=None, j=None):
-        """Return cylindric-transformed image at the current position"""
-        i = i or self.SplineControl.num
-        j = j or self.SplineControl.pos
-        tomo = self.tomogram
-        if self._current_ft_size is None:
-            raise ValueError("Local structural parameters have not been determined yet.")
-        
-        ylen = tomo.nm2pixel(self._current_ft_size)
-        spl = tomo._splines[i]
-        
-        rmin = tomo.nm2pixel(spl.radius*GVar.inner)
-        rmax = tomo.nm2pixel(spl.radius*GVar.outer)
-        
-        coords = spl.local_cylindrical(
-            r_range=(rmin, rmax), 
-            n_pixels=ylen, 
-            u=spl.anchors[j],
-            scale=tomo.scale
-        )
-        img = tomo.image
-        polar = utils.map_coordinates(img, coords, order=1)
-        polar = ip.asarray(polar, axes="rya") # radius, y, angle
-        polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
-        polar.scale_unit = img.scale_unit
-        return polar
     
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules 

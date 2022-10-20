@@ -27,7 +27,7 @@ class SplineFitter(MagicTemplate):
     canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
         
     @magicclass(layout="horizontal")
-    class mt(MagicTemplate):
+    class controller(MagicTemplate):
         """
         Control spline positions.
         
@@ -75,12 +75,12 @@ class SplineFitter(MagicTemplate):
             def average(self): ...
     
     def _get_shifts(self, _=None):
-        i = self.mt.num.value
+        i = self.controller.num.value
         return np.round(self.shifts[i], 3)
     
-    @mt.wraps
+    @controller.wraps
     @set_design(text="Fit")
-    def fit(self, shifts: Bound[_get_shifts], i: Bound[mt.num]):
+    def fit(self, shifts: Bound[_get_shifts], i: Bound[controller.num]):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         parent = self._get_parent()
@@ -92,7 +92,7 @@ class SplineFitter(MagicTemplate):
         )
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
-        self._mt_changed()
+        self._cylinder_changed()
         parent._update_splines_in_images()
         parent._need_save = True
         return None
@@ -102,8 +102,8 @@ class SplineFitter(MagicTemplate):
     @do_not_record
     def average(self):
         """Show rotatinal averaged image."""        
-        i = self.mt.num.value
-        j = self.mt.pos.value
+        i = self.controller.num.value
+        j = self.controller.pos.value
                 
         img = self._get_parent()._current_cartesian_img(i, j)
         cutoff = self.Rotational_averaging.frame.cutoff.value
@@ -125,8 +125,8 @@ class SplineFitter(MagicTemplate):
         sin = np.sin(theta)
         self.canvas.add_curve(cos, sin, color="lime", lw=2, ls="--")
         self.canvas.add_curve(2*cos, 2*sin, color="lime", lw=2, ls="--")
-        self.mt.max_height = 50
-        self.mt.height = 50
+        self.controller.max_height = 50
+        self.controller.height = 50
         
         @self.canvas.mouse_click_callbacks.append
         def _(e):
@@ -141,8 +141,8 @@ class SplineFitter(MagicTemplate):
         return self.find_ancestor(CylindraMainWidget)
     
     def _update_cross(self, x: float, z: float):
-        i = self.mt.num.value
-        j = self.mt.pos.value
+        i = self.controller.num.value
+        j = self.controller.pos.value
         if self.shifts[i] is None:
             return
         itemv = self.canvas.layers[0]
@@ -180,14 +180,14 @@ class SplineFitter(MagicTemplate):
             
         self.shifts = [None] * tomo.n_splines
         self.binsize = parent.layer_image.metadata["current_binsize"]
-        self.mt.num.max = tomo.n_splines - 1
-        self.mt.num.value = 0
-        self._mt_changed()
+        self.controller.num.max = tomo.n_splines - 1
+        self.controller.num.value = 0
+        self._cylinder_changed()
         
-    @mt.num.connect
-    def _mt_changed(self):
-        i = self.mt.num.value
-        self.mt.pos.value = 0
+    @controller.num.connect
+    def _cylinder_changed(self):
+        i = self.controller.num.value
+        self.controller.pos.value = 0
         parent = self._get_parent()
         imgb = parent.layer_image.data
         tomo: CylTomogram = parent.tomogram
@@ -213,7 +213,7 @@ class SplineFitter(MagicTemplate):
         self.subtomograms = subtomo.proj("y")[ip.slicer.x[::-1]]
         
         self.canvas.image = self.subtomograms[0]
-        self.mt.pos.max = npos - 1
+        self.controller.pos.max = npos - 1
         self.canvas.xlim = (0, self.canvas.image.shape[1])
         self.canvas.ylim = (0, self.canvas.image.shape[0])
         lz, lx = self.subtomograms.sizesof("zx")
@@ -223,10 +223,10 @@ class SplineFitter(MagicTemplate):
         
         return None
     
-    @mt.pos.connect
+    @controller.pos.connect
     def _position_changed(self):
-        i = self.mt.num.value
-        j = self.mt.pos.value
+        i = self.controller.num.value
+        j = self.controller.pos.value
         self.canvas.image = self.subtomograms[j]
         if self.shifts is not None and self.shifts[i] is not None:
             y, x = self.shifts[i][j]

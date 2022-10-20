@@ -432,7 +432,7 @@ class CylTomogram(Tomogram):
             LOGGER.setLevel(level)
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
-        interval = spl.length()/(npoints-1)
+        interval = spl.length() / (npoints - 1)
             
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
@@ -927,7 +927,7 @@ class CylTomogram(Tomogram):
             transformed = self._chunked_straighten(
                 i, length, range_, function=self.straighten_cylindric, 
                 chunk_length=chunk_length, radii=radii, binsize=binsize,
-                )
+            )
             
         else:
             input_img = self._get_multiscale_or_original(binsize)
