@@ -1,55 +1,44 @@
 import os
 import re
-from typing import Annotated, Union, Tuple, List
-from timeit import default_timer
 from pathlib import Path
-import numpy as np
-import pandas as pd
-from scipy import ndimage as ndi
-import matplotlib.pyplot as plt
-import napari
-from napari.utils import Colormap
-from napari.layers import Points, Image, Labels, Layer
+from timeit import default_timer
+from typing import Annotated, List, Tuple, Union
 
 import impy as ip
 import macrokit as mk
-from magicclass import (
-    magicclass,
-    field,
-    set_design,
-    set_options,
-    do_not_record,
-    MagicTemplate,
-    bind_key,
-    build_help,
-    confirm,
-    nogui,
-    mark_preview,
-)
-from magicclass.types import Color, Bound, Optional, OneOf, SomeOf
-from magicclass.widgets import Logger, ConsoleTextEdit, FloatRangeSlider
-from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.ext.dask import dask_thread_worker
-from magicclass.utils import thread_worker
-from acryo import SubtomogramLoader, Molecules
+import matplotlib.pyplot as plt
+import napari
+import numpy as np
+import pandas as pd
+from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
+from magicclass import (MagicTemplate, bind_key, build_help, confirm,
+                        do_not_record, field, magicclass, mark_preview, nogui,
+                        set_design, set_options)
+from magicclass.ext.dask import dask_thread_worker
+from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.types import Bound, Color, OneOf, Optional, SomeOf
+from magicclass.utils import thread_worker
+from magicclass.widgets import ConsoleTextEdit, FloatRangeSlider, Logger
+from napari.layers import Image, Labels, Layer, Points
+from napari.utils import Colormap
+from scipy import ndimage as ndi
 
-from . import subwidgets, _shared_doc, _previews
+from .. import utils
+from ..components import CylSpline, CylTomogram
+from ..const import (ALN_SUFFIX, MOLECULES, SELECTION_LAYER_NAME,
+                     WORKING_LAYER_NAME, GVar, H, Mole, Ori, nm)
+from ..types import MonomerLayer, get_monomer_layers
+from . import _previews, _shared_doc, subwidgets, widget_utils
+from .feature_control import FeatureControl
+from .image_processor import ImageProcessor
+from .project import CylindraProject
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .sweeper import SplineSweeper
-from .feature_control import FeatureControl
-from .image_processor import ImageProcessor
-from .project import CylindraProject
-from .widget_utils import FileFilter, add_molecules, change_viewer_focus, update_features
-from . import widget_utils
-
-from ..components import CylSpline, CylTomogram
-from .. import utils
-from ..const import Ori, nm, H, GVar, Mole
-from ..const import WORKING_LAYER_NAME, SELECTION_LAYER_NAME, ALN_SUFFIX, MOLECULES
-from ..types import MonomerLayer, get_monomer_layers
+from .widget_utils import (FileFilter, add_molecules, change_viewer_focus,
+                           update_features)
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
@@ -1961,7 +1950,8 @@ class CylindraMainWidget(MagicTemplate):
             large. Calculation will take much longer for larger ``upsample_factor``. 
             Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
         """
-        from dask import array as da, delayed
+        from dask import array as da
+        from dask import delayed
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
         template = self._subtomogram_averaging._get_template(path=template_path)
@@ -2408,6 +2398,7 @@ class CylindraMainWidget(MagicTemplate):
             is for visualization only.
         """        
         from skimage.measure import marching_cubes
+
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
@@ -2466,6 +2457,7 @@ class CylindraMainWidget(MagicTemplate):
     @mark_preview(render_molecules)
     def _preview_rendering(self, template_path: str, mask_params, cutoff: float):
         from skimage.measure import marching_cubes
+
         # prepare template and mask
         template = self._subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
