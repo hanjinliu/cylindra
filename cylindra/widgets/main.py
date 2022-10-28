@@ -3002,7 +3002,8 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_work = viewer.add_points(
             **common_properties,
             name=WORKING_LAYER_NAME,
-            face_color="yellow"
+            face_color="yellow",
+            blending="translucent_no_depth",
         )
 
         self.layer_work.mode = "add"

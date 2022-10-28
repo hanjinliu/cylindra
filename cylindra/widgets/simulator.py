@@ -1,12 +1,13 @@
 from typing import Any
 from magicgui.widgets import RangeSlider
-from magicclass import magicclass, MagicTemplate, set_options, field, vfield, FieldGroup
+from magicclass import magicclass, magicmenu, MagicTemplate, set_options, field, vfield, FieldGroup
 from magicclass.types import Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-from magicclass.ext.vispy import VispyPlotCanvas
+from magicclass.ext.vispy import Vispy3DCanvas
 import numpy as np
 import impy as ip
+import pandas as pd
 
 from ..components import CylTomogram, CylinderModel, CylSpline
 from ..const import nm, GVar, H
@@ -24,20 +25,24 @@ class CylinderOffsets(FieldGroup):
     aoffset : float
         Offset of angular direction.
     """
-    yoffset = vfield(0.0, options={"min": -10, "max": 10})
-    aoffset = vfield(0.0, options={"min": -np.pi, "max": np.pi})
+    yoffset = vfield(0.0, options={"min": -10, "max": 10}, label="y")
+    aoffset = vfield(0.0, options={"min": -np.pi, "max": np.pi}, label="θ")
 
     @property
     def value(self):
         return self.yoffset, self.aoffset
 
+_INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
+_NPF = (GVar.nPFmin + GVar.nPFmax) // 2
+_RADIUS = _INTERVAL * _NPF / 2 / np.pi
+
 class CylinderParameters(FieldGroup):
-    interval = vfield((GVar.yPitchMin + GVar.yPitchMax) / 2, options={"min": 0.0, "max": GVar.yPitchMax * 2})
-    skew = vfield((GVar.minSkew + GVar.maxSkew) / 2, options={"min": GVar.minSkew, "max": GVar.maxSkew})
-    rise = vfield(0.0)
-    npf = vfield((GVar.nPFmin + GVar.nPFmax) // 2, options={"min": GVar.nPFmin, "max": GVar.nPFmax})
-    radius = vfield(1.0)
-    offsets = CylinderOffsets(layout="horizontal")
+    interval = vfield(_INTERVAL, options={"min": 0.0, "max": GVar.yPitchMax * 2, "step": 0.2}, label="interval (nm)")
+    skew = vfield((GVar.minSkew + GVar.maxSkew) / 2, options={"min": GVar.minSkew, "max": GVar.maxSkew}, label="skew (deg)")
+    rise = vfield(0.0, options={"min": -90.0, "max": 90.0, "step": 0.5}, label="rise (deg)")
+    npf = vfield(_NPF, options={"min": GVar.nPFmin, "max": GVar.nPFmax}, label="nPF")
+    radius = vfield(_RADIUS, options={"min": 0.5, "max": 50.0, "step": 0.5}, label="radius (nm)")
+    offsets = CylinderOffsets()
     
     def as_kwargs(self) -> dict[str, Any]:
         return {
@@ -48,27 +53,51 @@ class CylinderParameters(FieldGroup):
             "radius": self.radius,
             "offsets": self.offsets.value,
         }
+    
+    def update(self, other: dict[str, Any], **kwargs) -> None:
+        kwargs = dict(**other, **kwargs)
+        with self.changed.blocked():
+            for k, v in kwargs:
+                setattr(self, k, v)
+        self.changed.emit(self)
+        return None
 
 @magicclass
 class CylinderSimulator(MagicTemplate):
-    @magicclass
+    @magicmenu
+    class Menu(MagicTemplate):
+        def create_empty_image(self): ...
+        def set_current_spline(self): ...
+        def load_spline_parameters(self): ...
+        def show_layer_control(self): ...
+
+    @magicclass(widget_type="split", layout="horizontal", labels=False)
     class CylinderModelViewer(MagicTemplate):
-        parameters = CylinderParameters()
-        canvas = field(VispyPlotCanvas)
+        @magicclass(widget_type="split", labels=False)
+        class Left(MagicTemplate):
+            parameters = CylinderParameters()
+        
+        @property
+        def parameters(self):
+            return self.Left.parameters
 
-        def __init__(self) -> None:
+        canvas = field(Vispy3DCanvas)
+
+        def __post_init__(self) -> None:
             self._model: CylinderModel = None
+            self._points = None
+            self.parameters.max_width = 230
 
-        def _set_model(self, model: CylinderModel):
+        def _set_model(self, model: CylinderModel, spl: CylSpline):
             self._model = model
-            return self._update_canvas()
-            
-        def _update_canvas(self, spl=None):
-            self.canvas.layers.clear()
             if spl is None:
                 spl = CylSpline().fit_voa([[0, 0, 0], [0, 100, 0]])
-            mole = self._model.to_molecules(spl)
-            self.canvas.add_scatter(mole.pos[:, 2], mole.pos[:, 1], size=1.0, edge_color="lime", symbol="o")
+            mole = model.to_molecules(spl)
+            
+            if self._points is None:
+                self._points = self.canvas.add_points(mole.pos, size=2.0, face_color="lime", edge_color="lime")
+            else:
+                self._points.data = mole.pos
             return None
 
     @property
@@ -76,9 +105,10 @@ class CylinderSimulator(MagicTemplate):
         from .main import CylindraMainWidget
         return self.find_ancestor(CylindraMainWidget)
     
+    @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})
     @set_options(bin_size={"options": {"min": 1, "max": 8}})
-    def create_empty_image(self, size: tuple[nm, nm, nm] = (100., 200., 100.), scale: nm = 0.25, bin_size: list[int] = [1]):
+    def create_empty_image(self, size: tuple[nm, nm, nm] = (100., 200., 100.), scale: nm = 0.25, bin_size: list[int] = [4]):
         parent = self.parent_widget
         shape = tuple(roundint(s / scale) for s in size)
         img = ip.random.normal(size=shape, axes="zyx", name="simulated image")  # TODO: just for now
@@ -94,17 +124,43 @@ class CylinderSimulator(MagicTemplate):
         parent = self.parent_widget
         return parent.SplineControl.num
 
+    @Menu.wraps
     def set_current_spline(self, idx: Bound[_get_current_index]):
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
-        if spl.radius is not None and spl.globalprops is not None:
-            model = tomo.get_cylinder_model(idx)
-        else:
-            params = self.CylinderModelViewer.parameters.as_kwargs()
-            model = tomo.get_cylinder_model(idx, **params)
-        self.CylinderModelViewer._set_model(model)
+        params = self.CylinderModelViewer.parameters.as_kwargs()
+        model = tomo.get_cylinder_model(idx, **params)
+        spl.radius = params.pop("radius")
+        params.pop("offsets")
+        self.CylinderModelViewer._set_model(model, spl)
+        return None
+    
+    @Menu.wraps
+    def load_spline_parameters(self, idx: Bound[_get_current_index]):
+        tomo = self.parent_widget.tomogram
+        spl = tomo.splines[idx]
+        props = spl.globalprops
+        if props is None:
+            raise ValueError("Global property is not calculated.")
+        params = {
+            H.yPitch: props[H.yPitch],
+            H.skewAngle: props[H.skewAngle],
+            H.riseAngle: props[H.riseAngle],
+            H.nPF: props[H.nPF],
+            "radius": spl.radius,
+        }
+        self.CylinderModelViewer.parameters.update(params)
         return None
 
-    @CylinderModelViewer.parameters.connect
+    @Menu.wraps
+    def show_layer_control(self):
+        points = self.CylinderModelViewer._points
+        if points is None:
+            raise ValueError("No layer found in this viewer.")
+        cnt = self.CylinderModelViewer._points.widgets.as_container()
+        self.CylinderModelViewer.Left.append(cnt)
+        return None
+        
+    @CylinderModelViewer.Left.parameters.connect
     def _on_param_changed(self):
         return self.set_current_spline(self._get_current_index())
