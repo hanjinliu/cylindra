@@ -1015,6 +1015,7 @@ class CylTomogram(Tomogram):
         i: int,
         length: nm | None = None,
         offsets: tuple[float, float] = (0., 0.,),
+        **kwargs,
     ) -> CylinderModel:
         """
         Return the cylinder model at the given spline ID.
@@ -1037,16 +1038,20 @@ class CylTomogram(Tomogram):
         
         if length is None:
             length = spl.length()
-            
-        # Get structural parameters
-        props = self.splines[i].globalprops
-        if props is None:
-            props = self.global_ft_params(i)
+        
+        if all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
+            props = kwargs
+        else:
+            # Get structural parameters
+            props = self.splines[i].globalprops
+            if props is None:
+                props = self.global_ft_params(i)
+        
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
-        radius = spl.radius
+        radius = kwargs.get("radius", spl.radius)
         
         ny = roundint(length/pitch) # number of monomers in y-direction
         tan_rise = tandg(rise)

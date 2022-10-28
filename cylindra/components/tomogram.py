@@ -61,6 +61,54 @@ class Tomogram:
         return Path(source)
     
     @classmethod
+    def from_image(
+        cls,
+        img: ip.ImgArray | ip.LazyImgArray,
+        *,
+        scale: float | None = None,
+        binsize: int | Iterable[int] = (),
+    ):
+        """
+        Construct a Tomogram object from a image array.
+        
+        Parameters
+        ----------
+        img : array-like
+            Input image.
+        scale : float, optional
+            Pixel size in nm. If not given, will try to read from image header.
+        binsize : int or iterable of int, optional
+            Binsize to generate multiscale images. If not given, will not generate.
+        
+        Returns
+        -------
+        Tomogram
+            Tomogram object with the image that has just been read and multi-scales.
+        """
+        self = cls()
+        if type(img) is np.ndarray:
+            img = ip.asarray(img, axes="zyx")
+
+        if scale is not None:
+            img.set_scale(xyz=scale)
+        else:
+            if (abs(img.scale.z - img.scale.x) > 1e-3
+                or abs(img.scale.z - img.scale.y) > 1e-3
+            ):
+                raise ValueError(f"Uneven scale: {img.scale}.")
+        
+        self._set_image(img)
+        if source := img.source:
+            self._metadata["source"] = source.resolve()
+        self._metadata["scale"] = scale
+        
+        if isinstance(binsize, int):
+            binsize = [binsize]
+        for b in binsize:
+            self.add_multiscale(b)
+        return self
+    
+    @classmethod
     def imread(
         cls, 
         path: str | Path,
@@ -85,25 +133,8 @@ class Tomogram:
         Tomogram
             Tomogram object with the image that has just been read and multi-scales.
         """
-        self = cls()
         img = ip.lazy_imread(path, chunks=GVar.daskChunk, name="tomogram").as_float()
-        if scale is not None:
-            img.set_scale(xyz=scale)
-        else:
-            if (abs(img.scale.z - img.scale.x) > 1e-3
-                or abs(img.scale.z - img.scale.y) > 1e-3
-            ):
-                raise ValueError(f"Uneven scale: {img.scale}.")
-        
-        self._set_image(img)
-        self._metadata["source"] = Path(path).resolve()
-        self._metadata["scale"] = scale
-        
-        if isinstance(binsize, int):
-            binsize = [binsize]
-        for b in binsize:
-            self.add_multiscale(b)
-        return self
+        return cls.from_image(img, scale=scale, binsize=binsize)
         
     @property
     def image(self) -> ip.LazyImgArray:

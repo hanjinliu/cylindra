@@ -57,7 +57,7 @@ setup(
         "mrcfile>=1.3.0",
         "napari>=0.4.16",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
     entry_points={
         "console_scripts": ["cylindra=cylindra.__main__:main"],
