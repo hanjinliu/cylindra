@@ -514,6 +514,7 @@ class Spline:
         return out
 
     def partition(self, n: int, der: int = 0) -> np.ndarray:
+        """Return the n-partitioning coordinates of the spline."""
         u = np.linspace(0, 1, n)
         return self(u, der)
 

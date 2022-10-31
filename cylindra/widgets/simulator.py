@@ -1,6 +1,6 @@
 from typing import Any, TYPE_CHECKING
 from magicgui.widgets import RangeSlider
-from magicclass import magicclass, magicmenu, MagicTemplate, set_options, field, vfield, FieldGroup
+from magicclass import magicclass, magicmenu, MagicTemplate, set_design, set_options, field, vfield, FieldGroup
 from magicclass.types import Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
@@ -105,14 +105,15 @@ class CylinderSimulator(MagicTemplate):
 
         def __post_init__(self) -> None:
             self._model: CylinderModel = None
+            self._spline: CylSpline = None
+            self._spline_arrow: layers.Arrows3D = None
             self._points: layers.Points3D = None
             self._selections: layers.Points3D = None
             self.parameters.max_width = 230
 
         def _set_model(self, model: CylinderModel, spl: CylSpline):
             self._model = model
-            if spl is None:
-                spl = CylSpline().fit_voa([[0, 0, 0], [0, 100, 0]])
+            self._spline = spl
             mole = model.to_molecules(spl)
             
             if self._points is None:
@@ -120,6 +121,7 @@ class CylinderSimulator(MagicTemplate):
                 self._selections = self.canvas.add_points(
                     [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
                 )
+                self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
                 self._points.signals.size.connect_setattr(self._selections, "size")
                 self._selections.visible = False
             else:
@@ -130,6 +132,7 @@ class CylinderSimulator(MagicTemplate):
     class _Operator(MagicTemplate):
         yrange = vfield((0, 1), widget_type=RangeSlider)
         arange = vfield((0, 1), widget_type=RangeSlider)
+        show_selection = vfield(True, record=False)
         
         def _set_shape(self, ny, na):
             self["yrange"].max = ny
@@ -142,15 +145,29 @@ class CylinderSimulator(MagicTemplate):
         def _on_range_changed(self):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             parent._select_molecules(self.yrange, self.arange)
+            return None
         
-        @set_options(shift={"min": 0.0, "max": 1.0, "step": 0.01})
-        def expand(self, shift: nm = 0.1):
+        @show_selection.connect
+        def _on_show_selection_changed(self, show: bool):
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            parent.CylinderModelViewer._selections.visible = show
+            return None
+        
+        @set_options(
+            yshift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"},
+            n_allev={"min": 0, "max": 20, "label": "number of alleviation"}
+        )
+        @set_design(text="Expansion/compaction")
+        def expansion_or_compaction(self, yshift: nm = 0.1, n_allev: int = 3):
+            """Expand the selected molecules."""
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             shift = np.zeros(parent.model.shape, dtype=np.float32)
             ysl = slice(*self.yrange)
             asl = slice(*self.arange)
-            shift[ysl, asl] = shift
+            shift[ysl, asl] = yshift
             new_model = parent.model.add_axial_shift(shift)
+            if n_allev:
+                new_model = new_model.alleviate(shift != 0, niter=n_allev)
             parent.model = new_model
             return None
 
@@ -161,11 +178,13 @@ class CylinderSimulator(MagicTemplate):
     
     @property
     def model(self) -> CylinderModel:
+        """Current cylinder model."""
         return self.CylinderModelViewer._model
     
     @model.setter
     def model(self, model: CylinderModel):
-        return self.CylinderModelViewer._set_model(model)
+        """Set new model and simulate molecules with the same spline."""
+        return self.CylinderModelViewer._set_model(model, self.CylinderModelViewer._spline)
     
     @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})

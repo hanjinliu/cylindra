@@ -188,24 +188,45 @@ class CylinderModel:
         return self._add_local_uniform_directional_shift(angle_shift, start, stop, 2)
     
     def alleviate(self, label: ArrayLike, niter: int = 1) -> Self:
+        """
+        Alleviate displacements by iterative local-averaging algorithm.
+        
+        This method should be called after e.g. `add_axial_shift`. Molecules adjacent to
+        the shifted molecules will be shifted to match the center of the surrounding 
+        molecules.
+
+        Parameters
+        ----------
+        label : array-like
+            Label that specify the molecules to be fixed. Shape of this argument can be
+            eigher (N, 2) or same as the shape of the model. In the former case, it is
+            interpreted as N indices. In the latter case, True indices will be considered
+            as the indices.
+        niter : int, default is 1
+            Number of iteration.
+
+        Returns
+        -------
+        CylinderModel
+            New model with updated parameters.
+        """
         from .._cpp_ext import alleviate
         label = np.asarray(label, dtype=np.int32)
         if label.shape[1] != 2:
-            raise ValueError("Label shape mismatch")
-        mesh = oblique_meshgrid(
-            self._shape, self._tilts, self._intervals, self._offsets
-        )  # (Ny, Npf, 2)
-        radius_arr = np.full(mesh.shape[:2] + (1,), self._radius, dtype=np.float32)
-        mesh3d = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
-        shifted = mesh3d + self._displace
+            if label.shape == self.shape:
+                label = np.stack(np.where(label), axis=1)
+            else:
+                raise ValueError("Label shape mismatch")
+        mesh = self._get_mesh()
+        shifted = mesh + self._displace
         shifted = alleviate(shifted, label, self.nrise, niter)
-        displace = shifted - mesh3d
+        displace = shifted - mesh
         return self.replace(displace=displace)
     
     def _add_directional_shift(self, displace: np.ndarray, axis: int) -> Self:
-        displace = self._displace.copy()
-        displace[:, :, axis] += displace
-        return self.replace(displace=displace)
+        _displace = self._displace.copy()
+        _displace[:, :, axis] += displace
+        return self.replace(displace=_displace)
     
     def _add_local_uniform_directional_shift(
         self, shift: float, start: int, stop: int, axis: int
@@ -216,12 +237,16 @@ class CylinderModel:
         return self.replace(displace=displace)
     
     def _get_shifted(self):
-        mesh = oblique_meshgrid(
+        mesh = self._get_mesh()
+        return mesh + self._displace
+    
+    def _get_mesh(self) -> np.ndarray:
+        mesh2d = oblique_meshgrid(
             self._shape, self._tilts, self._intervals, self._offsets
         )  # (Ny, Npf, 2)
-        radius_arr = np.full(mesh.shape[:2] + (1,), self._radius, dtype=np.float32)
-        mesh3d = np.concatenate([radius_arr, mesh], axis=2)  # (Ny, Npf, 3)
-        return mesh3d + self._displace
+        radius_arr = np.full(mesh2d.shape[:2] + (1,), self._radius, dtype=np.float32)
+        mesh3d = np.concatenate([radius_arr, mesh2d], axis=2)  # (Ny, Npf, 3)
+        return mesh3d
 
 def oblique_meshgrid(
     shape: tuple[int, int], 
