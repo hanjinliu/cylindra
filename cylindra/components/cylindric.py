@@ -190,7 +190,7 @@ class CylinderModel:
         
         displace = self._displace.copy()
         axis = 1
-        for _y, _a in sl.get_resolver(self.nrise).resolve_slices(self.shape):
+        for _y, _a in sl.resolve(self.shape, self.nrise):
             for start in range(_y.start, _y.stop):
                 displace[start:, _a, axis] += yshift
         return self.replace(displace=displace)
@@ -202,7 +202,7 @@ class CylinderModel:
         
         displace = self._displace.copy()
         axis = 2
-        for _y, _a in sl.get_resolver(self.nrise).resolve_slices(self.shape):
+        for _y, _a in sl.resolve(self.shape, self.nrise):
             displace[_y.start:, _a, axis] += angle_shift
         return self.replace(displace=displace)
     
@@ -322,6 +322,9 @@ class CylindricSlice(NamedTuple):
 
     def get_resolver(self, rise: int) -> CylindricSliceResolver:
         return CylindricSliceResolver(*self, rise)
+    
+    def resolve(self, shape: tuple[int, int], rise: int):
+        return self.get_resolver(rise).resolve_slices(shape)
 
 class CylindricSliceConstructor:
     def __getitem__(self, key):
