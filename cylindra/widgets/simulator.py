@@ -226,6 +226,7 @@ class CylinderSimulator(MagicTemplate):
 
     @Menu.wraps
     def set_current_spline(self, idx: Bound[_get_current_index]):
+        """Use the current parameters and the spline to construct a model and molecules."""
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
         params = self.CylinderModelViewer.parameters.as_kwargs()
@@ -271,6 +272,15 @@ class CylinderSimulator(MagicTemplate):
         
     @CylinderModelViewer.Left.parameters.connect
     def _on_param_changed(self):
-        self.set_current_spline(self._get_current_index())
+        idx = self._get_current_index()
+        
+        tomo = self.parent_widget.tomogram
+        spl = tomo.splines[idx]
+        params = self.CylinderModelViewer.parameters.as_kwargs()
+        model = tomo.get_cylinder_model(idx, **params).add_shift(self.model.displace)
+        spl.radius = params.pop("radius")
+        params.pop("offsets")
+        self.model = model
+        
         op = self._Operator
         self._select_molecules(op.yrange, op.arange)  # update selection coordinates

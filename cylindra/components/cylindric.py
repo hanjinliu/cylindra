@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, NamedTuple
 
 from acryo import Molecules
 import numpy as np
@@ -135,7 +135,7 @@ class CylinderModel:
                 strs.append(f"{k}={v}")
         strs = ", ".join(strs)
         return f"{_cls}({strs})"
-    
+
     def to_params(self) -> dict[str, Any]:
         """Describe the model state as a dictionary."""
         return {
@@ -175,17 +175,36 @@ class CylinderModel:
         """Add shift to the skew (a-axis) direction."""
         return self._add_directional_shift(shift, 2)
     
-    def dilate(self, radius_shift: float, start: int, stop: int) -> Self:
+    def dilate(self, radius_shift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
         """Locally add uniform shift to the radial (r-axis) direction."""
-        return self._add_local_uniform_directional_shift(radius_shift, start, stop, 0)
-    
-    def expand(self, yshift: float, start: int, stop: int) -> Self:
+        shift = np.zeros(self.shape, dtype=np.float32)
+        if not isinstance(sl, CylindricSlice):
+            sl = indexer[sl]
+        sl.get_resolver(self.nrise).set_slice(shift, radius_shift)
+        return self.add_shift(shift)
+
+    def expand(self, yshift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
         """Locally add uniform shift to the axial (y-axis) direction."""
-        return self._add_local_uniform_directional_shift(yshift, start, stop, 1)
+        if not isinstance(sl, CylindricSlice):
+            sl = indexer[sl]
         
-    def screw(self, angle_shift: float, start: int, stop: int) -> Self:
+        displace = self._displace.copy()
+        axis = 1
+        for _y, _a in sl.get_resolver(self.nrise).resolve_slices(self.shape):
+            for start in range(_y.start, _y.stop):
+                displace[start:, _a, axis] += yshift
+        return self.replace(displace=displace)
+        
+    def screw(self, angle_shift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
         """Locally add uniform shift to the skew (a-axis) direction."""
-        return self._add_local_uniform_directional_shift(angle_shift, start, stop, 2)
+        if not isinstance(sl, CylindricSlice):
+            sl = indexer[sl]
+        
+        displace = self._displace.copy()
+        axis = 2
+        for _y, _a in sl.get_resolver(self.nrise).resolve_slices(self.shape):
+            displace[_y.start:, _a, axis] += angle_shift
+        return self.replace(displace=displace)
     
     def alleviate(self, label: ArrayLike, niter: int = 1) -> Self:
         """
@@ -227,15 +246,7 @@ class CylinderModel:
         _displace = self._displace.copy()
         _displace[:, :, axis] += displace
         return self.replace(displace=_displace)
-    
-    def _add_local_uniform_directional_shift(
-        self, shift: float, start: int, stop: int, axis: int
-    ) -> Self:
-        displace = self._displace.copy()
-        for idx in range(start, stop):
-            displace[idx:, :, axis] += shift
-        return self.replace(displace=displace)
-    
+
     def _get_shifted(self):
         mesh = self._get_mesh()
         return mesh + self._displace
@@ -292,3 +303,82 @@ def oblique_meshgrid(
     out[:, :, 0] = out[:, :, 0] * d0 + c0
     out[:, :, 1] = out[:, :, 1] * d1 + c1
     return out
+
+class CylindricSlice(NamedTuple):
+    y: slice
+    a: slice
+    
+    def __repr__(self) -> str:
+        _y, _a = self
+        if _y == slice(None):
+            ysl = ":"
+        else:
+            ysl = f"{_y.start}:{_y.stop}"
+        if _a == slice(None):
+            asl = ":"
+        else:
+            asl = f"{_a.start}:{_a.stop}"
+        return f"Idx[{ysl}, {asl}]"
+
+    def get_resolver(self, rise: int) -> CylindricSliceResolver:
+        return CylindricSliceResolver(*self, rise)
+
+class CylindricSliceConstructor:
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            return CylindricSlice(*key)
+        return CylindricSlice(key, slice(None))
+
+indexer = CylindricSliceConstructor()
+
+class CylindricSliceResolver(NamedTuple):
+    y: slice
+    a: slice
+    rise: int
+    
+    def resolve_slices(self, shape: tuple[int, int]) -> list[CylindricSlice]:
+        ny, na = shape
+        _y, _a, rise = self
+        astart = _a.start
+        astop = _a.stop
+        if astart is None:
+            astart = 0
+        if astop is None:
+            astop = na
+        if astart >= astop:
+            raise ValueError("start must be larger than stop.")
+                
+        slices: list[CylindricSlice] = []
+        npart_start, res_start = divmod(astart, na)
+        npart_stop, res_stop = divmod(astop, na)
+        
+        i = npart_start
+        s0 = res_start
+        while i <= npart_stop:
+            yoffset = i * rise
+            s1 = na if i < npart_stop else res_stop
+            slices.append(
+                CylindricSlice(slice(_y.start + yoffset, _y.stop + yoffset), slice(s0, s1))
+            )
+            
+            i += 1
+            s0 = 0
+        
+        return slices
+        
+            
+    def get_slice(self, arr: np.ndarray) -> np.ndarray:
+        slices = self.resolve_slices(arr.shape)
+        return np.concatenate([arr[sl] for sl in slices], axis=1)
+    
+    def set_slice(self, arr: np.ndarray, val: Any) -> None:
+        slices = self.resolve_slices(arr.shape)
+        start = 0
+        for sl in slices:
+            asl = sl[1]
+            size = asl.stop - asl.start
+            stop = start + size
+            arr[sl] = val[:, start:stop]
+            start = stop
+            
+        return None
