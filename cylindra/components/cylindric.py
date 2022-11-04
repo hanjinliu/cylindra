@@ -181,7 +181,7 @@ class CylinderModel:
         if not isinstance(sl, CylindricSlice):
             sl = indexer[sl]
         sl.get_resolver(self.nrise).set_slice(shift, radius_shift)
-        shift3d = np.stack([np.zeros_like(shift), np.zeros_like(shift), shift], axis=2)
+        shift3d = np.stack([shift, np.zeros_like(shift), np.zeros_like(shift)], axis=2)
         return self.add_shift(shift3d)
 
     def expand(self, yshift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:

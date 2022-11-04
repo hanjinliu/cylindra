@@ -92,7 +92,6 @@ class CylinderSimulator(MagicTemplate):
         def set_current_spline(self): ...
         def load_spline_parameters(self): ...
         def show_layer_control(self): ...
-        def open_operator(self): ...
 
     @magicclass(widget_type="split", labels=False)
     class Left(MagicTemplate):
@@ -101,8 +100,6 @@ class CylinderSimulator(MagicTemplate):
     @property
     def parameters(self):
         return self.Left.parameters
-
-    canvas = field(Vispy3DCanvas)
 
     def __post_init__(self) -> None:
         self._model: CylinderModel = None
@@ -122,19 +119,35 @@ class CylinderSimulator(MagicTemplate):
             self._selections = self.canvas.add_points(
                 [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
             )
+            self._selections.visible = False
             self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
             self._points.signals.size.connect_setattr(self._selections, "size")
-            self._selections.visible = False
+            self._points.data = mole.pos
         else:
             self._points.data = mole.pos
+            self._select_molecules(self.Operator.yrange, self.Operator.arange)
         return None
     
-    @magicclass(popup_mode="below")
+    @magicclass
     class Operator(MagicTemplate):
-        yrange = vfield(Tuple[int, int], widget_type=RangeSlider)
-        arange = vfield(Tuple[int, int], widget_type=RangeSlider, options={"value": (0, 100)})
-        n_allev = vfield(1, options={"min": 0, "max": 20, "label": "number of alleviation"})
-        show_selection = vfield(True, record=False)
+        """
+        Apply local structural changes to the molecules.
+
+        Attributes
+        ----------
+        yrange : tuple of int
+            Selected range in axial direction.
+        arange : tuple of int
+            Selected range in angular direction (selected protofilaments).
+        n_allev : int
+            Number of iteration of alleviation.
+        show_selection : bool
+            Check to show all the selected molecules
+        """
+        yrange = vfield(Tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
+        arange = vfield(Tuple[int, int], label="angular", widget_type=RangeSlider, options={"value": (0, 100)}, record=False)
+        n_allev = vfield(1, label="alleviate", options={"min": 0, "max": 20}, record=False)
+        show_selection = vfield(True, label="show selected molecules", record=False)
         
         def _set_shape(self, ny, na):
             self["yrange"].max = ny
@@ -228,6 +241,8 @@ class CylinderSimulator(MagicTemplate):
             shift[ysl, asl] = val
             return shift, Idx[ysl, asl]
         
+    canvas = field(Vispy3DCanvas)  # the 3D viewer
+
     @property
     def parent_widget(self):
         from .main import CylindraMainWidget
@@ -317,15 +332,10 @@ class CylinderSimulator(MagicTemplate):
         if points is None:
             raise ValueError("No layer found in this viewer.")
         cnt = self._points.widgets.as_container()
-        self.Left.append(cnt)
+        cnt.native.setParent(self.native, cnt.native.windowFlags())
+        cnt.show()
         return None
-    
-    @Menu.wraps
-    def open_operator(self):
-        self.Operator._set_shape(*self.model.shape)
-        self.Operator.show()
-        return None
-        
+
     @Left.parameters.connect
     def _on_param_changed(self):
         idx = self._get_current_index()
@@ -340,3 +350,6 @@ class CylinderSimulator(MagicTemplate):
         
         op = self.Operator
         self._select_molecules(op.yrange, op.arange)  # update selection coordinates
+        
+        self.Operator._set_shape(*self.model.shape)
+
