@@ -1,16 +1,21 @@
 from typing import Any, TYPE_CHECKING, Tuple
+from pathlib import Path
 from magicgui.widgets import RangeSlider
 from magicclass import (
     magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
     vfield, FieldGroup, impl_preview
 )
-from magicclass.types import Bound
+from magicclass.types import Bound, OneOf
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.vispy import Vispy3DCanvas
+
 import numpy as np
 import impy as ip
 
+from acryo import TomogramSimulator
+
+from .widget_utils import FileFilter
 from ..components import CylTomogram, CylinderModel, CylSpline, indexer as Idx
 from ..const import nm, GVar, H
 from ..utils import roundint
@@ -36,11 +41,15 @@ class CylinderOffsets(FieldGroup):
     def value(self):
         return self.yoffset, self.aoffset
 
+INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
+
 _INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
 _NPF = (GVar.nPFmin + GVar.nPFmax) // 2
 _RADIUS = _INTERVAL * _NPF / 2 / np.pi
 
 class CylinderParameters:
+    """Parameters for cylinder model."""
+
     interval: nm = _INTERVAL
     skew: float = (GVar.minSkew + GVar.maxSkew) / 2
     rise: float = 0.0
@@ -49,12 +58,14 @@ class CylinderParameters:
     offsets: "tuple[nm, float]" = (0.0, 0.0)
     
     def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
+        """Update parameters"""
         kwargs = dict(**other, **kwargs)
         for k, v in kwargs.items():
             setattr(self, k, v)
         return None
     
     def asdict(self) -> dict[str, Any]:
+        """Return parameters as a dictionary."""
         return {
             "interval": self.interval,
             "skew": self.skew,
@@ -70,6 +81,7 @@ class CylinderSimulator(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
         def create_empty_image(self): ...
+        def simulate_tomogram(self): ...
         def set_current_spline(self): ...
         def update_model(self): ...
         def load_spline_parameters(self): ...
@@ -96,13 +108,12 @@ class CylinderSimulator(MagicTemplate):
             self._selections.visible = False
             self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
             self._points.signals.size.connect_setattr(self._selections, "size")
-            self._points.data = mole.pos
         else:
             self._points.data = mole.pos
             self._select_molecules(self.Operator.yrange, self.Operator.arange)
         return None
     
-    @magicclass(popup_mode="dialog")
+    @magicclass
     class Operator(MagicTemplate):
         """
         Apply local structural changes to the molecules.
@@ -248,9 +259,8 @@ class CylinderSimulator(MagicTemplate):
         shape = tuple(roundint(s / scale) for s in size)
         img = ip.random.normal(size=shape, axes="zyx", name="simulated image")  # TODO: just for now
         img.scale_unit = "nm"
-        bin_size = list(set(bin_size))  # delete duplication
+        bin_size = sorted(list(set(bin_size)))  # delete duplication
         tomo = CylTomogram.from_image(img, scale=scale, binsize=bin_size)
-        
         parent._macro_offset = len(parent.macro)
         parent.tomogram = tomo
         return thread_worker.to_callback(parent._send_tomogram_to_viewer, False)
@@ -373,3 +383,47 @@ class CylinderSimulator(MagicTemplate):
         self.model = old_model
         op["yrange"].max, op["arange"].max = old_max
         return None
+
+    @Menu.wraps
+    @set_options(
+        path={"label": "Template image", "filter": FileFilter.IMAGE},
+        tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
+        bin_size={"options": {"min": 1, "max": 10}},
+    )
+    @thread_worker(progress=True)
+    def simulate_tomogram(
+        self,
+        path: Path,
+        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        tilt_step: float = 2.0,
+        bin_size: list[int] = [4],
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        filter_reference_image: bool = True,
+    ):
+        parent = self.parent_widget
+        tomo = parent.tomogram
+        template = ip.imread(path)
+        scale_ratio = template.scale.x / tomo.scale
+        template = template.rescale(scale_ratio)
+        
+        model = self.model
+        mole = model.to_molecules(self._spline)
+        scale = tomo.scale
+        simulator = TomogramSimulator(order=interpolation, scale=scale)
+        simulator.add_molecules(molecules=mole, image=template)
+        simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
+        parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
+        
+        # tilt
+        deg_min, deg_max = tilt_range
+        num = int(round((deg_max - deg_min) / tilt_step)) + 1
+        degs = np.linspace(deg_min, deg_max, num=num)
+        parent.log.print_html(f"Running Radon transformation to generate {num} tilt series.")
+        sino = simulated_image.radon(degs, central_axis="y", order=interpolation)
+        imax = template.max()
+        sino += ip.random.normal(scale=imax*2.0, size=sino.shape, axes=sino.axes)
+        parent.log.print_html("Running inverse Radon transformation.")
+        rec = sino.iradon(degs, central_axis="y", order=interpolation, height=simulated_image.shape.z)
+        tomo = CylTomogram.from_image(rec, scale=scale, binsize=bin_size)
+        parent.tomogram = tomo
+        return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter_reference_image)

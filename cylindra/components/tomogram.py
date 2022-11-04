@@ -148,18 +148,20 @@ class Tomogram:
     
     def _set_image(self, img: ip.LazyImgArray | np.ndarray) -> None:
         if isinstance(img, ip.LazyImgArray):
-            img = img.as_float()
+            _img = img.as_float()
         elif isinstance(img, np.ndarray):
             if img.ndim != 3:
                 raise ValueError("Can only set 3-D image.")
-            img = ip.aslazy(img, dtype=np.float32, axes="zyx", chunks=GVar.daskChunk)
+            _img = ip.aslazy(img, dtype=np.float32, axes="zyx", chunks=GVar.daskChunk)
+            if isinstance(img, ip.ImgArray):
+                _img.set_scale(img)
         else:
             raise TypeError(f"Cannot set type {type(img)} as an image.")
-        if (abs(img.scale.z - img.scale.x) > 1e-4
-            or abs(img.scale.z - img.scale.y) > 1e-4):
+        if (abs(_img.scale.z - _img.scale.x) > 1e-4
+            or abs(_img.scale.z - _img.scale.y) > 1e-4):
             raise ValueError("Uneven scale.")
-        self.scale = img.scale.x
-        self._image = img
+        self.scale = _img.scale.x
+        self._image = _img
         return None
     
     @overload
