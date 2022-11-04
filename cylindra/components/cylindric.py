@@ -181,7 +181,8 @@ class CylinderModel:
         if not isinstance(sl, CylindricSlice):
             sl = indexer[sl]
         sl.get_resolver(self.nrise).set_slice(shift, radius_shift)
-        return self.add_shift(shift)
+        shift3d = np.stack([np.zeros_like(shift), np.zeros_like(shift), shift], axis=2)
+        return self.add_shift(shift3d)
 
     def expand(self, yshift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
         """Locally add uniform shift to the axial (y-axis) direction."""
@@ -203,7 +204,8 @@ class CylinderModel:
         displace = self._displace.copy()
         axis = 2
         for _y, _a in sl.resolve(self.shape, self.nrise):
-            displace[_y.start:, _a, axis] += angle_shift
+            for start in range(_y.start, _y.stop):
+                displace[start:, _a, axis] += angle_shift
         return self.replace(displace=displace)
     
     def alleviate(self, label: ArrayLike, niter: int = 1) -> Self:
@@ -377,11 +379,20 @@ class CylindricSliceResolver(NamedTuple):
     def set_slice(self, arr: np.ndarray, val: Any) -> None:
         slices = self.resolve_slices(arr.shape)
         start = 0
-        for sl in slices:
-            asl = sl[1]
-            size = asl.stop - asl.start
-            stop = start + size
-            arr[sl] = val[:, start:stop]
-            start = stop
-            
+        if isinstance(val, np.ndarray):
+            for sl in slices:
+                asl = sl[1]
+                size = asl.stop - asl.start
+                stop = start + size
+                arr[sl] = val[:, start:stop]
+                start = stop
+        elif np.isscalar(val):
+            for sl in slices:
+                asl = sl[1]
+                size = asl.stop - asl.start
+                stop = start + size
+                arr[sl] = val
+                start = stop
+        else:
+            raise TypeError(f"Cannot set {val!r}.")
         return None

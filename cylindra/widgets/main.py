@@ -13,7 +13,7 @@ import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
-                        do_not_record, field, magicclass, mark_preview, nogui,
+                        do_not_record, field, magicclass, impl_preview, nogui,
                         set_design, set_options)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -2456,7 +2456,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         return None
     
-    @mark_preview(render_molecules)
+    @impl_preview(render_molecules)
     def _preview_rendering(self, template_path: str, mask_params, cutoff: float):
         from skimage.measure import marching_cubes
 
@@ -3132,11 +3132,11 @@ class CylindraMainWidget(MagicTemplate):
     # Preview methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
-    @mark_preview(load_project)
+    @impl_preview(load_project)
     def _preview_text(self, path: str):
         return _previews.view_text(path, parent=self)
     
-    @mark_preview(load_molecules)
+    @impl_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
         return _previews.view_tables(paths, parent=self)
     

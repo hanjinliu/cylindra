@@ -1,6 +1,9 @@
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Tuple
 from magicgui.widgets import RangeSlider
-from magicclass import magicclass, magicmenu, MagicTemplate, set_design, set_options, field, vfield, FieldGroup
+from magicclass import (
+    magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
+    vfield, FieldGroup, impl_preview
+)
 from magicclass.types import Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
@@ -8,7 +11,7 @@ from magicclass.ext.vispy import Vispy3DCanvas
 import numpy as np
 import impy as ip
 
-from ..components import CylTomogram, CylinderModel, CylSpline
+from ..components import CylTomogram, CylinderModel, CylSpline, indexer as Idx
 from ..const import nm, GVar, H
 from ..utils import roundint
 
@@ -81,7 +84,7 @@ class CylinderParameters(FieldGroup):
         self.changed.emit(self)
         return None
 
-@magicclass
+@magicclass(widget_type="split", labels=False, layout="horizontal")
 class CylinderSimulator(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
@@ -91,54 +94,51 @@ class CylinderSimulator(MagicTemplate):
         def show_layer_control(self): ...
         def open_operator(self): ...
 
-    @magicclass(widget_type="split", layout="horizontal", labels=False)
-    class CylinderModelViewer(MagicTemplate):
-        @magicclass(widget_type="split", labels=False)
-        class Left(MagicTemplate):
-            parameters = CylinderParameters()
-        
-        @property
-        def parameters(self):
-            return self.Left.parameters
-
-        canvas = field(Vispy3DCanvas)
-
-        def __post_init__(self) -> None:
-            self._model: CylinderModel = None
-            self._spline: CylSpline = None
-            self._spline_arrow: layers.Arrows3D = None
-            self._points: layers.Points3D = None
-            self._selections: layers.Points3D = None
-            self.parameters.max_width = 230
-
-        def _set_model(self, model: CylinderModel, spl: CylSpline):
-            self._model = model
-            self._spline = spl
-            mole = model.to_molecules(spl)
-            
-            if self._points is None:
-                self._points = self.canvas.add_points(mole.pos, size=2.0, face_color="lime", edge_color="lime")
-                self._selections = self.canvas.add_points(
-                    [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
-                )
-                self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
-                self._points.signals.size.connect_setattr(self._selections, "size")
-                self._selections.visible = False
-            else:
-                self._points.data = mole.pos
-            return None
+    @magicclass(widget_type="split", labels=False)
+    class Left(MagicTemplate):
+        parameters = CylinderParameters()
     
-    @magicclass
-    class _Operator(MagicTemplate):
-        yrange = vfield((0, 1), widget_type=RangeSlider)
-        arange = vfield((0, 1), widget_type=RangeSlider)
+    @property
+    def parameters(self):
+        return self.Left.parameters
+
+    canvas = field(Vispy3DCanvas)
+
+    def __post_init__(self) -> None:
+        self._model: CylinderModel = None
+        self._spline: CylSpline = None
+        self._spline_arrow: layers.Arrows3D = None
+        self._points: layers.Points3D = None
+        self._selections: layers.Points3D = None
+        self.parameters.max_width = 230
+
+    def _set_model(self, model: CylinderModel, spl: CylSpline):
+        self._model = model
+        self._spline = spl
+        mole = model.to_molecules(spl)
+        
+        if self._points is None:
+            self._points = self.canvas.add_points(mole.pos, size=2.0, face_color="lime", edge_color="lime")
+            self._selections = self.canvas.add_points(
+                [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
+            )
+            self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
+            self._points.signals.size.connect_setattr(self._selections, "size")
+            self._selections.visible = False
+        else:
+            self._points.data = mole.pos
+        return None
+    
+    @magicclass(popup_mode="below")
+    class Operator(MagicTemplate):
+        yrange = vfield(Tuple[int, int], widget_type=RangeSlider)
+        arange = vfield(Tuple[int, int], widget_type=RangeSlider, options={"value": (0, 100)})
+        n_allev = vfield(1, options={"min": 0, "max": 20, "label": "number of alleviation"})
         show_selection = vfield(True, record=False)
         
         def _set_shape(self, ny, na):
             self["yrange"].max = ny
             self["arange"].max = na
-            self.yrange = (0, ny)
-            self.arange = (0, na)
         
         @yrange.connect
         @arange.connect
@@ -150,27 +150,84 @@ class CylinderSimulator(MagicTemplate):
         @show_selection.connect
         def _on_show_selection_changed(self, show: bool):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
-            parent.CylinderModelViewer._selections.visible = show
+            parent._selections.visible = show
             return None
         
-        @set_options(
-            yshift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"},
-            n_allev={"min": 0, "max": 20, "label": "number of alleviation"}
-        )
-        @set_design(text="Expansion/compaction")
-        def expansion_or_compaction(self, yshift: nm = 0.1, n_allev: int = 3):
+        @set_options(shift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"})
+        @set_design(text="Expansion/Compaction", font_color="lime")
+        @impl_preview(auto_call=True)
+        def expand(
+            self,
+            shift: nm,
+            yrange: Bound[yrange],
+            arange: Bound[arange],
+            n_allev: Bound[n_allev] = 1,
+        ):
             """Expand the selected molecules."""
             parent = self.find_ancestor(CylinderSimulator, cache=True)
-            shift = np.zeros(parent.model.shape, dtype=np.float32)
-            ysl = slice(*self.yrange)
-            asl = slice(*self.arange)
-            shift[ysl, asl] = yshift
-            new_model = parent.model.add_axial_shift(shift)
-            if n_allev:
+            shift_arr, sl = self._fill_shift(yrange, arange, shift)
+            new_model = parent.model.expand(shift, sl)
+            if n_allev > 0:
+                new_model = new_model.alleviate(shift_arr != 0, niter=n_allev)
+            parent.model = new_model
+            return None
+        
+        @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.01, "label": "skew (deg)"})
+        @set_design(text="Screw", font_color="lime")
+        @impl_preview(auto_call=True)
+        def screw(
+            self, 
+            skew: float,
+            yrange: Bound[yrange], 
+            arange: Bound[arange],
+            n_allev: Bound[n_allev] = 1,
+        ):
+            """Screw (change the skew angles of) the selected molecules."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift, sl = self._fill_shift(yrange, arange, skew)
+            new_model = parent.model.screw(skew, sl)
+            if n_allev > 0:
                 new_model = new_model.alleviate(shift != 0, niter=n_allev)
             parent.model = new_model
             return None
-
+        
+        @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.01, "label": "radius (nm)"})
+        @set_design(text="Dilation/Erosion", font_color="lime")
+        @impl_preview(auto_call=True)
+        def dilate(
+            self,
+            radius: nm,
+            yrange: Bound[yrange],
+            arange: Bound[arange],
+            n_allev: Bound[n_allev] = 1,
+        ):
+            """Dilate (increase the local radius of) the selected molecules."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift, sl = self._fill_shift(yrange, arange, radius)
+            new_model = parent.model.dilate(radius, sl)
+            if n_allev > 0:
+                new_model = new_model.alleviate(shift != 0, niter=n_allev)
+            parent.model = new_model
+            return None
+        
+        @expand.during_preview
+        @screw.during_preview
+        @dilate.during_preview
+        def _prev_context(self):
+            """Temporarily update the layers."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            original = parent.model
+            yield
+            parent.model = original
+        
+        def _fill_shift(self, yrange, arange, val: float):
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift = np.zeros(parent.model.shape, dtype=np.float32)
+            ysl = slice(*yrange)
+            asl = slice(*arange)
+            shift[ysl, asl] = val
+            return shift, Idx[ysl, asl]
+        
     @property
     def parent_widget(self):
         from .main import CylindraMainWidget
@@ -179,12 +236,12 @@ class CylinderSimulator(MagicTemplate):
     @property
     def model(self) -> CylinderModel:
         """Current cylinder model."""
-        return self.CylinderModelViewer._model
+        return self._model
     
     @model.setter
     def model(self, model: CylinderModel):
         """Set new model and simulate molecules with the same spline."""
-        return self.CylinderModelViewer._set_model(model, self.CylinderModelViewer._spline)
+        return self._set_model(model, self._spline)
     
     @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})
@@ -211,29 +268,28 @@ class CylinderSimulator(MagicTemplate):
         return parent.SplineControl.num
     
     def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
-        model_viewer = self.CylinderModelViewer
-        points = model_viewer._points.data
-        npf = model_viewer.parameters.npf
+        points = self._points.data
+        npf = self.parameters.npf
         ysl = slice(*yrange)
         asl = slice(*arange)
         selected_points = points.reshape(-1, npf, 3)[ysl, asl].reshape(-1, 3)
-        model_viewer._selections.data = selected_points
-        model_viewer._selections.visible = True
+        self._selections.data = selected_points
+        self._selections.visible = True
     
     def _deselect_molecules(self):
-        self.CylinderModelViewer._selections.data = np.zeros((1, 3), dtype=np.float32)
-        self.CylinderModelViewer._selections.visible = False
+        self._selections.data = np.zeros((1, 3), dtype=np.float32)
+        self._selections.visible = False
 
     @Menu.wraps
     def set_current_spline(self, idx: Bound[_get_current_index]):
         """Use the current parameters and the spline to construct a model and molecules."""
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
-        params = self.CylinderModelViewer.parameters.as_kwargs()
+        params = self.parameters.as_kwargs()
         model = tomo.get_cylinder_model(idx, **params)
         spl.radius = params.pop("radius")
         params.pop("offsets")
-        self.CylinderModelViewer._set_model(model, spl)
+        self._set_model(model, spl)
         
         return None
     
@@ -252,35 +308,35 @@ class CylinderSimulator(MagicTemplate):
             H.nPF: props[H.nPF],
             "radius": spl.radius,
         }
-        self.CylinderModelViewer.parameters.update(params)
+        self.parameters.update(params)
         return None
 
     @Menu.wraps
     def show_layer_control(self):
-        points = self.CylinderModelViewer._points
+        points = self._points
         if points is None:
             raise ValueError("No layer found in this viewer.")
-        cnt = self.CylinderModelViewer._points.widgets.as_container()
-        self.CylinderModelViewer.Left.append(cnt)
+        cnt = self._points.widgets.as_container()
+        self.Left.append(cnt)
         return None
     
     @Menu.wraps
     def open_operator(self):
-        self._Operator._set_shape(*self.model.shape)
-        self._Operator.show()
+        self.Operator._set_shape(*self.model.shape)
+        self.Operator.show()
         return None
         
-    @CylinderModelViewer.Left.parameters.connect
+    @Left.parameters.connect
     def _on_param_changed(self):
         idx = self._get_current_index()
         
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
-        params = self.CylinderModelViewer.parameters.as_kwargs()
+        params = self.parameters.as_kwargs()
         model = tomo.get_cylinder_model(idx, **params).add_shift(self.model.displace)
         spl.radius = params.pop("radius")
         params.pop("offsets")
         self.model = model
         
-        op = self._Operator
+        op = self.Operator
         self._select_molecules(op.yrange, op.arange)  # update selection coordinates
