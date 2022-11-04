@@ -11,7 +11,10 @@ const double PI = 3.14159265358979323846;
 // NOTE: Linker errors when defining functions in cpp file could not be resolved...
 // Therefore, all functions are defined in the header file for now.
 
-std::vector<Index> arrayToIndices(py::array_t<ssize_t> array){
+// Convert (N, 2) pyarray in to a vector of Index objects
+// As a pseudo-code example, arrayToIndices(np.array([[2, 3], [5, 4]])) will return 
+// {Index(2, 3), Index(5, 4)}.
+std::vector<Index> arrayToIndices(py::array_t<ssize_t> array) {
     py::buffer_info _arr_info = array.request();
     ssize_t nidx = _arr_info.shape[0];
 
@@ -25,13 +28,13 @@ std::vector<Index> arrayToIndices(py::array_t<ssize_t> array){
     return indices;
 }
 
+// Alleviate molecule displacements by iterative local-averaging algorithm.
 py::array_t<double> alleviate(
     py::array_t<double> arr,
     py::array_t<ssize_t> label,
 	ssize_t nrise,
     ssize_t iterations
-)
-{
+) {
     // get buffers
 	py::buffer_info _arr_info = arr.request();
     

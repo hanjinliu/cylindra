@@ -1,0 +1,429 @@
+from typing import Any, TYPE_CHECKING, Tuple
+from pathlib import Path
+from magicgui.widgets import RangeSlider
+from magicclass import (
+    magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
+    vfield, FieldGroup, impl_preview
+)
+from magicclass.types import Bound, OneOf
+from magicclass.utils import thread_worker
+from magicclass.ext.dask import dask_thread_worker
+from magicclass.ext.vispy import Vispy3DCanvas
+
+import numpy as np
+import impy as ip
+
+from acryo import TomogramSimulator
+
+from .widget_utils import FileFilter
+from ..components import CylTomogram, CylinderModel, CylSpline, indexer as Idx
+from ..const import nm, GVar, H
+from ..utils import roundint
+
+if TYPE_CHECKING:
+    from magicclass.ext.vispy import layer3d as layers
+
+class CylinderOffsets(FieldGroup):
+    """
+    Widget for specifying cylinder tilts.
+
+    Attributes
+    ----------
+    yoffset : float
+        Offset of axial direction.
+    aoffset : float
+        Offset of angular direction.
+    """
+    yoffset = vfield(0.0, options={"min": -10, "max": 10, "step": 0.1}, label="y")
+    aoffset = vfield(0.0, options={"min": -np.pi, "max": np.pi}, label="θ")
+
+    @property
+    def value(self):
+        return self.yoffset, self.aoffset
+
+INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
+
+_INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
+_NPF = (GVar.nPFmin + GVar.nPFmax) // 2
+_RADIUS = _INTERVAL * _NPF / 2 / np.pi
+
+class CylinderParameters:
+    """Parameters for cylinder model."""
+
+    interval: nm = _INTERVAL
+    skew: float = (GVar.minSkew + GVar.maxSkew) / 2
+    rise: float = 0.0
+    npf: int = _NPF
+    radius: nm = _RADIUS
+    offsets: "tuple[nm, float]" = (0.0, 0.0)
+    
+    def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
+        """Update parameters"""
+        kwargs = dict(**other, **kwargs)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        return None
+    
+    def asdict(self) -> dict[str, Any]:
+        """Return parameters as a dictionary."""
+        return {
+            "interval": self.interval,
+            "skew": self.skew,
+            "rise": self.rise,
+            "npf": self.npf,
+            "radius": self.radius,
+            "offsets": self.offsets,
+        }
+
+# Main widget class
+@magicclass(widget_type="split", labels=False, layout="horizontal")
+class CylinderSimulator(MagicTemplate):
+    @magicmenu
+    class Menu(MagicTemplate):
+        def create_empty_image(self): ...
+        def simulate_tomogram(self): ...
+        def set_current_spline(self): ...
+        def update_model(self): ...
+        def load_spline_parameters(self): ...
+        def show_layer_control(self): ...
+
+    def __post_init__(self) -> None:
+        self._model: CylinderModel = None
+        self._parameters = CylinderParameters()
+        self._spline: CylSpline = None
+        self._spline_arrow: layers.Arrows3D = None
+        self._points: layers.Points3D = None
+        self._selections: layers.Points3D = None
+
+    def _set_model(self, model: CylinderModel, spl: CylSpline):
+        self._model = model
+        self._spline = spl
+        mole = model.to_molecules(spl)
+        
+        if self._points is None:
+            self._points = self.canvas.add_points(mole.pos, size=2.0, face_color="lime", edge_color="lime")
+            self._selections = self.canvas.add_points(
+                [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
+            )
+            self._selections.visible = False
+            self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
+            self._points.signals.size.connect_setattr(self._selections, "size")
+        else:
+            self._points.data = mole.pos
+            self._select_molecules(self.Operator.yrange, self.Operator.arange)
+        return None
+    
+    @magicclass
+    class Operator(MagicTemplate):
+        """
+        Apply local structural changes to the molecules.
+
+        Attributes
+        ----------
+        yrange : tuple of int
+            Selected range in axial direction.
+        arange : tuple of int
+            Selected range in angular direction (selected protofilaments).
+        n_allev : int
+            Number of iteration of alleviation.
+        show_selection : bool
+            Check to show all the selected molecules
+        """
+        yrange = vfield(Tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
+        arange = vfield(Tuple[int, int], label="angular", widget_type=RangeSlider, options={"value": (0, 100)}, record=False)
+        n_allev = vfield(1, label="alleviate", options={"min": 0, "max": 20}, record=False)
+        show_selection = vfield(True, label="show selected molecules", record=False)
+        
+        def __post_init__(self):
+            self.min_width = 300
+
+        def _set_shape(self, ny, na):
+            self["yrange"].max = ny
+            self["arange"].max = na
+        
+        @yrange.connect
+        @arange.connect
+        def _on_range_changed(self):
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            parent._select_molecules(self.yrange, self.arange)
+            return None
+        
+        @show_selection.connect
+        def _on_show_selection_changed(self, show: bool):
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            parent._selections.visible = show
+            return None
+        
+        @set_options(shift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"})
+        @set_design(text="Expansion/Compaction", font_color="lime")
+        @impl_preview(auto_call=True)
+        def expand(
+            self,
+            shift: nm,
+            yrange: Bound[yrange],
+            arange: Bound[arange],
+            n_allev: Bound[n_allev] = 1,
+        ):
+            """Expand the selected molecules."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift_arr, sl = self._fill_shift(yrange, arange, shift)
+            new_model = parent.model.expand(shift, sl)
+            if n_allev > 0:
+                new_model = new_model.alleviate(shift_arr != 0, niter=n_allev)
+            parent.model = new_model
+            return None
+        
+        @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"})
+        @set_design(text="Screw", font_color="lime")
+        @impl_preview(auto_call=True)
+        def screw(
+            self, 
+            skew: float,
+            yrange: Bound[yrange], 
+            arange: Bound[arange],
+            n_allev: Bound[n_allev] = 1,
+        ):
+            """Screw (change the skew angles of) the selected molecules."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift, sl = self._fill_shift(yrange, arange, skew)
+            new_model = parent.model.screw(np.deg2rad(skew), sl)
+            if n_allev > 0:
+                new_model = new_model.alleviate(shift != 0, niter=n_allev)
+            parent.model = new_model
+            return None
+        
+        @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"})
+        @set_design(text="Dilation/Erosion", font_color="lime")
+        @impl_preview(auto_call=True)
+        def dilate(
+            self,
+            radius: nm,
+            yrange: Bound[yrange],
+            arange: Bound[arange],
+            n_allev: Bound[n_allev] = 1,
+        ):
+            """Dilate (increase the local radius of) the selected molecules."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift, sl = self._fill_shift(yrange, arange, radius)
+            new_model = parent.model.dilate(radius, sl)
+            if n_allev > 0:
+                new_model = new_model.alleviate(shift != 0, niter=n_allev)
+            parent.model = new_model
+            return None
+        
+        @expand.during_preview
+        @screw.during_preview
+        @dilate.during_preview
+        def _prev_context(self):
+            """Temporarily update the layers."""
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            original = parent.model
+            yield
+            parent.model = original
+        
+        def _fill_shift(self, yrange, arange, val: float):
+            parent = self.find_ancestor(CylinderSimulator, cache=True)
+            shift = np.zeros(parent.model.shape, dtype=np.float32)
+            ysl = slice(*yrange)
+            asl = slice(*arange)
+            shift[ysl, asl] = val
+            return shift, Idx[ysl, asl]
+        
+    canvas = field(Vispy3DCanvas)  # the 3D viewer
+
+    @property
+    def parent_widget(self):
+        from .main import CylindraMainWidget
+        return self.find_ancestor(CylindraMainWidget, cache=True)
+    
+    @property
+    def model(self) -> CylinderModel:
+        """Current cylinder model."""
+        return self._model
+    
+    @model.setter
+    def model(self, model: CylinderModel):
+        """Set new model and simulate molecules with the same spline."""
+        return self._set_model(model, self._spline)
+    
+    @Menu.wraps
+    @dask_thread_worker(progress={"desc": "Creating an image"})
+    @set_options(bin_size={"options": {"min": 1, "max": 8}})
+    def create_empty_image(
+        self, 
+        size: tuple[nm, nm, nm] = (100., 200., 100.), 
+        scale: nm = 0.25,
+        bin_size: list[int] = [4],
+    ):
+        parent = self.parent_widget
+        shape = tuple(roundint(s / scale) for s in size)
+        img = ip.random.normal(size=shape, axes="zyx", name="simulated image")  # TODO: just for now
+        img.scale_unit = "nm"
+        bin_size = sorted(list(set(bin_size)))  # delete duplication
+        tomo = CylTomogram.from_image(img, scale=scale, binsize=bin_size)
+        parent._macro_offset = len(parent.macro)
+        parent.tomogram = tomo
+        return thread_worker.to_callback(parent._send_tomogram_to_viewer, False)
+    
+    def _get_current_index(self, *_) -> int:
+        parent = self.parent_widget
+        return parent.SplineControl.num
+    
+    def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
+        points = self._points.data
+        npf = self._parameters.npf
+        ysl = slice(*yrange)
+        asl = slice(*arange)
+        selected_points = points.reshape(-1, npf, 3)[ysl, asl].reshape(-1, 3)
+        self._selections.data = selected_points
+        self._selections.visible = True
+    
+    def _deselect_molecules(self):
+        self._selections.data = np.zeros((1, 3), dtype=np.float32)
+        self._selections.visible = False
+
+    @Menu.wraps
+    def set_current_spline(self, idx: Bound[_get_current_index]):
+        """Use the current parameters and the spline to construct a model and molecules."""
+        self._spline = self.parent_widget.tomogram.splines[idx]
+        self.update_model(idx, **self._parameters.asdict())
+        return None
+    
+    @Menu.wraps
+    def load_spline_parameters(self, idx: Bound[_get_current_index]):
+        """Copy the spline parameters in the viewer."""
+        tomo = self.parent_widget.tomogram
+        spl = tomo.splines[idx]
+        props = spl.globalprops
+        if props is None:
+            raise ValueError("Global property is not calculated yet.")
+        self._parameters.update(
+            interval=props[H.yPitch],
+            skew=props[H.skewAngle],
+            rise=props[H.riseAngle],
+            npf=props[H.nPF],
+            radius=spl.radius,
+        )
+        return None
+
+    @Menu.wraps
+    def show_layer_control(self):
+        points = self._points
+        if points is None:
+            raise ValueError("No layer found in this viewer.")
+        cnt = self._points.widgets.as_container()
+        cnt.native.setParent(self.native, cnt.native.windowFlags())
+        cnt.show()
+        return None
+
+    @Menu.wraps
+    @impl_preview(auto_call=True)
+    @set_options(
+        interval={"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"},
+        skew={"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"},
+        rise={"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"},
+        npf={"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"},
+        radius={"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"},
+        offsets={"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"},
+    )
+    def update_model(
+        self,
+        idx: Bound[_get_current_index],
+        interval: nm = CylinderParameters.interval,
+        skew: float = CylinderParameters.skew,
+        rise: float = CylinderParameters.rise,
+        npf: int = CylinderParameters.npf,
+        radius: nm = CylinderParameters.radius,
+        offsets: Tuple[float, float] = CylinderParameters.offsets,
+    ):
+        """
+        Update cylinder model with new parameters.
+        
+        Local structural displacement will be deleted because this function may change the number
+        of molecules. This function should be called first.
+
+        Parameters
+        ----------
+        idx : int
+            Index of spline used in the viewer.
+        interval : nm
+            Axial interval between molecules.
+        skew : float
+            Skew angle.
+        rise : float
+            Rise angle.
+        npf : int
+            Number of protofilaments.
+        radius : nm
+            Radius of the cylinder.
+        offsets : tuple of float
+            Offset of the starting molecule.
+        """
+        tomo = self.parent_widget.tomogram
+        spl = tomo.splines[idx]
+        self._parameters.update(
+            interval=interval, skew=skew, rise=rise, npf=npf, radius=radius, offsets=offsets
+        )
+        kwargs = {H.yPitch: interval, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
+        model = tomo.get_cylinder_model(idx, offsets=offsets, radius=radius, **kwargs)
+        self.model = model
+        spl.radius = radius
+        
+        op = self.Operator
+        op._set_shape(*self.model.shape)
+        self._select_molecules(op.yrange, op.arange)  # update selection coordinates
+        return None
+
+    @update_model.during_preview
+    def _during_update_model(self):
+        op = self.Operator
+        old_model = self.model
+        old_max = op["yrange"].max, op["arange"].max
+        yield
+        self.model = old_model
+        op["yrange"].max, op["arange"].max = old_max
+        return None
+
+    @Menu.wraps
+    @set_options(
+        path={"label": "Template image", "filter": FileFilter.IMAGE},
+        tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
+        bin_size={"options": {"min": 1, "max": 10}},
+    )
+    @thread_worker(progress=True)
+    def simulate_tomogram(
+        self,
+        path: Path,
+        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        tilt_step: float = 2.0,
+        bin_size: list[int] = [4],
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        filter_reference_image: bool = True,
+    ):
+        parent = self.parent_widget
+        tomo = parent.tomogram
+        template = ip.imread(path)
+        scale_ratio = template.scale.x / tomo.scale
+        template = template.rescale(scale_ratio)
+        
+        model = self.model
+        mole = model.to_molecules(self._spline)
+        scale = tomo.scale
+        simulator = TomogramSimulator(order=interpolation, scale=scale)
+        simulator.add_molecules(molecules=mole, image=template)
+        simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
+        parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
+        
+        # tilt
+        deg_min, deg_max = tilt_range
+        num = int(round((deg_max - deg_min) / tilt_step)) + 1
+        degs = np.linspace(deg_min, deg_max, num=num)
+        parent.log.print_html(f"Running Radon transformation to generate {num} tilt series.")
+        sino = simulated_image.radon(degs, central_axis="y", order=interpolation)
+        imax = template.max()
+        sino += ip.random.normal(scale=imax*2.0, size=sino.shape, axes=sino.axes)
+        parent.log.print_html("Running inverse Radon transformation.")
+        rec = sino.iradon(degs, central_axis="y", order=interpolation, height=simulated_image.shape.z)
+        tomo = CylTomogram.from_image(rec, scale=scale, binsize=bin_size)
+        parent.tomogram = tomo
+        return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter_reference_image)

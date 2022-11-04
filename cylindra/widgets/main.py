@@ -13,7 +13,7 @@ import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
-                        do_not_record, field, magicclass, mark_preview, nogui,
+                        do_not_record, field, magicclass, impl_preview, nogui,
                         set_design, set_options)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -37,6 +37,7 @@ from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .sweeper import SplineSweeper
+from .simulator import CylinderSimulator
 from .widget_utils import (FileFilter, add_molecules, change_viewer_focus,
                            update_features)
 
@@ -87,6 +88,7 @@ class CylindraMainWidget(MagicTemplate):
     _SplineSweeper = field(SplineSweeper, name="Spline sweeper")
     _ImageProcessor = field(ImageProcessor, name="Image Processor")
     _FeatureControl = field(FeatureControl, name="Feature Control")
+    _Simulator = field(CylinderSimulator, name="Cylinder Simulator")
     
     @magicclass(labels=False, name="Logger")
     @set_design(min_height=200)
@@ -2454,7 +2456,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         return None
     
-    @mark_preview(render_molecules)
+    @impl_preview(render_molecules)
     def _preview_rendering(self, template_path: str, mask_params, cutoff: float):
         from skimage.measure import marching_cubes
 
@@ -2698,6 +2700,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @Image.wraps
     @set_design(text="Show colorbar")
+    @do_not_record
     def show_colorbar(self):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
@@ -2709,6 +2712,12 @@ class CylindraMainWidget(MagicTemplate):
             plt.yticks([], [])
             plt.show()
         return None
+    
+    @Image.wraps
+    @set_design(text="Simulate cylindric structure")
+    @do_not_record
+    def simulate_cylinder(self):
+        return self._Simulator.show()
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods
@@ -2993,7 +3002,8 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_work = viewer.add_points(
             **common_properties,
             name=WORKING_LAYER_NAME,
-            face_color="yellow"
+            face_color="yellow",
+            blending="translucent_no_depth",
         )
 
         self.layer_work.mode = "add"
@@ -3122,11 +3132,11 @@ class CylindraMainWidget(MagicTemplate):
     # Preview methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
-    @mark_preview(load_project)
+    @impl_preview(load_project)
     def _preview_text(self, path: str):
         return _previews.view_text(path, parent=self)
     
-    @mark_preview(load_molecules)
+    @impl_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
         return _previews.view_tables(paths, parent=self)
     

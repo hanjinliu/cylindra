@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from cylindra.components import CylinderModel, Spline
+import pytest
+from cylindra.components import CylinderModel, Spline, indexer as Idx
 
 def test_cylindric_model_construction():
     # Test the constructor
@@ -39,13 +40,29 @@ def test_monomer_creation():
     dy = np.diff(pos_y, axis=0)
     assert_allclose(dy, 2., rtol=1e-6, atol=1e-6)
 
+@pytest.mark.parametrize(
+    ["aslice", "expected"],
+    [
+        (slice(2, 5), [Idx[40:50, 2:5]]),
+        (slice(2, 15), [Idx[40:50, 2:10], Idx[43:53, 0:5]]),
+        (slice(12, 15), [Idx[43:53, 2:5]]),
+        (slice(-3, 2), [Idx[37:47, 7:10], Idx[40:50, 0:2]]),
+        (slice(-15, -6), [Idx[34:44, 5:10], Idx[37:47, 0:4]]),
+        (slice(-15, -11), [Idx[34:44, 5:9]]),
+    ]
+)
+def test_cylindric_slice(aslice: slice, expected: list[tuple[slice, slice]]):
+    idx = Idx[40:50, aslice]
+    resolved = idx.get_resolver(3).resolve_slices((100, 10))
+    assert resolved == expected
+
 def test_expand():
     model = CylinderModel(
         shape=(10, 8), 
         tilts=(0.1, 0.1), 
         interval=2.,
         radius=1.2,
-    ).expand(0.5, start=4, stop=7)
+    ).expand(0.5, Idx[4:7, :])
     
     spl = Spline.line([0, 0, 0], [0, 25, 0])
     mole = model.to_molecules(spl)
