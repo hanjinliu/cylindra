@@ -29,7 +29,7 @@ class CylinderOffsets(FieldGroup):
     aoffset : float
         Offset of angular direction.
     """
-    yoffset = vfield(0.0, options={"min": -10, "max": 10}, label="y")
+    yoffset = vfield(0.0, options={"min": -10, "max": 10, "step": 0.1}, label="y")
     aoffset = vfield(0.0, options={"min": -np.pi, "max": np.pi}, label="θ")
 
     @property
@@ -40,74 +40,48 @@ _INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
 _NPF = (GVar.nPFmin + GVar.nPFmax) // 2
 _RADIUS = _INTERVAL * _NPF / 2 / np.pi
 
-class CylinderParameters(FieldGroup):
-    """
-    Parameters that define a regular cylindric structure.
-
-    Attributes
-    ----------
-    interval : nm
-        Interval between adjacent molecules in the axial (y) direction.
-    skew : float
-        Skew angle in degree.
-    rise : float
-        Rise angle in degree.
-    npf : int
-        Number of protofilamnet.
-    radius : nm
-        Radius of cylinder.
-    offsets : tuple of float
-        Offsets of axial and angular coordinates.
-    """    
-    interval = vfield(_INTERVAL, options={"min": 0.0, "max": GVar.yPitchMax * 2, "step": 0.2}, label="interval (nm)")
-    skew = vfield((GVar.minSkew + GVar.maxSkew) / 2, options={"min": GVar.minSkew, "max": GVar.maxSkew}, label="skew (deg)")
-    rise = vfield(0.0, options={"min": -90.0, "max": 90.0, "step": 0.5}, label="rise (deg)")
-    npf = vfield(_NPF, options={"min": GVar.nPFmin, "max": GVar.nPFmax}, label="nPF")
-    radius = vfield(_RADIUS, options={"min": 0.5, "max": 50.0, "step": 0.5}, label="radius (nm)")
-    offsets = CylinderOffsets()
+class CylinderParameters:
+    interval: nm = _INTERVAL
+    skew: float = (GVar.minSkew + GVar.maxSkew) / 2
+    rise: float = 0.0
+    npf: int = _NPF
+    radius: nm = _RADIUS
+    offsets: "tuple[nm, float]" = (0.0, 0.0)
     
-    def as_kwargs(self) -> dict[str, Any]:
-        return {
-            H.yPitch: self.interval,
-            H.skewAngle: self.skew,
-            H.riseAngle: self.rise,
-            H.nPF: self.npf,
-            "radius": self.radius,
-            "offsets": self.offsets.value,
-        }
-    
-    def update(self, other: dict[str, Any], **kwargs) -> None:
+    def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
         kwargs = dict(**other, **kwargs)
-        with self.changed.blocked():
-            for k, v in kwargs:
-                setattr(self, k, v)
-        self.changed.emit(self)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
         return None
+    
+    def asdict(self) -> dict[str, Any]:
+        return {
+            "interval": self.interval,
+            "skew": self.skew,
+            "rise": self.rise,
+            "npf": self.npf,
+            "radius": self.radius,
+            "offsets": self.offsets,
+        }
 
+# Main widget class
 @magicclass(widget_type="split", labels=False, layout="horizontal")
 class CylinderSimulator(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
         def create_empty_image(self): ...
         def set_current_spline(self): ...
+        def update_model(self): ...
         def load_spline_parameters(self): ...
         def show_layer_control(self): ...
 
-    @magicclass(widget_type="split", labels=False)
-    class Left(MagicTemplate):
-        parameters = CylinderParameters()
-    
-    @property
-    def parameters(self):
-        return self.Left.parameters
-
     def __post_init__(self) -> None:
         self._model: CylinderModel = None
+        self._parameters = CylinderParameters()
         self._spline: CylSpline = None
         self._spline_arrow: layers.Arrows3D = None
         self._points: layers.Points3D = None
         self._selections: layers.Points3D = None
-        self.parameters.max_width = 230
 
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model
@@ -128,7 +102,7 @@ class CylinderSimulator(MagicTemplate):
             self._select_molecules(self.Operator.yrange, self.Operator.arange)
         return None
     
-    @magicclass
+    @magicclass(popup_mode="dialog")
     class Operator(MagicTemplate):
         """
         Apply local structural changes to the molecules.
@@ -149,6 +123,9 @@ class CylinderSimulator(MagicTemplate):
         n_allev = vfield(1, label="alleviate", options={"min": 0, "max": 20}, record=False)
         show_selection = vfield(True, label="show selected molecules", record=False)
         
+        def __post_init__(self):
+            self.min_width = 300
+
         def _set_shape(self, ny, na):
             self["yrange"].max = ny
             self["arange"].max = na
@@ -185,7 +162,7 @@ class CylinderSimulator(MagicTemplate):
             parent.model = new_model
             return None
         
-        @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.01, "label": "skew (deg)"})
+        @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"})
         @set_design(text="Screw", font_color="lime")
         @impl_preview(auto_call=True)
         def screw(
@@ -198,13 +175,13 @@ class CylinderSimulator(MagicTemplate):
             """Screw (change the skew angles of) the selected molecules."""
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             shift, sl = self._fill_shift(yrange, arange, skew)
-            new_model = parent.model.screw(skew, sl)
+            new_model = parent.model.screw(np.deg2rad(skew), sl)
             if n_allev > 0:
                 new_model = new_model.alleviate(shift != 0, niter=n_allev)
             parent.model = new_model
             return None
         
-        @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.01, "label": "radius (nm)"})
+        @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"})
         @set_design(text="Dilation/Erosion", font_color="lime")
         @impl_preview(auto_call=True)
         def dilate(
@@ -284,7 +261,7 @@ class CylinderSimulator(MagicTemplate):
     
     def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
         points = self._points.data
-        npf = self.parameters.npf
+        npf = self._parameters.npf
         ysl = slice(*yrange)
         asl = slice(*arange)
         selected_points = points.reshape(-1, npf, 3)[ysl, asl].reshape(-1, 3)
@@ -298,14 +275,8 @@ class CylinderSimulator(MagicTemplate):
     @Menu.wraps
     def set_current_spline(self, idx: Bound[_get_current_index]):
         """Use the current parameters and the spline to construct a model and molecules."""
-        tomo = self.parent_widget.tomogram
-        spl = tomo.splines[idx]
-        params = self.parameters.as_kwargs()
-        model = tomo.get_cylinder_model(idx, **params)
-        spl.radius = params.pop("radius")
-        params.pop("offsets")
-        self._set_model(model, spl)
-        
+        self._spline = self.parent_widget.tomogram.splines[idx]
+        self.update_model(idx, **self._parameters.asdict())
         return None
     
     @Menu.wraps
@@ -316,14 +287,13 @@ class CylinderSimulator(MagicTemplate):
         props = spl.globalprops
         if props is None:
             raise ValueError("Global property is not calculated yet.")
-        params = {
-            H.yPitch: props[H.yPitch],
-            H.skewAngle: props[H.skewAngle],
-            H.riseAngle: props[H.riseAngle],
-            H.nPF: props[H.nPF],
-            "radius": spl.radius,
-        }
-        self.parameters.update(params)
+        self._parameters.update(
+            interval=props[H.yPitch],
+            skew=props[H.skewAngle],
+            rise=props[H.riseAngle],
+            npf=props[H.nPF],
+            radius=spl.radius,
+        )
         return None
 
     @Menu.wraps
@@ -336,20 +306,70 @@ class CylinderSimulator(MagicTemplate):
         cnt.show()
         return None
 
-    @Left.parameters.connect
-    def _on_param_changed(self):
-        idx = self._get_current_index()
+    @Menu.wraps
+    @impl_preview(auto_call=True)
+    @set_options(
+        interval={"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"},
+        skew={"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"},
+        rise={"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"},
+        npf={"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"},
+        radius={"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"},
+        offsets={"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"},
+    )
+    def update_model(
+        self,
+        idx: Bound[_get_current_index],
+        interval: nm = CylinderParameters.interval,
+        skew: float = CylinderParameters.skew,
+        rise: float = CylinderParameters.rise,
+        npf: int = CylinderParameters.npf,
+        radius: nm = CylinderParameters.radius,
+        offsets: Tuple[float, float] = CylinderParameters.offsets,
+    ):
+        """
+        Update cylinder model with new parameters.
         
+        Local structural displacement will be deleted because this function may change the number
+        of molecules. This function should be called first.
+
+        Parameters
+        ----------
+        idx : int
+            Index of spline used in the viewer.
+        interval : nm
+            Axial interval between molecules.
+        skew : float
+            Skew angle.
+        rise : float
+            Rise angle.
+        npf : int
+            Number of protofilaments.
+        radius : nm
+            Radius of the cylinder.
+        offsets : tuple of float
+            Offset of the starting molecule.
+        """
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
-        params = self.parameters.as_kwargs()
-        model = tomo.get_cylinder_model(idx, **params).add_shift(self.model.displace)
-        spl.radius = params.pop("radius")
-        params.pop("offsets")
+        self._parameters.update(
+            interval=interval, skew=skew, rise=rise, npf=npf, radius=radius, offsets=offsets
+        )
+        kwargs = {H.yPitch: interval, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
+        model = tomo.get_cylinder_model(idx, offsets=offsets, radius=radius, **kwargs)
         self.model = model
+        spl.radius = radius
         
         op = self.Operator
+        op._set_shape(*self.model.shape)
         self._select_molecules(op.yrange, op.arange)  # update selection coordinates
-        
-        self.Operator._set_shape(*self.model.shape)
+        return None
 
+    @update_model.during_preview
+    def _during_update_model(self):
+        op = self.Operator
+        old_model = self.model
+        old_max = op["yrange"].max, op["arange"].max
+        yield
+        self.model = old_model
+        op["yrange"].max, op["arange"].max = old_max
+        return None
