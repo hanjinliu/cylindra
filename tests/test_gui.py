@@ -182,3 +182,15 @@ def test_io():
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
     ui.parent_viewer.close()
+
+def test_simulator():
+    ui = start()
+    ui._Simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
+    ui.register_path(coords=[[50.25, 179.886, 33.022], [50.25, 23.331, 72.339]])
+    ui._Simulator.set_current_spline(idx=0)
+    ui._Simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
+    ui._Simulator.expand(shift=0.1, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui._Simulator.screw(skew=0.3, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui._Simulator.dilate(radius=-0.5, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui._Simulator.send_moleclues_to_viewer()
+    

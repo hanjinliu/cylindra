@@ -3,7 +3,7 @@ from pathlib import Path
 from magicgui.widgets import RangeSlider
 from magicclass import (
     magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
-    vfield, FieldGroup, impl_preview
+    vfield, impl_preview
 )
 from magicclass.types import Bound, OneOf
 from magicclass.utils import thread_worker
@@ -22,24 +22,6 @@ from ..utils import roundint
 
 if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
-
-class CylinderOffsets(FieldGroup):
-    """
-    Widget for specifying cylinder tilts.
-
-    Attributes
-    ----------
-    yoffset : float
-        Offset of axial direction.
-    aoffset : float
-        Offset of angular direction.
-    """
-    yoffset = vfield(0.0, options={"min": -10, "max": 10, "step": 0.1}, label="y")
-    aoffset = vfield(0.0, options={"min": -np.pi, "max": np.pi}, label="θ")
-
-    @property
-    def value(self):
-        return self.yoffset, self.aoffset
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
 
@@ -82,9 +64,10 @@ class CylinderSimulator(MagicTemplate):
     class Menu(MagicTemplate):
         def create_empty_image(self): ...
         def simulate_tomogram(self): ...
+        def save_image(self): ...
         def set_current_spline(self): ...
-        def update_model(self): ...
         def load_spline_parameters(self): ...
+        def send_moleclues_to_viewer(self): ...
         def show_layer_control(self): ...
 
     def __post_init__(self) -> None:
@@ -111,6 +94,7 @@ class CylinderSimulator(MagicTemplate):
         else:
             self._points.data = mole.pos
             self._select_molecules(self.Operator.yrange, self.Operator.arange)
+        self._molecules = mole
         return None
     
     @magicclass
@@ -154,72 +138,10 @@ class CylinderSimulator(MagicTemplate):
             parent._selections.visible = show
             return None
         
-        @set_options(shift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"})
-        @set_design(text="Expansion/Compaction", font_color="lime")
-        @impl_preview(auto_call=True)
-        def expand(
-            self,
-            shift: nm,
-            yrange: Bound[yrange],
-            arange: Bound[arange],
-            n_allev: Bound[n_allev] = 1,
-        ):
-            """Expand the selected molecules."""
-            parent = self.find_ancestor(CylinderSimulator, cache=True)
-            shift_arr, sl = self._fill_shift(yrange, arange, shift)
-            new_model = parent.model.expand(shift, sl)
-            if n_allev > 0:
-                new_model = new_model.alleviate(shift_arr != 0, niter=n_allev)
-            parent.model = new_model
-            return None
-        
-        @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"})
-        @set_design(text="Screw", font_color="lime")
-        @impl_preview(auto_call=True)
-        def screw(
-            self, 
-            skew: float,
-            yrange: Bound[yrange], 
-            arange: Bound[arange],
-            n_allev: Bound[n_allev] = 1,
-        ):
-            """Screw (change the skew angles of) the selected molecules."""
-            parent = self.find_ancestor(CylinderSimulator, cache=True)
-            shift, sl = self._fill_shift(yrange, arange, skew)
-            new_model = parent.model.screw(np.deg2rad(skew), sl)
-            if n_allev > 0:
-                new_model = new_model.alleviate(shift != 0, niter=n_allev)
-            parent.model = new_model
-            return None
-        
-        @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"})
-        @set_design(text="Dilation/Erosion", font_color="lime")
-        @impl_preview(auto_call=True)
-        def dilate(
-            self,
-            radius: nm,
-            yrange: Bound[yrange],
-            arange: Bound[arange],
-            n_allev: Bound[n_allev] = 1,
-        ):
-            """Dilate (increase the local radius of) the selected molecules."""
-            parent = self.find_ancestor(CylinderSimulator, cache=True)
-            shift, sl = self._fill_shift(yrange, arange, radius)
-            new_model = parent.model.dilate(radius, sl)
-            if n_allev > 0:
-                new_model = new_model.alleviate(shift != 0, niter=n_allev)
-            parent.model = new_model
-            return None
-        
-        @expand.during_preview
-        @screw.during_preview
-        @dilate.during_preview
-        def _prev_context(self):
-            """Temporarily update the layers."""
-            parent = self.find_ancestor(CylinderSimulator, cache=True)
-            original = parent.model
-            yield
-            parent.model = original
+        def update_model(self): ...
+        def expand(self): ...
+        def screw(self): ...
+        def dilate(self): ...
         
         def _fill_shift(self, yrange, arange, val: float):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
@@ -248,7 +170,11 @@ class CylinderSimulator(MagicTemplate):
     
     @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})
-    @set_options(bin_size={"options": {"min": 1, "max": 8}})
+    @set_options(
+        size={"label": "image size of Z, Y, X (nm)"},
+        scale={"label": "pixel scale (nm/pixel)"},
+        bin_size={"options": {"min": 1, "max": 8}}
+    )
     def create_empty_image(
         self, 
         size: tuple[nm, nm, nm] = (100., 200., 100.), 
@@ -281,6 +207,16 @@ class CylinderSimulator(MagicTemplate):
     def _deselect_molecules(self):
         self._selections.data = np.zeros((1, 3), dtype=np.float32)
         self._selections.visible = False
+    
+    @Menu.wraps
+    def save_image(self, path: Path, dtype: OneOf[np.int8, np.int16, np.float32] = np.float32):
+        """Save the current image to a file."""
+        img = self.parent_widget.tomogram.image.compute()
+        if np.dtype(dtype).kind == "i":
+            amax = max(-img.min(), img.max())
+            img = (img / amax * np.iinfo(dtype).max)
+        img.imsave(path, dtype=dtype)
+        return None
 
     @Menu.wraps
     def set_current_spline(self, idx: Bound[_get_current_index]):
@@ -307,6 +243,15 @@ class CylinderSimulator(MagicTemplate):
         return None
 
     @Menu.wraps
+    def send_moleclues_to_viewer(self):
+        """Send the current molecules to the viewer."""
+        mole = self._molecules
+        if mole is None:
+            raise ValueError("Molecules are not generated yet.")
+        self.parent_widget.add_molecules(mole, name="Simulated")
+        return None
+        
+    @Menu.wraps
     def show_layer_control(self):
         points = self._points
         if points is None:
@@ -316,7 +261,7 @@ class CylinderSimulator(MagicTemplate):
         cnt.show()
         return None
 
-    @Menu.wraps
+    @Operator.wraps
     @impl_preview(auto_call=True)
     @set_options(
         interval={"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"},
@@ -326,6 +271,7 @@ class CylinderSimulator(MagicTemplate):
         radius={"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"},
         offsets={"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"},
     )
+    @set_design(text="Update model parameters", font_color="lime")
     def update_model(
         self,
         idx: Bound[_get_current_index],
@@ -389,6 +335,7 @@ class CylinderSimulator(MagicTemplate):
         path={"label": "Template image", "filter": FileFilter.IMAGE},
         tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
         bin_size={"options": {"min": 1, "max": 10}},
+        nsr={"min": 0.0, "max": 4.0, "step": 0.1},
     )
     @thread_worker(progress=True)
     def simulate_tomogram(
@@ -397,6 +344,7 @@ class CylinderSimulator(MagicTemplate):
         tilt_range: Tuple[float, float] = (-60.0, 60.0),
         tilt_step: float = 2.0,
         bin_size: list[int] = [4],
+        nsr: float = 2.0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         filter_reference_image: bool = True,
     ):
@@ -406,6 +354,7 @@ class CylinderSimulator(MagicTemplate):
         scale_ratio = template.scale.x / tomo.scale
         template = template.rescale(scale_ratio)
         
+        # noise-free tomogram generation from the current cylinder model
         model = self.model
         mole = model.to_molecules(self._spline)
         scale = tomo.scale
@@ -414,16 +363,89 @@ class CylinderSimulator(MagicTemplate):
         simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
         parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
         
-        # tilt
+        # tilt ranges to array
         deg_min, deg_max = tilt_range
         num = int(round((deg_max - deg_min) / tilt_step)) + 1
         degs = np.linspace(deg_min, deg_max, num=num)
+        
+        # create sinogram (tilt series)
         parent.log.print_html(f"Running Radon transformation to generate {num} tilt series.")
         sino = simulated_image.radon(degs, central_axis="y", order=interpolation)
-        imax = template.max()
-        sino += ip.random.normal(scale=imax*2.0, size=sino.shape, axes=sino.axes)
+        
+        # add noise
+        if nsr > 0:
+            imax = template.max()
+            sino += ip.random.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
+        
+        # back projection
         parent.log.print_html("Running inverse Radon transformation.")
         rec = sino.iradon(degs, central_axis="y", order=interpolation, height=simulated_image.shape.z)
         tomo = CylTomogram.from_image(rec, scale=scale, binsize=bin_size)
         parent.tomogram = tomo
         return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter_reference_image)
+
+    @Operator.wraps
+    @set_options(shift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"})
+    @set_design(text="Expansion/Compaction", font_color="lime")
+    @impl_preview(auto_call=True)
+    def expand(
+        self,
+        shift: nm,
+        yrange: Bound[Operator.yrange],
+        arange: Bound[Operator.arange],
+        n_allev: Bound[Operator.n_allev] = 1,
+    ):
+        """Expand the selected molecules."""
+        shift_arr, sl = self.Operator._fill_shift(yrange, arange, shift)
+        new_model = self.model.expand(shift, sl)
+        if n_allev > 0:
+            new_model = new_model.alleviate(shift_arr != 0, niter=n_allev)
+        self.model = new_model
+        return None
+    
+    @Operator.wraps
+    @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"})
+    @set_design(text="Screw", font_color="lime")
+    @impl_preview(auto_call=True)
+    def screw(
+        self, 
+        skew: float,
+        yrange: Bound[Operator.yrange], 
+        arange: Bound[Operator.arange],
+        n_allev: Bound[Operator.n_allev] = 1,
+    ):
+        """Screw (change the skew angles of) the selected molecules."""
+        shift, sl = self.Operator._fill_shift(yrange, arange, skew)
+        new_model = self.model.screw(np.deg2rad(skew), sl)
+        if n_allev > 0:
+            new_model = new_model.alleviate(shift != 0, niter=n_allev)
+        self.model = new_model
+        return None
+    
+    @Operator.wraps
+    @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"})
+    @set_design(text="Dilation/Erosion", font_color="lime")
+    @impl_preview(auto_call=True)
+    def dilate(
+        self,
+        radius: nm,
+        yrange: Bound[Operator.yrange],
+        arange: Bound[Operator.arange],
+        n_allev: Bound[Operator.n_allev] = 1,
+    ):
+        """Dilate (increase the local radius of) the selected molecules."""
+        shift, sl = self.Operator._fill_shift(yrange, arange, radius)
+        new_model = self.model.dilate(radius, sl)
+        if n_allev > 0:
+            new_model = new_model.alleviate(shift != 0, niter=n_allev)
+        self.model = new_model
+        return None
+    
+    @expand.during_preview
+    @screw.during_preview
+    @dilate.during_preview
+    def _prev_context(self):
+        """Temporarily update the layers."""
+        original = self.model
+        yield
+        self.model = original

@@ -2716,7 +2716,7 @@ class CylindraMainWidget(MagicTemplate):
     @Image.wraps
     @set_design(text="Simulate cylindric structure")
     @do_not_record
-    def simulate_cylinder(self):
+    def open_simulator(self):
         return self._Simulator.show()
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
