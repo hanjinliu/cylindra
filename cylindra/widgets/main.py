@@ -412,6 +412,7 @@ class CylindraMainWidget(MagicTemplate):
         return self._image_loader.show()
     
     @_image_loader.wraps
+    @set_options(filter={"label": "Filter the reference image layer."})
     @set_design(text="Run")
     @dask_thread_worker(progress={"desc": "Reading image"})
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
@@ -420,7 +421,7 @@ class CylindraMainWidget(MagicTemplate):
         path: Bound[_image_loader.path],
         scale: Bound[_image_loader.scale.scale_value] = 1.0,
         bin_size: Bound[_image_loader.bin_size] = [1],
-        filter_reference_image: Bound[_image_loader.filter_reference_image] = True,
+        filter: Bound[_image_loader.filter_reference_image] = True,
     ):
         """
         Load an image file and process it before sending it to the viewer.
@@ -434,7 +435,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size : int or list of int, default is [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
-        filter_reference_image : bool, default is True
+        filter : bool, default is True
             Apply low-pass filter on the reference image (does not affect image data itself).
         """
         img = ip.lazy_imread(path, chunks=GVar.daskChunk)
@@ -456,7 +457,7 @@ class CylindraMainWidget(MagicTemplate):
 
         self._macro_offset = len(self.macro)
         self.tomogram = tomo
-        return thread_worker.to_callback(self._send_tomogram_to_viewer, filter_reference_image)
+        return thread_worker.to_callback(self._send_tomogram_to_viewer, filter)
     
     @open_image.started.connect
     def _open_image_on_start(self):

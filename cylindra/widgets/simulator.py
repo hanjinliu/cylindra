@@ -1,12 +1,16 @@
 from typing import Any, TYPE_CHECKING, Tuple
 from pathlib import Path
+import json
+import matplotlib.pyplot as plt
+
 from magicgui.widgets import RangeSlider
 from magicclass import (
     do_not_record, magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
-    vfield, FieldGroup, impl_preview, confirm
+    vfield, impl_preview, confirm
 )
 from magicclass.types import Bound, OneOf
 from magicclass.utils import thread_worker
+from magicclass.widgets import Separator
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.vispy import Vispy3DCanvas
 
@@ -15,15 +19,16 @@ import impy as ip
 
 from acryo import TomogramSimulator
 
-from .widget_utils import FileFilter
-from ..components import CylTomogram, CylinderModel, CylSpline, indexer as Idx
-from ..const import nm, GVar, H
-from ..utils import roundint
+from cylindra.components import CylTomogram, CylinderModel, CylSpline, indexer as Idx, RadonModel
+from cylindra.const import nm, GVar, H
+from cylindra.utils import roundint
+from cylindra.widgets.widget_utils import FileFilter
 
 if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
+SAVE_MODE_CHOICES = (("separate mrc", "mrc"), ("separate tif", "tif"), ("single tif (TZYX)", "stack"))
 
 _INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
 _NPF = (GVar.nPFmin + GVar.nPFmax) // 2
@@ -63,10 +68,13 @@ class CylinderSimulator(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
         def create_empty_image(self): ...
-        def simulate_tomogram(self): ...
-        def save_image(self): ...
         def set_current_spline(self): ...
         def load_spline_parameters(self): ...
+        sep0 = Separator()
+        def simulate_tomogram(self): ...
+        def simulate_tomogram_batch(self): ...
+        sep1 = Separator()
+        def save_image(self): ...
         def send_moleclues_to_viewer(self): ...
         def show_layer_control(self): ...
 
@@ -89,7 +97,8 @@ class CylinderSimulator(MagicTemplate):
                 [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
             )
             self._selections.visible = False
-            self._spline_arrow = self.canvas.add_arrows(np.expand_dims(spl.partition(100), axis=0), arrow_size=15, width=2.0)
+            arrow_data = np.expand_dims(spl.partition(100), axis=0)
+            self._spline_arrow = self.canvas.add_arrows(arrow_data, arrow_size=15, width=2.0)
             self._points.signals.size.connect_setattr(self._selections, "size")
         else:
             self._points.data = mole.pos
@@ -121,9 +130,12 @@ class CylinderSimulator(MagicTemplate):
         def __post_init__(self):
             self.min_width = 300
 
-        def _set_shape(self, ny, na):
+        def _update_slider_lims(self, ny: int, na: int):
+            amax_old = self["arange"].max
             self["yrange"].max = ny
             self["arange"].max = na
+            if self.arange[1] == amax_old:
+                self.arange = (self.arange[0], na)
         
         @yrange.connect
         @arange.connect
@@ -214,18 +226,13 @@ class CylinderSimulator(MagicTemplate):
         ysl = slice(*yrange)
         asl = slice(*arange)
         try:
-            print("trying to select")
             selected_points = points.reshape(-1, npf, 3)[ysl, asl].reshape(-1, 3)
             self._selections.data = selected_points
         except Exception:
-            print("failed to select")
+            # A little bit hacky, but points data shape sometimes mismatches with the model shape.
             pass
         self._selections.visible = True
-    
-    def _deselect_molecules(self):
-        self._selections.data = np.zeros((1, 3), dtype=np.float32)
-        self._selections.visible = False
-    
+
     @Menu.wraps
     def save_image(self, path: Path, dtype: OneOf[np.int8, np.int16, np.float32] = np.float32):
         """Save the current image to a file."""
@@ -336,7 +343,7 @@ class CylinderSimulator(MagicTemplate):
         spl.radius = radius
         
         op = self.Operator
-        op._set_shape(*self.model.shape)
+        op._update_slider_lims(*self.model.shape)
         self._select_molecules(op.yrange, op.arange)  # update selection coordinates
         return None
 
@@ -350,6 +357,37 @@ class CylinderSimulator(MagicTemplate):
         op["yrange"].max, op["arange"].max = old_max
         return None
 
+    def _prep_radon(
+        self,
+        path: Path,
+        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        n_tilt: int = 61,
+        order: int = 3,
+    ) -> Tuple[RadonModel, ip.ImgArray]:
+        parent = self.parent_widget
+        tomo = parent.tomogram
+        template = ip.imread(path)
+        scale_ratio = template.scale.x / tomo.scale
+        template = template.rescale(scale_ratio)
+        
+        # noise-free tomogram generation from the current cylinder model
+        model = self.model
+        mole = model.to_molecules(self._spline)
+        scale = tomo.scale
+        simulator = TomogramSimulator(order=order, scale=scale)
+        simulator.add_molecules(molecules=mole, image=template)
+        simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
+        parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
+        
+        # tilt ranges to array
+        radon_model = RadonModel(
+            range=(tilt_range[0], tilt_range[1], n_tilt),
+            height=simulated_image.shape[0],
+            order=order,
+        )
+        
+        return radon_model, radon_model.transform(simulated_image)
+        
     @Menu.wraps
     @set_options(
         path={"label": "Template image", "filter": FileFilter.IMAGE},
@@ -357,16 +395,16 @@ class CylinderSimulator(MagicTemplate):
         bin_size={"options": {"min": 1, "max": 10}},
         nsr={"min": 0.0, "max": 4.0, "step": 0.1},
     )
-    @thread_worker(progress=True)
+    @thread_worker(progress={"desc": "Simulating a tomogram"})
     def simulate_tomogram(
         self,
         path: Path,
         nsr: float = 2.0,
         tilt_range: Tuple[float, float] = (-60.0, 60.0),
-        tilt_step: float = 2.0,
+        n_tilt: int = 61,
         bin_size: list[int] = [4],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        filter_reference_image: bool = True,
+        filter: bool = True,
     ):
         """
         Simulate a tomographic image using the current model.
@@ -379,38 +417,21 @@ class CylinderSimulator(MagicTemplate):
             Noise-to-signal ratio.
         tilt_range : tuple of float
             Minimum and maximum tilt angles.
-        tilt_step : float
-            Step size of tilt angles.
+        n_tilt : int
+            Number of tilt angles.
         bin_size : list of int
             List of binning to be applied to the image for visualization.
         interpolation : int
             Interpolation method used during the simulation.
-        filter_reference_image : bool, default is True
+        filter : bool, default is True
             Apply low-pass filter on the reference image (does not affect image data itself).
         """
         parent = self.parent_widget
-        tomo = parent.tomogram
         template = ip.imread(path)
-        scale_ratio = template.scale.x / tomo.scale
+        scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
         
-        # noise-free tomogram generation from the current cylinder model
-        model = self.model
-        mole = model.to_molecules(self._spline)
-        scale = tomo.scale
-        simulator = TomogramSimulator(order=interpolation, scale=scale)
-        simulator.add_molecules(molecules=mole, image=template)
-        simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
-        parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
-        
-        # tilt ranges to array
-        deg_min, deg_max = tilt_range
-        num = int(round((deg_max - deg_min) / tilt_step)) + 1
-        degs = np.linspace(deg_min, deg_max, num=num)
-        
-        # create sinogram (tilt series)
-        parent.log.print_html(f"Running Radon transformation to generate {num} tilt series.")
-        sino = simulated_image.radon(degs, central_axis="y", order=interpolation)
+        radon_model, sino = self._prep_radon(path, tilt_range, n_tilt, interpolation)
         
         # add noise
         if nsr > 0:
@@ -419,10 +440,103 @@ class CylinderSimulator(MagicTemplate):
         
         # back projection
         parent.log.print_html("Running inverse Radon transformation.")
-        rec = sino.iradon(degs, central_axis="y", order=interpolation, height=simulated_image.shape.z)
-        tomo = CylTomogram.from_image(rec, scale=scale, binsize=bin_size)
+        rec = radon_model.inverse_transform(sino)
+        tomo = CylTomogram.from_image(rec, binsize=bin_size)
         parent.tomogram = tomo
-        return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter_reference_image)
+        return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter)
+
+    @Menu.wraps
+    @set_options(
+        path={"label": "Template image", "filter": FileFilter.IMAGE},
+        save_path={"label": "Save directory", "mode": "d"},
+        tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
+        nsr={"options": {"min": 0.0, "max": 4.0, "step": 0.1}},
+    )
+    @thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
+    def simulate_tomogram_batch(
+        self,
+        path: Path,
+        save_path: Path,
+        nsr: list[float] = [2.0],
+        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        n_tilt: int = 61,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        save_mode: OneOf[SAVE_MODE_CHOICES] = "mrc",
+    ):
+        """
+        Simulate a tomographic image using the current model.
+        
+        Parameters
+        ----------
+        path : Path
+            Path to the image used for the template.
+        nsr : float
+            Noise-to-signal ratio.
+        tilt_range : tuple of float
+            Minimum and maximum tilt angles.
+        n_tilt : int
+            Number of tilt angles.
+        interpolation : int
+            Interpolation method used during the simulation.
+        save_mode : ("mrc", "tif", "stack")
+            Specify how to save images.
+        """
+        save_path = Path(save_path)
+        if not save_path.exists():
+            raise FileNotFoundError(f"Directory {str(save_path)!r} does not exist.")
+        if save_mode not in ("mrc", "tif", "stack"):
+            raise ValueError(f"Invalid save mode {save_mode!r}.")
+        
+        parent = self.parent_widget
+        template = ip.imread(path)
+        scale_ratio = template.scale.x / parent.tomogram.scale
+        template = template.rescale(scale_ratio)
+        
+        radon_model, sino = self._prep_radon(path, tilt_range, n_tilt, interpolation)
+        
+        # plot some of the results
+        @thread_worker.to_callback
+        def _on_radon_finished():
+            if n_tilt < 3:
+                return
+            with parent.log.set_plt():
+                fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+                axes[0].imshow(sino[0])
+                axes[1].imshow(sino[n_tilt // 2])
+                axes[2].imshow(sino[-1])
+                plt.show()
+        
+        yield _on_radon_finished
+        
+        
+        # plot some of the results
+        @thread_worker.to_callback
+        def _on_iradon_finished(rec: ip.ImgArray, title: str):
+            with parent.log.set_plt():
+                plt.imshow(rec.proj("z"))
+                plt.title(title)
+                plt.show()
+                
+        # add noise and save image
+        recs: list[ip.ImgArray] = []
+        for val in nsr:
+            imax = sino.max()
+            sino_noise = sino + ip.random.normal(scale=imax * val, size=sino.shape, axes=sino.axes)
+            rec = radon_model.inverse_transform(sino_noise)
+            recs.append(rec)
+            yield _on_iradon_finished(rec, f"NSR = {val:.1f}")
+        
+        if save_mode in ("mrc", "tif"):
+            for i, rec in enumerate(recs):
+                rec.imsave(save_path / f"image-{i}.{save_mode}")
+        else:
+            stack: ip.ImgArray = np.stack(recs, axis="t")
+            stack.imsave(save_path / "images.tif")
+
+        nsr_info = {f"image-{i}.mrc": val for i, val in enumerate(nsr)}
+        with open(save_path / "simulation_info.json", "w") as f:
+            json.dump({"settings": radon_model.dict(), "nsr": nsr_info}, f)
+        return None 
 
     @Operator.wraps
     @set_options(shift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"})
