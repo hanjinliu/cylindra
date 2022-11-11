@@ -1,8 +1,10 @@
+from pathlib import Path
+import tempfile
+
+from numpy.testing import assert_allclose
+from acryo import Molecules
 from cylindra import start, CylindraMainWidget
 from cylindra.const import H
-from acryo import Molecules
-from pathlib import Path
-from numpy.testing import assert_allclose
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
@@ -193,4 +195,25 @@ def test_simulator():
     ui._Simulator.screw(skew=0.3, yrange=(11, 31), arange=(0, 14), n_allev=1)
     ui._Simulator.dilate(radius=-0.5, yrange=(11, 31), arange=(0, 14), n_allev=1)
     ui._Simulator.send_moleclues_to_viewer()
+
+def test_batch_simulation():
+    ui = start()
+    ui._Simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.25, bin_size=[4])
+    ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
+    ui._Simulator.set_current_spline(idx=0)
+    ui._Simulator.update_model(idx=0, interval=4.1, skew=-0.31, rise=10.5, npf=14, radius=9.14, offsets=(0.0, 0.0))
+    
+    with tempfile.TemporaryDirectory() as dirpath:
+        dirpath = Path(dirpath)
+        assert len(list(dirpath.glob("*"))) == 0
+        ui._Simulator.simulate_tomogram_batch(
+            path=r'C:\Users\Uemura-Lab\Desktop\Liu\python_codes\cylindra\tests\template.mrc',
+            save_path=dirpath,
+            nsr=[0.5, 1.0, 2.0],
+            tilt_range=(-60.0, 60.0),
+            n_tilt=31,
+            interpolation=3,
+            save_mode='mrc',
+        )
+        assert len(list(dirpath.glob("*.mrc"))) == 3
     

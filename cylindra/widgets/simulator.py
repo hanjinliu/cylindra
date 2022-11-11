@@ -450,7 +450,7 @@ class CylinderSimulator(MagicTemplate):
         path={"label": "Template image", "filter": FileFilter.IMAGE},
         save_path={"label": "Save directory", "mode": "d"},
         tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
-        nsr={"options": {"min": 0.0, "max": 4.0, "step": 0.1}},
+        nsr={"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
     )
     @thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
     def simulate_tomogram_batch(
@@ -499,16 +499,20 @@ class CylinderSimulator(MagicTemplate):
         def _on_radon_finished():
             if n_tilt < 3:
                 return
-            with parent.log.set_plt():
-                fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
-                axes[0].imshow(sino[0])
-                axes[1].imshow(sino[n_tilt // 2])
-                axes[2].imshow(sino[-1])
+            degs = radon_model.range.asarray()
+            _, ny, nx = sino.shape
+            ysize = max(4 / nx * ny, 4)
+            with parent.log.set_plt(rc_context={"font.size": 15}):
+                _, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, ysize))
+                for i, idx in enumerate([0, n_tilt//2, -1]):
+                    axes[i].imshow(sino[idx], cmap="gray")
+                    axes[i].set_title(f"deg = {degs[idx]:.1f}")
+                    axes[i].set_axis_off()
+                
                 plt.show()
         
         yield _on_radon_finished
-        
-        
+
         # plot some of the results
         @thread_worker.to_callback
         def _on_iradon_finished(rec: ip.ImgArray, title: str):
@@ -524,7 +528,7 @@ class CylinderSimulator(MagicTemplate):
             sino_noise = sino + ip.random.normal(scale=imax * val, size=sino.shape, axes=sino.axes)
             rec = radon_model.inverse_transform(sino_noise)
             recs.append(rec)
-            yield _on_iradon_finished(rec, f"NSR = {val:.1f}")
+            yield _on_iradon_finished(rec, f"N/S = {val:.1f}")
         
         if save_mode in ("mrc", "tif"):
             for i, rec in enumerate(recs):
@@ -533,9 +537,10 @@ class CylinderSimulator(MagicTemplate):
             stack: ip.ImgArray = np.stack(recs, axis="t")
             stack.imsave(save_path / "images.tif")
 
-        nsr_info = {f"image-{i}.mrc": val for i, val in enumerate(nsr)}
+        nsr_info = {i: val for i, val in enumerate(nsr)}
+        js = {"settings": radon_model.dict(), "nsr": nsr_info}
         with open(save_path / "simulation_info.json", "w") as f:
-            json.dump({"settings": radon_model.dict(), "nsr": nsr_info}, f)
+            json.dump(js, f, indent=4, separators=(", ", ": "))
         return None 
 
     @Operator.wraps
