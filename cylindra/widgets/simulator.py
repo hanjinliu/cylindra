@@ -2,8 +2,8 @@ from typing import Any, TYPE_CHECKING, Tuple
 from pathlib import Path
 from magicgui.widgets import RangeSlider
 from magicclass import (
-    magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
-    vfield, FieldGroup, impl_preview
+    do_not_record, magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
+    vfield, FieldGroup, impl_preview, confirm
 )
 from magicclass.types import Bound, OneOf
 from magicclass.utils import thread_worker
@@ -248,6 +248,7 @@ class CylinderSimulator(MagicTemplate):
     
     @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})
+    @confirm(text="You may have unsaved data. Continue?", condition="self.parent_widget._need_save")
     @set_options(bin_size={"options": {"min": 1, "max": 8}})
     def create_empty_image(
         self, 
@@ -255,6 +256,18 @@ class CylinderSimulator(MagicTemplate):
         scale: nm = 0.25,
         bin_size: list[int] = [4],
     ):
+        """
+        Create an empty image with the given size and scale, and send it to the viewer.
+
+        Parameters
+        ----------
+        size : tuple[nm, nm, nm], default is (100., 200., 100.)
+            Size of the image in nm, of (Z, Y, X).
+        scale : nm, default is 0.25
+            Pixel size of the image.
+        bin_size : list of int, default is [4]
+            List of binning to be applied to the image for visualization.
+        """
         parent = self.parent_widget
         shape = tuple(roundint(s / scale) for s in size)
         img = ip.random.normal(size=shape, axes="zyx", name="simulated image")  # TODO: just for now
@@ -274,8 +287,13 @@ class CylinderSimulator(MagicTemplate):
         npf = self._parameters.npf
         ysl = slice(*yrange)
         asl = slice(*arange)
-        selected_points = points.reshape(-1, npf, 3)[ysl, asl].reshape(-1, 3)
-        self._selections.data = selected_points
+        try:
+            print("trying to select")
+            selected_points = points.reshape(-1, npf, 3)[ysl, asl].reshape(-1, 3)
+            self._selections.data = selected_points
+        except Exception:
+            print("failed to select")
+            pass
         self._selections.visible = True
     
     def _deselect_molecules(self):
@@ -307,7 +325,9 @@ class CylinderSimulator(MagicTemplate):
         return None
 
     @Menu.wraps
+    @do_not_record
     def show_layer_control(self):
+        """Open layer control widget."""
         points = self._points
         if points is None:
             raise ValueError("No layer found in this viewer.")
@@ -389,23 +409,46 @@ class CylinderSimulator(MagicTemplate):
         path={"label": "Template image", "filter": FileFilter.IMAGE},
         tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
         bin_size={"options": {"min": 1, "max": 10}},
+        nsr={"min": 0.0, "max": 4.0, "step": 0.1},
     )
     @thread_worker(progress=True)
     def simulate_tomogram(
         self,
         path: Path,
+        nsr: float = 2.0,
         tilt_range: Tuple[float, float] = (-60.0, 60.0),
         tilt_step: float = 2.0,
         bin_size: list[int] = [4],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         filter_reference_image: bool = True,
     ):
+        """
+        Simulate a tomographic image using the current model.
+        
+        Parameters
+        ----------
+        path : Path
+            Path to the image used for the template.
+        nsr : float
+            Noise-to-signal ratio.
+        tilt_range : tuple of float
+            Minimum and maximum tilt angles.
+        tilt_step : float
+            Step size of tilt angles.
+        bin_size : list of int
+            List of binning to be applied to the image for visualization.
+        interpolation : int
+            Interpolation method used during the simulation.
+        filter_reference_image : bool, default is True
+            Apply low-pass filter on the reference image (does not affect image data itself).
+        """
         parent = self.parent_widget
         tomo = parent.tomogram
         template = ip.imread(path)
         scale_ratio = template.scale.x / tomo.scale
         template = template.rescale(scale_ratio)
         
+        # noise-free tomogram generation from the current cylinder model
         model = self.model
         mole = model.to_molecules(self._spline)
         scale = tomo.scale
@@ -414,14 +457,21 @@ class CylinderSimulator(MagicTemplate):
         simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
         parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
         
-        # tilt
+        # tilt ranges to array
         deg_min, deg_max = tilt_range
         num = int(round((deg_max - deg_min) / tilt_step)) + 1
         degs = np.linspace(deg_min, deg_max, num=num)
+        
+        # create sinogram (tilt series)
         parent.log.print_html(f"Running Radon transformation to generate {num} tilt series.")
         sino = simulated_image.radon(degs, central_axis="y", order=interpolation)
-        imax = template.max()
-        sino += ip.random.normal(scale=imax*2.0, size=sino.shape, axes=sino.axes)
+        
+        # add noise
+        if nsr > 0:
+            imax = template.max()
+            sino += ip.random.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
+        
+        # back projection
         parent.log.print_html("Running inverse Radon transformation.")
         rec = sino.iradon(degs, central_axis="y", order=interpolation, height=simulated_image.shape.z)
         tomo = CylTomogram.from_image(rec, scale=scale, binsize=bin_size)
