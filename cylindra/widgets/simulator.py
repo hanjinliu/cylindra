@@ -247,6 +247,9 @@ class CylinderSimulator(MagicTemplate):
     def set_current_spline(self, idx: Bound[_get_current_index]):
         """Use the current parameters and the spline to construct a model and molecules."""
         self._spline = self.parent_widget.tomogram.splines[idx]
+        self.canvas.layers.clear()
+        self._points = None
+        self._spline_arrow = None
         self.update_model(idx, **self._parameters.asdict())
         return None
     

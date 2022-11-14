@@ -35,11 +35,17 @@ python setup.py build_ext --inplace
 - Viterbi alignment.
 - Microtubule seam search without any binding proteins.
 
+## Requirements
+
+- **Python &ge; 3.9** (generic typings such as `list[int]` are used everywhere. If you have any requests on supporting lower version, please open an issue).
+- (Optional) GPU and virtual environment in which the proper version of `cupy` is installed.
+- **Sufficient memory size**. Most of the intense calculations are done out-of-core using `dask`, so that you can even run on 8-GB memory PC in many cases. However, larger memory size will make parallel processing more efficient. &ge;32 GB is recommended.
+
 ## Usage
 
 - From shell
 
-```
+```shell
 cylindra
 ```
 
