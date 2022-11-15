@@ -496,7 +496,7 @@ class CylinderSimulator(MagicTemplate):
         """
         save_path = Path(save_path)
         if not save_path.exists():
-            raise FileNotFoundError(f"Directory {str(save_path)!r} does not exist.")
+            save_path.mkdir()
         if save_mode not in ("mrc", "tif", "stack"):
             raise ValueError(f"Invalid save mode {save_mode!r}.")
         

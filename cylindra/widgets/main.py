@@ -612,7 +612,7 @@ class CylindraMainWidget(MagicTemplate):
         
         from datetime import datetime
         
-        file_dir = json_path.parent
+        file_dir = _json_path.parent
         def as_relative(p: Path):
             try:
                 out = p.relative_to(file_dir)
