@@ -1,18 +1,27 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 from magicclass import magicclass, field, vfield, MagicTemplate, do_not_record, bind_key
-from magicclass.types import Optional
+from magicclass.types import Optional, OneOf
 from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
 
-from ..utils import map_coordinates
-from ..const import GVar, nm
+from cylindra.utils import map_coordinates
+from cylindra.const import GVar, nm
 
 if TYPE_CHECKING:
-    from .main import CylindraMainWidget
+    from cylindra.widgets.main import CylindraMainWidget
+    from magicclass.fields import MagicValueField
+    from magicgui.widgets import ComboBox
+    
+    _FilterField = MagicValueField[ComboBox, Callable[[ip.ImgArray], ip.ImgArray]]
 
 YPROJ = "Y-projection"
 RPROJ = "R-projection"
 CFT = "CFT"
+
+POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
+    ("None", lambda x: x),
+    ("Low-pass", lambda x: x.lowpass_filter(0.2)),
+]
 
 @magicclass
 class SplineSweeper(MagicTemplate):
@@ -81,6 +90,8 @@ class SplineSweeper(MagicTemplate):
         self._update_canvas()
         return None
     
+    post_filter: "_FilterField" = vfield(OneOf[POST_FILTERS], label="Filter", record=False)
+    
     @controller.spline_id.connect
     def _spline_changed(self, idx: int):
         try:
@@ -95,6 +106,7 @@ class SplineSweeper(MagicTemplate):
     @radius.connect
     @controller.spline_id.connect
     @controller.pos.connect
+    @post_filter.connect
     def _on_widget_state_changed(self):
         if self.visible:
             self._update_canvas()
@@ -107,12 +119,12 @@ class SplineSweeper(MagicTemplate):
         pos = self.controller.pos.value
         if _type == RPROJ:
             polar = self._current_cylindrical_img(idx, pos, depth).proj("r")
-            img = polar.value
+            img = self.post_filter(polar).value
         elif _type == YPROJ:
-            block = self._current_cartesian_img(idx, pos, depth).proj("y")
-            img = block.value
+            block = self._current_cartesian_img(idx, pos, depth).proj("y")[ip.slicer.x[::-1]]
+            img = self.post_filter(block).value
         elif _type == CFT:
-            polar = self._current_cylindrical_img(idx, pos, depth)
+            polar = self.post_filter(self._current_cylindrical_img(idx, pos, depth).value)
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             img = pw.value
