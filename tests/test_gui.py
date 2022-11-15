@@ -214,6 +214,7 @@ def test_batch_simulation():
             n_tilt=31,
             interpolation=3,
             save_mode='mrc',
+            seed=0,
         )
         assert len(list(dirpath.glob("*.mrc"))) == 3
     

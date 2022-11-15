@@ -8,7 +8,7 @@ from magicclass import (
     do_not_record, magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
     vfield, impl_preview, confirm
 )
-from magicclass.types import Bound, OneOf
+from magicclass.types import Bound, OneOf, Optional
 from magicclass.utils import thread_worker
 from magicclass.widgets import Separator
 from magicclass.ext.dask import dask_thread_worker
@@ -448,6 +448,14 @@ class CylinderSimulator(MagicTemplate):
         parent.tomogram = tomo
         return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter)
 
+    def _directory_not_empty(self):
+        path = Path(self["simulate_tomogram_batch"].mgui.save_path.value)
+        try:
+            next(path.glob("*"))
+        except StopIteration:
+            return True
+        return False
+        
     @Menu.wraps
     @set_options(
         path={"label": "Template image", "filter": FileFilter.IMAGE},
@@ -455,6 +463,7 @@ class CylinderSimulator(MagicTemplate):
         tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
         nsr={"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
     )
+    @confirm(text="Directory already exists. Overwrite?", condition=_directory_not_empty)
     @thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
     def simulate_tomogram_batch(
         self,
@@ -465,6 +474,7 @@ class CylinderSimulator(MagicTemplate):
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         save_mode: OneOf[SAVE_MODE_CHOICES] = "mrc",
+        seed: Optional[int] = None,
     ):
         """
         Simulate a tomographic image using the current model.
@@ -520,15 +530,16 @@ class CylinderSimulator(MagicTemplate):
         @thread_worker.to_callback
         def _on_iradon_finished(rec: ip.ImgArray, title: str):
             with parent.log.set_plt():
-                plt.imshow(rec.proj("z"))
+                plt.imshow(rec.proj("z"), cmap="gray")
                 plt.title(title)
                 plt.show()
                 
         # add noise and save image
         recs: list[ip.ImgArray] = []
+        rng = ip.random.default_rng(seed)
         for val in nsr:
             imax = sino.max()
-            sino_noise = sino + ip.random.normal(scale=imax * val, size=sino.shape, axes=sino.axes)
+            sino_noise = sino + rng.normal(scale=imax * val, size=sino.shape, axes=sino.axes)
             rec = radon_model.inverse_transform(sino_noise)
             recs.append(rec)
             yield _on_iradon_finished(rec, f"N/S = {val:.1f}")
