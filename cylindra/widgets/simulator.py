@@ -453,8 +453,8 @@ class CylinderSimulator(MagicTemplate):
         try:
             next(path.glob("*"))
         except StopIteration:
-            return True
-        return False
+            return False
+        return True
         
     @Menu.wraps
     @set_options(
@@ -462,6 +462,7 @@ class CylinderSimulator(MagicTemplate):
         save_path={"label": "Save directory", "mode": "d"},
         tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
         nsr={"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
+        seed={"options": {"min": 0, "max": 1e8}},
     )
     @confirm(text="Directory already exists. Overwrite?", condition=_directory_not_empty)
     @thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})

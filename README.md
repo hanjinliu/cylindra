@@ -32,8 +32,9 @@ python setup.py build_ext --inplace
 - Automatic/manual determination of polarity.
 - Monomer mapping along splines.
 - Subtomogram averaging and template-based alignment.
-- Viterbi alignment.
 - Microtubule seam search without any binding proteins.
+- Viterbi alignment (experimental).
+- Tomogram simulation of cylindric structure (experimental).
 
 ## Requirements
 

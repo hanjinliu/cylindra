@@ -16,9 +16,9 @@ from .widget_utils import FileFilter
 from .global_variables import GlobalVariables, GVar
 from ._previews import view_image
 
-from ..const import nm
-from ..utils import pad_template, roundint, normalize_image, ceilint
-from ..ext.etomo import PEET
+from cylindra.const import nm
+from cylindra.utils import pad_template, roundint, normalize_image, ceilint
+from cylindra.ext.etomo import PEET
 
 if TYPE_CHECKING:
     from napari.layers import Image
