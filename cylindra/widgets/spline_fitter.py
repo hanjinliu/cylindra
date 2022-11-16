@@ -14,10 +14,10 @@ from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
 from cylindra.utils import Projections, roundint, centroid, map_coordinates
-from cylindra.const import nm, GVar, Mode
+from cylindra.const import nm, GlobalVariables as GVar, Mode
 
 if TYPE_CHECKING:
-    from ..components import CylTomogram
+    from cylindra.components import CylTomogram
 
 
 @magicclass

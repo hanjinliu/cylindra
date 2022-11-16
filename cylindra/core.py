@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import napari
-    from .widgets import CylindraMainWidget
+    from cylindra.widgets import CylindraMainWidget
 
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
 
@@ -24,7 +24,7 @@ def start(
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
     """
-    from .widgets import CylindraMainWidget
+    from cylindra.widgets import CylindraMainWidget
     import logging
     
     global _CURRENT_INSTANCE

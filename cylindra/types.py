@@ -4,7 +4,7 @@ import impy as ip
 import magicgui
 from napari.utils._magicgui import find_viewer_ancestor
 from napari.layers import Points
-from .const import MOLECULES
+from cylindra.const import MOLECULES
 
 if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget

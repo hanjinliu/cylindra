@@ -62,7 +62,7 @@ class Ori(strEnum):
                 raise ValueError(f"{ori} cannot be inverted.")
         return out
 
-class H(SimpleNamespace):
+class PropertyNames(SimpleNamespace):
     """Header names for result table of local properties."""
     
     splDistance = "splDistance"
@@ -74,7 +74,7 @@ class H(SimpleNamespace):
     start = "start"
 
 
-class K(SimpleNamespace):
+class SplineAttributes(SimpleNamespace):
     """Keys of spline attributes."""
     
     radius = "radius"
@@ -92,7 +92,7 @@ class Mode(SimpleNamespace):
     constant = "constant"
     nearest = "nearest"
 
-class Mole(SimpleNamespace):
+class MoleculesHeader(SimpleNamespace):
     """Feature header names for Molecules."""
     
     pf = "molecules-pf"
@@ -139,7 +139,7 @@ class EulerAxes(strEnum):
     ZYZ = "ZYZ"
 
 
-class GVar:
+class GlobalVariables:
     """Global variables"""
         
     nPFmin: int = 11

@@ -1,5 +1,5 @@
 from cylindra import CylTomogram
-from cylindra.const import H
+from cylindra.const import PropertyNames as H
 from pathlib import Path
 import numpy as np
 import impy as ip

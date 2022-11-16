@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import impy as ip
 from typing import ContextManager, TypeVar, Callable
-from ..const import Mode, GVar
+from cylindra.const import Mode, GlobalVariables as GVar
 
 def roundint(a: float):
     return int(round(a))

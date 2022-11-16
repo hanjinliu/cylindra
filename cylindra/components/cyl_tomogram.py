@@ -17,8 +17,8 @@ import impy as ip
 from .cyl_spline import CylSpline
 from .tomogram import Tomogram
 from .cylindric import CylinderModel
-from ..const import nm, H, Ori, Mode, GVar
-from ..utils import (
+from cylindra.const import nm, PropertyNames as H, Ori, Mode, GlobalVariables as GVar
+from cylindra.utils import (
     crop_tomogram,
     centroid,
     map_coordinates,

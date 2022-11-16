@@ -6,10 +6,10 @@ import pandas as pd
 from magicclass import magicmenu, set_options, MagicTemplate
 from acryo import Molecules
 
-from ...utils import roundint
-from ...const import EulerAxes, Mole
-from ...types import MOLECULES, MonomerLayer, get_monomer_layers
-from ...widgets.widget_utils import add_molecules, FileFilter
+from cylindra.utils import roundint
+from cylindra.const import EulerAxes, MoleculesHeader as Mole
+from cylindra.types import MOLECULES, MonomerLayer, get_monomer_layers
+from cylindra.widgets.widget_utils import add_molecules, FileFilter
 
 # BUG: cylindra coordinates and PEET coordinates do not match (slight difference).
 

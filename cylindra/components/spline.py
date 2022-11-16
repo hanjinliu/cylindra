@@ -9,8 +9,8 @@ from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
 from acryo import Molecules
 from acryo.molecules import axes_to_rotator
-from ..utils import ceilint, interval_divmod, roundint
-from ..const import Mode, nm
+from cylindra.utils import ceilint, interval_divmod, roundint
+from cylindra.const import Mode, nm
 
 if TYPE_CHECKING:
     from typing_extensions import Self

@@ -5,7 +5,7 @@ from magicclass import magicclass, MagicTemplate, field, vfield, set_options, se
 from magicclass.types import Bound, OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
-from cylindra.const import GVar, Ori, H, Mode
+from cylindra.const import GlobalVariables as GVar, Ori, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 
 @magicclass(widget_type="groupbox")

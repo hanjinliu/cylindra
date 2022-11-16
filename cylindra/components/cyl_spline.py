@@ -5,7 +5,7 @@ from numpy.typing import ArrayLike
 import pandas as pd
 
 from .spline import Spline
-from ..const import nm, K, Ori
+from cylindra.const import nm, SplineAttributes as K, Ori
 
 if TYPE_CHECKING:
     Degenerative = Callable[[ArrayLike], Any]

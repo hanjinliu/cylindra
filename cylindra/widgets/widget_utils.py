@@ -7,7 +7,7 @@ from scipy import ndimage as ndi
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
 from cylindra.components import CylSpline
-from cylindra.const import MOLECULES, GVar, Mole
+from cylindra.const import MOLECULES, GlobalVariables as GVar, MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     from acryo import Molecules

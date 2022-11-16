@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 import impy as ip
 
-from ..const import nm, GVar
+from cylindra.const import nm, GlobalVariables as GVar
 
 if TYPE_CHECKING:
     from typing_extensions import Self

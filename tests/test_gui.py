@@ -4,7 +4,7 @@ import tempfile
 from numpy.testing import assert_allclose
 from acryo import Molecules
 from cylindra import start, CylindraMainWidget
-from cylindra.const import H
+from cylindra.const import PropertyNames as H
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]

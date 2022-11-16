@@ -5,7 +5,7 @@ from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
 
 from cylindra.utils import map_coordinates
-from cylindra.const import GVar, nm
+from cylindra.const import GlobalVariables as GVar, nm
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget

@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import impy as ip
 from scipy import ndimage as ndi
-from ..const import Mode
+from cylindra.const import Mode
 
 
 def pad_template(template: ip.ImgArray, shape: tuple[int, ...]) -> ip.ImgArray:

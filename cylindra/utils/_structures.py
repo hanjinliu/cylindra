@@ -3,7 +3,7 @@ import numpy as np
 import impy as ip
 from dask import array as da
 from acryo import SubtomogramLoader
-from ..const import Mode
+from cylindra.const import Mode
 
 from ._correlation import mirror_zncc
 

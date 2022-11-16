@@ -20,7 +20,7 @@ import impy as ip
 from acryo import TomogramSimulator
 
 from cylindra.components import CylTomogram, CylinderModel, CylSpline, indexer as Idx, RadonModel
-from cylindra.const import nm, GVar, H
+from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
 from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
 
