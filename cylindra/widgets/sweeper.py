@@ -28,6 +28,18 @@ class SplineSweeper(MagicTemplate):
     show_what = vfield(label="kind", options={"choices": [YPROJ, RPROJ, CFT]})
     @magicclass(layout="horizontal")
     class params(MagicTemplate):
+        """
+        Sweeper parameters.
+        
+        Attributes
+        ----------
+        depth : float
+            The depth of the projection along splines. For instance, depth=32.0 means that Y-projection will be calculated
+            using subvolume of size L * 32.0 nm * L.
+        binsize : int
+            The size of the binning. For instance, binsize=2 means that the image will be binned by 2 before projection
+            and/or Fourier transformation.
+        """
         def _get_available_binsize(self, widget=None) -> "list[int]":
             from .main import CylindraMainWidget
             try:
@@ -37,6 +49,7 @@ class SplineSweeper(MagicTemplate):
                 return []
         depth = vfield(32.0, label="depth (nm)", options={"min": 1.0, "max": 200.0}, record=False)
         binsize = vfield(options={"choices": _get_available_binsize}, record=False)
+        
     radius = vfield(Optional[nm], label="Radius (nm)", options={"text": "Use spline radius", "options": {"max": 100.0}}, record=False)
     canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
 
@@ -79,7 +92,8 @@ class SplineSweeper(MagicTemplate):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
             
     @do_not_record
-    def update_widget_state(self):
+    def refresh_widget_state(self):
+        """Refresh widget state."""
         tomo = self.parent.tomogram
         if tomo is None:
             return None
@@ -124,7 +138,7 @@ class SplineSweeper(MagicTemplate):
             block = self._current_cartesian_img(idx, pos, depth).proj("y")[ip.slicer.x[::-1]]
             img = self.post_filter(block).value
         elif _type == CFT:
-            polar = self.post_filter(self._current_cylindrical_img(idx, pos, depth).value)
+            polar = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw /= pw.max()
             img = pw.value

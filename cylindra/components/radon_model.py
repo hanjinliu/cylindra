@@ -19,6 +19,8 @@ class TiltRange(NamedTuple):
         return np.linspace(self.min, self.max, self.num)
 
 class RadonModel(BaseModel):
+    """A model for radon transformation."""
+
     range: TiltRange = Field(default_factory=TiltRange.zeros)
     height: int = 0
     order: int = 1
