@@ -24,11 +24,12 @@ from napari.layers import Image, Labels, Layer, Points
 from napari.utils import Colormap
 from scipy import ndimage as ndi
 
-from .. import utils
-from ..components import CylSpline, CylTomogram
-from ..const import (ALN_SUFFIX, MOLECULES, SELECTION_LAYER_NAME,
+from cylindra import utils
+from cylindra.components import CylSpline, CylTomogram
+from cylindra.const import (ALN_SUFFIX, MOLECULES, SELECTION_LAYER_NAME,
                      WORKING_LAYER_NAME, GVar, H, Mole, Ori, nm)
-from ..types import MonomerLayer, get_monomer_layers
+from cylindra.types import MonomerLayer, get_monomer_layers
+
 from . import _previews, _shared_doc, subwidgets, widget_utils
 from .feature_control import FeatureControl
 from .image_processor import ImageProcessor

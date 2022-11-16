@@ -5,15 +5,17 @@ if sys.platform == "darwin":
     from qtpy.QtCore import QCoreApplication, Qt
     QCoreApplication.setAttribute(Qt.AA_DontUseNativeMenuBar)
 
-from .core import start
-from .components import CylTomogram
-from .widgets import CylindraMainWidget
-from .widgets.widget_utils import add_molecules, layer_to_coordinates
-from ._info import __version__, __author__, __email__
+from cylindra.core import start, instance
+from cylindra.components import CylTomogram, CylinderModel
+from cylindra.widgets import CylindraMainWidget
+from cylindra.widgets.widget_utils import add_molecules, layer_to_coordinates
+from cylindra._info import __version__, __author__, __email__
 
 __all__ = [
     "start",
+    "instance",
     "CylTomogram",
+    "CylinderModel",
     "CylindraMainWidget",
     "add_molecules",
     "layer_to_coordinates",

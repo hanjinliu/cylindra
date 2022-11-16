@@ -16,7 +16,7 @@ import operator
 from napari.types import LayerDataTuple
 from napari.layers import Image, Layer
 
-from ..utils import set_gpu
+from cylindra.utils import set_gpu
 
 def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:
     if not isinstance(arr, ip.ImgArray):

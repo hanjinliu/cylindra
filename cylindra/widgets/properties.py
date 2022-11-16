@@ -8,7 +8,7 @@ from magicclass import (
     FieldGroup,
 )
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
-from ..const import H
+from cylindra.const import H
 
 if TYPE_CHECKING:
     import pandas as pd

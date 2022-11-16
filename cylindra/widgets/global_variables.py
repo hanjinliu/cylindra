@@ -12,7 +12,7 @@ from magicclass.utils import show_messagebox
 
 from .widget_utils import FileFilter
 
-from ..const import nm, GVar
+from cylindra.const import nm, GVar
 
 INITIAL_PATH = Path(__file__).parent / "variables"
 

@@ -13,7 +13,7 @@ from magicclass.utils import thread_worker
 import impy as ip
 from .widget_utils import FileFilter
 from ._previews import view_image
-from ..const import GVar
+from cylindra.const import GVar
 
 
 @magicclass
@@ -30,7 +30,6 @@ class ImageProcessor(MagicTemplate):
     """
     input_image = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
     output_image = vfield(Path, options={"filter": FileFilter.IMAGE, "mode": "w"}, record=False)
-    pbar = vfield(ProgressBar, options={"visible": False}, record=False)
     
     @input_image.connect
     def _generate_output_path(self):

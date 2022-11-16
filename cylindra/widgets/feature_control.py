@@ -11,10 +11,10 @@ from magicclass import (
 from magicclass.widgets import FloatRangeSlider, ColorEdit, ListEdit
 from magicclass.types import Color, Bound, OneOf
 import numpy as np
-from ..types import get_monomer_layers
 from napari.utils.colormaps import Colormap, label_colormap
 from napari.layers import Points
-from ..const import MOLECULES
+from cylindra.types import get_monomer_layers
+from cylindra.const import MOLECULES
 
 if TYPE_CHECKING:
     import pandas as pd

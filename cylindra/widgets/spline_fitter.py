@@ -9,12 +9,12 @@ from magicclass import (
     MagicTemplate,
     bind_key,
     set_design,
-    )
+)
 from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
-from ..utils import Projections, roundint, centroid, map_coordinates
-from ..const import nm, GVar, Mode
+from cylindra.utils import Projections, roundint, centroid, map_coordinates
+from cylindra.const import nm, GVar, Mode
 
 if TYPE_CHECKING:
     from ..components import CylTomogram

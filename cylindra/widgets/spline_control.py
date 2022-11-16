@@ -5,9 +5,8 @@ from magicclass import magicclass, MagicTemplate, field, vfield, set_options, se
 from magicclass.types import Bound, OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
-from ..const import GVar, Ori, H, Mode
-from ..utils import map_coordinates, Projections
-from ..components.cyl_tomogram import CylSpline
+from cylindra.const import GVar, Ori, H, Mode
+from cylindra.utils import map_coordinates, Projections
 
 @magicclass(widget_type="groupbox")
 class SplineControl(MagicTemplate):

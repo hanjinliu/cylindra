@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import napari
     from .widgets import CylindraMainWidget
-    
+
+_CURRENT_INSTANCE: CylindraMainWidget | None = None
 
 def start(
     project_file: str | None = None,
@@ -25,6 +26,8 @@ def start(
     """
     from .widgets import CylindraMainWidget
     import logging
+    
+    global _CURRENT_INSTANCE
     
     ui = CylindraMainWidget()
     
@@ -51,4 +54,9 @@ def start(
         ui.load_project(project_file)
     if globals_file is not None:
         ui.Others.Global_variables.load_variables(globals_file)
+    _CURRENT_INSTANCE = ui
     return ui
+
+def instance() -> CylindraMainWidget | None:
+    """Get the current CylindraMainWidget instance."""
+    return _CURRENT_INSTANCE

@@ -6,12 +6,12 @@ import numpy as np
 from scipy import ndimage as ndi
 import napari
 from napari.layers import Points, Vectors, Tracks, Labels
-from ..components import CylSpline
-from ..const import MOLECULES, GVar, Mole
+from cylindra.components import CylSpline
+from cylindra.const import MOLECULES, GVar, Mole
 
 if TYPE_CHECKING:
     from acryo import Molecules
-    from ..const import nm
+    from cylindra.const import nm
 
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
