@@ -61,7 +61,7 @@ def instance() -> CylindraMainWidget | None:
     """Get the current CylindraMainWidget instance."""
     return _CURRENT_INSTANCE
 
-def view_project(project_file, run=False) -> None:
+def view_project(project_file: str, run=False) -> None:
     """View the Cylindra project file."""
     from cylindra.project import CylindraProject
     

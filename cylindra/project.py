@@ -264,13 +264,13 @@ class ProjectViewer(MagicTemplate):
             for path in project.splines:
                 spl = CylSpline.from_json(path)
                 coords = spl.partition(100)
-                self.canvas.add_curve(coords, color="lime")
+                self.canvas.add_curve(coords, color="lime", width=3.0)
             
             # draw edge
             img = ip.lazy_imread(project.image)
             nz, ny, nx = img.shape
             for z in [0, nz]:
-                arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0]]) * img.scale.x
+                arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
                 self.canvas.add_curve(arr, color="gray")
             for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
                 arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
@@ -306,7 +306,7 @@ class ProjectViewer(MagicTemplate):
             img = ip.lazy_imread(project.image)
             nz, ny, nx = img.shape
             for z in [0, nz]:
-                arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0]]) * img.scale.x
+                arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
                 self.canvas.add_curve(arr, color="gray")
             for y, x in [[0, 0], [0, nx], [ny, nx], [ny, 0]]:
                 arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
