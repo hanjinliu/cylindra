@@ -5,15 +5,21 @@ if sys.platform == "darwin":
     from qtpy.QtCore import QCoreApplication, Qt
     QCoreApplication.setAttribute(Qt.AA_DontUseNativeMenuBar)
 
-from cylindra.core import start, instance
+from cylindra.core import start, instance, view_project
 from cylindra.components import CylTomogram, CylinderModel
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import add_molecules, layer_to_coordinates
 from cylindra._info import __version__, __author__, __email__
 
+from magicclass import defaults
+
+defaults["macro-highlight"] = True
+
+
 __all__ = [
     "start",
     "instance",
+    "view_project",
     "CylTomogram",
     "CylinderModel",
     "CylindraMainWidget",

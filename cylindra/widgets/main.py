@@ -32,18 +32,19 @@ from cylindra.const import (
     MoleculesHeader as Mole, Ori, nm
 )
 from cylindra.types import MonomerLayer, get_monomer_layers
+from cylindra.project import CylindraProject
 
-from . import _previews, _shared_doc, subwidgets, widget_utils
-from .feature_control import FeatureControl
-from .image_processor import ImageProcessor
-from .project import CylindraProject
-from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
-from .spline_control import SplineControl
-from .spline_fitter import SplineFitter
-from .sweeper import SplineSweeper
-from .simulator import CylinderSimulator
-from .widget_utils import (FileFilter, add_molecules, change_viewer_focus,
-                           update_features)
+from cylindra.widgets import _previews, _shared_doc, subwidgets, widget_utils
+from cylindra.widgets.feature_control import FeatureControl
+from cylindra.widgets.image_processor import ImageProcessor
+from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
+from cylindra.widgets.spline_control import SplineControl
+from cylindra.widgets.spline_fitter import SplineFitter
+from cylindra.widgets.sweeper import SplineSweeper
+from cylindra.widgets.simulator import CylinderSimulator
+from cylindra.widgets.widget_utils import (
+    FileFilter, add_molecules, change_viewer_focus, update_features
+)
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
@@ -475,22 +476,12 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(self, path: Path, filter_reference_image: bool = True):
         """Load a project json file."""
         project = CylindraProject.from_json(path)
-        file_dir = Path(path).parent
         
-        resolve_path = widget_utils.resolve_path
         self.tomogram = CylTomogram.imread(
-            path=resolve_path(project.image, file_dir), 
+            path=project.image, 
             scale=project.scale, 
             binsize=project.multiscales, 
         )
-        
-        # resolve paths
-        project.localprops = resolve_path(project.localprops, file_dir)
-        project.globalprops = resolve_path(project.globalprops, file_dir)
-        project.template_image = resolve_path(project.template_image, file_dir)
-        project.global_variables = resolve_path(project.global_variables, file_dir)
-        project.splines = [resolve_path(p, file_dir) for p in project.splines]
-        project.molecules = [resolve_path(p, file_dir) for p in project.molecules]
         
         self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
@@ -647,6 +638,15 @@ class CylindraMainWidget(MagicTemplate):
     def process_images(self):
         """Open image processor."""
         return self._ImageProcessor.show()
+    
+    @File.wraps
+    @set_design(text="View project")
+    @set_options(path={"filter": FileFilter.JSON})
+    @do_not_record
+    def view_project(self, path: Path):
+        pviewer = CylindraProject.from_json(path).make_project_viewer()
+        pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+        return pviewer.show()
     
     @Image.wraps
     @set_design(text="Show image info")
