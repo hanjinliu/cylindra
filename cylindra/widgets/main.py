@@ -3052,7 +3052,9 @@ class CylindraMainWidget(MagicTemplate):
     
     @impl_preview(load_project)
     def _preview_text(self, path: str):
-        return _previews.view_text(path, parent=self)
+        pviewer = CylindraProject.from_json(path).make_project_viewer()
+        pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+        return pviewer.show()
     
     @impl_preview(load_molecules)
     def _preview_table(self, paths: List[str]):

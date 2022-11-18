@@ -177,7 +177,6 @@ class CylindraProject(BaseModel):
     ) -> None:
         from napari.layers import Points
         from cylindra.const import MOLECULES
-        from cylindra.widgets.widget_utils import resolve_path
         
         self = cls.from_gui(gui, json_path, results_dir)
         # save objects
@@ -247,7 +246,7 @@ class ProjectViewer(MagicTemplate):
                 ),
                 "Image": str(project.image),
                 "Image scale": f"{project.scale} nm/pixel",
-                "Multiscales": str(project.multiscales),
+                "Multiscales": ", ".join(map(str, project.multiscales,)),
                 "FT size": f"{project.current_ft_size:.1f} nm",
             }
             info_str = "<br>".join(map(lambda x: "<h2>{}</h2>{}".format(*x), info.items()))
