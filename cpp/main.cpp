@@ -29,6 +29,9 @@ std::vector<Index> arrayToIndices(py::array_t<ssize_t> array) {
 }
 
 // Alleviate molecule displacements by iterative local-averaging algorithm.
+// Molecule positions labeled by the argument `label` will not be moved. The other
+// molecules will be averaged by the surroudning molecules. This procedure will be
+// repeated `iterations` times.
 py::array_t<double> alleviate(
     py::array_t<double> arr,
     py::array_t<ssize_t> label,
@@ -47,16 +50,19 @@ py::array_t<double> alleviate(
 
 	auto arr_data = arr.mutable_unchecked<3>();
 
-    for (int i = 0; i < iterations; ++i){
+    for (int i = 0; i < iterations; ++i) {
         auto neighbors = geometry.getNeighbors(indices);
-        for (auto neighbor : neighbors){
+        for (auto neighbor : neighbors) {
 			// Get current neighbors
-            auto curnbr = geometry.getNeighbor(neighbor.y, neighbor.a);
-            auto nCurnbr = static_cast<double>(curnbr.size());
+            auto curNeighbor = geometry.getNeighbor(neighbor.y, neighbor.a);
+            auto nCurNeighbor = static_cast<double>(curNeighbor.size());
 
-			// alleviate inter-molecule distances by taking the average of the neighbors
+			// Alleviate inter-molecule distances by taking the average of the neighbors
+            // Note that along the angular axis, averaging should be calculated in the
+            // complex plane (in which mean([30 deg, 330 deg]) should return 0 deg, not 
+            // 180 deg).
             double sumR = 0.0, sumY = 0.0, sumACos = 0.0, sumASin = 0.0;
-            for (auto nbr : curnbr){
+            for (auto nbr : curNeighbor) {
                 sumR += *arr.data(nbr.y, nbr.a, 0);
                 sumY += *arr.data(nbr.y, nbr.a, 1);
                 double a = *arr.data(nbr.y, nbr.a, 2);
@@ -64,10 +70,10 @@ py::array_t<double> alleviate(
                 sumASin += std::sin(a);
             }
 
-            arr_data(neighbor.y, neighbor.a, 0) = sumR / nCurnbr;
-            arr_data(neighbor.y, neighbor.a, 1) = sumY / nCurnbr;
+            arr_data(neighbor.y, neighbor.a, 0) = sumR / nCurNeighbor;
+            arr_data(neighbor.y, neighbor.a, 1) = sumY / nCurNeighbor;
             double theta = std::atan2(sumASin, sumACos);
-            if (theta < 0){
+            if (theta < 0) {
                 theta += 2 * PI;
             }
             arr_data(neighbor.y, neighbor.a, 2) = theta;

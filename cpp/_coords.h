@@ -27,11 +27,11 @@ class Vector3D {
         T angle(Vector3D<T> other);
 		T length2();
 		T length();
-		Vector3D(T z0, T y0, T x0){z=z0; y=y0; x=x0;}
-		Vector3D() : Vector3D<T>(0, 0, 0){}
-		Vector3D(Vector3D<T> &vec) : Vector3D<T>(vec.z, vec.y, vec.x){}
-		Vector3D(py::array_t<T> &vec): Vector3D<T>(vec.data(0), vec.data(1), vec.data(2)){}
-		void update(T z0, T y0, T x0){z=z0; y=y0; x=x0;};
+		Vector3D(T z0, T y0, T x0) {z=z0; y=y0; x=x0;}
+		Vector3D() : Vector3D<T>(0, 0, 0) {}
+		Vector3D(Vector3D<T> &vec) : Vector3D<T>(vec.z, vec.y, vec.x) {}
+		Vector3D(py::array_t<T> &vec): Vector3D<T>(vec.data(0), vec.data(1), vec.data(2)) {}
+		void update(T z0, T y0, T x0) {z=z0; y=y0; x=x0;};
 		py::array_t<T> asarray();
 };
 
@@ -128,23 +128,23 @@ class CoordinateSystem {
 		CoordinateSystem()
 			: CoordinateSystem(Vector3D<T>(), Vector3D<T>(), Vector3D<T>(), Vector3D<T>())
 		{}
-		void update(Vector3D<T> &origin_, Vector3D<T> &ez_, Vector3D<T> &ey_, Vector3D<T> &ex_){
+		void update(Vector3D<T> &origin_, Vector3D<T> &ez_, Vector3D<T> &ey_, Vector3D<T> &ex_) {
 			origin = origin_; ez = ez_; ey = ey_; ex = ex_;
 		}
-		void update(py::array_t<T> &origin, py::array_t<T> &ez, py::array_t<T> &ey, py::array_t<T> &ex){
+		void update(py::array_t<T> &origin, py::array_t<T> &ez, py::array_t<T> &ey, py::array_t<T> &ex) {
 			return update(Vector3D<T>(&origin), Vector3D<T>(&ez), Vector3D<T>(&ey), Vector3D<T>(&ex));
 		}
 };
 
 // Convert local coordinates to world coordinates.
 template <typename T>
-Vector3D<T> CoordinateSystem<T>::at(T z, T y, T x){
+Vector3D<T> CoordinateSystem<T>::at(T z, T y, T x) {
 	return origin + ez * z + ey * y + ex * x;
 }
 
 // Convert local coordinates to world coordinates, using 3D vector.
 template <typename T>
-Vector3D<T> CoordinateSystem<T>::at(Vector3D<T> vec){
+Vector3D<T> CoordinateSystem<T>::at(Vector3D<T> vec) {
 	return origin + ez * vec.z + ey * vec.y + ex * vec.x;
 }
 
