@@ -79,6 +79,17 @@ class ImageProcessor(MagicTemplate):
         out.imsave(self.output_image)
         return None
     
+    @thread_worker(progress={"desc": "Binning."})
+    @set_design(text="Binning")
+    @set_options(bin_size={"min": 2, "max": 16, "step": 1},)
+    @do_not_record
+    def binning(self, bin_size: int = 4):
+        """Bin image."""
+        img = self._imread(self.input_image)
+        out = img.binning(bin_size, check_edges=False)
+        out.imsave(self.output_image)
+        return None
+    
     @set_design(text="Preview input image")
     @do_not_record
     def preview(self):

@@ -25,7 +25,8 @@ POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
 
 @magicclass
 class SplineSweeper(MagicTemplate):
-    show_what = vfield(label="kind", options={"choices": [YPROJ, RPROJ, CFT]})
+    show_what = vfield(label="kind", options={"choices": [YPROJ, RPROJ, CFT]}, record=False)
+    
     @magicclass(layout="horizontal")
     class params(MagicTemplate):
         """
