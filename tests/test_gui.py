@@ -3,7 +3,7 @@ import tempfile
 
 from numpy.testing import assert_allclose
 from acryo import Molecules
-from cylindra import start, CylindraMainWidget
+from cylindra import start, view_project, CylindraMainWidget
 from cylindra.const import PropertyNames as H
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
@@ -217,4 +217,6 @@ def test_batch_simulation():
             seed=0,
         )
         assert len(list(dirpath.glob("*.mrc"))) == 3
-    
+
+def test_project_viewer():
+    view_project(TEST_PATH / "test-project.json")

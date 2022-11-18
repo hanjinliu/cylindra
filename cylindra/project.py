@@ -307,7 +307,7 @@ class ProjectViewer(MagicTemplate):
             for z in [0, nz]:
                 arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
                 self.canvas.add_curve(arr, color="gray")
-            for y, x in [[0, 0], [0, nx], [ny, nx], [ny, 0]]:
+            for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
                 arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
                 self.canvas.add_curve(arr, color="gray")
     
@@ -330,9 +330,13 @@ class ProjectViewer(MagicTemplate):
         def _from_project(self, project: CylindraProject):
             from skimage.filters.thresholding import threshold_yen
             
-            img = ip.imread(project.template_image)
-            thr = threshold_yen(img.value)
-            self.template_image.add_image(img, rendering="iso", iso_threshold=thr)
+            if project.template_image is None or Path(project.template_image).is_dir():
+                # no template image available
+                pass
+            else:
+                img = ip.imread(project.template_image)
+                thr = threshold_yen(img.value)
+                self.template_image.add_image(img, rendering="iso", iso_threshold=thr)
             self.mask_parameters = str(project.mask_parameters)
             if project.tilt_range is not None:
                 s0, s1 = project.tilt_range
