@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Tuple
 import json
+from appdirs import user_config_dir
+
 from magicclass import (
     magicmenu,
     set_options,
@@ -11,10 +13,9 @@ from magicclass import (
 from magicclass.utils import show_messagebox
 
 from .widget_utils import FileFilter
-
 from cylindra.const import nm, GlobalVariables as GVar
 
-INITIAL_PATH = Path(__file__).parent / "variables"
+INITIAL_PATH = Path(user_config_dir("variables", "cylindra"))
 
 @magicmenu(name="Global variables ...")
 class GlobalVariables(MagicTemplate):
@@ -114,3 +115,72 @@ class GlobalVariables(MagicTemplate):
         with open(path, mode="w") as f:
             json.dump(gvar, f, indent=4, separators=(", ", ": "))
         return None
+
+def _is_empty(path: Path) -> bool:
+    """Check if a directory is empty."""
+    it = path.glob("*")
+    try:
+        next(it)
+    except StopIteration:
+        return True
+    return False
+
+# Initialize user config directory.
+if not INITIAL_PATH.exists() or _is_empty(INITIAL_PATH):
+    try:
+        if not INITIAL_PATH.exists():
+            INITIAL_PATH.mkdir(parents=True)
+        
+        import json
+        
+        eukaryotic_mt_gvar = {
+            "nPFmin": 11,
+            "nPFmax": 17,
+            "splOrder": 3,
+            "yPitchMin": 3.9,
+            "yPitchMax": 4.3,
+            "minSkew": -1.0,
+            "maxSkew": 1.0,
+            "minCurvatureRadius": 400.0,
+            "inner": 0.8,
+            "outer": 1.3,
+            "fitLength": 48.0,
+            "fitWidth": 44.0,
+            "daskChunk": [
+                256,
+                256,
+                256
+            ],
+            "GPU": True,
+        }
+        
+        tmv_gvar = {
+            "nPFmin": 15,
+            "nPFmax": 17,
+            "splOrder": 3,
+            "yPitchMin": 2.1,
+            "yPitchMax": 2.5,
+            "minSkew": -20.0,
+            "maxSkew": -10.0,
+            "minCurvatureRadius": 10000.0,
+            "inner": 0.3,
+            "outer": 1.5,
+            "fitLength": 48.0,
+            "fitWidth": 28.0,
+            "daskChunk": [
+                256,
+                256,
+                256
+            ],
+            "GPU": True,
+        }
+
+        with open(INITIAL_PATH / "eukaryotic_microtubule.json", mode="w") as f:
+            json.dump(eukaryotic_mt_gvar, f, indent=4, separators=(", ", ": "))
+        with open(INITIAL_PATH / "TMV.json", mode="w") as f:
+            json.dump(tmv_gvar, f, indent=4, separators=(", ", ": "))
+    except Exception as e:
+        print("Failed to initialize config directory.")
+        print(e)
+    else:
+        print(f"Config directory initialized at {INITIAL_PATH}.")
