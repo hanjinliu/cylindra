@@ -3059,28 +3059,6 @@ class CylindraMainWidget(MagicTemplate):
     @impl_preview(load_molecules)
     def _preview_table(self, paths: List[str]):
         return _previews.view_tables(paths, parent=self)
-    
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # Deprecated
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    
-    @nogui
-    @do_not_record
-    def run_mtprops(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            "run_mtprops is deprecated. Use cylindrical_fit instead.", UserWarning
-        )
-        return self.cylindrical_fit(*args, **kwargs)
-    
-    @nogui
-    @do_not_record
-    def paint_mt(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            "paint_mt is deprecated. Use paint_cylinders instead.", UserWarning
-        )
-        return self.paint_cylinders(*args, **kwargs)
 
 ############################################################################################
 #   Other helper functions
