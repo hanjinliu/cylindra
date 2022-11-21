@@ -164,7 +164,6 @@ class CylindraProject(BaseModel):
             tilt_range = gui._subtomogram_averaging.tilt_range,
             macro = as_relative(macro_path),
         )
-        self.resolve_path(file_dir)
         return self
         
         
@@ -213,15 +212,15 @@ class CylindraProject(BaseModel):
             globalprops.to_csv(globalprops_path)
         if self.splines:
             for spl, path in zip(gui.tomogram.splines, self.splines):
-                spl.to_json(path)
+                spl.to_json(results_dir.parent / path)
         if self.molecules:
-            for df, fp in zip(molecule_dataframes, self.molecules):
-                df.to_csv(fp, index=False)
+            for df, path in zip(molecule_dataframes, self.molecules):
+                df.to_csv(results_dir.parent / path, index=False)
         
-        gui.Others.Global_variables.save_variables(self.global_variables)
+        gui.Others.Global_variables.save_variables(results_dir.parent / self.global_variables)
         
         if macro_str:
-            with open(self.macro, mode="w") as f:
+            with open(results_dir.parent / self.macro, mode="w") as f:
                 f.write(macro_str)
         return None
     

@@ -141,7 +141,7 @@ def resolve_path(path: str | Path | None, root: Path) -> Path | None:
     path_joined = root / path
     if path_joined.exists():
         return path_joined
-    raise ValueError(f"Path {path} could not be resolved.")
+    raise ValueError(f"Path {path} could not be resolved under root path {root}.")
 
 
 def layer_to_coordinates(layer: Points, npf: int | None = None):
