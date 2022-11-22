@@ -1,10 +1,15 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Sequence, Union
 
 if TYPE_CHECKING:
     import napari
+    from acryo import Molecules
     from cylindra.widgets import CylindraMainWidget
+    from cylindra.components import CylSpline
+    from cylindra.project import CylindraProject
 
+PathLike = Union[str, Path]
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
 
 def start(
@@ -61,8 +66,63 @@ def instance() -> CylindraMainWidget | None:
     """Get the current CylindraMainWidget instance."""
     return _CURRENT_INSTANCE
 
-def view_project(project_file: str, run=False) -> None:
+def view_project(project_file: PathLike, run: bool = False) -> None:
     """View the Cylindra project file."""
     from cylindra.project import CylindraProject
     
     return CylindraProject.from_json(project_file).make_project_viewer().show(run=run)
+
+def read_project(file: PathLike) -> CylindraProject:
+    """Read the Cylindra project file."""
+    from cylindra.project import CylindraProject
+    
+    return CylindraProject.from_json(file)
+
+def read_molecules(
+    file: PathLike,
+    pos_cols: Sequence[str] = ("z", "y", "x"),
+    rot_cols: Sequence[str] = ("zvec", "yvec", "xvec"),
+    **kwargs,
+) -> Molecules:
+    """
+    Read a molecules CSV file.
+    
+    Parameters
+    ----------
+    file : PathLike
+        File path.
+    pos_cols : sequence of str, default is ("z", "y", "x")
+        Column names for the molecule positions.
+    rot_cols : sequence of str, default is ("zvec", "yvec", "xvec")
+        Column names for the molecule rotation vectors.
+    **kwargs
+        Keyword arguments to be passed to `pd.read_csv`.
+    
+    Returns
+    -------
+    Molecules
+        Molecules object.
+    """
+    from acryo import Molecules
+    
+    return Molecules.from_csv(
+        file, pos_cols=list(pos_cols), rot_cols=list(rot_cols), **kwargs
+    )
+
+def read_spline(file: PathLike) -> CylSpline:
+    """
+    Read the spline file.
+
+    Parameters
+    ----------
+    file : PathLike
+        File path.
+
+    Returns
+    -------
+    CylSpline
+        CylSpline object.
+    """
+    from cylindra.components import CylSpline
+    
+    return CylSpline.from_json(file)

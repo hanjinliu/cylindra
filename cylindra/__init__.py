@@ -5,7 +5,9 @@ if sys.platform == "darwin":
     from qtpy.QtCore import QCoreApplication, Qt
     QCoreApplication.setAttribute(Qt.AA_DontUseNativeMenuBar)
 
-from cylindra.core import start, instance, view_project
+from cylindra.core import (
+    start, instance, view_project, read_project ,read_molecules, read_spline
+)
 from cylindra.components import CylTomogram, CylinderModel
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import add_molecules, layer_to_coordinates
@@ -20,6 +22,9 @@ __all__ = [
     "start",
     "instance",
     "view_project",
+    "read_project",
+    "read_molecules",
+    "read_spline",
     "CylTomogram",
     "CylinderModel",
     "CylindraMainWidget",

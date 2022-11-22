@@ -98,6 +98,7 @@ class CylindraProject(BaseModel):
         json_path: Path,
         results_dir: Union[Path, None] = None,
     ) -> "CylindraProject":
+        """Construct a project from a widget state."""
         from .widgets.widget_utils import get_versions
         from napari.layers import Points
         from cylindra.const import MOLECULES
@@ -174,6 +175,18 @@ class CylindraProject(BaseModel):
         json_path: Path,
         results_dir: Union[Path, None] = None,
     ) -> None:
+        """
+        Serialize the GUI state to a json file.
+        
+        Parameters
+        ----------
+        gui : CylindraMainWidget
+            The main widget from which project model will be constructed.
+        json_path : Path
+            The path to the project json file.
+        results_dir : Path, optional
+            The directory to save the results.
+        """
         from napari.layers import Points
         from cylindra.const import MOLECULES
         
@@ -225,6 +238,7 @@ class CylindraProject(BaseModel):
         return None
     
     def make_project_viewer(self) -> "ProjectViewer":
+        """Build a project viewer widget from this project."""
         pviewer = ProjectViewer()
         pviewer._from_project(self)
         return pviewer
