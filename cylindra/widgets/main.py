@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 from timeit import default_timer
-from typing import Annotated, List, Tuple, Union
+from typing import Annotated, Union
 
 import impy as ip
 import macrokit as mk
@@ -57,10 +57,10 @@ METHOD_CHOICES = (
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
-_ZRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_YRotation = Annotated[Tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_XRotation = Annotated[Tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
-_MaxShifts = Annotated[Tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
+_ZRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
+_YRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
+_XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
+_MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
 
 
@@ -89,12 +89,13 @@ def _get_alignment(method: str):
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
     
-    _SplineFitter = field(SplineFitter, name="Spline fitter")
-    _SplineSweeper = field(SplineSweeper, name="Spline sweeper")
-    _ImageProcessor = field(ImageProcessor, name="Image Processor")
-    _FeatureControl = field(FeatureControl, name="Feature Control")
-    _Simulator = field(CylinderSimulator, name="Cylinder Simulator")
+    _SplineFitter = field(SplineFitter, name="Spline fitter")  # Widget for manual spline fitting
+    _SplineSweeper = field(SplineSweeper, name="Spline sweeper")  # Widget for sweeping along splines
+    _ImageProcessor = field(ImageProcessor, name="Image Processor")  # Widget for pre-filtering/pre-processing
+    _FeatureControl = field(FeatureControl, name="Feature Control")  # Widget for visualizing/analyzing features
+    _Simulator = field(CylinderSimulator, name="Cylinder Simulator")  # Widget for tomogram simulator
     
+    # The logger widget.
     @magicclass(labels=False, name="Logger")
     @set_design(min_height=200)
     class _LoggerWindow(MagicTemplate):
@@ -112,18 +113,21 @@ class CylindraMainWidget(MagicTemplate):
             return source.parent
         return None
     
+    # Menu bar
     File = subwidgets.File
     Image = subwidgets.Image
     Splines = subwidgets.Splines
     Molecules_ = subwidgets.Molecules_
     Analysis = subwidgets.Analysis
     Others = subwidgets.Others
+    
+    # Toolbar
     toolbar = subwidgets.toolbar
     
-    SplineControl = SplineControl
-    LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
-    GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
-    overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})
+    SplineControl = SplineControl  # Widget for controling splines
+    LocalProperties = field(LocalPropertiesWidget, name="Local Properties")  # Widget for summary of local properties
+    GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")  # Widget for summary of glocal properties
+    overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})  # Widget for 2D overview of splines
     
     ### methods ###
     
@@ -152,7 +156,7 @@ class CylindraMainWidget(MagicTemplate):
         """Return the sub-viewer that is used for subtomogram averaging."""
         return self._subtomogram_averaging._viewer
 
-    def _get_splines(self, widget=None) -> List[Tuple[str, int]]:
+    def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         tomo = self.tomogram
         if tomo is None:
@@ -164,7 +168,7 @@ class CylindraMainWidget(MagicTemplate):
         coords = self.layer_work.data
         return np.round(coords, 3)
     
-    def _get_available_binsize(self, _=None) -> List[int]:
+    def _get_available_binsize(self, _=None) -> list[int]:
         if self.tomogram is None:
             return [1]
         out = [x[0] for x in self.tomogram.multiscaled]
@@ -575,7 +579,7 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_options(paths={"filter": FileFilter.JSON})
     @set_design(text="Load splines")
-    def load_splines(self, paths: List[Path]):
+    def load_splines(self, paths: list[Path]):
         """
         Load splines using a list of json paths.
 
@@ -594,7 +598,7 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_options(paths={"filter": FileFilter.CSV})
     @set_design(text="Load molecules")
-    def load_molecules(self, paths: List[Path]):
+    def load_molecules(self, paths: list[Path]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
@@ -841,7 +845,7 @@ class CylindraMainWidget(MagicTemplate):
         limits={"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
     )
     @set_design(text="Clip splines")
-    def clip_spline(self, spline: OneOf[_get_splines], limits: Tuple[float, float] = (0., 1.)):
+    def clip_spline(self, spline: OneOf[_get_splines], limits: tuple[float, float] = (0., 1.)):
         # BUG: properties may be inherited in a wrong way
         if spline is None:
             return
@@ -1028,7 +1032,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layers}{interval}
         """        
-        splines: List[CylSpline] = []
+        splines: list[CylSpline] = []
         for layer in layers:
             spl = widget_utils.molecules_to_spline(layer)
             splines.append(spl)
@@ -1336,10 +1340,10 @@ class CylindraMainWidget(MagicTemplate):
         """
         if len(layers) == 0:
             raise ValueError("No layer selected.")
-        molecules: List[Molecules] = [layer.metadata[MOLECULES] for layer in layers]
+        molecules: list[Molecules] = [layer.metadata[MOLECULES] for layer in layers]
         all_molecules = Molecules.concat(molecules)
         points = add_molecules(self.parent_viewer, all_molecules, name="Mono-concat")
-        layer_names: List[str] = []
+        layer_names: list[str] = []
         for layer in layers:
             layer.visible = False
             layer_names.append(layer.name)
@@ -1377,7 +1381,7 @@ class CylindraMainWidget(MagicTemplate):
         spl = widget_utils.molecules_to_spline(layer)
         try:
             pf_label = mole.features[Mole.pf]
-            pos_list: List[np.ndarray] = []  # each shape: (y, ndim)
+            pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
             for pf in range(pf_label.max() + 1):
                 pos_list.append(mole.pos[pf_label == pf])
             pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
@@ -1778,7 +1782,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MonomerLayer,
         template_path: Bound[_subtomogram_averaging.template_path],
-        other_templates: List[Path],
+        other_templates: list[Path],
         mask_params: Bound[_subtomogram_averaging._get_mask_params],
         tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
         max_shifts: _MaxShifts = (1., 1., 1.),
@@ -1852,7 +1856,7 @@ class CylindraMainWidget(MagicTemplate):
         x_rotation: _XRotation = (0., 0.),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        distance_range: Tuple[nm, nm] = (3.9, 4.4),
+        distance_range: tuple[nm, nm] = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
         upsample_factor: int = 5,
     ):
@@ -2180,7 +2184,7 @@ class CylindraMainWidget(MagicTemplate):
             axes="ipzyx",
         )
         
-        fsc_all: List[np.ndarray] = []
+        fsc_all: list[np.ndarray] = []
         for i in range(n_set):
             img0, img1 = img[i]
             freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
@@ -2490,7 +2494,7 @@ class CylindraMainWidget(MagicTemplate):
         if self._current_ft_size is None:
             raise ValueError("Local structural parameters have not been determined yet.")
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
-        color: dict[int, List[float]] = {0: [0, 0, 0, 0]}
+        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
         all_localprops = tomo.collect_localprops()
         if all_localprops is None:
@@ -2594,7 +2598,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
-        limit: Tuple[float, float] = (4.00, 4.24), 
+        limit: tuple[float, float] = (4.00, 4.24), 
         color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
     ):
         """
@@ -2734,13 +2738,13 @@ class CylindraMainWidget(MagicTemplate):
     
     def _check_binning_for_alignment(
         self,
-        template: Union[ip.ImgArray, List[ip.ImgArray]],
+        template: Union[ip.ImgArray, list[ip.ImgArray]],
         mask: Union[ip.ImgArray, None],
         binsize: int,
         molecules: Molecules,
         order: int = 1,
-        shape: Tuple[nm, nm, nm] = None,
-    ) -> Tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
+        shape: tuple[nm, nm, nm] = None,
+    ) -> tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
         """
         Returns proper subtomogram loader, template image and mask image that matche the 
         bin size.
@@ -2889,7 +2893,7 @@ class CylindraMainWidget(MagicTemplate):
         viewer.layers.events.removed.disconnect(self._on_layer_removed)
         
         # remove all the molecules layers
-        _layers_to_remove: List[str] = []
+        _layers_to_remove: list[str] = []
         for layer in self.parent_viewer.layers:
             if MOLECULES in layer.metadata.keys():
                 _layers_to_remove.append(layer.name)
@@ -3057,7 +3061,7 @@ class CylindraMainWidget(MagicTemplate):
         return pviewer.show()
     
     @impl_preview(load_molecules)
-    def _preview_table(self, paths: List[str]):
+    def _preview_table(self, paths: list[str]):
         return _previews.view_tables(paths, parent=self)
 
 ############################################################################################
