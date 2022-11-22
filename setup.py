@@ -33,12 +33,12 @@ with open("cylindra/_info.py", encoding="utf-8") as f:
 
 
 with open("README.md", "r") as f:
-    readme = f.read()
+    README = f.read()
     
 setup(
     name="cylindra",
     description="Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical structures",
-    long_description=readme,
+    long_description=README,
     long_description_content_type="text/markdown",
     **INFO,
     license="BSD 3-Clause",
@@ -49,13 +49,13 @@ setup(
     cmdclass={"build_ext": build_ext},
     py_modules=[],
     install_requires=[
-        "impy-array>=2.1.2",
+        "impy-array>=2.1.3",
         "acryo>=0.0.4",
         "magicgui>=0.5.1",
-        "magic-class>=0.6.10",
+        "magic-class>=0.6.13",
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
-        "napari>=0.4.16",
+        "napari>=0.4.17",
     ],
     python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
