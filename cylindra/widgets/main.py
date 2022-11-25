@@ -842,7 +842,7 @@ class CylindraMainWidget(MagicTemplate):
     @Splines.wraps
     @set_options(
         auto_call=True,
-        limits={"min": 0.0, "max": 1.0, "widget_type": FloatRangeSlider},
+        limits={"min": 0.0, "max": 1.0, "step": 0.01, "widget_type": FloatRangeSlider},
     )
     @set_design(text="Clip splines")
     def clip_spline(self, spline: OneOf[_get_splines], limits: tuple[float, float] = (0., 1.)):

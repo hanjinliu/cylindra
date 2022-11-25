@@ -5,10 +5,11 @@ from magicclass import (
     set_options,
     vfield,
     do_not_record,
+    confirm,
     set_design,
 )
 from magicclass.utils import thread_worker
-from magicclass.types import Optional
+from magicclass.types import Optional, OneOf, SomeOf
 import impy as ip
 from .widget_utils import FileFilter
 from ._previews import view_image
@@ -44,11 +45,14 @@ class ImageProcessor(MagicTemplate):
             output_path = output_path.with_stem(output_path.stem + f"-{n}")
         self.output_image = output_path
     
+    def _confirm_path(self):
+        return self.output_image.exists()
+    
     @thread_worker(progress={"desc": "Converting data type."})
-    @set_options(dtype={"choices": ["int8", "uint8", "uint16", "float32"]})
     @set_design(text="Convert dtype")
+    @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     @do_not_record
-    def convert_dtype(self, dtype):
+    def convert_dtype(self, dtype: OneOf["int8", "uint8", "uint16", "float32"]):
         """Convert data type of the input image."""
         img = self._imread(self.input_image)
         out = img.as_img_type(dtype)
@@ -57,6 +61,7 @@ class ImageProcessor(MagicTemplate):
     
     @thread_worker(progress={"desc": "Inverting image."})
     @set_design(text="Invert")
+    @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     @do_not_record
     def invert(self):
         """Invert intensity of the input image."""
@@ -71,9 +76,10 @@ class ImageProcessor(MagicTemplate):
         cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
         order={"max": 20},
     )
+    @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     @do_not_record
     def lowpass_filter(self, cutoff: float, order: int = 2):
-        """Apply Butterworth's low-pass filter to the input image."""
+        """Apply Butterworth's tiled low-pass filter to the input image."""
         img = self._imread(self.input_image)
         out = img.tiled_lowpass_filter(cutoff, overlap=32, order=order)
         out.imsave(self.output_image)
@@ -82,12 +88,25 @@ class ImageProcessor(MagicTemplate):
     @thread_worker(progress={"desc": "Binning."})
     @set_design(text="Binning")
     @set_options(bin_size={"min": 2, "max": 16, "step": 1},)
+    @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     @do_not_record
     def binning(self, bin_size: int = 4):
         """Bin image."""
         img = self._imread(self.input_image)
         out = img.binning(bin_size, check_edges=False)
         out.imsave(self.output_image)
+        return None
+    
+    @thread_worker(progress={"desc": "Flipping image."})
+    @set_design(text="Flip image")
+    @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
+    @do_not_record
+    def flip(self, axes: SomeOf["x", "y", "z"] = ()):
+        """Flip image by the given axes."""
+        img = self._imread(self.input_image)
+        for a in axes:
+            img = img[ip.slicer(a)[::-1]]
+        img.imsave(self.output_image)
         return None
     
     @set_design(text="Preview input image")
