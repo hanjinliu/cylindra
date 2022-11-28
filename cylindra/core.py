@@ -142,6 +142,8 @@ def read_localprops(file: PathLike):
     DataFrameDict
         Dictionary of data frames.
     """
-    from cylindra._dict import DataFrameDict
+    from cylindra._list import DataFrameList
     
-    return DataFrameDict.from_csv(file)
+    if Path(file).is_dir():
+        return DataFrameList.glob_csv(file)
+    return DataFrameList.from_csv(file)

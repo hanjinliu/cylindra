@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence
+from pathlib import Path
 import numpy as np
 from cylindra.const import IDName, PropertyNames as H
 
@@ -17,15 +18,13 @@ _AGG_FUNCS = {
     "sum": np.nansum,
 }
 
-class DataFrameDict(Mapping[int, "pd.DataFrame"]):
-    def __init__(self, df_dict: dict[int, pd.DataFrame]):
-        self._dict = df_dict
+class DataFrameList(Sequence["pd.DataFrame"]):
+    def __init__(self, df_list: Sequence[pd.DataFrame]):
+        self._list = list(df_list)
     
     @classmethod
     def from_localprops(cls, df: pd.DataFrame):
-        input_data: dict[int, pd.DataFrame] = {
-            id_: df_sub[COLUMNS] for id_, df_sub in df.groupby(by=IDName.spline)
-        }
+        input_data = [df_sub[COLUMNS] for _, df_sub in df.groupby(by=IDName.spline)]
         return cls(input_data)
     
     @classmethod
@@ -34,30 +33,46 @@ class DataFrameDict(Mapping[int, "pd.DataFrame"]):
         df = pd.read_csv(path)
         return cls.from_localprops(df)
     
-    def __getitem__(self, key: Any) -> pd.DataFrame:
-        return self._dict[key]
+    @classmethod
+    def glob_csv(cls, dir: str | Path):
+        dir = Path(dir)
+        if not dir.is_dir():
+            raise ValueError(f"Input path must be a directory.")
+        instances: list[cls] = []
+        for p in dir.glob("**/localprops.csv"):
+            instances.append(cls.from_csv(p)._list)
+        return cls(sum(instances, start=[]))
+    
+    def __getitem__(self, index: Any) -> pd.DataFrame:
+        return self._list[index]
     
     def __iter__(self) -> Iterator[pd.DataFrame]:
-        return iter(self._dict)
+        return iter(self._list)
     
     def __len__(self) -> int:
-        return len(self._dict)
+        return len(self._list)
     
     def __repr__(self) -> str:
+        if len(self) == 0:
+            return f"DataFrameList()"
         strs = []
-        for k, v in self._dict.items():
+        for k, v in enumerate(self._list):
             strs.append(f"{k}: DataFrame of shape={v.shape!r}")
+            if k > 12:
+                strs.append("...")
+                strs.append(f"{len(self._list) - 1}: DataFrame of shape={self._list[-1].shape!r}")
+                break
         joined = ",\n\t".join(strs)
-        return f"DataFrameDict(\n\t{joined}\n)"
+        return f"DataFrameList(\n\t{joined}\n)"
 
     def _agg_pos(self, fn):
-        return {k: df.agg(fn) for k, df in self._dict.items()}
+        return [df.agg(fn) for df in self._list]
     
     def _agg_id(self, fn):
         import pandas as pd
-        max_len = max(len(df) for df in self._dict.values())
+        max_len = max(len(df) for df in self._list)
         all_df = []
-        for df in self._dict.values():
+        for df in self._list:
             nr, nc = df.shape
             if nr < max_len:
                 df = pd.concat([df, np.full((max_len - nr, nc), np.nan)])
@@ -71,39 +86,47 @@ class DataFrameDict(Mapping[int, "pd.DataFrame"]):
             df_out_dict[col] = fn(stacked, axis=1)
         return pd.DataFrame(df_out_dict)
             
-    def flatten(self) -> pd.DataFrame:
+    def collect(self) -> pd.DataFrame:
+        """Collect all the child data frames into a single data frame."""
         import pandas as pd
-        return pd.concat(list(self._dict.values()), axis=0)
+
+        return pd.concat(self._list, axis=0)
     
     @property
     def loc(self) -> LocIndexer:
+        """Iterative loc indexer."""
         return LocIndexer(self)
     
     @property
     def iloc(self) -> ILocIndexer:
+        """Iterative iloc indexer."""
         return ILocIndexer(self)
+    
+    def select(self, col):
+        cls = type(self)
+        return cls({k: df[col] for k, df in self.items()})
 
     def agg_id(self, fname: str):
         fn = _AGG_FUNCS[fname]
         return self._agg_id(fn)
     
     def agg_pos(self, fn):
-        return self._agg_pos(fn)
+        return self._agg_pos(fn)      
+
 
 class LocIndexer:
-    def __init__(self, dd: DataFrameDict):
+    def __init__(self, dd: DataFrameList):
         self._dd = dd
     
     def __getitem__(self, key) -> pd.DataFrame:
         cls = type(self._dd)
-        return cls({k: df.loc[key] for k, df in self._dd.items()})
+        return cls([df.loc[key] for df in self._dd])
     
 
 class ILocIndexer:
-    def __init__(self, dd: DataFrameDict):
+    def __init__(self, dd: DataFrameList):
         self._dd = dd
     
     def __getitem__(self, key) -> pd.DataFrame:
         cls = type(self._dd)
-        return cls({k: df.iloc[key] for k, df in self._dd.items()})
-        
+        return cls([df.iloc[key] for df in self._dd])
