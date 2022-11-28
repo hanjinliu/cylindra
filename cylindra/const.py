@@ -73,6 +73,11 @@ class PropertyNames(SimpleNamespace):
     nPF = "nPF"  
     start = "start"
 
+class IDName(SimpleNamespace):
+    """ID names used in local properties."""
+
+    spline = "SplineID"
+    pos = "PosID"
 
 class SplineAttributes(SimpleNamespace):
     """Keys of spline attributes."""

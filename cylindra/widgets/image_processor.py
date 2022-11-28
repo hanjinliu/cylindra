@@ -25,8 +25,12 @@ class ImageProcessor(MagicTemplate):
     ----------
     input_image : Path
         Path to the input image file.
+    suffix : str, optional
+        If given, `output_image` will be automatically updated to `input_image` value with suffix
+        appended. For example, `input_image="path/to/image.mrc"` and `suffix="-0"` will fill
+        `output_image` with `path/to/image-0.mrc`.
     output_image : Path
-        Path to the output image file.
+        Path where output image will be saved..
     """
     input_image = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
     suffix = vfield(Optional[str], options={"value": "-0", "text": "Do not autofill"})

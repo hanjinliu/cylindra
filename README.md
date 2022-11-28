@@ -36,11 +36,12 @@ python setup.py build_ext --inplace
 - Viterbi alignment (experimental).
 - Tomogram simulation of cylindric structure (experimental).
 
-## Requirements
+## Prerequisite and Recommendations
 
-- **Python &ge; 3.9** (generic typings such as `list[int]` are used everywhere. If you have any requests on supporting lower version, please open an issue).
+- **Python &ge; 3.9**. Generic typings such as `list[int]` are used everywhere. If you have any requests on supporting lower version, please open an issue.
 - (Optional) GPU and virtual environment in which the proper version of `cupy` is installed.
 - **Sufficient memory size**. Most of the intense calculations are done out-of-core using `dask`, so that you can even run on 8-GB memory PC in many cases. However, larger memory size will make parallel processing more efficient. &ge;32 GB is recommended.
+- **Images should be loaded from SSD**. Raw image stacks are loaded lazily in most of the processes. Loading from HDD will slow down many analyses as well.
 
 ## Usage
 

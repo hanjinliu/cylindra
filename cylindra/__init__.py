@@ -6,7 +6,13 @@ if sys.platform == "darwin":
     QCoreApplication.setAttribute(Qt.AA_DontUseNativeMenuBar)
 
 from cylindra.core import (
-    start, instance, view_project, read_project ,read_molecules, read_spline
+    start,
+    instance,
+    view_project,
+    read_project,
+    read_molecules,
+    read_spline,
+    read_localprops,
 )
 from cylindra.components import CylTomogram, CylinderModel
 from cylindra.widgets import CylindraMainWidget
@@ -25,6 +31,7 @@ __all__ = [
     "read_project",
     "read_molecules",
     "read_spline",
+    "read_localprops",
     "CylTomogram",
     "CylinderModel",
     "CylindraMainWidget",

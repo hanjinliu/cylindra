@@ -126,3 +126,22 @@ def read_spline(file: PathLike) -> CylSpline:
     from cylindra.components import CylSpline
     
     return CylSpline.from_json(file)
+
+
+def read_localprops(file: PathLike):
+    """
+    Read a local-property file as a `DataFrameDict`.
+
+    Parameters
+    ----------
+    file : PathLike
+        File path.
+
+    Returns
+    -------
+    DataFrameDict
+        Dictionary of data frames.
+    """
+    from cylindra._dict import DataFrameDict
+    
+    return DataFrameDict.from_csv(file)
