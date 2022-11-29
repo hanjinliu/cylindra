@@ -44,11 +44,13 @@ class DataFrameList(Sequence["pd.DataFrame"]):
     
     @classmethod
     def from_localprops(cls, df: pd.DataFrame):
+        """Construct a dataframe list from a localprops attribute of a Spline object."""
         input_data = [df_sub[COLUMNS] for _, df_sub in df.groupby(by=IDName.spline)]
         return cls(input_data)
     
     @classmethod
     def from_csv(cls, path):
+        """Construct a dataframe list from a csv file."""
         import pandas as pd
         df = pd.read_csv(path)
         return cls.from_localprops(df)

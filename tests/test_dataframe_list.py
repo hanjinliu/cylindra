@@ -1,4 +1,6 @@
 from typing import Sequence
+
+import pytest
 from cylindra._list import DataFrameList
 import pandas as pd
 from pandas.testing import assert_frame_equal
@@ -36,3 +38,32 @@ def test_agg_id():
     
     assert_frame_equal(dfl.agg_id("sum", align="bottom"), pd.DataFrame({"a": [2, 8, 8], "b": [5, 8, 8]}))
     assert_frame_equal(dfl.agg_id("size", align="bottom"), pd.DataFrame({"a": [2, 3, 3], "b": [2, 3, 3]}))
+
+    with pytest.raises(ValueError):
+        dfl.agg_id("sum", align="none")
+    
+    # test just works
+    dfl.agg_id("mean")
+    dfl.agg_id("median")
+    dfl.agg_id("std")
+    dfl.agg_id("sem")
+
+def test_collect():
+    dfl = DataFrameList([
+        pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}),
+        pd.DataFrame({"a": [5, 4, 3], "b": [2, 1, 2]}),
+    ])
+    
+    out = dfl.collect()
+    assert_frame_equal(out, pd.DataFrame({"a": [1, 2, 3, 5, 4, 3], "b": [4, 5, 6, 2, 1, 2]}))
+
+def test_indexer():
+    dfl = DataFrameList([
+        pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}),
+        pd.DataFrame({"a": [5, 4, 3], "b": [2, 1, 2]}),
+    ])
+    
+    out = dfl.iloc[1:]
+    assert_frame_equal(out[0], pd.DataFrame({"a": [2, 3], "b": [5, 6]}))
+    assert_frame_equal(out[1], pd.DataFrame({"a": [4, 3], "b": [1, 2]}))
+    
