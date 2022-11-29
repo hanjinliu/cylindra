@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Iterator, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Sequence, SupportsIndex, TypeVar
 from pathlib import Path
 import numpy as np
 from cylindra.const import IDName, PropertyNames as H
@@ -7,6 +7,7 @@ from cylindra.const import IDName, PropertyNames as H
 if TYPE_CHECKING:
     import pandas as pd
 
+_R = TypeVar("_R")
 COLUMNS = [H.splDistance, H.splPosition, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
 def nansize(arr: np.ndarray, axis=0):
@@ -43,25 +44,30 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         self._list = list(df_list)
     
     @classmethod
-    def from_localprops(cls, df: pd.DataFrame):
+    def from_localprops(cls, df: pd.DataFrame) -> DataFrameList:
         """Construct a dataframe list from a localprops attribute of a Spline object."""
         input_data = [df_sub[COLUMNS] for _, df_sub in df.groupby(by=IDName.spline)]
         return cls(input_data)
     
     @classmethod
-    def from_csv(cls, path):
+    def from_csv(cls, path) -> DataFrameList:
         """Construct a dataframe list from a csv file."""
         import pandas as pd
+
         df = pd.read_csv(path)
-        return cls.from_localprops(df)
+        if IDName.spline in df.columns and IDName.pos in df.columns:
+            return cls.from_localprops(df)
+        raise ValueError(
+            f"The csv file does not contain {IDName.spline!r} and {IDName.pos!r} columns."
+        )
     
     @classmethod
-    def glob_csv(cls, dir: str | Path):
+    def glob_csv(cls, dir: str | Path, filename: str = "localprops.csv"):
         dir = Path(dir)
         if not dir.is_dir():
             raise ValueError(f"Input path must be a directory.")
         instances: list[cls] = []
-        for p in dir.glob("**/localprops.csv"):
+        for p in dir.glob(f"**/{filename}"):
             instances.append(cls.from_csv(p)._list)
         return cls(sum(instances, start=[]))
     
@@ -154,11 +160,6 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         return pd.concat(self._list, axis=0, ignore_index=True)
     
     @property
-    def loc(self) -> LocIndexer:
-        """Iterative loc indexer."""
-        return LocIndexer(self)
-    
-    @property
     def iloc(self) -> ILocIndexer:
         """Iterative iloc indexer."""
         return ILocIndexer(self)
@@ -175,16 +176,10 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         cls = type(self)
         spec = set(spec)
         return cls([df for i, df in enumerate(self) if i in spec])
-    
 
-class LocIndexer:
-    """Vectorized loc indexer."""
-    def __init__(self, dfl: DataFrameList):
-        self._dfl = dfl
-    
-    def __getitem__(self, key) -> pd.DataFrame:
-        cls = type(self._dfl)
-        return cls([df.loc[key] for df in self._dfl])
+    def apply(self, fn: Callable[[pd.DataFrame], _R]) -> list[_R]:
+        """Apply a function to each data frame."""
+        return [fn(df) for df in self]
     
 
 class ILocIndexer:
@@ -194,4 +189,8 @@ class ILocIndexer:
     
     def __getitem__(self, key) -> pd.DataFrame:
         cls = type(self._dfl)
+        if isinstance(key, tuple) and len(key) == 2 and isinstance(key[1], SupportsIndex):
+            # dataframe list must return dataframe, not series.
+            k0, k1 = key
+            key = (k0, slice(k1, k1 + 1))
         return cls([df.iloc[key] for df in self._dfl])
