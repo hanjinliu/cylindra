@@ -1,4 +1,4 @@
-from typing import Any, TYPE_CHECKING, Tuple
+from typing import Any, TYPE_CHECKING
 from pathlib import Path
 import json
 import matplotlib.pyplot as plt
@@ -122,8 +122,8 @@ class CylinderSimulator(MagicTemplate):
         show_selection : bool
             Check to show all the selected molecules
         """
-        yrange = vfield(Tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
-        arange = vfield(Tuple[int, int], label="angular", widget_type=RangeSlider, options={"value": (0, 100)}, record=False)
+        yrange = vfield(tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
+        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, options={"value": (0, 100)}, record=False)
         n_allev = vfield(1, label="alleviate", options={"min": 0, "max": 20}, record=False)
         show_selection = vfield(True, label="show selected molecules", record=False)
         
@@ -310,7 +310,7 @@ class CylinderSimulator(MagicTemplate):
         rise: float = CylinderParameters.rise,
         npf: int = CylinderParameters.npf,
         radius: nm = CylinderParameters.radius,
-        offsets: Tuple[float, float] = CylinderParameters.offsets,
+        offsets: tuple[float, float] = CylinderParameters.offsets,
     ):
         """
         Update cylinder model with new parameters.
@@ -363,10 +363,10 @@ class CylinderSimulator(MagicTemplate):
     def _prep_radon(
         self,
         path: Path,
-        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        tilt_range: tuple[float, float] = (-60.0, 60.0),
         n_tilt: int = 61,
         order: int = 3,
-    ) -> Tuple[RadonModel, ip.ImgArray]:
+    ) -> tuple[RadonModel, ip.ImgArray]:
         parent = self.parent_widget
         tomo = parent.tomogram
         template = ip.imread(path)
@@ -403,7 +403,7 @@ class CylinderSimulator(MagicTemplate):
         self,
         path: Path,
         nsr: float = 2.0,
-        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        tilt_range: tuple[float, float] = (-60.0, 60.0),
         n_tilt: int = 61,
         bin_size: list[int] = [4],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -471,7 +471,7 @@ class CylinderSimulator(MagicTemplate):
         path: Path,
         save_path: Path,
         nsr: list[float] = [2.0],
-        tilt_range: Tuple[float, float] = (-60.0, 60.0),
+        tilt_range: tuple[float, float] = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         save_mode: OneOf[SAVE_MODE_CHOICES] = "mrc",
