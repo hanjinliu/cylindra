@@ -206,7 +206,7 @@ def test_batch_simulation():
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
         ui._Simulator.simulate_tomogram_batch(
-            path=r'C:\Users\Uemura-Lab\Desktop\Liu\python_codes\cylindra\tests\template.mrc',
+            path=TEST_PATH / "template.mrc",
             save_path=dirpath,
             nsr=[0.5, 1.0, 2.0],
             tilt_range=(-60.0, 60.0),

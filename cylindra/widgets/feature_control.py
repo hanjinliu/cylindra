@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, List
-from magicgui.widgets import Table, Label
+from magicgui.widgets import Table, Label, ListEdit
 from magicclass import (
     magicclass,
     MagicTemplate,
@@ -8,7 +8,7 @@ from magicclass import (
     do_not_record,
     set_design,
 )
-from magicclass.widgets import FloatRangeSlider, ColorEdit, ListEdit
+from magicclass.widgets import FloatRangeSlider, ColorEdit
 from magicclass.types import Color, Bound, OneOf
 import numpy as np
 from napari.utils.colormaps import Colormap, label_colormap
@@ -110,7 +110,7 @@ class FeatureControl(MagicTemplate):
                 class CategoricalColorMap(MagicTemplate):
                     """Colormap editor for discrete features."""
                     
-                    colors = vfield(ListEdit, options={"annotation": List[Color], "labels": True, "layout": "vertical"}, record=False)
+                    colors = vfield(ListEdit, options={"annotation": List[Color], "layout": "vertical"}, record=False)
                     def __post_init__(self):
                         self["colors"].buttons_visible = False
 
