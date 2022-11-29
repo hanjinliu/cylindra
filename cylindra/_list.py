@@ -161,8 +161,10 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         """Iterative iloc indexer."""
         return ILocIndexer(self)
     
-    def select(self, col):
+    def select(self, col) -> DataFrameList:
         cls = type(self)
+        if isinstance(col, str):
+            col = [col]
         return cls([df[col] for df in self])
 
 
