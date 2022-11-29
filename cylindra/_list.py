@@ -151,7 +151,7 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         """Collect all the child data frames into a single data frame."""
         import pandas as pd
 
-        return pd.concat(self._list, axis=0)
+        return pd.concat(self._list, axis=0, ignore_index=True)
     
     @property
     def loc(self) -> LocIndexer:
@@ -164,11 +164,18 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         return ILocIndexer(self)
     
     def select(self, col) -> DataFrameList:
+        """Select certain columns of each data frame."""
         cls = type(self)
         if isinstance(col, str):
             col = [col]
         return cls([df[col] for df in self])
 
+    def subset(self, spec: Sequence[int]) -> DataFrameList:
+        """Return a subset of the data frame list."""
+        cls = type(self)
+        spec = set(spec)
+        return cls([df for i, df in enumerate(self) if i in spec])
+    
 
 class LocIndexer:
     """Vectorized loc indexer."""

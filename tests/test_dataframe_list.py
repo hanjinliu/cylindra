@@ -64,6 +64,31 @@ def test_indexer():
     ])
     
     out = dfl.iloc[1:]
-    assert_frame_equal(out[0], pd.DataFrame({"a": [2, 3], "b": [5, 6]}))
-    assert_frame_equal(out[1], pd.DataFrame({"a": [4, 3], "b": [1, 2]}))
+    assert_frame_equal(out[0], pd.DataFrame({"a": [2, 3], "b": [5, 6]}, index=[1, 2]))
+    assert_frame_equal(out[1], pd.DataFrame({"a": [4, 3], "b": [1, 2]}, index=[1, 2]))
+
+def test_select():
+    dfl = DataFrameList([
+        pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}),
+        pd.DataFrame({"a": [5, 4, 3], "b": [2, 1, 2], "c": [1, 2, 3]}),
+    ])
     
+    out = dfl.select("a")
+    assert all(out[0].columns == ["a"])
+    assert all(out[1].columns == ["a"])
+    
+    out = dfl.select(["a", "c"])
+    assert all(out[0].columns == ["a", "c"])
+    assert all(out[1].columns == ["a", "c"])
+
+def test_subset():
+    dfl = DataFrameList([
+        pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}),
+        pd.DataFrame({"a": [5, 4, 3], "b": [2, 1, 2]}),
+        pd.DataFrame({"a": [9, 8, 2], "b": [2, 5, 3]}),
+    ])
+    
+    out = dfl.subset([0, 2])
+    assert len(out) == 2
+    assert out[0] is dfl[0]
+    assert out[1] is dfl[2]
