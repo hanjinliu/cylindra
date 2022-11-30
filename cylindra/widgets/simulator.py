@@ -410,8 +410,14 @@ class CylinderSimulator(MagicTemplate):
         filter: bool = True,
     ):
         """
-        Simulate a tomographic image using the current model.
+        Simulate a tomographic image using the current model, and send it to the viewer.
         
+        Simulation is performed in four steps. 1) Input template image is rotated/translated
+        to every molecules in the model to create a noise-free volume. 2) Radon transform
+        is performed to the volume, with given tilt angles. 3) Gaussian noise is added to
+        the tilt series. 4) The noisy tilt series is reconstructed to a tomogram by back
+        projection (inverse Radon transformation).
+
         Parameters
         ----------
         path : Path
@@ -438,7 +444,7 @@ class CylinderSimulator(MagicTemplate):
         
         # add noise
         if nsr > 0:
-            imax = template.max()
+            imax = sino.max()
             sino += ip.random.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
         
         # back projection
@@ -478,7 +484,7 @@ class CylinderSimulator(MagicTemplate):
         seed: Optional[int] = None,
     ):
         """
-        Simulate a tomographic image using the current model.
+        Simulate tomographic images using the current model and save the images.
         
         Parameters
         ----------
@@ -538,12 +544,12 @@ class CylinderSimulator(MagicTemplate):
         # add noise and save image
         recs: list[ip.ImgArray] = []
         rng = ip.random.default_rng(seed)
-        for val in nsr:
+        for nsr_val in nsr:
             imax = sino.max()
-            sino_noise = sino + rng.normal(scale=imax * val, size=sino.shape, axes=sino.axes)
+            sino_noise = sino + rng.normal(scale=imax * nsr_val, size=sino.shape, axes=sino.axes)
             rec = radon_model.inverse_transform(sino_noise)
             recs.append(rec)
-            yield _on_iradon_finished(rec, f"N/S = {val:.1f}")
+            yield _on_iradon_finished(rec, f"N/S = {nsr_val:.1f}")
         
         if save_mode in ("mrc", "tif"):
             for i, rec in enumerate(recs):

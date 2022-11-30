@@ -483,7 +483,7 @@ class Runner(MagicTemplate):
         out = [x[0] for x in parent.tomogram.multiscaled]
         if 1 not in out:
             out = [1] + out
-        return out
+        return sorted(out)
     
     all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
     splines = vfield(SomeOf[_get_splines], options={"visible": False}, record=False)

@@ -40,4 +40,6 @@ class RadonModel(BaseModel):
     
     def inverse_transform(self, tilt_series: ip.ImgArray) -> ip.ImgArray:
         degs = self.range.asarray()
-        return tilt_series.iradon(degs, central_axis="y", order=self.order, height=self.height)
+        rec = tilt_series.iradon(degs, central_axis="y", order=self.order, height=self.height)
+        rec.set_scale(xyz=rec.scale.x)
+        return rec

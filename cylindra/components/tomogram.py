@@ -104,7 +104,7 @@ class Tomogram:
         
         if isinstance(binsize, int):
             binsize = [binsize]
-        for b in binsize:
+        for b in sorted(binsize):
             self.add_multiscale(b)
         return self
     
