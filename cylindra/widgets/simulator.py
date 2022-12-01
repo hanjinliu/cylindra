@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from magicgui.widgets import RangeSlider
 from magicclass import (
-    do_not_record, magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
+    abstractapi, do_not_record, magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
     vfield, impl_preview, confirm
 )
 from magicclass.types import Bound, OneOf, Optional
@@ -67,16 +67,16 @@ class CylinderParameters:
 class CylinderSimulator(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
-        def create_empty_image(self): ...
-        def set_current_spline(self): ...
-        def load_spline_parameters(self): ...
+        create_empty_image = abstractapi()
+        set_current_spline = abstractapi()
+        load_spline_parameters = abstractapi()
         sep0 = Separator()
-        def simulate_tomogram(self): ...
-        def simulate_tomogram_batch(self): ...
+        simulate_tomogram = abstractapi()
+        simulate_tomogram_batch = abstractapi()
         sep1 = Separator()
-        def save_image(self): ...
-        def send_moleclues_to_viewer(self): ...
-        def show_layer_control(self): ...
+        save_image = abstractapi()
+        send_moleclues_to_viewer = abstractapi()
+        show_layer_control = abstractapi()
 
     def __post_init__(self) -> None:
         self._model: CylinderModel = None
@@ -150,10 +150,10 @@ class CylinderSimulator(MagicTemplate):
             parent._selections.visible = show
             return None
         
-        def update_model(self): ...
-        def expand(self): ...
-        def screw(self): ...
-        def dilate(self): ...
+        update_model = abstractapi()
+        expand = abstractapi()
+        screw = abstractapi()
+        dilate = abstractapi()
         
         def _fill_shift(self, yrange, arange, val: float):
             parent = self.find_ancestor(CylinderSimulator, cache=True)

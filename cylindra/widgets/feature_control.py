@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, List
 from magicgui.widgets import Table, Label, ListEdit
 from magicclass import (
+    abstractapi,
     magicclass,
     MagicTemplate,
     field,
@@ -146,9 +147,9 @@ class FeatureControl(MagicTemplate):
                 else:
                     return self.Colors.CategoricalColorMap._apply_colormap(layer, feature_name)
             
-            def apply(self): ...
-            def reset(self): ...
-            def reload(self): ...
+            apply = abstractapi()
+            reset = abstractapi()
+            reload = abstractapi()
 
         
         @magicclass(labels=False)
@@ -161,9 +162,9 @@ class FeatureControl(MagicTemplate):
             doc = field(Label, record=False)
             expression = vfield(str, record=False)
             
-            def filter_table(self): ...
-            def reset_filter(self): ...
-            def create_molecules(self): ...
+            filter_table = abstractapi()
+            reset_filter = abstractapi()
+            create_molecules = abstractapi()
             
     @Tabs.Filter.wraps
     @set_design(text="Filter table")

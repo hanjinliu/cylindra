@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 import impy as ip
-from magicclass import magicclass, MagicTemplate, field, vfield, set_options, set_design
+from magicclass import magicclass, MagicTemplate, field, vfield, set_options, set_design, abstractapi
 from magicclass.types import Bound, OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
@@ -54,8 +54,8 @@ class SplineControl(MagicTemplate):
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):
         focus = vfield(False, options={"text": "focus on", "tooltip": "Keep focus of viewer camera on the current spline position"}, record=False)
-        def set_pf_number(self): ...
-        def set_orientation(self): ...
+        set_pf_number = abstractapi()
+        set_orientation = abstractapi()
     
     @footer.wraps
     @set_design(text="Set PF number")
