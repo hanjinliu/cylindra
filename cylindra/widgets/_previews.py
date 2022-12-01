@@ -33,7 +33,7 @@ class ImagePreview(MagicTemplate):
             Cutoff frequency for low-pass filter.
         """
         apply_filter = vfield(False)
-        cutoff = vfield(0.2, options={"min": 0.05, "max": 0.85, "step": 0.05, "visible": False})
+        cutoff = vfield(0.1, options={"min": 0.05, "max": 0.85, "step": 0.05, "visible": False})
         @apply_filter.connect
         def _toggle(self):
             self["cutoff"].visible = self.apply_filter

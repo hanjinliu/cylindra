@@ -521,7 +521,7 @@ class Runner(MagicTemplate):
         else:
             return None
     
-    def cylindrical_fit(self): ...
+    cylindrical_fit = abstractapi()
 
 @magicclass(name="Open image")
 class ImageLoader(MagicTemplate):
@@ -552,7 +552,7 @@ class ImageLoader(MagicTemplate):
         """
         scale_label = vfield("scale (nm)", widget_type="Label")
         scale_value = vfield(1.0, options={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"}, record=False)
-        def read_header(self): ...
+        read_header = abstractapi()
             
     bin_size = vfield([1], options={"options": {"min": 1, "max": 8}}, record=False)
     filter_reference_image = vfield(True, record=False)
@@ -570,9 +570,10 @@ class ImageLoader(MagicTemplate):
         if len(self.bin_size) < 2:
             self.bin_size = [ceilint(0.96 / scale)]
     
-    def open_image(self): ...
+    open_image = abstractapi()
     
     @do_not_record
     @set_design(text="Preview")
     def preview_image(self):
+        """Preview image at the path."""
         return view_image(self.path, parent=self)
