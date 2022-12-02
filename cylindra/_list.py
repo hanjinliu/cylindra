@@ -174,6 +174,9 @@ class DataFrameList(Sequence["pd.DataFrame"]):
     def subset(self, spec: Sequence[int]) -> DataFrameList:
         """Return a subset of the data frame list."""
         cls = type(self)
+        spec = np.asarray(spec)
+        if spec.dtype == np.bool:
+            spec = np.where(spec)[0]
         spec = set(spec)
         return cls([df for i, df in enumerate(self) if i in spec])
 
@@ -181,6 +184,23 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         """Apply a function to each data frame."""
         return [fn(df) for df in self]
     
+    def build_gui(self, show: bool = True):
+        """
+        Build a GUI for the data frame list.
+        
+        Parameters
+        ----------
+        show : bool, default is True
+            Whether to show the GUI.
+        """
+        from cylindra.widgets.dataframe_list import DataFrameListWidget
+        
+        ui = DataFrameListWidget()
+        ui.set_data(self)
+        if show:
+            ui.show()
+        return ui
+
 
 class ILocIndexer:
     """Vectorized iloc indexer."""

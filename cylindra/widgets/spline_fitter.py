@@ -128,7 +128,7 @@ class SplineFitter(MagicTemplate):
         self.controller.max_height = 50
         self.controller.height = 50
         
-        @self.canvas.mouse_click_callbacks.append
+        @self.canvas.mouse_clicked.connect
         def _(e):
             if "left" not in e.buttons():
                 return
