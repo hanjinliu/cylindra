@@ -20,6 +20,7 @@ class ImagePreview(MagicTemplate):
 
     canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
     sl = field(Slider, name="slice")
+
     @magicclass(widget_type="frame", layout="horizontal")
     class Fft(MagicTemplate):
         """
@@ -34,6 +35,7 @@ class ImagePreview(MagicTemplate):
         """
         apply_filter = vfield(False)
         cutoff = vfield(0.1, options={"min": 0.05, "max": 0.85, "step": 0.05, "visible": False})
+        
         @apply_filter.connect
         def _toggle(self):
             self["cutoff"].visible = self.apply_filter
@@ -61,11 +63,17 @@ class ImagePreview(MagicTemplate):
             )
         self.canvas.image = np.asarray(img_slice)
     
+    @Fft.apply_filter.connect
+    def _auto_contrast(self):
+        min_, max_ = np.percentile(self.canvas.image, [1, 97])
+        self.canvas.contrast_limits = (min_, max_)
+
     @classmethod
     def _imread(cls, path: str):
         self = cls()
         self._load_image(path)
         self.show()
+        self.Fft.apply_filter = True
 
         
 def view_tables(paths: list[str], parent: MagicTemplate = None, **kwargs) -> SpreadSheet:
