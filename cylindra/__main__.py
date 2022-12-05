@@ -7,7 +7,7 @@ class Namespace(argparse.Namespace):
 
 class Args(argparse.ArgumentParser):
     def __init__(self):
-        from ._info import __version__
+        from .__about__ import __version__
         super().__init__(description="Command line interface of cylindra.")
         self.add_argument("--project", type=str, default="None")
         self.add_argument("--view", type=str, default="None")

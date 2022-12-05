@@ -104,7 +104,7 @@ def get_versions() -> dict[str, str]:
     import napari
     import impy as ip
     import magicgui
-    from .._info import __version__
+    from ..__about__ import __version__
     import magicclass as mcls
     import dask
     
