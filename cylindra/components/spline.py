@@ -151,6 +151,7 @@ class Spline:
         return spl.fit_voa(coords)
     
     def translate(self, shift: tuple[nm, nm, nm]):
+        """Translate the spline by given shift vectors."""
         new = self.copy()
         c = [x + s for x, s in zip(self.coeff, shift)]
         new._tck = (self.knots, c, self.degree)
@@ -183,7 +184,7 @@ class Spline:
     
     @anchors.setter
     def anchors(self, positions: float | Sequence[float]) -> None:
-        positions = np.atleast_1d(np.asarray(positions, dtype=np.float32))
+        positions: np.ndarray = np.atleast_1d(np.asarray(positions, dtype=np.float32))
         if positions.ndim != 1:
             raise TypeError(f"Could not convert positions into 1D array.")
         elif positions.min() < 0 or positions.max() > 1:
@@ -300,6 +301,7 @@ class Spline:
         min_radius: nm = 1.0,
         tol: float = 1e-2,
         max_iter: int = 100,
+        flank: nm = 0.0,
     ) -> Self:
         """
         Fit spline model to coordinates by "Curvature-Oriented Approximation".
@@ -320,6 +322,10 @@ class Spline:
             curvature to curvature upper limit is larger than 1 - tol.
         max_iter : int, default is 100
             Maximum number of iteration. Fitting stops when exceeded.
+        flank : nm, default is 0.0
+            Flank length. If given, the spline will be extended by this length at both 
+            ends. Setting to a positive value will make the spline curve more smoothened
+            at the ends.
         
         Returns
         -------
@@ -343,14 +349,22 @@ class Spline:
         u = np.linspace(0, 1, n)
         niter = 0
         
+        # flanking region
+        if flank > 0:
+            input_value = coords.T
+            u = None
+        else:
+            input_value = coords.T
+            u = None
+        
         if degree == 1:
             # curvature is not defined for a linear spline curve
-            self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=0.)
+            self._tck, self._u = splprep(input_value, k=degree, w=weight, s=0., u=u)
         
         else:
             while True:
                 niter += 1
-                self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=s)
+                self._tck, self._u = splprep(input_value, k=degree, w=weight, s=s, u=u)
                 curvature = self.curvature(u)
                 ratio = np.max(curvature) * min_radius
                 if ratio < 1. - tol:  # curvature too small = underfit
@@ -506,7 +520,7 @@ class Spline:
             out = np.concatenate(coord).astype(np.float32)
         else:
             u_tr = _linear_conversion(np.asarray(positions), u0, u1)
-            coords = splev(u_tr, self._tck, der=der)
+            coords: list[np.ndarray] = splev(u_tr, self._tck, der=der)
             out = np.stack(coords, axis=1).astype(np.float32)
         
         if u0 > u1 and der % 2 == 1:

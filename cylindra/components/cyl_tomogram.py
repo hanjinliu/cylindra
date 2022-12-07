@@ -1,8 +1,10 @@
 from __future__ import annotations
 import logging
-from typing_extensions import ParamSpecKwargs
+from typing_extensions import ParamSpec, Concatenate
     
-from typing import Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING
+from typing import (
+    Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING, NamedTuple
+)
 from functools import partial, wraps
 import numpy as np
 from numpy.typing import ArrayLike
@@ -45,34 +47,34 @@ def tandg(x):
 
 def rmsd(shifts: ArrayLike) -> float:
     shifts = np.atleast_2d(shifts)
-    return np.sqrt(np.sum(shifts**2)/shifts.shape[0])
+    return np.sqrt(np.sum(shifts ** 2) / shifts.shape[0])
 
-_KW = ParamSpecKwargs("_KW")
+_P = ParamSpec("_P")
 _RETURN = TypeVar("_RETURN")
 
-class BatchCallable(Protocol[_RETURN]):
+class BatchCallable(Protocol[_P, _RETURN]):
     """
     This protocol enables static type checking of methods decorated with ``@batch_process``.
     The parameter specifier ``_KW`` does not add any information but currently there is not 
     quick solution.
     """
     @overload
-    def __call__(self, i: Literal[None], **kwargs: _KW) -> list[_RETURN]:
+    def __call__(self, i: Literal[None], *args: _P.args, **kwargs: _P.kwargs) -> list[_RETURN]:
         ...
         
     @overload
-    def __call__(self, i: int, **kwargs: _KW) -> _RETURN:
+    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _RETURN:
         ...
         
     @overload
-    def __call__(self, i: Iterable[int] | None, **kwargs: _KW) -> list[_RETURN]:
+    def __call__(self, i: Iterable[int] | None, *args: _P.args, **kwargs: _P.kwargs) -> list[_RETURN]:
         ...
 
-    def __call__(self, i, **kwargs):
+    def __call__(self, i, *args, **kwargs):
         ...
 
 
-def batch_process(func: Callable[[CylTomogram, Any, _KW], _RETURN]) -> BatchCallable[_RETURN]:
+def batch_process(func: Callable[Concatenate[CylTomogram, Any, _P], _RETURN]) -> BatchCallable[_P, _RETURN]:
     """Enable running function for every splines."""
     
     @wraps(func)
@@ -114,6 +116,15 @@ def batch_process(func: Callable[[CylTomogram, Any, _KW], _RETURN]) -> BatchCall
         return out
 
     return _func
+
+
+class FitResult(NamedTuple):
+    residual: np.ndarray
+    rmsd: float
+    
+    @classmethod
+    def from_residual(cls, residual: ArrayLike) -> FitResult:
+        return cls(residual=residual, rmsd=rmsd(residual))
 
 
 class CylTomogram(Tomogram):
@@ -239,7 +250,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         edge_sigma: nm = 2.0,
         max_shift: nm = 5.0,
-    ) -> Self:
+    ) -> FitResult:
         """
         Roughly fit splines to cylindrical structures.
         
@@ -268,8 +279,8 @@ class CylTomogram(Tomogram):
 
         Returns
         -------
-        Tomogram object
-            Same object with updated Spline objects.
+        FitResult
+            Result of fitting.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.fit, i={i}")
         spl = self._splines[i]
@@ -329,7 +340,7 @@ class CylTomogram(Tomogram):
             
             # If subtomograms are sampled at short intervals, angles should be smoothened to 
             # avoid overfitting.
-            size = 2 * roundint(48.0/interval) + 1
+            size = 2 * roundint(48.0 / interval) + 1
             if size > 1:
                 # Mirror-mode padding is "a b c d | c b a".
                 refined_tilt_rad = angle_uniform_filter(
@@ -350,7 +361,7 @@ class CylTomogram(Tomogram):
                 # Regions outside the mask don't need to be considered.
                 xc = int(subtomo_proj.shape.x / 2)
                 w = int(GVar.fitWidth / scale / 2)
-                subtomo_proj = subtomo_proj[f"x={xc-w}:{xc+w+1}"]
+                subtomo_proj = subtomo_proj[ip.slicer.x[xc-w : xc+w+1]]
     
             shifts = np.zeros((npoints, 2)) # zx-shift
             max_shift_px = max_shift / scale * 2
@@ -363,10 +374,9 @@ class CylTomogram(Tomogram):
         # coordinates that will be shifted should be converted to integers. 
         coords_px = self.nm2pixel(spl(), binsize=binsize).astype(np.float32)
         
-        shifts_3d = np.stack([shifts[:, 0],
-                              np.zeros(shifts.shape[0]), 
-                              shifts[:, 1]], 
-                             axis=1)
+        shifts_3d = np.stack(
+            [shifts[:, 0], np.zeros(shifts.shape[0]), shifts[:, 1]], axis=1
+        )
         rotvec = np.zeros(shifts_3d.shape, dtype=np.float32)
         rotvec[:, 0] = -refined_tilt_rad
         rot = Rotation.from_rotvec(rotvec)
@@ -376,8 +386,9 @@ class CylTomogram(Tomogram):
         
         # Update spline parameters
         spl.fit_coa(coords, min_radius=GVar.minCurvatureRadius)
-        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
-        return self
+        result = FitResult.from_residual(residual=shifts * scale)
+        LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
+        return result
     
     @batch_process
     def refine(
@@ -388,7 +399,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
-    ) -> Self:
+    ) -> FitResult:
         """
         Spline refinement using global lattice structural parameters.
         
@@ -413,8 +424,8 @@ class CylTomogram(Tomogram):
         
         Returns
         -------
-        Tomogram object
-            Same object with updated Spline objects.
+        FitResult
+            Result of fitting.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.refine, i={i}")
         spl = self.splines[i]
@@ -445,7 +456,7 @@ class CylTomogram(Tomogram):
         
         # complement skewing
         skew_angles = np.arange(npoints) * interval/lp * skew
-        pf_ang = 360/npf
+        pf_ang = 360 / npf
         skew_angles %= pf_ang
         skew_angles[skew_angles > pf_ang/2] -= pf_ang
         
@@ -513,8 +524,9 @@ class CylTomogram(Tomogram):
 
         # Update spline parameters
         spl.shift_coa(shifts=shifts*scale, min_radius=GVar.minCurvatureRadius)
-        LOGGER.info(f" >> Shift RMSD = {rmsd(shifts * scale):.3f} nm")
-        return self
+        result = FitResult.from_residual(shifts * scale)
+        LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
+        return result
     
     @batch_process
     def set_radius(
@@ -1418,6 +1430,6 @@ lazy_ft_params = delayed(ft_params)
 
 def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     """Uniform filter of angles."""
-    phase = np.exp(1j*input)
+    phase = np.exp(1j * input)
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)

@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from timeit import default_timer
 from typing import Annotated, Union
+import warnings
 
 import impy as ip
 import macrokit as mk
@@ -187,6 +188,7 @@ class CylindraMainWidget(MagicTemplate):
             coords = np.asarray(coords)
         
         if coords.size == 0:
+            warnings.warn("No points are in viewer.", UserWarning)
             return None
 
         tomo = self.tomogram
