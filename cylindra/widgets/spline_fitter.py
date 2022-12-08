@@ -9,11 +9,12 @@ from magicclass import (
     MagicTemplate,
     bind_key,
     set_design,
+    abstractapi,
 )
 from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas
 
-from cylindra.utils import Projections, roundint, centroid, map_coordinates
+from cylindra.utils import roundint, centroid, map_coordinates
 from cylindra.const import nm, GlobalVariables as GVar, Mode
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ class SplineFitter(MagicTemplate):
         """
         num = field(int, label="Spline No.", options={"max": 0}, record=False)
         pos = field(int, label="Position", options={"max": 0}, record=False)
-        def fit(self): ...
+        fit = abstractapi()
         
         @bind_key("Up")
         @do_not_record
@@ -52,28 +53,6 @@ class SplineFitter(MagicTemplate):
         def _prev_pos(self):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
             
-    
-    @magicclass(widget_type="collapsible")
-    class Rotational_averaging(MagicTemplate):
-        canvas_rot = field(QtImageCanvas, options={"lock_contrast_limits": True})
-
-        @magicclass(layout="horizontal")
-        class frame:
-            """
-            Parameters of rotational averaging.
-            
-            Attributes
-            ----------
-            nPF : int
-                Number of protofilament (if nPF=12, rotational average will be calculated by 
-                summing up every 30° rotated images).
-            cutoff : float
-                Relative cutoff frequency of low-pass filter.
-            """
-            nPF = field(10, options={"min": 1, "max": 48}, record=False)
-            cutoff = field(0.2, options={"min": 0.0, "max": 0.85, "step": 0.05}, record=False)
-            def average(self): ...
-    
     def _get_shifts(self, _=None):
         i = self.controller.num.value
         return np.round(self.shifts[i], 3)
@@ -86,32 +65,18 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         _scale = parent.tomogram.scale
         spl = self.splines[i]
+        
+        min_cr = GVar.minCurvatureRadius
         spl.shift_coa(
             shifts=shifts*self.binsize*_scale,
-            min_radius=GVar.minCurvatureRadius
+            min_radius=min_cr, 
+            weight_ramp=(min_cr/10, 0.5),
         )
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True
         self._cylinder_changed()
         parent._update_splines_in_images()
         parent._need_save = True
-        return None
-    
-    @Rotational_averaging.frame.wraps
-    @set_design(text="Average")
-    @do_not_record
-    def average(self):
-        """Show rotatinal averaged image."""        
-        i = self.controller.num.value
-        j = self.controller.pos.value
-                
-        img = self._get_parent()._current_cartesian_img(i, j)
-        cutoff = self.Rotational_averaging.frame.cutoff.value
-        if 0 < cutoff < 0.866:
-            img = img.lowpass_filter(cutoff=cutoff)
-        proj = Projections(img)
-        proj.rotational_average(self.Rotational_averaging.frame.nPF.value)
-        self.Rotational_averaging.canvas_rot.image = proj.zx_ave
         return None
     
     def __post_init__(self):
@@ -218,9 +183,7 @@ class SplineFitter(MagicTemplate):
         self.canvas.ylim = (0, self.canvas.image.shape[0])
         lz, lx = self.subtomograms.sizesof("zx")
         self._update_cross(lx/2 - 0.5, lz/2 - 0.5)
-        
-        del self.Rotational_averaging.canvas_rot.image # to avoid confusion
-        
+
         return None
     
     @controller.pos.connect

@@ -4,6 +4,7 @@ class Namespace(argparse.Namespace):
     project: str
     view: str
     globals: str
+    debug: bool
 
 class Args(argparse.ArgumentParser):
     def __init__(self):
@@ -12,6 +13,7 @@ class Args(argparse.ArgumentParser):
         self.add_argument("--project", type=str, default="None")
         self.add_argument("--view", type=str, default="None")
         self.add_argument("--globals", type=str, default="None")
+        self.add_argument("--debug", action="store_true")
         self.add_argument("-v", "--version", action="version", version=f"cylindra version {__version__}")
     
     @classmethod
@@ -28,9 +30,12 @@ def main():
     if view_file:
         from cylindra import view_project
         return view_project(view_file, run=True)
+
+    log_level = "DEBUG" if args.debug else "INFO"
     
     from . import start
-    ui = start(project_file=project_file, globals_file=globals_file)
+    
+    ui = start(project_file=project_file, globals_file=globals_file, log_level=log_level)
 
     import numpy as np
     import impy as ip
