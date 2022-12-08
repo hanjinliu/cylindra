@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 LOCALPROPS = [H.splPosition, H.splDistance, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]
 
-LOGGER = logging.getLogger(__name__.split(".")[0])
+LOGGER = logging.getLogger("cylindra")
 
 def tandg(x):
     """Tangent in degree."""
@@ -318,7 +318,7 @@ class CylTomogram(Tomogram):
                 xr = xx - xc
                 for i, ds in enumerate(spl(der=1)):
                     _, vy, vx = ds
-                    distance: nm = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * scale
+                    distance: np.ndarray = np.abs(-xr*vy + yr*vx) / np.sqrt(vx**2 + vy**2) * scale
                     distance_cutoff = GVar.fitWidth / 2
                     if edge_sigma == 0:
                         mask_yx = (distance > distance_cutoff).astype(np.float32)
@@ -385,7 +385,8 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
         
         # Update spline parameters
-        spl.fit_coa(coords, min_radius=GVar.minCurvatureRadius)
+        min_cr = GVar.minCurvatureRadius
+        spl.fit_coa(coords, min_radius=min_cr, weight_ramp=(min_cr/10, 0.5))
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -523,7 +524,8 @@ class CylTomogram(Tomogram):
                 shifts[i] = shift @ zxrot
 
         # Update spline parameters
-        spl.shift_coa(shifts=shifts*scale, min_radius=GVar.minCurvatureRadius)
+        min_cr = GVar.minCurvatureRadius
+        spl.shift_coa(shifts=shifts*scale, min_radius=min_cr, weight_ramp=(min_cr/10, 0.5))
         result = FitResult.from_residual(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result

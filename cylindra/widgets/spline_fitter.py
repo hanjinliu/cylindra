@@ -86,9 +86,12 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         _scale = parent.tomogram.scale
         spl = self.splines[i]
+        
+        min_cr = GVar.minCurvatureRadius
         spl.shift_coa(
             shifts=shifts*self.binsize*_scale,
-            min_radius=GVar.minCurvatureRadius
+            min_radius=min_cr, 
+            weight_ramp=(min_cr/10, 0.5),
         )
         spl.make_anchors(max_interval=self.max_interval)
         self.fit_done = True

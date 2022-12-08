@@ -1,20 +1,27 @@
 from __future__ import annotations
+
 from functools import lru_cache
 from typing import Callable, Sequence, TypedDict, TYPE_CHECKING
 import warnings
-import numpy as np
+import logging
 import json
+
+import numpy as np
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
+
 from acryo import Molecules
 from acryo.molecules import axes_to_rotator
+
 from cylindra.utils import ceilint, interval_divmod, roundint
 from cylindra.const import Mode, nm
 
 if TYPE_CHECKING:
     from typing_extensions import Self
     from numpy.typing import ArrayLike
+    
+logger = logging.getLogger("cylindra")
 
 class Coords3D(TypedDict):
     """3D coordinates in list used in json."""
@@ -297,11 +304,11 @@ class Spline:
         coords: ArrayLike,
         *,
         weight: ArrayLike = None,
+        weight_ramp: tuple[float, float] | None = None,
         n: int = 256,
         min_radius: nm = 1.0,
         tol: float = 1e-2,
         max_iter: int = 100,
-        flank: nm = 0.0,
     ) -> Self:
         """
         Fit spline model to coordinates by "Curvature-Oriented Approximation".
@@ -312,6 +319,8 @@ class Spline:
             Coordinates. Must be (N, 3).
         weight : np.ndarray, optional
             Weight of each coordinate.
+        weight_ramp : tuple[float, float], optional
+            Weight ramp parameters, length (nm) and edge weight.
         n : int, default is 256
             Number of partition for curvature sampling.
         min_radius : nm, default is 1.0
@@ -322,10 +331,6 @@ class Spline:
             curvature to curvature upper limit is larger than 1 - tol.
         max_iter : int, default is 100
             Maximum number of iteration. Fitting stops when exceeded.
-        flank : nm, default is 0.0
-            Flank length. If given, the spline will be extended by this length at both 
-            ends. Setting to a positive value will make the spline curve more smoothened
-            at the ends.
         
         Returns
         -------
@@ -342,29 +347,25 @@ class Spline:
             degree = self.degree
         if self.inverted:
             coords = coords[::-1]
+        
+        # weight
+        weight = _normalize_weight(weight, weight_ramp, coords)
             
         # initialize
         s = 0.
         smax = np.sum(np.var(coords, axis=0)) * npoints
         u = np.linspace(0, 1, n)
         niter = 0
-        
-        # flanking region
-        if flank > 0:
-            input_value = coords.T
-            u = None
-        else:
-            input_value = coords.T
-            u = None
-        
+
         if degree == 1:
             # curvature is not defined for a linear spline curve
-            self._tck, self._u = splprep(input_value, k=degree, w=weight, s=0., u=u)
+            self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=s)
         
         else:
+            # repeatitively fit same points with splines, with different smoothing factors
             while True:
                 niter += 1
-                self._tck, self._u = splprep(input_value, k=degree, w=weight, s=s, u=u)
+                self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=s)
                 curvature = self.curvature(u)
                 ratio = np.max(curvature) * min_radius
                 if ratio < 1. - tol:  # curvature too small = underfit
@@ -373,8 +374,10 @@ class Spline:
                 elif 1. < ratio:  # curvature too large = overfit
                     s = s / 2 + smax / 2
                 else:
+                    logger.debug(f"`fit_coa` converged in {niter} iterations.")
                     break
                 if niter > max_iter:
+                    logger.debug(f"`fit_coa` did not converge in {max_iter} iterations.")
                     break
             
         del self.anchors  # Anchor should be deleted after spline is updated
@@ -386,6 +389,7 @@ class Spline:
         coords: ArrayLike,
         *,
         weight: ArrayLike = None,
+        weight_ramp: tuple[float, float] | None = None,
         variance: float = None
     ) -> Self:
         """
@@ -419,6 +423,10 @@ class Spline:
             s = None
         else:
             s = variance * npoints
+        
+        # weight
+        weight = _normalize_weight(weight, weight_ramp, coords)
+        
         if self.inverted:
             coords = coords[::-1]
         self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
@@ -430,7 +438,10 @@ class Spline:
         self,
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
+        *,
         n: int = 256,
+        weight: ArrayLike | None = None,
+        weight_ramp: tuple[float, float] | None = None,
         min_radius: nm = 1.0,
         tol = 1e-2,
         max_iter: int = 100,
@@ -440,13 +451,19 @@ class Spline:
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_coa(coords, n=n, min_radius=min_radius, tol=tol, max_iter=max_iter)
+        self.fit_coa(
+            coords, n=n, min_radius=min_radius, tol=tol, max_iter=max_iter, 
+            weight=weight, weight_ramp=weight_ramp
+        )
         return self
 
     def shift_voa(
         self,
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
+        *,
+        weight: ArrayLike | None = None,
+        weight_ramp: tuple[float, float] | None = None,
         variance: float = None
     ) -> Self:
         """
@@ -471,7 +488,7 @@ class Spline:
         # insert 0 in y coordinates. 
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_voa(coords, variance=variance)
+        self.fit_voa(coords, variance=variance, weight=weight, weight_ramp=weight_ramp)
         return self
 
     
@@ -1094,7 +1111,7 @@ class Spline:
         return u, y
 
 
-def _linear_conversion(u, start: float, stop: float):
+def _linear_conversion(u: np.ndarray, start: float, stop: float) -> np.ndarray:
     return (1 - u) * start + u * stop
 
 
@@ -1144,3 +1161,44 @@ def _stack_coords(coords: np.ndarray): # V, H, D
                         coords[..., 1],
                         ], axis=2) # V, S, H, D
     return stacked
+
+def _construct_ramping_weight(norm_length: float, weight_min: float, size: int) -> np.ndarray:
+    """
+    Prepare an weight array with linear ramping flanking regions.
+
+    Parameters
+    ----------
+    norm_length : float
+        Normalized length (total length is 1.0) of the ramping region. The value should be 
+        between 0 and 0.5.
+    weight_min : float
+        weight at the edge. The value should be between 0 and 1.
+    size : int
+        Size of the output array.
+    """
+    if norm_length < 0:
+        raise ValueError("length parameter must be non-negative.")
+    norm_length = min(norm_length, 0.5)
+    if weight_min < 0 or weight_min >= 1:
+        raise ValueError("weight_min parameter must be between 0 and 1.")
+    
+    u = np.linspace(0, 1, size)
+    weight = np.ones(size, dtype=np.float64)
+    
+    # update ramping weight on the left side
+    spec_left = u < norm_length
+    weight[spec_left] = (1 - weight_min) / norm_length * (u[spec_left] - norm_length) + 1
+    
+    spec_right = u > 1 - norm_length
+    weight[spec_right] = - (1 - weight_min) / norm_length * (u[spec_right] - 1 + norm_length) + 1
+    
+    return weight
+
+def _normalize_weight(weight, weight_ramp, coords: np.ndarray) -> np.ndarray | None:
+    if weight_ramp is not None:
+        if weight is not None:
+            raise TypeError("Cannot specify both 'weight' and 'weight_ramp'.")
+        _edge_length, _weight_min = weight_ramp
+        length = np.sum(np.sqrt(np.sum(np.diff(coords, axis=0) ** 2, axis=1)))
+        weight = _construct_ramping_weight(_edge_length/length, _weight_min, coords.shape[0])
+    return weight

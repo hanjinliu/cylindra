@@ -16,6 +16,8 @@ def start(
     project_file: str | None = None,
     globals_file: str | None = None,
     viewer: "napari.Viewer" = None,
+    *,
+    log_level: int | str = "INFO",
 ) -> "CylindraMainWidget":
     """
     Start napari viewer and dock cylindra widget as a dock widget.
@@ -40,11 +42,19 @@ def start(
         import napari
         viewer = napari.Viewer()
     
-    logger = logging.getLogger(__name__.split(".")[0])
+    logger = logging.getLogger("cylindra")
     logger.addHandler(ui.log)
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
     ui.log.setFormatter(formatter)
-    logger.setLevel(logging.INFO)
+    
+    # set log level
+    if isinstance(log_level, str):
+        log_level = log_level.upper()
+        if log_level in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+            log_level = getattr(logging, log_level)
+        else:
+            raise ValueError(f"Invalid log level: {log_level}")
+    logger.setLevel(log_level)
     
     dock = viewer.window.add_dock_widget(
         ui,
