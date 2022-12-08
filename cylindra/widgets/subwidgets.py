@@ -491,7 +491,7 @@ class Runner(MagicTemplate):
     bin_size = vfield(OneOf[_get_available_binsize], record=False)
     dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
     params1 = runner_params1
-    n_refine = vfield(2, options={"label": "Refinement iteration", "max": 4}, record=False)
+    n_refine = vfield(2, options={"label": "Refinement iteration", "max": 10}, record=False)
     local_props = vfield(True, options={"label": "Calculate local properties"}, record=False)
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties", record=False)
