@@ -475,11 +475,11 @@ class CylindraMainWidget(MagicTemplate):
         return self._image_loader.close()
         
     @File.wraps
-    @set_options(path={"filter": FileFilter.JSON})
     @set_design(text="Load project")
     @dask_thread_worker(progress={"desc": "Reading project"})
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
-    def load_project(self, path: Path, filter_reference_image: bool = True):
+    @do_not_record
+    def load_project(self, path: Annotated[Path, {"filter": FileFilter.JSON}], filter: bool = True):
         """Load a project json file."""
         project = CylindraProject.from_json(path)
         
@@ -492,40 +492,40 @@ class CylindraMainWidget(MagicTemplate):
         self._current_ft_size = project.current_ft_size
         self._macro_offset = len(self.macro)
         
+        # load splines
+        splines = [CylSpline.from_json(path) for path in project.splines]
+        localprops_path = project.localprops
+        if localprops_path is not None:
+            all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
+        else:
+            all_localprops = {}
+        globalprops_path = project.globalprops
+        if globalprops_path is not None:
+            all_globalprops = dict(pd.read_csv(globalprops_path, index_col=0).iterrows())
+        else:
+            all_globalprops = {}
+        
+        for i, spl in enumerate(splines):
+            spl.localprops = all_localprops.get(i, None)
+            if spl.localprops is not None:
+                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
+                spl.localprops.pop("SplineID")
+                spl.localprops.pop("PosID")
+                spl.localprops.index = range(len(spl.localprops))
+            spl.globalprops = all_globalprops.get(i, None)
+            if spl.globalprops is not None:
+                try:
+                    spl.radius = spl.globalprops.pop("radius")
+                except KeyError:
+                    pass
+                try:
+                    spl.orientation = spl.globalprops.pop("orientation")
+                except KeyError:
+                    pass
+        
         @thread_worker.to_callback
         def _load_project_on_return():
-            self._send_tomogram_to_viewer(filt=filter_reference_image)
-            
-            # load splines
-            splines = [CylSpline.from_json(path) for path in project.splines]
-            localprops_path = project.localprops
-            if localprops_path is not None:
-                all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
-            else:
-                all_localprops = {}
-            globalprops_path = project.globalprops
-            if globalprops_path is not None:
-                all_globalprops = dict(pd.read_csv(globalprops_path, index_col=0).iterrows())
-            else:
-                all_globalprops = {}
-            
-            for i, spl in enumerate(splines):
-                spl.localprops = all_localprops.get(i, None)
-                if spl.localprops is not None:
-                    spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
-                    spl.localprops.pop("SplineID")
-                    spl.localprops.pop("PosID")
-                    spl.localprops.index = range(len(spl.localprops))
-                spl.globalprops = all_globalprops.get(i, None)
-                if spl.globalprops is not None:
-                    try:
-                        spl.radius = spl.globalprops.pop("radius")
-                    except KeyError:
-                        pass
-                    try:
-                        spl.orientation = spl.globalprops.pop("orientation")
-                    except KeyError:
-                        pass
+            self._send_tomogram_to_viewer(filt=filter)
             
             if splines:
                 self.tomogram._splines = splines
@@ -543,6 +543,13 @@ class CylindraMainWidget(MagicTemplate):
                 with self.macro.blocked():
                     self.Others.Global_variables.load_variables(project.global_variables)
             
+            # append macro
+            with open(project.macro) as f:
+                txt = f.read()
+                
+            macro = mk.parse(txt)
+            self.macro.extend(macro.args)
+
             # load subtomogram analyzer state
             self._subtomogram_averaging.template_path = project.template_image or ""
             self._subtomogram_averaging._set_mask_params(project.mask_parameters)

@@ -177,7 +177,7 @@ def read_globalprops(file: PathLike):
     path = Path(file)
     if path.is_dir():
         dfs: list[pd.DataFrame] = []
-        for p in path.glob("**/*globalprops.csv"):
+        for p in path.glob("**/globalprops.csv"):
             df = pd.read_csv(p, index_col=0)
             dfs.append(df)
         if len(dfs) == 0:
