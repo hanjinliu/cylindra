@@ -215,8 +215,10 @@ class CylindraMainWidget(MagicTemplate):
     
     @_runner.wraps
     @set_design(text="Run")
-    @thread_worker(progress={"desc": "Running cylindrical fitting", 
-                             "total": "(1+n_refine+int(local_props)+int(global_props))*len(splines)"})
+    @thread_worker.with_progress(
+        desc="Running cylindrical fitting", 
+        total="(1+n_refine+int(local_props)+int(global_props))*len(splines)",
+    )
     def cylindrical_fit(
         self,
         splines: Bound[_runner._get_splines_to_run] = (),
@@ -425,7 +427,7 @@ class CylindraMainWidget(MagicTemplate):
     @_image_loader.wraps
     @set_options(filter={"label": "Filter the reference image layer."})
     @set_design(text="Run")
-    @dask_thread_worker(progress={"desc": "Reading image"})
+    @dask_thread_worker.with_progress(desc="Reading image")
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
     def open_image(
         self, 
@@ -476,7 +478,7 @@ class CylindraMainWidget(MagicTemplate):
         
     @File.wraps
     @set_design(text="Load project")
-    @dask_thread_worker(progress={"desc": "Reading project"})
+    @dask_thread_worker.with_progress(desc="Reading project")
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     @do_not_record
     def load_project(self, path: Annotated[Path, {"filter": FileFilter.JSON}], filter: bool = True):
@@ -684,7 +686,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Image.wraps
     @set_design(text="Filter reference image")
-    @dask_thread_worker(progress={"desc": "Low-pass filtering"})
+    @dask_thread_worker.with_progress(desc="Low-pass filtering")
     @do_not_record
     def filter_reference_image(self):
         """Apply low-pass filter to enhance contrast of the reference image."""
@@ -708,7 +710,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Image.wraps
     @set_design(text="Add multi-scale")
-    @dask_thread_worker(progress={"desc": "Adding multiscale (bin = {bin_size})".format})
+    @dask_thread_worker.with_progress(desc="Adding multiscale (bin = {bin_size})".format)
     def add_multiscale(self, bin_size: OneOf[2:9] = 4):
         """
         Add a new multi-scale image of current tomogram.
@@ -898,7 +900,7 @@ class CylindraMainWidget(MagicTemplate):
         edge_sigma={"text": "Do not mask image"},
     )
     @set_design(text="Fit splines")
-    @thread_worker(progress={"desc": "Spline Fitting"})
+    @thread_worker.with_progress(desc="Spline Fitting")
     def fit_splines(
         self, 
         max_interval: nm = 30,
@@ -970,7 +972,7 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_options(radius={"text": "Measure radii by radial profile."})
     @set_design(text="Set radius")
-    @thread_worker(progress={"desc": "Measuring Radius"})
+    @thread_worker.with_progress(desc="Measuring Radius")
     def set_radius(self, radius: Optional[nm] = None, bin_size: OneOf[_get_available_binsize] = 1):
         """Measure cylinder radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
@@ -983,7 +985,7 @@ class CylindraMainWidget(MagicTemplate):
         corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1},
     )
     @set_design(text="Refine splines")
-    @thread_worker(progress={"desc": "Refining splines"})
+    @thread_worker.with_progress(desc="Refining splines")
     def refine_splines(
         self,
         max_interval: nm = 30,
@@ -1059,7 +1061,7 @@ class CylindraMainWidget(MagicTemplate):
         ft_size={"min": 2.0, "step": 0.5},
     )
     @set_design(text="Local FT analysis")
-    @thread_worker(progress={"desc": "Local Fourier transform", "total": "self.tomogram.n_splines"})
+    @thread_worker.with_progress(desc="Local Fourier transform", total="self.tomogram.n_splines")
     def local_ft_analysis(
         self,
         interval: nm = 24.5,
@@ -1098,7 +1100,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
-    @thread_worker(progress={"desc": "Global Fourier transform", "total": "self.tomogram.n_splines"})
+    @thread_worker.with_progress(desc="Global Fourier transform", total="self.tomogram.n_splines")
     def global_ft_analysis(self, bin_size: OneOf[_get_available_binsize] = 1):
         """
         Determine cylindrical global structural parameters by Fourier transformation.
@@ -1448,7 +1450,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Average all")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging of {!r}")})
+    @dask_thread_worker.with_progress(desc= _fmt_layer_name("Subtomogram averaging of {!r}"))
     def average_all(
         self,
         layer: MonomerLayer,
@@ -1486,7 +1488,7 @@ class CylindraMainWidget(MagicTemplate):
         
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Average subset")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Subtomogram averaging (subset) of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Subtomogram averaging (subset) of {!r}"))
     def average_subset(
         self,
         layer: MonomerLayer,
@@ -1554,7 +1556,7 @@ class CylindraMainWidget(MagicTemplate):
         n_set={"min": 1, "label": "number of image pairs"},
     )
     @set_design(text="Split-and-average")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Split-and-averaging of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Split-and-averaging of {!r}"))
     def split_and_average(
         self,
         layer: MonomerLayer,
@@ -1594,7 +1596,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @_subtomogram_averaging.Refinement.wraps
     @set_design(text="Align averaged")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Aligning averaged image of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Aligning averaged image of {!r}"))
     def align_averaged(
         self,
         layer: MonomerLayer,
@@ -1687,7 +1689,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @_subtomogram_averaging.Refinement.wraps
     @set_design(text="Align all")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Alignment of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Alignment of {!r}"))
     def align_all(
         self,
         layer: MonomerLayer,
@@ -1737,7 +1739,7 @@ class CylindraMainWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(size={"min": 1., "max": 100., "label": "sub-volume size (nm)"})
     @set_design(text="Align all (template-free)")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Template-free alignment of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Template-free alignment of {!r}"))
     def align_all_template_free(
         self,
         layer: MonomerLayer,
@@ -1786,7 +1788,7 @@ class CylindraMainWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(other_templates={"filter": FileFilter.IMAGE})
     @set_design(text="Align all (multi-template)")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Multi-template alignment of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Multi-template alignment of {!r}"))
     def align_all_multi_template(
         self,
         layer: MonomerLayer,
@@ -1852,7 +1854,7 @@ class CylindraMainWidget(MagicTemplate):
         upsample_factor={"min": 1, "max": 20},
     )
     @set_design(text="Viterbi Alignment")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Viterbi-alignment of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Viterbi-alignment of {!r}"))
     def align_all_viterbi(
         self,
         layer: MonomerLayer,
@@ -2005,7 +2007,7 @@ class CylindraMainWidget(MagicTemplate):
     @_subtomogram_averaging.Refinement.wraps
     @set_options(molecule_subset={"text": "Use all molecules", "options": {"value": 200, "min": 1}})
     @set_design(text="Polarity check")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Polarity check of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Polarity check of {!r}"))
     def polarity_check(
         self,
         layer: MonomerLayer,
@@ -2107,7 +2109,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Calculate correlation")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating correlation of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating correlation of {!r}"))
     def calculate_correlation(
         self,
         layer: MonomerLayer,
@@ -2143,7 +2145,7 @@ class CylindraMainWidget(MagicTemplate):
         dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
     )
     @set_design(text="Calculate FSC")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Calculating FSC of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
         layer: MonomerLayer,
@@ -2238,7 +2240,7 @@ class CylindraMainWidget(MagicTemplate):
     @_subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(npf={"text": "Use global properties"})
     @set_design(text="Seam search")
-    @dask_thread_worker(progress={"desc": _fmt_layer_name("Seam search of {!r}")})
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
     def seam_search(
         self,
         layer: MonomerLayer,
