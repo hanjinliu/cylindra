@@ -208,7 +208,9 @@ class CylinderSimulator(MagicTemplate):
         """
         parent = self.parent_widget
         shape = tuple(roundint(s / scale) for s in size)
-        img = ip.random.normal(size=shape, axes="zyx", name="simulated image")  # TODO: just for now
+        # NOTE: zero-filled image breaks contrast limit calculation, and bad for
+        # visual detection of the image edges. So we use a random image instead.
+        img = ip.random.normal(size=shape, axes="zyx", name="simulated image")
         img.scale_unit = "nm"
         bin_size = sorted(list(set(bin_size)))  # delete duplication
         tomo = CylTomogram.from_image(img, scale=scale, binsize=bin_size)

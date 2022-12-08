@@ -165,7 +165,7 @@ class SplineSweeper(MagicTemplate):
     
     def _show_global_ft(self, i):
         """View Fourier space along current spline."""  
-        polar: ip.ImgArray = self.parent.tomogram.straighten_cylindric(i)
+        polar = self.parent.tomogram.straighten_cylindric(i)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
         pw /= pw.max()
     

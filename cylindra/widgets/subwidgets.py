@@ -97,6 +97,7 @@ class Analysis(MagicTemplate):
     local_ft_analysis = abstractapi()
     global_ft_analysis = abstractapi()
     sep0 = field(Separator)
+    open_spectra_measurer = abstractapi()
     open_subtomogram_analyzer = abstractapi()
 
 @magicmenu

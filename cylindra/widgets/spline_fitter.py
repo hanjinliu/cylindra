@@ -174,7 +174,7 @@ class SplineFitter(MagicTemplate):
         out: list[ip.ImgArray] = []
         for crds in coords:
             out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
-        subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+        subtomo = ip.asarray(np.stack(out, axis=0), axes="pzyx")
         self.subtomograms = subtomo.proj("y")[ip.slicer.x[::-1]]
         
         self.canvas.image = self.subtomograms[0]
