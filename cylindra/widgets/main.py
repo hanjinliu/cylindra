@@ -1137,7 +1137,7 @@ class CylindraMainWidget(MagicTemplate):
         return _global_ft_analysis_on_return
     
     @Analysis.wraps
-    @set_design(text="Open Spectra measurer")
+    @set_design(text="Open spectra measurer")
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""

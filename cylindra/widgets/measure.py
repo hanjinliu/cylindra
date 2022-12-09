@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from enum import Enum
 
-from magicclass import magicclass, abstractapi, vfield, field, MagicTemplate
+from magicclass import do_not_record, magicclass, abstractapi, vfield, field, MagicTemplate
 from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
@@ -77,9 +77,9 @@ class Parameters(MagicTemplate):
     def _set_rise(self, value):
         self._rise = value
         if value is None:
-            return "-- deg"
+            return "--°"
         else:
-            return f"{value:.2f} deg"
+            return f"{value:.2f}°"
     
     @skew.post_get_hook
     def _get_skew(self, value):
@@ -89,9 +89,9 @@ class Parameters(MagicTemplate):
     def _set_skew(self, value):
         self._skew = value
         if value is None:
-            return "-- deg"
+            return "--°"
         else:
-            return f"{value:.2f} deg"
+            return f"{value:.2f}°"
     
     @npf.post_get_hook
     def _get_npf(self, value):
@@ -109,14 +109,42 @@ class Parameters(MagicTemplate):
 class SpectraMeasurer(MagicTemplate):
     canvas = field(QtImageCanvas)
     
-    @magicclass
+    def __init__(self) -> None:
+        self._layer_axial = None
+        self._layer_angular = None
+        self._mode = MeasureMode.none
+        self._image = None
+
+    @magicclass(properties={"min_width": "200"})
     class SidePanel(MagicTemplate):
         parameters = abstractapi()
-        mode = abstractapi()
         load_spline = abstractapi()
+        select_axial_peak = abstractapi()
+        select_angular_peak = abstractapi()
+        log_scale = abstractapi()
     
     parameters = SidePanel.field(Parameters)
-    mode = SidePanel.vfield(MeasureMode.none)
+    log_scale = SidePanel.vfield(False).with_options(tooltip="Check to use log power spectra.")
+    
+    @property
+    def mode(self):
+        return self._mode
+    
+    @mode.setter
+    def mode(self, value):
+        value = MeasureMode(value)
+        
+        # update button texts
+        if value is MeasureMode.none:
+            self.SidePanel[2].text = "Select axial peak"
+            self.SidePanel[3].text = "Select angular peak"
+        elif value is MeasureMode.spacing_rise:
+            self.SidePanel[2].text = "Selecting ..."
+            self.SidePanel[3].text = "Select angular peak"
+        else:
+            self.SidePanel[2].text = "Select axial peak"
+            self.SidePanel[3].text = "Select ..."
+        self._mode = value
     
     def _get_parent(self) -> "CylindraMainWidget":
         from .main import CylindraMainWidget
@@ -129,6 +157,7 @@ class SpectraMeasurer(MagicTemplate):
     
     @SidePanel.wraps
     def load_spline(self, idx: Bound[_get_current_index]):
+        self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
         parent = self._get_parent()
         tomo = parent.tomogram
         self.parameters.radius = tomo.splines[idx].radius
@@ -136,7 +165,9 @@ class SpectraMeasurer(MagicTemplate):
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
 
         self.canvas.layers.clear()
-        self.canvas.image = pw.value
+        self._image = pw.value
+        self.canvas.image = self._image
+        self._on_log_scale_changed(self.log_scale)
         
         center = np.ceil(np.array(pw.shape) / 2 - 0.5)
         self.canvas.add_infline(center[::-1], 0, color="yellow")
@@ -144,8 +175,22 @@ class SpectraMeasurer(MagicTemplate):
         
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
     
-    def _initialize(self):
-        self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
+    @SidePanel.wraps
+    @do_not_record
+    def select_axial_peak(self):
+        self.mode = MeasureMode.spacing_rise
+    
+    @SidePanel.wraps
+    @do_not_record
+    def select_angular_peak(self):
+        self.mode = MeasureMode.skew_npf
+    
+    @log_scale.connect
+    def _on_log_scale_changed(self, value):
+        if value:
+            self.canvas.image = self._image
+        else:
+            self.canvas.image = np.log(self._image + 1e-12)
     
     def _on_mouse_clicked(self, e: mouse_event.MouseClickEvent):
         if self.mode == MeasureMode.none:
@@ -163,7 +208,16 @@ class SpectraMeasurer(MagicTemplate):
             self.parameters.spacing = abs(1.0 / yfreq * scale)
             self.parameters.rise = np.rad2deg(np.arctan(-afreq / yfreq))
             
+            if self._layer_axial in self.canvas.layers:
+                self.canvas.layers.remove(self._layer_axial)
+            self._layer_axial = self.canvas.add_scatter([a0], [y0], color="cyan", symbol="+", size=12)
+            
         elif self.mode == MeasureMode.skew_npf:
             _p = self.parameters
-            self.parameters.skew = np.arctan(yfreq / afreq * 2 * _p.spacing / _p.radius)
+            self.parameters.skew = np.rad2deg(np.arctan(yfreq / afreq * 2 * _p.spacing / _p.radius))
             self.parameters.npf = int(round(a0 - acenter))
+
+            if self._layer_angular in self.canvas.layers:
+                self.canvas.layers.remove(self._layer_angular)
+            self._layer_angular = self.canvas.add_scatter([a0], [y0], color="lime", symbol="+", size=12)
+        self.mode = MeasureMode.none
