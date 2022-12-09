@@ -490,10 +490,11 @@ class Runner(MagicTemplate):
     
     all_splines = vfield(True, record=False).with_options(text="Run for all the splines.")
     splines = vfield(SomeOf[_get_splines], record=False).with_options(visible=False)
+    # max_interval = vfield(30.0, label="Maximum interval (nm)", record=False).with_options(min=1.0, max=200.0)
     bin_size = vfield(OneOf[_get_available_binsize], record=False)
     dense_mode = vfield(True, label="Use dense-mode", record=False)
     params1 = runner_params1
-    n_refine = vfield(2, label="Refinement iteration", record=False).with_options(max=10)
+    n_refine = vfield(1, label="Refinement iteration", record=False).with_options(max=10)
     local_props = vfield(True, label="Calculate local properties", record=False)
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties", record=False)

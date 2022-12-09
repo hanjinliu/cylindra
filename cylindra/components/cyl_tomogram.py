@@ -400,6 +400,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
+        n_rotation: int = 7,
     ) -> FitResult:
         """
         Spline refinement using global lattice structural parameters.
@@ -422,6 +423,8 @@ class CylTomogram(Tomogram):
         max_shift: nm, default is 2.0
             Maximum shift from the true center of the cylinder. This parameter is used in 
             phase cross correlation.
+        n_rotation : int, default is 7
+            Number of rotations to be tested during finding the cylinder center.
         
         Returns
         -------
@@ -508,7 +511,7 @@ class CylTomogram(Tomogram):
             
             # Make template using coarse aligned images.
             imgcory = imgs_aligned.proj("p")
-            degrees = np.linspace(-pf_ang/2, pf_ang/2, 7) + 180
+            degrees = np.linspace(-pf_ang/2, pf_ang/2, n_rotation) + 180
             shift = rotated_auto_zncc(imgcory, degrees=degrees, max_shifts=max_shift_px*2)
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.)
             # Align skew-corrected images to the template
