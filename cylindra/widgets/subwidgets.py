@@ -1,5 +1,5 @@
 import os
-from typing import Union, List, Tuple, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING
 from magicclass import (
     magicclass, magicmenu, magictoolbar, do_not_record, field, vfield, MagicTemplate, 
     set_options, set_design, abstractapi
@@ -210,7 +210,7 @@ class SubtomogramAveraging(MagicTemplate):
     mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
     params = field(params)
     mask_path = field(mask_path)
-    tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}})
+    tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}})
         
     @mask.connect
     def _on_mask_switch(self):
@@ -252,13 +252,13 @@ class SubtomogramAveraging(MagicTemplate):
         self._template = img
         return img
     
-    def _get_shape_in_nm(self) -> Tuple[int, ...]:
+    def _get_shape_in_nm(self) -> tuple[int, ...]:
         if self._template is None:
             self._get_template()
         
         return tuple(s * self._template.scale.x for s in self._template.shape)
     
-    def _get_mask_params(self, params=None) -> Union[str, Tuple[nm, nm], None]:
+    def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
         v = self.mask
         if v == MASK_CHOICES[0]:
             params = None
@@ -274,7 +274,7 @@ class SubtomogramAveraging(MagicTemplate):
     
     def _get_mask(
         self,
-        params: Union[str, Tuple[int, float], None] = _sentinel
+        params: Union[str, tuple[int, float], None] = _sentinel
     ) -> Union[ip.ImgArray, None]:
         from .main import CylindraMainWidget
         
@@ -390,7 +390,7 @@ class SubtomogramAveraging(MagicTemplate):
     @set_design(text="Reshape template")
     def reshape_template(
         self, 
-        new_shape: Tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
+        new_shape: tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
         save_as: Path = "",
         update_template_path: bool = True,
     ):
@@ -464,7 +464,7 @@ class Runner(MagicTemplate):
     global_props : bool
         Check if calculate global properties.
     """
-    def _get_splines(self, _=None) -> List[Tuple[str, int]]:
+    def _get_splines(self, _=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         from .main import CylindraMainWidget
         try:
@@ -475,7 +475,7 @@ class Runner(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
-    def _get_available_binsize(self, _=None) -> List[int]:
+    def _get_available_binsize(self, _=None) -> list[int]:
         from .main import CylindraMainWidget
         try:
             parent = self.find_ancestor(CylindraMainWidget)
@@ -510,7 +510,7 @@ class Runner(MagicTemplate):
     def _toggle_localprops_params(self):
         self.params2.visible = self.local_props
     
-    def _get_splines_to_run(self, w=None) -> List[int]:
+    def _get_splines_to_run(self, w=None) -> list[int]:
         if self.all_splines:
             n_choices = len(self["splines"].choices)
             return list(range(n_choices))

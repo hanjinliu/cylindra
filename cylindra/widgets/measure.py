@@ -156,6 +156,7 @@ class SpectraMeasurer(MagicTemplate):
     
     @SidePanel.wraps
     def load_spline(self, idx: Bound[_get_current_index]):
+        """Load current spline to the canvas."""
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
         parent = self._get_parent()
         tomo = parent.tomogram
