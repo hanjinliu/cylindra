@@ -16,8 +16,8 @@ class DataFrameListWidget(MagicTemplate):
         return self._dfl[0].columns.tolist()
 
     plt = field(QtPlotCanvas)
-    data_index = vfield(int, options={"max": 0})
-    column = vfield(str, options={"choices": _get_choices})
+    data_index = vfield(int).with_options(max=0)
+    column = vfield(str).with_choices(_get_choices)
 
     def __init__(self) -> None:
         self._dfl: DataFrameList = None

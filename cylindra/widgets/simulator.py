@@ -123,8 +123,8 @@ class CylinderSimulator(MagicTemplate):
             Check to show all the selected molecules
         """
         yrange = vfield(tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
-        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, options={"value": (0, 100)}, record=False)
-        n_allev = vfield(1, label="alleviate", options={"min": 0, "max": 20}, record=False)
+        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, record=False).with_options(value=(0, 100))
+        n_allev = vfield(1, label="alleviate", record=False).with_options(min=0, max=20)
         show_selection = vfield(True, label="show selected molecules", record=False)
         
         def __post_init__(self):
@@ -208,7 +208,9 @@ class CylinderSimulator(MagicTemplate):
         """
         parent = self.parent_widget
         shape = tuple(roundint(s / scale) for s in size)
-        img = ip.random.normal(size=shape, axes="zyx", name="simulated image")  # TODO: just for now
+        # NOTE: zero-filled image breaks contrast limit calculation, and bad for
+        # visual detection of the image edges. So we use a random image instead.
+        img = ip.random.normal(size=shape, axes="zyx", name="simulated image")
         img.scale_unit = "nm"
         bin_size = sorted(list(set(bin_size)))  # delete duplication
         tomo = CylTomogram.from_image(img, scale=scale, binsize=bin_size)

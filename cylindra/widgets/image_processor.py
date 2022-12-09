@@ -32,9 +32,9 @@ class ImageProcessor(MagicTemplate):
     output_image : Path
         Path where output image will be saved..
     """
-    input_image = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
-    suffix = vfield(Optional[str], options={"value": "-0", "text": "Do not autofill"})
-    output_image = vfield(Path, options={"filter": FileFilter.IMAGE, "mode": "w"}, record=False)
+    input_image = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
+    suffix = vfield(Optional[str], ).with_options(value="-0", text="Do not autofill")
+    output_image = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE, mode="w")
     
     @input_image.connect
     @suffix.connect

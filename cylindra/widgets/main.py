@@ -35,6 +35,7 @@ from cylindra.const import (
 from cylindra.types import MonomerLayer, get_monomer_layers
 from cylindra.project import CylindraProject
 
+# widgets
 from cylindra.widgets import _previews, _shared_doc, subwidgets, widget_utils
 from cylindra.widgets.feature_control import FeatureControl
 from cylindra.widgets.image_processor import ImageProcessor
@@ -43,6 +44,7 @@ from cylindra.widgets.spline_control import SplineControl
 from cylindra.widgets.spline_fitter import SplineFitter
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
+from cylindra.widgets.measure import SpectraMeasurer
 from cylindra.widgets.widget_utils import (
     FileFilter, add_molecules, change_viewer_focus, update_features
 )
@@ -95,6 +97,7 @@ class CylindraMainWidget(MagicTemplate):
     _ImageProcessor = field(ImageProcessor, name="Image Processor")  # Widget for pre-filtering/pre-processing
     _FeatureControl = field(FeatureControl, name="Feature Control")  # Widget for visualizing/analyzing features
     _Simulator = field(CylinderSimulator, name="Cylinder Simulator")  # Widget for tomogram simulator
+    _SpectraMeasurer = field(SpectraMeasurer, name="FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
     
     # The logger widget.
     @magicclass(labels=False, name="Logger")
@@ -128,7 +131,7 @@ class CylindraMainWidget(MagicTemplate):
     SplineControl = SplineControl  # Widget for controling splines
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")  # Widget for summary of local properties
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")  # Widget for summary of glocal properties
-    overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})  # Widget for 2D overview of splines
+    overview = field(QtImageCanvas, name="Overview").with_options(tooltip="Overview of splines")  # Widget for 2D overview of splines
     
     ### methods ###
     
@@ -1132,6 +1135,13 @@ class CylindraMainWidget(MagicTemplate):
             yield _global_ft_analysis_on_yield(i)
         self._need_save = True
         return _global_ft_analysis_on_return
+    
+    @Analysis.wraps
+    @set_design(text="Open spectra measurer")
+    @do_not_record
+    def open_spectra_measurer(self):
+        """Open the spectra measurer widget to determine cylindric parameters."""
+        return self._SpectraMeasurer.show()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods

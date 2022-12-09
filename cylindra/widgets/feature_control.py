@@ -111,7 +111,7 @@ class FeatureControl(MagicTemplate):
                 class CategoricalColorMap(MagicTemplate):
                     """Colormap editor for discrete features."""
                     
-                    colors = vfield(ListEdit, options={"annotation": List[Color], "layout": "vertical"}, record=False)
+                    colors = vfield(ListEdit, record=False).with_options(annotation=list[Color], layout="vertical")
                     def __post_init__(self):
                         self["colors"].buttons_visible = False
 

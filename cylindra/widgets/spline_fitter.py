@@ -12,7 +12,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.types import Bound
-from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 from cylindra.utils import roundint, centroid, map_coordinates
 from cylindra.const import nm, GlobalVariables as GVar, Mode
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class SplineFitter(MagicTemplate):
     # Manually fit cylinders with spline curve using longitudinal projections
     
-    canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
+    canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
         
     @magicclass(layout="horizontal")
     class controller(MagicTemplate):
@@ -39,8 +39,8 @@ class SplineFitter(MagicTemplate):
         pos : int
             Position along the spline.
         """
-        num = field(int, label="Spline No.", options={"max": 0}, record=False)
-        pos = field(int, label="Position", options={"max": 0}, record=False)
+        num = field(int, label="Spline No.", record=False).with_options(max=0)
+        pos = field(int, label="Position", record=False).with_options(max=0)
         fit = abstractapi()
         
         @bind_key("Up")
@@ -94,7 +94,7 @@ class SplineFitter(MagicTemplate):
         self.controller.height = 50
         
         @self.canvas.mouse_clicked.connect
-        def _(e):
+        def _(e: mouse_event.MouseClickEvent):
             if "left" not in e.buttons():
                 return
             self.fit_done = False
@@ -174,7 +174,7 @@ class SplineFitter(MagicTemplate):
         out: list[ip.ImgArray] = []
         for crds in coords:
             out.append(map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean))
-        subtomo: ip.ImgArray = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+        subtomo = ip.asarray(np.stack(out, axis=0), axes="pzyx")
         self.subtomograms = subtomo.proj("y")[ip.slicer.x[::-1]]
         
         self.canvas.image = self.subtomograms[0]
