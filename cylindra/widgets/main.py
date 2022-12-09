@@ -131,7 +131,7 @@ class CylindraMainWidget(MagicTemplate):
     SplineControl = SplineControl  # Widget for controling splines
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")  # Widget for summary of local properties
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")  # Widget for summary of glocal properties
-    overview = field(QtImageCanvas, name="Overview", options={"tooltip": "Overview of splines"})  # Widget for 2D overview of splines
+    overview = field(QtImageCanvas, name="Overview").with_options(tooltip="Overview of splines")  # Widget for 2D overview of splines
     
     ### methods ###
     
@@ -1140,8 +1140,8 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open Spectra measurer")
     @do_not_record
     def open_spectra_measurer(self):
-        self._SpectraMeasurer.show()
-        return None
+        """Open the spectra measurer widget to determine cylindric parameters."""
+        return self._SpectraMeasurer.show()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods

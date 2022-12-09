@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class LabeledText(FieldGroup):
     lbl = field("pitch", widget_type="Label")
-    txt = vfield("", options={"enabled": False})
+    txt = vfield("").with_options(enabled=False)
     
     def __init__(self, label_text: str):
         super().__init__(labels=False)
@@ -35,14 +35,7 @@ class LocalPropertiesWidget(MagicTemplate):
         skew = LabeledText("skew angle")
         structure = LabeledText("structure")
         
-    plot = field(
-        QtMultiPlotCanvas,
-        name="Plot", 
-        options={"nrows": 2, 
-                 "ncols": 1, 
-                 "sharex": True, 
-                 "tooltip": "Plot of local properties"}
-    )
+    plot = field(QtMultiPlotCanvas, name="Plot").with_options(nrows=2, ncols=1, sharex=True, tooltip="Plot of local properties")
     
     def __post_init__(self):
         # Initialize multi-plot canvas

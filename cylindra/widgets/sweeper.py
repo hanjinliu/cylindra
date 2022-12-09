@@ -25,7 +25,7 @@ POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
 
 @magicclass
 class SplineSweeper(MagicTemplate):
-    show_what = vfield(label="kind", options={"choices": [YPROJ, RPROJ, CFT]}, record=False)
+    show_what = vfield(label="kind", record=False).with_choices([YPROJ, RPROJ, CFT])
     
     @magicclass(layout="horizontal")
     class params(MagicTemplate):
@@ -48,11 +48,11 @@ class SplineSweeper(MagicTemplate):
                 return parent._get_available_binsize(widget)
             except Exception:
                 return []
-        depth = vfield(32.0, label="depth (nm)", options={"min": 1.0, "max": 200.0}, record=False)
-        binsize = vfield(options={"choices": _get_available_binsize}, record=False)
-        
-    radius = vfield(Optional[nm], label="Radius (nm)", options={"text": "Use spline radius", "options": {"max": 100.0}}, record=False)
-    canvas = field(QtImageCanvas, options={"lock_contrast_limits": True})
+        depth = vfield(32.0, label="depth (nm)", record=False).with_options(min=1.0, max=200.0)
+        binsize = vfield(record=False).with_choices(_get_available_binsize)
+
+    radius = vfield(Optional[nm], label="Radius (nm)", record=False).with_options(text="Use spline radius", options={"max": 100.0})
+    canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     @property
     def parent(self) -> "CylindraMainWidget":
@@ -79,8 +79,8 @@ class SplineSweeper(MagicTemplate):
             except Exception:
                 return []
             
-        spline_id = vfield(label="Spline", options={"choices": _get_spline_id}, record=False)
-        pos = field(nm, label="Position (nm)", widget_type="FloatSlider", options={"max": 0}, record=False)
+        spline_id = vfield(label="Spline", record=False).with_choices(_get_spline_id)
+        pos = field(nm, label="Position (nm)", widget_type="FloatSlider", record=False).with_options(max=0)
         
         @bind_key("Up")
         @do_not_record

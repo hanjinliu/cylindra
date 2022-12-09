@@ -32,11 +32,11 @@ class Parameters(MagicTemplate):
     npf : str
         Number of protofilaments.
     """
-    radius = vfield("", options={"enabled": False})
-    spacing = vfield("", options={"enabled": False})
-    rise = vfield("", options={"enabled": False})
-    skew = vfield("", options={"enabled": False})
-    npf = vfield("", options={"enabled": False})
+    radius = vfield("").with_options(enabled=False)
+    spacing = vfield("").with_options(enabled=False)
+    rise = vfield("").with_options(enabled=False)
+    skew = vfield("").with_options(enabled=False)
+    npf = vfield("").with_options(enabled=False)
     
     def __init__(self):
         self._radius = None
@@ -134,8 +134,7 @@ class SpectraMeasurer(MagicTemplate):
         self.parameters.radius = tomo.splines[idx].radius
         polar = tomo.straighten_cylindric(idx)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        
-        self.canvas: QtImageCanvas
+
         self.canvas.layers.clear()
         self.canvas.image = pw.value
         

@@ -47,13 +47,13 @@ class SplineControl(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
     
-    num = vfield(OneOf[_get_splines], options={"label": "Spline No."}, record=False)
-    pos = vfield(int, widget_type="Slider", label="Position", options={"max": 0}, record=False)
-    canvas = field(QtMultiImageCanvas, name="Figure", options={"nrows": 1, "ncols": 3})
+    num = vfield(OneOf[_get_splines], label="Spline No.", record=False)
+    pos = vfield(int, widget_type="Slider", label="Position", record=False).with_options(max=0)
+    canvas = field(QtMultiImageCanvas, name="Figure", ).with_options(nrows=1, ncols=3)
     
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):
-        focus = vfield(False, options={"text": "focus on", "tooltip": "Keep focus of viewer camera on the current spline position"}, record=False)
+        focus = vfield(False, record=False).with_options(text="focus on", tooltip="Keep focus of viewer camera on the current spline position")
         set_pf_number = abstractapi()
         set_orientation = abstractapi()
     

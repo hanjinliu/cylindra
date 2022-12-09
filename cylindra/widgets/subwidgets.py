@@ -147,10 +147,11 @@ class toolbar(MagicTemplate):
         max_shifts : nm
             Maximum shift (nm) in auto centering.
         """
-        stride = vfield(50.0, widget_type="FloatSlider", options={"min": 10, "max": 100}, record=False)
-        angle_deviation = vfield(12.0, widget_type="FloatSlider", options={"min": 1.0, "max": 40.0, "step": 0.5}, record=False)
-        angle_precision = vfield(1.0, widget_type="FloatSlider", options={"min": 0.5, "max": 5.0, "step": 0.1}, record=False)
-        max_shifts = vfield(20.0, options={"min": 1., "max": 50., "step": 0.5}, record=False)
+        stride = vfield(50.0, widget_type="FloatSlider", record=False).with_options(min=10, max=100)
+        angle_deviation = vfield(12.0, widget_type="FloatSlider", record=False).with_options(min=1.0, max=40.0, step=0.5)
+        angle_precision = vfield(1.0, widget_type="FloatSlider", record=False).with_options(min=0.5, max=5.0, step=0.1)
+        max_shifts = vfield(20.0, record=False).with_options(min=1.0, max=50.0, step=0.5)
+
     sep1 = field(Separator)
     clear_current = abstractapi()
     clear_all = abstractapi()
@@ -177,13 +178,13 @@ class params(MagicTemplate):
     sigma : nm
         Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
     """
-    dilate_radius = vfield(0.3, options={"step": 0.1, "max": 20}, record=False)
-    sigma = vfield(0.3, options={"step": 0.1, "max": 20}, record=False)
+    dilate_radius = vfield(0.3, record=False).with_options(max=20, step=0.1)
+    sigma = vfield(0.3, record=False).with_options(max=20, step=0.1)
     
 @magicclass(layout="horizontal", widget_type="frame", visible=False)
 class mask_path(MagicTemplate):
     """Path to the mask image."""
-    mask_path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
+    mask_path = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
 
 @magicclass(name="Subtomogram averaging")
 class SubtomogramAveraging(MagicTemplate):
@@ -205,11 +206,11 @@ class SubtomogramAveraging(MagicTemplate):
         self._next_layer_name = None
         self.mask = MASK_CHOICES[0]
     
-    template_path = vfield(HistoryFileEdit, label="Template", options={"filter": FileFilter.IMAGE}, record=False)
+    template_path = vfield(HistoryFileEdit, label="Template", record=False).with_options(filter=FileFilter.IMAGE)
     mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
     params = field(params)
     mask_path = field(mask_path)
-    tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", options={"value": (-60., 60.), "text": "No missing-wedge", "options": {"options": {"min": -90.0, "max": 90.0, "step": 1.0}}}, record=False)
+    tilt_range = vfield(Optional[Tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}})
         
     @mask.connect
     def _on_mask_switch(self):
@@ -418,8 +419,8 @@ class runner_params1:
     max_shift : nm
         Maximum shift in nm of manually selected spline to the true center.
     """
-    edge_sigma = vfield(2.0, options={"label": "edge sigma"}, record=False)
-    max_shift = vfield(5.0, options={"label": "Maximum shift (nm)", "max": 50.0, "step": 0.5}, record=False)
+    edge_sigma = vfield(2.0, label="edge sigma", record=False)
+    max_shift = vfield(5.0, label="Maximum shift (nm)", record=False).with_options(max=50.0, step=0.5)
 
 
 @magicclass(widget_type="groupbox", name="Parameters")
@@ -437,8 +438,8 @@ class runner_params2:
     paint : bool
         Check if paint the tomogram with the local properties.
     """
-    interval = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Interval (nm)"}, record=False)
-    ft_size = vfield(32.0, options={"min": 1.0, "max": 200.0, "label": "Local DFT window size (nm)"}, record=False)
+    interval = vfield(32.0, label="Interval (nm)", record=False).with_options(min=1.0, max=200.0)
+    ft_size = vfield(32.0, label="Local DFT window size (nm)", record=False).with_options(min=1.0, max=200.0)
     paint = vfield(True, record=False)
 
 
@@ -487,13 +488,13 @@ class Runner(MagicTemplate):
             out = [1] + out
         return sorted(out)
     
-    all_splines = vfield(True, options={"text": "Run for all the splines."}, record=False)
-    splines = vfield(SomeOf[_get_splines], options={"visible": False}, record=False)
+    all_splines = vfield(True, record=False).with_options(text="Run for all the splines.")
+    splines = vfield(SomeOf[_get_splines], record=False).with_options(visible=False)
     bin_size = vfield(OneOf[_get_available_binsize], record=False)
-    dense_mode = vfield(True, options={"label": "Use dense-mode"}, record=False)
+    dense_mode = vfield(True, label="Use dense-mode", record=False)
     params1 = runner_params1
-    n_refine = vfield(2, options={"label": "Refinement iteration", "max": 10}, record=False)
-    local_props = vfield(True, options={"label": "Calculate local properties"}, record=False)
+    n_refine = vfield(2, label="Refinement iteration", record=False).with_options(max=10)
+    local_props = vfield(True, label="Calculate local properties", record=False)
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties", record=False)
 
@@ -539,7 +540,7 @@ class ImageLoader(MagicTemplate):
     filter_reference_image : bool, default is True
         Apply low-pass filter on the reference image (does not affect image data itself).
     """
-    path = vfield(Path, options={"filter": FileFilter.IMAGE}, record=False)
+    path = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
     
     @magicclass(layout="horizontal", labels=False)
     class scale(MagicTemplate):
@@ -552,10 +553,10 @@ class ImageLoader(MagicTemplate):
             Scale of the image in nm/pixel.
         """
         scale_label = vfield("scale (nm)", widget_type="Label")
-        scale_value = vfield(1.0, options={"min": 0.001, "step": 0.0001, "max": 10.0, "label": "scale (nm)"}, record=False)
+        scale_value = vfield(1.0, label="scale (nm)", record=False).with_options(min=0.001, step=0.0001, max=10.0)
         read_header = abstractapi()
             
-    bin_size = vfield([1], options={"options": {"min": 1, "max": 8}}, record=False)
+    bin_size = vfield([1], record=False).with_options(options={"min": 1, "max": 8})
     filter_reference_image = vfield(True, record=False)
     
     @scale.wraps

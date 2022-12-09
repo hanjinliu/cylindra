@@ -123,8 +123,8 @@ class CylinderSimulator(MagicTemplate):
             Check to show all the selected molecules
         """
         yrange = vfield(tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
-        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, options={"value": (0, 100)}, record=False)
-        n_allev = vfield(1, label="alleviate", options={"min": 0, "max": 20}, record=False)
+        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, record=False).with_options(value=(0, 100))
+        n_allev = vfield(1, label="alleviate", record=False).with_options(min=0, max=20)
         show_selection = vfield(True, label="show selected molecules", record=False)
         
         def __post_init__(self):
