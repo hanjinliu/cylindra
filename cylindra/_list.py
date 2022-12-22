@@ -56,6 +56,7 @@ class DataFrameList(Sequence["pd.DataFrame"]):
 
         df = pd.read_csv(path)
         if IDName.spline in df.columns and IDName.pos in df.columns:
+            df["source"] = Path(path).parent.stem
             return cls.from_localprops(df)
         raise ValueError(
             f"The csv file does not contain {IDName.spline!r} and {IDName.pos!r} columns."
