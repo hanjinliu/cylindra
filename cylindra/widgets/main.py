@@ -41,6 +41,7 @@ from cylindra.widgets.feature_control import FeatureControl
 from cylindra.widgets.image_processor import ImageProcessor
 from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from cylindra.widgets.spline_control import SplineControl
+from cylindra.widgets.spline_clipper import SplineClipper
 from cylindra.widgets.spline_fitter import SplineFitter
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
@@ -93,6 +94,7 @@ class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")  # Widget for manual spline fitting
+    _SplineClipper = field(SplineClipper, name="Spline clipper")  # Widget for manual spline clipping
     _SplineSweeper = field(SplineSweeper, name="Spline sweeper")  # Widget for sweeping along splines
     _ImageProcessor = field(ImageProcessor, name="Image Processor")  # Widget for pre-filtering/pre-processing
     _FeatureControl = field(FeatureControl, name="Feature Control")  # Widget for visualizing/analyzing features
@@ -855,7 +857,6 @@ class CylindraMainWidget(MagicTemplate):
     
     @Splines.wraps
     @set_options(
-        auto_call=True,
         limits={"min": 0.0, "max": 1.0, "step": 0.01, "widget_type": FloatRangeSlider},
     )
     @set_design(text="Clip splines")
@@ -869,6 +870,23 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         self._need_save = True
         return None
+    
+    @impl_preview(clip_spline, auto_call=True)
+    def _clip_spline_preview(self, spline, limits):
+        pass
+    
+    @_clip_spline_preview.during_preview
+    def _during_clip_spline(self, spline: int, limits: tuple[float, float]):
+        tomo = self.tomogram
+        layer = self.parent_viewer.add_shapes(
+            tomo.splines[spline].clip(*limits).partition(100), 
+            shape_type="path", edge_color="crimson", edge_width=3,
+            name="Spline preview"
+        )
+        try:
+            yield
+        finally:
+            self.parent_viewer.layers.remove(layer)
     
     @Splines.wraps
     @set_design(text="Delete spline")
@@ -1057,6 +1075,15 @@ class CylindraMainWidget(MagicTemplate):
         self.sample_subtomograms()
         self._update_splines_in_images()
         return None
+    
+    @Splines.wraps
+    @set_design(text="Open spline clipper")
+    @do_not_record
+    def open_spline_clipper(self):
+        """Open the spline clipper widget."""
+        self._SplineClipper.show()
+        if self.tomogram.n_splines > 0:
+            self._SplineClipper.load_spline(self.SplineControl.num)
         
     @Analysis.wraps
     @set_options(
