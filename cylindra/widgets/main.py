@@ -872,21 +872,28 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @impl_preview(clip_spline, auto_call=True)
-    def _clip_spline_preview(self, spline, limits):
-        pass
-    
-    @_clip_spline_preview.during_preview
     def _during_clip_spline(self, spline: int, limits: tuple[float, float]):
         tomo = self.tomogram
-        layer = self.parent_viewer.add_shapes(
-            tomo.splines[spline].clip(*limits).partition(100), 
-            shape_type="path", edge_color="crimson", edge_width=3,
-            name="Spline preview"
-        )
+        name = "Spline preview"
+        verts = tomo.splines[spline].clip(*limits).partition(100)
+        verts_2d = verts[:, 1:]
+        viewer = self.parent_viewer
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = verts_2d
+        else:
+            layer = viewer.add_shapes(
+                verts_2d, shape_type="path", edge_color="crimson", edge_width=3, 
+                name=name
+            )
+            layer.interactive = False
+            center = np.mean(verts, axis=0)
+            change_viewer_focus(viewer, center * tomo.scale, self.layer_image.scale[-1])
         try:
-            yield
+            is_active = yield
         finally:
-            self.parent_viewer.layers.remove(layer)
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
     
     @Splines.wraps
     @set_design(text="Delete spline")

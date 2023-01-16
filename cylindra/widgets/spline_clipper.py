@@ -57,6 +57,14 @@ class SplineClipper(MagicTemplate):
     def _get_spline_id(self, *_) -> int:
         return self._parent_widget().SplineControl.num
     
+    @property
+    def current_clip_length(self) -> tuple[nm, nm]:
+        restored = self._spline.restore()
+        length = restored.length()
+        lim0, lim1 = self._original_lims
+        clim0, clim1 = self._current_lims
+        return (clim0 - lim0) * length, (lim1 - clim1) * length
+    
     @do_not_record
     def load_spline(self, spline: Bound[_get_spline_id]):
         parent = self._parent_widget()
@@ -64,12 +72,13 @@ class SplineClipper(MagicTemplate):
         self._spline = spl
         self._original_lims = self._current_lims = spl.lims
         self._subtomogram: "ip.ImgArray | None" = None
-        self._update_canvas()
         self["clip_length"].max = spl.length()
+        self._update_canvas()
     
     @do_not_record
     def the_other_side(self):
         self._clip_at_start = not self._clip_at_start
+        self.clip_length = self.current_clip_length[1 - int(self._clip_at_start)]
         self._update_canvas()
 
     @do_not_record
@@ -103,6 +112,7 @@ class SplineClipper(MagicTemplate):
         length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
+        # sample subtomogram at the edge
         mole = spl.anchors_to_molecules([0.0, 1.0])
         coords = mole.cartesian_at(
             index=0 if self._clip_at_start else -1,
@@ -127,11 +137,11 @@ class SplineClipper(MagicTemplate):
         self._yz_line.ydata = [zc, zc]
         self._yz_ref.pos = [yc, zc]
         if self._clip_at_start:
-            self._xy_line.ydata = [yc, yc * 2]
-            self._yz_line.xdata = [yc, yc * 2]
+            self._xy_line.ydata = [yc, yc * 2 + 0.5]
+            self._yz_line.xdata = [yc, yc * 2 + 0.5]
         else:
-            self._xy_line.ydata = [0, yc]
-            self._yz_line.xdata = [0, yc]
+            self._xy_line.ydata = [-0.5, yc]
+            self._yz_line.xdata = [-0.5, yc]
         self._xz_cross[0].pos = (xc, xc)
         self._xz_cross[1].pos = (zc, zc)
         
