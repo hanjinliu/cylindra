@@ -348,8 +348,8 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def show_macro(self):
         """Create Python executable script of the current project."""
-        new = self.macro.widget.new()
-        new.value = str(self._format_macro()[self._macro_offset:])
+        new = self.macro.widget.new_window()
+        new.textedit.value = str(self._format_macro()[self._macro_offset:])
         new.show()
         return None
     
@@ -358,8 +358,8 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def show_full_macro(self):
         """Create Python executable script since the startup this time."""
-        new = self.macro.widget.new()
-        new.value = str(self._format_macro())
+        new = self.macro.widget.new_window()
+        new.textedit.value = str(self._format_macro())
         new.show()
         return None
     
@@ -371,7 +371,6 @@ class CylindraMainWidget(MagicTemplate):
         Show the native macro widget of magic-class, which is always synchronized but
         is not editable.
         """
-        self.macro.widget.textedit.read_only = True
         self.macro.widget.show()
         return None
     
@@ -856,26 +855,38 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    @set_options(
-        limits={"min": 0.0, "max": 1.0, "step": 0.01, "widget_type": FloatRangeSlider},
-    )
+    @set_options(clip_lengths={"options": {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}})
     @set_design(text="Clip splines")
-    def clip_spline(self, spline: OneOf[_get_splines], limits: tuple[float, float] = (0., 1.)):
-        # BUG: properties may be inherited in a wrong way
+    def clip_spline(self, spline: OneOf[_get_splines], clip_lengths: tuple[nm, nm] = (0., 0.)):
+        """
+        Clip selected spline at its edges by given lengths.
+        
+        Parameters
+        ----------
+        spline : int
+           The ID of spline to be clipped.
+        clip_lengths : tuple of float, default is (0., 0.)
+            The length in nm to be clipped at the start and end of the spline. 
+        """
         if spline is None:
             return
-        start, stop = limits
         spl = self.tomogram.splines[spline]
-        self.tomogram.splines[spline] = spl.restore().clip(start, stop)
+        length = spl.length()
+        start, stop = np.array(clip_lengths) / length
+        self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
         self._update_splines_in_images()
         self._need_save = True
+        self.parent_viewer.layers.selection = {self.layer_work}
         return None
     
     @impl_preview(clip_spline, auto_call=True)
-    def _during_clip_spline(self, spline: int, limits: tuple[float, float]):
+    def _during_clip_spline(self, spline: int, clip_lengths: tuple[nm, nm]):
         tomo = self.tomogram
         name = "Spline preview"
-        verts = tomo.splines[spline].clip(*limits).partition(100)
+        spl = self.tomogram.splines[spline]
+        length = spl.length()
+        start, stop = np.array(clip_lengths) / length
+        verts = tomo.splines[spline].clip(start, 1 - stop).partition(100)
         verts_2d = verts[:, 1:]
         viewer = self.parent_viewer
         if name in viewer.layers:
@@ -886,9 +897,6 @@ class CylindraMainWidget(MagicTemplate):
                 verts_2d, shape_type="path", edge_color="crimson", edge_width=3, 
                 name=name
             )
-            layer.interactive = False
-            center = np.mean(verts, axis=0)
-            change_viewer_focus(viewer, center * tomo.scale, self.layer_image.scale[-1])
         try:
             is_active = yield
         finally:

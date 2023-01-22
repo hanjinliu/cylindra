@@ -84,7 +84,7 @@ class SplineClipper(MagicTemplate):
     @do_not_record
     def clip_here(self):
         parent = self._parent_widget()
-        parent.clip_spline(self._get_spline_id(), self._current_lims)
+        parent.clip_spline(self._get_spline_id(), self.current_clip_length)
     
     @clip_length.connect
     def _clip(self, val: nm):
