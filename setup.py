@@ -22,7 +22,7 @@ class build_ext(build_ext):
 
 INFO = {}
 
-with open("cylindra/_info.py", encoding="utf-8") as f:
+with open("cylindra/__about__.py", encoding="utf-8") as f:
     for line in f:
         if line.startswith("__version__"):
             INFO["version"] = line.strip().split()[-1][1:-1]

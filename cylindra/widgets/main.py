@@ -14,7 +14,7 @@ import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
-                        do_not_record, field, magicclass, impl_preview, nogui,
+                        do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
                         set_design, set_options)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -876,7 +876,11 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
         self._update_splines_in_images()
         self._need_save = True
+        # current layer will be removed. Select another layer.
         self.parent_viewer.layers.selection = {self.layer_work}
+        # initialize clipping values
+        fgui = get_function_gui(self, "clip_spline")
+        fgui.clip_lengths.value = (0., 0.)
         return None
     
     @impl_preview(clip_spline, auto_call=True)
