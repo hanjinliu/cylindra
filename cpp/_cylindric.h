@@ -15,6 +15,9 @@ namespace py = pybind11;
 struct Index {
     ssize_t y, a;
     Index(ssize_t y, ssize_t a) : y(y), a(a) {}
+    bool isValid(ssize_t nY, ssize_t nA) {
+        return y >= 0 && y < nY && a >= 0 && a < nA;
+    }
 };
 
 // Tuple of signed integers.
@@ -76,27 +79,30 @@ inline std::vector<Index> CylinderGeometry::getNeighbor(ssize_t y, ssize_t a) {
     auto idx = getSignedIndex(y, a);
 
     if (y > 0) {
-        neighbors.push_back(Index(y - 1, a));
+        auto index = Index(y - 1, a);
+        if (index.isValid(nY, nA)) {
+            neighbors.push_back(Index(y - 1, a));
+        }
     }
     if (y < nY - 1) {
-        neighbors.push_back(Index(y + 1, a));
+        auto index = Index(y + 1, a);
+        if (index.isValid(nY, nA)) {
+            neighbors.push_back(index);
+        }
     }
 
     // left neighbor
-    if (a > 0) {
-        neighbors.push_back(Index(y, a - 1));
-    }
-    else {
-        neighbors.push_back(Index(y - nRise, nA - 1));
+    auto index_l = (a > 0) ? Index(y, a - 1) : Index(y - nRise, nA - 1);
+    if (index_l.isValid(nY, nA)) {
+        neighbors.push_back(index_l);
     }
     
     // right neighbor
-    if (a < nA - 1) {
-        neighbors.push_back(Index(y, a + 1));
+    auto index_r = (a < nA - 1) ? Index(y, a + 1) : Index(y + nRise, 0);
+    if (index_r.isValid(nY, nA)) {
+        neighbors.push_back(index_r);
     }
-    else {
-        neighbors.push_back(Index(y + nRise, 0));
-    }
+
     return neighbors;
 }
 

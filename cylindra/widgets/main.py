@@ -3117,6 +3117,13 @@ class CylindraMainWidget(MagicTemplate):
             )
         return None
     
+    @average_all.started.connect
+    @align_averaged.started.connect
+    @align_all.started.connect
+    @calculate_fsc.started.connect
+    def _show_subtomogram_averaging(self):
+        return self._subtomogram_averaging.show()
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Preview methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
