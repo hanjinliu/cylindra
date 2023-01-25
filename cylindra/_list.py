@@ -175,8 +175,8 @@ class DataFrameList(Sequence["pd.DataFrame"]):
     def subset(self, spec: Sequence[int]) -> DataFrameList:
         """Return a subset of the data frame list."""
         cls = type(self)
-        spec = np.asarray(spec)
-        if spec.dtype == np.bool:
+        spec: np.ndarray = np.asarray(spec)
+        if spec.dtype.kind == "b":
             spec = np.where(spec)[0]
         spec = set(spec)
         return cls([df for i, df in enumerate(self) if i in spec])
