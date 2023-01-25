@@ -410,6 +410,7 @@ class CylinderSimulator(MagicTemplate):
         bin_size: list[int] = [4],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         filter: bool = True,
+        seed: Optional[int] = None,
     ):
         """
         Simulate a tomographic image using the current model, and send it to the viewer.
@@ -436,6 +437,8 @@ class CylinderSimulator(MagicTemplate):
             Interpolation method used during the simulation.
         filter : bool, default is True
             Apply low-pass filter on the reference image (does not affect image data itself).
+        seed : int, default is 0
+            Random seed used for the Gaussian noise.
         """
         parent = self.parent_widget
         template = ip.imread(path)
@@ -447,7 +450,8 @@ class CylinderSimulator(MagicTemplate):
         # add noise
         if nsr > 0:
             imax = sino.max()
-            sino += ip.random.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
+            rng = ip.random.default_rng(seed)
+            sino += rng.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
         
         # back projection
         parent.log.print_html("Running inverse Radon transformation.")

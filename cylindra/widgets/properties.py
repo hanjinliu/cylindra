@@ -31,7 +31,7 @@ class LocalPropertiesWidget(MagicTemplate):
     class params(MagicTemplate):
         """Structural parameters at the current position"""
         
-        pitch = LabeledText("lattice spacing")
+        pitch = LabeledText("spacing")
         skew = LabeledText("skew angle")
         structure = LabeledText("structure")
         
@@ -40,7 +40,7 @@ class LocalPropertiesWidget(MagicTemplate):
     def __post_init__(self):
         # Initialize multi-plot canvas
         self.plot.min_height = 240
-        self.plot[0].ylabel = "lattice spacing (nm)"
+        self.plot[0].ylabel = "spacing (nm)"
         self.plot[0].legend.visible = False
         self.plot[0].border = [1, 1, 1, 0.2]
         self.plot[1].xlabel = "position (nm)"
@@ -118,7 +118,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         @magicclass(layout="horizontal", labels=False)
         class params1(MagicTemplate):
             
-            pitch = LabeledText("lattice spacing")
+            pitch = LabeledText("spacing")
             skew = LabeledText("skew angle")
             structure = LabeledText("structure")
             
