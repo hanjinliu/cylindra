@@ -74,6 +74,7 @@ class Splines(MagicTemplate):
     fit_splines_manually = abstractapi()
     refine_splines = abstractapi()
     molecules_to_spline = abstractapi()
+    open_spline_clipper = abstractapi()
 
 @magicmenu
 class Molecules_(MagicTemplate):

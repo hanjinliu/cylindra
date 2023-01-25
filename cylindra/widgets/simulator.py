@@ -635,3 +635,7 @@ class CylinderSimulator(MagicTemplate):
         original = self.model
         yield
         self.model = original
+        
+    @create_empty_image.started.connect
+    def _show_simulator(self):
+        self.show()

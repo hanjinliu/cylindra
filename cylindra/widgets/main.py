@@ -14,7 +14,7 @@ import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
-                        do_not_record, field, magicclass, impl_preview, nogui,
+                        do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
                         set_design, set_options)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -41,6 +41,7 @@ from cylindra.widgets.feature_control import FeatureControl
 from cylindra.widgets.image_processor import ImageProcessor
 from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from cylindra.widgets.spline_control import SplineControl
+from cylindra.widgets.spline_clipper import SplineClipper
 from cylindra.widgets.spline_fitter import SplineFitter
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
@@ -93,6 +94,7 @@ class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
     
     _SplineFitter = field(SplineFitter, name="Spline fitter")  # Widget for manual spline fitting
+    _SplineClipper = field(SplineClipper, name="Spline clipper")  # Widget for manual spline clipping
     _SplineSweeper = field(SplineSweeper, name="Spline sweeper")  # Widget for sweeping along splines
     _ImageProcessor = field(ImageProcessor, name="Image Processor")  # Widget for pre-filtering/pre-processing
     _FeatureControl = field(FeatureControl, name="Feature Control")  # Widget for visualizing/analyzing features
@@ -346,8 +348,8 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def show_macro(self):
         """Create Python executable script of the current project."""
-        new = self.macro.widget.new()
-        new.value = str(self._format_macro()[self._macro_offset:])
+        new = self.macro.widget.new_window()
+        new.textedit.value = str(self._format_macro()[self._macro_offset:])
         new.show()
         return None
     
@@ -356,8 +358,8 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def show_full_macro(self):
         """Create Python executable script since the startup this time."""
-        new = self.macro.widget.new()
-        new.value = str(self._format_macro())
+        new = self.macro.widget.new_window()
+        new.textedit.value = str(self._format_macro())
         new.show()
         return None
     
@@ -369,7 +371,6 @@ class CylindraMainWidget(MagicTemplate):
         Show the native macro widget of magic-class, which is always synchronized but
         is not editable.
         """
-        self.macro.widget.textedit.read_only = True
         self.macro.widget.show()
         return None
     
@@ -854,21 +855,57 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    @set_options(
-        auto_call=True,
-        limits={"min": 0.0, "max": 1.0, "step": 0.01, "widget_type": FloatRangeSlider},
-    )
+    @set_options(clip_lengths={"options": {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}})
     @set_design(text="Clip splines")
-    def clip_spline(self, spline: OneOf[_get_splines], limits: tuple[float, float] = (0., 1.)):
-        # BUG: properties may be inherited in a wrong way
+    def clip_spline(self, spline: OneOf[_get_splines], clip_lengths: tuple[nm, nm] = (0., 0.)):
+        """
+        Clip selected spline at its edges by given lengths.
+        
+        Parameters
+        ----------
+        spline : int
+           The ID of spline to be clipped.
+        clip_lengths : tuple of float, default is (0., 0.)
+            The length in nm to be clipped at the start and end of the spline. 
+        """
         if spline is None:
             return
-        start, stop = limits
         spl = self.tomogram.splines[spline]
-        self.tomogram.splines[spline] = spl.restore().clip(start, stop)
+        length = spl.length()
+        start, stop = np.array(clip_lengths) / length
+        self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
         self._update_splines_in_images()
         self._need_save = True
+        # current layer will be removed. Select another layer.
+        self.parent_viewer.layers.selection = {self.layer_work}
+        # initialize clipping values
+        fgui = get_function_gui(self, "clip_spline")
+        fgui.clip_lengths.value = (0., 0.)
         return None
+    
+    @impl_preview(clip_spline, auto_call=True)
+    def _during_clip_spline(self, spline: int, clip_lengths: tuple[nm, nm]):
+        tomo = self.tomogram
+        name = "Spline preview"
+        spl = self.tomogram.splines[spline]
+        length = spl.length()
+        start, stop = np.array(clip_lengths) / length
+        verts = tomo.splines[spline].clip(start, 1 - stop).partition(100)
+        verts_2d = verts[:, 1:]
+        viewer = self.parent_viewer
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = verts_2d
+        else:
+            layer = viewer.add_shapes(
+                verts_2d, shape_type="path", edge_color="crimson", edge_width=3, 
+                name=name
+            )
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
     
     @Splines.wraps
     @set_design(text="Delete spline")
@@ -1057,6 +1094,15 @@ class CylindraMainWidget(MagicTemplate):
         self.sample_subtomograms()
         self._update_splines_in_images()
         return None
+    
+    @Splines.wraps
+    @set_design(text="Open spline clipper")
+    @do_not_record
+    def open_spline_clipper(self):
+        """Open the spline clipper widget."""
+        self._SplineClipper.show()
+        if self.tomogram.n_splines > 0:
+            self._SplineClipper.load_spline(self.SplineControl.num)
         
     @Analysis.wraps
     @set_options(
@@ -3071,6 +3117,13 @@ class CylindraMainWidget(MagicTemplate):
             )
         return None
     
+    @average_all.started.connect
+    @align_averaged.started.connect
+    @align_all.started.connect
+    @calculate_fsc.started.connect
+    def _show_subtomogram_averaging(self):
+        return self._subtomogram_averaging.show()
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Preview methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

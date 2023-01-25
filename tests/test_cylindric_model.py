@@ -73,3 +73,20 @@ def test_expand():
     assert_allclose(dy[:3], 2., rtol=1e-6, atol=1e-6)
     assert_allclose(dy[3:6], 2.5, rtol=1e-6, atol=1e-6)
     assert_allclose(dy[6:], 2., rtol=1e-6, atol=1e-6)
+
+@pytest.mark.parametrize(
+    "idx", [Idx[0:3, :], Idx[4:7, :], Idx[8:10, :]]
+)
+def test_alleviate_works(idx):
+    model = CylinderModel(
+        shape=(10, 8), 
+        tilts=(0.1, 0.1), 
+        interval=2.,
+        radius=1.2,
+    ).expand(0.5, idx)
+    
+    shifted = np.zeros((10, 8), dtype=bool)
+    shifted[idx] = True
+
+    model.alleviate(shifted, 1)
+    model.alleviate(shifted, 2)

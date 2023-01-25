@@ -17,9 +17,6 @@ from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 from cylindra.utils import roundint, centroid, map_coordinates
 from cylindra.const import nm, GlobalVariables as GVar, Mode
 
-if TYPE_CHECKING:
-    from cylindra.components import CylTomogram
-
 
 @magicclass
 class SplineFitter(MagicTemplate):
@@ -83,8 +80,8 @@ class SplineFitter(MagicTemplate):
         self.shifts: List[np.ndarray] = None
         self.canvas.min_height = 160
         self.fit_done = True
-        self.canvas.add_infline(pos=[0, 0], angle=90, color="lime", lw=2)
-        self.canvas.add_infline(pos=[0, 0], angle=0, color="lime", lw=2)
+        self.canvas.add_infline(pos=[0, 0], degree=90, color="lime", lw=2)
+        self.canvas.add_infline(pos=[0, 0], degree=0, color="lime", lw=2)
         theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
         cos = np.cos(theta)
         sin = np.sin(theta)
@@ -151,11 +148,11 @@ class SplineFitter(MagicTemplate):
         
     @controller.num.connect
     def _cylinder_changed(self):
-        i = self.controller.num.value
+        i: int = self.controller.num.value
         self.controller.pos.value = 0
         parent = self._get_parent()
         imgb = parent.layer_image.data
-        tomo: CylTomogram = parent.tomogram
+        tomo = parent.tomogram
         
         spl = tomo.splines[i]
         self.splines = tomo.splines

@@ -212,6 +212,11 @@ class Spline:
     def inverted(self) -> bool:
         """Return true if spline is inverted."""
         return self._lims[0] > self._lims[1]
+    
+    @property
+    def lims(self) -> tuple[float, float]:
+        """Return spline limit positions."""
+        return self._lims
 
     def make_anchors(
         self, 

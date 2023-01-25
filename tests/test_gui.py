@@ -157,7 +157,22 @@ def test_spline_switch():
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
     ui.sub_viewer.close()
- 
+
+def test_clip_spline():
+    ui = start()
+    path = TEST_PATH / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.register_path(coords=coords_13pf)
+    spl = ui.tomogram.splines[0]
+    length_old = spl.length()
+    ui.clip_spline(0, (10, 5))
+    length_new = spl.length()
+    assert (length_old - length_new) - 15 < 1e-2
+    
+    length_old = spl.length()
+    ui.clip_spline(0, (3, 1))
+    length_new = spl.length()
+    assert (length_old - length_new) - 4 < 1e-2
 
 def test_io():
     ui = start()

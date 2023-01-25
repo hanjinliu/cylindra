@@ -90,8 +90,8 @@ class LocalPropertiesWidget(MagicTemplate):
         self.plot[1].add_curve(x, self._skew_angle, color=skew_color)
 
         self.plot[0].xlim = (x[0] - 2, x[-1] + 2)
-        self.plot[0].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.3], lw=2)
-        self.plot[1].add_infline(pos=[x[0], 0], angle=90, color=[1., 0., 0., 0.3], lw=2)
+        self.plot[0].add_infline(pos=[x[0], 0], degree=90, color=[1., 0., 0., 0.3], lw=2)
+        self.plot[1].add_infline(pos=[x[0], 0], degree=90, color=[1., 0., 0., 0.3], lw=2)
         self._plot_spline_position(x[0])
         return None
     

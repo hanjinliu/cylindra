@@ -46,6 +46,9 @@ py::array_t<double> alleviate(
 	ssize_t ndim = _arr_info.shape[2];
 
     auto indices = arrayToIndices(label);
+
+    // Create geometry. A geometry will consider the connectivity of molecules, 
+    // especially at the boundary of the cylinder.
     CylinderGeometry geometry(ny, na, nrise);
 
 	auto arr_data = arr.mutable_unchecked<3>();

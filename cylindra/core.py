@@ -70,6 +70,12 @@ def start(
     if globals_file is not None:
         ui.Others.Global_variables.load_variables(globals_file)
     _CURRENT_INSTANCE = ui
+    
+    try:
+        viewer.window._qt_viewer.console.push({"ui": ui})
+    except Exception as e:
+        print(e)
+        pass
     return ui
 
 def instance() -> CylindraMainWidget | None:

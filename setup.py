@@ -22,7 +22,7 @@ class build_ext(build_ext):
 
 INFO = {}
 
-with open("cylindra/_info.py", encoding="utf-8") as f:
+with open("cylindra/__about__.py", encoding="utf-8") as f:
     for line in f:
         if line.startswith("__version__"):
             INFO["version"] = line.strip().split()[-1][1:-1]
@@ -49,10 +49,10 @@ setup(
     cmdclass={"build_ext": build_ext},
     py_modules=[],
     install_requires=[
-        "impy-array>=2.1.3",
+        "impy-array>=2.2.0",
         "acryo>=0.0.4",
-        "magicgui>=0.5.1",
-        "magic-class>=0.6.13",
+        "magicgui>=0.6.1",
+        "magic-class>=0.6.14",
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
         "napari>=0.4.17",

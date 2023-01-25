@@ -231,7 +231,7 @@ class CylinderModel:
         CylinderModel
             New model with updated parameters.
         """
-        from .._cpp_ext import alleviate
+        from cylindra._cpp_ext import alleviate
         label = np.asarray(label, dtype=np.int32)
         if label.shape[1] != 2:
             if label.shape == self.shape:
