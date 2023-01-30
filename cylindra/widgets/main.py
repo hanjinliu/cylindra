@@ -2044,7 +2044,7 @@ class CylindraMainWidget(MagicTemplate):
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
             from scipy.spatial.transform import Rotation
             rotvec = Rotation.from_quat(quats).as_rotvec()
-            molecules_opt = molecules_opt.features.with_columns(
+            molecules_opt.features = molecules_opt.features.with_columns(
                 [
                     pl.Series("rotvec-z", rotvec[:, 0]),
                     pl.Series("rotvec-y", rotvec[:, 1]),
@@ -2052,7 +2052,7 @@ class CylindraMainWidget(MagicTemplate):
                 ]
             )
         
-        molecules_opt = molecules_opt.features.with_columns(
+        molecules_opt.features = molecules_opt.features.with_columns(
             [
                 pl.Series("shift-z", all_shifts[:, 0]),
                 pl.Series("shift-y", all_shifts[:, 1]),
