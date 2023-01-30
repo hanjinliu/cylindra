@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import polars as pl
 from pydantic import BaseModel
 import impy as ip
 
@@ -23,6 +24,8 @@ def json_encoder(obj):
         return obj.name
     elif isinstance(obj, pd.DataFrame):
         return obj.to_dict(orient="list")
+    elif isinstance(obj, pl.DataFrame):
+        return obj.to_dict(as_series=False)
     elif isinstance(obj, pd.Series):
         return obj.to_dict()
     elif isinstance(obj, np.ndarray):
@@ -206,7 +209,7 @@ class CylindraProject(BaseModel):
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
         globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
         
-        molecule_dataframes: list[pd.DataFrame] = []
+        molecule_dataframes: list[pl.DataFrame] = []
         molecules_paths: list[Path] = []
         for layer in filter(
             lambda x: isinstance(x, Points) and MOLECULES in x.metadata,
@@ -228,7 +231,7 @@ class CylindraProject(BaseModel):
                 spl.to_json(results_dir.parent / path)
         if self.molecules:
             for df, path in zip(molecule_dataframes, self.molecules):
-                df.to_csv(results_dir.parent / path, index=False)
+                df.write_csv(results_dir.parent / path)
         
         gui.Others.Global_variables.save_variables(results_dir.parent / self.global_variables)
         
