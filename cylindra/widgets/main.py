@@ -20,7 +20,7 @@ from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf
 from magicclass.utils import thread_worker
-from magicclass.widgets import ConsoleTextEdit, FloatRangeSlider, Logger
+from magicclass.widgets import ConsoleTextEdit, Logger
 from napari.layers import Image, Labels, Layer, Points
 from napari.utils import Colormap
 from scipy import ndimage as ndi
@@ -92,14 +92,14 @@ def _get_alignment(method: str):
 @_shared_doc.update_cls
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
-    
-    _SplineFitter = field(SplineFitter, name="Spline fitter")  # Widget for manual spline fitting
-    _SplineClipper = field(SplineClipper, name="Spline clipper")  # Widget for manual spline clipping
-    _SplineSweeper = field(SplineSweeper, name="Spline sweeper")  # Widget for sweeping along splines
-    _ImageProcessor = field(ImageProcessor, name="Image Processor")  # Widget for pre-filtering/pre-processing
-    _FeatureControl = field(FeatureControl, name="Feature Control")  # Widget for visualizing/analyzing features
-    _Simulator = field(CylinderSimulator, name="Cylinder Simulator")  # Widget for tomogram simulator
-    _SpectraMeasurer = field(SpectraMeasurer, name="FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
+
+    spline_fitter = field(SplineFitter, name="_Spline fitter")  # Widget for manual spline fitting
+    spline_clipper = field(SplineClipper, name="_Spline clipper")  # Widget for manual spline clipping
+    spline_sweeper = field(SplineSweeper, name="_Spline sweeper")  # Widget for sweeping along splines
+    image_processor = field(ImageProcessor, name="_Image Processor")  # Widget for pre-filtering/pre-processing
+    feature_control = field(FeatureControl, name="_Feature Control")  # Widget for visualizing/analyzing features
+    cylinder_simulator = field(CylinderSimulator, name="_Cylinder Simulator")  # Widget for tomogram simulator
+    spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
     
     # The logger widget.
     @magicclass(labels=False, name="Logger")
@@ -160,7 +160,7 @@ class CylindraMainWidget(MagicTemplate):
     @property
     def sub_viewer(self) -> napari.Viewer:
         """Return the sub-viewer that is used for subtomogram averaging."""
-        return self._subtomogram_averaging._viewer
+        return self.subtomogram_averaging._viewer
 
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
@@ -557,8 +557,8 @@ class CylindraMainWidget(MagicTemplate):
             self.macro.extend(macro.args)
 
             # load subtomogram analyzer state
-            self._subtomogram_averaging.template_path = project.template_image or ""
-            self._subtomogram_averaging._set_mask_params(project.mask_parameters)
+            self.subtomogram_averaging.template_path = project.template_image or ""
+            self.subtomogram_averaging._set_mask_params(project.mask_parameters)
             self.reset_choices()
             self._need_save = False
         
@@ -656,7 +656,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def process_images(self):
         """Open image processor."""
-        return self._ImageProcessor.show()
+        return self.image_processor.show()
     
     @File.wraps
     @set_design(text="View project")
@@ -768,14 +768,14 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open spline sweeper")
     def open_sweeper(self):
         """Open spline sweeper widget"""
-        self._SplineSweeper.show()
-        return self._SplineSweeper.refresh_widget_state()
+        self.spline_sweeper.show()
+        return self.spline_sweeper.refresh_widget_state()
         
     @Image.wraps
     @set_design(text="Sample subtomograms")
     def sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
-        self._SplineFitter.close()
+        self.spline_fitter.close()
         
         # initialize GUI
         if len(self.tomogram.splines) == 0:
@@ -985,8 +985,8 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {max_interval}
         """        
-        self._SplineFitter._load_parent_state(max_interval=max_interval)
-        self._SplineFitter.show()
+        self.spline_fitter._load_parent_state(max_interval=max_interval)
+        self.spline_fitter.show()
         return None
 
     @Splines.wraps
@@ -1100,9 +1100,9 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_spline_clipper(self):
         """Open the spline clipper widget."""
-        self._SplineClipper.show()
+        self.spline_clipper.show()
         if self.tomogram.n_splines > 0:
-            self._SplineClipper.load_spline(self.SplineControl.num)
+            self.spline_clipper.load_spline(self.SplineControl.num)
         
     @Analysis.wraps
     @set_options(
@@ -1187,7 +1187,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        return self._SpectraMeasurer.show()
+        return self.spectra_measurer.show()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1487,8 +1487,8 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_feature_control(self):
         """Open the molecule-feature control widget."""
-        self._FeatureControl.show()
-        self._FeatureControl._update_table_and_expr()
+        self.feature_control.show()
+        self.feature_control._update_table_and_expr()
         return None
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -1500,11 +1500,11 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
-        return self._subtomogram_averaging.show()
+        return self.subtomogram_averaging.show()
     
-    _subtomogram_averaging = subwidgets.SubtomogramAveraging
+    subtomogram_averaging = subwidgets.SubtomogramAveraging
     
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Average all")
     @dask_thread_worker.with_progress(desc= _fmt_layer_name("Subtomogram averaging of {!r}"))
     def average_all(
@@ -1528,7 +1528,7 @@ class CylindraMainWidget(MagicTemplate):
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
         if size is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
+            shape = self.subtomogram_averaging._get_shape_in_nm()
         else:
             shape = (size,) * 3
         loader = tomo.get_subtomogram_loader(
@@ -1539,10 +1539,10 @@ class CylindraMainWidget(MagicTemplate):
         self.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
         
         return thread_worker.to_callback(
-            self._subtomogram_averaging._show_reconstruction, img, f"[AVG]{layer.name}"
+            self.subtomogram_averaging._show_reconstruction, img, f"[AVG]{layer.name}"
         )
         
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Average subset")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Subtomogram averaging (subset) of {!r}"))
     def average_subset(
@@ -1575,7 +1575,7 @@ class CylindraMainWidget(MagicTemplate):
         molecules: Molecules = layer.metadata[MOLECULES]
         nmole = len(molecules)
         if size is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
+            shape = self.subtomogram_averaging._get_shape_in_nm()
         else:
             shape = (size,) * 3
         if nmole < number:
@@ -1602,12 +1602,12 @@ class CylindraMainWidget(MagicTemplate):
         img.set_scale(zyx=loader.scale)
         self.log.print_html(f"<code>average_subset</code> ({default_timer() - t0:.1f} sec)")
         return thread_worker.to_callback(
-            self._subtomogram_averaging._show_reconstruction,
+            self.subtomogram_averaging._show_reconstruction,
             img,
             f"[AVG(n={number})]{layer.name}"
         )
     
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         n_set={"min": 1, "label": "number of image pairs"},
     )
@@ -1635,7 +1635,7 @@ class CylindraMainWidget(MagicTemplate):
         molecules: Molecules = layer.metadata[MOLECULES]
         tomo = self.tomogram
         if size is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
+            shape = self.subtomogram_averaging._get_shape_in_nm()
         else:
             shape = (size,) * 3
         loader = tomo.get_subtomogram_loader(
@@ -1647,17 +1647,17 @@ class CylindraMainWidget(MagicTemplate):
         self.log.print_html(f"<code>split_and_average</code> ({default_timer() - t0:.1f} sec)")
 
         return thread_worker.to_callback(
-            self._subtomogram_averaging._show_reconstruction, img, f"[Split]{layer.name}"
+            self.subtomogram_averaging._show_reconstruction, img, f"[Split]{layer.name}"
         )
     
-    @_subtomogram_averaging.Refinement.wraps
+    @subtomogram_averaging.Refinement.wraps
     @set_design(text="Align averaged")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Aligning averaged image of {!r}"))
     def align_averaged(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        template_path: Bound[subtomogram_averaging.template_path],
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
         z_rotation: _ZRotation = (3., 3.),
         y_rotation: _YRotation = (15., 3.),
         x_rotation: _XRotation = (3., 3.),
@@ -1676,8 +1676,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        template = self.subtomogram_averaging._get_template(path=template_path)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
             raise ValueError(
                 f"Shape mismatch between tempalte image ({tuple(template.shape)}) "
@@ -1743,15 +1743,15 @@ class CylindraMainWidget(MagicTemplate):
 
         return _align_averaged_on_return
 
-    @_subtomogram_averaging.Refinement.wraps
+    @subtomogram_averaging.Refinement.wraps
     @set_design(text="Align all")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Alignment of {!r}"))
     def align_all(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
+        template_path: Bound[subtomogram_averaging.template_path],
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
+        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -1771,8 +1771,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        template = self.subtomogram_averaging._get_template(path=template_path)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
         
         loader, template, mask = self._check_binning_for_alignment(
             template, mask, binsize=bin_size, molecules=molecules, order=interpolation,
@@ -1792,14 +1792,14 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return self._align_all_on_return(aligned_loader, layer)
     
-    @_subtomogram_averaging.Refinement.wraps
+    @subtomogram_averaging.Refinement.wraps
     @set_options(size={"min": 1., "max": 100., "label": "sub-volume size (nm)"})
     @set_design(text="Align all (template-free)")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Template-free alignment of {!r}"))
     def align_all_template_free(
         self,
         layer: MonomerLayer,
-        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
+        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
         size: nm = 12.,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
@@ -1841,17 +1841,17 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return self._align_all_on_return(aligned_loader, layer)
     
-    @_subtomogram_averaging.Refinement.wraps
+    @subtomogram_averaging.Refinement.wraps
     @set_options(other_templates={"filter": FileFilter.IMAGE})
     @set_design(text="Align all (multi-template)")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Multi-template alignment of {!r}"))
     def align_all_multi_template(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
+        template_path: Bound[subtomogram_averaging.template_path],
         other_templates: list[Path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
-        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
+        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -1874,7 +1874,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
-        templates = [self._subtomogram_averaging._get_template(path=template_path)]
+        templates = [self.subtomogram_averaging._get_template(path=template_path)]
         for path in other_templates:
             img = ip.imread(path)
             scale_ratio = img.scale.x / self.tomogram.scale
@@ -1882,7 +1882,7 @@ class CylindraMainWidget(MagicTemplate):
                 img = img.rescale(scale_ratio)
             templates.append(img)
 
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
         loader, templates, mask = self._check_binning_for_alignment(
             templates,
             mask,
@@ -1904,7 +1904,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return self._align_all_on_return(aligned_loader, layer)
     
-    @_subtomogram_averaging.Refinement.wraps
+    @subtomogram_averaging.Refinement.wraps
     @set_options(
         distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
         upsample_factor={"min": 1, "max": 20},
@@ -1914,9 +1914,9 @@ class CylindraMainWidget(MagicTemplate):
     def align_all_viterbi(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params] = None,
-        tilt_range: Bound[_subtomogram_averaging.tilt_range] = None,
+        template_path: Bound[subtomogram_averaging.template_path],
+        mask_params: Bound[subtomogram_averaging._get_mask_params] = None,
+        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -1945,9 +1945,9 @@ class CylindraMainWidget(MagicTemplate):
         from dask import delayed
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        shape_nm = self._subtomogram_averaging._get_shape_in_nm()
+        template = self.subtomogram_averaging._get_template(path=template_path)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
+        shape_nm = self.subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape=shape_nm, order=interpolation
         )
@@ -2060,14 +2060,14 @@ class CylindraMainWidget(MagicTemplate):
         )
         return self._align_all_on_return(aligned_loader, layer)
 
-    @_subtomogram_averaging.Refinement.wraps
+    @subtomogram_averaging.Refinement.wraps
     @set_options(molecule_subset={"text": "Use all molecules", "options": {"value": 200, "min": 1}})
     @set_design(text="Polarity check")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Polarity check of {!r}"))
     def polarity_check(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
+        template_path: Bound[subtomogram_averaging.template_path],
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -2098,8 +2098,8 @@ class CylindraMainWidget(MagicTemplate):
         molecules: Molecules = layer.metadata[MOLECULES]
         if molecule_subset is not None:
             molecules = molecules.subset(slice(0, molecule_subset))
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        template = self.subtomogram_averaging._get_template(path=template_path)
+        shape = self.subtomogram_averaging._get_shape_in_nm()
         
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape, order=interpolation
@@ -2163,22 +2163,22 @@ class CylindraMainWidget(MagicTemplate):
 
         return _polarity_check_on_return
 
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @subtomogram_averaging.Subtomogram_analysis.wraps
     @set_design(text="Calculate correlation")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating correlation of {!r}"))
     def calculate_correlation(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging._get_template],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        template_path: Bound[subtomogram_averaging._get_template],
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         show_average: bool = True,
     ):
         t0 = default_timer()
         molecules: Molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        template = self.subtomogram_averaging._get_template(path=template_path)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
+        shape = self.subtomogram_averaging._get_shape_in_nm()
         
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=1, order=interpolation
@@ -2191,10 +2191,10 @@ class CylindraMainWidget(MagicTemplate):
         if not show_average:
             return
         return thread_worker.to_callback(
-            self._subtomogram_averaging._show_reconstruction, img_avg, f"[AVG]{layer.name}"
+            self.subtomogram_averaging._show_reconstruction, img_avg, f"[AVG]{layer.name}"
         )
 
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(
         seed={"text": "Do not use random seed."},
         n_set={"min": 1, "label": "number of image pairs"},
@@ -2205,7 +2205,7 @@ class CylindraMainWidget(MagicTemplate):
     def calculate_fsc(
         self,
         layer: MonomerLayer,
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Optional[int] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -2232,9 +2232,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
         if size is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
+            shape = self.subtomogram_averaging._get_shape_in_nm()
         else:
             shape = (size,) * 3
         loader = self.tomogram.get_subtomogram_loader(
@@ -2286,22 +2286,22 @@ class CylindraMainWidget(MagicTemplate):
             self._LoggerWindow.show()
             
             if img_avg is not None:
-                _rec_layer: "Image" = self._subtomogram_averaging._show_reconstruction(
+                _rec_layer: "Image" = self.subtomogram_averaging._show_reconstruction(
                     img_avg, name = f"[AVG]{layer.name}",
                 )
                 _rec_layer.metadata["FSC-freq"] = freq
                 _rec_layer.metadata["FSC-mean"] = fsc_mean
         return _calculate_fsc_on_return
     
-    @_subtomogram_averaging.Subtomogram_analysis.wraps
+    @subtomogram_averaging.Subtomogram_analysis.wraps
     @set_options(npf={"text": "Use global properties"})
     @set_design(text="Seam search")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
     def seam_search(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        template_path: Bound[subtomogram_averaging.template_path],
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         npf: Optional[int] = None,
         cutoff: _CutoffFreq = 0.5,
@@ -2321,9 +2321,9 @@ class CylindraMainWidget(MagicTemplate):
         {cutoff}
         """
         mole: Molecules = layer.metadata[MOLECULES]
-        template = self._subtomogram_averaging._get_template(path=template_path)
-        mask = self._subtomogram_averaging._get_mask(params=mask_params)
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        template = self.subtomogram_averaging._get_template(path=template_path)
+        mask = self.subtomogram_averaging._get_mask(params=mask_params)
+        shape = self.subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
         if npf is None:
             npf = np.max(mole.features[Mole.pf]) + 1
@@ -2336,7 +2336,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.to_callback
         def _seam_search_on_return():
-            self._subtomogram_averaging._show_reconstruction(img_ave, layer.name)
+            self.subtomogram_averaging._show_reconstruction(img_ave, layer.name)
             self._LoggerWindow.show()
             
             # calculate score and the best PF position
@@ -2361,14 +2361,14 @@ class CylindraMainWidget(MagicTemplate):
         
         return _seam_search_on_return
 
-    @_subtomogram_averaging.Tools.wraps
+    @subtomogram_averaging.Tools.wraps
     @set_options(feature_name={"text": "Do not color molecules."})
     @set_design(text="Render molecules")
     def render_molecules(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_subtomogram_averaging.template_path],
-        mask_params: Bound[_subtomogram_averaging._get_mask_params],
+        template_path: Bound[subtomogram_averaging.template_path],
+        mask_params: Bound[subtomogram_averaging._get_mask_params],
         feature_name: Optional[str] = None,
         cutoff: _CutoffFreq = 0.5,
     ):
@@ -2391,11 +2391,11 @@ class CylindraMainWidget(MagicTemplate):
         from skimage.measure import marching_cubes
 
         # prepare template and mask
-        template = self._subtomogram_averaging._get_template(template_path).copy()
+        template = self.subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
             with utils.set_gpu():
                 template.lowpass_filter(cutoff=cutoff, update=True)
-        soft_mask = self._subtomogram_averaging._get_mask(mask_params)
+        soft_mask = self.subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
             mask = np.ones_like(template)
         else:
@@ -2450,11 +2450,11 @@ class CylindraMainWidget(MagicTemplate):
         from skimage.measure import marching_cubes
 
         # prepare template and mask
-        template = self._subtomogram_averaging._get_template(template_path).copy()
+        template = self.subtomogram_averaging._get_template(template_path).copy()
         if cutoff is not None:
             with utils.set_gpu():
                 template.lowpass_filter(cutoff=cutoff, update=True)
-        soft_mask = self._subtomogram_averaging._get_mask(mask_params)
+        soft_mask = self.subtomogram_averaging._get_mask(mask_params)
         if soft_mask is None:
             mask = np.ones_like(template)
         else:
@@ -2706,7 +2706,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Simulate cylindric structure")
     @do_not_record
     def open_simulator(self):
-        return self._Simulator.show()
+        return self.cylinder_simulator.show()
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods
@@ -2763,7 +2763,7 @@ class CylindraMainWidget(MagicTemplate):
             Interpolation order of the subtomogram loader.
         """        
         mole = self.get_molecules(name)
-        shape = self._subtomogram_averaging._get_shape_in_nm()
+        shape = self.subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(mole, shape, order=order)
         return loader
     
@@ -2817,7 +2817,7 @@ class CylindraMainWidget(MagicTemplate):
         bin size.
         """
         if shape is None:
-            shape = self._subtomogram_averaging._get_shape_in_nm()
+            shape = self.subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=binsize, order=order
         )
@@ -3122,7 +3122,7 @@ class CylindraMainWidget(MagicTemplate):
     @align_all.started.connect
     @calculate_fsc.started.connect
     def _show_subtomogram_averaging(self):
-        return self._subtomogram_averaging.show()
+        return self.subtomogram_averaging.show()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Preview methods

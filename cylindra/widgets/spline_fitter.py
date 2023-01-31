@@ -24,7 +24,7 @@ class SplineFitter(MagicTemplate):
     
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
         
-    @magicclass(layout="horizontal")
+    @magicclass(layout="horizontal", record=False)
     class controller(MagicTemplate):
         """
         Control spline positions.
@@ -36,17 +36,15 @@ class SplineFitter(MagicTemplate):
         pos : int
             Position along the spline.
         """
-        num = field(int, label="Spline No.", record=False).with_options(max=0)
-        pos = field(int, label="Position", record=False).with_options(max=0)
+        num = field(int, label="Spline No.").with_options(max=0)
+        pos = field(int, label="Position").with_options(max=0)
         fit = abstractapi()
         
         @bind_key("Up")
-        @do_not_record
         def _next_pos(self):
             self.pos.value = min(self.pos.value + 1, self.pos.max)
         
         @bind_key("Down")
-        @do_not_record
         def _prev_pos(self):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
             

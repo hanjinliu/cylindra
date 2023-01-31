@@ -1,4 +1,3 @@
-from typing import List
 import numpy as np
 import impy as ip
 from magicclass import magicclass, MagicTemplate, field, vfield, set_options, set_design, abstractapi
@@ -8,7 +7,7 @@ from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from cylindra.const import GlobalVariables as GVar, Ori, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 
-@magicclass(widget_type="groupbox")
+@magicclass(widget_type="groupbox", name="Spline Control")
 class SplineControl(MagicTemplate):
     """
     Control and visualization along splines
@@ -23,7 +22,7 @@ class SplineControl(MagicTemplate):
         2-D projections of subtomogram at current position.
     """
     def __post_init__(self):
-        self.projections: List[Projections] = []
+        self.projections: list[Projections] = []
         
         self.canvas.min_height = 200
         self.canvas.max_height = 230
@@ -36,7 +35,7 @@ class SplineControl(MagicTemplate):
         
         self.canvas.enabled = False
         
-    def _get_splines(self, widget=None) -> List[int]:
+    def _get_splines(self, widget=None) -> list[int]:
         """Get list of spline objects for categorical widgets."""
         from .main import CylindraMainWidget
         try:
@@ -46,7 +45,7 @@ class SplineControl(MagicTemplate):
         if tomo is None:
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
-    
+
     num = vfield(OneOf[_get_splines], label="Spline No.", record=False)
     pos = vfield(int, widget_type="Slider", label="Position", record=False).with_options(max=0)
     canvas = field(QtMultiImageCanvas, name="Figure", ).with_options(nrows=1, ncols=3)
@@ -94,7 +93,7 @@ class SplineControl(MagicTemplate):
     
     @num.connect
     def _num_changed(self):
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
         i = self.num
         if i is None:
             return
@@ -122,7 +121,7 @@ class SplineControl(MagicTemplate):
         return None
     
     def _load_projection(self):
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
         i = self.num
         parent = self.find_ancestor(CylindraMainWidget)
         tomo = parent.tomogram
@@ -155,7 +154,7 @@ class SplineControl(MagicTemplate):
             shape=(width_px, length_px, width_px), 
             scale=tomo.scale * binsize
         )
-        out: List[ip.ImgArray] = []
+        out: list[ip.ImgArray] = []
         for crds in coords:
             mapped = map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
             out.append(ip.asarray(mapped, axes="zyx"))

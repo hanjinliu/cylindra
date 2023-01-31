@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Callable
-from magicclass import magicclass, field, vfield, MagicTemplate, do_not_record, bind_key
+from magicclass import magicclass, field, vfield, MagicTemplate, bind_key
 from magicclass.types import Optional, OneOf
 from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
@@ -23,9 +23,9 @@ POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
     ("Low-pass", lambda x: x.lowpass_filter(0.2)),
 ]
 
-@magicclass
+@magicclass(record=False)
 class SplineSweeper(MagicTemplate):
-    show_what = vfield(label="kind", record=False).with_choices([YPROJ, RPROJ, CFT])
+    show_what = vfield(label="kind").with_choices([YPROJ, RPROJ, CFT])
     
     @magicclass(layout="horizontal")
     class params(MagicTemplate):
@@ -48,10 +48,10 @@ class SplineSweeper(MagicTemplate):
                 return parent._get_available_binsize(widget)
             except Exception:
                 return []
-        depth = vfield(32.0, label="depth (nm)", record=False).with_options(min=1.0, max=200.0)
+        depth = vfield(32.0, label="depth (nm)").with_options(min=1.0, max=200.0)
         binsize = vfield(record=False).with_choices(_get_available_binsize)
 
-    radius = vfield(Optional[nm], label="Radius (nm)", record=False).with_options(text="Use spline radius", options={"max": 100.0})
+    radius = vfield(Optional[nm], label="Radius (nm)").with_options(text="Use spline radius", options={"max": 100.0})
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     @property
@@ -79,20 +79,17 @@ class SplineSweeper(MagicTemplate):
             except Exception:
                 return []
             
-        spline_id = vfield(label="Spline", record=False).with_choices(_get_spline_id)
-        pos = field(nm, label="Position (nm)", widget_type="FloatSlider", record=False).with_options(max=0)
+        spline_id = vfield(label="Spline").with_choices(_get_spline_id)
+        pos = field(nm, label="Position (nm)", widget_type="FloatSlider").with_options(max=0)
         
         @bind_key("Up")
-        @do_not_record
         def _next_pos(self):
             self.pos.value = min(self.pos.value + 1, self.pos.max)
         
         @bind_key("Down")
-        @do_not_record
         def _prev_pos(self):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
             
-    @do_not_record
     def refresh_widget_state(self):
         """Refresh widget state."""
         tomo = self.parent.tomogram
@@ -105,7 +102,7 @@ class SplineSweeper(MagicTemplate):
         self._update_canvas()
         return None
     
-    post_filter: "_FilterField" = vfield(OneOf[POST_FILTERS], label="Filter", record=False)
+    post_filter: "_FilterField" = vfield(OneOf[POST_FILTERS], label="Filter")
     
     @controller.spline_id.connect
     def _spline_changed(self, idx: int):

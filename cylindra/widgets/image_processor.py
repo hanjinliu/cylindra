@@ -4,7 +4,6 @@ from magicclass import (
     MagicTemplate,
     set_options,
     vfield,
-    do_not_record,
     confirm,
     set_design,
 )
@@ -16,7 +15,7 @@ from ._previews import view_image
 from cylindra.const import GlobalVariables as GVar
 
 
-@magicclass
+@magicclass(record=False)
 class ImageProcessor(MagicTemplate):
     """
     Process image files.
@@ -32,9 +31,9 @@ class ImageProcessor(MagicTemplate):
     output_image : Path
         Path where output image will be saved..
     """
-    input_image = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
-    suffix = vfield(Optional[str], ).with_options(value="-0", text="Do not autofill")
-    output_image = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE, mode="w")
+    input_image = vfield(Path).with_options(filter=FileFilter.IMAGE)
+    suffix = vfield(Optional[str]).with_options(value="-0", text="Do not autofill")
+    output_image = vfield(Path).with_options(filter=FileFilter.IMAGE, mode="w")
     
     @input_image.connect
     @suffix.connect
@@ -55,7 +54,6 @@ class ImageProcessor(MagicTemplate):
     @thread_worker(progress={"desc": "Converting data type."})
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    @do_not_record
     def convert_dtype(self, dtype: OneOf["int8", "uint8", "uint16", "float32"]):
         """Convert data type of the input image."""
         img = self._imread(self.input_image)
@@ -66,7 +64,6 @@ class ImageProcessor(MagicTemplate):
     @thread_worker(progress={"desc": "Inverting image."})
     @set_design(text="Invert")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    @do_not_record
     def invert(self):
         """Invert intensity of the input image."""
         img = self._imread(self.input_image)
@@ -81,7 +78,6 @@ class ImageProcessor(MagicTemplate):
         order={"max": 20},
     )
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    @do_not_record
     def lowpass_filter(self, cutoff: float, order: int = 2):
         """Apply Butterworth's tiled low-pass filter to the input image."""
         img = self._imread(self.input_image)
@@ -93,7 +89,6 @@ class ImageProcessor(MagicTemplate):
     @set_design(text="Binning")
     @set_options(bin_size={"min": 2, "max": 16, "step": 1},)
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    @do_not_record
     def binning(self, bin_size: int = 4):
         """Bin image."""
         img = self._imread(self.input_image)
@@ -104,7 +99,6 @@ class ImageProcessor(MagicTemplate):
     @thread_worker(progress={"desc": "Flipping image."})
     @set_design(text="Flip image")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    @do_not_record
     def flip(self, axes: SomeOf["x", "y", "z"] = ()):
         """Flip image by the given axes."""
         img = self._imread(self.input_image)
@@ -114,7 +108,6 @@ class ImageProcessor(MagicTemplate):
         return None
     
     @set_design(text="Preview input image")
-    @do_not_record
     def preview(self):
         """Open a preview of the input image."""
         view_image(self.input_image, self)

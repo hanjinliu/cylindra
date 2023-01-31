@@ -6,7 +6,6 @@ from magicclass import (
     MagicTemplate,
     field,
     vfield,
-    do_not_record,
     set_design,
 )
 from magicclass.widgets import FloatRangeSlider, ColorEdit
@@ -20,7 +19,7 @@ from cylindra.const import MOLECULES
 if TYPE_CHECKING:
     import pandas as pd
 
-@magicclass
+@magicclass(record=False)
 class FeatureControl(MagicTemplate):
     """
     Feature control widget.
@@ -42,9 +41,9 @@ class FeatureControl(MagicTemplate):
         cols = layer.features.columns
         return cols
     
-    layer = vfield(OneOf[get_monomer_layers], record=False)
-    feature_name = field(OneOf[_get_feature_names], record=False)
-    table = field(Table, record=False)
+    layer = vfield(OneOf[get_monomer_layers])
+    feature_name = field(OneOf[_get_feature_names])
+    table = field(Table)
     
     def _get_feature_dataframe(self) -> "pd.DataFrame":
         df = self.layer.features
@@ -86,10 +85,10 @@ class FeatureControl(MagicTemplate):
                         end : Color
                             Color that represents higher component of LUT.
                         """
-                        start = vfield("blue", widget_type=ColorEdit, record=False)
-                        end = vfield("red", widget_type=ColorEdit, record=False)
+                        start = vfield("blue", widget_type=ColorEdit)
+                        end = vfield("red", widget_type=ColorEdit)
                         
-                    limits = field(FloatRangeSlider, record=False)
+                    limits = field(FloatRangeSlider)
                     
                     def _set_params(self, min: float, max: float):
                         self.limits.min = min
@@ -111,7 +110,7 @@ class FeatureControl(MagicTemplate):
                 class CategoricalColorMap(MagicTemplate):
                     """Colormap editor for discrete features."""
                     
-                    colors = vfield(ListEdit, record=False).with_options(annotation=list[Color], layout="vertical")
+                    colors = vfield(ListEdit).with_options(annotation=list[Color], layout="vertical")
                     def __post_init__(self):
                         self["colors"].buttons_visible = False
 
@@ -159,8 +158,8 @@ class FeatureControl(MagicTemplate):
                 "Numpy is available in this scope as 'np'.\n"
                 "e.g. 'X > 10', 'X > np.mean(X)'"
             )
-            doc = field(Label, record=False)
-            expression = vfield(str, record=False)
+            doc = field(Label)
+            expression = vfield(str)
             
             filter_table = abstractapi()
             reset_filter = abstractapi()
@@ -168,7 +167,6 @@ class FeatureControl(MagicTemplate):
             
     @Tabs.Filter.wraps
     @set_design(text="Filter table")
-    @do_not_record
     def filter_table(self, expr: Bound[Tabs.Filter.expression]):
         """Filter table using current expression. Molecules layer is not affected."""
         X = "X"
@@ -183,7 +181,6 @@ class FeatureControl(MagicTemplate):
     
     @Tabs.Filter.wraps
     @set_design(text="Resset filter")
-    @do_not_record
     def reset_filter(self):
         """Reset filter and restore original table."""
         self.table.value = self.layer.features
@@ -212,14 +209,12 @@ class FeatureControl(MagicTemplate):
         return mole_filt
 
     @Tabs.ColorEditor.wraps
-    @do_not_record
     def apply(self):
         """Apply current colormap to the selected points layer."""
         self.Tabs.ColorEditor._apply_colormap(self.layer, self.feature_name.value)
         return None
 
     @Tabs.ColorEditor.wraps
-    @do_not_record
     def reset(self):
         """Reset layer colors."""
         self.layer.face_color = "lime"
@@ -227,7 +222,6 @@ class FeatureControl(MagicTemplate):
         return None
     
     @Tabs.ColorEditor.wraps
-    @do_not_record
     def reload(self):
         """Reload this widget."""
         self.reset_choices()

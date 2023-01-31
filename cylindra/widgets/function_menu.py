@@ -7,7 +7,6 @@ from magicclass import (
     MagicTemplate,
     set_options,
     set_design,
-    do_not_record,
 )
 from magicclass.widgets import FloatRangeSlider
 import numpy as np
@@ -39,13 +38,12 @@ OPERATORS = [
     ("<", "lt"),
 ]
 
-@magicclass
+@magicclass(record=False)
 class Volume(MagicTemplate):
     """A custom menu that provides useful functions for volumeric data visualization."""
 
     @set_options(bin_size={"min": 1, "max": 16}, auto_call=True)
     @set_design(text="Binning")
-    @do_not_record
     def binning(self, layer: Image, bin_size: int = 2) -> LayerDataTuple:
         if layer is None:
             return None
@@ -70,14 +68,12 @@ class Volume(MagicTemplate):
     
     @set_options(sigma={"widget_type": "FloatSlider", "max": 5.0, "step": 0.1}, auto_call=True)
     @set_design(text="Gaussian filter")
-    @do_not_record
     def gaussian_filter(self, layer: Image, sigma: float = 1.0) -> LayerDataTuple:
         """Apply Gaussian filter to an image."""
         return self._apply_method(layer, "gaussian_filter", sigma=sigma)
     
     @set_options(quantile={"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}, auto_call=True)
     @set_design(text="Threshold")
-    @do_not_record
     def threshold(self, layer: Image, quantile: float = 0.5) -> LayerDataTuple:
         """Apply threshold to an image."""
         thr = np.quantile(layer.data, quantile)
@@ -85,7 +81,6 @@ class Volume(MagicTemplate):
 
     @set_options(op={"choices": OPERATORS}, layout="horizontal", labels=False, auto_call=True)
     @set_design(text="Binary operation")
-    @do_not_record
     def binary_operation(self, layer_1: Image, op, layer_2: Image) -> LayerDataTuple:
         if layer_1 is None or layer_2 is None:
             return None
@@ -103,7 +98,6 @@ class Volume(MagicTemplate):
     
     @set_options(path={"mode": "w"})
     @set_design(text="Save volume")
-    @do_not_record
     def save_volume(self, layer: Image, path: Path):
         """Save a volume as tif or mrc file."""
         img = layer.data
@@ -123,7 +117,6 @@ class Volume(MagicTemplate):
             img.imsave(path)
     
     @set_design(text="Plane clip")
-    @do_not_record
     def plane_clip(self):
         """Open a plane clipper as an dock widget."""
         widget = PlaneClip()
@@ -147,7 +140,7 @@ class Volume(MagicTemplate):
             "image",
         )
 
-@magicclass
+@magicclass(record=False)
 class PlaneClip(MagicTemplate):
     layer = vfield(Layer)
     x = vfield(FloatRangeSlider)

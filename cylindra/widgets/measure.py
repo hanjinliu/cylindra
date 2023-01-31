@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from enum import Enum
 
-from magicclass import do_not_record, magicclass, abstractapi, vfield, field, MagicTemplate
+from magicclass import magicclass, abstractapi, vfield, field, MagicTemplate
 from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
@@ -104,7 +104,7 @@ class Parameters(MagicTemplate):
         else:
             return f"{int(value)}"
 
-@magicclass(layout="horizontal")
+@magicclass(layout="horizontal", record=False)
 class SpectraMeasurer(MagicTemplate):
     canvas = field(QtImageCanvas)
     
@@ -176,13 +176,11 @@ class SpectraMeasurer(MagicTemplate):
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
     
     @SidePanel.wraps
-    @do_not_record
     def select_axial_peak(self):
         """Click to start selecting the axial peak."""
         self.mode = MeasureMode.axial
     
     @SidePanel.wraps
-    @do_not_record
     def select_angular_peak(self):
         """Click to start selecting the angular peak."""
         self.mode = MeasureMode.angular

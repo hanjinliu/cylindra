@@ -187,7 +187,7 @@ class mask_path(MagicTemplate):
     """Path to the mask image."""
     mask_path = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
 
-@magicclass(name="Subtomogram averaging")
+@magicclass(name="_Subtomogram averaging")
 class SubtomogramAveraging(MagicTemplate):
     """
     Widget for subtomogram averaging.

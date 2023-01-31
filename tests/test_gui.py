@@ -201,34 +201,34 @@ def test_io():
 
 def test_simulator():
     ui = start()
-    ui._Simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
+    ui.cylinder_simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
     ui.register_path(coords=[[50.25, 179.886, 33.022], [50.25, 23.331, 72.339]])
-    ui._Simulator.set_current_spline(idx=0)
-    ui._Simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
-    ui._Simulator.expand(shift=0.1, yrange=(11, 31), arange=(0, 14), n_allev=1)
-    ui._Simulator.screw(skew=0.3, yrange=(11, 31), arange=(0, 14), n_allev=1)
-    ui._Simulator.dilate(radius=-0.5, yrange=(11, 31), arange=(0, 14), n_allev=1)
-    ui._Simulator.send_moleclues_to_viewer()
+    ui.cylinder_simulator.set_current_spline(idx=0)
+    ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
+    ui.cylinder_simulator.expand(shift=0.1, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.dilate(radius=-0.5, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.send_moleclues_to_viewer()
 
 def test_single_simulation():
     ui = start()
-    ui._Simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
+    ui.cylinder_simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
     ui.register_path(coords=[[50.25, 179.886, 33.022], [50.25, 23.331, 72.339]])
-    ui._Simulator.set_current_spline(idx=0)
-    ui._Simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
-    ui._Simulator.simulate_tomogram(path=TEST_PATH / "template.mrc")
+    ui.cylinder_simulator.set_current_spline(idx=0)
+    ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
+    ui.cylinder_simulator.simulate_tomogram(path=TEST_PATH / "template.mrc")
 
 def test_batch_simulation():
     ui = start()
-    ui._Simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[4])
+    ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[4])
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
-    ui._Simulator.set_current_spline(idx=0)
-    ui._Simulator.update_model(idx=0, interval=4.1, skew=-0.31, rise=10.5, npf=14, radius=9.14, offsets=(0.0, 0.0))
+    ui.cylinder_simulator.set_current_spline(idx=0)
+    ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.31, rise=10.5, npf=14, radius=9.14, offsets=(0.0, 0.0))
     
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
-        ui._Simulator.simulate_tomogram_batch(
+        ui.cylinder_simulator.simulate_tomogram_batch(
             path=TEST_PATH / "template.mrc",
             save_path=dirpath,
             nsr=[0.5, 1.0, 2.0],

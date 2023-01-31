@@ -160,9 +160,9 @@ class CylindraProject(BaseModel):
             globalprops = as_relative(globalprops_path),
             molecules = [as_relative(p) for p in molecules_paths],
             global_variables = as_relative(gvar_path),
-            template_image = as_relative(gui._subtomogram_averaging.template_path),
-            mask_parameters = gui._subtomogram_averaging._get_mask_params(),
-            tilt_range = gui._subtomogram_averaging.tilt_range,
+            template_image = as_relative(gui.subtomogram_averaging.template_path),
+            mask_parameters = gui.subtomogram_averaging._get_mask_params(),
+            tilt_range = gui.subtomogram_averaging.tilt_range,
             macro = as_relative(macro_path),
         )
         return self
