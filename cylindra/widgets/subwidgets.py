@@ -67,6 +67,7 @@ class Splines(MagicTemplate):
     sep0 = field(Separator)
     invert_spline = abstractapi()
     align_to_polarity = abstractapi()
+    auto_align_to_polarity = abstractapi()
     clip_spline = abstractapi()
     delete_spline = abstractapi()
     sep1 = field(Separator)

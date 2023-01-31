@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 from timeit import default_timer
-from typing import Annotated, Union
+from typing import Annotated
 import warnings
 
 import impy as ip
@@ -29,7 +29,7 @@ from cylindra import utils
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     ALN_SUFFIX, MOLECULES, SELECTION_LAYER_NAME,
-    WORKING_LAYER_NAME, GlobalVariables as GVar, PropertyNames as H, 
+    WORKING_LAYER_NAME, GlobalVariables as GVar, Mode, PropertyNames as H, 
     MoleculesHeader as Mole, Ori, nm
 )
 from cylindra.types import MonomerLayer, get_monomer_layers
@@ -113,7 +113,7 @@ class CylindraMainWidget(MagicTemplate):
         return self._LoggerWindow.log
     
     @property
-    def project_directory(self) -> Union[Path, None]:
+    def project_directory(self) -> "Path | None":
         """The current project directory."""
         if source := self.tomogram.source:
             return source.parent
@@ -852,6 +852,57 @@ class CylindraMainWidget(MagicTemplate):
         for i in range(len(self.tomogram.splines)):
             self._set_orientation_marker(i)
         self._need_save = True
+        return None
+    
+    @Splines.wraps
+    @set_options(align={"text": "Do not align"})
+    @set_design(text="Auto-align to polarity")
+    def auto_align_to_polarity(
+        self,
+        clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
+        align_to: Optional[OneOf["MinusToPlus", "PlusToMinus"]] = "MinusToPlus",
+    ):
+        """
+        Automatically detect the polarities and align if necessary.
+        
+        This function uses Fourier vorticity to detect the polarities of the splines.
+        The subtomogram at the center of the spline will be sampled in the cylindric
+        coordinate and the power spectra in (radius, angle) space will be calculated.
+        The peak position of the `angle = nPF` line scan will be used to detect the
+        polarity of the spline.
+        
+        Parameters
+        ----------
+        clockwise_is : Ori, default is Ori.MinusToPlus
+            Polarity corresponding to clockwise rotation of the projection image.
+        align_to : Ori, default is Ori.MinusToPlus
+            To which direction splines will be aligned.
+        """
+        binsize = self.layer_image.metadata["current_binsize"]
+        tomo = self.tomogram
+        current_scale = tomo.scale * binsize
+        imgb = tomo.get_multiscale(binsize)
+
+        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
+        
+        ori_clockwise = Ori(clockwise_is)
+        ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
+        for spl in self.tomogram.splines:
+            coords = spl.local_cylindrical((0.5, width_px/2), length_px, 0.5, scale=current_scale)
+            mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
+            img_flat = ip.asarray(mapped, axes="rya").proj("y")
+            npf = utils.roundint(spl.globalprops[H.nPF])
+            pw_peak = img_flat.local_power_spectra(
+                key=ip.slicer.a[npf-1:npf+2],
+                dims="ra",
+            ).proj("a", method=np.max)
+            r_argmax = np.argmax(pw_peak)
+            vtx = r_argmax - (pw_peak.size + 1) // 2
+            spl.orientation = ori_clockwise if vtx > 0 else ori_anticlockwise
+        
+        if align_to is not None:
+            self.align_to_polarity(orientation=align_to)
         return None
     
     @Splines.wraps
@@ -2805,13 +2856,13 @@ class CylindraMainWidget(MagicTemplate):
     
     def _check_binning_for_alignment(
         self,
-        template: Union[ip.ImgArray, list[ip.ImgArray]],
-        mask: Union[ip.ImgArray, None],
+        template: "ip.ImgArray | list[ip.ImgArray]",
+        mask: "ip.ImgArray | None",
         binsize: int,
         molecules: Molecules,
         order: int = 1,
         shape: tuple[nm, nm, nm] = None,
-    ) -> tuple[SubtomogramLoader, ip.ImgArray, Union[np.ndarray, None]]:
+    ) -> tuple[SubtomogramLoader, ip.ImgArray, "np.ndarray | None"]:
         """
         Returns proper subtomogram loader, template image and mask image that matche the 
         bin size.

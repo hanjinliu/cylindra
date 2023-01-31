@@ -48,7 +48,7 @@ class SplineControl(MagicTemplate):
 
     num = vfield(OneOf[_get_splines], label="Spline No.", record=False)
     pos = vfield(int, widget_type="Slider", label="Position", record=False).with_options(max=0)
-    canvas = field(QtMultiImageCanvas, name="Figure", ).with_options(nrows=1, ncols=3)
+    canvas = field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3)
     
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):
