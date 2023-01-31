@@ -1,5 +1,6 @@
 import os
 from typing import Union, TYPE_CHECKING
+from typing_extensions import Annotated
 from magicclass import (
     magicclass, magicmenu, magictoolbar, do_not_record, field, vfield, MagicTemplate, 
     set_options, set_design, abstractapi
@@ -7,7 +8,6 @@ from magicclass import (
 from magicclass.widgets import Separator, HistoryFileEdit
 from magicclass.types import OneOf, SomeOf, Optional
 from pathlib import Path
-from superqt import ensure_main_thread
 import numpy as np
 import impy as ip
 import napari
@@ -187,13 +187,15 @@ class mask_path(MagicTemplate):
     """Path to the mask image."""
     mask_path = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
 
-@magicclass(name="_Subtomogram averaging")
+@magicclass(name="_Subtomogram averaging", record=False)
 class SubtomogramAveraging(MagicTemplate):
     """
     Widget for subtomogram averaging.
     
     Attributes
     ----------
+    use_last_average : bool
+        Check if use template image of the last averaged image.
     template_path : Path
         Path to the template (reference) image file, or layer name of reconstruction.
     mask : str
@@ -204,40 +206,41 @@ class SubtomogramAveraging(MagicTemplate):
     def __post_init__(self):
         self._template = None
         self._viewer: Union[napari.Viewer, None] = None
-        self._next_layer_name = None
-        self.mask = MASK_CHOICES[0]
+        self.mask_choice = MASK_CHOICES[0]
+        self._last_average: ip.ImgArray = None
     
-    template_path = vfield(HistoryFileEdit, label="Template", record=False).with_options(filter=FileFilter.IMAGE)
-    mask = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
+    template_path = vfield(Optional[Annotated[Path, {"widget_type": HistoryFileEdit}]], label="Template").with_options(options={"filter": FileFilter.IMAGE}, text="Use last averaged image", value=Path(""))
+    mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask")
     params = field(params)
     mask_path = field(mask_path)
-    tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}})
-        
-    @mask.connect
+    tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)").with_options(value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}})
+
+    @property
+    def template(self) -> Union[ip.ImgArray, None]:
+        """Template image."""
+        return self._get_template()
+    
+    @property
+    def mask(self) -> ip.ImgArray:
+        """Mask image."""
+        return self._get_mask()
+
+    @mask_choice.connect
     def _on_mask_switch(self):
-        v = self.mask
+        v = self.mask_choice
         self.params.visible = (v == MASK_CHOICES[1])
         self.mask_path.visible = (v == MASK_CHOICES[2])
-    
-    @ensure_main_thread(await_return=True)
+
     def _get_template(self, path: Union[Path, None] = None, rescale: bool = True) -> ip.ImgArray:
         if path is None:
             path = self.template_path
         else:
             self.template_path = path
         
-        # check path
-        if not os.path.exists(path) or not os.path.isfile(path):
-            img = None
-            s = str(path)
-            if self._viewer is not None and s in self._viewer.layers:
-                data = self._viewer.layers[s].data
-                if isinstance(data, ip.ImgArray) and data.ndim == 3:
-                    img: ip.ImgArray = data
-            
-            if img is None:
-                raise FileNotFoundError(f"Path '{path}' is not a valid file.")
-        
+        if path is None:
+            if self._last_average is None:
+                raise ValueError("No average image found.")
+            img = self._last_average
         else:
             img = ip.imread(path)
             
@@ -245,12 +248,14 @@ class SubtomogramAveraging(MagicTemplate):
             raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
         
         from .main import CylindraMainWidget
+
         parent = self.find_ancestor(CylindraMainWidget)
         if parent.tomogram is not None and rescale:
             scale_ratio = img.scale.x / parent.tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
                 img = img.rescale(scale_ratio)
         self._template = img
+
         return img
     
     def _get_shape_in_nm(self) -> tuple[int, ...]:
@@ -260,7 +265,7 @@ class SubtomogramAveraging(MagicTemplate):
         return tuple(s * self._template.scale.x for s in self._template.shape)
     
     def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
-        v = self.mask
+        v = self.mask_choice
         if v == MASK_CHOICES[0]:
             params = None
         elif v == MASK_CHOICES[1]:
@@ -283,16 +288,16 @@ class SubtomogramAveraging(MagicTemplate):
             params = self._get_mask_params()
         else:
             if params is None:
-                self.mask = MASK_CHOICES[0]
+                self.mask_choice = MASK_CHOICES[0]
             elif isinstance(params, tuple):
-                self.mask = MASK_CHOICES[1]
+                self.mask_choice = MASK_CHOICES[1]
             else:
                 self.mask_path.mask_path = params
         
         if params is None:
             return None
         elif isinstance(params, tuple):
-            thr = self._template.threshold()
+            thr = self._get_template().threshold()
             scale: nm = thr.scale.x
             mask_image = thr.smooth_mask(
                 sigma=params[1]/scale, 
@@ -310,15 +315,15 @@ class SubtomogramAveraging(MagicTemplate):
     
     def _set_mask_params(self, params):
         if params is None:
-            self.mask = MASK_CHOICES[0]
+            self.mask_choice = MASK_CHOICES[0]
         elif isinstance(params, (tuple, list, np.ndarray)):
-            self.mask = MASK_CHOICES[1]
+            self.mask_choice = MASK_CHOICES[1]
             self.params.dilate_radius, self.params.sigma = params
         else:
-            self.mask = MASK_CHOICES[2]
+            self.mask_choice = MASK_CHOICES[2]
             self.mask_path.mask_path = params
         
-    def _show_reconstruction(self, image: ip.ImgArray, name: str) -> "Image":
+    def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True) -> "Image":
         if self._viewer is not None:
             try:
                 # This line will raise RuntimeError if viewer window had been closed by user.
@@ -334,6 +339,8 @@ class SubtomogramAveraging(MagicTemplate):
             self._viewer.window.activate()
         self._viewer.scale_bar.visible = True
         self._viewer.scale_bar.unit = "nm"
+        if store:
+            self._last_average = image
         input_image = normalize_image(image)
         from skimage.filters.thresholding import threshold_yen
         thr = threshold_yen(input_image.value)
@@ -344,17 +351,15 @@ class SubtomogramAveraging(MagicTemplate):
         
         return layer
     
-    @do_not_record
     @set_design(text="Show template")
     def show_template(self):
         """Load and show template image."""
-        self._show_reconstruction(self._get_template(), name="Template image")
+        self._show_reconstruction(self._get_template(), name="Template image", store=False)
     
-    @do_not_record
     @set_design(text="Show mask")
     def show_mask(self):
         """Load and show mask image."""
-        self._show_reconstruction(self._get_mask(), name="Mask image")
+        self._show_reconstruction(self._get_mask(), name="Mask image", store=False)
     
     @magicmenu
     class Subtomogram_analysis(MagicTemplate):
@@ -383,7 +388,6 @@ class SubtomogramAveraging(MagicTemplate):
         render_molecules = abstractapi()
     
     @Tools.wraps
-    @do_not_record
     @set_options(
         new_shape={"options": {"min": 2, "max": 100}},
         save_as={"mode": "w", "filter": FileFilter.IMAGE}
@@ -408,7 +412,7 @@ class SubtomogramAveraging(MagicTemplate):
 
 # Runner
 
-@magicclass(widget_type="groupbox", name="Parameters")
+@magicclass(widget_type="groupbox", name="Parameters", record=False)
 class runner_params1:
     """
     Parameters used in spline fitting.
@@ -420,11 +424,11 @@ class runner_params1:
     max_shift : nm
         Maximum shift in nm of manually selected spline to the true center.
     """
-    edge_sigma = vfield(2.0, label="edge sigma", record=False)
-    max_shift = vfield(5.0, label="Maximum shift (nm)", record=False).with_options(max=50.0, step=0.5)
+    edge_sigma = vfield(2.0, label="edge sigma")
+    max_shift = vfield(5.0, label="Maximum shift (nm)").with_options(max=50.0, step=0.5)
 
 
-@magicclass(widget_type="groupbox", name="Parameters")
+@magicclass(widget_type="groupbox", name="Parameters", record=False)
 class runner_params2:
     """
     Parameters used in calculation of local properties.
@@ -439,12 +443,12 @@ class runner_params2:
     paint : bool
         Check if paint the tomogram with the local properties.
     """
-    interval = vfield(32.0, label="Interval (nm)", record=False).with_options(min=1.0, max=200.0)
-    ft_size = vfield(32.0, label="Local DFT window size (nm)", record=False).with_options(min=1.0, max=200.0)
-    paint = vfield(True, record=False)
+    interval = vfield(32.0, label="Interval (nm)").with_options(min=1.0, max=200.0)
+    ft_size = vfield(32.0, label="Local DFT window size (nm)").with_options(min=1.0, max=200.0)
+    paint = vfield(True)
 
 
-@magicclass(name="Run cylindrical fitting")
+@magicclass(name="Run cylindrical fitting", record=False)
 class Runner(MagicTemplate):
     """
     Attributes
@@ -489,16 +493,15 @@ class Runner(MagicTemplate):
             out = [1] + out
         return sorted(out)
     
-    all_splines = vfield(True, record=False).with_options(text="Run for all the splines.")
-    splines = vfield(SomeOf[_get_splines], record=False).with_options(visible=False)
-    # max_interval = vfield(30.0, label="Maximum interval (nm)", record=False).with_options(min=1.0, max=200.0)
-    bin_size = vfield(OneOf[_get_available_binsize], record=False)
-    dense_mode = vfield(True, label="Use dense-mode", record=False)
+    all_splines = vfield(True).with_options(text="Run for all the splines.")
+    splines = vfield(SomeOf[_get_splines]).with_options(visible=False)
+    bin_size = vfield(OneOf[_get_available_binsize])
+    dense_mode = vfield(True, label="Use dense-mode")
     params1 = runner_params1
-    n_refine = vfield(1, label="Refinement iteration", record=False).with_options(max=10)
-    local_props = vfield(True, label="Calculate local properties", record=False)
+    n_refine = vfield(1, label="Refinement iteration").with_options(max=10)
+    local_props = vfield(True, label="Calculate local properties")
     params2 = runner_params2
-    global_props = vfield(True, label="Calculate global properties", record=False)
+    global_props = vfield(True, label="Calculate global properties")
 
     @all_splines.connect
     def _toggle_spline_list(self):
