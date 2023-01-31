@@ -10,6 +10,7 @@ import macrokit as mk
 import matplotlib.pyplot as plt
 import napari
 import numpy as np
+import polars as pl
 import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import PCCAlignment, ZNCCAlignment
@@ -1401,7 +1402,7 @@ class CylindraMainWidget(MagicTemplate):
         """        
         ndim = 3
         mole: Molecules = layer.metadata[MOLECULES]
-        npf = utils.roundint(np.max(mole.features[Mole.pf]) + 1)
+        npf = utils.roundint(mole.features[Mole.pf].max() + 1)
         pos = mole.pos.reshape(-1, npf, ndim)
         quat = mole.rotator.as_quat()
         if prepend > 0:
@@ -1425,7 +1426,7 @@ class CylindraMainWidget(MagicTemplate):
         
         pos_extended: np.ndarray = np.concatenate([pos_pre, pos, pos_post], axis=0)
         quat_extended = np.concatenate([quat_pre, quat, quat_post], axis=0)
-        features = {Mole.pf: np.arange(len(mole_new), dtype=np.uint32) % npf}
+        features = {Mole.pf: pl.Series(np.arange(len(mole_new), dtype=np.uint32)) % npf}
         from scipy.spatial.transform import Rotation
         mole_new = Molecules(
             pos_extended.reshape(-1, ndim),
@@ -1739,7 +1740,7 @@ class CylindraMainWidget(MagicTemplate):
             template, mask, bin_size, mole, order=1
         )
         _scale = self.tomogram.scale * bin_size
-        npf = np.max(mole.features[Mole.pf]) + 1
+        npf = mole.features[Mole.pf].max() + 1
         dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
         
@@ -2057,7 +2058,7 @@ class CylindraMainWidget(MagicTemplate):
             score, argmax = out
 
         scale = self.tomogram.scale
-        npf = np.max(molecules.features[Mole.pf]) + 1
+        npf = molecules.features[Mole.pf].max() + 1
         
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
         offset = np.array(shape_nm) / 2 - scale
@@ -2094,13 +2095,21 @@ class CylindraMainWidget(MagicTemplate):
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
             from scipy.spatial.transform import Rotation
             rotvec = Rotation.from_quat(quats).as_rotvec()
-            molecules_opt.features["rotvec-z"] = rotvec[:, 0]
-            molecules_opt.features["rotvec-y"] = rotvec[:, 1]
-            molecules_opt.features["rotvec-x"] = rotvec[:, 2]
-            
-        molecules_opt.features["shift-z"] = all_shifts[:, 0]
-        molecules_opt.features["shift-y"] = all_shifts[:, 1]
-        molecules_opt.features["shift-x"] = all_shifts[:, 2]
+            molecules_opt.features = molecules_opt.features.with_columns(
+                [
+                    pl.Series("rotvec-z", rotvec[:, 0]),
+                    pl.Series("rotvec-y", rotvec[:, 1]),
+                    pl.Series("rotvec-x", rotvec[:, 2]),
+                ]
+            )
+        
+        molecules_opt.features = molecules_opt.features.with_columns(
+            [
+                pl.Series("shift-z", all_shifts[:, 0]),
+                pl.Series("shift-y", all_shifts[:, 1]),
+                pl.Series("shift-x", all_shifts[:, 2]),
+            ]
+        )
         self.log.print_html(f"<code>align_all_viterbi</code> ({default_timer() - t0:.1f} sec)")
         self._need_save = True
         aligned_loader = SubtomogramLoader(
@@ -2377,7 +2386,7 @@ class CylindraMainWidget(MagicTemplate):
         shape = self.subtomogram_averaging._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
         if npf is None:
-            npf = np.max(mole.features[Mole.pf]) + 1
+            npf = mole.features[Mole.pf].max() + 1
 
         corrs, img_ave, all_labels = utils.try_all_seams(
             loader=loader, npf=npf, template=template, mask=mask, cutoff=cutoff
