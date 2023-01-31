@@ -33,7 +33,7 @@ def add_molecules(viewer: napari.Viewer, mol: Molecules, name):
         out_of_slice_display=True,
         name=name,
         metadata=metadata,
-        features=mol.features,
+        features=mol.features.to_dict(as_series=False),
     )
     
     points_layer.shading = "spherical"
@@ -71,6 +71,7 @@ def update_features(
     layer.features = features
     if MOLECULES in layer.metadata:
         mole: Molecules = layer.metadata[MOLECULES]
+        print(features)
         mole.features = features
     return None
 
@@ -78,7 +79,7 @@ def molecules_to_spline(layer: Points) -> CylSpline:
     """Convert well aligned molecule positions into a spline."""
     mole: Molecules = layer.metadata[MOLECULES]
     spl = CylSpline(degree=GVar.splOrder)
-    npf = int(round(np.max(mole.features[Mole.pf]) + 1))
+    npf = int(round(mole.features[Mole.pf].max() + 1))
     all_coords = mole.pos.reshape(-1, npf, 3)
     mean_coords = np.mean(all_coords, axis=1)
     spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)

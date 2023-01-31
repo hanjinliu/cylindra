@@ -4,7 +4,7 @@ from typing import Any, TYPE_CHECKING, NamedTuple
 from acryo import Molecules
 import numpy as np
 from numpy.typing import ArrayLike
-
+import polars as pl
 from .spline import Spline
 from cylindra.const import MoleculesHeader as Mole
 
@@ -150,7 +150,7 @@ class CylinderModel:
         """Generate molecules from the coordinates and given spline."""
         shifted = self._get_shifted()
         mole = spl.cylindrical_to_molecules(shifted.reshape(-1, 3))
-        mole.features = {Mole.pf: np.arange(len(mole), dtype=np.uint32) % self._shape[1]}
+        mole.features = {Mole.pf: pl.Series(np.arange(len(mole), dtype=np.uint32)) % self._shape[1]}
         return mole
 
     def add_offsets(self, offsets: tuple[float, float]) -> Self:

@@ -67,7 +67,7 @@ class PEET(MagicTemplate):
         mol: Molecules = layer.metadata[MOLECULES]
         from .cmd  import save_mod, save_angles
         if save_protofilaments_separately:
-            npf = roundint(max(layer.features[Mole.pf]) + 1)
+            npf = roundint(layer.features[Mole.pf].max() + 1)
             for pf in range(npf):
                 sl = slice(pf, None, npf)
                 save_mod(save_dir/f"coordinates-PF{pf:0>2}.mod", mol.pos[sl, ::-1]/self.scale)
