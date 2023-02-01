@@ -1,6 +1,5 @@
 import os
 import re
-from pathlib import Path
 from timeit import default_timer
 from typing import Annotated
 import warnings
@@ -19,7 +18,7 @@ from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         set_design, set_options)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.types import Bound, Color, OneOf, Optional, SomeOf
+from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit, Logger
 from napari.layers import Image, Labels, Layer, Points
@@ -67,7 +66,6 @@ _YRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0
 _XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
 _MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
-
 
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
@@ -332,7 +330,7 @@ class CylindraMainWidget(MagicTemplate):
     @Others.Macro.wraps
     @set_design(text="Run file")
     @do_not_record
-    def run_file(self, path: Annotated[Path, {"filter": FileFilter.PY}]):
+    def run_file(self, path: Path.Read[FileFilter.PY]):
         """Run a Python script file."""
         with open(path, mode="r") as f:
             txt = f.read()
@@ -430,7 +428,6 @@ class CylindraMainWidget(MagicTemplate):
         return self._image_loader.show()
     
     @_image_loader.wraps
-    @set_options(filter={"label": "Filter the reference image layer."})
     @set_design(text="Run")
     @dask_thread_worker.with_progress(desc="Reading image")
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")
@@ -486,7 +483,7 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Reading project")
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")
     @do_not_record
-    def load_project(self, path: Annotated[Path, {"filter": FileFilter.JSON}], filter: bool = True):
+    def load_project(self, path: Path.Read[FileFilter.JSON], filter: bool = True):
         """Load a project json file."""
         project = CylindraProject.from_json(path)
         return project.to_gui(self, filter=filter)
@@ -495,8 +492,8 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Save project")
     def save_project(
         self,
-        json_path: Annotated[Path, {"mode": "w", "filter": FileFilter.JSON}],
-        results_dir: Annotated[Optional[Path], {"text": "Save at the same directory", "options": {"mode": "d"}}] = None,
+        json_path: Path.Save[FileFilter.JSON],
+        results_dir: Annotated[Optional[Path.Dir], {"text": "Save at the same directory"}] = None,
     ):
         """
         Save current project state as a json file and the results in a directory.
@@ -519,9 +516,8 @@ class CylindraMainWidget(MagicTemplate):
         return
     
     @File.wraps
-    @set_options(paths={"filter": FileFilter.JSON})
     @set_design(text="Load splines")
-    def load_splines(self, paths: list[Path]):
+    def load_splines(self, paths: Path.Multiple[FileFilter.JSON]):
         """
         Load splines from a list of json paths.
 
@@ -538,9 +534,8 @@ class CylindraMainWidget(MagicTemplate):
         return None
         
     @File.wraps
-    @set_options(paths={"filter": FileFilter.CSV})
     @set_design(text="Load molecules")
-    def load_molecules(self, paths: list[Path]):
+    def load_molecules(self, paths: Path.Multiple[FileFilter.CSV]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
@@ -551,9 +546,8 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @File.wraps
-    @set_options(save_path={"mode": "w", "filter": FileFilter.JSON})
     @set_design(text="Save spline")
-    def save_spline(self, spline: OneOf[_get_splines], save_path: Path):
+    def save_spline(self, spline: OneOf[_get_splines], save_path: Path.Save[FileFilter.JSON]):
         """Save splines as a json file."""
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
@@ -561,8 +555,7 @@ class CylindraMainWidget(MagicTemplate):
         
     @File.wraps
     @set_design(text="Save molecules")
-    @set_options(save_path={"mode": "w", "filter": FileFilter.CSV})
-    def save_molecules(self, layer: MonomerLayer, save_path: Path):
+    def save_molecules(self, layer: MonomerLayer, save_path: Path.Save[FileFilter.CSV]):
         """
         Save monomer coordinates, orientation and features as a csv file.
 
@@ -587,9 +580,8 @@ class CylindraMainWidget(MagicTemplate):
     
     @File.wraps
     @set_design(text="View project")
-    @set_options(path={"filter": FileFilter.JSON})
     @do_not_record
-    def view_project(self, path: Path):
+    def view_project(self, path: Path.Read[FileFilter.JSON]):
         pviewer = CylindraProject.from_json(path).make_project_viewer()
         pviewer.native.setParent(self.native, pviewer.native.windowFlags())
         return pviewer.show()
@@ -782,12 +774,11 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    @set_options(align={"text": "Do not align"})
     @set_design(text="Auto-align to polarity")
     def auto_align_to_polarity(
         self,
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
-        align_to: Optional[OneOf["MinusToPlus", "PlusToMinus"]] = "MinusToPlus",
+        align_to: Annotated[Optional[OneOf["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = "MinusToPlus",
     ):
         """
         Automatically detect the polarities and align if necessary.
@@ -913,18 +904,14 @@ class CylindraMainWidget(MagicTemplate):
         return None
         
     @Splines.wraps
-    @set_options(
-        max_interval={"label": "Max interval (nm)"},
-        edge_sigma={"text": "Do not mask image"},
-    )
     @set_design(text="Fit splines")
     @thread_worker.with_progress(desc="Spline Fitting")
     def fit_splines(
         self, 
-        max_interval: nm = 30,
+        max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: OneOf[_get_available_binsize] = 1,
         degree_precision: float = 0.5,
-        edge_sigma: Optional[nm] = 2.0,
+        edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
         max_shift: nm = 5.0,
     ):
         """
@@ -952,10 +939,9 @@ class CylindraMainWidget(MagicTemplate):
         return thread_worker.to_callback(self._update_splines_in_images)
 
     @Splines.wraps
-    @set_options(max_interval={"label": "Max interval (nm)"})
     @set_design(text="Fit splines manually")
     @do_not_record
-    def fit_splines_manually(self, max_interval: nm = 50.0):
+    def fit_splines_manually(self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0):
         """
         Open a spline fitter window and fit cylinder with spline manually.
 
@@ -969,8 +955,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Add anchors")
-    @set_options(interval={"label": "Interval between anchors (nm)", "min": 1.0})
-    def add_anchors(self, interval: nm = 25.0):
+    def add_anchors(self, interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0):
         """
         Add anchors to splines.
 
@@ -988,26 +973,25 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Analysis.wraps
-    @set_options(radius={"text": "Measure radii by radial profile."})
     @set_design(text="Set radius")
     @thread_worker.with_progress(desc="Measuring Radius")
-    def set_radius(self, radius: Optional[nm] = None, bin_size: OneOf[_get_available_binsize] = 1):
+    def set_radius(
+        self,
+        radius: Annotated[Optional[nm], {"text": "Measure radii by radial profile."}] = None,
+        bin_size: OneOf[_get_available_binsize] = 1,
+    ):
         """Measure cylinder radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
         return None
     
     @Splines.wraps
-    @set_options(
-        max_interval={"label": "Maximum interval (nm)"},
-        corr_allowed={"label": "Correlation allowed", "max": 1.0, "step": 0.1},
-    )
     @set_design(text="Refine splines")
     @thread_worker.with_progress(desc="Refining splines")
     def refine_splines(
         self,
-        max_interval: nm = 30,
-        corr_allowed: float = 0.9,
+        max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
+        corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
@@ -1039,7 +1023,6 @@ class CylindraMainWidget(MagicTemplate):
         return _refine_splines_on_return
     
     @Splines.wraps
-    @set_options(interval={"label": "Interval (nm)", "min": 1.0})
     @set_design(text="Molecules to spline")
     @confirm(
         text="The existing splines will be removed.\nDo you want to run?",
@@ -1048,7 +1031,7 @@ class CylindraMainWidget(MagicTemplate):
     def molecules_to_spline(
         self, 
         layers: SomeOf[get_monomer_layers],
-        interval: nm = 24.5,
+        interval: Annotated[nm, {"label": "Interval (nm)", "min": 1.0}] = 24.5,
     ):
         """
         Create splines from molecules.
@@ -1083,16 +1066,12 @@ class CylindraMainWidget(MagicTemplate):
             self.spline_clipper.load_spline(self.SplineControl.num)
         
     @Analysis.wraps
-    @set_options(
-        interval={"min": 1.0, "step": 0.5},
-        ft_size={"min": 2.0, "step": 0.5},
-    )
     @set_design(text="Local FT analysis")
     @thread_worker.with_progress(desc="Local Fourier transform", total="self.tomogram.n_splines")
     def local_ft_analysis(
         self,
-        interval: nm = 24.5,
-        ft_size: nm = 24.5,
+        interval: Annotated[nm, {"min": 1.0, "step": 0.5}] = 24.5,
+        ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 24.5,
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
@@ -1172,13 +1151,12 @@ class CylindraMainWidget(MagicTemplate):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
     @Molecules_.Mapping.wraps
-    @set_options(length={"text": "Use full length"})
     @set_design(text="Map monomers")
     @bind_key("M")
     def map_monomers(
         self,
         splines: SomeOf[_get_splines] = (),
-        length: Optional[nm] = None,
+        length: Annotated[Optional[nm], {"text": "Use full length"}] = None,
     ):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
@@ -1195,7 +1173,7 @@ class CylindraMainWidget(MagicTemplate):
             splines = tuple(range(len(tomo.splines)))
         molecules = tomo.map_monomers(i=splines, length=length)
         
-        self.log.print_html("<code>Map_monomers</code>")
+        self.log.print_html("<code>map_monomers</code>")
         for i, mol in enumerate(molecules):
             _name = f"Mono-{i}"
             add_molecules(self.parent_viewer, mol, _name)
@@ -1205,16 +1183,12 @@ class CylindraMainWidget(MagicTemplate):
         return molecules
 
     @Molecules_.Mapping.wraps
-    @set_options(
-        interval={"text": "Set to dimer length"},
-        length={"text": "Use full length"}
-    )
     @set_design(text="Map centers")
     def map_centers(
         self,
         splines: SomeOf[_get_splines] = (),
-        interval: Optional[nm] = None,
-        length: Optional[nm] = None,
+        interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
+        length: Annotated[Optional[nm], {"text": "Use full length"}] = None,
     ):
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
@@ -1231,7 +1205,7 @@ class CylindraMainWidget(MagicTemplate):
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, length=length)
-        self.log.print_html("<code>Map_centers</code>")
+        self.log.print_html("<code>map_centers</code>")
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
             add_molecules(self.parent_viewer, mol, _name)
@@ -1240,16 +1214,12 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Molecules_.Mapping.wraps
-    @set_options(
-        interval={"text": "Set to dimer length"},
-        angle_offset={"max": 360}
-    )
     @set_design(text="Map alogn PF")
     def map_along_pf(
         self,
         splines: SomeOf[_get_splines],
-        interval: Optional[nm] = None,
-        angle_offset: float = 0.0,
+        interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
+        angle_offset: Annotated[float, {"max": 360}] = 0.0,
     ):
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
@@ -1264,7 +1234,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
-        self.log.print_html("<code>Map_along_PF</code>")
+        self.log.print_html("<code>map_along_PF</code>")
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
             add_molecules(self.parent_viewer, mol, _name)
@@ -1375,19 +1345,26 @@ class CylindraMainWidget(MagicTemplate):
     
     @Molecules_.wraps
     @set_design(text="Concatenate molecules")
-    def concatenate_molecules(self, layers: SomeOf[get_monomer_layers]):
+    def concatenate_molecules(self, layers: SomeOf[get_monomer_layers], delete_old: bool = True):
         """
         Concatenate selected monomer layers and create a new layer.
 
         Parameters
         ----------
         {layers}
+        delete_old : bool, default is True
+            Delete the selected source layers after concatenation.
         """
         if len(layers) == 0:
             raise ValueError("No layer selected.")
         molecules: list[Molecules] = [layer.metadata[MOLECULES] for layer in layers]
         all_molecules = Molecules.concat(molecules)
         points = add_molecules(self.parent_viewer, all_molecules, name="Mono-concat")
+        if delete_old:
+            for layer in layers:
+                self.parent_viewer.layers.remove(layer)
+        
+        # logging
         layer_names: list[str] = []
         for layer in layers:
             layer.visible = False
@@ -1399,14 +1376,32 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Molecules_.wraps
-    @set_options(
-        spline_precision={"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}
-    )
+    @set_design(text="Merge molecule info")
+    def merge_molecule_info(self, pos: MonomerLayer, rotation: MonomerLayer, features: MonomerLayer):
+        """
+        Merge molecule info from different molecules.
+
+        Parameters
+        ----------
+        pos : MonomerLayer
+            Molecules whose positions are used.
+        rotation : MonomerLayer
+            Molecules whose rotations are used.
+        features : MonomerLayer
+            Molecules whose features are used.
+        """
+        _pos: Molecules = pos.metadata[MOLECULES]
+        _rot: Molecules = rotation.metadata[MOLECULES]
+        _feat: Molecules = features.metadata[MOLECULES]
+        mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
+        self.add_molecules(mole, name=_coerce_aligned_name(pos.name, self.parent_viewer))
+
+    @Molecules_.wraps
     @set_design(text="Calculate intervals")
     def calculate_intervals(
         self,
         layer: MonomerLayer,
-        spline_precision: nm = 0.2,
+        spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
     ):
         """
         Calculate intervals between adjucent molecules.
@@ -1586,15 +1581,12 @@ class CylindraMainWidget(MagicTemplate):
         )
     
     @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        n_set={"min": 1, "label": "number of image pairs"},
-    )
     @set_design(text="Split-and-average")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Split-and-averaging of {!r}"))
     def split_and_average(
         self,
         layer: MonomerLayer,
-        n_set: int = 1,
+        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1771,14 +1763,13 @@ class CylindraMainWidget(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
     
     @subtomogram_averaging.Refinement.wraps
-    @set_options(size={"min": 1., "max": 100., "label": "sub-volume size (nm)"})
     @set_design(text="Align all (template-free)")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Template-free alignment of {!r}"))
     def align_all_template_free(
         self,
         layer: MonomerLayer,
         tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
-        size: nm = 12.,
+        size: _SubVolumeSize = 12.,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -1798,13 +1789,17 @@ class CylindraMainWidget(MagicTemplate):
         """
         t0 = default_timer()
         molecules = layer.metadata[MOLECULES]
+        if size is None:
+            shape = self.subtomogram_averaging._get_shape_in_nm()
+        else:
+            shape = (size,) * 3
         loader, _, _ = self._check_binning_for_alignment(
             template=None, 
             mask=None, 
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-            shape=(size,)*3,
+            shape=shape,
         )
         model_cls = _get_alignment(method)
         aligned_loader = loader.align_no_template(
@@ -1820,14 +1815,13 @@ class CylindraMainWidget(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
     
     @subtomogram_averaging.Refinement.wraps
-    @set_options(other_templates={"filter": FileFilter.IMAGE})
     @set_design(text="Align all (multi-template)")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Multi-template alignment of {!r}"))
     def align_all_multi_template(
         self,
         layer: MonomerLayer,
         template_path: Bound[subtomogram_averaging.template_path],
-        other_templates: list[Path],
+        other_templates: Path.Multiple[FileFilter.IMAGE],
         mask_params: Bound[subtomogram_averaging._get_mask_params],
         tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
         max_shifts: _MaxShifts = (1., 1., 1.),
@@ -1883,10 +1877,6 @@ class CylindraMainWidget(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
     
     @subtomogram_averaging.Refinement.wraps
-    @set_options(
-        distance_range={"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"},
-        upsample_factor={"min": 1, "max": 20},
-    )
     @set_design(text="Viterbi Alignment")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Viterbi-alignment of {!r}"))
     def align_all_viterbi(
@@ -1901,9 +1891,9 @@ class CylindraMainWidget(MagicTemplate):
         x_rotation: _XRotation = (0., 0.),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        distance_range: tuple[nm, nm] = (3.9, 4.4),
+        distance_range: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"}] = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
-        upsample_factor: int = 5,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
         Constrained subtomogram alignment using ZNCC landscaping and Viterbi algorithm.
@@ -2078,11 +2068,6 @@ class CylindraMainWidget(MagicTemplate):
         )
 
     @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(
-        seed={"text": "Do not use random seed."},
-        n_set={"min": 1, "label": "number of image pairs"},
-        dfreq={"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}},
-    )
     @set_design(text="Calculate FSC")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating FSC of {!r}"))
     def calculate_fsc(
@@ -2090,11 +2075,11 @@ class CylindraMainWidget(MagicTemplate):
         layer: MonomerLayer,
         mask_params: Bound[subtomogram_averaging._get_mask_params],
         size: _SubVolumeSize = None,
-        seed: Optional[int] = 0,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        n_set: int = 1,
+        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
-        dfreq: Optional[float] = None,
+        dfreq: Annotated[Optional[float], {"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}}] = None,
     ):
         """
         Calculate Fourier Shell Correlation using the selected monomer layer.
@@ -2181,7 +2166,6 @@ class CylindraMainWidget(MagicTemplate):
         return _calculate_fsc_on_return
     
     @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_options(npf={"text": "Use global properties"})
     @set_design(text="Seam search")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
     def seam_search(
@@ -2190,7 +2174,7 @@ class CylindraMainWidget(MagicTemplate):
         template_path: Bound[subtomogram_averaging.template_path],
         mask_params: Bound[subtomogram_averaging._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        npf: Optional[int] = None,
+        npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         cutoff: _CutoffFreq = 0.5,
     ):
         """
@@ -2249,14 +2233,13 @@ class CylindraMainWidget(MagicTemplate):
         return _seam_search_on_return
 
     @subtomogram_averaging.Tools.wraps
-    @set_options(feature_name={"text": "Do not color molecules."})
     @set_design(text="Render molecules")
     def render_molecules(
         self,
         layer: MonomerLayer,
         template_path: Bound[subtomogram_averaging.template_path],
         mask_params: Bound[subtomogram_averaging._get_mask_params],
-        feature_name: Optional[str] = None,
+        feature_name: Annotated[Optional[str], {"text": "Do not color molecules."}] = None,
         cutoff: _CutoffFreq = 0.5,
     ):
         """
@@ -2543,16 +2526,13 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @set_options(
-        limit={"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
-        auto_call=True,
-    )
+    @set_options(auto_call=True)
     @set_design(text="Set colormap")
     def set_colormap(
         self,
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
-        limit: tuple[float, float] = (4.00, 4.24), 
+        limit: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"}] = (4.00, 4.24), 
         color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
     ):
         """

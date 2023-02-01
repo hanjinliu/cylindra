@@ -88,6 +88,7 @@ class Molecules_(MagicTemplate):
     show_orientation = abstractapi()
     extend_molecules = abstractapi()
     concatenate_molecules = abstractapi()
+    merge_molecule_info = abstractapi()
     calculate_intervals = abstractapi()
     sep0 = field(Separator)
     open_feature_control = abstractapi()
