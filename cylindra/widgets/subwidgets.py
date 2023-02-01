@@ -243,6 +243,9 @@ class SubtomogramAveraging(MagicTemplate):
                 raise ValueError("No average image found.")
             img = self._last_average
         else:
+            path = Path(path)
+            if path.is_dir():
+                raise TypeError(f"Template image must be a file, got {path}.")
             img = ip.imread(path)
             
         if img.ndim != 3:

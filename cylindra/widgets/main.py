@@ -782,12 +782,11 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Splines.wraps
-    @set_options(align={"text": "Do not align"})
     @set_design(text="Auto-align to polarity")
     def auto_align_to_polarity(
         self,
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
-        align_to: Optional[OneOf["MinusToPlus", "PlusToMinus"]] = "MinusToPlus",
+        align_to: Annotated[Optional[OneOf["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = "MinusToPlus",
     ):
         """
         Automatically detect the polarities and align if necessary.
@@ -2166,8 +2165,8 @@ class CylindraMainWidget(MagicTemplate):
             resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
             resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
             
-            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0143:.3f} nm</b>")
-            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0500:.3f} nm</b>")
+            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
+            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
             self._LoggerWindow.show()
             
             if img_avg is not None:

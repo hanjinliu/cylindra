@@ -13,12 +13,12 @@ from magicclass import magicclass, field, vfield, MagicTemplate
 from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.utils import thread_worker
+from acryo import Molecules
 
 from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
-    from acryo import Molecules
 
 def json_encoder(obj):    
     """An enhanced encoder."""
