@@ -24,6 +24,7 @@ from magicclass import defaults
 
 defaults["macro-highlight"] = True
 
+del defaults
 
 __all__ = [
     "start",

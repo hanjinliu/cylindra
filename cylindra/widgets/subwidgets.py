@@ -380,7 +380,6 @@ class SubtomogramAveraging(MagicTemplate):
         align_all_template_free = abstractapi()
         align_all_multi_template = abstractapi()
         align_all_viterbi = abstractapi()
-        polarity_check = abstractapi()
     
     @magicmenu
     class Tools(MagicTemplate):
