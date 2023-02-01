@@ -1,6 +1,5 @@
 import os
-from pathlib import Path
-from typing import List
+from typing import List, Annotated
 from magicclass import (
     magicclass,
     vfield,
@@ -8,6 +7,7 @@ from magicclass import (
     set_options,
     set_design,
 )
+from magicclass.types import Path, OneOf
 from magicclass.widgets import FloatRangeSlider
 import numpy as np
 import impy as ip
@@ -42,9 +42,9 @@ OPERATORS = [
 class Volume(MagicTemplate):
     """A custom menu that provides useful functions for volumeric data visualization."""
 
-    @set_options(bin_size={"min": 1, "max": 16}, auto_call=True)
+    @set_options(auto_call=True)
     @set_design(text="Binning")
-    def binning(self, layer: Image, bin_size: int = 2) -> LayerDataTuple:
+    def binning(self, layer: Image, bin_size: Annotated[int, {"min": 1, "max": 16}] = 2) -> LayerDataTuple:
         if layer is None:
             return None
         img = _convert_array(layer.data, layer.scale[-1])
@@ -66,22 +66,22 @@ class Volume(MagicTemplate):
             "image",
         )
     
-    @set_options(sigma={"widget_type": "FloatSlider", "max": 5.0, "step": 0.1}, auto_call=True)
+    @set_options(auto_call=True)
     @set_design(text="Gaussian filter")
-    def gaussian_filter(self, layer: Image, sigma: float = 1.0) -> LayerDataTuple:
+    def gaussian_filter(self, layer: Image, sigma: Annotated[float, {"widget_type": "FloatSlider", "max": 5.0, "step": 0.1}] = 1.0) -> LayerDataTuple:
         """Apply Gaussian filter to an image."""
         return self._apply_method(layer, "gaussian_filter", sigma=sigma)
     
-    @set_options(quantile={"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}, auto_call=True)
+    @set_options(auto_call=True)
     @set_design(text="Threshold")
-    def threshold(self, layer: Image, quantile: float = 0.5) -> LayerDataTuple:
+    def threshold(self, layer: Image, quantile: Annotated[float, {"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}] = 0.5) -> LayerDataTuple:
         """Apply threshold to an image."""
         thr = np.quantile(layer.data, quantile)
         return self._apply_method(layer, "threshold", thr)
 
-    @set_options(op={"choices": OPERATORS}, layout="horizontal", labels=False, auto_call=True)
+    @set_options(layout="horizontal", labels=False, auto_call=True)
     @set_design(text="Binary operation")
-    def binary_operation(self, layer_1: Image, op, layer_2: Image) -> LayerDataTuple:
+    def binary_operation(self, layer_1: Image, op: OneOf[OPERATORS], layer_2: Image) -> LayerDataTuple:
         if layer_1 is None or layer_2 is None:
             return None
         img1 = _convert_array(layer_1.data, layer_1.scale[-1])
@@ -95,10 +95,9 @@ class Volume(MagicTemplate):
                  rendering=layer_1.rendering,),
             "image",
         )
-    
-    @set_options(path={"mode": "w"})
+
     @set_design(text="Save volume")
-    def save_volume(self, layer: Image, path: Path):
+    def save_volume(self, layer: Image, path: Path.Save):
         """Save a volume as tif or mrc file."""
         img = layer.data
         if not isinstance(img, ip.ImgArray):

@@ -1,14 +1,13 @@
-from typing import Any, TYPE_CHECKING
-from pathlib import Path
+from typing import Any, TYPE_CHECKING, Annotated
 import json
 import matplotlib.pyplot as plt
 
 from magicgui.widgets import RangeSlider
 from magicclass import (
-    abstractapi, do_not_record, magicclass, magicmenu, MagicTemplate, set_design, set_options, field, 
+    abstractapi, do_not_record, magicclass, magicmenu, MagicTemplate, set_design, field, 
     vfield, impl_preview, confirm
 )
-from magicclass.types import Bound, OneOf, Optional
+from magicclass.types import Bound, OneOf, Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import Separator
 from magicclass.ext.dask import dask_thread_worker
@@ -33,6 +32,8 @@ SAVE_MODE_CHOICES = (("separate mrc", "mrc"), ("separate tif", "tif"), ("single 
 _INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
 _NPF = (GVar.nPFmin + GVar.nPFmax) // 2
 _RADIUS = _INTERVAL * _NPF / 2 / np.pi
+
+_TiltRange = Annotated[tuple[float, float], {"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0}]
 
 class CylinderParameters:
     """Parameters for cylinder model."""
@@ -183,16 +184,11 @@ class CylinderSimulator(MagicTemplate):
     @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})
     @confirm(text="You may have unsaved data. Continue?", condition="self.parent_widget._need_save")
-    @set_options(
-        size={"label": "image size of Z, Y, X (nm)"},
-        scale={"label": "pixel scale (nm/pixel)"},
-        bin_size={"options": {"min": 1, "max": 8}}
-    )
     def create_empty_image(
         self, 
-        size: tuple[nm, nm, nm] = (100., 200., 100.), 
-        scale: nm = 0.25,
-        bin_size: list[int] = [4],
+        size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (100., 200., 100.), 
+        scale: Annotated[nm , {"label": "pixel scale (nm/pixel)"}] = 0.25,
+        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 8}}] = [4],
     ):
         """
         Create an empty image with the given size and scale, and send it to the viewer.
@@ -295,24 +291,16 @@ class CylinderSimulator(MagicTemplate):
 
     @Operator.wraps
     @impl_preview(auto_call=True)
-    @set_options(
-        interval={"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"},
-        skew={"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"},
-        rise={"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"},
-        npf={"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"},
-        radius={"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"},
-        offsets={"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"},
-    )
     @set_design(text="Update model parameters", font_color="lime")
     def update_model(
         self,
         idx: Bound[_get_current_index],
-        interval: nm = CylinderParameters.interval,
-        skew: float = CylinderParameters.skew,
-        rise: float = CylinderParameters.rise,
-        npf: int = CylinderParameters.npf,
-        radius: nm = CylinderParameters.radius,
-        offsets: tuple[float, float] = CylinderParameters.offsets,
+        interval: Annotated[nm, {"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"}] = CylinderParameters.interval,
+        skew: Annotated[float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}] = CylinderParameters.skew,
+        rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = CylinderParameters.rise,
+        npf: Annotated[int, {"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"}] = CylinderParameters.npf,
+        radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = CylinderParameters.radius,
+        offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = CylinderParameters.offsets,
     ):
         """
         Update cylinder model with new parameters.
@@ -394,20 +382,14 @@ class CylinderSimulator(MagicTemplate):
         return radon_model, radon_model.transform(simulated_image)
         
     @Menu.wraps
-    @set_options(
-        path={"label": "Template image", "filter": FileFilter.IMAGE},
-        tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
-        bin_size={"options": {"min": 1, "max": 10}},
-        nsr={"min": 0.0, "max": 4.0, "step": 0.1},
-    )
     @thread_worker(progress={"desc": "Simulating a tomogram"})
     def simulate_tomogram(
         self,
-        path: Path,
-        nsr: float = 2.0,
-        tilt_range: tuple[float, float] = (-60.0, 60.0),
+        template_path: Annotated[Path.Read[FileFilter.IMAGE], {"label": "Template image"}],
+        nsr: Annotated[float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}] = 2.0,
+        tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
-        bin_size: list[int] = [4],
+        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 10}}] = [4],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         filter: bool = True,
         seed: Optional[int] = None,
@@ -441,11 +423,11 @@ class CylinderSimulator(MagicTemplate):
             Random seed used for the Gaussian noise.
         """
         parent = self.parent_widget
-        template = ip.imread(path)
+        template = ip.imread(template_path)
         scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
         
-        radon_model, sino = self._prep_radon(path, tilt_range, n_tilt, interpolation)
+        radon_model, sino = self._prep_radon(template_path, tilt_range, n_tilt, interpolation)
         
         # add noise
         if nsr > 0:
@@ -469,25 +451,18 @@ class CylinderSimulator(MagicTemplate):
         return True
         
     @Menu.wraps
-    @set_options(
-        path={"label": "Template image", "filter": FileFilter.IMAGE},
-        save_path={"label": "Save directory", "mode": "d"},
-        tilt_range={"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0},
-        nsr={"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
-        seed={"options": {"min": 0, "max": 1e8}},
-    )
     @confirm(text="Directory already exists. Overwrite?", condition=_directory_not_empty)
     @thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
     def simulate_tomogram_batch(
         self,
-        path: Path,
-        save_path: Path,
-        nsr: list[float] = [2.0],
-        tilt_range: tuple[float, float] = (-60.0, 60.0),
+        template_path: Path.Read[FileFilter.IMAGE],
+        save_path: Annotated[Path.Dir, {"label": "Save directory"}],
+        nsr: Annotated[list[float], {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}}] = [2.0],
+        tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         save_mode: OneOf[SAVE_MODE_CHOICES] = "mrc",
-        seed: Optional[int] = None,
+        seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):
         """
         Simulate tomographic images using the current model and save the images.
@@ -514,11 +489,11 @@ class CylinderSimulator(MagicTemplate):
             raise ValueError(f"Invalid save mode {save_mode!r}.")
         
         parent = self.parent_widget
-        template = ip.imread(path)
+        template = ip.imread(template_path)
         scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
         
-        radon_model, sino = self._prep_radon(path, tilt_range, n_tilt, interpolation)
+        radon_model, sino = self._prep_radon(template_path, tilt_range, n_tilt, interpolation)
         
         # plot some of the results
         @thread_worker.to_callback
@@ -571,12 +546,11 @@ class CylinderSimulator(MagicTemplate):
         return None 
 
     @Operator.wraps
-    @set_options(shift={"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"})
     @set_design(text="Expansion/Compaction", font_color="lime")
     @impl_preview(auto_call=True)
     def expand(
         self,
-        shift: nm,
+        shift: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"}],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
@@ -590,12 +564,11 @@ class CylinderSimulator(MagicTemplate):
         return None
     
     @Operator.wraps
-    @set_options(skew={"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"})
     @set_design(text="Screw", font_color="lime")
     @impl_preview(auto_call=True)
     def screw(
         self, 
-        skew: float,
+        skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
         yrange: Bound[Operator.yrange], 
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
@@ -609,12 +582,11 @@ class CylinderSimulator(MagicTemplate):
         return None
     
     @Operator.wraps
-    @set_options(radius={"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"})
     @set_design(text="Dilation/Erosion", font_color="lime")
     @impl_preview(auto_call=True)
     def dilate(
         self,
-        radius: nm,
+        radius: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,

@@ -1,9 +1,9 @@
-from typing import List, Set, Union, Tuple, TYPE_CHECKING
-from pathlib import Path
+from typing import Annotated
 import numpy as np
 import pandas as pd
 
 from magicclass import magicmenu, set_options, MagicTemplate
+from magicclass.types import Path
 from acryo import Molecules
 
 from cylindra.utils import roundint
@@ -16,12 +16,13 @@ from cylindra.widgets.widget_utils import add_molecules, FileFilter
 @magicmenu
 class PEET(MagicTemplate):
     """PEET extension."""
-    @set_options(
-        mod_path={"label": "Path to MOD file", "mode": "r", "filter": "Model files (*.mod);;All files (*.txt;*.csv)"},
-        ang_path={"label": "Path to csv file", "mode": "r", "filter": FileFilter.CSV},
-        shift_mol={"label": "Apply shifts to monomers if offsets are available."}
-    )
-    def Read_monomers(self, mod_path: Path, ang_path: Path, shift_mol: bool = True):
+
+    def read_monomers(
+        self, 
+        mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}], 
+        ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}], 
+        shift_mol: Annotated[bool, {"label": "Apply shifts to monomers if offsets are available."}] = True,
+    ):
         """
         Read monomer coordinates and angles from PEET-format files.
 
@@ -43,11 +44,10 @@ class PEET(MagicTemplate):
             mol.translate(shifts*self.scale, copy=False)
         
         add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
-    
-    @set_options(save_dir={"label": "Save at", "mode": "d"})
-    def Save_monomers(
+
+    def save_monomers(
         self, 
-        save_dir: Path,
+        save_dir: Path.Dir,
         layer: MonomerLayer,
         save_protofilaments_separately: bool = False
     ):
@@ -76,8 +76,7 @@ class PEET(MagicTemplate):
             _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
         return None
     
-    @set_options(save_dir={"label": "Save at", "mode": "d"})
-    def Save_all_monomers(self, save_dir: Path):
+    def save_all_monomers(self, save_dir: Path.Dir):
         """
         Save monomer angles in PEET format.
 
@@ -96,8 +95,12 @@ class PEET(MagicTemplate):
         save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
         return None
     
-    @set_options(ang_path={"label": "Path to csv file", "mode": "r", "filter": FileFilter.CSV})
-    def Shift_monomers(self, ang_path: Path, layer: MonomerLayer, update: bool = False):
+    def shift_monomers(
+        self, 
+        ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
+        layer: MonomerLayer, 
+        update: bool = False,
+    ):
         """
         Shift monomer coordinates in PEET format.
 
@@ -162,7 +165,7 @@ def _read_angle(ang_path: str) -> np.ndarray:
         raise ValueError(f"Could not interpret data format of {ang_path}:\n{csv.head(5)}")
     return csv_data
 
-def _read_shift_and_angle(path: str) -> Tuple[Union[np.ndarray, None], np.ndarray]:
+def _read_shift_and_angle(path: str) -> tuple["np.ndarray | None", np.ndarray]:
     """Read offsets and angles from PEET project"""
     csv: pd.DataFrame = pd.read_csv(path)
     if "CCC" in csv.columns:
@@ -187,7 +190,7 @@ def _save_molecules(save_dir: Path, mol: Molecules, scale: float, mod_name: str 
     save_angles(save_dir/csv_name, mol.euler_angle(EulerAxes.ZXZ, degrees=True))
     return None
 
-def _list_to_cell(l: List) -> str:
+def _list_to_cell(l: list[str]) -> str:
     return "{" + ", ".join(l) + "}"
 
 PEET_TEMPLATE = """

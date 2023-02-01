@@ -216,7 +216,7 @@ def test_single_simulation():
     ui.register_path(coords=[[50.25, 179.886, 33.022], [50.25, 23.331, 72.339]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
-    ui.cylinder_simulator.simulate_tomogram(path=TEST_PATH / "template.mrc")
+    ui.cylinder_simulator.simulate_tomogram(template_path=TEST_PATH / "template.mrc")
 
 def test_batch_simulation():
     ui = start()
@@ -229,7 +229,7 @@ def test_batch_simulation():
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
         ui.cylinder_simulator.simulate_tomogram_batch(
-            path=TEST_PATH / "template.mrc",
+            template_path=TEST_PATH / "template.mrc",
             save_path=dirpath,
             nsr=[0.5, 1.0, 2.0],
             tilt_range=(-60.0, 60.0),

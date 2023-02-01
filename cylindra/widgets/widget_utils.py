@@ -20,6 +20,7 @@ class FileFilter(SimpleNamespace):
     JSON = "JSON(*.json;*.txt);;All files (*)"
     CSV = "CSV(*.csv;*.txt);*.dat;;All files (*)"
     PY = "Python (*.py);;All files (*)"
+    MOD = "Model files (*.mod);;All files (*.txt;*.csv)"
 
 
 def add_molecules(viewer: napari.Viewer, mol: Molecules, name):

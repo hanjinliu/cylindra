@@ -1,5 +1,3 @@
-from pathlib import Path
-from typing import Tuple
 import json
 from appdirs import user_config_dir
 
@@ -11,6 +9,7 @@ from magicclass import (
     get_function_gui,
 )
 from magicclass.utils import show_messagebox
+from magicclass.types import Path
 
 from .widget_utils import FileFilter
 from cylindra.const import nm, GlobalVariables as GVar
@@ -47,7 +46,7 @@ class GlobalVariables(MagicTemplate):
         outer: float = GVar.outer,
         fitLength: nm = GVar.fitLength,
         fitWidth: nm = GVar.fitWidth,
-        daskChunk: Tuple[int, int, int] = GVar.daskChunk,
+        daskChunk: tuple[int, int, int] = GVar.daskChunk,
         GPU: bool = GVar.GPU,
     ):
         """
@@ -77,10 +76,9 @@ class GlobalVariables(MagicTemplate):
             Radius x outer will be the outer surface of the cylinder.
         """        
         GVar.set_value(**locals())
-    
-    @set_options(path={"filter": FileFilter.JSON})
+
     @set_design(text="Load variables")
-    def load_variables(self, path: Path = INITIAL_PATH):
+    def load_variables(self, path: Path.Read[FileFilter.JSON] = INITIAL_PATH):
         """Load global variables from a Json file."""
         with open(path, mode="r") as f:
             gvar: dict = json.load(f)
@@ -106,10 +104,9 @@ class GlobalVariables(MagicTemplate):
         
         get_function_gui(self, "set_variables")(**gvar, update_widget=True)
         return None
-    
-    @set_options(path={"filter": FileFilter.JSON, "mode": "w"})
+
     @set_design(text="Save variables")
-    def save_variables(self, path: Path = INITIAL_PATH):
+    def save_variables(self, path: Path.Save[FileFilter.JSON] = INITIAL_PATH):
         """Save current global variables to a Json file."""
         gvar = GVar.get_value()
         with open(path, mode="w") as f:
