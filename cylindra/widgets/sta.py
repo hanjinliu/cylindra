@@ -66,7 +66,7 @@ def _get_alignment(method: str):
 # TEMPLATE_CHOICES = ("From file", "From layer")
 MASK_CHOICES = ("No mask", "Blur template", "From file")
 
-@magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False)
+@magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False, record=False)
 class params(MagicTemplate):
     """
     Parameters for soft mask creation.
@@ -86,16 +86,47 @@ class params(MagicTemplate):
     dilate_radius = vfield(0.3, record=False).with_options(max=20, step=0.1)
     sigma = vfield(0.3, record=False).with_options(max=20, step=0.1)
     
-@magicclass(layout="horizontal", widget_type="frame", visible=False)
+@magicclass(layout="horizontal", widget_type="frame", visible=False, record=False)
 class mask_path(MagicTemplate):
     """Path to the mask image."""
-    mask_path = vfield(Path.Read[FileFilter.IMAGE], record=False)
+    mask_path = vfield(Path.Read[FileFilter.IMAGE])
 
+
+@magicmenu
+class SubtomogramAnalysis(MagicTemplate):
+    """Analysis of subtomograms."""
+    average_all = abstractapi()
+    average_subset = abstractapi()
+    split_and_average = abstractapi()
+    calculate_correlation = abstractapi()
+    calculate_fsc = abstractapi()
+    seam_search = abstractapi()
+
+@magicmenu
+class Refinement(MagicTemplate):
+    """Refinement and alignment of subtomograms."""
+    align_averaged = abstractapi()
+    align_all = abstractapi()
+    align_all_template_free = abstractapi()
+    align_all_multi_template = abstractapi()
+    align_all_viterbi = abstractapi()
+
+@magicmenu
+class BatchProcessing(MagicTemplate):
+    """Batch processing of subtomograms using project files."""
+    average_all_projects = abstractapi()
+
+@magicmenu
+class Tools(MagicTemplate):
+    """Other tools."""
+    reshape_template = abstractapi()
+    analyze_tomogram_collection = abstractapi()
 
 @magicclass(record=False)
 class TomogramCollectionWidget(MagicTemplate):
-    projects = field(list[Path], widget_type=Select, record=False)
-    
+    projects = field(list[Path], widget_type=Select)
+    filter_expression = vfield(str)
+
     @magicclass(layout="horizontal")
     class Buttons(MagicTemplate):
         add_projects = abstractapi()
@@ -115,23 +146,19 @@ class TomogramCollectionWidget(MagicTemplate):
         for path in paths:
             self.projects.del_choice(str(path))
     
-    def _get_object(self, scale: nm, order: int = 3, output_shape: tuple[int, int, int] = None):
-        col = TomogramCollection(order=order, scale=scale, output_shape=output_shape)
-        for path in self.projects.value:
-            project = CylindraProject.from_json(path)
-            tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
-            
-            for fp in project.molecules:
-                fp = Path(fp)
-                mole = Molecules.from_csv(fp)
-                mole.features = mole.features.with_columns(pl.Series("file-name", np.full(len(mole), fp.stem)))
-                col.add_tomogram(tomogram, molecules=mole)
-        return col
+    def preview_filtered_molecules(self):
+        col = _get_collection(self.projects.value, predicate=self._get_expression())
+        mole = col.molecules
+        features = mole.features
+        print(features)
 
-    def align_all(self):
-        ...
-
-@magicclass(name="_Subtomogram averaging", record=False)
+    def _get_expression(self):
+        expr = self.filter_expression
+        if expr == "":
+            return None
+        return eval(expr, {"pl": pl}, {})
+    
+@magicclass
 class SubtomogramAveraging(MagicTemplate):
     """
     Widget for subtomogram averaging.
@@ -147,6 +174,11 @@ class SubtomogramAveraging(MagicTemplate):
     tilt_range : tuple of float, options
         Tilt range (degree) of the tomogram.
     """
+    Subtomogram_analysis = field(SubtomogramAnalysis)
+    Refinement = field(Refinement)
+    BatchProcessing = field(BatchProcessing)
+    Tools = field(Tools)
+    
     def __post_init__(self):
         self._template = None
         self._viewer: Union[napari.Viewer, None] = None
@@ -157,13 +189,13 @@ class SubtomogramAveraging(MagicTemplate):
     def sub_viewer(self):
         return self._viewer
     
-    template_path = vfield(Optional[Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]], label="Template").with_options(
+    template_path = vfield(Optional[Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]], label="Template", record=False).with_options(
         text="Use last averaged image", value=Path("")
     )
-    mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask")
+    mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
     params = field(params)
     mask_path = field(mask_path)
-    tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)").with_options(
+    tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(
         value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}}
     )
 
@@ -368,31 +400,6 @@ class SubtomogramAveraging(MagicTemplate):
         """Load and show mask image."""
         self._show_reconstruction(self._get_mask(), name="Mask image", store=False)
     
-    @magicmenu
-    class Subtomogram_analysis(MagicTemplate):
-        """Analysis of subtomograms."""
-        average_all = abstractapi()
-        average_subset = abstractapi()
-        split_and_average = abstractapi()
-        calculate_correlation = abstractapi()
-        calculate_fsc = abstractapi()
-        seam_search = abstractapi()
-    
-    @magicmenu
-    class Refinement(MagicTemplate):
-        """Refinement and alignment of subtomograms."""
-        align_averaged = abstractapi()
-        align_all = abstractapi()
-        align_all_template_free = abstractapi()
-        align_all_multi_template = abstractapi()
-        align_all_viterbi = abstractapi()
-    
-    @magicmenu
-    class Tools(MagicTemplate):
-        """Other tools."""
-        reshape_template = abstractapi()
-        analyze_tomogram_collection = abstractapi()
-    
     @Tools.wraps
     @set_design(text="Reshape template")
     def reshape_template(
@@ -440,8 +447,9 @@ class SubtomogramAveraging(MagicTemplate):
         {layer}{size}{interpolation}{bin_size}
         """
         t0 = default_timer()
+        parent = self._get_parent()
         molecules: Molecules = layer.metadata[MOLECULES]
-        tomo = self.tomogram
+        tomo = parent.tomogram
         if size is None:
             shape = self._get_shape_in_nm()
         else:
@@ -451,7 +459,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale)
-        self.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
+        parent.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
         
         return thread_worker.to_callback(
             self._show_reconstruction, img, f"[AVG]{layer.name}"
@@ -1189,6 +1197,70 @@ class SubtomogramAveraging(MagicTemplate):
     def _show_subtomogram_averaging(self):
         return self.show()
     
+    def _get_project_paths(self, w=None) -> list[Path]:
+        return self.collection.projects.value
+
+    @BatchProcessing.wraps
+    @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
+    def average_all_projects(
+        self, 
+        paths: Bound[_get_project_paths],
+        size: _SubVolumeSize = None,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+    ):
+        parent = self._get_parent()
+        t0 = default_timer()
+        if size is None:
+            shape = self._get_shape_in_nm()
+        else:
+            shape = (size, size, size)
+        col = _get_collection(paths, interpolation, shape)
+        img = ip.asarray(col.average(), axes="zyx")
+        img.set_scale(zyx=col.scale)
+        parent.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
+        
+        return thread_worker.to_callback(
+            self._show_reconstruction, img, f"[AVG]Collection"
+        )
+    
+    @BatchProcessing.wraps
+    @dask_thread_worker.with_progress(desc="Aligning all projects")
+    def align_all_projects(
+        self, 
+        paths: Bound[_get_project_paths], 
+        template_path: Bound[template_path],
+        mask_params: Bound[_get_mask_params],
+        tilt_range: Bound[tilt_range] = None,
+        max_shifts: _MaxShifts = (1., 1., 1.),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        method: OneOf[METHOD_CHOICES] = "zncc",
+    ):
+        t0 = default_timer()
+        parent = self._get_parent()
+        template = self._get_template(path=template_path)
+        mask = self._get_mask(params=mask_params)
+        shape = self._get_shape_in_nm()
+        col = _get_collection(paths, interpolation, shape)
+        
+        model_cls = _get_alignment(method)
+        aligned = col.align(
+            template=template.value, 
+            mask=mask,
+            max_shifts=max_shifts,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=cutoff,
+            alignment_model=model_cls,
+            tilt_range=tilt_range,
+        )
+        
+        parent.log.print_html(f"<code>align_all_projects</code> ({default_timer() - t0:.1f} sec)")
+        return aligned
+    
+    
     @thread_worker.to_callback
     def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
         parent = self._get_parent()
@@ -1224,3 +1296,39 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+
+def _get_collection(
+    project_paths: list[Path], 
+    order: int = 3, 
+    output_shape: tuple[nm, nm, nm] = None,
+    predicate = None,
+):
+    # check scales
+    projects: list[CylindraProject] = []
+    scales: list[nm] = []
+    for path in project_paths:
+        project = CylindraProject.from_json(path)
+        projects.append(project)
+        scales.append(project.scale)
+    scale = scales[0]
+    if len(set(scales)) > 1:
+        raise ValueError("All projects must have the same scale.")
+
+    if output_shape is None:
+        col = TomogramCollection(order=order)
+    else:
+        output_shape = tuple(np.round(np.array(output_shape) / scale).astype(int))
+        col = TomogramCollection(order=order, output_shape=output_shape, scale=scale)
+        
+    for project in projects:
+        tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
+
+        for fp in project.molecules:
+            fp = Path(fp)
+            mole = Molecules.from_csv(fp)
+            mole.features = mole.features.with_columns(pl.Series("file-name", np.full(len(mole), fp.stem)))
+            col.add_tomogram(tomogram.value, molecules=mole)
+    if predicate is not None:
+        col = col.filter(predicate)
+    return col

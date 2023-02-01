@@ -11,7 +11,6 @@ import numpy as np
 import polars as pl
 import pandas as pd
 from acryo import Molecules, SubtomogramLoader
-from acryo.alignment import PCCAlignment, ZNCCAlignment
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
                         set_design, set_options)
@@ -70,7 +69,8 @@ class CylindraMainWidget(MagicTemplate):
     feature_control = field(FeatureControl, name="_Feature Control")  # Widget for visualizing/analyzing features
     cylinder_simulator = field(CylinderSimulator, name="_Cylinder Simulator")  # Widget for tomogram simulator
     spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
-    
+    sta = field(SubtomogramAveraging, name="_Subtomogram averaging")  # Widget for subtomogram analysis
+
     # The logger widget.
     @magicclass(labels=False, name="Logger")
     @set_design(min_height=200)
@@ -1440,8 +1440,6 @@ class CylindraMainWidget(MagicTemplate):
     def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
         return self.sta.show()
-    
-    sta = SubtomogramAveraging
     
     @toolbar.wraps
     @set_design(icon=ICON_DIR/"pick_next.png")
