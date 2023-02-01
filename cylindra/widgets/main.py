@@ -745,6 +745,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[Optional[OneOf["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = "MinusToPlus",
+        depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
+        nsamples: Annotated[int, {"min": 1, "max": 100}] = 1,
     ):
         """
         Automatically detect the polarities and align if necessary.
@@ -761,29 +763,39 @@ class CylindraMainWidget(MagicTemplate):
             Polarity corresponding to clockwise rotation of the projection image.
         align_to : Ori, default is Ori.MinusToPlus
             To which direction splines will be aligned.
+        depth : nm, default is 40 nm
+            Depth of the subtomogram to be sampled.
+        nsamples : int, default is 1
+            Number of sampling on each spline. Cylindric subtomograms will be sampled
+            at positions 1/n, ..., (n-1)/n.
         """
         binsize = self.layer_image.metadata["current_binsize"]
         tomo = self.tomogram
         current_scale = tomo.scale * binsize
         imgb = tomo.get_multiscale(binsize)
 
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
+        length_px = tomo.nm2pixel(depth, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
+        
+        points = np.linspace(0, 1.0, nsamples + 2)[1:-1]
         
         ori_clockwise = Ori(clockwise_is)
         ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
-        for spl in self.tomogram.splines:
-            coords = spl.local_cylindrical((0.5, width_px/2), length_px, 0.5, scale=current_scale)
-            mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
-            img_flat = ip.asarray(mapped, axes="rya").proj("y")
+        for i, spl in enumerate(self.tomogram.splines):
+            img_flat = 0.0
+            for point in points:
+                coords = spl.local_cylindrical((0.5, width_px/2), length_px, point, scale=current_scale)
+                mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
+                img_flat = ip.asarray(mapped, axes="rya").proj("y") + img_flat
             npf = utils.roundint(spl.globalprops[H.nPF])
             pw_peak = img_flat.local_power_spectra(
                 key=ip.slicer.a[npf-1:npf+2],
                 dims="ra",
             ).proj("a", method=np.max)
             r_argmax = np.argmax(pw_peak)
-            vtx = r_argmax - (pw_peak.size + 1) // 2
-            spl.orientation = ori_clockwise if vtx > 0 else ori_anticlockwise
+            clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
+            spl.orientation = ori_clockwise if clkwise else ori_anticlockwise
+            self.log.print(f"Spline {i} was {spl.orientation.name}.")
         
         if align_to is not None:
             self.align_to_polarity(orientation=align_to)

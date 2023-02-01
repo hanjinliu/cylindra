@@ -340,7 +340,6 @@ class SubtomogramAveraging(MagicTemplate):
             input_image, scale=image.scale, name=name,
             rendering="iso", iso_threshold=thr,
         )
-        
         return layer
     
     def _check_binning_for_alignment(
@@ -553,12 +552,11 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules: Molecules = layer.metadata[MOLECULES]
-        tomo = parent.tomogram
         if size is None:
             shape = self._get_shape_in_nm()
         else:
             shape = (size,) * 3
-        loader = parent.get_subtomogram_loader(
+        loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation
         )
         axes = "ipzyx" if n_set > 1 else "pzyx"
@@ -613,7 +611,7 @@ class SubtomogramAveraging(MagicTemplate):
         dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
         
-        max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
+        max_shifts = tuple(np.array([dy, dy, dx]) / _scale * 0.6)
         img = loader.average()
         
         if bin_size > 1 and img.shape != template.shape:

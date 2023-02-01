@@ -11,11 +11,11 @@ from pathlib import Path
 import impy as ip
 
 from .widget_utils import FileFilter
-from .global_variables import GlobalVariables as GVar
 from ._previews import view_image
 
 from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
+from cylindra.const import GlobalVariables as GVar
 
 
 ICON_DIR = Path(__file__).parent / "icons"
