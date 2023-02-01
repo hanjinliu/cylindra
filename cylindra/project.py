@@ -8,10 +8,13 @@ import pandas as pd
 import polars as pl
 from pydantic import BaseModel
 import impy as ip
-
+import macrokit as mk
 from magicclass import magicclass, field, vfield, MagicTemplate
 from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.vispy import Vispy3DCanvas
+from magicclass.utils import thread_worker
+
+from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -240,6 +243,85 @@ class CylindraProject(BaseModel):
                 f.write(macro_str)
         return None
     
+    def to_gui(self, gui: "CylindraMainWidget", filter: bool = True):
+        from cylindra.components import CylSpline, CylTomogram
+        
+        gui.tomogram = CylTomogram.imread(
+            path=self.image, 
+            scale=self.scale, 
+            binsize=self.multiscales, 
+        )
+        
+        gui._current_ft_size = self.current_ft_size
+        gui._macro_offset = len(gui.macro)
+        
+        # load splines
+        splines = [CylSpline.from_json(path) for path in self.splines]
+        localprops_path = self.localprops
+        if localprops_path is not None:
+            all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
+        else:
+            all_localprops = {}
+        globalprops_path = self.globalprops
+        if globalprops_path is not None:
+            all_globalprops = dict(pd.read_csv(globalprops_path, index_col=0).iterrows())
+        else:
+            all_globalprops = {}
+        
+        for i, spl in enumerate(splines):
+            spl.localprops = all_localprops.get(i, None)
+            if spl.localprops is not None:
+                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
+                spl.localprops.pop("SplineID")
+                spl.localprops.pop("PosID")
+                spl.localprops.index = range(len(spl.localprops))
+            spl.globalprops = all_globalprops.get(i, None)
+            if spl.globalprops is not None:
+                try:
+                    spl.radius = spl.globalprops.pop("radius")
+                except KeyError:
+                    pass
+                try:
+                    spl.orientation = spl.globalprops.pop("orientation")
+                except KeyError:
+                    pass
+        
+        @thread_worker.to_callback
+        def _load_project_on_return():
+            gui._send_tomogram_to_viewer(filt=filter)
+            
+            if splines:
+                gui.tomogram._splines = splines
+                gui._update_splines_in_images()
+                with gui.macro.blocked():
+                    gui.sample_subtomograms()
+            
+            # load molecules
+            for path in self.molecules:
+                mole = Molecules.from_csv(path)
+                gui.add_molecules(mole, name=Path(path).stem)
+            
+            # load global variables
+            if self.global_variables:
+                with gui.macro.blocked():
+                    gui.Others.Global_variables.load_variables(self.global_variables)
+            
+            # append macro
+            with open(self.macro) as f:
+                txt = f.read()
+                
+            macro = mk.parse(txt)
+            gui.macro.extend(macro.args)
+
+            # load subtomogram analyzer state
+            gui.subtomogram_averaging.template_path = self.template_image or ""
+            gui.subtomogram_averaging._set_mask_params(self.mask_parameters)
+            gui.reset_choices()
+            gui._need_save = False
+        
+        return _load_project_on_return
+    
+    
     def make_project_viewer(self) -> "ProjectViewer":
         """Build a project viewer widget from this project."""
         pviewer = ProjectViewer()
@@ -247,7 +329,7 @@ class CylindraProject(BaseModel):
         return pviewer
         
 
-@magicclass(widget_type="tabbed", name="Project Viewer")
+@magicclass(widget_type="tabbed", name="Project Viewer", record=False)
 class ProjectViewer(MagicTemplate):
     @magicclass(labels=False, name="General info")
     class Info(MagicTemplate):

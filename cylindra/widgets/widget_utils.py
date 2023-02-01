@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Sequence, TYPE_CHECKING
+from typing import NamedTuple, Sequence, TYPE_CHECKING
 import numpy as np
 from scipy import ndimage as ndi
 import napari
@@ -226,7 +226,7 @@ def calc_resolution(
             resolution = scale / freq0
             break
     else:
-        resolution = 0
+        resolution = np.nan
     return resolution
 
 def plot_projections(merge: np.ndarray):
@@ -274,3 +274,10 @@ def plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, 
     axes[1][0].set_ylabel("Reverse")
     
     return None
+
+class FscResult(NamedTuple):
+    freq: np.ndarray
+    mean: np.ndarray
+    std: np.ndarray
+    resolution_0143: nm
+    resolution_0500: nm

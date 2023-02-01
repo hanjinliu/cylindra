@@ -330,10 +330,9 @@ class CylindraMainWidget(MagicTemplate):
         return macro.format([(mk.symbol(self.parent_viewer), v)])
     
     @Others.Macro.wraps
-    @set_options(path={"filter": FileFilter.PY})
     @set_design(text="Run file")
     @do_not_record
-    def run_file(self, path: Path):
+    def run_file(self, path: Annotated[Path, {"filter": FileFilter.PY}]):
         """Run a Python script file."""
         with open(path, mode="r") as f:
             txt = f.read()
@@ -347,6 +346,7 @@ class CylindraMainWidget(MagicTemplate):
     @Others.Macro.wraps
     @set_design(text="Show macro")
     @do_not_record
+    @bind_key("Ctrl-Shift-M")
     def show_macro(self):
         """Create Python executable script of the current project."""
         new = self.macro.widget.new_window()
@@ -489,89 +489,15 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(self, path: Annotated[Path, {"filter": FileFilter.JSON}], filter: bool = True):
         """Load a project json file."""
         project = CylindraProject.from_json(path)
-        
-        self.tomogram = CylTomogram.imread(
-            path=project.image, 
-            scale=project.scale, 
-            binsize=project.multiscales, 
-        )
-        
-        self._current_ft_size = project.current_ft_size
-        self._macro_offset = len(self.macro)
-        
-        # load splines
-        splines = [CylSpline.from_json(path) for path in project.splines]
-        localprops_path = project.localprops
-        if localprops_path is not None:
-            all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
-        else:
-            all_localprops = {}
-        globalprops_path = project.globalprops
-        if globalprops_path is not None:
-            all_globalprops = dict(pd.read_csv(globalprops_path, index_col=0).iterrows())
-        else:
-            all_globalprops = {}
-        
-        for i, spl in enumerate(splines):
-            spl.localprops = all_localprops.get(i, None)
-            if spl.localprops is not None:
-                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
-                spl.localprops.pop("SplineID")
-                spl.localprops.pop("PosID")
-                spl.localprops.index = range(len(spl.localprops))
-            spl.globalprops = all_globalprops.get(i, None)
-            if spl.globalprops is not None:
-                try:
-                    spl.radius = spl.globalprops.pop("radius")
-                except KeyError:
-                    pass
-                try:
-                    spl.orientation = spl.globalprops.pop("orientation")
-                except KeyError:
-                    pass
-        
-        @thread_worker.to_callback
-        def _load_project_on_return():
-            self._send_tomogram_to_viewer(filt=filter)
-            
-            if splines:
-                self.tomogram._splines = splines
-                self._update_splines_in_images()
-                with self.macro.blocked():
-                    self.sample_subtomograms()
-            
-            # load molecules
-            for path in project.molecules:
-                mole = Molecules.from_csv(path)
-                add_molecules(self.parent_viewer, mole, name=Path(path).stem)
-            
-            # load global variables
-            if project.global_variables:
-                with self.macro.blocked():
-                    self.Others.Global_variables.load_variables(project.global_variables)
-            
-            # append macro
-            with open(project.macro) as f:
-                txt = f.read()
-                
-            macro = mk.parse(txt)
-            self.macro.extend(macro.args)
-
-            # load subtomogram analyzer state
-            self.subtomogram_averaging.template_path = project.template_image or ""
-            self.subtomogram_averaging._set_mask_params(project.mask_parameters)
-            self.reset_choices()
-            self._need_save = False
-        
-        return _load_project_on_return
+        return project.to_gui(self, filter=filter)
     
     @File.wraps
-    @set_options(
-        json_path={"mode": "w", "filter": FileFilter.JSON},
-        results_dir={"text": "Save at the same directory", "options": {"mode": "d"}}
-    )
     @set_design(text="Save project")
-    def save_project(self, json_path: Path, results_dir: Optional[Path] = None):
+    def save_project(
+        self,
+        json_path: Annotated[Path, {"mode": "w", "filter": FileFilter.JSON}],
+        results_dir: Annotated[Optional[Path], {"text": "Save at the same directory", "options": {"mode": "d"}}] = None,
+    ):
         """
         Save current project state as a json file and the results in a directory.
         
@@ -597,7 +523,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Load splines")
     def load_splines(self, paths: list[Path]):
         """
-        Load splines using a list of json paths.
+        Load splines from a list of json paths.
 
         Parameters
         ----------
@@ -2208,17 +2134,21 @@ class CylindraMainWidget(MagicTemplate):
             axes="ipzyx",
         )
         
+        # NOTE: images added with a big constant offset cause strong correlation at the
+        # masked edges. Here to avoid it, normalize images to minimize the artifact.
+        img -= img.mean()
+        
         fsc_all: list[np.ndarray] = []
         for i in range(n_set):
             img0, img1 = img[i]
-            freq, fsc = ip.fsc(img0*mask, img1*mask, dfreq=dfreq)
+            freq, fsc = ip.fsc(img0 * mask, img1 * mask, dfreq=dfreq)
             fsc_all.append(fsc)
         if show_average:
             img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / len(mole)
             img_avg.set_scale(zyx=loader.scale)
         else:
             img_avg = None
-            
+
         fsc_all = np.stack(fsc_all, axis=1)
         self.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
         
@@ -2235,19 +2165,19 @@ class CylindraMainWidget(MagicTemplate):
             
             resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
             resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
-            str_0143 = "N.A." if resolution_0143 == 0 else f"{resolution_0143:.3f} nm"
-            str_0500 = "N.A." if resolution_0500 == 0 else f"{resolution_0500:.3f} nm"
             
-            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{str_0500}</b>")
-            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{str_0143}</b>")
+            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0143:.3f} nm</b>")
+            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0500:.3f} nm</b>")
             self._LoggerWindow.show()
             
             if img_avg is not None:
+                from .widget_utils import FscResult
                 _rec_layer: "Image" = self.subtomogram_averaging._show_reconstruction(
                     img_avg, name = f"[AVG]{layer.name}",
                 )
-                _rec_layer.metadata["FSC-freq"] = freq
-                _rec_layer.metadata["FSC-mean"] = fsc_mean
+                _rec_layer.metadata["fsc"] = FscResult(
+                    freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
+                )
         return _calculate_fsc_on_return
     
     @subtomogram_averaging.Subtomogram_analysis.wraps
