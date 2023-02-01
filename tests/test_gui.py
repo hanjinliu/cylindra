@@ -132,15 +132,15 @@ def test_spline_switch():
 
     # map monomer coordinates and save them.
     ui.map_monomers(splines=[0])
-    ui.average_subset(ui.parent_viewer.layers['Mono-0'], size=18.)
-    ui.calculate_fsc(ui.parent_viewer.layers['Mono-0'], mask_params=None, size=18.,
+    ui.sta.average_subset(ui.parent_viewer.layers['Mono-0'], size=18.)
+    ui.sta.calculate_fsc(ui.parent_viewer.layers['Mono-0'], mask_params=None, size=18.,
                      seed=0, interpolation=1)
     template_path = TEST_PATH / "template.mrc"
-    ui.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
+    ui.sta.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
                       mask_params=(1, 1))
-    ui.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
+    ui.sta.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
                  tilt_range=(-60., 60.), max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0))
-    ui.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1))
+    ui.sta.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1))
     ui.save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
                       save_path=TEST_PATH/"monomers.txt"
                       )
@@ -156,7 +156,7 @@ def test_spline_switch():
     # cleanup
     ui.parent_viewer.layers.events.removing.disconnect()
     ui.parent_viewer.layers.events.removed.disconnect()
-    ui.sub_viewer.close()
+    ui.sta.sub_viewer.close()
 
 def test_clip_spline():
     ui = start()

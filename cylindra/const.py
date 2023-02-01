@@ -106,15 +106,6 @@ class MoleculesHeader(SimpleNamespace):
     pcc = "molecules-pcc"
     interval = "molecules-interval"
 
-class Align(SimpleNamespace):
-    zShift = "shift-z"
-    yShift = "shift-y"
-    xShift = "shift-x"
-    zRotvec = "rotvec-z"
-    yRotvec = "rotvec-y"
-    xRotvec = "rotvec-x"
-
-    
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
     

@@ -166,9 +166,9 @@ class CylindraProject(BaseModel):
             globalprops = as_relative(globalprops_path),
             molecules = [as_relative(p) for p in molecules_paths],
             global_variables = as_relative(gvar_path),
-            template_image = as_relative(gui.subtomogram_averaging.template_path),
-            mask_parameters = gui.subtomogram_averaging._get_mask_params(),
-            tilt_range = gui.subtomogram_averaging.tilt_range,
+            template_image = as_relative(gui.sta.template_path),
+            mask_parameters = gui.sta._get_mask_params(),
+            tilt_range = gui.sta.tilt_range,
             macro = as_relative(macro_path),
         )
         return self
@@ -314,8 +314,8 @@ class CylindraProject(BaseModel):
             gui.macro.extend(macro.args)
 
             # load subtomogram analyzer state
-            gui.subtomogram_averaging.template_path = self.template_image or ""
-            gui.subtomogram_averaging._set_mask_params(self.mask_parameters)
+            gui.sta.template_path = self.template_image or ""
+            gui.sta._set_mask_params(self.mask_parameters)
             gui.reset_choices()
             gui._need_save = False
         

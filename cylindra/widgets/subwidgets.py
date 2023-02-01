@@ -3,25 +3,20 @@ from typing import Union, TYPE_CHECKING
 from typing_extensions import Annotated
 from magicclass import (
     magicclass, magicmenu, magictoolbar, do_not_record, field, vfield, MagicTemplate, 
-    set_options, set_design, abstractapi
+    set_design, abstractapi
 )
-from magicclass.widgets import Separator, HistoryFileEdit
-from magicclass.types import OneOf, SomeOf, Optional
+from magicclass.widgets import Separator
+from magicclass.types import OneOf, SomeOf
 from pathlib import Path
-import numpy as np
 import impy as ip
-import napari
 
 from .widget_utils import FileFilter
-from .global_variables import GlobalVariables, GVar
+from .global_variables import GlobalVariables as GVar
 from ._previews import view_image
 
-from cylindra.const import nm
-from cylindra.utils import pad_template, roundint, normalize_image, ceilint
+from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
 
-if TYPE_CHECKING:
-    from napari.layers import Image
 
 ICON_DIR = Path(__file__).parent / "icons"
 
@@ -113,7 +108,7 @@ class Others(MagicTemplate):
         show_native_macro = abstractapi()
         sep0 = field(Separator)
         run_file = abstractapi()
-    Global_variables = GlobalVariables
+    Global_variables = GVar
     open_logger = abstractapi()
     clear_cache = abstractapi()
     send_ui_to_console = abstractapi()
@@ -158,261 +153,6 @@ class toolbar(MagicTemplate):
     sep1 = field(Separator)
     clear_current = abstractapi()
     clear_all = abstractapi()
-
-# STA widget
-
-# TEMPLATE_CHOICES = ("From file", "From layer")
-MASK_CHOICES = ("No mask", "Blur template", "From file")
-
-@magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False)
-class params(MagicTemplate):
-    """
-    Parameters for soft mask creation.
-    
-    Soft mask creation has three steps. 
-    (1) Create binary mask by applying thresholding to the template image.
-    (2) Morphological dilation of the binary mask.
-    (3) Gaussian filtering the mask.
-
-    Attributes
-    ----------
-    dilate_radius : nm
-        Radius of dilation (nm) applied to binarized template.
-    sigma : nm
-        Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
-    """
-    dilate_radius = vfield(0.3, record=False).with_options(max=20, step=0.1)
-    sigma = vfield(0.3, record=False).with_options(max=20, step=0.1)
-    
-@magicclass(layout="horizontal", widget_type="frame", visible=False)
-class mask_path(MagicTemplate):
-    """Path to the mask image."""
-    mask_path = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
-
-@magicclass(name="_Subtomogram averaging", record=False)
-class SubtomogramAveraging(MagicTemplate):
-    """
-    Widget for subtomogram averaging.
-    
-    Attributes
-    ----------
-    use_last_average : bool
-        Check if use template image of the last averaged image.
-    template_path : Path
-        Path to the template (reference) image file, or layer name of reconstruction.
-    mask : str
-        Select how to create a mask.
-    tilt_range : tuple of float, options
-        Tilt range (degree) of the tomogram.
-    """
-    def __post_init__(self):
-        self._template = None
-        self._viewer: Union[napari.Viewer, None] = None
-        self.mask_choice = MASK_CHOICES[0]
-        self._last_average: ip.ImgArray = None
-    
-    template_path = vfield(Optional[Annotated[Path, {"widget_type": HistoryFileEdit}]], label="Template").with_options(options={"filter": FileFilter.IMAGE}, text="Use last averaged image", value=Path(""))
-    mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask")
-    params = field(params)
-    mask_path = field(mask_path)
-    tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)").with_options(value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}})
-
-    @property
-    def template(self) -> Union[ip.ImgArray, None]:
-        """Template image."""
-        return self._get_template()
-    
-    @property
-    def mask(self) -> ip.ImgArray:
-        """Mask image."""
-        return self._get_mask()
-
-    @mask_choice.connect
-    def _on_mask_switch(self):
-        v = self.mask_choice
-        self.params.visible = (v == MASK_CHOICES[1])
-        self.mask_path.visible = (v == MASK_CHOICES[2])
-
-    def _get_template(self, path: Union[Path, None] = None, rescale: bool = True) -> ip.ImgArray:
-        if path is None:
-            path = self.template_path
-        else:
-            self.template_path = path
-        
-        if path is None:
-            if self._last_average is None:
-                raise ValueError("No average image found.")
-            img = self._last_average
-        else:
-            path = Path(path)
-            if path.is_dir():
-                raise TypeError(f"Template image must be a file, got {path}.")
-            img = ip.imread(path)
-            
-        if img.ndim != 3:
-            raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
-        
-        from .main import CylindraMainWidget
-
-        parent = self.find_ancestor(CylindraMainWidget)
-        if parent.tomogram is not None and rescale:
-            scale_ratio = img.scale.x / parent.tomogram.scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                img = img.rescale(scale_ratio)
-        self._template = img
-
-        return img
-    
-    def _get_shape_in_nm(self) -> tuple[int, ...]:
-        if self._template is None:
-            self._get_template()
-        
-        return tuple(s * self._template.scale.x for s in self._template.shape)
-    
-    def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
-        v = self.mask_choice
-        if v == MASK_CHOICES[0]:
-            params = None
-        elif v == MASK_CHOICES[1]:
-            if self._template is None:
-                self._get_template()
-            params = (self.params.dilate_radius, self.params.sigma)
-        else:
-            params = self.mask_path.mask_path
-        return params
-    
-    _sentinel = object()
-    
-    def _get_mask(
-        self,
-        params: Union[str, tuple[int, float], None] = _sentinel
-    ) -> Union[ip.ImgArray, None]:
-        from .main import CylindraMainWidget
-        
-        if params is self._sentinel:
-            params = self._get_mask_params()
-        else:
-            if params is None:
-                self.mask_choice = MASK_CHOICES[0]
-            elif isinstance(params, tuple):
-                self.mask_choice = MASK_CHOICES[1]
-            else:
-                self.mask_path.mask_path = params
-        
-        if params is None:
-            return None
-        elif isinstance(params, tuple):
-            thr = self._get_template().threshold()
-            scale: nm = thr.scale.x
-            mask_image = thr.smooth_mask(
-                sigma=params[1]/scale, 
-                dilate_radius=roundint(params[0]/scale),
-            )
-        else:
-            mask_image = ip.imread(self.mask_path.mask_path)
-        
-        if mask_image.ndim != 3:
-            raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
-        scale_ratio = mask_image.scale.x/self.find_ancestor(CylindraMainWidget).tomogram.scale
-        if scale_ratio < 0.99 or 1.01 < scale_ratio:
-            mask_image = mask_image.rescale(scale_ratio)
-        return mask_image
-    
-    def _set_mask_params(self, params):
-        if params is None:
-            self.mask_choice = MASK_CHOICES[0]
-        elif isinstance(params, (tuple, list, np.ndarray)):
-            self.mask_choice = MASK_CHOICES[1]
-            self.params.dilate_radius, self.params.sigma = params
-        else:
-            self.mask_choice = MASK_CHOICES[2]
-            self.mask_path.mask_path = params
-        
-    def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True) -> "Image":
-        if self._viewer is not None:
-            try:
-                # This line will raise RuntimeError if viewer window had been closed by user.
-                self._viewer.window.activate()
-            except RuntimeError:
-                self._viewer = None
-        if self._viewer is None:
-            from .function_menu import Volume
-            self._viewer = napari.Viewer(title=name, axis_labels=("z", "y", "x"), ndisplay=3)
-            volume_menu = Volume()
-            self._viewer.window.add_dock_widget(volume_menu)
-            self._viewer.window.resize(10, 10)
-            self._viewer.window.activate()
-        self._viewer.scale_bar.visible = True
-        self._viewer.scale_bar.unit = "nm"
-        if store:
-            self._last_average = image
-        input_image = normalize_image(image)
-        from skimage.filters.thresholding import threshold_yen
-        thr = threshold_yen(input_image.value)
-        layer = self._viewer.add_image(
-            input_image, scale=image.scale, name=name,
-            rendering="iso", iso_threshold=thr,
-        )
-        
-        return layer
-    
-    @set_design(text="Show template")
-    def show_template(self):
-        """Load and show template image."""
-        self._show_reconstruction(self._get_template(), name="Template image", store=False)
-    
-    @set_design(text="Show mask")
-    def show_mask(self):
-        """Load and show mask image."""
-        self._show_reconstruction(self._get_mask(), name="Mask image", store=False)
-    
-    @magicmenu
-    class Subtomogram_analysis(MagicTemplate):
-        """Analysis of subtomograms."""
-        average_all = abstractapi()
-        average_subset = abstractapi()
-        split_and_average = abstractapi()
-        calculate_correlation = abstractapi()
-        calculate_fsc = abstractapi()
-        seam_search = abstractapi()
-    
-    @magicmenu
-    class Refinement(MagicTemplate):
-        """Refinement and alignment of subtomograms."""
-        align_averaged = abstractapi()
-        align_all = abstractapi()
-        align_all_template_free = abstractapi()
-        align_all_multi_template = abstractapi()
-        align_all_viterbi = abstractapi()
-    
-    @magicmenu
-    class Tools(MagicTemplate):
-        """Other tools."""
-        reshape_template = abstractapi()
-        render_molecules = abstractapi()
-    
-    @Tools.wraps
-    @set_options(
-        new_shape={"options": {"min": 2, "max": 100}},
-        save_as={"mode": "w", "filter": FileFilter.IMAGE}
-    )
-    @set_design(text="Reshape template")
-    def reshape_template(
-        self, 
-        new_shape: tuple[nm, nm, nm] = (20.0, 20.0, 20.0),
-        save_as: Path = "",
-        update_template_path: bool = True,
-    ):
-        template = self._get_template()
-        if save_as == "":
-            raise ValueError("Set save path.")
-        scale = template.scale.x
-        shape = tuple(roundint(s/scale) for s in new_shape)
-        reshaped = pad_template(template, shape)
-        reshaped.imsave(save_as)
-        if update_template_path:
-            self.template_path = save_as
-        return None
 
 # Runner
 
