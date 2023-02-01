@@ -16,7 +16,7 @@ from ._previews import view_image
 from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
 from cylindra.const import GlobalVariables as GVar
-
+from cylindra.widgets.global_variables import GlobalVariables
 
 ICON_DIR = Path(__file__).parent / "icons"
 
@@ -108,7 +108,7 @@ class Others(MagicTemplate):
         show_native_macro = abstractapi()
         sep0 = field(Separator)
         run_file = abstractapi()
-    Global_variables = GVar
+    Global_variables = GlobalVariables
     open_logger = abstractapi()
     clear_cache = abstractapi()
     send_ui_to_console = abstractapi()

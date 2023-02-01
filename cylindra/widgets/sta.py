@@ -1,11 +1,11 @@
-from typing import Union, TYPE_CHECKING, Annotated
+from typing import Iterator, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
 from magicclass import (
     magicclass, magicmenu, do_not_record, field, vfield, MagicTemplate, 
-    set_design, abstractapi
+    set_design, abstractapi, FieldGroup
 )
-from magicclass.widgets import HistoryFileEdit, Select
+from magicclass.widgets import HistoryFileEdit, Table, PushButton
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
@@ -115,50 +115,105 @@ class Refinement(MagicTemplate):
 class BatchProcessing(MagicTemplate):
     """Batch processing of subtomograms using project files."""
     average_all_projects = abstractapi()
+    align_all_projects = abstractapi()
 
-@magicmenu
-class Tools(MagicTemplate):
-    """Other tools."""
-    reshape_template = abstractapi()
-    analyze_tomogram_collection = abstractapi()
 
-@magicclass(record=False)
+class Project(FieldGroup):
+    check = vfield(True).with_options(text="", label="")
+    path = vfield("").with_options(enabled=False)
+    preview_btn = vfield(widget_type=PushButton).with_options(text="Preview")
+    
+    @preview_btn.connect
+    def _on_click(self):
+        project = CylindraProject.from_json(self.path)
+        mv = project.make_molecules_viewer()
+        mv.native.setParent(self.native, mv.native.windowFlags())
+        mv.show()
+    
+    @classmethod
+    def from_path(cls, path: Path):
+        self = cls(layout="horizontal", labels=False)
+        self.path = str(path)
+        self["path"].tooltip = self.path
+        self.margins = (0, 0, 0, 0)
+        return self
+
+@magicclass(widget_type="scrollable", labels=False, record=False)
+class ProjectPaths(MagicTemplate):
+    def _add(self, path: Path):
+        prj = Project.from_path(path)
+        self.append(prj)
+        self.min_height = min(len(self) * 30, 105)
+    
+    def __iter__(self) -> Iterator[Project]:
+        return super().__iter__()
+
+    def _delete(self):
+        indices: list[int] = []
+        for i, wdt in enumerate(self):
+            if wdt.check:
+                indices.append(i)
+        for i in reversed(indices):
+            del self[i]
+        self.min_height = min(len(self) * 30, 105)
+    
+    @property
+    def paths(self) -> list[Path]:
+        return [Path(wdt.path) for wdt in self]
+            
+
+@magicclass(widget_type="collapsible", record=False)
 class TomogramCollectionWidget(MagicTemplate):
-    projects = field(list[Path], widget_type=Select)
-    filter_expression = vfield(str)
-
-    @magicclass(layout="horizontal")
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
+        check_all = abstractapi()
         add_projects = abstractapi()
         delete_projects = abstractapi()
+
+    projects = field(ProjectPaths)
+    filter_expression = vfield(str)
     
+    def __post_init__(self):
+        from qtpy import QtGui
+        font = QtGui.QFont("Monospace", 10)
+        font.setBold(True)
+        self["filter_expression"].native.setFont(font)
+
     @Buttons.wraps
-    @set_design(text="+", font_size=20, font_family="Arial")
+    @set_design(text="✓", max_width=26)
+    def check_all(self):
+        """Check all projects."""
+        for wdt in self.projects:
+            wdt.check = True
+            
+    @Buttons.wraps
+    @set_design(text="+", font_family="Arial")
     def add_projects(self, paths: Path.Multiple[FileFilter.JSON]):
-        self.projects: Select
         for path in paths:
-            self.projects.set_choice(str(path), path)
+            self.projects._add(path)
 
     @Buttons.wraps    
-    @set_design(text="-", font_size=20, font_family="Arial")
-    def delete_projects(self, paths: Path.Multiple[FileFilter.JSON]):
-        self.projects: Select
-        for path in paths:
-            self.projects.del_choice(str(path))
-    
-    def preview_filtered_molecules(self):
-        col = _get_collection(self.projects.value, predicate=self._get_expression())
-        mole = col.molecules
-        features = mole.features
-        print(features)
+    @set_design(text="-", font_family="Arial")
+    def delete_projects(self):
+        self.projects._delete()
 
+    def preview_filtered_molecules(self):
+        col = _get_collection(self.projects.paths, predicate=self._get_expression())
+        features = col.molecules.features
+        if features.shape[0] == 0:
+            raise ValueError("All molecules were filtered out.")
+        table = Table(value=features.to_pandas())
+        table.read_only = True
+        dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
+        dock.setFloating(True)
+        
     def _get_expression(self):
         expr = self.filter_expression
         if expr == "":
             return None
         return eval(expr, {"pl": pl}, {})
     
-@magicclass
+@magicclass(widget_type="scrollable")
 class SubtomogramAveraging(MagicTemplate):
     """
     Widget for subtomogram averaging.
@@ -177,13 +232,14 @@ class SubtomogramAveraging(MagicTemplate):
     Subtomogram_analysis = field(SubtomogramAnalysis)
     Refinement = field(Refinement)
     BatchProcessing = field(BatchProcessing)
-    Tools = field(Tools)
     
     def __post_init__(self):
         self._template = None
         self._viewer: Union[napari.Viewer, None] = None
         self.mask_choice = MASK_CHOICES[0]
         self._last_average: ip.ImgArray = None
+        
+        self.collection.collapsed = True
     
     @property
     def sub_viewer(self):
@@ -199,8 +255,18 @@ class SubtomogramAveraging(MagicTemplate):
         value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}}
     )
 
-    collection = field(TomogramCollectionWidget, name="_Tomogram collection")
-
+    @set_design(text="Show template")
+    def show_template(self):
+        """Load and show template image."""
+        self._show_reconstruction(self._get_template(), name="Template image", store=False)
+    
+    @set_design(text="Show mask")
+    def show_mask(self):
+        """Load and show mask image."""
+        self._show_reconstruction(self._get_mask(), name="Mask image", store=False)
+        
+    collection = field(TomogramCollectionWidget, name="Batch processing")
+    
     @property
     def template(self) -> Union[ip.ImgArray, None]:
         """Template image."""
@@ -388,43 +454,7 @@ class SubtomogramAveraging(MagicTemplate):
         if 1 not in out:
             out = [1] + out
         return out
-    
-    @set_design(text="Show template")
-    def show_template(self):
-        """Load and show template image."""
-        self._show_reconstruction(self._get_template(), name="Template image", store=False)
-    
-    @set_design(text="Show mask")
-    def show_mask(self):
-        """Load and show mask image."""
-        self._show_reconstruction(self._get_mask(), name="Mask image", store=False)
-    
-    @Tools.wraps
-    @set_design(text="Reshape template")
-    def reshape_template(
-        self, 
-        new_shape: Annotated[tuple[nm, nm, nm], {"options": {"min": 2, "max": 100}}] = (20.0, 20.0, 20.0),
-        save_as: Path.Save[FileFilter.IMAGE] = "",
-        update_template_path: bool = True,
-    ):
-        template = self._get_template()
-        if save_as == "":
-            raise ValueError("Set save path.")
-        scale = template.scale.x
-        shape = tuple(utils.roundint(s/scale) for s in new_shape)
-        reshaped = utils.pad_template(template, shape)
-        reshaped.imsave(save_as)
-        if update_template_path:
-            self.template_path = save_as
-        return None
 
-    @Tools.wraps
-    @set_design(text="Analyze tomogram collection")
-    @do_not_record
-    def analyze_tomogram_collection(self):
-        return self.collection.show()
-
-    
     @Subtomogram_analysis.wraps
     @set_design(text="Average all")
     @dask_thread_worker.with_progress(desc= _fmt_layer_name("Subtomogram averaging of {!r}"))
@@ -1196,7 +1226,7 @@ class SubtomogramAveraging(MagicTemplate):
         return self.show()
     
     def _get_project_paths(self, w=None) -> list[Path]:
-        return self.collection.projects.value
+        return self.collection.projects.paths
 
     @BatchProcessing.wraps
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")

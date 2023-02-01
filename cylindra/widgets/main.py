@@ -1122,7 +1122,10 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        return self.spectra_measurer.show()
+        self.spectra_measurer.show()
+        if self.tomogram.n_splines > 0:
+            self.spectra_measurer.load_spline(self.SplineControl.num)
+        return None
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
