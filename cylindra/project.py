@@ -45,6 +45,7 @@ def json_encoder(obj):
 
 PathLike = Union[Path, str]
 
+
 class CylindraProject(BaseModel):
     """A project of cylindra."""
     
@@ -345,7 +346,7 @@ class CylindraProject(BaseModel):
         mviewer._from_project(self)
         return mviewer
 
-@magicclass(labels=False, name="General info", layout="horizontal")
+@magicclass(labels=False, name="General info", layout="horizontal", record=False)
 class Info(MagicTemplate):
     text = field(ConsoleTextEdit)
     global_variables = field(ConsoleTextEdit)
@@ -393,7 +394,10 @@ class ComponentsViewer(MagicTemplate):
     
     def _from_project(self, project: CylindraProject):
         from cylindra.components import CylSpline
-
+        
+        self.canvas.layers.clear()
+        self.components.clear()
+        
         for path in project.splines:
             spl = CylSpline.from_json(path)
             coords = spl.partition(100)
@@ -415,7 +419,7 @@ class ComponentsViewer(MagicTemplate):
             arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
             self.canvas.add_curve(arr, color="gray")
 
-@magicclass(labels=False, widget_type="split")
+@magicclass(labels=False, widget_type="split", record=False)
 class Properties(MagicTemplate):
     table_local = field([], widget_type=Table)
     table_global = field([], widget_type=Table)
@@ -432,7 +436,7 @@ class Properties(MagicTemplate):
         self.table_global.read_only = True
 
 
-@magicclass(name="Subtomogram averaging")
+@magicclass(name="Subtomogram averaging", record=False)
 class SubtomogramAveraging(MagicTemplate):
     template_image = field(Vispy3DCanvas)
     mask_parameters = vfield(str)
@@ -452,7 +456,8 @@ class SubtomogramAveraging(MagicTemplate):
         if project.tilt_range is not None:
             s0, s1 = project.tilt_range
             self.tilt_range = f"({s0:.1f}, {s1:.1f})"
-@magicclass(labels=False)
+
+@magicclass(labels=False, record=False)
 class Macro(MagicTemplate):
     text = vfield(str, widget_type=ConsoleTextEdit)
     

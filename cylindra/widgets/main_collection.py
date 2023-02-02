@@ -1,32 +1,25 @@
 from typing import Iterator, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 from magicclass import (
-    magicclass, magicmenu, do_not_record, field, vfield, MagicTemplate, 
+    magicclass, magicmenu, do_not_record, field, nogui, vfield, MagicTemplate, 
     set_design, abstractapi, FieldGroup
 )
-from magicclass.widgets import Table, PushButton, ToggleSwitch
+from magicclass.widgets import Table, PushButton, ToggleSwitch, Container, ComboBox
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-from acryo import TomogramCollection, Molecules, alignment
+from acryo import TomogramCollection, Molecules
 
 import numpy as np
 import impy as ip
 import polars as pl
 
-from cylindra.project import CylindraProject
+from cylindra.project import CylindraProject, ComponentsViewer
 from cylindra.collection import ProjectCollection
-from cylindra.types import MonomerLayer
-from cylindra import utils
-from cylindra.const import (
-    GlobalVariables as GVar, nm
-)
+from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole
 
 from .widget_utils import FileFilter
 from .sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
-
-if TYPE_CHECKING:
-    from napari.layers import Image, Layer
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
@@ -40,15 +33,6 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 class Project(FieldGroup):
     check = vfield(True, widget_type=ToggleSwitch, name="", label="")
     path = vfield("").with_options(enabled=False)
-    preview_btn = vfield(widget_type=PushButton).with_options(text="Preview")
-    
-    @preview_btn.connect
-    def _on_click(self):
-        project = CylindraProject.from_json(self.path)
-        mv = project.make_component_viewer()
-        mv.native.setParent(self.native, mv.native.windowFlags())
-        mv.show()
-        mv.width, mv.height = 400, 300
     
     @classmethod
     def from_path(cls, path: Path):
@@ -104,6 +88,7 @@ class CollectionProvider(MagicTemplate):
         check_all = abstractapi()
         add_projects = abstractapi()
         delete_projects = abstractapi()
+        preview_all = abstractapi()
 
     projects = field(ProjectPaths)
     
@@ -122,14 +107,17 @@ class CollectionProvider(MagicTemplate):
     @FilterExpr.wraps
     @set_design(text="Preview", max_width=52)
     def preview_filtered_molecules(self):
+        """Preview filtered molecules."""
         col = _get_collection(self.projects.paths, predicate=self._get_expression())
-        features = col.molecules.features
-        if features.shape[0] == 0:
+        df = col.molecules.to_dataframe()
+        if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
-        table = Table(value=features.to_pandas())
+        table = Table(value=df.to_pandas())
         table.read_only = True
         dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
         dock.setFloating(True)
+    
+    filter_projects = abstractapi()
         
     def _get_expression(self, w=None) -> pl.Expr:
         expr = self.FilterExpr.filter_expression
@@ -137,7 +125,7 @@ class CollectionProvider(MagicTemplate):
             return None
         return eval(expr, {"pl": pl}, {})
 
-@magicclass(widget_type="scrollable")
+@magicclass(widget_type="scrollable", properties={"min_height": 240})
 class ProjectCollectionWidget(MagicTemplate):
     collection = CollectionProvider
     
@@ -156,6 +144,7 @@ class ProjectCollectionWidget(MagicTemplate):
 
     @collection.Buttons.wraps
     @set_design(text="+", font_family="Arial")
+    @do_not_record
     def add_projects(self, paths: Path.Multiple[FileFilter.JSON]):
         for path in paths:
             self._project_collection.add(path)
@@ -163,11 +152,48 @@ class ProjectCollectionWidget(MagicTemplate):
 
     @collection.Buttons.wraps    
     @set_design(text="-", font_family="Arial")
+    @do_not_record
     def delete_projects(self):
         indices = self.collection.projects.checked_indices
         for idx in reversed(indices):
             del self.collection.projects[idx]
             del self._project_collection[idx]
+    
+    @collection.Buttons.wraps
+    @set_design(text="Preview", font_family="Arial")
+    @do_not_record
+    def preview_all(self):
+        """Preview project."""
+        cbox = ComboBox(choices=self._get_project_paths)
+        comp_viewer = ComponentsViewer()
+        
+        self.collection.changed.connect(lambda: cbox.reset_choices())
+        cbox.changed.connect(
+            lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
+        )
+        cont = Container(widgets=[cbox, comp_viewer], labels=False)
+        cont.native.setParent(self.native, cont.native.windowFlags())
+        cont.show()
+        cbox.changed.emit(cbox.value)
+
+    @nogui
+    @do_not_record
+    def set_collection(self, col: ProjectCollection):
+        if not isinstance(col, ProjectCollection):
+            raise TypeError(f"Expected a ProjectCollection, got {type(col)}")
+        self._project_collection = col
+        for prj in col:
+            self.collection.projects._add(prj.project_path)
+    
+    @collection.wraps
+    def filter_projects(self, predicate: pl.Expr):
+        # TODO: how to filter??
+        # - Retain spline?
+        # - how to match project and image?
+        new = self._project_collection.filter(predicate)
+        self.collection.projects.clear()
+        for prj in self._project_collection:
+            self.collection.projects._add(prj.project_path)
 
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
@@ -252,14 +278,14 @@ def _get_collection(
         output_shape = tuple(np.round(np.array(output_shape) / scale).astype(int))
         col = TomogramCollection(order=order, output_shape=output_shape, scale=scale)
         
-    for project in projects:
+    for idx, project in enumerate(projects):
         tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
 
         for fp in project.molecules:
             fp = Path(fp)
             mole = Molecules.from_csv(fp)
-            mole.features = mole.features.with_columns(pl.Series("file-name", np.full(len(mole), fp.stem)))
-            col.add_tomogram(tomogram.value, molecules=mole)
+            mole.features = mole.features.with_columns(pl.Series(Mole.id, np.full(len(mole), fp.stem)))
+            col.add_tomogram(tomogram.value, molecules=mole, image_id=idx)
     if predicate is not None:
         col = col.filter(predicate)
     return col

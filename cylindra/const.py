@@ -100,12 +100,13 @@ class Mode(SimpleNamespace):
 class MoleculesHeader(SimpleNamespace):
     """Feature header names for Molecules."""
     
-    pf = "molecules-pf"
-    isotype = "molecules-isotype"
-    zncc = "molecules-zncc"
-    pcc = "molecules-pcc"
-    interval = "molecules-interval"
-    position = "molecules-position-nm"
+    pf = "pf-id"
+    isotype = "isotype-id"
+    zncc = "zncc"
+    pcc = "pcc"
+    interval = "interval-nm"  # interval between two molecules
+    position = "position-nm"  # position of the molecule along the spline
+    id = "molecules-id"
 
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""

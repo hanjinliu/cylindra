@@ -9,7 +9,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 
-from cylindra.const import GlobalVariables
+from cylindra.const import GlobalVariables, MoleculesHeader as Mole
 from cylindra.project import CylindraProject
 
 if TYPE_CHECKING:
@@ -129,7 +129,7 @@ class ProjectCollection(MutableSequence[CylindraProject]):
             for fp in prj.molecules:
                 fp = Path(fp)
                 mole = Molecules.from_csv(fp)
-                filespec = pl.Series("file-name", np.full(len(mole), fp.stem))
+                filespec = pl.Series(Mole.id, np.full(len(mole), fp.stem))
                 mole.features = mole.features.with_columns(filespec)
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
@@ -161,14 +161,17 @@ class ProjectCollection(MutableSequence[CylindraProject]):
     def to_dataframe(self) -> pl.DataFrame:
         """Convert project information to a dataframe."""
         dataframes: list[pl.DataFrame] = []
-        for idx, prj in enumerate(self._projects):
-            projectspec = idx
+        for prj in self._projects:
             df = pl.DataFrame(prj.dict())
             df = df.with_columns(
-                [
-                    pl.Series("project-id", np.array([projectspec])),
-                    pl.Series("project-path", np.array([prj.project_path])),
-                ]
+                [pl.Series("project-path", np.array([prj.project_path]))]
             )
             dataframes.append(df)
         return pl.concat(dataframes, how="vertical")
+
+    def filter(self, predicate):
+        # TODO: 
+        new_loader = self.sta_loader().filter(predicate)
+        mole = new_loader.molecules
+        for idx, prj in enumerate(self):
+            ...
