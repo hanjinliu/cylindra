@@ -1444,17 +1444,23 @@ class CylindraMainWidget(MagicTemplate):
         self.feature_control.show()
         self.feature_control._update_table_and_expr()
         return None
-    
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    #   Subtomogram averaging methods
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    
+
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
     @do_not_record
     def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
         return self.sta.show()
+    
+    @Analysis.wraps
+    @set_design(text="Open project collection analyzer")
+    @do_not_record
+    def open_project_collection_analyzer(self):
+        from .main_collection import ProjectCollectionWidget
+        
+        uix = ProjectCollectionWidget()
+        self.parent_viewer.window.add_dock_widget(uix, area="right")
+        return uix
     
     @toolbar.wraps
     @set_design(icon=ICON_DIR/"pick_next.png")

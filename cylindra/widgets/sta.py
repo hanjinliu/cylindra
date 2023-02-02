@@ -67,7 +67,7 @@ def _get_alignment(method: str):
 MASK_CHOICES = ("No mask", "Blur template", "From file")
 
 @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False, record=False)
-class params(MagicTemplate):
+class MaskParameters(MagicTemplate):
     """
     Parameters for soft mask creation.
     
@@ -111,171 +111,37 @@ class Refinement(MagicTemplate):
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
 
-@magicmenu
-class BatchProcessing(MagicTemplate):
-    """Batch processing of subtomograms using project files."""
-    average_all_projects = abstractapi()
-    align_all_projects = abstractapi()
 
-
-class Project(FieldGroup):
-    check = vfield(True).with_options(text="", label="")
-    path = vfield("").with_options(enabled=False)
-    preview_btn = vfield(widget_type=PushButton).with_options(text="Preview")
-    
-    @preview_btn.connect
-    def _on_click(self):
-        project = CylindraProject.from_json(self.path)
-        mv = project.make_molecules_viewer()
-        mv.native.setParent(self.native, mv.native.windowFlags())
-        mv.show()
-    
-    @classmethod
-    def from_path(cls, path: Path):
-        self = cls(layout="horizontal", labels=False)
-        self.path = str(path)
-        self["path"].tooltip = self.path
-        self.margins = (0, 0, 0, 0)
-        return self
-
-@magicclass(widget_type="scrollable", labels=False, record=False)
-class ProjectPaths(MagicTemplate):
-    def _add(self, path: Path):
-        prj = Project.from_path(path)
-        self.append(prj)
-        self.min_height = min(len(self) * 30, 105)
-    
-    def __iter__(self) -> Iterator[Project]:
-        return super().__iter__()
-
-    def _delete(self):
-        indices: list[int] = []
-        for i, wdt in enumerate(self):
-            if wdt.check:
-                indices.append(i)
-        for i in reversed(indices):
-            del self[i]
-        self.min_height = min(len(self) * 30, 105)
-    
-    @property
-    def paths(self) -> list[Path]:
-        return [Path(wdt.path) for wdt in self]
-            
-
-@magicclass(widget_type="collapsible", record=False)
-class TomogramCollectionWidget(MagicTemplate):
-    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
-    class Buttons(MagicTemplate):
-        check_all = abstractapi()
-        add_projects = abstractapi()
-        delete_projects = abstractapi()
-
-    projects = field(ProjectPaths)
-    filter_expression = vfield(str)
-    
-    def __post_init__(self):
-        from qtpy import QtGui
-        font = QtGui.QFont("Monospace", 10)
-        font.setBold(True)
-        self["filter_expression"].native.setFont(font)
-
-    @Buttons.wraps
-    @set_design(text="✓", max_width=26)
-    def check_all(self):
-        """Check all projects."""
-        for wdt in self.projects:
-            wdt.check = True
-            
-    @Buttons.wraps
-    @set_design(text="+", font_family="Arial")
-    def add_projects(self, paths: Path.Multiple[FileFilter.JSON]):
-        for path in paths:
-            self.projects._add(path)
-
-    @Buttons.wraps    
-    @set_design(text="-", font_family="Arial")
-    def delete_projects(self):
-        self.projects._delete()
-
-    def preview_filtered_molecules(self):
-        col = _get_collection(self.projects.paths, predicate=self._get_expression())
-        features = col.molecules.features
-        if features.shape[0] == 0:
-            raise ValueError("All molecules were filtered out.")
-        table = Table(value=features.to_pandas())
-        table.read_only = True
-        dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
-        dock.setFloating(True)
-        
-    def _get_expression(self) -> pl.Expr:
-        expr = self.filter_expression
-        if expr == "":
-            return None
-        return eval(expr, {"pl": pl}, {})
-    
-@magicclass(widget_type="scrollable")
-class SubtomogramAveraging(MagicTemplate):
+@magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
+class StaParameters(MagicTemplate):
     """
-    Widget for subtomogram averaging.
+    Parameters for subtomogram averaging/alignment.
     
     Attributes
     ----------
-    use_last_average : bool
-        Check if use template image of the last averaged image.
     template_path : Path
         Path to the template (reference) image file, or layer name of reconstruction.
-    mask : str
+    mask_path : str
         Select how to create a mask.
     tilt_range : tuple of float, options
         Tilt range (degree) of the tomogram.
     """
-    Subtomogram_analysis = field(SubtomogramAnalysis)
-    Refinement = field(Refinement)
-    BatchProcessing = field(BatchProcessing)
-    
-    def __post_init__(self):
-        self._template = None
-        self._viewer: Union[napari.Viewer, None] = None
-        self.mask_choice = MASK_CHOICES[0]
-        self._last_average: ip.ImgArray = None
-        
-        self.collection.collapsed = True
-    
-    @property
-    def sub_viewer(self):
-        return self._viewer
-    
-    template_path = vfield(Optional[Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]], label="Template", record=False).with_options(
+    template_path = vfield(Optional[Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]], label="Template").with_options(
         text="Use last averaged image", value=Path("")
     )
     mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
-    params = field(params)
+    params = field(MaskParameters)
     mask_path = field(mask_path)
     tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(
         value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}}
     )
-
-    @set_design(text="Show template")
-    def show_template(self):
-        """Load and show template image."""
-        self._show_reconstruction(self._get_template(), name="Template image", store=False)
     
-    @set_design(text="Show mask")
-    def show_mask(self):
-        """Load and show mask image."""
-        self._show_reconstruction(self._get_mask(), name="Mask image", store=False)
-        
-    collection = field(TomogramCollectionWidget, name="Batch processing")
+    _last_average: ip.ImgArray = None
     
-    @property
-    def template(self) -> Union[ip.ImgArray, None]:
-        """Template image."""
-        return self._get_template()
-    
-    @property
-    def mask(self) -> ip.ImgArray:
-        """Mask image."""
-        return self._get_mask()
+    def __post_init__(self):
+        self._template: ip.ImgArray= None
+        self._viewer: Union[napari.Viewer, None] = None
+        self.mask_choice = MASK_CHOICES[0]
 
     @mask_choice.connect
     def _on_mask_switch(self):
@@ -312,23 +178,18 @@ class SubtomogramAveraging(MagicTemplate):
             scale_ratio = img.scale.x / parent.tomogram.scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
                 img = img.rescale(scale_ratio)
-        self._template = img
 
         return img
     
     def _get_shape_in_nm(self) -> tuple[int, ...]:
-        if self._template is None:
-            self._get_template()
-        
-        return tuple(s * self._template.scale.x for s in self._template.shape)
+        template = self._get_template()
+        return tuple(s * template.scale.x for s in template.shape)
     
     def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
         v = self.mask_choice
         if v == MASK_CHOICES[0]:
             params = None
         elif v == MASK_CHOICES[1]:
-            if self._template is None:
-                self._get_template()
             params = (self.params.dilate_radius, self.params.sigma)
         else:
             params = self.mask_path.mask_path
@@ -381,6 +242,7 @@ class SubtomogramAveraging(MagicTemplate):
             self.mask_choice = MASK_CHOICES[2]
             self.mask_path.mask_path = params
         
+    
     def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True) -> "Image":
         if self._viewer is not None:
             try:
@@ -408,6 +270,59 @@ class SubtomogramAveraging(MagicTemplate):
         )
         return layer
     
+
+@magicclass(widget_type="scrollable")
+class SubtomogramAveraging(MagicTemplate):
+    """
+    Widget for subtomogram averaging.
+    
+    Attributes
+    ----------
+    template_path : Path
+        Path to the template (reference) image file, or layer name of reconstruction.
+    mask_path : str
+        Select how to create a mask.
+    tilt_range : tuple of float, options
+        Tilt range (degree) of the tomogram.
+    """
+    Subtomogram_analysis = field(SubtomogramAnalysis)
+    Refinement = field(Refinement)
+    
+    @property
+    def sub_viewer(self):
+        return self.params._viewer
+    
+    params = StaParameters
+
+    @set_design(text="Show template")
+    def show_template(self):
+        """Load and show template image."""
+        self._show_reconstruction(self.params._get_template(), name="Template image", store=False)
+    
+    @set_design(text="Show mask")
+    def show_mask(self):
+        """Load and show mask image."""
+        self._show_reconstruction(self.params._get_mask(), name="Mask image", store=False)
+    
+    @property
+    def template(self) -> Union[ip.ImgArray, None]:
+        """Template image."""
+        return self.params._get_template()
+    
+    @property
+    def mask(self) -> ip.ImgArray:
+        """Mask image."""
+        return self.params._get_mask()
+
+    def _get_shape_in_nm(self) -> tuple[int, ...]:
+        return self.params._get_shape_in_nm()
+        
+    def _set_mask_params(self, params):
+        return self.params._set_mask_params(params)
+        
+    def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True) -> "Image":
+        return self.params._show_reconstruction(image, name, store)
+
     def _check_binning_for_alignment(
         self,
         template: "ip.ImgArray | list[ip.ImgArray]",
@@ -604,8 +519,8 @@ class SubtomogramAveraging(MagicTemplate):
     def align_averaged(
         self,
         layer: MonomerLayer,
-        template_path: Bound[template_path],
-        mask_params: Bound[_get_mask_params],
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params],
         z_rotation: _ZRotation = (3., 3.),
         y_rotation: _YRotation = (15., 3.),
         x_rotation: _XRotation = (3., 3.),
@@ -625,8 +540,8 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         t0 = default_timer()
         mole: Molecules = layer.metadata[MOLECULES]
-        template = self._get_template(path=template_path)
-        mask = self._get_mask(params=mask_params)
+        template = self.params._get_template(path=template_path)
+        mask = self.params._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
             raise ValueError(
                 f"Shape mismatch between tempalte image ({tuple(template.shape)}) "
@@ -697,9 +612,9 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all(
         self,
         layer: MonomerLayer,
-        template_path: Bound[template_path],
-        mask_params: Bound[_get_mask_params],
-        tilt_range: Bound[tilt_range] = None,
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params],
+        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -720,8 +635,8 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.metadata[MOLECULES]
-        template = self._get_template(path=template_path)
-        mask = self._get_mask(params=mask_params)
+        template = self.params._get_template(path=template_path)
+        mask = self.params._get_mask(params=mask_params)
         
         loader, template, mask = self._check_binning_for_alignment(
             template, mask, binsize=bin_size, molecules=molecules, order=interpolation,
@@ -747,7 +662,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_template_free(
         self,
         layer: MonomerLayer,
-        tilt_range: Bound[tilt_range] = None,
+        tilt_range: Bound[params.tilt_range] = None,
         size: _SubVolumeSize = 12.,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
@@ -800,10 +715,10 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_multi_template(
         self,
         layer: MonomerLayer,
-        template_path: Bound[template_path],
+        template_path: Bound[params.template_path],
         other_templates: Path.Multiple[FileFilter.IMAGE],
-        mask_params: Bound[_get_mask_params],
-        tilt_range: Bound[tilt_range] = None,
+        mask_params: Bound[params._get_mask_params],
+        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (1., 1., 1.),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -827,7 +742,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.metadata[MOLECULES]
-        templates = [self._get_template(path=template_path)]
+        templates = [self.params._get_template(path=template_path)]
         for path in other_templates:
             img = ip.imread(path)
             scale_ratio = img.scale.x / parent.tomogram.scale
@@ -835,7 +750,7 @@ class SubtomogramAveraging(MagicTemplate):
                 img = img.rescale(scale_ratio)
             templates.append(img)
 
-        mask = self._get_mask(params=mask_params)
+        mask = self.params._get_mask(params=mask_params)
         loader, templates, mask = self._check_binning_for_alignment(
             templates,
             mask,
@@ -863,9 +778,9 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_viterbi(
         self,
         layer: MonomerLayer,
-        template_path: Bound[template_path],
-        mask_params: Bound[_get_mask_params] = None,
-        tilt_range: Bound[tilt_range] = None,
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params] = None,
+        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
         z_rotation: _ZRotation = (0., 0.),
         y_rotation: _YRotation = (0., 0.),
@@ -896,8 +811,8 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules: Molecules = layer.metadata[MOLECULES]
-        template = self._get_template(path=template_path)
-        mask = self._get_mask(params=mask_params)
+        template = self.params._get_template(path=template_path)
+        mask = self.params._get_mask(params=mask_params)
         shape_nm = self._get_shape_in_nm()
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape=shape_nm, order=interpolation
@@ -1025,16 +940,16 @@ class SubtomogramAveraging(MagicTemplate):
     def calculate_correlation(
         self,
         layer: MonomerLayer,
-        template_path: Bound[_get_template],
-        mask_params: Bound[_get_mask_params],
+        template_path: Bound[params._get_template],
+        mask_params: Bound[params._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         show_average: bool = True,
     ):
         t0 = default_timer()
         parent = self._get_parent()
         molecules: Molecules = layer.metadata[MOLECULES]
-        template = self._get_template(path=template_path)
-        mask = self._get_mask(params=mask_params)
+        template = self.params._get_template(path=template_path)
+        mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm()
         
         loader = parent.tomogram.get_subtomogram_loader(
@@ -1057,7 +972,7 @@ class SubtomogramAveraging(MagicTemplate):
     def calculate_fsc(
         self,
         layer: MonomerLayer,
-        mask_params: Bound[_get_mask_params],
+        mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -1085,7 +1000,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         mole: Molecules = layer.metadata[MOLECULES]
-        mask = self._get_mask(params=mask_params)
+        mask = self.params._get_mask(params=mask_params)
         if size is None:
             shape = self._get_shape_in_nm()
         else:
@@ -1156,8 +1071,8 @@ class SubtomogramAveraging(MagicTemplate):
     def seam_search(
         self,
         layer: MonomerLayer,
-        template_path: Bound[template_path],
-        mask_params: Bound[_get_mask_params],
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         cutoff: _CutoffFreq = 0.5,
@@ -1178,8 +1093,8 @@ class SubtomogramAveraging(MagicTemplate):
         """
         parent = self._get_parent()
         mole: Molecules = layer.metadata[MOLECULES]
-        template = self._get_template(path=template_path)
-        mask = self._get_mask(params=mask_params)
+        template = self.params._get_template(path=template_path)
+        mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm()
         loader = parent.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
         if npf is None:
@@ -1224,77 +1139,7 @@ class SubtomogramAveraging(MagicTemplate):
     @calculate_fsc.started.connect
     def _show_subtomogram_averaging(self):
         return self.show()
-    
-    def _get_project_paths(self, w=None) -> list[Path]:
-        return self.collection.projects.paths
-    
-    def _get_predicate(self, w=None) -> str:
-        return self.collection._get_expression()
 
-    @BatchProcessing.wraps
-    @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
-    def average_all_projects(
-        self, 
-        paths: Bound[_get_project_paths],
-        predicate: Bound[_get_predicate],
-        size: _SubVolumeSize = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-    ):
-        parent = self._get_parent()
-        t0 = default_timer()
-        if size is None:
-            shape = self._get_shape_in_nm()
-        else:
-            shape = (size, size, size)
-        col = _get_collection(paths, interpolation, shape, predicate=predicate)
-        img = ip.asarray(col.average(), axes="zyx")
-        img.set_scale(zyx=col.scale)
-        parent.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
-        
-        return thread_worker.to_callback(
-            self._show_reconstruction, img, f"[AVG]Collection"
-        )
-    
-    @BatchProcessing.wraps
-    @dask_thread_worker.with_progress(desc="Aligning all projects")
-    def align_all_projects(
-        self, 
-        paths: Bound[_get_project_paths], 
-        predicate: Bound[_get_predicate],
-        template_path: Bound[template_path],
-        mask_params: Bound[_get_mask_params],
-        tilt_range: Bound[tilt_range] = None,
-        max_shifts: _MaxShifts = (1., 1., 1.),
-        z_rotation: _ZRotation = (0., 0.),
-        y_rotation: _YRotation = (0., 0.),
-        x_rotation: _XRotation = (0., 0.),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-    ):
-        t0 = default_timer()
-        parent = self._get_parent()
-        template = self._get_template(path=template_path)
-        mask = self._get_mask(params=mask_params)
-        shape = self._get_shape_in_nm()
-        col = _get_collection(paths, interpolation, shape, predicate=predicate)
-        
-        model_cls = _get_alignment(method)
-        aligned = col.align(
-            template=template.value, 
-            mask=mask,
-            max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            alignment_model=model_cls,
-            tilt_range=tilt_range,
-        )
-        
-        parent.log.print_html(f"<code>align_all_projects</code> ({default_timer() - t0:.1f} sec)")
-        # TODO: how to save the results?
-        return aligned
-    
-    
     @thread_worker.to_callback
     def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
         parent = self._get_parent()
@@ -1331,38 +1176,3 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
 
-
-def _get_collection(
-    project_paths: list[Path], 
-    order: int = 3, 
-    output_shape: tuple[nm, nm, nm] = None,
-    predicate: "str | pl.Expr | None" = None,
-):
-    # check scales
-    projects: list[CylindraProject] = []
-    scales: list[nm] = []
-    for path in project_paths:
-        project = CylindraProject.from_json(path)
-        projects.append(project)
-        scales.append(project.scale)
-    scale = scales[0]
-    if len(set(scales)) > 1:
-        raise ValueError("All projects must have the same scale.")
-
-    if output_shape is None:
-        col = TomogramCollection(order=order)
-    else:
-        output_shape = tuple(np.round(np.array(output_shape) / scale).astype(int))
-        col = TomogramCollection(order=order, output_shape=output_shape, scale=scale)
-        
-    for project in projects:
-        tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
-
-        for fp in project.molecules:
-            fp = Path(fp)
-            mole = Molecules.from_csv(fp)
-            mole.features = mole.features.with_columns(pl.Series("file-name", np.full(len(mole), fp.stem)))
-            col.add_tomogram(tomogram.value, molecules=mole)
-    if predicate is not None:
-        col = col.filter(predicate)
-    return col

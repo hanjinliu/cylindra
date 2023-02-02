@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Iterable, Iterator, MutableSequence, SupportsIndex, TypeVar, overload
 
 from acryo import TomogramCollection, Molecules
 import numpy as np
@@ -38,6 +38,9 @@ class Validator(ABC, Generic[_V]):
                 val = self.check_value(val)
             self._value = val
     
+    def initialize(self):
+        self._value = _Null
+    
     @abstractmethod
     def check_value(self, val: Any) -> _V:
         """Assert input has the same value. Raise an error otherwise."""
@@ -49,7 +52,7 @@ class ScaleValidator(Validator[float]):
             raise ValueError(f"Existing scale is {self.value}, tried to set {val}.")
         return val
         
-class ProjectCollection:
+class ProjectCollection(MutableSequence[CylindraProject]):
     """Collection of Cylindra projects."""
     def __init__(self, check_scale: bool = True):
         self._projects: list[CylindraProject] = []
@@ -67,6 +70,41 @@ class ProjectCollection:
         for path in glob(str(path)):
             self.add(path)
         return self
+    
+    @overload
+    def __getitem__(self, key: int) -> CylindraProject: ...
+    @overload
+    def __getitem__(self, key: slice) -> ProjectCollection: ...
+    
+    def __getitem__(self, key: int):
+        out = self._projects[key]
+        if isinstance(key, slice):
+            out = ProjectCollection(check_scale=True)
+            out._projects = self._projects[key]
+        return out
+    
+    def __setitem__(self, key: int, value: CylindraProject) -> None:
+        if not isinstance(value, CylindraProject):
+            raise TypeError(f"Expected CylindraProject, got {type(value)}.")
+        if not isinstance(key, SupportsIndex):
+            raise TypeError(f"Expected int, got {type(key)}.")
+        self._projects[key] = value
+    
+    def __delitem__(self, key: int) -> None:
+        del self._projects[key]
+        if len(self) == 0:
+            self._scale_validator.initialize()
+    
+    def __len__(self) -> int:
+        return len(self._projects)
+
+    def __iter__(self) -> Iterator[CylindraProject]:
+        return iter(self._projects)
+    
+    def insert(self, index: int, value: CylindraProject) -> None:
+        if not isinstance(value, CylindraProject):
+            raise TypeError(f"Expected CylindraProject, got {type(value)}.")
+        self._projects.insert(index, value)
     
     @classmethod
     def from_paths(cls, paths: Iterable[str | Path], check_scale: bool = True) -> Self:

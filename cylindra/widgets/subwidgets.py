@@ -98,6 +98,7 @@ class Analysis(MagicTemplate):
     sep0 = field(Separator)
     open_spectra_measurer = abstractapi()
     open_subtomogram_analyzer = abstractapi()
+    open_project_collection_analyzer = abstractapi()
 
 @magicmenu
 class Others(MagicTemplate):
