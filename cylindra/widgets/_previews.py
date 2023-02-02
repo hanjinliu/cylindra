@@ -14,12 +14,12 @@ import numpy as np
 import impy as ip
 import pandas as pd
 
-@magicclass
+@magicclass(record=False)
 class ImagePreview(MagicTemplate):
     """A widget to preview 3D image by 2D slices."""
 
-    canvas = field(QtImageCanvas, ).with_options(lock_contrast_limits=True)
-    sl = field(Slider, name="slice")
+    canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
+    sl = field(int, widget_type=Slider, name="slice")
 
     @magicclass(widget_type="frame", layout="horizontal")
     class Fft(MagicTemplate):
@@ -43,7 +43,7 @@ class ImagePreview(MagicTemplate):
     def _load_image(self, path: str):
         if self.canvas.image is not None:
             del self.canvas.image
-        img = ip.lazy_imread(path, chunks=(1, "auto", "auto"))
+        img = ip.lazy_imread(path, chunks=(4, "auto", "auto"))
         if img.ndim != 3:
             raise ValueError("Cannot only preview 3D image.")
         self._img = img

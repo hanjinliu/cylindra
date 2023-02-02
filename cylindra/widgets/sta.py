@@ -207,7 +207,7 @@ class TomogramCollectionWidget(MagicTemplate):
         dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
         dock.setFloating(True)
         
-    def _get_expression(self):
+    def _get_expression(self) -> pl.Expr:
         expr = self.filter_expression
         if expr == "":
             return None
@@ -1227,12 +1227,16 @@ class SubtomogramAveraging(MagicTemplate):
     
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
+    
+    def _get_predicate(self, w=None) -> str:
+        return self.collection._get_expression()
 
     @BatchProcessing.wraps
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all_projects(
         self, 
         paths: Bound[_get_project_paths],
+        predicate: Bound[_get_predicate],
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
     ):
@@ -1242,7 +1246,7 @@ class SubtomogramAveraging(MagicTemplate):
             shape = self._get_shape_in_nm()
         else:
             shape = (size, size, size)
-        col = _get_collection(paths, interpolation, shape)
+        col = _get_collection(paths, interpolation, shape, predicate=predicate)
         img = ip.asarray(col.average(), axes="zyx")
         img.set_scale(zyx=col.scale)
         parent.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
@@ -1256,6 +1260,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_projects(
         self, 
         paths: Bound[_get_project_paths], 
+        predicate: Bound[_get_predicate],
         template_path: Bound[template_path],
         mask_params: Bound[_get_mask_params],
         tilt_range: Bound[tilt_range] = None,
@@ -1272,7 +1277,7 @@ class SubtomogramAveraging(MagicTemplate):
         template = self._get_template(path=template_path)
         mask = self._get_mask(params=mask_params)
         shape = self._get_shape_in_nm()
-        col = _get_collection(paths, interpolation, shape)
+        col = _get_collection(paths, interpolation, shape, predicate=predicate)
         
         model_cls = _get_alignment(method)
         aligned = col.align(
@@ -1286,6 +1291,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
         
         parent.log.print_html(f"<code>align_all_projects</code> ({default_timer() - t0:.1f} sec)")
+        # TODO: how to save the results?
         return aligned
     
     
@@ -1330,7 +1336,7 @@ def _get_collection(
     project_paths: list[Path], 
     order: int = 3, 
     output_shape: tuple[nm, nm, nm] = None,
-    predicate = None,
+    predicate: "str | pl.Expr | None" = None,
 ):
     # check scales
     projects: list[CylindraProject] = []

@@ -77,6 +77,7 @@ class Molecules_(MagicTemplate):
     """Operations on molecules"""
     @magicmenu
     class Mapping(MagicTemplate):
+        """Map monomers along splines in several ways."""
         map_monomers = abstractapi()
         map_centers = abstractapi()
         map_along_pf = abstractapi()
@@ -274,7 +275,7 @@ class Runner(MagicTemplate):
     
     cylindrical_fit = abstractapi()
 
-@magicclass(name="Open image")
+@magicclass(name="Open image", record=False)
 class ImageLoader(MagicTemplate):
     """
     Load an image file and process it before sending it to the viewer.
@@ -289,7 +290,7 @@ class ImageLoader(MagicTemplate):
     filter_reference_image : bool, default is True
         Apply low-pass filter on the reference image (does not affect image data itself).
     """
-    path = vfield(Path, record=False).with_options(filter=FileFilter.IMAGE)
+    path = vfield(Path).with_options(filter=FileFilter.IMAGE)
     
     @magicclass(layout="horizontal", labels=False)
     class scale(MagicTemplate):
@@ -302,14 +303,13 @@ class ImageLoader(MagicTemplate):
             Scale of the image in nm/pixel.
         """
         scale_label = vfield("scale (nm)", widget_type="Label")
-        scale_value = vfield(1.0, label="scale (nm)", record=False).with_options(min=0.001, step=0.0001, max=10.0)
+        scale_value = vfield(1.0, label="scale (nm)").with_options(min=0.001, step=0.0001, max=10.0)
         read_header = abstractapi()
             
-    bin_size = vfield([1], record=False).with_options(options={"min": 1, "max": 8})
-    filter_reference_image = vfield(True, record=False)
+    bin_size = vfield([1]).with_options(options={"min": 1, "max": 8})
+    filter_reference_image = vfield(True)
     
     @scale.wraps
-    @do_not_record
     def read_header(self):
         """Read scale from image header."""
         path = self.path
@@ -323,7 +323,6 @@ class ImageLoader(MagicTemplate):
     
     open_image = abstractapi()
     
-    @do_not_record
     @set_design(text="Preview")
     def preview_image(self):
         """Preview image at the path."""
