@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Union, TYPE_CHECKING
+from typing import Any, Union, TYPE_CHECKING
 from enum import Enum
 from pathlib import Path
 import numpy as np
@@ -63,6 +63,10 @@ class CylindraProject(BaseModel):
     mask_parameters: Union[None, tuple[float, float], PathLike]
     tilt_range: Union[tuple[float, float], None]
     macro: PathLike
+    project_path: Union[Path, None] = None
+
+    def __repr__(self) -> str:
+        return f"CylindraProject({self.project_path})"
 
     @classmethod
     def from_json(cls, path: str):
@@ -71,7 +75,7 @@ class CylindraProject(BaseModel):
     
         with open(path, mode="r") as f:
             js: dict = json.load(f)
-        self = cls(**js)
+        self = cls(**js, project_path=Path(path))
         file_dir = Path(path).parent
         self.resolve_path(file_dir)
         return self
@@ -91,6 +95,12 @@ class CylindraProject(BaseModel):
         self.macro = resolve_path(self.macro, file_dir)
         return self
     
+    def dict(self, **kwargs) -> dict[str, Any]:
+        """Return a dict."""
+        d = super().dict(**kwargs)
+        d.pop("project_path")
+        return d
+
     def to_json(self, path: str) -> None:
         """Save project as a json file."""
         with open(path, mode="w") as f:
@@ -170,6 +180,7 @@ class CylindraProject(BaseModel):
             mask_parameters = gui.sta._get_mask_params(),
             tilt_range = gui.sta.tilt_range,
             macro = as_relative(macro_path),
+            project_path=json_path,
         )
         return self
         
@@ -374,6 +385,7 @@ class SplineViewer(MagicTemplate):
         for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
             arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
             self.canvas.add_curve(arr, color="gray")
+
 @magicclass(labels=False, widget_type="split")
 class Properties(MagicTemplate):
     table_local = vfield([], widget_type="Table")
