@@ -4,28 +4,26 @@ from magicclass import (
     magicclass, magicmenu, do_not_record, field, vfield, MagicTemplate, 
     set_design, abstractapi, FieldGroup
 )
-from magicclass.widgets import HistoryFileEdit, Table, PushButton
+from magicclass.widgets import Table, PushButton, ToggleSwitch
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-from acryo import TomogramCollection, Molecules, SubtomogramLoader, alignment
+from acryo import TomogramCollection, Molecules, alignment
 
 import numpy as np
 import impy as ip
 import polars as pl
-import napari
 
 from cylindra.project import CylindraProject
 from cylindra.collection import ProjectCollection
 from cylindra.types import MonomerLayer
 from cylindra import utils
 from cylindra.const import (
-    ALN_SUFFIX, MOLECULES, GlobalVariables as GVar, MoleculesHeader as Mole, nm
+    GlobalVariables as GVar, nm
 )
 
 from .widget_utils import FileFilter
 from .sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
-from . import widget_utils
 
 if TYPE_CHECKING:
     from napari.layers import Image, Layer
@@ -40,16 +38,17 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 
 
 class Project(FieldGroup):
-    check = vfield(True, label="").with_options(text="")
+    check = vfield(True, widget_type=ToggleSwitch, name="", label="")
     path = vfield("").with_options(enabled=False)
     preview_btn = vfield(widget_type=PushButton).with_options(text="Preview")
     
     @preview_btn.connect
     def _on_click(self):
         project = CylindraProject.from_json(self.path)
-        mv = project.make_molecules_viewer()
+        mv = project.make_component_viewer()
         mv.native.setParent(self.native, mv.native.windowFlags())
         mv.show()
+        mv.width, mv.height = 400, 300
     
     @classmethod
     def from_path(cls, path: Path):
@@ -92,8 +91,14 @@ class Refinement(MagicTemplate):
     """Refinement and alignment of subtomograms."""
     align_all = abstractapi()
 
-@magicclass(widget_type="collapsible", name="Projects")
+@magicclass(widget_type="collapsible", name="Projects", record=False)
 class CollectionProvider(MagicTemplate):
+    """
+    Attributes
+    ----------
+    filter_expression : str
+        A `polars` expression to filter molecules. e.g. `pl.col("score") > 0.5`
+    """
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
         check_all = abstractapi()
@@ -101,7 +106,36 @@ class CollectionProvider(MagicTemplate):
         delete_projects = abstractapi()
 
     projects = field(ProjectPaths)
-    filter_expression = vfield(str)
+    
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    class FilterExpr(MagicTemplate):
+        filter_expression = vfield(str, label="Filter:")
+        preview_filtered_molecules = abstractapi()
+    
+    @Buttons.wraps
+    @set_design(text="✓", max_width=26)
+    def check_all(self):
+        """Check all projects."""
+        for wdt in self.projects:
+            wdt.check = True
+    
+    @FilterExpr.wraps
+    @set_design(text="Preview", max_width=52)
+    def preview_filtered_molecules(self):
+        col = _get_collection(self.projects.paths, predicate=self._get_expression())
+        features = col.molecules.features
+        if features.shape[0] == 0:
+            raise ValueError("All molecules were filtered out.")
+        table = Table(value=features.to_pandas())
+        table.read_only = True
+        dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
+        dock.setFloating(True)
+        
+    def _get_expression(self, w=None) -> pl.Expr:
+        expr = self.FilterExpr.filter_expression
+        if expr == "":
+            return None
+        return eval(expr, {"pl": pl}, {})
 
 @magicclass(widget_type="scrollable")
 class ProjectCollectionWidget(MagicTemplate):
@@ -117,16 +151,9 @@ class ProjectCollectionWidget(MagicTemplate):
         from qtpy import QtGui
         font = QtGui.QFont("Monospace", 10)
         font.setBold(True)
-        self.collection["filter_expression"].native.setFont(font)
+        self.collection.FilterExpr["filter_expression"].native.setFont(font)
         self._project_collection = ProjectCollection()
 
-    @collection.Buttons.wraps
-    @set_design(text="✓", max_width=26)
-    def check_all(self):
-        """Check all projects."""
-        for wdt in self.collection.projects:
-            wdt.check = True
-            
     @collection.Buttons.wraps
     @set_design(text="+", font_family="Arial")
     def add_projects(self, paths: Path.Multiple[FileFilter.JSON]):
@@ -142,23 +169,6 @@ class ProjectCollectionWidget(MagicTemplate):
             del self.collection.projects[idx]
             del self._project_collection[idx]
 
-    def preview_filtered_molecules(self):
-        col = _get_collection(self.collection.projects.paths, predicate=self._get_expression())
-        features = col.molecules.features
-        if features.shape[0] == 0:
-            raise ValueError("All molecules were filtered out.")
-        table = Table(value=features.to_pandas())
-        table.read_only = True
-        dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
-        dock.setFloating(True)
-        
-    def _get_expression(self, w=None) -> pl.Expr:
-        expr = self.collection.filter_expression
-        if expr == "":
-            return None
-        return eval(expr, {"pl": pl}, {})
-    
-    
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
 
@@ -167,7 +177,7 @@ class ProjectCollectionWidget(MagicTemplate):
     def average_all(
         self, 
         paths: Bound[_get_project_paths],
-        predicate: Bound[_get_expression],
+        predicate: Bound[collection._get_expression],
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
     ):
@@ -188,7 +198,7 @@ class ProjectCollectionWidget(MagicTemplate):
     def align_all(
         self, 
         paths: Bound[_get_project_paths], 
-        predicate: Bound[_get_expression],
+        predicate: Bound[collection._get_expression],
         template_path: Bound[StaWidget.params.template_path],
         mask_params: Bound[StaWidget.params._get_mask_params],
         tilt_range: Bound[StaWidget.params.tilt_range] = None,

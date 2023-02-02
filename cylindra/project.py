@@ -10,7 +10,7 @@ from pydantic import BaseModel
 import impy as ip
 import macrokit as mk
 from magicclass import magicclass, field, vfield, MagicTemplate
-from magicclass.widgets import ConsoleTextEdit
+from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label, Table
 from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.utils import thread_worker
 from acryo import Molecules
@@ -19,6 +19,7 @@ from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
+    from magicclass.ext.vispy._base import LayerItem
 
 def json_encoder(obj):    
     """An enhanced encoder."""
@@ -338,15 +339,16 @@ class CylindraProject(BaseModel):
         pviewer._from_project(self)
         return pviewer
     
-    def make_molecules_viewer(self) -> "MoleculesViewer":
+    def make_component_viewer(self) -> "ComponentsViewer":
         """Build a molecules viewer widget from this project."""
-        mviewer = MoleculesViewer()
+        mviewer = ComponentsViewer()
         mviewer._from_project(self)
         return mviewer
 
-@magicclass(labels=False, name="General info")
+@magicclass(labels=False, name="General info", layout="horizontal")
 class Info(MagicTemplate):
-    text = vfield(ConsoleTextEdit)
+    text = field(ConsoleTextEdit)
+    global_variables = field(ConsoleTextEdit)
     
     def _from_project(self, project: CylindraProject):
         info = {
@@ -361,12 +363,33 @@ class Info(MagicTemplate):
             "FT size": f"{project.current_ft_size:.1f} nm",
         }
         info_str = "<br>".join(map(lambda x: "<h2>{}</h2>{}".format(*x), info.items()))
-        self.text = info_str
-        self["text"].read_only = True  
+        self.text.value = info_str
+        self.text.read_only = True
+        
+        if path := project.global_variables:
+            with open(path, mode="r") as f:
+                self.global_variables.value = f.read()
+        self.global_variables.read_only = True
+        self.global_variables.syntax_highlight("json")
 
-@magicclass(labels=False, name="Splines")
-class SplineViewer(MagicTemplate):
+@magicclass(labels=False, layout="horizontal", record=False)
+class ComponentsViewer(MagicTemplate):
     canvas = field(Vispy3DCanvas)
+    
+    @magicclass(labels=False, widget_type="scrollable", properties={"min_width": 220})
+    class components(MagicTemplate):
+        def _add_layer(self, layer: "LayerItem"):
+            visible_btn = ToggleSwitch(value=True, text="")
+            label = Label(value=layer.name)
+            cont = FrameContainer(
+                widgets=[visible_btn, label], layout="horizontal", labels=False
+            )
+            cont.margins = (0, 0, 0, 0)
+            cont.min_width = 200
+            @visible_btn.changed.connect
+            def _on_visible_change(value):
+                layer.visible = value
+            self.append(cont)
     
     def _from_project(self, project: CylindraProject):
         from cylindra.components import CylSpline
@@ -374,7 +397,13 @@ class SplineViewer(MagicTemplate):
         for path in project.splines:
             spl = CylSpline.from_json(path)
             coords = spl.partition(100)
-            self.canvas.add_curve(coords, color="lime", width=3.0)
+            layer = self.canvas.add_curve(coords, color="crimson", width=5.0, name=path.stem)
+            self.components._add_layer(layer)
+            
+        for path in project.molecules:
+            mole = Molecules.from_csv(path)
+            layer = self.canvas.add_points(mole.pos, face_color="lime", name=path.stem)
+            self.components._add_layer(layer)
         
         # draw edge
         img = ip.lazy_imread(project.image)
@@ -388,50 +417,20 @@ class SplineViewer(MagicTemplate):
 
 @magicclass(labels=False, widget_type="split")
 class Properties(MagicTemplate):
-    table_local = vfield([], widget_type="Table")
-    table_global = vfield([], widget_type="Table")
+    table_local = field([], widget_type=Table)
+    table_global = field([], widget_type=Table)
     
     def _from_project(self, project: CylindraProject):
         if path := project.localprops:
             df = pd.read_csv(path)
-            self.table_local = df
-        self["table_local"].read_only = True
+            self.table_local.value = df
+        self.table_local.read_only = True
         
         if path := project.globalprops:
             df = pd.read_csv(path)
-            self.table_global = df
-        self["table_global"].read_only = True
-        
-@magicclass(labels=False, name="Molecules")
-class MoleculesViewer(MagicTemplate):
-    canvas = field(Vispy3DCanvas)
-    
-    def _from_project(self, project: CylindraProject):
-        from acryo import Molecules
+            self.table_global.value = df
+        self.table_global.read_only = True
 
-        for path in project.molecules:
-            mole = Molecules.from_csv(path)
-            self.canvas.add_points(mole.pos, face_color="lime")
-
-        # draw edge
-        img = ip.lazy_imread(project.image)
-        nz, ny, nx = img.shape
-        for z in [0, nz]:
-            arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
-            self.canvas.add_curve(arr, color="gray")
-        for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
-            arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
-            self.canvas.add_curve(arr, color="gray")
-
-@magicclass(labels=False, name="Global variables")
-class GlobalVariables(MagicTemplate):
-    text = vfield(str, widget_type=ConsoleTextEdit)
-    
-    def _from_project(self, project: CylindraProject):
-        if path := project.global_variables:
-            with open(path, mode="r") as f:
-                self.text = f.read()
-        self["text"].read_only = True
 
 @magicclass(name="Subtomogram averaging")
 class SubtomogramAveraging(MagicTemplate):
@@ -467,18 +466,14 @@ class Macro(MagicTemplate):
 @magicclass(widget_type="tabbed", name="Project Viewer", record=False)
 class ProjectViewer(MagicTemplate):
     info_viewer = field(Info)
-    spline_viewer = field(SplineViewer)
+    component_viewer = field(ComponentsViewer)
     properties = field(Properties)
-    molecules_viewer = field(MoleculesViewer)
-    global_variables = field(GlobalVariables)
     subtomogram_averaging = field(SubtomogramAveraging)
     macro_viewer = field(Macro)
     
     def _from_project(self, project: CylindraProject):
         self.info_viewer._from_project(project)
-        self.spline_viewer._from_project(project)
+        self.component_viewer._from_project(project)
         self.properties._from_project(project)
-        self.molecules_viewer._from_project(project)
-        self.global_variables._from_project(project)
         self.subtomogram_averaging._from_project(project)
         self.macro_viewer._from_project(project)

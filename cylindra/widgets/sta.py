@@ -130,7 +130,7 @@ class StaParameters(MagicTemplate):
         text="Use last averaged image", value=Path("")
     )
     mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
-    params = field(MaskParameters)
+    params = field(MaskParameters, name="Mask parameters")
     mask_path = field(mask_path)
     tilt_range = vfield(Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False).with_options(
         value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}}
