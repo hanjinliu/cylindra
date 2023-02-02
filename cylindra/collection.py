@@ -50,12 +50,18 @@ class ScaleValidator(Validator[float]):
         return val
         
 class ProjectCollection:
+    """Collection of Cylindra projects."""
     def __init__(self, check_scale: bool = True):
         self._projects: list[CylindraProject] = []
         self._scale_validator = ScaleValidator(check_scale)
     
     @classmethod
     def glob(cls, path: str | Path, check_scale: bool = True) -> Self:
+        """
+        Glob a path and add all projects found.
+        
+        >>> ProjectCollection.glob("path/to/projects/*.json")
+        """
         from glob import glob
         self = cls(check_scale)
         for path in glob(str(path)):
@@ -64,18 +70,21 @@ class ProjectCollection:
     
     @classmethod
     def from_paths(cls, paths: Iterable[str | Path], check_scale: bool = True) -> Self:
+        """Add all the projects of the given paths."""
         self = cls(check_scale)
         for path in paths:
             self.add(path)
         return self
     
     def add(self, path: str | Path) -> Self:
+        """Add a project from path."""
         prj = CylindraProject.from_json(path)
         self._scale_validator.value = prj.scale
         self._projects.append(prj)
         return self
     
     def sta_loader(self) -> TomogramCollection:
+        """Construct a STA loader from all the projects."""
         col = TomogramCollection(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy_imread(prj.image, chunks=GlobalVariables.daskChunk)
@@ -88,6 +97,7 @@ class ProjectCollection:
         return col
 
     def localprops(self, allow_none: bool = True) -> pl.DataFrame:
+        """Collect all localprops into a single dataframe."""
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(self._projects):
             path = prj.localprops
@@ -99,6 +109,7 @@ class ProjectCollection:
         return pl.concat(dataframes, how="vertical")
 
     def globalprops(self, allow_none: bool = True) -> pl.DataFrame:
+        """Collect all globalprops into a single dataframe."""
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(self._projects):
             path = prj.globalprops
@@ -110,6 +121,7 @@ class ProjectCollection:
         return pl.concat(dataframes, how="vertical")
     
     def to_dataframe(self) -> pl.DataFrame:
+        """Convert project information to a dataframe."""
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(self._projects):
             projectspec = idx
