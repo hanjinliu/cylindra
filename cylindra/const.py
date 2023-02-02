@@ -105,6 +105,7 @@ class MoleculesHeader(SimpleNamespace):
     zncc = "molecules-zncc"
     pcc = "molecules-pcc"
     interval = "molecules-interval"
+    position = "molecules-position-nm"
 
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""

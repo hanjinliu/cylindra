@@ -3,7 +3,7 @@ from typing import Any, TYPE_CHECKING, NamedTuple
 
 from acryo import Molecules
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 import polars as pl
 from .spline import Spline
 from cylindra.const import MoleculesHeader as Mole
@@ -39,7 +39,7 @@ class CylinderModel:
         interval: float = 1.0,
         radius: float = 1.0,
         offsets: tuple[float, float] = (0., 0.),
-        displace: np.ndarray | None = None
+        displace: NDArray[np.floating] | None = None
     ):
         self._shape = shape
         self._tilts = tilts
@@ -51,7 +51,7 @@ class CylinderModel:
         else:
             if displace.shape != shape + (3,):
                 raise ValueError("Shifts shape mismatch")
-            self._displace = displace
+            self._displace = np.asarray(displace, dtype=np.float32)
     
     def replace(
         self,
@@ -59,7 +59,7 @@ class CylinderModel:
         interval: float | None = None,
         radius: float | None = None,
         offsets: tuple[float, float] | None = None,
-        displace: np.ndarray | None = None,
+        displace: NDArray[np.floating] | None = None,
     ) -> Self:
         """Create a new model with the same shape but different parameters."""
 
@@ -114,7 +114,7 @@ class CylinderModel:
         return self._offsets
 
     @property
-    def displace(self) -> np.ndarray:
+    def displace(self) -> NDArray[np.float32]:
         """Displacement vector of the molecules."""
         return self._displace
     
@@ -147,10 +147,24 @@ class CylinderModel:
         }
     
     def to_molecules(self, spl: Spline) -> Molecules:
-        """Generate molecules from the coordinates and given spline."""
+        """
+        Generate molecules from the coordinates and given spline.
+        
+        Generated molecules will have following features.
+        - "molecules-pf" ... The index of the molecule in the angular direction 
+          (Protofilament number). 
+        - "molecules-position" ... The position of the molecule in the axial direction.
+          in nm. If the spline starts from the tip, position=0 is the tip.
+        """
         shifted = self._get_shifted()
-        mole = spl.cylindrical_to_molecules(shifted.reshape(-1, 3))
-        mole.features = {Mole.pf: pl.Series(np.arange(len(mole), dtype=np.uint32)) % self._shape[1]}
+        shifted_2d = shifted.reshape(-1, 3)
+        mole = spl.cylindrical_to_molecules(shifted_2d)
+        if spl.inverted:
+            pos = pl.Series(shifted_2d[::-1, 1])
+        else:
+            pos = pl.Series(shifted_2d[:, 1])
+        pf = pl.Series(np.arange(len(mole), dtype=np.uint32)) % self._shape[1]
+        mole.features = {Mole.pf: pf, Mole.position: pos}
         return mole
 
     def add_offsets(self, offsets: tuple[float, float]) -> Self:
@@ -158,20 +172,20 @@ class CylinderModel:
         _offsets = tuple(x + y for x, y in zip(self._offsets, offsets))
         return self.replace(offsets=_offsets)
     
-    def add_shift(self, shift: np.ndarray) -> Self:
+    def add_shift(self, shift: NDArray[np.floating]) -> Self:
         """Increment displace attribute of the model."""
         displace = self._displace + shift
         return self.replace(displace=displace)
     
-    def add_radial_shift(self, shift: np.ndarray) -> Self:
+    def add_radial_shift(self, shift: NDArray[np.floating]) -> Self:
         """Add shift to the radial (r-axis) direction."""
         return self._add_directional_shift(shift, 0)
 
-    def add_axial_shift(self, shift: np.ndarray) -> Self:
+    def add_axial_shift(self, shift: NDArray[np.floating]) -> Self:
         """Add shift to the axial (y-axis) direction."""
         return self._add_directional_shift(shift, 1)
     
-    def add_skew_shift(self, shift: np.ndarray) -> Self:
+    def add_skew_shift(self, shift: NDArray[np.floating]) -> Self:
         """Add shift to the skew (a-axis) direction."""
         return self._add_directional_shift(shift, 2)
     
@@ -244,16 +258,18 @@ class CylinderModel:
         displace = shifted - mesh
         return self.replace(displace=displace)
     
-    def _add_directional_shift(self, displace: np.ndarray, axis: int) -> Self:
+    def _add_directional_shift(self, displace: NDArray[np.floating], axis: int) -> Self:
         _displace = self._displace.copy()
         _displace[:, :, axis] += displace
         return self.replace(displace=_displace)
 
-    def _get_shifted(self):
+    def _get_shifted(self) -> NDArray[np.float32]:
+        """Get coordinate mesh with displacements applied."""
         mesh = self._get_mesh()
         return mesh + self._displace
     
-    def _get_mesh(self) -> np.ndarray:
+    def _get_mesh(self) -> NDArray[np.float32]:
+        """Get canonical coordinate mesh."""
         mesh2d = oblique_meshgrid(
             self._shape, self._tilts, self._intervals, self._offsets
         )  # (Ny, Npf, 2)
@@ -266,7 +282,7 @@ def oblique_meshgrid(
     tilts: tuple[float, float] = (0., 0.),
     intervals: tuple[float, float] = (1., 1.),
     offsets: tuple[float, float] = (0., 0.),
-) -> np.ndarray:
+) -> NDArray[np.floating]:
     """
     Construct 2-D meshgrid in oblique coordinate system.
 

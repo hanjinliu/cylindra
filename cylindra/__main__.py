@@ -37,9 +37,8 @@ def main():
     
     ui = start(project_file=project_file, globals_file=globals_file, log_level=log_level)
 
-    import numpy as np
-    import impy as ip
-    ui.parent_viewer.update_console({"ui": ui, "ip": ip, "np": np})
+    import numpy, impy, polars
+    ui.parent_viewer.update_console({"ui": ui, "ip": impy, "np": numpy, "pl": polars})
     return ui.parent_viewer.show(block=True)
 
 if __name__ == "__main__":
