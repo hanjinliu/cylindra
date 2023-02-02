@@ -1,6 +1,5 @@
 import os
 import re
-from timeit import default_timer
 from typing import Annotated
 import warnings
 
@@ -12,7 +11,6 @@ import numpy as np
 import polars as pl
 import pandas as pd
 from acryo import Molecules, SubtomogramLoader
-from acryo.alignment import PCCAlignment, ZNCCAlignment
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
                         set_design, set_options)
@@ -28,7 +26,7 @@ from scipy import ndimage as ndi
 from cylindra import utils
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
-    ALN_SUFFIX, MOLECULES, SELECTION_LAYER_NAME,
+    MOLECULES, SELECTION_LAYER_NAME,
     WORKING_LAYER_NAME, GlobalVariables as GVar, Mode, PropertyNames as H, 
     MoleculesHeader as Mole, Ori, nm
 )
@@ -43,6 +41,7 @@ from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesW
 from cylindra.widgets.spline_control import SplineControl
 from cylindra.widgets.spline_clipper import SplineClipper
 from cylindra.widgets.spline_fitter import SplineFitter
+from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
 from cylindra.widgets.measure import SpectraMeasurer
@@ -52,35 +51,6 @@ from cylindra.widgets.widget_utils import (
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
-
-INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
-METHOD_CHOICES = (
-    ("Phase Cross Correlation", "pcc"),
-    ("Zero-mean Normalized Cross Correlation", "zncc"),
-)
-
-# annotated types
-_CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
-_ZRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_YRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
-_MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
-_SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
-
-def _fmt_layer_name(fmt: str):
-    """Define a formatter for progressbar description."""
-    def _formatter(**kwargs):
-        layer: Layer = kwargs["layer"]
-        return fmt.format(layer.name)
-    return _formatter
-
-def _get_alignment(method: str):
-    if method == "zncc":
-        return ZNCCAlignment
-    elif method == "pcc":
-        return PCCAlignment
-    else:
-        raise ValueError(f"Method {method!r} is unknown.")
 
 
 ############################################################################################
@@ -99,7 +69,8 @@ class CylindraMainWidget(MagicTemplate):
     feature_control = field(FeatureControl, name="_Feature Control")  # Widget for visualizing/analyzing features
     cylinder_simulator = field(CylinderSimulator, name="_Cylinder Simulator")  # Widget for tomogram simulator
     spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
-    
+    sta = field(SubtomogramAveraging, name="_Subtomogram averaging")  # Widget for subtomogram analysis
+
     # The logger widget.
     @magicclass(labels=False, name="Logger")
     @set_design(min_height=200)
@@ -155,11 +126,6 @@ class CylindraMainWidget(MagicTemplate):
         self.overview.min_height = 300
         
         return None
-
-    @property
-    def sub_viewer(self) -> napari.Viewer:
-        """Return the sub-viewer that is used for subtomogram averaging."""
-        return self.subtomogram_averaging._viewer
 
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
@@ -779,6 +745,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[Optional[OneOf["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = "MinusToPlus",
+        depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
+        nsamples: Annotated[int, {"min": 1, "max": 100}] = 1,
     ):
         """
         Automatically detect the polarities and align if necessary.
@@ -795,29 +763,39 @@ class CylindraMainWidget(MagicTemplate):
             Polarity corresponding to clockwise rotation of the projection image.
         align_to : Ori, default is Ori.MinusToPlus
             To which direction splines will be aligned.
+        depth : nm, default is 40 nm
+            Depth of the subtomogram to be sampled.
+        nsamples : int, default is 1
+            Number of sampling on each spline. Cylindric subtomograms will be sampled
+            at positions 1/n, ..., (n-1)/n.
         """
         binsize = self.layer_image.metadata["current_binsize"]
         tomo = self.tomogram
         current_scale = tomo.scale * binsize
         imgb = tomo.get_multiscale(binsize)
 
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
+        length_px = tomo.nm2pixel(depth, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
+        
+        points = np.linspace(0, 1.0, nsamples + 2)[1:-1]
         
         ori_clockwise = Ori(clockwise_is)
         ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
-        for spl in self.tomogram.splines:
-            coords = spl.local_cylindrical((0.5, width_px/2), length_px, 0.5, scale=current_scale)
-            mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
-            img_flat = ip.asarray(mapped, axes="rya").proj("y")
+        for i, spl in enumerate(self.tomogram.splines):
+            img_flat = 0.0
+            for point in points:
+                coords = spl.local_cylindrical((0.5, width_px/2), length_px, point, scale=current_scale)
+                mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
+                img_flat = ip.asarray(mapped, axes="rya").proj("y") + img_flat
             npf = utils.roundint(spl.globalprops[H.nPF])
             pw_peak = img_flat.local_power_spectra(
                 key=ip.slicer.a[npf-1:npf+2],
                 dims="ra",
             ).proj("a", method=np.max)
             r_argmax = np.argmax(pw_peak)
-            vtx = r_argmax - (pw_peak.size + 1) // 2
-            spl.orientation = ori_clockwise if vtx > 0 else ori_anticlockwise
+            clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
+            spl.orientation = ori_clockwise if clkwise else ori_anticlockwise
+            self.log.print(f"Spline {i} was {spl.orientation.name}.")
         
         if align_to is not None:
             self.align_to_polarity(orientation=align_to)
@@ -1144,7 +1122,10 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        return self.spectra_measurer.show()
+        self.spectra_measurer.show()
+        if self.tomogram.n_splines > 0:
+            self.spectra_measurer.load_spline(self.SplineControl.num)
+        return None
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1394,7 +1375,7 @@ class CylindraMainWidget(MagicTemplate):
         _rot: Molecules = rotation.metadata[MOLECULES]
         _feat: Molecules = features.metadata[MOLECULES]
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
-        self.add_molecules(mole, name=_coerce_aligned_name(pos.name, self.parent_viewer))
+        self.add_molecules(mole, name="Mono-merged")
 
     @Molecules_.wraps
     @set_design(text="Calculate intervals")
@@ -1473,870 +1454,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
-        return self.subtomogram_averaging.show()
-    
-    subtomogram_averaging = subwidgets.SubtomogramAveraging
-    
-    @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_design(text="Average all")
-    @dask_thread_worker.with_progress(desc= _fmt_layer_name("Subtomogram averaging of {!r}"))
-    def average_all(
-        self,
-        layer: MonomerLayer,
-        size: _SubVolumeSize = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """
-        Subtomogram averaging using all the subvolumes.
-
-        >>> loader = ui.tomogram.get_subtomogram_loader(molecules, shape)
-        >>> averaged = ui.tomogram
-            
-        Parameters
-        ----------
-        {layer}{size}{interpolation}{bin_size}
-        """
-        t0 = default_timer()
-        molecules: Molecules = layer.metadata[MOLECULES]
-        tomo = self.tomogram
-        if size is None:
-            shape = self.subtomogram_averaging._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
-        loader = tomo.get_subtomogram_loader(
-            molecules, shape, binsize=bin_size, order=interpolation
-        )
-        img = ip.asarray(loader.average(), axes="zyx")
-        img.set_scale(zyx=loader.scale)
-        self.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
-        
-        return thread_worker.to_callback(
-            self.subtomogram_averaging._show_reconstruction, img, f"[AVG]{layer.name}"
-        )
-        
-    @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_design(text="Average subset")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Subtomogram averaging (subset) of {!r}"))
-    def average_subset(
-        self,
-        layer: MonomerLayer,
-        size: _SubVolumeSize = None,
-        method: OneOf["steps", "first", "last", "random"] = "steps", 
-        number: int = 64,
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """
-        Subtomogram averaging using a subset of subvolumes.
-        
-        This function is equivalent to
-
-        Parameters
-        ----------
-        {layer}{size}
-        method : str, optional
-            How to choose subtomogram subset. 
-            (1) steps: Each 'steps' subtomograms from the tip of spline. 
-            (2) first: First subtomograms.
-            (3) last: Last subtomograms.
-            (4) random: choose randomly.
-        number : int, default is 64
-            Number of subtomograms to use.
-        {bin_size}
-        """
-        t0 = default_timer()
-        molecules: Molecules = layer.metadata[MOLECULES]
-        nmole = len(molecules)
-        if size is None:
-            shape = self.subtomogram_averaging._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
-        if nmole < number:
-            raise ValueError(f"There are only {nmole} subtomograms.")
-        if method == "steps":
-            step = nmole//number
-            sl = slice(0, step * number, step)
-        elif method == "first":
-            sl = slice(0, number)
-        elif method == "last":
-            sl = slice(-number, -1)
-        elif method == "random":
-            sl_all = np.arange(nmole, dtype=np.uint32)
-            np.random.shuffle(sl_all)
-            sl = sl_all[:number]
-        else:
-            raise NotImplementedError(method)
-        mole = molecules.subset(sl)
-        loader = self.tomogram.get_subtomogram_loader(
-            mole, shape, binsize=bin_size, order=1
-        )
-        
-        img = ip.asarray(loader.average(), axes="zyx")
-        img.set_scale(zyx=loader.scale)
-        self.log.print_html(f"<code>average_subset</code> ({default_timer() - t0:.1f} sec)")
-        return thread_worker.to_callback(
-            self.subtomogram_averaging._show_reconstruction,
-            img,
-            f"[AVG(n={number})]{layer.name}"
-        )
-    
-    @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_design(text="Split-and-average")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Split-and-averaging of {!r}"))
-    def split_and_average(
-        self,
-        layer: MonomerLayer,
-        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
-        size: _SubVolumeSize = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """
-        Split molecules into two groups and average separately.
-
-        Parameters
-        ----------
-        {layer}
-        n_set : int, default is 1
-            How many pairs of average will be calculated.
-        {size}{interpolation}{bin_size}
-        """
-        t0 = default_timer()
-        molecules: Molecules = layer.metadata[MOLECULES]
-        tomo = self.tomogram
-        if size is None:
-            shape = self.subtomogram_averaging._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
-        loader = tomo.get_subtomogram_loader(
-            molecules, shape, binsize=bin_size, order=interpolation
-        )
-        axes = "ipzyx" if n_set > 1 else "pzyx"
-        img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
-        img.set_scale(zyx=loader.scale)
-        self.log.print_html(f"<code>split_and_average</code> ({default_timer() - t0:.1f} sec)")
-
-        return thread_worker.to_callback(
-            self.subtomogram_averaging._show_reconstruction, img, f"[Split]{layer.name}"
-        )
-    
-    @subtomogram_averaging.Refinement.wraps
-    @set_design(text="Align averaged")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Aligning averaged image of {!r}"))
-    def align_averaged(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging.template_path],
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        z_rotation: _ZRotation = (3., 3.),
-        y_rotation: _YRotation = (15., 3.),
-        x_rotation: _XRotation = (3., 3.),
-        bin_size: OneOf[_get_available_binsize] = 1,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-    ):
-        """
-        Align the averaged image at current monomers to the template image.
-        
-        This function creates a new layer with transformed monomers, which should
-        align well with template image.
-
-        Parameters
-        ----------
-        {layer}{template_path}{mask_params}{z_rotation}{y_rotation}{x_rotation}{bin_size}{method}
-        """
-        t0 = default_timer()
-        mole: Molecules = layer.metadata[MOLECULES]
-        template = self.subtomogram_averaging._get_template(path=template_path)
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        if mask is not None and template.shape != mask.shape:
-            raise ValueError(
-                f"Shape mismatch between tempalte image ({tuple(template.shape)}) "
-                f"and mask image ({tuple(mask.shape)})."
-            )
-        
-        loader, template, mask = self._check_binning_for_alignment(
-            template, mask, bin_size, mole, order=1
-        )
-        _scale = self.tomogram.scale * bin_size
-        npf = mole.features[Mole.pf].max() + 1
-        dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
-        dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
-        
-        max_shifts = tuple(np.array([dy*0.6, dy*0.6, dx*0.6])/_scale)
-        img = loader.average()
-        
-        if bin_size > 1 and img.shape != template.shape:
-            # if multiscaled image is used, there could be shape mismatch
-            sl = tuple(slice(0, s) for s in template.shape)
-            img = img[sl]
-
-        from scipy.spatial.transform import Rotation
-        model_cls = _get_alignment(method)
-        model = model_cls(
-            template.value,
-            mask,
-            cutoff=1.0,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            tilt_range=None,  # NOTE: because input is an average
-        )
-        img_trans, result = model.fit(img, max_shifts=max_shifts)
-        rotator = Rotation.from_quat(result.quat)
-        mole_trans = mole.linear_transform(result.shift * _scale, rotator)
-        
-        # logging
-        self.log.print_html(f"<code>align_averaged</code> ({default_timer() - t0:.1f} sec)")
-        shift_nm = result.shift * _scale
-        vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
-        rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
-        shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-        rot_str = ", ".join(f"{s:.2f}" for s in rotator.as_rotvec()[::-1])
-        self.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
-
-        self._need_save = True
-        img_trans = ip.asarray(img_trans, axes="zyx")
-        img_trans.set_scale(zyx=_scale)
-        
-        @thread_worker.to_callback
-        def _align_averaged_on_return():
-            points = add_molecules(
-                self.parent_viewer, 
-                mole_trans,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-            )
-            img_norm = utils.normalize_image(img_trans)
-            temp_norm = utils.normalize_image(template)
-            merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
-            layer.visible = False
-            self.log.print(f"{layer.name!r} --> {points.name!r}")
-            with self.log.set_plt():
-                widget_utils.plot_projections(merge)
-
-        return _align_averaged_on_return
-
-    @subtomogram_averaging.Refinement.wraps
-    @set_design(text="Align all")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Alignment of {!r}"))
-    def align_all(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging.template_path],
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
-        max_shifts: _MaxShifts = (1., 1., 1.),
-        z_rotation: _ZRotation = (0., 0.),
-        y_rotation: _YRotation = (0., 0.),
-        x_rotation: _XRotation = (0., 0.),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """
-        Align all the molecules for subtomogram averaging.
-        
-        Parameters
-        ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}{method}{bin_size}
-        """
-        t0 = default_timer()
-        molecules = layer.metadata[MOLECULES]
-        template = self.subtomogram_averaging._get_template(path=template_path)
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        
-        loader, template, mask = self._check_binning_for_alignment(
-            template, mask, binsize=bin_size, molecules=molecules, order=interpolation,
-        )
-        model_cls = _get_alignment(method)
-        aligned_loader = loader.align(
-            template=template.value, 
-            mask=mask,
-            max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            alignment_model=model_cls,
-            tilt_range=tilt_range,
-        )
-        
-        self.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
-        self._need_save = True
-        return self._align_all_on_return(aligned_loader, layer)
-    
-    @subtomogram_averaging.Refinement.wraps
-    @set_design(text="Align all (template-free)")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Template-free alignment of {!r}"))
-    def align_all_template_free(
-        self,
-        layer: MonomerLayer,
-        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
-        size: _SubVolumeSize = 12.,
-        max_shifts: _MaxShifts = (1., 1., 1.),
-        z_rotation: _ZRotation = (0., 0.),
-        y_rotation: _YRotation = (0., 0.),
-        x_rotation: _XRotation = (0., 0.),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """
-        Align all the molecules for subtomogram averaging.
-        
-        Parameters
-        ----------
-        {layer}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
-        {interpolation}{method}{bin_size}
-        """
-        t0 = default_timer()
-        molecules = layer.metadata[MOLECULES]
-        if size is None:
-            shape = self.subtomogram_averaging._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
-        loader, _, _ = self._check_binning_for_alignment(
-            template=None, 
-            mask=None, 
-            binsize=bin_size,
-            molecules=molecules,
-            order=interpolation,
-            shape=shape,
-        )
-        model_cls = _get_alignment(method)
-        aligned_loader = loader.align_no_template(
-            max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            alignment_model=model_cls,
-            tilt_range=tilt_range,
-        )
-        
-        self.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
-        self._need_save = True
-        return self._align_all_on_return(aligned_loader, layer)
-    
-    @subtomogram_averaging.Refinement.wraps
-    @set_design(text="Align all (multi-template)")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Multi-template alignment of {!r}"))
-    def align_all_multi_template(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging.template_path],
-        other_templates: Path.Multiple[FileFilter.IMAGE],
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
-        max_shifts: _MaxShifts = (1., 1., 1.),
-        z_rotation: _ZRotation = (0., 0.),
-        y_rotation: _YRotation = (0., 0.),
-        x_rotation: _XRotation = (0., 0.),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """
-        Align all the molecules for subtomogram averaging.
-        
-        Parameters
-        ----------
-        {layer}{template_path}
-        other_templates : list of Path or str
-            Path to other template images.
-        {mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
-        {interpolation}{method}{bin_size}
-        """
-        t0 = default_timer()
-        molecules = layer.metadata[MOLECULES]
-        templates = [self.subtomogram_averaging._get_template(path=template_path)]
-        for path in other_templates:
-            img = ip.imread(path)
-            scale_ratio = img.scale.x / self.tomogram.scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                img = img.rescale(scale_ratio)
-            templates.append(img)
-
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        loader, templates, mask = self._check_binning_for_alignment(
-            templates,
-            mask,
-            binsize=bin_size,
-            molecules=molecules, 
-            order=interpolation,
-        )
-        model_cls = _get_alignment(method)
-        aligned_loader = loader.align_multi_templates(
-            templates=[np.asarray(t) for t in templates], 
-            mask=mask,
-            max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            alignment_model=model_cls,
-            tilt_range=tilt_range,
-        )
-        self.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
-        self._need_save = True
-        return self._align_all_on_return(aligned_loader, layer)
-    
-    @subtomogram_averaging.Refinement.wraps
-    @set_design(text="Viterbi Alignment")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Viterbi-alignment of {!r}"))
-    def align_all_viterbi(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging.template_path],
-        mask_params: Bound[subtomogram_averaging._get_mask_params] = None,
-        tilt_range: Bound[subtomogram_averaging.tilt_range] = None,
-        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
-        z_rotation: _ZRotation = (0., 0.),
-        y_rotation: _YRotation = (0., 0.),
-        x_rotation: _XRotation = (0., 0.),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        distance_range: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "distance range (nm)"}] = (3.9, 4.4),
-        max_angle: Optional[float] = 6.0,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-    ):
-        """
-        Constrained subtomogram alignment using ZNCC landscaping and Viterbi algorithm.
-
-        Parameters
-        ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}
-        distance_range : tuple of float, default is (3.9, 4.4)
-            Range of allowed distance between monomers.
-        upsample_factor : int, default is 5
-            Upsampling factor of ZNCC landscape. Be careful not to set this parameter too 
-            large. Calculation will take much longer for larger ``upsample_factor``. 
-            Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
-        """
-        from dask import array as da
-        from dask import delayed
-        t0 = default_timer()
-        molecules: Molecules = layer.metadata[MOLECULES]
-        template = self.subtomogram_averaging._get_template(path=template_path)
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        shape_nm = self.subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            molecules, shape=shape_nm, order=interpolation
-        )
-        if max_angle is not None:
-            max_angle = np.deg2rad(max_angle)
-        max_shifts_px = tuple(s / self.tomogram.scale for s in max_shifts)
-        search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        self.log.print_html(f"Search size (px): {search_size}")
-        model = ZNCCAlignment(
-            template.value,
-            mask,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            tilt_range=tilt_range
-        )
-        
-        templates_ft = model._get_template_input()  # 3D (no rotation) or 4D (has rotation)
-        
-        def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
-            img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
-            template_ft = template_ft * model._get_missing_wedge_mask(quat)
-            lds = utils.zncc_landscape(
-                img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor
-            )
-            return np.asarray(lds)
-        
-        has_rotation = templates_ft.ndim > 3
-        if not has_rotation:
-            tasks = loader.construct_mapping_tasks(
-                func,
-                ip.asarray(templates_ft, axes="zyx"),
-                max_shifts=max_shifts_px,
-                var_kwarg={"quat": molecules.quaternion()},
-            )
-            score = np.stack(da.compute(tasks)[0], axis=0)
-        else:
-            all_tasks = [
-                da.stack(
-                    [
-                        da.from_delayed(a, shape=search_size, dtype=np.float32)
-                        for a in loader.construct_mapping_tasks(
-                            func,
-                            ip.asarray(template_ft, axes="zyx"),
-                            max_shifts=max_shifts_px,
-                            var_kwarg={"quat": molecules.quaternion()},
-                        )
-                    ],
-                    axis=0,
-                )
-                for template_ft in templates_ft
-            ]
-            all_tasks = da.stack(all_tasks, axis=0)
-            tasks = da.max(all_tasks, axis=0)
-            argmax = da.argmax(all_tasks, axis=0)
-            out = da.compute([tasks, argmax], argmax)[0]
-            score, argmax = out
-
-        scale = self.tomogram.scale
-        npf = molecules.features[Mole.pf].max() + 1
-        
-        slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-        offset = np.array(shape_nm) / 2 - scale
-        molecules_origin = molecules.translate_internal(-offset)
-        mole_list = [molecules_origin.subset(sl) for sl in slices]  # split each protofilament
-        
-        dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
-        scores = [score[sl] for sl in slices]
-
-        delayed_viterbi = delayed(utils.viterbi)
-        viterbi_tasks = [
-            delayed_viterbi(s, m.pos / scale * upsample_factor, m.z, m.y, m.x, dist_min, dist_max, max_angle)
-            for s, m in zip(scores, mole_list)
-        ]
-        vit_out: list[tuple[np.ndarray, float]] = da.compute(viterbi_tasks)[0]
-        
-        offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        all_shifts_px = np.empty((len(molecules), 3), dtype=np.float32)
-        for i, (shift, _) in enumerate(vit_out):
-            all_shifts_px[slices[i], :] = (shift - offset) / upsample_factor
-        all_shifts = all_shifts_px * scale
-        
-        molecules_opt = molecules.translate_internal(all_shifts)
-        if has_rotation:
-            quats = np.zeros((len(molecules), 4), dtype=np.float32)
-            for i, (shift, _) in enumerate(vit_out):
-                _sl = slices[i]
-                sub_quats = quats[_sl, :]
-                for j, each_shift in enumerate(shift):
-                    idx = argmax[_sl, :][j, each_shift[0], each_shift[1], each_shift[2]]
-                    sub_quats[j] = model.quaternions[idx]
-                quats[_sl, :] = sub_quats
-
-            molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-            from scipy.spatial.transform import Rotation
-            rotvec = Rotation.from_quat(quats).as_rotvec()
-            molecules_opt.features = molecules_opt.features.with_columns(
-                [
-                    pl.Series("rotvec-z", rotvec[:, 0]),
-                    pl.Series("rotvec-y", rotvec[:, 1]),
-                    pl.Series("rotvec-x", rotvec[:, 2]),
-                ]
-            )
-        
-        molecules_opt.features = molecules_opt.features.with_columns(
-            [
-                pl.Series("shift-z", all_shifts[:, 0]),
-                pl.Series("shift-y", all_shifts[:, 1]),
-                pl.Series("shift-x", all_shifts[:, 2]),
-            ]
-        )
-        self.log.print_html(f"<code>align_all_viterbi</code> ({default_timer() - t0:.1f} sec)")
-        self._need_save = True
-        aligned_loader = SubtomogramLoader(
-            self.tomogram.image.value, 
-            molecules_opt, 
-            order=interpolation, 
-            output_shape=template.shape,
-        )
-        return self._align_all_on_return(aligned_loader, layer)
-
-    @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_design(text="Calculate correlation")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating correlation of {!r}"))
-    def calculate_correlation(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging._get_template],
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        show_average: bool = True,
-    ):
-        t0 = default_timer()
-        molecules: Molecules = layer.metadata[MOLECULES]
-        template = self.subtomogram_averaging._get_template(path=template_path)
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        shape = self.subtomogram_averaging._get_shape_in_nm()
-        
-        loader = self.tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=1, order=interpolation
-        )
-        img_avg = ip.asarray(loader.average(), axes="zyx")
-        img_avg.set_scale(zyx=loader.scale)
-        zncc = ip.zncc(img_avg * mask, template * mask)
-        self.log.print_html(f"<code>calculate_correlation</code> ({default_timer() - t0:.1f} sec)")
-        self.log.print_html(f"Cross correlation with template = <b>{zncc:.3f}</b>")
-        if not show_average:
-            return
-        return thread_worker.to_callback(
-            self.subtomogram_averaging._show_reconstruction, img_avg, f"[AVG]{layer.name}"
-        )
-
-    @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_design(text="Calculate FSC")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating FSC of {!r}"))
-    def calculate_fsc(
-        self,
-        layer: MonomerLayer,
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        size: _SubVolumeSize = None,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
-        show_average: bool = True,
-        dfreq: Annotated[Optional[float], {"label": "Frequency precision", "text": "Choose proper value", "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02}}] = None,
-    ):
-        """
-        Calculate Fourier Shell Correlation using the selected monomer layer.
-
-        Parameters
-        ----------
-        {layer}{mask_params}{size}
-        seed : int, optional
-            Random seed used for subtomogram sampling.
-        {interpolation}
-        n_set : int, default is 1
-            How many sets of image pairs will be generated to average FSC.
-        show_average : bool, default is True
-            If true, subtomogram averaging will be shown after FSC calculation.
-        dfreq : float, default is 0.02
-            Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
-            at frequency 0.01, 0.03, 0.05, ..., 0.45.
-        """
-        t0 = default_timer()
-        mole: Molecules = layer.metadata[MOLECULES]
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        if size is None:
-            shape = self.subtomogram_averaging._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
-        loader = self.tomogram.get_subtomogram_loader(
-            mole,
-            shape,
-            order=interpolation,
-        )
-        if mask is None:
-            mask = 1.
-        if dfreq is None:
-            dfreq = 1.5 / min(shape) * loader.scale
-        img = ip.asarray(
-            loader.average_split(n_set=n_set, seed=seed, squeeze=False),
-            axes="ipzyx",
-        )
-        
-        # NOTE: images added with a big constant offset cause strong correlation at the
-        # masked edges. Here to avoid it, normalize images to minimize the artifact.
-        img -= img.mean()
-        
-        fsc_all: list[np.ndarray] = []
-        for i in range(n_set):
-            img0, img1 = img[i]
-            freq, fsc = ip.fsc(img0 * mask, img1 * mask, dfreq=dfreq)
-            fsc_all.append(fsc)
-        if show_average:
-            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / len(mole)
-            img_avg.set_scale(zyx=loader.scale)
-        else:
-            img_avg = None
-
-        fsc_all = np.stack(fsc_all, axis=1)
-        self.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
-        
-        @thread_worker.to_callback
-        def _calculate_fsc_on_return():
-            fsc_mean = np.mean(fsc_all, axis=1)
-            fsc_std = np.std(fsc_all, axis=1)
-            crit_0143 = 0.143
-            crit_0500 = 0.500
-            
-            self.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
-            with self.log.set_plt(rc_context={"font.size": 15}):
-                widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], self.tomogram.scale)
-            
-            resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, self.tomogram.scale)
-            resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, self.tomogram.scale)
-            
-            self.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
-            self.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
-            self._LoggerWindow.show()
-            
-            if img_avg is not None:
-                from .widget_utils import FscResult
-                _rec_layer: "Image" = self.subtomogram_averaging._show_reconstruction(
-                    img_avg, name = f"[AVG]{layer.name}",
-                )
-                _rec_layer.metadata["fsc"] = FscResult(
-                    freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
-                )
-        return _calculate_fsc_on_return
-    
-    @subtomogram_averaging.Subtomogram_analysis.wraps
-    @set_design(text="Seam search")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
-    def seam_search(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging.template_path],
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        cutoff: _CutoffFreq = 0.5,
-    ):
-        """
-        Search for the best seam position.
-        
-        Try all patterns of seam positions and compare cross correlation values. If molecule
-        assembly has 13 protofilaments, this method will try 26 patterns.
-
-        Parameters
-        ----------
-        {layer}{template_path}{mask_params}{interpolation}
-        npf : int, optional
-            Number of protofilaments. By default the global properties stored in the 
-            corresponding spline will be used.
-        {cutoff}
-        """
-        mole: Molecules = layer.metadata[MOLECULES]
-        template = self.subtomogram_averaging._get_template(path=template_path)
-        mask = self.subtomogram_averaging._get_mask(params=mask_params)
-        shape = self.subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
-        if npf is None:
-            npf = mole.features[Mole.pf].max() + 1
-
-        corrs, img_ave, all_labels = utils.try_all_seams(
-            loader=loader, npf=npf, template=template, mask=mask, cutoff=cutoff
-        )
-        
-        self._need_save = True
-
-        @thread_worker.to_callback
-        def _seam_search_on_return():
-            self.subtomogram_averaging._show_reconstruction(img_ave, layer.name)
-            self._LoggerWindow.show()
-            
-            # calculate score and the best PF position
-            corr1, corr2 = corrs[:npf], corrs[npf:]
-            score = np.empty_like(corrs)
-            score[:npf] = corr1 - corr2
-            score[npf:] = corr2 - corr1
-            imax = np.argmax(score)
-                
-            # plot all the correlation
-            self.log.print_html("<code>Seam_search</code>")
-            with self.log.set_plt(rc_context={"font.size": 15}):
-                self.log.print(f"layer = {layer.name!r}")
-                self.log.print(f"template = {str(template_path)!r}")
-                widget_utils.plot_seam_search_result(score, npf)
-                
-            self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
-            self.sub_viewer.layers[-1].metadata["Score"] = score
-            
-            update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
-            layer.metadata["seam-search-score"] = score
-        
-        return _seam_search_on_return
-
-    @subtomogram_averaging.Tools.wraps
-    @set_design(text="Render molecules")
-    def render_molecules(
-        self,
-        layer: MonomerLayer,
-        template_path: Bound[subtomogram_averaging.template_path],
-        mask_params: Bound[subtomogram_averaging._get_mask_params],
-        feature_name: Annotated[Optional[str], {"text": "Do not color molecules."}] = None,
-        cutoff: _CutoffFreq = 0.5,
-    ):
-        """
-        Render molecules using the template image.
-        
-        This method is only for visualization purpose. Iso-surface will be calculated
-        using the input template image and mapped to every molecule position. The input
-        template image does not have to be the image used for subtomogram alignment.
-
-        Parameters
-        ----------
-        {layer}{template_path}{mask_params}
-        feature_name : str, optional
-            Feature name used for coloring.
-        cutoff : float, optional
-            Cutoff frequency of low-pass filter to smooth template image. This parameter
-            is for visualization only.
-        """        
-        from skimage.measure import marching_cubes
-
-        # prepare template and mask
-        template = self.subtomogram_averaging._get_template(template_path).copy()
-        if cutoff is not None:
-            with utils.set_gpu():
-                template.lowpass_filter(cutoff=cutoff, update=True)
-        soft_mask = self.subtomogram_averaging._get_mask(mask_params)
-        if soft_mask is None:
-            mask = np.ones_like(template)
-        else:
-            mask = soft_mask > 0.2
-            template[~mask] = template.min()
-        
-        mole: Molecules = layer.metadata[MOLECULES]
-        nmol = len(mole)
-
-        # check feature name
-        if feature_name is not None:
-            if feature_name in layer.features.columns:
-                pass
-            elif getattr(Mole, feature_name, "") in layer.features.columns:
-                feature_name = getattr(Mole, feature_name)
-            if feature_name not in layer.features.columns:
-                raise ValueError(
-                    f"Feature {feature_name} not found in layer {layer.name}. Must be in "
-                    f"{set(layer.features.columns)}"
-                )
-                
-        # create surface
-        verts, faces, _, _ = marching_cubes(
-            template, step_size=1, spacing=template.scale, mask=mask,
-        )
-        
-        nverts = verts.shape[0]
-        all_verts = np.empty((nmol * nverts, 3), dtype=np.float32)
-        all_faces = np.concatenate([faces + i*nverts for i in range(nmol)], axis=0)
-        center = np.array(template.shape)/2 + 0.5
-        
-        for i, v in enumerate(verts):
-            v_transformed = mole.rotator.apply(v - center * np.array(template.scale)) + mole.pos
-            all_verts[i::nverts] = v_transformed
-        
-        if feature_name is None:
-            data = (all_verts, all_faces)
-        else:
-            all_values = np.stack([layer.features[feature_name]]*nverts, axis=1).ravel()
-            data = (all_verts, all_faces, all_values)
-            
-        self.parent_viewer.add_surface(
-            data=data, 
-            colormap=self.label_colormap, 
-            shading="smooth",
-            name=f"Rendered {layer.name}",
-        )
-        return None
-    
-    @impl_preview(render_molecules)
-    def _preview_rendering(self, template_path: str, mask_params, cutoff: float):
-        from skimage.measure import marching_cubes
-
-        # prepare template and mask
-        template = self.subtomogram_averaging._get_template(template_path).copy()
-        if cutoff is not None:
-            with utils.set_gpu():
-                template.lowpass_filter(cutoff=cutoff, update=True)
-        soft_mask = self.subtomogram_averaging._get_mask(mask_params)
-        if soft_mask is None:
-            mask = np.ones_like(template)
-        else:
-            mask = soft_mask > 0.2
-            template[~mask] = template.min()
-            
-        # create surface
-        verts, faces, _, _ = marching_cubes(
-            template, step_size=1, spacing=template.scale, mask=mask > 0.2,
-        )
-        _previews.view_surface([verts, faces], parent=self)
-        return None
+        return self.sta.show()
     
     @toolbar.wraps
     @set_design(icon=ICON_DIR/"pick_next.png")
@@ -2630,7 +1748,7 @@ class CylindraMainWidget(MagicTemplate):
             Interpolation order of the subtomogram loader.
         """        
         mole = self.get_molecules(name)
-        shape = self.subtomogram_averaging._get_shape_in_nm()
+        shape = self.sta._get_shape_in_nm()
         loader = self.tomogram.get_subtomogram_loader(mole, shape, order=order)
         return loader
     
@@ -2669,48 +1787,6 @@ class CylindraMainWidget(MagicTemplate):
         j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
         self.layer_paint.selected_label = j_offset + j + 1
         return None
-    
-    def _check_binning_for_alignment(
-        self,
-        template: "ip.ImgArray | list[ip.ImgArray]",
-        mask: "ip.ImgArray | None",
-        binsize: int,
-        molecules: Molecules,
-        order: int = 1,
-        shape: tuple[nm, nm, nm] = None,
-    ) -> tuple[SubtomogramLoader, ip.ImgArray, "np.ndarray | None"]:
-        """
-        Returns proper subtomogram loader, template image and mask image that matche the 
-        bin size.
-        """
-        if shape is None:
-            shape = self.subtomogram_averaging._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=binsize, order=order
-        )
-        if binsize > 1:
-            if template is None:
-                pass
-            elif isinstance(template, list):
-                template = [tmp.binning(binsize, check_edges=False) for tmp in template]
-            else:
-                template = template.binning(binsize, check_edges=False)
-            if mask is not None:
-                mask = mask.binning(binsize, check_edges=False)
-        if isinstance(mask, np.ndarray):
-            mask = np.asarray(mask)
-        return loader, template, mask
-    
-    @thread_worker.to_callback
-    def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
-        points = add_molecules(
-            self.parent_viewer, 
-            aligned_loader.molecules,
-            name=_coerce_aligned_name(layer.name, self.parent_viewer),
-        )
-        layer.visible = False
-        self.log.print(f"{layer.name!r} --> {points.name!r}")
-        return None
 
     def _update_colormap(self, prop: str = H.yPitch):
         if self.layer_paint is None:
@@ -2720,7 +1796,7 @@ class CylindraMainWidget(MagicTemplate):
         lim0, lim1 = self.label_colorlimit
         df = self.tomogram.collect_localprops()[prop]
         for i, value in enumerate(df):
-            color[i+1] = self.label_colormap.map((value - lim0)/(lim1 - lim0))
+            color[i + 1] = self.label_colormap.map((value - lim0)/(lim1 - lim0))
         self.layer_paint.color = color
         return None
 
@@ -2983,13 +2059,7 @@ class CylindraMainWidget(MagicTemplate):
                 name=f"spline-{i}-anc",
             )
         return None
-    
-    @average_all.started.connect
-    @align_averaged.started.connect
-    @align_all.started.connect
-    @calculate_fsc.started.connect
-    def _show_subtomogram_averaging(self):
-        return self.subtomogram_averaging.show()
+
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Preview methods
@@ -3016,18 +2086,3 @@ def _multi_affine(images, matrices, cval: float = 0, order=1):
             img, matrix, order=order, cval=cval, prefilter=order>1
         )
     return out
-
-def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
-    num = 1
-    if re.match(fr".*-{ALN_SUFFIX}(\d)+", name):
-        try:
-            *pre, suf = name.split(f"-{ALN_SUFFIX}")
-            num = int(suf) + 1
-            name = "".join(pre)
-        except Exception:
-            num = 1
-    
-    existing_names = set(layer.name for layer in viewer.layers)
-    while name + f"-{ALN_SUFFIX}{num}" in existing_names:
-        num += 1
-    return name + f"-{ALN_SUFFIX}{num}"

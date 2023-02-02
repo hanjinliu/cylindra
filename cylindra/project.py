@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Union, TYPE_CHECKING
+from typing import Any, Union, TYPE_CHECKING
 from enum import Enum
 from pathlib import Path
 import numpy as np
@@ -63,6 +63,10 @@ class CylindraProject(BaseModel):
     mask_parameters: Union[None, tuple[float, float], PathLike]
     tilt_range: Union[tuple[float, float], None]
     macro: PathLike
+    project_path: Union[Path, None] = None
+
+    def __repr__(self) -> str:
+        return f"CylindraProject({self.project_path})"
 
     @classmethod
     def from_json(cls, path: str):
@@ -71,7 +75,7 @@ class CylindraProject(BaseModel):
     
         with open(path, mode="r") as f:
             js: dict = json.load(f)
-        self = cls(**js)
+        self = cls(**js, project_path=Path(path))
         file_dir = Path(path).parent
         self.resolve_path(file_dir)
         return self
@@ -91,6 +95,12 @@ class CylindraProject(BaseModel):
         self.macro = resolve_path(self.macro, file_dir)
         return self
     
+    def dict(self, **kwargs) -> dict[str, Any]:
+        """Return a dict."""
+        d = super().dict(**kwargs)
+        d.pop("project_path")
+        return d
+
     def to_json(self, path: str) -> None:
         """Save project as a json file."""
         with open(path, mode="w") as f:
@@ -166,10 +176,11 @@ class CylindraProject(BaseModel):
             globalprops = as_relative(globalprops_path),
             molecules = [as_relative(p) for p in molecules_paths],
             global_variables = as_relative(gvar_path),
-            template_image = as_relative(gui.subtomogram_averaging.template_path),
-            mask_parameters = gui.subtomogram_averaging._get_mask_params(),
-            tilt_range = gui.subtomogram_averaging.tilt_range,
+            template_image = as_relative(gui.sta.template_path),
+            mask_parameters = gui.sta._get_mask_params(),
+            tilt_range = gui.sta.tilt_range,
             macro = as_relative(macro_path),
+            project_path=json_path,
         )
         return self
         
@@ -314,148 +325,160 @@ class CylindraProject(BaseModel):
             gui.macro.extend(macro.args)
 
             # load subtomogram analyzer state
-            gui.subtomogram_averaging.template_path = self.template_image or ""
-            gui.subtomogram_averaging._set_mask_params(self.mask_parameters)
+            gui.sta.template_path = self.template_image or ""
+            gui.sta._set_mask_params(self.mask_parameters)
             gui.reset_choices()
             gui._need_save = False
         
         return _load_project_on_return
-    
     
     def make_project_viewer(self) -> "ProjectViewer":
         """Build a project viewer widget from this project."""
         pviewer = ProjectViewer()
         pviewer._from_project(self)
         return pviewer
+    
+    def make_molecules_viewer(self) -> "MoleculesViewer":
+        """Build a molecules viewer widget from this project."""
+        mviewer = MoleculesViewer()
+        mviewer._from_project(self)
+        return mviewer
+
+@magicclass(labels=False, name="General info")
+class Info(MagicTemplate):
+    text = vfield(ConsoleTextEdit)
+    
+    def _from_project(self, project: CylindraProject):
+        info = {
+            "Date": project.datetime,
+            "Version": project.version,
+            "Dependencies": "<br>".join(
+                map(lambda x: "{}={}".format(*x), project.dependency_versions.items())
+            ),
+            "Image": str(project.image),
+            "Image scale": f"{project.scale} nm/pixel",
+            "Multiscales": ", ".join(map(str, project.multiscales,)),
+            "FT size": f"{project.current_ft_size:.1f} nm",
+        }
+        info_str = "<br>".join(map(lambda x: "<h2>{}</h2>{}".format(*x), info.items()))
+        self.text = info_str
+        self["text"].read_only = True  
+
+@magicclass(labels=False, name="Splines")
+class SplineViewer(MagicTemplate):
+    canvas = field(Vispy3DCanvas)
+    
+    def _from_project(self, project: CylindraProject):
+        from cylindra.components import CylSpline
+
+        for path in project.splines:
+            spl = CylSpline.from_json(path)
+            coords = spl.partition(100)
+            self.canvas.add_curve(coords, color="lime", width=3.0)
         
+        # draw edge
+        img = ip.lazy_imread(project.image)
+        nz, ny, nx = img.shape
+        for z in [0, nz]:
+            arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
+            self.canvas.add_curve(arr, color="gray")
+        for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
+            arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
+            self.canvas.add_curve(arr, color="gray")
+
+@magicclass(labels=False, widget_type="split")
+class Properties(MagicTemplate):
+    table_local = vfield([], widget_type="Table")
+    table_global = vfield([], widget_type="Table")
+    
+    def _from_project(self, project: CylindraProject):
+        if path := project.localprops:
+            df = pd.read_csv(path)
+            self.table_local = df
+        self["table_local"].read_only = True
+        
+        if path := project.globalprops:
+            df = pd.read_csv(path)
+            self.table_global = df
+        self["table_global"].read_only = True
+        
+@magicclass(labels=False, name="Molecules")
+class MoleculesViewer(MagicTemplate):
+    canvas = field(Vispy3DCanvas)
+    
+    def _from_project(self, project: CylindraProject):
+        from acryo import Molecules
+
+        for path in project.molecules:
+            mole = Molecules.from_csv(path)
+            self.canvas.add_points(mole.pos, face_color="lime")
+
+        # draw edge
+        img = ip.lazy_imread(project.image)
+        nz, ny, nx = img.shape
+        for z in [0, nz]:
+            arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
+            self.canvas.add_curve(arr, color="gray")
+        for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
+            arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
+            self.canvas.add_curve(arr, color="gray")
+
+@magicclass(labels=False, name="Global variables")
+class GlobalVariables(MagicTemplate):
+    text = vfield(str, widget_type=ConsoleTextEdit)
+    
+    def _from_project(self, project: CylindraProject):
+        if path := project.global_variables:
+            with open(path, mode="r") as f:
+                self.text = f.read()
+        self["text"].read_only = True
+
+@magicclass(name="Subtomogram averaging")
+class SubtomogramAveraging(MagicTemplate):
+    template_image = field(Vispy3DCanvas)
+    mask_parameters = vfield(str)
+    tilt_range = vfield(str)
+    
+    def _from_project(self, project: CylindraProject):
+        from skimage.filters.thresholding import threshold_yen
+        
+        if project.template_image is None or Path(project.template_image).is_dir():
+            # no template image available
+            pass
+        else:
+            img = ip.imread(project.template_image)
+            thr = threshold_yen(img.value)
+            self.template_image.add_image(img, rendering="iso", iso_threshold=thr)
+        self.mask_parameters = str(project.mask_parameters)
+        if project.tilt_range is not None:
+            s0, s1 = project.tilt_range
+            self.tilt_range = f"({s0:.1f}, {s1:.1f})"
+@magicclass(labels=False)
+class Macro(MagicTemplate):
+    text = vfield(str, widget_type=ConsoleTextEdit)
+    
+    def _from_project(self, project: CylindraProject):
+        if path := project.macro:
+            with open(path, mode="r") as f:
+                self.text = f.read()
+        self["text"].read_only = True
+        self["text"].syntax_highlight("python")
 
 @magicclass(widget_type="tabbed", name="Project Viewer", record=False)
 class ProjectViewer(MagicTemplate):
-    @magicclass(labels=False, name="General info")
-    class Info(MagicTemplate):
-        text = vfield(ConsoleTextEdit)
-        
-        def _from_project(self, project: CylindraProject):
-            info = {
-                "Date": project.datetime,
-                "Version": project.version,
-                "Dependencies": "<br>".join(
-                    map(lambda x: "{}={}".format(*x), project.dependency_versions.items())
-                ),
-                "Image": str(project.image),
-                "Image scale": f"{project.scale} nm/pixel",
-                "Multiscales": ", ".join(map(str, project.multiscales,)),
-                "FT size": f"{project.current_ft_size:.1f} nm",
-            }
-            info_str = "<br>".join(map(lambda x: "<h2>{}</h2>{}".format(*x), info.items()))
-            self.text = info_str
-            self["text"].read_only = True
-            
-    @magicclass(labels=False, name="Splines")
-    class SplineViewer(MagicTemplate):
-        canvas = field(Vispy3DCanvas)
-        
-        def _from_project(self, project: CylindraProject):
-            from cylindra.components import CylSpline
-
-            for path in project.splines:
-                spl = CylSpline.from_json(path)
-                coords = spl.partition(100)
-                self.canvas.add_curve(coords, color="lime", width=3.0)
-            
-            # draw edge
-            img = ip.lazy_imread(project.image)
-            nz, ny, nx = img.shape
-            for z in [0, nz]:
-                arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
-                self.canvas.add_curve(arr, color="gray")
-            for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
-                arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
-                self.canvas.add_curve(arr, color="gray")
+    info_viewer = field(Info)
+    spline_viewer = field(SplineViewer)
+    properties = field(Properties)
+    molecules_viewer = field(MoleculesViewer)
+    global_variables = field(GlobalVariables)
+    subtomogram_averaging = field(SubtomogramAveraging)
+    macro_viewer = field(Macro)
     
-    @magicclass(labels=False, widget_type="split")
-    class Properties(MagicTemplate):
-        table_local = vfield([], widget_type="Table")
-        table_global = vfield([], widget_type="Table")
-        
-        def _from_project(self, project: CylindraProject):
-            if path := project.localprops:
-                df = pd.read_csv(path)
-                self.table_local = df
-            self["table_local"].read_only = True
-            
-            if path := project.globalprops:
-                df = pd.read_csv(path)
-                self.table_global = df
-            self["table_global"].read_only = True
-    
-    @magicclass(labels=False, name="Molecules")
-    class MoleculesViewer(MagicTemplate):
-        canvas = field(Vispy3DCanvas)
-        
-        def _from_project(self, project: CylindraProject):
-            from acryo import Molecules
-            for path in project.molecules:
-                mole = Molecules.from_csv(path)
-                self.canvas.add_points(mole.pos, face_color="lime")
-
-            # draw edge
-            img = ip.lazy_imread(project.image)
-            nz, ny, nx = img.shape
-            for z in [0, nz]:
-                arr = np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]) * img.scale.x
-                self.canvas.add_curve(arr, color="gray")
-            for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
-                arr = np.array([[0, y, x], [nz, y, x]]) * img.scale.x
-                self.canvas.add_curve(arr, color="gray")
-    
-    @magicclass(labels=False, name="Global variables")
-    class GlobalVariables(MagicTemplate):
-        text = vfield(str, widget_type=ConsoleTextEdit)
-        
-        def _from_project(self, project: CylindraProject):
-            if path := project.global_variables:
-                with open(path, mode="r") as f:
-                    self.text = f.read()
-            self["text"].read_only = True
-    
-    @magicclass(name="Subtomogram averaging")
-    class SubtomogramAveraging(MagicTemplate):
-        template_image = field(Vispy3DCanvas)
-        mask_parameters = vfield(str)
-        tilt_range = vfield(str)
-        
-        def _from_project(self, project: CylindraProject):
-            from skimage.filters.thresholding import threshold_yen
-            
-            if project.template_image is None or Path(project.template_image).is_dir():
-                # no template image available
-                pass
-            else:
-                img = ip.imread(project.template_image)
-                thr = threshold_yen(img.value)
-                self.template_image.add_image(img, rendering="iso", iso_threshold=thr)
-            self.mask_parameters = str(project.mask_parameters)
-            if project.tilt_range is not None:
-                s0, s1 = project.tilt_range
-                self.tilt_range = f"({s0:.1f}, {s1:.1f})"
-    
-    @magicclass(labels=False)
-    class Macro(MagicTemplate):
-        text = vfield(str, widget_type=ConsoleTextEdit)
-        
-        def _from_project(self, project: CylindraProject):
-            if path := project.macro:
-                with open(path, mode="r") as f:
-                    self.text = f.read()
-            self["text"].read_only = True
-            self["text"].syntax_highlight("python")
-
     def _from_project(self, project: CylindraProject):
-        self.Info._from_project(project)
-        self.SplineViewer._from_project(project)
-        self.Properties._from_project(project)
-        self.MoleculesViewer._from_project(project)
-        self.GlobalVariables._from_project(project)
-        self.SubtomogramAveraging._from_project(project)
-        self.Macro._from_project(project)
+        self.info_viewer._from_project(project)
+        self.spline_viewer._from_project(project)
+        self.properties._from_project(project)
+        self.molecules_viewer._from_project(project)
+        self.global_variables._from_project(project)
+        self.subtomogram_averaging._from_project(project)
+        self.macro_viewer._from_project(project)
