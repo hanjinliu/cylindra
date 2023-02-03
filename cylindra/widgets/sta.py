@@ -1,4 +1,4 @@
-from typing import Iterator, Union, TYPE_CHECKING, Annotated
+from typing import Callable, Iterator, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
 from magicclass import (
@@ -138,6 +138,9 @@ class StaParameters(MagicTemplate):
     
     _last_average: ip.ImgArray = None
     
+    def __init__(self, scale_getter: Callable[[], float] = None):
+        self._get_scale = scale_getter
+
     def __post_init__(self):
         self._template: ip.ImgArray= None
         self._viewer: Union[napari.Viewer, None] = None
@@ -170,14 +173,12 @@ class StaParameters(MagicTemplate):
             
         if img.ndim != 3:
             raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
-        
-        from .main import CylindraMainWidget
 
-        parent = self.find_ancestor(CylindraMainWidget)
-        if parent.tomogram is not None and rescale:
-            scale_ratio = img.scale.x / parent.tomogram.scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                img = img.rescale(scale_ratio)
+        if rescale:
+            if parent_scale := self._get_scale():
+                scale_ratio = img.scale.x / parent_scale
+                if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                    img = img.rescale(scale_ratio)
 
         return img
     
@@ -293,6 +294,18 @@ class SubtomogramAveraging(MagicTemplate):
         return self.params._viewer
     
     params = StaParameters
+    
+    def __post_init__(self):
+        self.params._get_scale = self._get_scale
+        
+    def _get_scale(self):
+        from .main import CylindraMainWidget
+        
+        parent = self.find_ancestor(CylindraMainWidget)
+        
+        if parent.tomogram is not None:
+            return parent.tomogram.scale
+        return None
 
     @set_design(text="Show template")
     def show_template(self):

@@ -101,24 +101,6 @@ def coords_to_params(pos: np.ndarray, npf: int) -> tuple[float, float, float]:
     radius = lateral_spacing * npf / 2 / np.pi
     return ypitch, lateral_spacing, radius
 
-def get_versions() -> dict[str, str]:
-    """Return version info of relevant libraries."""
-    import napari
-    import impy as ip
-    import magicgui
-    from ..__about__ import __version__
-    import magicclass as mcls
-    import dask
-    
-    return {
-        "cylindra": __version__,
-        "numpy": np.__version__,
-        "impy": ip.__version__,
-        "magicgui": magicgui.__version__,
-        "magicclass": mcls.__version__,
-        "napari": napari.__version__,
-        "dask": dask.__version__,
-    }
 
 def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
     sy, sx = arr.shape

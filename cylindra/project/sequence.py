@@ -10,7 +10,7 @@ import impy as ip
 import polars as pl
 
 from cylindra.const import GlobalVariables, MoleculesHeader as Mole
-from cylindra.project import CylindraProject
+from .single import CylindraProject
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -52,7 +52,7 @@ class ScaleValidator(Validator[float]):
             raise ValueError(f"Existing scale is {self.value}, tried to set {val}.")
         return val
         
-class ProjectCollection(MutableSequence[CylindraProject]):
+class ProjectSequence(MutableSequence[CylindraProject]):
     """Collection of Cylindra projects."""
     def __init__(self, check_scale: bool = True):
         self._projects: list[CylindraProject] = []
@@ -74,12 +74,12 @@ class ProjectCollection(MutableSequence[CylindraProject]):
     @overload
     def __getitem__(self, key: int) -> CylindraProject: ...
     @overload
-    def __getitem__(self, key: slice) -> ProjectCollection: ...
+    def __getitem__(self, key: slice) -> ProjectSequence: ...
     
     def __getitem__(self, key: int):
         out = self._projects[key]
         if isinstance(key, slice):
-            out = ProjectCollection(check_scale=True)
+            out = ProjectSequence(check_scale=True)
             out._projects = self._projects[key]
         return out
     

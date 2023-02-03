@@ -28,7 +28,7 @@ from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     MOLECULES, SELECTION_LAYER_NAME,
     WORKING_LAYER_NAME, GlobalVariables as GVar, Mode, PropertyNames as H, 
-    MoleculesHeader as Mole, Ori, nm
+    MoleculesHeader as Mole, Ori, nm, get_versions
 )
 from cylindra.types import MonomerLayer, get_monomer_layers
 from cylindra.project import CylindraProject
@@ -369,7 +369,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def cylindra_info(self):
         """Show information of dependencies."""
-        versions = widget_utils.get_versions()
+        versions = get_versions()
         value = "\n".join(f"{k}: {v}" for k, v in versions.items())
         w = ConsoleTextEdit(value=value)
         w.read_only = True
@@ -1456,7 +1456,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open project collection analyzer")
     @do_not_record
     def open_project_collection_analyzer(self):
-        from .main_collection import ProjectCollectionWidget
+        from .collection import ProjectCollectionWidget
         
         uix = ProjectCollectionWidget()
         self.parent_viewer.window.add_dock_widget(uix, area="right")

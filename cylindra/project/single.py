@@ -8,7 +8,7 @@ import polars as pl
 import macrokit as mk
 from acryo import Molecules
 
-from cylindra.const import PropertyNames as H
+from cylindra.const import PropertyNames as H, get_versions
 from ._base import BaseProject, PathLike
 
 if TYPE_CHECKING:
@@ -35,21 +35,6 @@ class CylindraProject(BaseProject):
     tilt_range: Union[tuple[float, float], None]
     macro: PathLike
     project_path: Union[Path, None] = None
-
-    def __repr__(self) -> str:
-        return f"CylindraProject({self.project_path})"
-
-    @classmethod
-    def from_json(cls, path: str):
-        """Construct a project from a json file."""
-        path = str(path)
-    
-        with open(path, mode="r") as f:
-            js: dict = json.load(f)
-        self = cls(**js, project_path=Path(path))
-        file_dir = Path(path).parent
-        self.resolve_path(file_dir)
-        return self
     
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
@@ -72,7 +57,6 @@ class CylindraProject(BaseProject):
         results_dir: Union[Path, None] = None,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
-        from cylindra.widgets.widget_utils import get_versions
         from napari.layers import Points
         from cylindra.const import MOLECULES
         

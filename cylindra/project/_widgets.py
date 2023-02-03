@@ -1,18 +1,11 @@
-import os
-import json
-from typing import Any, Union, TYPE_CHECKING
-from enum import Enum
+from typing import TYPE_CHECKING
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import polars as pl
-from pydantic import BaseModel
 import impy as ip
-import macrokit as mk
 from magicclass import magicclass, field, vfield, MagicTemplate
 from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label, Table
 from magicclass.ext.vispy import Vispy3DCanvas
-from magicclass.utils import thread_worker
 from acryo import Molecules
 
 from cylindra.const import PropertyNames as H
@@ -134,14 +127,14 @@ class SubtomogramAveraging(MagicTemplate):
 
 @magicclass(labels=False, record=False)
 class Macro(MagicTemplate):
-    text = vfield(str, widget_type=ConsoleTextEdit)
+    text = field(str, widget_type=ConsoleTextEdit)
     
     def _from_project(self, project: "CylindraProject"):
         if path := project.macro:
             with open(path, mode="r") as f:
-                self.text = f.read()
-        self["text"].read_only = True
-        self["text"].syntax_highlight("python")
+                self.text.value = f.read()
+        self.text.read_only = True
+        self.text.syntax_highlight("python")
 
 @magicclass(widget_type="tabbed", name="Project Viewer", record=False)
 class ProjectViewer(MagicTemplate):
