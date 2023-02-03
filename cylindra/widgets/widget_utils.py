@@ -133,18 +133,6 @@ def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
     )
     return ndi.affine_transform(arr2, matrix=mtx, order=1, prefilter=False)
 
-def resolve_path(path: str | Path | None, root: Path) -> Path | None:
-    """Resolve a relative path to an absolute path."""
-    if path is None:
-        return None
-    path = Path(path)
-    if path.is_absolute():
-        return path
-    path_joined = root / path
-    if path_joined.exists():
-        return path_joined
-    raise ValueError(f"Path {path} could not be resolved under root path {root}.")
-
 
 def layer_to_coordinates(layer: Points, npf: int | None = None):
     """Convert point coordinates of a Points layer into a structured array."""

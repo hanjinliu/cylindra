@@ -127,7 +127,7 @@ class CollectionProvider(MagicTemplate):
 
 @magicclass(widget_type="scrollable", properties={"min_height": 240})
 class ProjectCollectionWidget(MagicTemplate):
-    collection = CollectionProvider
+    collection = CollectionProvider  # list of projects
     
     @magicclass(widget_type="collapsible", name="Subtomogram analysis")
     class StaWidget(MagicTemplate):
@@ -160,7 +160,7 @@ class ProjectCollectionWidget(MagicTemplate):
             del self._project_collection[idx]
     
     @collection.Buttons.wraps
-    @set_design(text="Preview", font_family="Arial")
+    @set_design(text="Preview")
     @do_not_record
     def preview_all(self):
         """Preview project."""
