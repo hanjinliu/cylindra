@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Annotated
+from typing import Annotated, TYPE_CHECKING
 import warnings
 
 import impy as ip
@@ -49,6 +49,9 @@ from cylindra.widgets.widget_utils import (
     FileFilter, add_molecules, change_viewer_focus, update_features
 )
 
+if TYPE_CHECKING:
+    from .collection import ProjectCollectionWidget
+
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 
@@ -81,6 +84,11 @@ class CylindraMainWidget(MagicTemplate):
     def log(self):
         """Return the logger widget."""
         return self._LoggerWindow.log
+    
+    @property
+    def collection_analyzer(self) -> "ProjectCollectionWidget":
+        """Return the collection analyzer."""
+        return self._collection_analyzer
     
     @property
     def project_directory(self) -> "Path | None":
@@ -116,6 +124,7 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_paint: Labels = None
         self._macro_offset: int = 1
         self._need_save: bool = False
+        self._collection_analyzer = None
         self.objectName()  # load napari types
         
     def __post_init__(self):
@@ -1459,7 +1468,8 @@ class CylindraMainWidget(MagicTemplate):
         from .collection import ProjectCollectionWidget
         
         uix = ProjectCollectionWidget()
-        self.parent_viewer.window.add_dock_widget(uix, area="right")
+        self.parent_viewer.window.add_dock_widget(uix, area="right").setFloating(True)
+        self._collection_analyzer = uix
         return uix
     
     @toolbar.wraps

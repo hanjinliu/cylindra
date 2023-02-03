@@ -46,10 +46,6 @@ class ProjectCollectionWidget(MagicTemplate):
         params = StaParameters
     
     def __post_init__(self):
-        from qtpy import QtGui
-        font = QtGui.QFont("Monospace", 10)
-        font.setBold(True)
-        self.collection.FilterExpr["filter_expression"].native.setFont(font)
         self._project_sequence = ProjectSequence()
         self.StaWidget.params._get_scale = self._get_scale
 
@@ -110,15 +106,6 @@ class ProjectCollectionWidget(MagicTemplate):
             raise TypeError(f"Expected a ProjectCollection, got {type(col)}")
         self._project_sequence = col
         for prj in col:
-            self.collection.projects._add(prj.project_path)
-    
-    def filter_projects(self, predicate: pl.Expr):
-        # TODO: how to filter??
-        # - Retain spline?
-        # - how to match project and image?
-        new = self._project_sequence.filter(predicate)
-        self.collection.projects.clear()
-        for prj in self._project_sequence:
             self.collection.projects._add(prj.project_path)
 
     def _get_project_paths(self, w=None) -> list[Path]:

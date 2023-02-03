@@ -1,9 +1,9 @@
 from typing import Iterator, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 from magicclass import (
-    magicclass, field, vfield, MagicTemplate, set_design, abstractapi, FieldGroup
+    magicclass, field, vfield, MagicTemplate, set_design, abstractapi, Icon
 )
-from magicgui.widgets import Table, PushButton
+from magicclass.widgets import Table, EvalLineEdit
 from magicclass.types import Path
 from acryo import TomogramCollection, Molecules
 
@@ -18,7 +18,7 @@ from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole
 @magicclass(widget_type="frame", record=False, properties={"margins": (0, 0, 0, 0)})
 class Project(MagicTemplate):
     # a widget representing a single project
-    check = vfield(True, name="").with_options(text="")
+    check = vfield(True).with_options(text="")
     path = field("").with_options(enabled=False)
     
     @set_design(text="✕", max_width=30)
@@ -26,6 +26,19 @@ class Project(MagicTemplate):
         """Remove this project from the list."""
         parent =self.find_ancestor(ProjectPaths)
         parent.remove(self)
+    
+    @set_design(text="Open")
+    def send_to_viewer(self):
+        """Send this project to the viewer."""
+        from cylindra.core import instance
+        
+        if ui := instance():
+            ui.load_project(self.path.value)
+        else:
+            raise ValueError("No Cylindra widget found!")
+
+    def __post_init__(self):
+        self["check"].text = ""  # NOTE: should be updated here!
 
     @classmethod
     def _from_path(cls, path: Path):
@@ -75,9 +88,9 @@ class ProjectSequenceEdit(MagicTemplate):
 
     projects = field(ProjectPaths)
     
-    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class FilterExpr(MagicTemplate):
-        filter_expression = vfield(str, label="Filter:")
+        filter_expression = field(str, label="Filter:", widget_type=EvalLineEdit).with_options(namespace={"pl": pl})
         preview_filtered_molecules = abstractapi()
     
     @Buttons.wraps
@@ -101,10 +114,10 @@ class ProjectSequenceEdit(MagicTemplate):
         dock.setFloating(True)
         
     def _get_expression(self, w=None) -> pl.Expr:
-        expr = self.FilterExpr.filter_expression
-        if expr == "":
+        wdt = self.FilterExpr.filter_expression
+        if wdt.value == "":
             return None
-        return eval(expr, {"pl": pl}, {})
+        return wdt.eval()
 
 def get_collection(
     project_paths: list[Path], 
