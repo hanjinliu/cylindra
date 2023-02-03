@@ -1,5 +1,4 @@
 import os
-import re
 from typing import Annotated, TYPE_CHECKING
 import warnings
 
@@ -16,9 +15,9 @@ from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         set_design, set_options)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path
+from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
 from magicclass.utils import thread_worker
-from magicclass.widgets import ConsoleTextEdit, Logger
+from magicclass.widgets import ConsoleTextEdit, Logger, EvalLineEdit
 from napari.layers import Image, Labels, Layer, Points
 from napari.utils import Colormap
 from scipy import ndimage as ndi
@@ -55,6 +54,8 @@ if TYPE_CHECKING:
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 
+# namespace used in predicate
+POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np}
 
 ############################################################################################
 #   The Main Widget of cylindra
@@ -1389,6 +1390,145 @@ class CylindraMainWidget(MagicTemplate):
         self.add_molecules(mole, name="Mono-merged")
 
     @Molecules_.wraps
+    @set_design(text="Translate molecules")
+    def translate_molecules(
+        self,
+        layer: MonomerLayer,
+        translation: Annotated[
+            tuple[nm, nm, nm],
+            {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation (nm)"}
+        ],
+        internal: bool = True,
+    ):
+        """
+        Translate molecule coordinates without changing their rotations.
+
+        Parameters
+        ----------
+        {layer}
+        translation : tuple of float
+            Translation (nm) of the molecules in (Z, Y, X) order.
+        internal : bool, default is True
+            If true, the translation is applied to the internal coordinates, i.e. molecules
+            with different rotations are translated differently.
+        """
+        mole: Molecules = layer.metadata[MOLECULES]
+        if internal:
+            out = mole.translate_internal(translation)
+        else:
+            out = mole.translate(translation)
+        name = f"{layer.name}-Shift"
+        layer = self.add_molecules(out, name=name)
+        return mole
+        
+    @impl_preview(translate_molecules, auto_call=True)
+    def _during_translate_molecules(self, layer: MonomerLayer, translation, internal: bool):
+        mole: Molecules = layer.metadata[MOLECULES]
+        if internal:
+            out = mole.translate_internal(translation)
+        else:
+            out = mole.translate(translation)
+        viewer = self.parent_viewer
+        name = "<Preview>"
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = out.pos
+        else:
+            layer = self.add_molecules(out, name=name)
+            layer.face_color = layer.edge_color = "crimson"
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+        return out
+
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Show molecule features")
+    @do_not_record
+    def show_molecule_features(self):
+        """Show molecules features in a table widget."""
+        from magicgui.widgets import Table, Container, ComboBox
+        
+        cbox = ComboBox(choices=get_monomer_layers)
+        table = Table(value=[])
+        table.read_only = True
+        @cbox.changed.connect
+        def _update_table(layer: MonomerLayer):
+            if layer is not None:
+                table.value = layer.features
+        container = Container(widgets=[cbox, table], labels=False)
+        self.parent_viewer.window.add_dock_widget(
+            container, area="left", name="Molecule Features"
+        ).setFloating(True)
+        cbox.changed.emit(cbox.value)
+    
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Filter molecules")
+    def filter_molecules(
+        self,
+        layer: MonomerLayer,
+        predicate: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}]
+    ):
+        """
+        Filter molecules by their features.
+
+        Parameters
+        ----------
+        {layer}
+        predicate : ExprStr
+            A polars-style filter predicate, such as `pl.col("pf-id") == 3`
+        """
+        mole: Molecules = layer.metadata[MOLECULES]
+        expr = eval(str(predicate), POLARS_NAMESPACE, {})
+        out = mole.filter(expr)
+        name = f"{layer.name}-Filt"
+        layer = self.add_molecules(out, name=name)
+        return mole
+        
+    @impl_preview(filter_molecules, auto_call=True)
+    def _during_filter_molecules(self, layer: MonomerLayer, predicate: str):
+        mole: Molecules = layer.metadata[MOLECULES]
+        viewer = self.parent_viewer
+        try:
+            expr = eval(predicate, {"pl": pl}, {})
+        except Exception:
+            yield
+            return
+        out = mole.filter(expr)
+        name = "<Preview>"
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = out.pos
+        else:
+            layer = self.add_molecules(out, name=name)
+        # filtering changes the number of molecules. We need to update the colors.
+        layer.face_color = layer.edge_color = "crimson"
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+        return out
+    
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Calculate molecule features")
+    def calculate_molecule_features(
+        self,
+        layer: MonomerLayer, 
+        column_name: str,
+        expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
+    ):
+        feat = pl.DataFrame(layer.features)
+        pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
+        if isinstance(pl_expr, pl.Expr):
+            new_feat = feat.with_columns([pl_expr.alias(column_name)])
+        else:
+            new_feat = feat.with_columns([pl.Series(column_name, pl_expr)])
+        layer.features = new_feat.to_pandas()
+        layer.metadata[MOLECULES].features = new_feat
+
+    @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
     def calculate_intervals(
         self,
