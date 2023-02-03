@@ -88,6 +88,8 @@ class CylindraMainWidget(MagicTemplate):
     @property
     def collection_analyzer(self) -> "ProjectCollectionWidget":
         """Return the collection analyzer."""
+        if self._collection_analyzer is None:
+            self.open_project_collection_analyzer()
         return self._collection_analyzer
     
     @property
@@ -1468,7 +1470,7 @@ class CylindraMainWidget(MagicTemplate):
         from .collection import ProjectCollectionWidget
         
         uix = ProjectCollectionWidget()
-        self.parent_viewer.window.add_dock_widget(uix, area="right").setFloating(True)
+        self.parent_viewer.window.add_dock_widget(uix, area="left").setFloating(True)
         self._collection_analyzer = uix
         return uix
     

@@ -288,6 +288,9 @@ class CylindraProject(BaseProject):
         mviewer._from_project(self)
         return mviewer
 
+    @property
+    def result_dir(self) -> Path:
+        return Path(self.macro).parent
 
 def resolve_path(path: Union[str, Path, None], root: Path) -> Union[Path, None]:
     """Resolve a relative path to an absolute path."""

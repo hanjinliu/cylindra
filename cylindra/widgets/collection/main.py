@@ -1,5 +1,6 @@
 from typing import Iterator, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
+from macrokit import Expr
 from magicclass import (
     magicclass, magicmenu, do_not_record, field, nogui, vfield, MagicTemplate, 
     set_design
@@ -8,7 +9,6 @@ from magicclass.widgets import Table, ToggleSwitch, Container, ComboBox, Separat
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-from acryo import TomogramCollection, Molecules
 
 import numpy as np
 import impy as ip
@@ -32,7 +32,11 @@ _MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
 
 
-@magicclass(widget_type="scrollable", properties={"min_height": 240})
+@magicclass(
+    widget_type="scrollable",
+    properties={"min_height": 240},
+    symbol=Expr("getattr", ["ui", "collection_analyzer"]),
+)
 class ProjectCollectionWidget(MagicTemplate):
     
     # Menus
@@ -165,6 +169,9 @@ class ProjectCollectionWidget(MagicTemplate):
             tilt_range=tilt_range,
         )
         
-        # TODO: how to save the results?
+        for _ids, mole in aligned.molecules.groupby(by=[Mole.id, "image-id"]):
+            image_id: int = _ids[1]
+            prj = self._project_sequence[image_id]
+            mole.to_csv(prj.result_dir / f"aligned_{_ids[0]}.csv")
         return aligned
     
