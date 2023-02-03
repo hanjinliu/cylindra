@@ -60,6 +60,15 @@ class CylindraCollectionProject(BaseProject):
     @classmethod
     def save_gui(cls, gui: "ProjectCollectionWidget", json_path: PathLike) -> None:
         """Save a project collection from a widget."""
-        self = cls.from_gui(gui)
+        json_path = Path(json_path)
+        self = cls.from_gui(gui, json_path)
         self.to_json(json_path)
+        macro_path = json_path.parent / str(self.macro)
+        macro_path.write_text(str(gui.macro))
+        return None
+
+    def resolve_path(self, file_dir: PathLike) -> None:
+        """Resolve paths."""
+        self.macro = Path(self.macro).resolve(file_dir)
+        self.children = [Path(p).resolve(file_dir) for p in self.children]
         return None
