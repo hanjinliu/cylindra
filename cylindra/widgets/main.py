@@ -85,11 +85,11 @@ class CylindraMainWidget(MagicTemplate):
         return self._LoggerWindow.log
     
     @property
-    def collection_analyzer(self) -> "ProjectCollectionWidget":
+    def batch(self) -> "ProjectCollectionWidget":
         """Return the collection analyzer."""
-        if self._collection_analyzer is None:
-            self.open_project_collection_analyzer()
-        return self._collection_analyzer
+        if self._batch is None:
+            self.open_project_batch_analyzer()
+        return self._batch
     
     @property
     def project_directory(self) -> "Path | None":
@@ -125,7 +125,7 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_paint: Labels = None
         self._macro_offset: int = 1
         self._need_save: bool = False
-        self._collection_analyzer = None
+        self._batch = None
         self.objectName()  # load napari types
         
     def __post_init__(self):
@@ -1628,7 +1628,7 @@ class CylindraMainWidget(MagicTemplate):
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
         
-        from ..utils import diff
+        from cylindra.utils import diff
         y_interval = diff(pos, spl_vec)
         
         properties = y_interval.ravel()
@@ -1656,12 +1656,12 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Open project collection analyzer")
     @do_not_record
-    def open_project_collection_analyzer(self):
+    def open_project_batch_analyzer(self):
         from .collection import ProjectCollectionWidget
         
         uix = ProjectCollectionWidget()
         self.parent_viewer.window.add_dock_widget(uix, area="left").setFloating(True)
-        self._collection_analyzer = uix
+        self._batch = uix
         return uix
     
     @toolbar.wraps

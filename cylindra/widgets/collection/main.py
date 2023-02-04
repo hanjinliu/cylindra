@@ -1,21 +1,16 @@
-from typing import Iterator, Union, TYPE_CHECKING, Annotated
-from timeit import default_timer
+from typing import Annotated
 from macrokit import Expr
 from magicclass import (
-    magicclass, magicmenu, do_not_record, field, nogui, vfield, MagicTemplate, 
-    set_design
+    magicclass, do_not_record, field, nogui, MagicTemplate, set_design
 )
-from magicclass.widgets import Table, ToggleSwitch, Container, ComboBox, Separator
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
 
-import numpy as np
 import impy as ip
-import polars as pl
 
-from cylindra.project import CylindraProject, ComponentsViewer, ProjectSequence, CylindraCollectionProject
-from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole
+from cylindra.project import ProjectSequence, CylindraCollectionProject
+from cylindra.const import nm, MoleculesHeader as Mole
 
 from ..widget_utils import FileFilter
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
@@ -35,13 +30,13 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 @magicclass(
     widget_type="scrollable",
     properties={"min_height": 240},
-    symbol=Expr("getattr", ["ui", "collection_analyzer"]),
+    symbol=Expr("getattr", ["ui", "batch"]),
 )
 class ProjectCollectionWidget(MagicTemplate):
     
     # Menus
-    file = field(File)
-    subtomogram_analysis = field(SubtomogramAnalysis)
+    file = field(File, name="File")
+    subtomogram_analysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
     
     collection = ProjectSequenceEdit  # list of projects
     
@@ -57,7 +52,7 @@ class ProjectCollectionWidget(MagicTemplate):
         return self._project_sequence._scale_validator.value
 
     @File.wraps
-    @set_design(text="Load child projects")
+    @set_design(text="Add child projects")
     def add_children(self, paths: list[Path.Read[FileFilter.JSON]]):
         """Load a project json file."""
         for path in paths:
@@ -85,23 +80,6 @@ class ProjectCollectionWidget(MagicTemplate):
             Path of json file.
         """
         return CylindraCollectionProject.save_gui(self, Path(json_path))
-
-    @collection.Buttons.wraps
-    @set_design(text="Preview")
-    @do_not_record
-    def preview_all(self):
-        """Preview project."""
-        cbox = ComboBox(choices=self._get_project_paths)
-        comp_viewer = ComponentsViewer()
-        
-        self.collection.changed.connect(lambda: cbox.reset_choices())
-        cbox.changed.connect(
-            lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
-        )
-        cont = Container(widgets=[cbox, comp_viewer], labels=False)
-        cont.native.setParent(self.native, cont.native.windowFlags())
-        cont.show()
-        cbox.changed.emit(cbox.value)
 
     @nogui
     @do_not_record
