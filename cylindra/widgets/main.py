@@ -26,7 +26,8 @@ from cylindra import utils
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     SELECTION_LAYER_NAME,
-    WORKING_LAYER_NAME, GlobalVariables as GVar, Mode, PropertyNames as H, 
+    WORKING_LAYER_NAME, GlobalVariables as GVar,
+    IDName, Mode, PropertyNames as H, 
     MoleculesHeader as Mole, Ori, nm, get_versions
 )
 from cylindra.types import MoleculesLayer, get_monomer_layers
@@ -246,7 +247,7 @@ class CylindraMainWidget(MagicTemplate):
             if local_props or global_props:
                 self.sample_subtomograms()
                 if global_props:
-                    df = self.tomogram.collect_globalprops(i=splines).transpose()
+                    df = self.tomogram.collect_globalprops(i=splines).to_pandas().transpose()
                     df.columns = [f"Spline-{i}" for i in splines]
                     self.log.print_table(df, precision=3)
             if local_props and paint:
@@ -796,7 +797,7 @@ class CylindraMainWidget(MagicTemplate):
                 coords = spl.local_cylindrical((0.5, width_px/2), length_px, point, scale=current_scale)
                 mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
                 img_flat = ip.asarray(mapped, axes="rya").proj("y") + img_flat
-            npf = utils.roundint(spl.globalprops[H.nPF])
+            npf = utils.roundint(spl.globalprops[H.nPF][0])
             pw_peak = img_flat.local_power_spectra(
                 key=ip.slicer.a[npf-1:npf+2],
                 dims="ra",
@@ -1115,7 +1116,7 @@ class CylindraMainWidget(MagicTemplate):
         
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
-            df = self.tomogram.collect_globalprops().transpose()
+            df = self.tomogram.collect_globalprops().to_pandas().transpose()
             df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
             self.log.print_table(df, precision=3)
             self._update_global_properties_in_widget()
@@ -1758,8 +1759,8 @@ class CylindraMainWidget(MagicTemplate):
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
-        all_localprops = tomo.collect_localprops()
-        if all_localprops is None:
+        all_df = tomo.collect_localprops()
+        if all_df is None:
             raise ValueError("No local property found.")
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = utils.roundint(bin_scale/tomo.scale)
@@ -1821,21 +1822,21 @@ class CylindraMainWidget(MagicTemplate):
         
         # Labels layer properties
         _id = "ID"
-        _structure = "structure"
-        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _structure]
-        df = all_localprops[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
-        df_reset = df.reset_index()
-        df_reset[_id] = df_reset.apply(
-            lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), 
-            axis=1
-            )
-        df_reset[_structure] = df_reset.apply(
-            lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), start=x[H.start]), 
-            axis=1
-            )
-        
+        _str = "structure"
+        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _str]
+        df = (
+            all_df
+            .select([IDName.spline, IDName.pos, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start])
+            .with_columns([
+                pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
+                pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
+                pl.col(H.riseAngle),
+                pl.col(H.yPitch),
+                pl.col(H.skewAngle),
+            ])
+        ).to_pandas()
         back = pd.DataFrame({c: [np.nan] for c in columns})
-        props = pd.concat([back, df_reset[columns]])
+        props = pd.concat([back, df[columns]], ignore_index=True)
         
         # Add labels layer
         if self.layer_paint is None:
@@ -2184,7 +2185,7 @@ class CylindraMainWidget(MagicTemplate):
         spl = self.tomogram.splines[i]
         if spl.globalprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = spl.globalprops[headers]
+            pitch, skew, npf, start = spl.globalprops[headers].row(0)
             radius = spl.radius
             ori = spl.orientation
             self.GlobalProperties._set_text(pitch, skew, npf, start, radius, ori)
@@ -2201,8 +2202,9 @@ class CylindraMainWidget(MagicTemplate):
         j = self.SplineControl.pos
         spl = tomo.splines[i]
         if spl.localprops is not None:
-            headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = spl.localprops[headers].iloc[j]
+            pitch, skew, npf, start = spl.localprops.select(
+                [H.yPitch, H.skewAngle, H.nPF, H.start]
+            ).row(j)
             self.LocalProperties._set_text(pitch, skew, npf, start)
         else:
             self.LocalProperties._init_plot()

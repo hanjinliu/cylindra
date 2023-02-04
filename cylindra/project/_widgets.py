@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from pathlib import Path
 import numpy as np
-import pandas as pd
+import polars as pl
 import impy as ip
 from magicclass import magicclass, field, vfield, MagicTemplate
 from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label, Table
@@ -94,13 +94,13 @@ class Properties(MagicTemplate):
     
     def _from_project(self, project: "CylindraProject"):
         if path := project.localprops:
-            df = pd.read_csv(path)
-            self.table_local.value = df
+            df = pl.read_csv(path)
+            self.table_local.value = df.to_pandas()
         self.table_local.read_only = True
         
         if path := project.globalprops:
-            df = pd.read_csv(path)
-            self.table_global.value = df
+            df = pl.read_csv(path)
+            self.table_global.value = df.to_pandas()
         self.table_global.read_only = True
 
 

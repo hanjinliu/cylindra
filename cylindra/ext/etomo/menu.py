@@ -140,8 +140,8 @@ class PEET(MagicTemplate):
     
     @property
     def scale(self) -> float:
-        from ...widgets import CylindraMainWidget
-        return self.find_ancestor(CylindraMainWidget).tomogram.scale
+        from cylindra.widgets import CylindraMainWidget
+        return self.find_ancestor(CylindraMainWidget, cache=True).tomogram.scale
 
 
 def _read_angle(ang_path: str) -> np.ndarray:

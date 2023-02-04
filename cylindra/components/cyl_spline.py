@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, Any, TYPE_CHECKING
 from numpy.typing import ArrayLike
-import pandas as pd
+import polars as pl
 
 from .spline import Spline
 from cylindra.const import nm, SplineAttributes as K, Ori
@@ -29,8 +29,8 @@ class CylSpline(Spline):
         super().__init__(degree=degree, lims=lims)
         self.orientation = Ori.none
         self.radius: nm | None = None
-        self.localprops: pd.DataFrame | None = None
-        self.globalprops: pd.Series | None = None
+        self.localprops: pl.DataFrame | None = None
+        self.globalprops: pl.DataFrame | None = None
     
     def invert(self) -> CylSpline:
         """

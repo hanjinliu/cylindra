@@ -149,7 +149,7 @@ def get_collection(
             fp = Path(fp)
             mole = Molecules.from_csv(fp)
             mole.features = mole.features.with_columns(
-                pl.Series(Mole.id, np.full(len(mole), fp.stem))
+                [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
             )
             col.add_tomogram(tomogram.value, molecules=mole, image_id=idx)
     if predicate is not None:

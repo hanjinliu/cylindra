@@ -1,9 +1,7 @@
 import os
-import json
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
 import numpy as np
-import pandas as pd
 import polars as pl
 import macrokit as mk
 from acryo import Molecules
@@ -171,9 +169,9 @@ class CylindraProject(BaseProject):
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)  # create a directory if not exists.
         if localprops_path:
-            localprops.to_csv(localprops_path)
+            localprops.write_csv(localprops_path)
         if globalprops_path:
-            globalprops.to_csv(globalprops_path)
+            globalprops.write_csv(globalprops_path)
         if self.splines:
             for spl, path in zip(gui.tomogram.splines, self.splines):
                 spl.to_json(results_dir.parent / path)
@@ -205,32 +203,27 @@ class CylindraProject(BaseProject):
         splines = [CylSpline.from_json(path) for path in self.splines]
         localprops_path = self.localprops
         if localprops_path is not None:
-            all_localprops = dict(iter(pd.read_csv(localprops_path).groupby("SplineID")))
+            all_localprops = dict(iter(pl.read_csv(localprops_path).groupby("SplineID")))
         else:
             all_localprops = {}
         globalprops_path = self.globalprops
         if globalprops_path is not None:
-            all_globalprops = dict(pd.read_csv(globalprops_path, index_col=0).iterrows())
+            df = pl.read_csv(globalprops_path)
+            all_globalprops = {i: df[i] for i in range(len(df))}
         else:
             all_globalprops = {}
         
         for i, spl in enumerate(splines):
             spl.localprops = all_localprops.get(i, None)
             if spl.localprops is not None:
-                spl._anchors = np.asarray(spl.localprops.get(H.splPosition))
-                spl.localprops.pop("SplineID")
-                spl.localprops.pop("PosID")
-                spl.localprops.index = range(len(spl.localprops))
+                spl._anchors = np.asarray(spl.localprops[H.splPosition])
+                spl.localprops.drop(["SplineID", "PosID"])
             spl.globalprops = all_globalprops.get(i, None)
             if spl.globalprops is not None:
-                try:
-                    spl.radius = spl.globalprops.pop("radius")
-                except KeyError:
-                    pass
-                try:
-                    spl.orientation = spl.globalprops.pop("orientation")
-                except KeyError:
-                    pass
+                if "radius" in spl.globalprops.columns:
+                    spl.radius = spl.globalprops["radius"][0]
+                if "orientation" in spl.globalprops.columns:
+                    spl.orientation = spl.globalprops["orientation"][0]
         
         @thread_worker.to_callback
         def _load_project_on_return():

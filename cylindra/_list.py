@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Sequence, Su
 from pathlib import Path
 import numpy as np
 from cylindra.const import IDName, PropertyNames as H
+import polars as pl
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -44,19 +45,17 @@ class DataFrameList(Sequence["pd.DataFrame"]):
         self._list = list(df_list)
     
     @classmethod
-    def from_localprops(cls, df: pd.DataFrame) -> DataFrameList:
+    def from_localprops(cls, df: pl.DataFrame) -> DataFrameList:
         """Construct a dataframe list from a localprops attribute of a Spline object."""
-        input_data = [df_sub[COLUMNS] for _, df_sub in df.groupby(by=IDName.spline)]
+        input_data = [df_sub[COLUMNS].to_pandas() for _, df_sub in df.groupby(by=IDName.spline)]
         return cls(input_data)
     
     @classmethod
     def from_csv(cls, path) -> DataFrameList:
         """Construct a dataframe list from a csv file."""
-        import pandas as pd
-
-        df = pd.read_csv(path)
+        df = pl.read_csv(path)
         if IDName.spline in df.columns and IDName.pos in df.columns:
-            df["source"] = Path(path).parent.stem
+            df = df.with_columns(pl.repeat(Path(path).parent.stem, pl.count()).alias("source"))
             return cls.from_localprops(df)
         raise ValueError(
             f"The csv file does not contain {IDName.spline!r} and {IDName.pos!r} columns."

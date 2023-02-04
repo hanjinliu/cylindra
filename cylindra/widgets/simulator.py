@@ -260,10 +260,10 @@ class CylinderSimulator(MagicTemplate):
         if props is None:
             raise ValueError("Global property is not calculated yet.")
         self._parameters.update(
-            interval=props[H.yPitch],
-            skew=props[H.skewAngle],
-            rise=props[H.riseAngle],
-            npf=props[H.nPF],
+            interval=props[H.yPitch][0],
+            skew=props[H.skewAngle][0],
+            rise=props[H.riseAngle][0],
+            npf=props[H.nPF][0],
             radius=spl.radius,
         )
         return None

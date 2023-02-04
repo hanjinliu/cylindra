@@ -11,7 +11,7 @@ from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
-    import pandas as pd
+    import polars as pl
 
 class LabeledText(FieldGroup):
     lbl = field("pitch", widget_type="Label")
@@ -72,7 +72,7 @@ class LocalPropertiesWidget(MagicTemplate):
         self._skew_angle = None
         return None
     
-    def _plot_properties(self, props: "pd.DataFrame"):
+    def _plot_properties(self, props: "pl.DataFrame"):
         if props is None:
             return None
         x = np.asarray(props[H.splDistance])
