@@ -1526,6 +1526,19 @@ class CylindraMainWidget(MagicTemplate):
         low: tuple[float, Color] = (0., "blue"),
         high: tuple[float, Color] = (1., "red"),
     ):
+        """
+        Paint molecules by a feature.
+
+        Parameters
+        ----------
+        {layer}
+        feature_name : str
+            Name of the feature to paint by.
+        low : (float, Color), default is (0., "blue")
+            The lower bound of the feature value and the corresponding color.
+        high : (float, Color), default is (1., "red")
+            The upper bound of the feature value and the corresponding color.
+        """
         from polars.datatypes import NumericType
 
         series = layer.molecules.features[feature_name]
