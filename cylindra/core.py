@@ -83,11 +83,13 @@ def instance() -> CylindraMainWidget | None:
     """Get the current CylindraMainWidget instance."""
     return _CURRENT_INSTANCE
 
-def view_project(project_file: PathLike, run: bool = False) -> None:
+def view_project(project_file: PathLike, run: bool = False):
     """View the Cylindra project file."""
     from cylindra.project import CylindraProject
     
-    return CylindraProject.from_json(project_file).make_project_viewer().show(run=run)
+    widget = CylindraProject.from_json(project_file).make_project_viewer()
+    widget.show(run=run)
+    return widget
 
 def read_project(file: PathLike) -> CylindraProject:
     """Read the Cylindra project file."""

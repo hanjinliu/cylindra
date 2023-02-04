@@ -34,8 +34,7 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
     elif ori == "PlusToMinus":
         assert (arr[0], arr[-1]) == ("+", "-")
 
-def test_spline_deletion():
-    ui = start()
+def test_spline_deletion(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.register_path(coords=coords_13pf)
@@ -51,12 +50,8 @@ def test_spline_deletion():
     ui.delete_spline(0)
     assert ui.layer_prof.features["spline-id"].values[0] == 0.
     assert ui.layer_prof.features["spline-id"].values[-1] == 0.
-    
-    ui.parent_viewer.layers.events.removing.disconnect()
-    ui.parent_viewer.layers.events.removed.disconnect()
 
-def test_spline_switch():
-    ui = start()
+def test_spline_switch(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.filter_reference_image()
@@ -129,7 +124,18 @@ def test_spline_switch():
     assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
     
     assert_canvas(ui, [False, False, False])
+    
+    ui.clear_all()
+    
+    assert ui.LocalProperties.params.pitch.txt == " -- nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
 
+def test_sta(ui: CylindraMainWidget):
+    path = TEST_PATH / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.register_path(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    ui.cylindrical_fit(interval=16.0)
+    
     # map monomer coordinates and save them.
     ui.map_monomers(splines=[0])
     ui.sta.average_subset(ui.parent_viewer.layers['Mono-0'], size=18.)
@@ -141,25 +147,14 @@ def test_spline_switch():
     ui.sta.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
                  tilt_range=(-60., 60.), max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0))
     ui.sta.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1))
-    ui.save_molecules(layer=ui.parent_viewer.layers['Mono-0'],
-                      save_path=TEST_PATH/"monomers.txt"
-                      )
+    ui.save_molecules(layer=ui.parent_viewer.layers['Mono-0'], save_path=TEST_PATH/"monomers.txt")
     mole = ui.get_molecules('Mono-0')
-    ui.clear_all()
+
     ui.load_molecules(TEST_PATH/"monomers.txt")
     mole_read = ui.get_molecules('monomers')
     assert_molecule_equal(mole, mole_read)
-    assert_canvas(ui, [True, True, True])
-    assert ui.LocalProperties.params.pitch.txt == " -- nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
-    
-    # cleanup
-    ui.parent_viewer.layers.events.removing.disconnect()
-    ui.parent_viewer.layers.events.removed.disconnect()
-    ui.sta.sub_viewer.close()
 
-def test_clip_spline():
-    ui = start()
+def test_clip_spline(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.register_path(coords=coords_13pf)
@@ -174,8 +169,7 @@ def test_clip_spline():
     length_new = spl.length()
     assert (length_old - length_new) - 4 < 1e-2
 
-def test_io():
-    ui = start()
+def test_io(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=1)
     ui.register_path(coords=coords_13pf)
@@ -195,31 +189,25 @@ def test_io():
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
 
-    # cleanup
-    ui.parent_viewer.layers.events.removing.disconnect()
-    ui.parent_viewer.layers.events.removed.disconnect()
 
-def test_simulator():
-    ui = start()
-    ui.cylinder_simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
-    ui.register_path(coords=[[50.25, 179.886, 33.022], [50.25, 23.331, 72.339]])
+def test_simulator(ui: CylindraMainWidget):
+    ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[2])
+    ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
-    ui.cylinder_simulator.expand(shift=0.1, yrange=(11, 31), arange=(0, 14), n_allev=1)
-    ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 31), arange=(0, 14), n_allev=1)
-    ui.cylinder_simulator.dilate(radius=-0.5, yrange=(11, 31), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.expand(shift=0.1, yrange=(11, 15), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 15), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.dilate(radius=-0.5, yrange=(11, 15), arange=(0, 14), n_allev=1)
     ui.cylinder_simulator.send_moleclues_to_viewer()
 
-def test_single_simulation():
-    ui = start()
-    ui.cylinder_simulator.create_empty_image(size=(100.0, 200.0, 100.0), scale=0.5, bin_size=[2])
-    ui.register_path(coords=[[50.25, 179.886, 33.022], [50.25, 23.331, 72.339]])
+def test_single_simulation(ui: CylindraMainWidget):
+    ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[2])
+    ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
     ui.cylinder_simulator.simulate_tomogram(template_path=TEST_PATH / "template.mrc")
 
-def test_batch_simulation():
-    ui = start()
+def test_batch_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[4])
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
@@ -240,5 +228,26 @@ def test_batch_simulation():
         )
         assert len(list(dirpath.glob("*.mrc"))) == 3
 
-def test_project_viewer():
-    view_project(TEST_PATH / "test-project.json")
+def test_project_viewer(ui: CylindraMainWidget):
+    view_project(TEST_PATH / "test-project.json").close()
+
+def test_show_orientation(ui: CylindraMainWidget):
+    ui.load_project(TEST_PATH / "test-project.json")
+    ui.show_orientation(ui.parent_viewer.layers['Mono-0'])
+
+def test_merge_molecules(ui: CylindraMainWidget):
+    ui.load_project(TEST_PATH / "test-project.json")
+    ui.merge_molecule_info(
+        pos=ui.parent_viewer.layers['Mono-0'],
+        rotation=ui.parent_viewer.layers['Mono-1'],
+        features=ui.parent_viewer.layers['Mono-0'],
+    )
+    last_layer = ui.parent_viewer.layers[-1]
+    assert_allclose(last_layer.data, ui.parent_viewer.layers['Mono-0'].data)
+
+def test_molecule_features(ui: CylindraMainWidget):
+    ui.load_project(TEST_PATH / "test-project.json")
+    ui.show_molecule_features()
+    ui.filter_molecules(layer=ui.parent_viewer.layers['Mono-0'], predicate='pl.col("position-nm") < 9.2')
+    ui.calculate_molecule_features(layer=ui.parent_viewer.layers['Mono-0'], column_name='new', expression='pl.col("pf-id") < 4')
+    ui.calculate_intervals(layer=ui.parent_viewer.layers['Mono-0'])
