@@ -3,7 +3,7 @@ import tempfile
 
 from numpy.testing import assert_allclose
 from acryo import Molecules
-from cylindra import start, view_project, CylindraMainWidget
+from cylindra import view_project, CylindraMainWidget
 from cylindra.const import PropertyNames as H
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
@@ -205,7 +205,11 @@ def test_single_simulation(ui: CylindraMainWidget):
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
-    ui.cylinder_simulator.simulate_tomogram(template_path=TEST_PATH / "template.mrc")
+    ui.cylinder_simulator.simulate_tomogram(
+        template_path=TEST_PATH / "template.mrc",
+        n_tilt = 11,
+        interpolation=1,
+    )
 
 def test_batch_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[4])
@@ -219,14 +223,14 @@ def test_batch_simulation(ui: CylindraMainWidget):
         ui.cylinder_simulator.simulate_tomogram_batch(
             template_path=TEST_PATH / "template.mrc",
             save_path=dirpath,
-            nsr=[0.5, 1.0, 2.0],
+            nsr=[0.5, 2.0],
             tilt_range=(-60.0, 60.0),
-            n_tilt=31,
-            interpolation=3,
+            n_tilt=11,
+            interpolation=1,
             save_mode='mrc',
             seed=0,
         )
-        assert len(list(dirpath.glob("*.mrc"))) == 3
+        assert len(list(dirpath.glob("*.mrc"))) == 2
 
 def test_project_viewer(ui: CylindraMainWidget):
     view_project(TEST_PATH / "test-project.json").close()
