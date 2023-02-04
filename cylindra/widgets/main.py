@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 from typing import Annotated, TYPE_CHECKING
 import warnings
@@ -19,7 +20,7 @@ from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprSt
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit, Logger
 from napari.layers import Image, Labels, Layer, Points
-from napari.utils import Colormap
+from napari.utils.colormaps import Colormap, label_colormap
 from scipy import ndimage as ndi
 
 from cylindra import utils
@@ -54,7 +55,7 @@ ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 
 # namespace used in predicate
-POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np}
+POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
 
 ############################################################################################
 #   The Main Widget of cylindra
@@ -1129,13 +1130,13 @@ class CylindraMainWidget(MagicTemplate):
     
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
+    @thread_worker.with_progress(desc="Calculating power spectra")
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        self.spectra_measurer.show()
         if self.tomogram.n_splines > 0:
             self.spectra_measurer.load_spline(self.SplineControl.num)
-        return None
+        return thread_worker.to_callback(self.spectra_measurer.show)
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1385,6 +1386,34 @@ class CylindraMainWidget(MagicTemplate):
         _feat = features.molecules
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
         self.add_molecules(mole, name="Mono-merged")
+    
+    def _get_split_molecules_choices(self, w=None) -> list[str]:
+        mgui = self["split_molecules"].mgui
+        if mgui is None:
+            return []
+        return mgui.layer.value.features.columns
+
+    @Molecules_.wraps
+    @set_design(text="Split molecules")
+    def split_molecules(self, layer: MoleculesLayer, by: OneOf[_get_split_molecules_choices]):
+        """Split molecules by a feature column."""
+        _prefix = f"{layer.name}-Group"
+        n_unique = layer.molecules.features[by].n_unique()
+        if n_unique > 48:
+            raise ValueError(f"Too many groups ({n_unique}). Did you choose a float column?")
+        for i, (_, mole) in enumerate(layer.molecules.groupby(by)):
+            self.add_molecules(mole, name=f"{_prefix}{i}")
+    
+    @impl_preview(split_molecules, auto_call=True)
+    def _during_split_molecules_preview(self, layer: MoleculesLayer, by: str):
+        with _temp_layer_colors(layer):
+            series = layer.molecules.features[by]
+            unique_values = series.unique()
+            # NOTE: the first color is translucent
+            cmap = label_colormap(unique_values.len() + 1, seed=0.9414)
+            layer.face_color_cycle = layer.edge_color_cycle = cmap.colors[1:]
+            layer.face_color = layer.edge_color = by
+            yield
 
     @Molecules_.wraps
     @set_design(text="Translate molecules")
@@ -1488,7 +1517,7 @@ class CylindraMainWidget(MagicTemplate):
         mole = layer.molecules
         viewer = self.parent_viewer
         try:
-            expr = eval(predicate, {"pl": pl}, {})
+            expr = eval(predicate, POLARS_NAMESPACE, {})
         except Exception:
             yield
             return
@@ -1508,22 +1537,19 @@ class CylindraMainWidget(MagicTemplate):
                 viewer.layers.remove(layer)
         return out
     
-    def _get_paint_choice(self, w=None) -> list[str]:
+    def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self["paint_molecules"].mgui
         if gui is None:
             return []
-        feat = gui.layer.value.features
-        if feat is None:
-            return []
-        return feat.columns
+        return gui.layer.value.features.columns
         
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Paint molecules by features")
     def paint_molecules(
         self,
         layer: MoleculesLayer,
-        feature_name: OneOf[_get_paint_choice],
+        feature_name: OneOf[_get_paint_molecules_choice],
         low: tuple[float, Color] = (0., "blue"),
         high: tuple[float, Color] = (1., "red"),
     ):
@@ -1555,21 +1581,10 @@ class CylindraMainWidget(MagicTemplate):
     
     @impl_preview(paint_molecules, auto_call=True)
     def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
-        fc = layer.face_color
-        ec = layer.edge_color
-        fcmap = layer.face_colormap
-        ecmap = layer.edge_colormap
-        fclim = layer.face_contrast_limits
-        eclim = layer.edge_contrast_limits
-        self.paint_molecules(layer, feature_name, low, high)
-        yield
-        layer.face_color = fc
-        layer.edge_color = ec
-        layer.face_colormap = fcmap
-        layer.edge_colormap = ecmap
-        layer.face_contrast_limits = fclim
-        layer.edge_contrast_limits = eclim
-    
+        with _temp_layer_colors(layer):
+            self.paint_molecules(layer, feature_name, low, high)
+            yield
+
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
@@ -2315,6 +2330,9 @@ class CylindraMainWidget(MagicTemplate):
 
         return None
     
+    @setup_function_gui(split_molecules)
+    def _(self, gui):
+        gui.layer.changed.connect(gui.by.reset_choices)    
 
 ############################################################################################
 #   Other helper functions
@@ -2327,3 +2345,22 @@ def _multi_affine(images, matrices, cval: float = 0, order=1):
             img, matrix, order=order, cval=cval, prefilter=order>1
         )
     return out
+
+@contextmanager
+def _temp_layer_colors(layer: MoleculesLayer):
+    """Temporarily change the colors of a layer and restore them afterwards."""
+    fc = layer.face_color
+    ec = layer.edge_color
+    fcmap = layer.face_colormap
+    ecmap = layer.edge_colormap
+    fclim = layer.face_contrast_limits
+    eclim = layer.edge_contrast_limits
+    try:
+        yield
+    finally:
+        layer.face_color = fc
+        layer.edge_color = ec
+        layer.face_colormap = fcmap
+        layer.edge_colormap = ecmap
+        layer.face_contrast_limits = fclim
+        layer.edge_contrast_limits = eclim

@@ -183,6 +183,7 @@ class CylinderSimulator(MagicTemplate):
     
     @Menu.wraps
     @dask_thread_worker(progress={"desc": "Creating an image"})
+    @set_design(text="Create an empty image")
     @confirm(text="You may have unsaved data. Continue?", condition="self.parent_widget._need_save")
     def create_empty_image(
         self, 
@@ -232,6 +233,7 @@ class CylinderSimulator(MagicTemplate):
         self._selections.visible = True
 
     @Menu.wraps
+    @set_design(text="Save image")
     def save_image(self, path: Path, dtype: OneOf[np.int8, np.int16, np.float32] = np.float32):
         """Save the current image to a file."""
         img = self.parent_widget.tomogram.image.compute()
@@ -242,6 +244,7 @@ class CylinderSimulator(MagicTemplate):
         return None
 
     @Menu.wraps
+    @set_design(text="Set current spline")
     def set_current_spline(self, idx: Bound[_get_current_index]):
         """Use the current parameters and the spline to construct a model and molecules."""
         self._spline = self.parent_widget.tomogram.splines[idx]
@@ -252,6 +255,7 @@ class CylinderSimulator(MagicTemplate):
         return None
     
     @Menu.wraps
+    @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Bound[_get_current_index]):
         """Copy the spline parameters in the viewer."""
         tomo = self.parent_widget.tomogram
@@ -269,6 +273,7 @@ class CylinderSimulator(MagicTemplate):
         return None
 
     @Menu.wraps
+    @set_design(text="Send molecules to viewer")
     def send_moleclues_to_viewer(self):
         """Send the current molecules to the viewer."""
         mole = self._molecules
@@ -382,7 +387,8 @@ class CylinderSimulator(MagicTemplate):
         return radon_model, radon_model.transform(simulated_image)
         
     @Menu.wraps
-    @thread_worker(progress={"desc": "Simulating a tomogram"})
+    @dask_thread_worker(progress={"desc": "Simulating a tomogram"})
+    @set_design(text="Simulate a tomogram")
     def simulate_tomogram(
         self,
         template_path: Annotated[Path.Read[FileFilter.IMAGE], {"label": "Template image"}],
@@ -452,7 +458,8 @@ class CylinderSimulator(MagicTemplate):
         
     @Menu.wraps
     @confirm(text="Directory already exists. Overwrite?", condition=_directory_not_empty)
-    @thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
+    @set_design(text="Batch tomogram simulation")
+    @dask_thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
     def simulate_tomogram_batch(
         self,
         template_path: Path.Read[FileFilter.IMAGE],

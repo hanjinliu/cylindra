@@ -1158,13 +1158,6 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         mole = aligned_loader.molecules
         
-        # append new column that indicates the number of alignment
-        if "n-align" not in mole.features.columns:
-            series = pl.repeat(1, pl.count()).alias("n-align").cast(pl.UInt8)
-        else:
-            series = mole.features["n-align"] + 1
-        mole.features = mole.features.with_columns(series)
-        
         points = parent.add_molecules(
             mole,
             name=_coerce_aligned_name(layer.name, self.parent_viewer),

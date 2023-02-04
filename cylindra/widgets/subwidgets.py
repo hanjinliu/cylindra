@@ -85,6 +85,7 @@ class Molecules_(MagicTemplate):
     extend_molecules = abstractapi()
     concatenate_molecules = abstractapi()
     merge_molecule_info = abstractapi()
+    split_molecules = abstractapi()
     translate_molecules = abstractapi()
     @magicmenu(name="Features")
     class MoleculeFeatures(MagicTemplate):
