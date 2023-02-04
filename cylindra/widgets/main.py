@@ -1520,6 +1520,8 @@ class CylindraMainWidget(MagicTemplate):
         expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
     ):
         feat = pl.DataFrame(layer.features)
+        if column_name in feat.columns:
+            raise ValueError(f"Column {column_name} already exists.")
         pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
         if isinstance(pl_expr, pl.Expr):
             new_feat = feat.with_columns([pl_expr.alias(column_name)])

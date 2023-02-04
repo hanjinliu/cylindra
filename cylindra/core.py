@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
+from contextlib import suppress
 import numpy as np
 import polars as pl
 
@@ -44,6 +45,7 @@ def start(
         import napari
         viewer = napari.Viewer()
     
+    # set logger
     logger = logging.getLogger("cylindra")
     logger.addHandler(ui.log)
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
@@ -73,11 +75,8 @@ def start(
         ui.Others.Global_variables.load_variables(globals_file)
     _CURRENT_INSTANCE = ui
     
-    try:
+    with suppress(Exception):
         viewer.window._qt_viewer.console.push({"ui": ui})
-    except Exception as e:
-        print(e)
-        pass
     return ui
 
 def instance() -> CylindraMainWidget | None:
