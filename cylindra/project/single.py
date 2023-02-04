@@ -9,6 +9,7 @@ import macrokit as mk
 from acryo import Molecules
 
 from cylindra.const import PropertyNames as H, get_versions
+from cylindra.types import MoleculesLayer
 from ._base import BaseProject, PathLike
 
 if TYPE_CHECKING:
@@ -57,8 +58,6 @@ class CylindraProject(BaseProject):
         results_dir: Union[Path, None] = None,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
-        from napari.layers import Points
-        from cylindra.const import MOLECULES
         
         if json_path.suffix == "":
             json_path = json_path.with_suffix(".json")
@@ -82,10 +81,9 @@ class CylindraProject(BaseProject):
             
         # Save path of molecules
         molecules_paths: list[Path] = []
-        for layer in filter(
-            lambda x: isinstance(x, Points) and MOLECULES in x.metadata,
-            gui.parent_viewer.layers
-        ):
+        for layer in gui.parent_viewer.layers:
+            if not isinstance(layer, MoleculesLayer):
+                continue
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
         
         # Save path of  global variables
@@ -144,10 +142,7 @@ class CylindraProject(BaseProject):
             The path to the project json file.
         results_dir : Path, optional
             The directory to save the results.
-        """
-        from napari.layers import Points
-        from cylindra.const import MOLECULES
-        
+        """        
         self = cls.from_gui(gui, json_path, results_dir)
         # save objects
         self.to_json(json_path)
@@ -166,12 +161,10 @@ class CylindraProject(BaseProject):
         
         molecule_dataframes: list[pl.DataFrame] = []
         molecules_paths: list[Path] = []
-        for layer in filter(
-            lambda x: isinstance(x, Points) and MOLECULES in x.metadata,
-            gui.parent_viewer.layers
-        ):
-            layer: Points
-            mole: "Molecules" = layer.metadata[MOLECULES]
+        for layer in gui.parent_viewer.layers:
+            if not isinstance(layer, MoleculesLayer):
+                continue
+            mole = layer.molecules
             molecule_dataframes.append(mole.to_dataframe())
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
         

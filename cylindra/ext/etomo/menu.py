@@ -8,7 +8,7 @@ from acryo import Molecules
 
 from cylindra.utils import roundint
 from cylindra.const import EulerAxes, MoleculesHeader as Mole
-from cylindra.types import MOLECULES, MonomerLayer, get_monomer_layers
+from cylindra.types import get_monomer_layers, MoleculesLayer
 from cylindra.widgets.widget_utils import add_molecules, FileFilter
 
 # BUG: cylindra coordinates and PEET coordinates do not match (slight difference).
@@ -48,7 +48,7 @@ class PEET(MagicTemplate):
     def save_monomers(
         self, 
         save_dir: Path.Dir,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         save_protofilaments_separately: bool = False
     ):
         """
@@ -64,10 +64,10 @@ class PEET(MagicTemplate):
             Check if you want to save monomers on each protofilament in separate files.
         """        
         save_dir = Path(save_dir)
-        mol: Molecules = layer.metadata[MOLECULES]
+        mol = layer.molecules
         from .cmd  import save_mod, save_angles
         if save_protofilaments_separately:
-            npf = roundint(layer.features[Mole.pf].max() + 1)
+            npf = roundint(layer.molecules.features[Mole.pf].max() + 1)
             for pf in range(npf):
                 sl = slice(pf, None, npf)
                 save_mod(save_dir/f"coordinates-PF{pf:0>2}.mod", mol.pos[sl, ::-1]/self.scale)
@@ -89,7 +89,7 @@ class PEET(MagicTemplate):
         layers = get_monomer_layers(self)
         if len(layers) == 0:
             raise ValueError("No monomer found.")
-        mol = Molecules.concat([l.metadata[MOLECULES] for l in layers])
+        mol = Molecules.concat([l.molecules for l in layers])
         from .cmd  import save_mod, save_angles
         save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
         save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
@@ -98,7 +98,7 @@ class PEET(MagicTemplate):
     def shift_monomers(
         self, 
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
-        layer: MonomerLayer, 
+        layer: MoleculesLayer, 
         update: bool = False,
     ):
         """
@@ -108,12 +108,12 @@ class PEET(MagicTemplate):
         ----------
         ang_path : Path
             Path of offset file.
-        layer : MonomerLayer
+        layer : MoleculesLayer
             Points layer of target monomers.
         update : bool, default is False
             Check if update monomer coordinates in place.
         """       
-        mol: Molecules = layer.metadata[MOLECULES]
+        mol = layer.molecules
         shifts, angs = _read_shift_and_angle(ang_path)
         mol_shifted = mol.translate(shifts*self.scale)
         mol_shifted = Molecules.from_euler(pos=mol_shifted.pos, angles=angs, degrees=True)
@@ -134,7 +134,7 @@ class PEET(MagicTemplate):
                     vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
                     name=vector_layer_name,
                     )
-            layer.metadata[MOLECULES] = mol_shifted
+            layer.molecules = mol_shifted
         else:
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
     

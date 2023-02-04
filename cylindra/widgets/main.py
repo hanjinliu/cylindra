@@ -12,12 +12,12 @@ import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
-                        set_design, set_options)
+                        set_design, set_options, setup_function_gui)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
 from magicclass.utils import thread_worker
-from magicclass.widgets import ConsoleTextEdit, Logger, EvalLineEdit
+from magicclass.widgets import ConsoleTextEdit, Logger
 from napari.layers import Image, Labels, Layer, Points
 from napari.utils import Colormap
 from scipy import ndimage as ndi
@@ -25,16 +25,16 @@ from scipy import ndimage as ndi
 from cylindra import utils
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
-    MOLECULES, SELECTION_LAYER_NAME,
+    SELECTION_LAYER_NAME,
     WORKING_LAYER_NAME, GlobalVariables as GVar, Mode, PropertyNames as H, 
     MoleculesHeader as Mole, Ori, nm, get_versions
 )
-from cylindra.types import MonomerLayer, get_monomer_layers
+from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.project import CylindraProject
 
 # widgets
 from cylindra.widgets import _previews, _shared_doc, subwidgets, widget_utils
-from cylindra.widgets.feature_control import FeatureControl
+# from cylindra.widgets.feature_control import FeatureControl
 from cylindra.widgets.image_processor import ImageProcessor
 from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from cylindra.widgets.spline_control import SplineControl
@@ -44,9 +44,7 @@ from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
 from cylindra.widgets.measure import SpectraMeasurer
-from cylindra.widgets.widget_utils import (
-    FileFilter, add_molecules, change_viewer_focus, update_features
-)
+from cylindra.widgets.widget_utils import FileFilter, add_molecules, change_viewer_focus
 
 if TYPE_CHECKING:
     from .collection import ProjectCollectionWidget
@@ -70,7 +68,6 @@ class CylindraMainWidget(MagicTemplate):
     spline_clipper = field(SplineClipper, name="_Spline clipper")  # Widget for manual spline clipping
     spline_sweeper = field(SplineSweeper, name="_Spline sweeper")  # Widget for sweeping along splines
     image_processor = field(ImageProcessor, name="_Image Processor")  # Widget for pre-filtering/pre-processing
-    feature_control = field(FeatureControl, name="_Feature Control")  # Widget for visualizing/analyzing features
     cylinder_simulator = field(CylinderSimulator, name="_Cylinder Simulator")  # Widget for tomogram simulator
     spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")  # Widget for subtomogram analysis
@@ -533,7 +530,7 @@ class CylindraMainWidget(MagicTemplate):
         
     @File.wraps
     @set_design(text="Save molecules")
-    def save_molecules(self, layer: MonomerLayer, save_path: Path.Save[FileFilter.CSV]):
+    def save_molecules(self, layer: MoleculesLayer, save_path: Path.Save[FileFilter.CSV]):
         """
         Save monomer coordinates, orientation and features as a csv file.
 
@@ -545,7 +542,7 @@ class CylindraMainWidget(MagicTemplate):
         save_features : bool, default is True
             Check if save molecule features.
         """
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         mole.to_csv(save_path)
         return None
     
@@ -1239,7 +1236,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Show orientation")
     def show_orientation(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         orientation: OneOf["x", "y", "z"] = "z",
         color: Color = "crimson",
     ):
@@ -1255,7 +1252,7 @@ class CylindraMainWidget(MagicTemplate):
         color : Color, default is "crimson"
             Vector color shown in viewer.
         """
-        mol: Molecules = layer.metadata[MOLECULES]
+        mol = layer.molecules
         name = f"{layer.name} {orientation.upper()}-axis"
         
         vector_data = np.stack([mol.pos, getattr(mol, orientation)], axis=1)
@@ -1274,7 +1271,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Extend molecules")
     def extend_molecules(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         prepend: int = 0,
         append: int = 0,
     ):
@@ -1290,7 +1287,7 @@ class CylindraMainWidget(MagicTemplate):
             Number of molecules to be appended for each protofilament.
         """        
         ndim = 3
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         npf = utils.roundint(mole.features[Mole.pf].max() + 1)
         pos = mole.pos.reshape(-1, npf, ndim)
         quat = mole.rotator.as_quat()
@@ -1329,11 +1326,11 @@ class CylindraMainWidget(MagicTemplate):
             points_layer = add_molecules(self.parent_viewer, mole_new, name)
             layer.visible = False
         else:
-            points_layer: Points = viewer.layers[name]
-            points_layer.data = mole_new.pos
+            points_layer: Layer = viewer.layers[name]
+            if not isinstance(points_layer, MoleculesLayer):
+                points_layer.name = points_layer.name + "-0"
+            points_layer.molecules = mole_new
             points_layer.selected_data = set()
-            points_layer.metadata[MOLECULES] = mole_new
-            update_features(points_layer, features)
         return None
     
     @Molecules_.wraps
@@ -1350,8 +1347,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if len(layers) == 0:
             raise ValueError("No layer selected.")
-        molecules: list[Molecules] = [layer.metadata[MOLECULES] for layer in layers]
-        all_molecules = Molecules.concat(molecules)
+        all_molecules = Molecules.concat([layer.molecules for layer in layers])
         points = add_molecules(self.parent_viewer, all_molecules, name="Mono-concat")
         if delete_old:
             for layer in layers:
@@ -1370,22 +1366,22 @@ class CylindraMainWidget(MagicTemplate):
 
     @Molecules_.wraps
     @set_design(text="Merge molecule info")
-    def merge_molecule_info(self, pos: MonomerLayer, rotation: MonomerLayer, features: MonomerLayer):
+    def merge_molecule_info(self, pos: MoleculesLayer, rotation: MoleculesLayer, features: MoleculesLayer):
         """
         Merge molecule info from different molecules.
 
         Parameters
         ----------
-        pos : MonomerLayer
+        pos : MoleculesLayer
             Molecules whose positions are used.
-        rotation : MonomerLayer
+        rotation : MoleculesLayer
             Molecules whose rotations are used.
-        features : MonomerLayer
+        features : MoleculesLayer
             Molecules whose features are used.
         """
-        _pos: Molecules = pos.metadata[MOLECULES]
-        _rot: Molecules = rotation.metadata[MOLECULES]
-        _feat: Molecules = features.metadata[MOLECULES]
+        _pos = pos.molecules
+        _rot = rotation.molecules
+        _feat = features.molecules
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
         self.add_molecules(mole, name="Mono-merged")
 
@@ -1393,7 +1389,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Translate molecules")
     def translate_molecules(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         translation: Annotated[
             tuple[nm, nm, nm],
             {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation (nm)"}
@@ -1412,7 +1408,7 @@ class CylindraMainWidget(MagicTemplate):
             If true, the translation is applied to the internal coordinates, i.e. molecules
             with different rotations are translated differently.
         """
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         if internal:
             out = mole.translate_internal(translation)
         else:
@@ -1422,8 +1418,8 @@ class CylindraMainWidget(MagicTemplate):
         return mole
         
     @impl_preview(translate_molecules, auto_call=True)
-    def _during_translate_molecules(self, layer: MonomerLayer, translation, internal: bool):
-        mole: Molecules = layer.metadata[MOLECULES]
+    def _during_translate_molecules(self, layer: MoleculesLayer, translation, internal: bool):
+        mole = layer.molecules
         if internal:
             out = mole.translate_internal(translation)
         else:
@@ -1454,7 +1450,7 @@ class CylindraMainWidget(MagicTemplate):
         table = Table(value=[])
         table.read_only = True
         @cbox.changed.connect
-        def _update_table(layer: MonomerLayer):
+        def _update_table(layer: MoleculesLayer):
             if layer is not None:
                 table.value = layer.features
         container = Container(widgets=[cbox, table], labels=False)
@@ -1467,7 +1463,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Filter molecules")
     def filter_molecules(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         predicate: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}]
     ):
         """
@@ -1479,7 +1475,7 @@ class CylindraMainWidget(MagicTemplate):
         predicate : ExprStr
             A polars-style filter predicate, such as `pl.col("pf-id") == 3`
         """
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         expr = eval(str(predicate), POLARS_NAMESPACE, {})
         out = mole.filter(expr)
         name = f"{layer.name}-Filt"
@@ -1487,8 +1483,8 @@ class CylindraMainWidget(MagicTemplate):
         return mole
         
     @impl_preview(filter_molecules, auto_call=True)
-    def _during_filter_molecules(self, layer: MonomerLayer, predicate: str):
-        mole: Molecules = layer.metadata[MOLECULES]
+    def _during_filter_molecules(self, layer: MoleculesLayer, predicate: str):
+        mole = layer.molecules
         viewer = self.parent_viewer
         try:
             expr = eval(predicate, {"pl": pl}, {})
@@ -1511,28 +1507,91 @@ class CylindraMainWidget(MagicTemplate):
                 viewer.layers.remove(layer)
         return out
     
+    def _get_paint_choice(self, w=None) -> list[str]:
+        # don't use get_function_gui. It causes RecursionError.
+        gui = self["paint_molecules"].mgui
+        if gui is None:
+            return []
+        feat = gui.layer.value.features
+        if feat is None:
+            return []
+        return feat.columns
+        
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Paint molecules by features")
+    def paint_molecules(
+        self,
+        layer: MoleculesLayer,
+        feature_name: OneOf[_get_paint_choice],
+        low: tuple[float, Color] = (0., "blue"),
+        high: tuple[float, Color] = (1., "red"),
+    ):
+        """
+        Paint molecules by a feature.
+
+        Parameters
+        ----------
+        {layer}
+        feature_name : str
+            Name of the feature to paint by.
+        low : (float, Color), default is (0., "blue")
+            The lower bound of the feature value and the corresponding color.
+        high : (float, Color), default is (1., "red")
+            The upper bound of the feature value and the corresponding color.
+        """
+        from polars.datatypes import NumericType
+
+        series = layer.molecules.features[feature_name]
+        if not issubclass(series.dtype, NumericType):
+            raise ValueError(f"Cannot paint by feature {feature_name} of type {series.dtype}.")
+        rng = (low[0], high[0])
+        arr = np.array([low[1], high[1]])
+        cmap = Colormap(arr, name="MoleculeFeatures")
+        layer.face_color = layer.edge_color = feature_name
+        layer.face_colormap = layer.edge_colormap = cmap
+        layer.face_contrast_limits = layer.edge_contrast_limits = rng
+        layer.refresh()
+    
+    @impl_preview(paint_molecules, auto_call=True)
+    def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
+        fc = layer.face_color
+        ec = layer.edge_color
+        fcmap = layer.face_colormap
+        ecmap = layer.edge_colormap
+        fclim = layer.face_contrast_limits
+        eclim = layer.edge_contrast_limits
+        self.paint_molecules(layer, feature_name, low, high)
+        yield
+        layer.face_color = fc
+        layer.edge_color = ec
+        layer.face_colormap = fcmap
+        layer.edge_colormap = ecmap
+        layer.face_contrast_limits = fclim
+        layer.edge_contrast_limits = eclim
+    
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
         self,
-        layer: MonomerLayer, 
+        layer: MoleculesLayer, 
         column_name: str,
         expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
     ):
-        feat = pl.DataFrame(layer.features)
+        feat = layer.molecules.features
+        if column_name in feat.columns:
+            raise ValueError(f"Column {column_name} already exists.")
         pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
         if isinstance(pl_expr, pl.Expr):
             new_feat = feat.with_columns([pl_expr.alias(column_name)])
         else:
             new_feat = feat.with_columns([pl.Series(column_name, pl_expr)])
-        layer.features = new_feat.to_pandas()
-        layer.metadata[MOLECULES].features = new_feat
+        layer.features = new_feat
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
     def calculate_intervals(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
     ):
         """
@@ -1549,7 +1608,7 @@ class CylindraMainWidget(MagicTemplate):
             Precision in nm that is used to define the direction of molecules for calculating
             projective interval.
         """
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         spl = widget_utils.molecules_to_spline(layer)
         try:
             pf_label = mole.features[Mole.pf]
@@ -1575,8 +1634,7 @@ class CylindraMainWidget(MagicTemplate):
         if properties[0] < 0:
             properties = -properties
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
-        
-        update_features(layer, {Mole.interval: properties})
+        layer.features = layer.molecules.features.with_columns([pl.Series(Mole.interval, properties)])
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
@@ -1587,15 +1645,6 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
     
-    @Molecules_.wraps
-    @set_design(text="Open feature control")
-    @do_not_record
-    def open_feature_control(self):
-        """Open the molecule-feature control widget."""
-        self.feature_control.show()
-        self.feature_control._update_table_and_expr()
-        return None
-
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
     @do_not_record
@@ -1825,7 +1874,7 @@ class CylindraMainWidget(MagicTemplate):
         color_by : str, default is "yPitch"
             Select what property image will be colored by.
         """        
-        self.label_colormap = Colormap([start, end], name="LocalProperties")
+        self.label_colormap = Colormap([start, end], display_name="LocalProperties")
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
         return None
@@ -1875,12 +1924,13 @@ class CylindraMainWidget(MagicTemplate):
         if name is None:
             # Return the most recent molecules object
             for layer in reversed(self.parent_viewer.layers):
-                if MOLECULES in layer.metadata.keys():
+                if isinstance(layer, MoleculesLayer):
                     name = layer.name
                     break
             else:
                 raise ValueError("No molecules found in the layer list.")
-        return self.parent_viewer.layers[name].metadata[MOLECULES]
+        layer: MoleculesLayer = self.parent_viewer.layers[name]
+        return layer.molecules
 
     @nogui
     @do_not_record
@@ -2042,7 +2092,7 @@ class CylindraMainWidget(MagicTemplate):
         # NOTE: To make recorded macro completely reproducible, removing molecules 
         # from the viewer layer list must always be monitored.
         layer: Layer = self.parent_viewer.layers[event.index]
-        if MOLECULES in layer.metadata.keys():
+        if isinstance(layer, MoleculesLayer):
             expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
             self.macro.append(mk.Expr("del", [expr]))
         return
@@ -2063,7 +2113,7 @@ class CylindraMainWidget(MagicTemplate):
         # remove all the molecules layers
         _layers_to_remove: list[str] = []
         for layer in self.parent_viewer.layers:
-            if MOLECULES in layer.metadata.keys():
+            if isinstance(layer, MoleculesLayer):
                 _layers_to_remove.append(layer.name)
 
         for name in _layers_to_remove:
@@ -2220,7 +2270,7 @@ class CylindraMainWidget(MagicTemplate):
 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # Preview methods
+    #   Preview methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
     @impl_preview(load_project)
@@ -2232,6 +2282,37 @@ class CylindraMainWidget(MagicTemplate):
     @impl_preview(load_molecules)
     def _preview_table(self, paths: list[str]):
         return _previews.view_tables(paths, parent=self)
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    #   Setups
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    @setup_function_gui(paint_molecules)
+    def _(self, gui):
+        from polars.datatypes import NumericType, IntegralType
+        
+        gui.layer.changed.connect(gui.feature_name.reset_choices)
+        
+        @gui.layer.changed.connect
+        @gui.feature_name.changed.connect
+        def _on_feature_change():
+            feature_name: str = gui.feature_name.value
+            if feature_name is None:
+                return
+            layer: MoleculesLayer = gui.layer.value
+            series = layer.molecules.features[feature_name]
+            if issubclass(series.dtype, NumericType):
+                gui.low[0].min = gui.high[0].min = series.min()
+                gui.low[0].max = gui.high[0].max = series.max()
+                gui.low[0].value = gui.low[0].min
+                gui.high[0].value = gui.high[0].max
+                if issubclass(series.dtype, IntegralType):
+                    gui.low[0].step = gui.high[0].step = 1
+                else:
+                    gui.low[0].step = gui.high[0].step = None
+
+        return None
+    
 
 ############################################################################################
 #   Other helper functions

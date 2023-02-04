@@ -1,13 +1,12 @@
 from __future__ import annotations
-from pathlib import Path
 from types import SimpleNamespace
 from typing import NamedTuple, Sequence, TYPE_CHECKING
 import numpy as np
 from scipy import ndimage as ndi
 import napari
-from napari.layers import Points, Vectors, Tracks, Labels
 from cylindra.components import CylSpline
-from cylindra.const import MOLECULES, GlobalVariables as GVar, MoleculesHeader as Mole
+from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
+from cylindra.types import MoleculesLayer
 
 if TYPE_CHECKING:
     from acryo import Molecules
@@ -23,23 +22,20 @@ class FileFilter(SimpleNamespace):
     MOD = "Model files (*.mod);;All files (*.txt;*.csv)"
 
 
-def add_molecules(viewer: napari.Viewer, mol: Molecules, name):
+def add_molecules(viewer: napari.Viewer, mol: Molecules, name: str) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
-    metadata ={MOLECULES: mol}
-    points_layer = viewer.add_points(
-        mol.pos, 
+    layer = MoleculesLayer(
+        mol,
         size=3,
         face_color="lime",
         edge_color="lime",
         out_of_slice_display=True,
         name=name,
-        metadata=metadata,
-        features=mol.features.to_dict(as_series=False),
     )
-    
-    points_layer.shading = "spherical"
-    points_layer.editable = False
-    return points_layer
+    viewer.add_layer(layer)
+    layer.shading = "spherical"
+    layer.editable = False
+    return layer
 
 
 def change_viewer_focus(
@@ -56,29 +52,9 @@ def change_viewer_focus(
     viewer.dims.set_current_step(axis=0, value=center[0]/v_scale[0]*scale)
     return None
 
-def update_features(
-    layer: Points | Vectors | Tracks | Labels,
-    values: dict[str, Sequence] = None,
-    **kwargs,
-):
-    """Update layer features with new values."""
-    features = layer.features
-    if values is not None:
-        if kwargs:
-            raise ValueError("Cannot specify both values and kwargs.")
-        kwargs = values
-    for name, value in kwargs.items():
-        features[name] = value
-    layer.features = features
-    if MOLECULES in layer.metadata:
-        mole: Molecules = layer.metadata[MOLECULES]
-        print(features)
-        mole.features = features
-    return None
-
-def molecules_to_spline(layer: Points) -> CylSpline:
+def molecules_to_spline(layer: MoleculesLayer) -> CylSpline:
     """Convert well aligned molecule positions into a spline."""
-    mole: Molecules = layer.metadata[MOLECULES]
+    mole = layer.molecules
     spl = CylSpline(degree=GVar.splOrder)
     npf = int(round(mole.features[Mole.pf].max() + 1))
     all_coords = mole.pos.reshape(-1, npf, 3)
@@ -116,10 +92,10 @@ def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
     return ndi.affine_transform(arr2, matrix=mtx, order=1, prefilter=False)
 
 
-def layer_to_coordinates(layer: Points, npf: int | None = None):
+def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
     """Convert point coordinates of a Points layer into a structured array."""
     if npf is None:
-        npf = layer.features[Mole.pf].max() + 1
+        npf = layer.molecules.features[Mole.pf].max() + 1
     data = layer.data.reshape(-1, npf, 3)
     import impy as ip
 

@@ -107,9 +107,8 @@ def batch_process(func: Callable[Concatenate[CylTomogram, Any, _P], _RETURN]) ->
             try:
                 result = func(self, i=i_, **kwargs)
             except Exception as e:
-                errname = type(e).__name__
-                msg = str(e)
-                raise RuntimeError(f"Exception at spline-{i_}.\n{errname}: {msg}") from e
+                e.args = (f"{e} (Exception at spline-{i_})",)
+                raise e
             else:
                 out.append(result)
             

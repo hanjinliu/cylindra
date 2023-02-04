@@ -5,27 +5,22 @@ import impy as ip
 import polars as pl
 import magicgui
 from napari.utils._magicgui import find_viewer_ancestor
-from napari.layers import Points
-from cylindra.const import MOLECULES
-
+from cylindra._molecules_layer import MoleculesLayer
 if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget
 
-# Define a new type to list up monomer-bound layers.
-# This new type is recognized by magicgui for type-to-widget mapping.
-MonomerLayer = NewType("MonomerLayer", Points)
 
 # This function will be called by magicgui to find all the available monomer layers.
-def get_monomer_layers(gui: "CategoricalWidget") -> List[Points]:
+def get_monomer_layers(gui: "CategoricalWidget") -> List[MoleculesLayer]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
     return [
         x for x in viewer.layers 
-        if isinstance(x, Points) and MOLECULES in x.metadata
+        if isinstance(x, MoleculesLayer)
     ]
 
-magicgui.register_type(MonomerLayer, choices=get_monomer_layers)
+magicgui.register_type(MoleculesLayer, choices=get_monomer_layers)
 
 # Record 1D numpy array as a list of floats.
 from macrokit import register_type, parse
