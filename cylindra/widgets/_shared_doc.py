@@ -22,8 +22,8 @@ class Parameter(NamedTuple):
         
 # fmt: off
 _PARAMETERS = [    
-    Parameter(name="layer", type="MonomerLayer", desc="Points layer of monomers to be used."),
-    Parameter(name="layers", type="list of MonomerLayer", desc="All the points layers of monomers to be used."),
+    Parameter(name="layer", type="MoleculesLayer", desc="Points layer of monomers to be used."),
+    Parameter(name="layers", type="list of MoleculesLayer", desc="All the points layers of monomers to be used."),
     Parameter(name="template_path", type="Path or str", desc="Path to template image."),
     Parameter(name="mask_params", type="str or (float, float), optional", desc="Mask image path or dilation/Gaussian blur parameters. If a path is given, image must in the same shape as the template."),
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),

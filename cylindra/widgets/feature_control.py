@@ -6,7 +6,6 @@ from magicclass import (
     MagicTemplate,
     field,
     vfield,
-    set_design,
 )
 from magicclass.widgets import FloatRangeSlider, ColorEdit
 from magicclass.types import Color, OneOf
@@ -16,7 +15,7 @@ from napari.layers import Points
 from cylindra.types import get_monomer_layers
 
 if TYPE_CHECKING:
-    import pandas as pd
+    import polars as pl
 
 @magicclass(record=False)
 class FeatureControl(MagicTemplate):
@@ -177,17 +176,17 @@ class FeatureControl(MagicTemplate):
             return
         self.table.value = self.layer.features
     
-    @layer.connect
-    @feature_name.connect
     def _on_selection_change(self):
         if self.layer is None:
             return []
-        feature: pd.Series = self.layer.features[self.feature_name.value]
+        
+        feature: pl.Series = self.layer.features[self.feature_name.value]
         _color_widget = self.ColorEditor.Colors
-        if feature.dtype.kind == "f":
+        
+        if isinstance(feature.dtype, (pl.Float32, pl.Float64)):
             _color_widget.current_index = 0    
             _color_widget.ContinuousColorMap._set_params(feature.min(), feature.max())
-        elif feature.dtype.kind in "iu":
+        elif isinstance(feature.dtype, (pl.datatypes, pl.Float64)):
             _color_widget.current_index = 1
             _color_widget.CategoricalColorMap._set_params(len(set(feature)))
         else:

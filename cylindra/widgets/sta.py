@@ -17,10 +17,10 @@ import polars as pl
 import napari
 
 from cylindra.project import CylindraProject
-from cylindra.types import MonomerLayer
+from cylindra.types import MoleculesLayer
 from cylindra import utils
 from cylindra.const import (
-    ALN_SUFFIX, MOLECULES, GlobalVariables as GVar, MoleculesHeader as Mole, nm
+    ALN_SUFFIX, GlobalVariables as GVar, MoleculesHeader as Mole, nm
 )
 
 from .widget_utils import FileFilter
@@ -388,7 +388,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc= _fmt_layer_name("Subtomogram averaging of {!r}"))
     def average_all(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -405,7 +405,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        molecules: Molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         tomo = parent.tomogram
         if size is None:
             shape = self._get_shape_in_nm()
@@ -427,7 +427,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Subtomogram averaging (subset) of {!r}"))
     def average_subset(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         size: _SubVolumeSize = None,
         method: OneOf["steps", "first", "last", "random"] = "steps", 
         number: int = 64,
@@ -453,7 +453,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        molecules: Molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         nmole = len(molecules)
         if size is None:
             shape = self._get_shape_in_nm()
@@ -491,7 +491,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Split-and-averaging of {!r}"))
     def split_and_average(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -509,7 +509,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        molecules: Molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         if size is None:
             shape = self._get_shape_in_nm()
         else:
@@ -531,7 +531,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Aligning averaged image of {!r}"))
     def align_averaged(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         z_rotation: _ZRotation = (3., 3.),
@@ -552,7 +552,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         parent = self._get_parent()
         t0 = default_timer()
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         template = self.params._get_template(path=template_path)
         mask = self.params._get_mask(params=mask_params)
         if mask is not None and template.shape != mask.shape:
@@ -624,7 +624,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Alignment of {!r}"))
     def align_all(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         tilt_range: Bound[params.tilt_range] = None,
@@ -647,12 +647,11 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        molecules = layer.metadata[MOLECULES]
         template = self.params._get_template(path=template_path)
         mask = self.params._get_mask(params=mask_params)
         
         loader, template, mask = self._check_binning_for_alignment(
-            template, mask, binsize=bin_size, molecules=molecules, order=interpolation,
+            template, mask, binsize=bin_size, molecules=layer.molecules, order=interpolation,
         )
         model_cls = _get_alignment(method)
         aligned_loader = loader.align(
@@ -674,7 +673,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Template-free alignment of {!r}"))
     def align_all_template_free(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         tilt_range: Bound[params.tilt_range] = None,
         size: _SubVolumeSize = 12.,
         max_shifts: _MaxShifts = (1., 1., 1.),
@@ -696,7 +695,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         if size is None:
             shape = self._get_shape_in_nm()
         else:
@@ -727,7 +726,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Multi-template alignment of {!r}"))
     def align_all_multi_template(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         other_templates: Path.Multiple[FileFilter.IMAGE],
         mask_params: Bound[params._get_mask_params],
@@ -754,7 +753,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         templates = [self.params._get_template(path=template_path)]
         for path in other_templates:
             img = ip.imread(path)
@@ -790,7 +789,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Viterbi-alignment of {!r}"))
     def align_all_viterbi(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
         tilt_range: Bound[params.tilt_range] = None,
@@ -823,7 +822,7 @@ class SubtomogramAveraging(MagicTemplate):
         
         t0 = default_timer()
         parent = self._get_parent()
-        molecules: Molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         template = self.params._get_template(path=template_path)
         mask = self.params._get_mask(params=mask_params)
         shape_nm = self._get_shape_in_nm()
@@ -952,7 +951,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating correlation of {!r}"))
     def calculate_correlation(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         template_path: Bound[params._get_template],
         mask_params: Bound[params._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -960,7 +959,7 @@ class SubtomogramAveraging(MagicTemplate):
     ):
         t0 = default_timer()
         parent = self._get_parent()
-        molecules: Molecules = layer.metadata[MOLECULES]
+        molecules = layer.molecules
         template = self.params._get_template(path=template_path)
         mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm()
@@ -984,7 +983,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1012,7 +1011,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         mask = self.params._get_mask(params=mask_params)
         if size is None:
             shape = self._get_shape_in_nm()
@@ -1083,7 +1082,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
     def seam_search(
         self,
-        layer: MonomerLayer,
+        layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -1105,7 +1104,7 @@ class SubtomogramAveraging(MagicTemplate):
         {cutoff}
         """
         parent = self._get_parent()
-        mole: Molecules = layer.metadata[MOLECULES]
+        mole = layer.molecules
         template = self.params._get_template(path=template_path)
         mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm()
@@ -1140,8 +1139,9 @@ class SubtomogramAveraging(MagicTemplate):
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
-            
-            widget_utils.update_features(layer, {Mole.isotype: all_labels[imax].astype(np.uint8)})
+            layer.features = layer.features.with_columns(
+                [pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))]
+            )
             layer.metadata["seam-search-score"] = score
         
         return _seam_search_on_return
@@ -1154,7 +1154,7 @@ class SubtomogramAveraging(MagicTemplate):
         return self.show()
 
     @thread_worker.to_callback
-    def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MonomerLayer):
+    def _align_all_on_return(self, aligned_loader: SubtomogramLoader, layer: MoleculesLayer):
         parent = self._get_parent()
         mole = aligned_loader.molecules
         

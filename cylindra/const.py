@@ -10,7 +10,6 @@ pf = float  # type alias for protofilament numbering
 # Constant strings for layer names and metadata keys
 WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Splines"
-MOLECULES = "molecules"
 ALN_SUFFIX = "ALN"
 
 
