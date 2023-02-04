@@ -1139,7 +1139,7 @@ class SubtomogramAveraging(MagicTemplate):
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
-            layer.features = layer.features.with_columns(
+            layer.features = layer.molecules.features.with_columns(
                 [pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))]
             )
             layer.metadata["seam-search-score"] = score

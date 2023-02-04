@@ -86,16 +86,15 @@ class Molecules_(MagicTemplate):
     concatenate_molecules = abstractapi()
     merge_molecule_info = abstractapi()
     translate_molecules = abstractapi()
-    @magicmenu(name="Molecule features")
+    @magicmenu(name="Features")
     class MoleculeFeatures(MagicTemplate):
         """Analysis based on molecule features."""
         show_molecule_features = abstractapi()
         filter_molecules = abstractapi()
+        paint_molecules = abstractapi()
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
         calculate_intervals = abstractapi()
-    sep0 = field(Separator)
-    open_feature_control = abstractapi()
     
 @magicmenu
 class Analysis(MagicTemplate):

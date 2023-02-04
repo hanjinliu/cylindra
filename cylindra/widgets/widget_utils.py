@@ -95,7 +95,7 @@ def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
 def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
     """Convert point coordinates of a Points layer into a structured array."""
     if npf is None:
-        npf = layer.features[Mole.pf].max() + 1
+        npf = layer.molecules.features[Mole.pf].max() + 1
     data = layer.data.reshape(-1, npf, 3)
     import impy as ip
 

@@ -12,7 +12,7 @@ import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
-                        set_design, set_options)
+                        set_design, set_options, setup_function_gui)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
@@ -1452,7 +1452,7 @@ class CylindraMainWidget(MagicTemplate):
         @cbox.changed.connect
         def _update_table(layer: MoleculesLayer):
             if layer is not None:
-                table.value = layer.features.to_pandas()
+                table.value = layer.features
         container = Container(widgets=[cbox, table], labels=False)
         self.parent_viewer.window.add_dock_widget(
             container, area="left", name="Molecule Features"
@@ -1507,6 +1507,55 @@ class CylindraMainWidget(MagicTemplate):
                 viewer.layers.remove(layer)
         return out
     
+    def _get_paint_choice(self, w=None) -> list[str]:
+        # don't use get_function_gui. It causes RecursionError.
+        gui = self["paint_molecules"].mgui
+        if gui is None:
+            return []
+        feat = gui.layer.value.features
+        if feat is None:
+            return []
+        return feat.columns
+        
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Paint molecules by features")
+    def paint_molecules(
+        self,
+        layer: MoleculesLayer,
+        feature_name: OneOf[_get_paint_choice],
+        low: tuple[float, Color] = (0., "blue"),
+        high: tuple[float, Color] = (1., "red"),
+    ):
+        from polars.datatypes import NumericType
+
+        series = layer.molecules.features[feature_name]
+        if not issubclass(series.dtype, NumericType):
+            raise ValueError(f"Cannot paint by feature {feature_name} of type {series.dtype}.")
+        rng = (low[0], high[0])
+        arr = np.array([low[1], high[1]])
+        cmap = Colormap(arr, name="MoleculeFeatures")
+        layer.face_color = layer.edge_color = feature_name
+        layer.face_colormap = layer.edge_colormap = cmap
+        layer.face_contrast_limits = layer.edge_contrast_limits = rng
+        layer.refresh()
+    
+    @impl_preview(paint_molecules, auto_call=True)
+    def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
+        fc = layer.face_color
+        ec = layer.edge_color
+        fcmap = layer.face_colormap
+        ecmap = layer.edge_colormap
+        fclim = layer.face_contrast_limits
+        eclim = layer.edge_contrast_limits
+        self.paint_molecules(layer, feature_name, low, high)
+        yield
+        layer.face_color = fc
+        layer.edge_color = ec
+        layer.face_colormap = fcmap
+        layer.edge_colormap = ecmap
+        layer.face_contrast_limits = fclim
+        layer.edge_contrast_limits = eclim
+    
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
@@ -1515,7 +1564,7 @@ class CylindraMainWidget(MagicTemplate):
         column_name: str,
         expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
     ):
-        feat = layer.features
+        feat = layer.molecules.features
         if column_name in feat.columns:
             raise ValueError(f"Column {column_name} already exists.")
         pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
@@ -1572,7 +1621,7 @@ class CylindraMainWidget(MagicTemplate):
         if properties[0] < 0:
             properties = -properties
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
-        layer.features = layer.features.with_columns([pl.Series(Mole.interval, properties)])
+        layer.features = layer.molecules.features.with_columns([pl.Series(Mole.interval, properties)])
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
@@ -1583,15 +1632,6 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
     
-    @Molecules_.wraps
-    @set_design(text="Open feature control")
-    @do_not_record
-    def open_feature_control(self):
-        """Open the molecule-feature control widget."""
-        self.feature_control.show()
-        self.feature_control._update_table_and_expr()
-        return None
-
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
     @do_not_record
@@ -1821,7 +1861,7 @@ class CylindraMainWidget(MagicTemplate):
         color_by : str, default is "yPitch"
             Select what property image will be colored by.
         """        
-        self.label_colormap = Colormap([start, end], name="LocalProperties")
+        self.label_colormap = Colormap([start, end], display_name="LocalProperties")
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
         return None
@@ -2217,7 +2257,7 @@ class CylindraMainWidget(MagicTemplate):
 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # Preview methods
+    #   Preview methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
     @impl_preview(load_project)
@@ -2229,6 +2269,37 @@ class CylindraMainWidget(MagicTemplate):
     @impl_preview(load_molecules)
     def _preview_table(self, paths: list[str]):
         return _previews.view_tables(paths, parent=self)
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    #   Setups
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    @setup_function_gui(paint_molecules)
+    def _(self, gui):
+        from polars.datatypes import NumericType, IntegralType
+        
+        gui.layer.changed.connect(gui.feature_name.reset_choices)
+        
+        @gui.layer.changed.connect
+        @gui.feature_name.changed.connect
+        def _on_feature_change():
+            feature_name: str = gui.feature_name.value
+            if feature_name is None:
+                return
+            layer: MoleculesLayer = gui.layer.value
+            series = layer.molecules.features[feature_name]
+            if issubclass(series.dtype, NumericType):
+                gui.low[0].min = gui.high[0].min = series.min()
+                gui.low[0].max = gui.high[0].max = series.max()
+                gui.low[0].value = gui.low[0].min
+                gui.high[0].value = gui.high[0].max
+                if issubclass(series.dtype, IntegralType):
+                    gui.low[0].step = gui.high[0].step = 1
+                else:
+                    gui.low[0].step = gui.high[0].step = None
+
+        return None
+    
 
 ############################################################################################
 #   Other helper functions
