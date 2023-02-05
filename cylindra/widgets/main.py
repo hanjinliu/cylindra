@@ -1566,18 +1566,9 @@ class CylindraMainWidget(MagicTemplate):
         high : (float, Color), default is (1., "red")
             The upper bound of the feature value and the corresponding color.
         """
-        from polars.datatypes import NumericType
-
-        series = layer.molecules.features[feature_name]
-        if not issubclass(series.dtype, NumericType):
-            raise ValueError(f"Cannot paint by feature {feature_name} of type {series.dtype}.")
         rng = (low[0], high[0])
         arr = np.array([low[1], high[1]])
-        cmap = Colormap(arr, name="MoleculeFeatures")
-        layer.face_color = layer.edge_color = feature_name
-        layer.face_colormap = layer.edge_colormap = cmap
-        layer.face_contrast_limits = layer.edge_contrast_limits = rng
-        layer.refresh()
+        layer.set_colormap(feature_name, rng, arr)
     
     @impl_preview(paint_molecules, auto_call=True)
     def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
@@ -1593,6 +1584,26 @@ class CylindraMainWidget(MagicTemplate):
         column_name: str,
         expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
     ):
+        """
+        Calculate a new feature from the existing features.
+        
+        This method is identical to running ``with_columns`` on the features dataframe
+        as a ``polars.DataFrame``. For example,
+        
+        >>> ui.calculate_molecule_features(layer, "Y", "pl.col('X') + 1")
+        
+        is equivalent to
+        
+        >>> layer.features = layer.features.with_columns([(pl.col("X") + 1).alias("Y")])
+
+        Parameters
+        ----------
+        {layer}
+        column_name : str
+            Name of the new column.
+        expression : pl.Expr or str
+            polars expression to calculate the new column.
+        """
         feat = layer.molecules.features
         if column_name in feat.columns:
             raise ValueError(f"Column {column_name} already exists.")
@@ -1602,6 +1613,7 @@ class CylindraMainWidget(MagicTemplate):
         else:
             new_feat = feat.with_columns([pl.Series(column_name, pl_expr)])
         layer.features = new_feat
+        self.reset_choices()  # choices regarding of features need update
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
@@ -1654,10 +1666,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
-        layer.face_color = layer.edge_color = Mole.interval
-        layer.face_colormap = layer.edge_colormap = self.label_colormap
-        layer.face_contrast_limits = layer.edge_contrast_limits = _clim
-        layer.refresh()
+        layer.set_colormap(Mole.interval, _clim, self.label_colormap)
         self._need_save = True
         return None
     
