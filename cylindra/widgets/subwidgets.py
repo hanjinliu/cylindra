@@ -85,6 +85,7 @@ class Molecules_(MagicTemplate):
     extend_molecules = abstractapi()
     concatenate_molecules = abstractapi()
     merge_molecule_info = abstractapi()
+    split_molecules = abstractapi()
     translate_molecules = abstractapi()
     @magicmenu(name="Features")
     class MoleculeFeatures(MagicTemplate):
@@ -105,7 +106,7 @@ class Analysis(MagicTemplate):
     sep0 = field(Separator)
     open_spectra_measurer = abstractapi()
     open_subtomogram_analyzer = abstractapi()
-    open_project_collection_analyzer = abstractapi()
+    open_project_batch_analyzer = abstractapi()
 
 @magicmenu
 class Others(MagicTemplate):

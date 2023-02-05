@@ -77,7 +77,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     # check results
     spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
-    ypitch_glob = spl.globalprops[H.yPitch]
+    ypitch_glob = spl.globalprops[H.yPitch][0]
     assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has lattice spacing in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.011
     assert all(spl.localprops[H.nPF] == 13)
@@ -114,14 +114,14 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.num = 0
     ui.SplineControl.pos = 1
     assert_orientation(ui, "MinusToPlus")
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch].values[1]:.2f} nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
+    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
     
     ui.SplineControl.num = 1
     assert ui.SplineControl.pos == 1
     assert_orientation(ui, "MinusToPlus")
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch].values[1]:.2f} nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch]:.2f} nm"
+    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
     
     assert_canvas(ui, [False, False, False])
     

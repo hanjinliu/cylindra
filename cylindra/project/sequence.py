@@ -129,8 +129,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             for fp in prj.molecules:
                 fp = Path(fp)
                 mole = Molecules.from_csv(fp)
-                filespec = pl.Series(Mole.id, np.full(len(mole), fp.stem))
-                mole.features = mole.features.with_columns(filespec)
+                mole.features = mole.features.with_columns(
+                    [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
+                )
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
 
@@ -142,8 +143,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             if path is None and not allow_none:
                 raise ValueError(f"Localprops not found in project at {prj.project_path}.")
             df = pl.read_csv(path)
-            imagespec = pl.Series("image-id", np.full(len(df), idx))
-            dataframes.append(df.with_columns(imagespec))
+            dataframes.append(
+                df.with_columns(pl.repeat(idx, pl.count()).alias("image-id"))
+            )
         return pl.concat(dataframes, how="vertical")
 
     def globalprops(self, allow_none: bool = True) -> pl.DataFrame:

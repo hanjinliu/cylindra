@@ -1,5 +1,7 @@
 import numpy as np
 import impy as ip
+import polars as pl
+
 from magicclass import magicclass, MagicTemplate, field, vfield, set_options, set_design, abstractapi
 from magicclass.types import Bound, OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
@@ -67,10 +69,14 @@ class SplineControl(MagicTemplate):
             return None
         spl = parent.tomogram.splines[i]
         if spl.localprops is not None:
-            spl.localprops[H.nPF].values[:] = npf
+            spl.localprops = spl.localprops.with_columns(
+                [pl.repeat(npf, pl.count()).cast(pl.UInt16).alias(H.nPF)]
+            )
             parent._update_local_properties_in_widget()
         if spl.globalprops is not None:
-            spl.globalprops[H.nPF] = npf
+            spl.globalprops = spl.globalprops.with_columns(
+                [pl.Series(H.nPF, [npf]).cast(pl.UInt16)]
+            )
             parent._update_global_properties_in_widget()
         if self.canvas[0].image is not None:
             parent.sample_subtomograms()
@@ -136,7 +142,7 @@ class SplineControl(MagicTemplate):
         if spl.localprops is not None:
             npf_list = spl.localprops[H.nPF]
         elif spl.globalprops is not None:
-            npf_list = [spl.globalprops[H.nPF]] * spl.anchors.size
+            npf_list = [spl.globalprops[H.nPF][0]] * spl.anchors.size
         else:
             npf_list = [0] * spl.anchors.size
 

@@ -3,7 +3,7 @@ from timeit import default_timer
 from magicclass import (
     magicclass, field, vfield, MagicTemplate, set_design, abstractapi, Icon
 )
-from magicclass.widgets import Table, EvalLineEdit
+from magicclass.widgets import Table, EvalLineEdit, ComboBox, Container
 from magicclass.types import Path
 from acryo import TomogramCollection, Molecules
 
@@ -24,7 +24,7 @@ class Project(MagicTemplate):
     @set_design(text="✕", max_width=30)
     def remove_project(self):
         """Remove this project from the list."""
-        parent =self.find_ancestor(ProjectPaths)
+        parent = self.find_ancestor(ProjectPaths)
         parent.remove(self)
     
     @set_design(text="Open")
@@ -84,7 +84,8 @@ class ProjectSequenceEdit(MagicTemplate):
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
         check_all = abstractapi()
-        preview_all = abstractapi()
+        preview_components = abstractapi()
+        preview_features = abstractapi()
 
     projects = field(ProjectPaths)
     
@@ -100,6 +101,38 @@ class ProjectSequenceEdit(MagicTemplate):
         for wdt in self.projects:
             wdt.check = True
     
+    
+    def _get_project_paths(self, w=None) -> list[Path]:
+        return self.projects.paths
+
+    @Buttons.wraps
+    @set_design(text="Preview components")
+    def preview_components(self):
+        """Preview all the splines and molecules that exist in this project."""
+        from cylindra.project import ComponentsViewer
+        cbox = ComboBox(choices=self._get_project_paths)
+        comp_viewer = ComponentsViewer()
+        
+        self.changed.connect(lambda: cbox.reset_choices())
+        cbox.changed.connect(
+            lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
+        )
+        cont = Container(widgets=[cbox, comp_viewer], labels=False)
+        cont.native.setParent(self.native, cont.native.windowFlags())
+        cont.show()
+        cbox.changed.emit(cbox.value)
+        return None
+    
+    @Buttons.wraps
+    @set_design(text="Preview table")
+    def preview_features(self):
+        col = get_collection(self.projects.paths, predicate=None)
+        df = col.molecules.to_dataframe()
+        table = Table(value=df.to_pandas())
+        table.read_only = True
+        dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
+        dock.setFloating(True)
+
     @FilterExpr.wraps
     @set_design(text="Preview", max_width=52)
     def preview_filtered_molecules(self):
@@ -110,7 +143,7 @@ class ProjectSequenceEdit(MagicTemplate):
             raise ValueError("All molecules were filtered out.")
         table = Table(value=df.to_pandas())
         table.read_only = True
-        dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
+        dock = self.parent_viewer.window.add_dock_widget(table, name="Features (filtered)", area="left")
         dock.setFloating(True)
         
     def _get_expression(self, w=None) -> pl.Expr:
@@ -149,7 +182,7 @@ def get_collection(
             fp = Path(fp)
             mole = Molecules.from_csv(fp)
             mole.features = mole.features.with_columns(
-                pl.Series(Mole.id, np.full(len(mole), fp.stem))
+                [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
             )
             col.add_tomogram(tomogram.value, molecules=mole, image_id=idx)
     if predicate is not None:

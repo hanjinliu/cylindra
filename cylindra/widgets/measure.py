@@ -1,11 +1,13 @@
 from typing import TYPE_CHECKING
 from enum import Enum
 
-from magicclass import magicclass, abstractapi, vfield, field, MagicTemplate
-from magicclass.types import Bound
+from magicclass import magicclass, abstractapi, set_design, vfield, field, MagicTemplate
+from magicclass.types import Bound, Path
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 import numpy as np
+
+from cylindra.widgets.widget_utils import FileFilter
 
 if TYPE_CHECKING:
     from .main import CylindraMainWidget
@@ -15,7 +17,7 @@ class MeasureMode(Enum):
     axial = "spacing/rise"
     angular = "skew/npf"
 
-@magicclass(widget_type="groupbox")
+@magicclass(widget_type="groupbox", record=False)
 class Parameters(MagicTemplate):
     """
     Cylinder paramters.
@@ -44,6 +46,18 @@ class Parameters(MagicTemplate):
         self._skew = None
         self._npf = None
     
+    @set_design(text="Export as CSV ...")
+    def export(self, path: Path.Save[FileFilter.CSV]):
+        import polars as pl
+        
+        return pl.DataFrame({
+            "radius": [self.radius],
+            "spacing": [self.spacing],
+            "rise": [self.rise],
+            "skew": [self.skew],
+            "npf": [self.npf],
+        }).write_csv(path)
+
     @radius.post_get_hook
     def _get_radius(self, value):
         return self._radius
@@ -114,7 +128,7 @@ class SpectraMeasurer(MagicTemplate):
         self._image = None
         self.mode = MeasureMode.none
 
-    @magicclass(properties={"min_width": "200"})
+    @magicclass(properties={"min_width": 200})
     class SidePanel(MagicTemplate):
         parameters = abstractapi()
         load_spline = abstractapi()

@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 from typing import Annotated, TYPE_CHECKING
 import warnings
@@ -19,14 +20,15 @@ from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprSt
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit, Logger
 from napari.layers import Image, Labels, Layer, Points
-from napari.utils import Colormap
+from napari.utils.colormaps import Colormap, label_colormap
 from scipy import ndimage as ndi
 
 from cylindra import utils
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     SELECTION_LAYER_NAME,
-    WORKING_LAYER_NAME, GlobalVariables as GVar, Mode, PropertyNames as H, 
+    WORKING_LAYER_NAME, GlobalVariables as GVar,
+    IDName, Mode, PropertyNames as H, 
     MoleculesHeader as Mole, Ori, nm, get_versions
 )
 from cylindra.types import MoleculesLayer, get_monomer_layers
@@ -53,7 +55,7 @@ ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 
 # namespace used in predicate
-POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np}
+POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
 
 ############################################################################################
 #   The Main Widget of cylindra
@@ -84,11 +86,11 @@ class CylindraMainWidget(MagicTemplate):
         return self._LoggerWindow.log
     
     @property
-    def collection_analyzer(self) -> "ProjectCollectionWidget":
+    def batch(self) -> "ProjectCollectionWidget":
         """Return the collection analyzer."""
-        if self._collection_analyzer is None:
-            self.open_project_collection_analyzer()
-        return self._collection_analyzer
+        if self._batch is None:
+            self.open_project_batch_analyzer()
+        return self._batch
     
     @property
     def project_directory(self) -> "Path | None":
@@ -124,7 +126,7 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_paint: Labels = None
         self._macro_offset: int = 1
         self._need_save: bool = False
-        self._collection_analyzer = None
+        self._batch = None
         self.objectName()  # load napari types
         
     def __post_init__(self):
@@ -246,7 +248,7 @@ class CylindraMainWidget(MagicTemplate):
             if local_props or global_props:
                 self.sample_subtomograms()
                 if global_props:
-                    df = self.tomogram.collect_globalprops(i=splines).transpose()
+                    df = self.tomogram.collect_globalprops(i=splines).to_pandas().transpose()
                     df.columns = [f"Spline-{i}" for i in splines]
                     self.log.print_table(df, precision=3)
             if local_props and paint:
@@ -796,7 +798,7 @@ class CylindraMainWidget(MagicTemplate):
                 coords = spl.local_cylindrical((0.5, width_px/2), length_px, point, scale=current_scale)
                 mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
                 img_flat = ip.asarray(mapped, axes="rya").proj("y") + img_flat
-            npf = utils.roundint(spl.globalprops[H.nPF])
+            npf = utils.roundint(spl.globalprops[H.nPF][0])
             pw_peak = img_flat.local_power_spectra(
                 key=ip.slicer.a[npf-1:npf+2],
                 dims="ra",
@@ -1115,7 +1117,7 @@ class CylindraMainWidget(MagicTemplate):
         
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
-            df = self.tomogram.collect_globalprops().transpose()
+            df = self.tomogram.collect_globalprops().to_pandas().transpose()
             df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
             self.log.print_table(df, precision=3)
             self._update_global_properties_in_widget()
@@ -1128,13 +1130,13 @@ class CylindraMainWidget(MagicTemplate):
     
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
+    @thread_worker.with_progress(desc="Calculating power spectra")
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        self.spectra_measurer.show()
         if self.tomogram.n_splines > 0:
             self.spectra_measurer.load_spline(self.SplineControl.num)
-        return None
+        return thread_worker.to_callback(self.spectra_measurer.show)
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1384,6 +1386,34 @@ class CylindraMainWidget(MagicTemplate):
         _feat = features.molecules
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
         self.add_molecules(mole, name="Mono-merged")
+    
+    def _get_split_molecules_choices(self, w=None) -> list[str]:
+        mgui = self["split_molecules"].mgui
+        if mgui is None:
+            return []
+        return mgui.layer.value.features.columns
+
+    @Molecules_.wraps
+    @set_design(text="Split molecules")
+    def split_molecules(self, layer: MoleculesLayer, by: OneOf[_get_split_molecules_choices]):
+        """Split molecules by a feature column."""
+        _prefix = f"{layer.name}-Group"
+        n_unique = layer.molecules.features[by].n_unique()
+        if n_unique > 48:
+            raise ValueError(f"Too many groups ({n_unique}). Did you choose a float column?")
+        for i, (_, mole) in enumerate(layer.molecules.groupby(by)):
+            self.add_molecules(mole, name=f"{_prefix}{i}")
+    
+    @impl_preview(split_molecules, auto_call=True)
+    def _during_split_molecules_preview(self, layer: MoleculesLayer, by: str):
+        with _temp_layer_colors(layer):
+            series = layer.molecules.features[by]
+            unique_values = series.unique()
+            # NOTE: the first color is translucent
+            cmap = label_colormap(unique_values.len() + 1, seed=0.9414)
+            layer.face_color_cycle = layer.edge_color_cycle = cmap.colors[1:]
+            layer.face_color = layer.edge_color = by
+            yield
 
     @Molecules_.wraps
     @set_design(text="Translate molecules")
@@ -1487,7 +1517,7 @@ class CylindraMainWidget(MagicTemplate):
         mole = layer.molecules
         viewer = self.parent_viewer
         try:
-            expr = eval(predicate, {"pl": pl}, {})
+            expr = eval(predicate, POLARS_NAMESPACE, {})
         except Exception:
             yield
             return
@@ -1507,22 +1537,19 @@ class CylindraMainWidget(MagicTemplate):
                 viewer.layers.remove(layer)
         return out
     
-    def _get_paint_choice(self, w=None) -> list[str]:
+    def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self["paint_molecules"].mgui
         if gui is None:
             return []
-        feat = gui.layer.value.features
-        if feat is None:
-            return []
-        return feat.columns
+        return gui.layer.value.features.columns
         
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Paint molecules by features")
     def paint_molecules(
         self,
         layer: MoleculesLayer,
-        feature_name: OneOf[_get_paint_choice],
+        feature_name: OneOf[_get_paint_molecules_choice],
         low: tuple[float, Color] = (0., "blue"),
         high: tuple[float, Color] = (1., "red"),
     ):
@@ -1539,36 +1566,16 @@ class CylindraMainWidget(MagicTemplate):
         high : (float, Color), default is (1., "red")
             The upper bound of the feature value and the corresponding color.
         """
-        from polars.datatypes import NumericType
-
-        series = layer.molecules.features[feature_name]
-        if not issubclass(series.dtype, NumericType):
-            raise ValueError(f"Cannot paint by feature {feature_name} of type {series.dtype}.")
         rng = (low[0], high[0])
         arr = np.array([low[1], high[1]])
-        cmap = Colormap(arr, name="MoleculeFeatures")
-        layer.face_color = layer.edge_color = feature_name
-        layer.face_colormap = layer.edge_colormap = cmap
-        layer.face_contrast_limits = layer.edge_contrast_limits = rng
-        layer.refresh()
+        layer.set_colormap(feature_name, rng, arr)
     
     @impl_preview(paint_molecules, auto_call=True)
     def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
-        fc = layer.face_color
-        ec = layer.edge_color
-        fcmap = layer.face_colormap
-        ecmap = layer.edge_colormap
-        fclim = layer.face_contrast_limits
-        eclim = layer.edge_contrast_limits
-        self.paint_molecules(layer, feature_name, low, high)
-        yield
-        layer.face_color = fc
-        layer.edge_color = ec
-        layer.face_colormap = fcmap
-        layer.edge_colormap = ecmap
-        layer.face_contrast_limits = fclim
-        layer.edge_contrast_limits = eclim
-    
+        with _temp_layer_colors(layer):
+            self.paint_molecules(layer, feature_name, low, high)
+            yield
+
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
@@ -1577,6 +1584,26 @@ class CylindraMainWidget(MagicTemplate):
         column_name: str,
         expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
     ):
+        """
+        Calculate a new feature from the existing features.
+        
+        This method is identical to running ``with_columns`` on the features dataframe
+        as a ``polars.DataFrame``. For example,
+        
+        >>> ui.calculate_molecule_features(layer, "Y", "pl.col('X') + 1")
+        
+        is equivalent to
+        
+        >>> layer.features = layer.features.with_columns([(pl.col("X") + 1).alias("Y")])
+
+        Parameters
+        ----------
+        {layer}
+        column_name : str
+            Name of the new column.
+        expression : pl.Expr or str
+            polars expression to calculate the new column.
+        """
         feat = layer.molecules.features
         if column_name in feat.columns:
             raise ValueError(f"Column {column_name} already exists.")
@@ -1586,6 +1613,7 @@ class CylindraMainWidget(MagicTemplate):
         else:
             new_feat = feat.with_columns([pl.Series(column_name, pl_expr)])
         layer.features = new_feat
+        self.reset_choices()  # choices regarding of features need update
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
@@ -1627,7 +1655,7 @@ class CylindraMainWidget(MagicTemplate):
         u = spl.world_to_y(mole.pos, precision=spline_precision)
         spl_vec = spl(u, der=1)
         
-        from ..utils import diff
+        from cylindra.utils import diff
         y_interval = diff(pos, spl_vec)
         
         properties = y_interval.ravel()
@@ -1638,10 +1666,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
-        layer.face_color = layer.edge_color = Mole.interval
-        layer.face_colormap = layer.edge_colormap = self.label_colormap
-        layer.face_contrast_limits = layer.edge_contrast_limits = _clim
-        layer.refresh()
+        layer.set_colormap(Mole.interval, _clim, self.label_colormap)
         self._need_save = True
         return None
     
@@ -1655,12 +1680,12 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Open project collection analyzer")
     @do_not_record
-    def open_project_collection_analyzer(self):
+    def open_project_batch_analyzer(self):
         from .collection import ProjectCollectionWidget
         
         uix = ProjectCollectionWidget()
         self.parent_viewer.window.add_dock_widget(uix, area="left").setFloating(True)
-        self._collection_analyzer = uix
+        self._batch = uix
         return uix
     
     @toolbar.wraps
@@ -1758,8 +1783,8 @@ class CylindraMainWidget(MagicTemplate):
         lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
-        all_localprops = tomo.collect_localprops()
-        if all_localprops is None:
+        all_df = tomo.collect_localprops()
+        if all_df is None:
             raise ValueError("No local property found.")
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
         binsize = utils.roundint(bin_scale/tomo.scale)
@@ -1821,21 +1846,21 @@ class CylindraMainWidget(MagicTemplate):
         
         # Labels layer properties
         _id = "ID"
-        _structure = "structure"
-        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _structure]
-        df = all_localprops[[H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start]]
-        df_reset = df.reset_index()
-        df_reset[_id] = df_reset.apply(
-            lambda x: "{}-{}".format(int(x["SplineID"]), int(x["PosID"])), 
-            axis=1
-            )
-        df_reset[_structure] = df_reset.apply(
-            lambda x: "{npf}_{start:.1f}".format(npf=int(x[H.nPF]), start=x[H.start]), 
-            axis=1
-            )
-        
+        _str = "structure"
+        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _str]
+        df = (
+            all_df
+            .select([IDName.spline, IDName.pos, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start])
+            .with_columns([
+                pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
+                pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
+                pl.col(H.riseAngle),
+                pl.col(H.yPitch),
+                pl.col(H.skewAngle),
+            ])
+        ).to_pandas()
         back = pd.DataFrame({c: [np.nan] for c in columns})
-        props = pd.concat([back, df_reset[columns]])
+        props = pd.concat([back, df[columns]], ignore_index=True)
         
         # Add labels layer
         if self.layer_paint is None:
@@ -2184,7 +2209,7 @@ class CylindraMainWidget(MagicTemplate):
         spl = self.tomogram.splines[i]
         if spl.globalprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = spl.globalprops[headers]
+            pitch, skew, npf, start = spl.globalprops[headers].row(0)
             radius = spl.radius
             ori = spl.orientation
             self.GlobalProperties._set_text(pitch, skew, npf, start, radius, ori)
@@ -2201,8 +2226,9 @@ class CylindraMainWidget(MagicTemplate):
         j = self.SplineControl.pos
         spl = tomo.splines[i]
         if spl.localprops is not None:
-            headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = spl.localprops[headers].iloc[j]
+            pitch, skew, npf, start = spl.localprops.select(
+                [H.yPitch, H.skewAngle, H.nPF, H.start]
+            ).row(j)
             self.LocalProperties._set_text(pitch, skew, npf, start)
         else:
             self.LocalProperties._init_plot()
@@ -2313,6 +2339,9 @@ class CylindraMainWidget(MagicTemplate):
 
         return None
     
+    @setup_function_gui(split_molecules)
+    def _(self, gui):
+        gui.layer.changed.connect(gui.by.reset_choices)    
 
 ############################################################################################
 #   Other helper functions
@@ -2325,3 +2354,22 @@ def _multi_affine(images, matrices, cval: float = 0, order=1):
             img, matrix, order=order, cval=cval, prefilter=order>1
         )
     return out
+
+@contextmanager
+def _temp_layer_colors(layer: MoleculesLayer):
+    """Temporarily change the colors of a layer and restore them afterwards."""
+    fc = layer.face_color
+    ec = layer.edge_color
+    fcmap = layer.face_colormap
+    ecmap = layer.edge_colormap
+    fclim = layer.face_contrast_limits
+    eclim = layer.edge_contrast_limits
+    try:
+        yield
+    finally:
+        layer.face_color = fc
+        layer.edge_color = ec
+        layer.face_colormap = fcmap
+        layer.edge_colormap = ecmap
+        layer.face_contrast_limits = fclim
+        layer.edge_contrast_limits = eclim

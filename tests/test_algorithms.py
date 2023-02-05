@@ -26,23 +26,23 @@ def test_run_all(coords, npf, rise, skew_range):
     tomo.make_anchors(n=3)
     tomo.set_radius()
     tomo.make_anchors(interval=30)
-    tomo.collect_localprops()
-    tomo.collect_globalprops()
+    assert tomo.collect_localprops() is None
+    assert tomo.collect_globalprops() is None
     tomo.local_ft_params(i=0)
-    tomo.collect_localprops()
-    tomo.collect_globalprops()
+    assert tomo.collect_localprops() is not None
+    assert tomo.collect_globalprops() is None
     tomo.global_ft_params(i=0)
-    tomo.collect_localprops()
-    tomo.collect_globalprops()
+    assert tomo.collect_localprops() is not None
+    assert tomo.collect_globalprops() is not None
     spl = tomo.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
-    ypitch_glob = spl.globalprops[H.yPitch]
+    ypitch_glob = spl.globalprops[H.yPitch][0]
     assert 4.075 < ypitch_glob < 4.105  # GDP-bound microtubule has pitch length in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.013
     assert all(spl.localprops[H.nPF] == npf)
     assert all(spl.localprops[H.riseAngle] > rise)
     skew_min, skew_max = skew_range
-    assert skew_min < spl.globalprops[H.skewAngle] < skew_max
+    assert skew_min < spl.globalprops[H.skewAngle][0] < skew_max
 
 
 def test_chunked_straightening():
@@ -61,11 +61,11 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200) 
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
     
-    from cylindra.components.cyl_tomogram import _local_dft_params_pd
+    from cylindra.components.cyl_tomogram import _local_dft_params_pl
     
     spl = tomo.splines[0]
-    prop0 = _local_dft_params_pd(st0, spl.radius)
-    prop1 = _local_dft_params_pd(st1, spl.radius)
+    prop0 = _local_dft_params_pl(st0, spl.radius)
+    prop1 = _local_dft_params_pl(st1, spl.radius)
     
-    assert abs(prop0[H.yPitch] - prop1[H.yPitch]) < 1e-6
-    assert abs(prop0[H.skewAngle] - prop1[H.skewAngle]) < 1e-6
+    assert abs(prop0[H.yPitch][0] - prop1[H.yPitch][0]) < 1e-6
+    assert abs(prop0[H.skewAngle][0] - prop1[H.skewAngle][0]) < 1e-6

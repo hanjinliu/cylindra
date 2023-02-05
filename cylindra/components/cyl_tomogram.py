@@ -3,12 +3,13 @@ import logging
 from typing_extensions import ParamSpec, Concatenate
     
 from typing import (
-    Callable, Iterable, Any, TypeVar, overload, Protocol, TYPE_CHECKING, NamedTuple
+    Callable, Any, TypeVar, overload, Protocol, TYPE_CHECKING, NamedTuple
 )
+from collections.abc import Iterable
 from functools import partial, wraps
 import numpy as np
 from numpy.typing import ArrayLike
-import pandas as pd
+import polars as pl
 from scipy import ndimage as ndi
 from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
@@ -19,7 +20,7 @@ import impy as ip
 from .cyl_spline import CylSpline
 from .tomogram import Tomogram
 from .cylindric import CylinderModel
-from cylindra.const import nm, PropertyNames as H, Ori, Mode, GlobalVariables as GVar
+from cylindra.const import nm, PropertyNames as H, Ori, Mode, GlobalVariables as GVar, IDName
 from cylindra.utils import (
     crop_tomogram,
     centroid,
@@ -153,7 +154,7 @@ class CylTomogram(Tomogram):
             File path to export.
         """        
         df = self.collect_localprops()
-        df.to_csv(file_path, **kwargs)
+        df.write_csv(file_path, **kwargs)
         return None
     
     
@@ -329,7 +330,7 @@ class CylTomogram(Tomogram):
             ds = spl(der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
             degree_max = 14.0
-            nrots = roundint(degree_max/degree_precision) + 1
+            nrots = roundint(degree_max / degree_precision) + 1
             
             # Angular correlation
             with set_gpu():
@@ -451,9 +452,9 @@ class CylTomogram(Tomogram):
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        lp = props[H.yPitch] * 2
-        skew = props[H.skewAngle]
-        npf = roundint(props[H.nPF])
+        lp = props[H.yPitch][0] * 2
+        skew = props[H.skewAngle][0]
+        npf = roundint(props[H.nPF][0])
         
         LOGGER.info(f" >> Parameters: spacing = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}")
         
@@ -594,7 +595,7 @@ class CylTomogram(Tomogram):
         subtomograms.set_scale(input_img)
         
         r_max = GVar.fitWidth / 2
-        nbin = roundint(r_max/scale/2)
+        nbin = roundint(r_max / scale / 2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
         imax = np.nanargmax(prof)
@@ -612,7 +613,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         ft_size: nm = 32.0,
         binsize: int = 1,
-    ) -> pd.DataFrame:
+    ) -> pl.DataFrame:
         """
         Calculate local structural parameters from cylindrical Fourier space.
         
@@ -630,7 +631,7 @@ class CylTomogram(Tomogram):
 
         Returns
         -------
-        pd.DataFrame
+        polars.DataFrame
             Local properties.
         """        
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
@@ -661,7 +662,7 @@ class CylTomogram(Tomogram):
         with set_gpu():
             results = np.stack(da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0)
                 
-        spl.localprops = pd.DataFrame(
+        spl.localprops = pl.DataFrame(
             {
                 H.splPosition: spl.anchors,
                 H.splDistance: spl.distances(),
@@ -771,7 +772,7 @@ class CylTomogram(Tomogram):
         *,
         i: int = None,
         binsize: int = 1,
-    ) -> pd.Series:
+    ) -> pl.DataFrame:
         """
         Calculate global structural parameters.
         
@@ -788,15 +789,15 @@ class CylTomogram(Tomogram):
 
         Returns
         -------
-        pd.DataFrame
+        pl.DataFrame
             Global properties.
         """        
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self._splines[i]        
         img_st = self.straighten_cylindric(i, binsize=binsize)
-        series = _local_dft_params_pd(img_st, spl.radius)
-        spl.globalprops = series
-        return series
+        df = _local_dft_params_pl(img_st, spl.radius)
+        spl.globalprops = df
+        return df
     
     @batch_process
     def global_cft(self, i: int = None, binsize: int = 1) -> ip.ImgArray:
@@ -874,7 +875,7 @@ class CylTomogram(Tomogram):
                 )
             
             else:
-                if isinstance(size, Iterable):
+                if hasattr(size, "__iter__"):
                     rz, rx = self.nm2pixel(size, binsize=binsize)
                 else:
                     rz = rx = self.nm2pixel(size, binsize=binsize)
@@ -1062,6 +1063,7 @@ class CylTomogram(Tomogram):
             props = self.splines[i].globalprops
             if props is None:
                 props = self.global_ft_params(i)
+            props = {k: props[k][0] for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}
         
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
@@ -1190,9 +1192,9 @@ class CylTomogram(Tomogram):
         return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
     
     
-    def collect_localprops(self, i: int | Iterable[int] = None) -> pd.DataFrame | None:
+    def collect_localprops(self, i: int | Iterable[int] = None, allow_none: bool = True) -> pl.DataFrame | None:
         """
-        Collect all the local properties into a single pd.DataFrame.
+        Collect all the local properties into a single polars.DataFrame.
 
         Parameters
         ----------
@@ -1201,26 +1203,35 @@ class CylTomogram(Tomogram):
 
         Returns
         -------
-        pd.DataFrame
+        pl.DataFrame
             Concatenated data frame.
         """        
         if i is None:
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        try:
-            df: pd.DataFrame = pd.concat(
-                [self._splines[i_].localprops for i_ in i], keys=list(i)
+        props: list[pl.DataFrame] = []
+        for i_ in i:
+            prop = self._splines[i_].localprops
+            if prop is None:
+                if not allow_none:
+                    raise ValueError(f"Local properties of spline {i_} is missing.")
+                continue
+            props.append(
+                prop.with_columns([
+                    pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
+                    pl.arange(0, pl.count()).cast(pl.UInt16).alias(IDName.pos)
+                ])
             )
-            df.index = df.index.rename(["SplineID", "PosID"])
-        except ValueError:
-            df = None
         
-        return df
+        if len(props) == 0:
+            return None
+        
+        return pl.concat(props, how="vertical")
     
-    def collect_globalprops(self, i: int | Iterable[int] = None) -> pd.DataFrame:
+    def collect_globalprops(self, i: int | Iterable[int] = None, allow_none: bool = True) -> pl.DataFrame:
         """
-        Collect all the global properties into a single pd.DataFrame.
+        Collect all the global properties into a single polars.DataFrame.
 
         Parameters
         ----------
@@ -1229,70 +1240,33 @@ class CylTomogram(Tomogram):
 
         Returns
         -------
-        pd.DataFrame
+        pl.DataFrame
             Concatenated data frame.
         """        
         if i is None:
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        try:
-            series_list = []
-            for i_ in i:
-                series = self._splines[i_].globalprops
-                if series is not None:
-                    series["radius"] = self._splines[i_].radius
-                    series["orientation"] = str(self._splines[i_].orientation)
-                series_list.append(series)
-            df = pd.concat(series_list, axis=1, keys=list(i)).transpose()
-        except ValueError:
-            df = None
-        return df
-    
-    def plot_localprops(
-        self,
-        i: int | Iterable[int] = None,
-        x: str | None = None,
-        y: str | None = None,
-        hue: str | None = None,
-        **kwargs,
-    ):
-        """Simple plot function for visualizing local properties."""        
-        import seaborn as sns
-        df = self.collect_localprops(i)
-        data = df.reset_index()
-        return sns.swarmplot(x=x, y=y, hue=hue, data=data, **kwargs)
-    
-    
-    def summarize_localprops(
-        self, 
-        i: int | Iterable[int] = None, 
-        by: str | list[str] = "SplineID", 
-        functions: Degenerative | list[Degenerative] | None = None,
-    ) -> pd.DataFrame:
-        """Simple summary of local properties."""
-        df = self.collect_localprops(i).reset_index()
-        if functions is None:
-            def se(x): return np.std(x)/np.sqrt(len(x))
-            def n(x): return len(x)
-            functions = [np.mean, np.std, se, n]
-            
-        return df.groupby(by=by).agg(functions)
-    
-    def summarize_globalprops(
-        self, 
-        functions: Degenerative | list[Degenerative] | None = None,
-    ) -> pd.DataFrame:
-        """Simple summary of global properties."""
-        df = self.collect_globalprops()
-        valid_colmuns = df.columns[df.columns != "orientation"]
-        if functions is None:
-            def se(x): return np.std(x)/np.sqrt(len(x))
-            def n(x): return len(x)
-            functions = [np.mean, np.std, se, n]
-
-        return df[valid_colmuns].agg(functions)
-    
+        props: list[pl.DataFrame] = []
+        for i_ in i:
+            prop = self._splines[i_].globalprops
+            if prop is None:
+                if not allow_none:
+                    raise ValueError(f"Local properties of spline {i_} is missing.")
+                continue
+            props.append(
+                prop.with_columns(
+                    [
+                        pl.Series("radius", [self._splines[i_].radius]),
+                        pl.Series("orientation", [str(self._splines[i_].orientation)]),
+                        pl.Series(IDName.spline, [i_])
+                    ]
+                )
+            )
+        
+        if len(props) == 0:
+            return None
+        return pl.concat(props, how="vertical")
     
     def _chunked_straighten(
         self,
@@ -1411,15 +1385,18 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
                      abs(start)], 
                     dtype=np.float32)
 
-def _local_dft_params_pd(img: ip.ImgArray, radius: nm):
+def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> pl.DataFrame:
     results = _local_dft_params(img, radius)
-    series = pd.Series([], dtype=np.float32)
-    series[H.riseAngle] = results[0]
-    series[H.yPitch] = results[1]
-    series[H.skewAngle] = results[2]
-    series[H.nPF] = np.round(results[3])
-    series[H.start] = results[4]
-    return series
+    df = pl.DataFrame(
+        {
+            H.riseAngle: [results[0]],
+            H.yPitch: [results[1]],
+            H.skewAngle: [results[2]],
+            H.nPF: [int(round(results[3]))],
+            H.start: [results[4]],
+        }
+    )
+    return df
 
 def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
     polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)

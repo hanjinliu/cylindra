@@ -1,9 +1,14 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from typing import NamedTuple, Sequence, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
+from dataclasses import dataclass
+
 import numpy as np
 from scipy import ndimage as ndi
+import polars as pl
+
 import napari
+
 from cylindra.components import CylSpline
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
 from cylindra.types import MoleculesLayer
@@ -222,7 +227,9 @@ def plot_forward_and_reverse(template_fw, fit_fw, zncc_fw, template_rv, fit_rv, 
     
     return None
 
-class FscResult(NamedTuple):
+@dataclass
+class FscResult:
+    """Result of Fourier Shell Correlation."""
     freq: np.ndarray
     mean: np.ndarray
     std: np.ndarray
