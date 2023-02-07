@@ -1,5 +1,6 @@
 from typing import Any, TYPE_CHECKING, Annotated
 import json
+import datetime
 import matplotlib.pyplot as plt
 
 from magicgui.widgets import RangeSlider
@@ -35,6 +36,12 @@ _RADIUS = _INTERVAL * _NPF / 2 / np.pi
 
 _TiltRange = Annotated[tuple[float, float], {"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0}]
 
+def _simulate_batch_iter():
+    yield "(0/2) Simulating projections"
+    i = 0
+    while True:
+        yield f"(1/2) Back-projection of {i}-th image"
+
 class CylinderParameters:
     """Parameters for cylinder model."""
 
@@ -66,18 +73,22 @@ class CylinderParameters:
 # Main widget class
 @magicclass(widget_type="split", labels=False, layout="horizontal")
 class CylinderSimulator(MagicTemplate):
-    @magicmenu
-    class Menu(MagicTemplate):
-        create_empty_image = abstractapi()
+    @magicmenu(name="From viewer")
+    class FromViewer(MagicTemplate):
+        """Receive image or spline data from the viewer"""
         set_current_spline = abstractapi()
         load_spline_parameters = abstractapi()
-        sep0 = Separator()
+        sep0 = field(Separator)
+        save_image = abstractapi()
+
+    @magicmenu
+    class Simulate(MagicTemplate):
+        """Simulate using current model."""
+        create_empty_image = abstractapi()
         simulate_tomogram = abstractapi()
         simulate_tomogram_batch = abstractapi()
-        sep1 = Separator()
-        save_image = abstractapi()
+        sep0 = field(Separator)
         send_moleclues_to_viewer = abstractapi()
-        show_layer_control = abstractapi()
 
     def __post_init__(self) -> None:
         self._model: CylinderModel = None
@@ -86,6 +97,7 @@ class CylinderSimulator(MagicTemplate):
         self._spline_arrow: layers.Arrows3D = None
         self._points: layers.Points3D = None
         self._selections: layers.Points3D = None
+        self._layer_control = None
 
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model
@@ -107,7 +119,7 @@ class CylinderSimulator(MagicTemplate):
         self._molecules = mole
         return None
     
-    @magicclass
+    @magicclass(properties={"min_width": 210})
     class Operator(MagicTemplate):
         """
         Apply local structural changes to the molecules.
@@ -127,9 +139,6 @@ class CylinderSimulator(MagicTemplate):
         arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, record=False).with_options(value=(0, 100))
         n_allev = vfield(1, label="alleviate", record=False).with_options(min=0, max=20)
         show_selection = vfield(True, label="show selected molecules", record=False)
-        
-        def __post_init__(self):
-            self.min_width = 300
 
         def _update_slider_lims(self, ny: int, na: int):
             amax_old = self["arange"].max
@@ -152,6 +161,7 @@ class CylinderSimulator(MagicTemplate):
             return None
         
         update_model = abstractapi()
+        show_layer_control = abstractapi()
         expand = abstractapi()
         screw = abstractapi()
         dilate = abstractapi()
@@ -181,8 +191,8 @@ class CylinderSimulator(MagicTemplate):
         """Set new model and simulate molecules with the same spline."""
         return self._set_model(model, self._spline)
     
-    @Menu.wraps
-    @dask_thread_worker(progress={"desc": "Creating an image"})
+    @Simulate.wraps
+    @thread_worker.with_progress(desc="Creating an image")
     @set_design(text="Create an empty image")
     @confirm(text="You may have unsaved data. Continue?", condition="self.parent_widget._need_save")
     def create_empty_image(
@@ -232,7 +242,7 @@ class CylinderSimulator(MagicTemplate):
             pass
         self._selections.visible = True
 
-    @Menu.wraps
+    @FromViewer.wraps
     @set_design(text="Save image")
     def save_image(self, path: Path, dtype: OneOf[np.int8, np.int16, np.float32] = np.float32):
         """Save the current image to a file."""
@@ -243,7 +253,7 @@ class CylinderSimulator(MagicTemplate):
         img.imsave(path, dtype=dtype)
         return None
 
-    @Menu.wraps
+    @FromViewer.wraps
     @set_design(text="Set current spline")
     def set_current_spline(self, idx: Bound[_get_current_index]):
         """Use the current parameters and the spline to construct a model and molecules."""
@@ -254,7 +264,7 @@ class CylinderSimulator(MagicTemplate):
         self.update_model(idx, **self._parameters.asdict())
         return None
     
-    @Menu.wraps
+    @FromViewer.wraps
     @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Bound[_get_current_index]):
         """Copy the spline parameters in the viewer."""
@@ -272,7 +282,7 @@ class CylinderSimulator(MagicTemplate):
         )
         return None
 
-    @Menu.wraps
+    @Simulate.wraps
     @set_design(text="Send molecules to viewer")
     def send_moleclues_to_viewer(self):
         """Send the current molecules to the viewer."""
@@ -282,16 +292,18 @@ class CylinderSimulator(MagicTemplate):
         self.parent_widget.add_molecules(mole, name="Simulated")
         return None
         
-    @Menu.wraps
+    @Operator.wraps
+    @set_design(text="Show layer control", font_color="lime")
     @do_not_record
     def show_layer_control(self):
         """Open layer control widget."""
-        points = self._points
-        if points is None:
+        if self._points is None:
             raise ValueError("No layer found in this viewer.")
-        cnt = self._points.widgets.as_container()
-        cnt.native.setParent(self.native, cnt.native.windowFlags())
-        cnt.show()
+        if self._layer_control is None:        
+            cnt = self._points.widgets.as_container()
+            cnt.native.setParent(self.native, cnt.native.windowFlags())
+            self._layer_control = cnt
+        self._layer_control.show()
         return None
 
     @Operator.wraps
@@ -386,8 +398,8 @@ class CylinderSimulator(MagicTemplate):
         
         return radon_model, radon_model.transform(simulated_image)
         
-    @Menu.wraps
-    @dask_thread_worker(progress={"desc": "Simulating a tomogram"})
+    @Simulate.wraps
+    @dask_thread_worker.with_progress(descs=["(0/2) Simulating projections", "(1/2) Running back-projection", "(2/2) Finishing ..."])
     @set_design(text="Simulate a tomogram")
     def simulate_tomogram(
         self,
@@ -411,7 +423,7 @@ class CylinderSimulator(MagicTemplate):
 
         Parameters
         ----------
-        path : Path
+        template_path : Path
             Path to the image used for the template.
         nsr : float
             Noise-to-signal ratio.
@@ -442,7 +454,6 @@ class CylinderSimulator(MagicTemplate):
             sino += rng.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
         
         # back projection
-        parent.log.print_html("Running inverse Radon transformation.")
         rec = radon_model.inverse_transform(sino)
         tomo = CylTomogram.from_image(rec, binsize=bin_size)
         parent.tomogram = tomo
@@ -456,10 +467,10 @@ class CylinderSimulator(MagicTemplate):
             return False
         return True
         
-    @Menu.wraps
-    @confirm(text="Directory already exists. Overwrite?", condition=_directory_not_empty)
+    @Simulate.wraps
+    @dask_thread_worker.with_progress(descs=_simulate_batch_iter)
     @set_design(text="Batch tomogram simulation")
-    @dask_thread_worker(progress={"desc": "Simulating tomograms", "total": "len(nsr) + 1"})
+    @confirm(text="Directory is not empty. Continue?", condition=_directory_not_empty)
     def simulate_tomogram_batch(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
@@ -476,7 +487,7 @@ class CylinderSimulator(MagicTemplate):
         
         Parameters
         ----------
-        path : Path
+        template_path : Path
             Path to the image used for the template.
         nsr : float
             Noise-to-signal ratio.
@@ -541,10 +552,14 @@ class CylinderSimulator(MagicTemplate):
         
         if save_mode in ("mrc", "tif"):
             for i, rec in enumerate(recs):
-                rec.imsave(save_path / f"image-{i}.{save_mode}")
+                file_name = save_path / f"image-{i}.{save_mode}"
+                rec.imsave(file_name)
+                parent.log.print(f"Image saved at {file_name!r}.")
         else:
             stack: ip.ImgArray = np.stack(recs, axis="t")
-            stack.imsave(save_path / "images.tif")
+            file_name = save_path / "images.tif"
+            stack.imsave(file_name)
+            parent.log.print(f"Image stack saved at {save_path!r}.")
 
         nsr_info = {i: val for i, val in enumerate(nsr)}
         js = {"settings": radon_model.dict(), "nsr": nsr_info}

@@ -49,11 +49,7 @@ class MoleculesLayer(Points):
         clim: tuple[float, float], 
         cmap_input,
     ):
-        """
-        Set colormap to a molecules layer.
-        
-        
-        """
+        """Set colormap to a molecules layer."""
         from polars.datatypes import IntegralType, FractionalType
         from napari.utils import Colormap
 

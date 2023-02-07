@@ -304,17 +304,31 @@ class CylindraMainWidget(MagicTemplate):
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
         return macro.format([(mk.symbol(self.parent_viewer), v)])
     
+    def _load_macro_file(self, path: Path):
+        with open(path, mode="r") as f:
+            txt = f.read()
+        macro = mk.parse(txt)
+        return self._format_macro(macro)
+    
+    @Others.Macro.wraps
+    @set_design(text="Load file")
+    @do_not_record
+    def load_macro_file(self, path: Path.Read[FileFilter.PY]):
+        """Load a Python script file to a new macro window."""
+        macro = self._load_macro_file(path)
+        edit = self.macro.widget.new_window(path.name)
+        edit.textedit.value = str(macro)
+        return None
+    
     @Others.Macro.wraps
     @set_design(text="Run file")
     @do_not_record
     def run_file(self, path: Path.Read[FileFilter.PY]):
         """Run a Python script file."""
-        with open(path, mode="r") as f:
-            txt = f.read()
-        macro = mk.parse(txt)
+        macro = self._load_macro_file(path)
         _ui = str(str(mk.symbol(self)))
         with self.macro.blocked():
-            self._format_macro(macro).eval({}, {_ui: self})
+            macro.eval({}, {_ui: self})
         self.macro.extend(macro.args)
         return None
         
@@ -1335,11 +1349,11 @@ class CylindraMainWidget(MagicTemplate):
             points_layer.selected_data = set()
         return None
     
-    @Molecules_.wraps
+    @Molecules_.Combine.wraps
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(self, layers: SomeOf[get_monomer_layers], delete_old: bool = True):
         """
-        Concatenate selected monomer layers and create a new layer.
+        Concatenate selected molecules and create a new ones.
 
         Parameters
         ----------
@@ -1366,7 +1380,7 @@ class CylindraMainWidget(MagicTemplate):
         self.log.print(f"{points.name!r}: n = {len(all_molecules)}")
         return None
 
-    @Molecules_.wraps
+    @Molecules_.Combine.wraps
     @set_design(text="Merge molecule info")
     def merge_molecule_info(self, pos: MoleculesLayer, rotation: MoleculesLayer, features: MoleculesLayer):
         """
@@ -1389,13 +1403,18 @@ class CylindraMainWidget(MagicTemplate):
     
     def _get_split_molecules_choices(self, w=None) -> list[str]:
         mgui = self["split_molecules"].mgui
-        if mgui is None:
+        if mgui is None or mgui.layer.value is None:
             return []
         return mgui.layer.value.features.columns
 
-    @Molecules_.wraps
-    @set_design(text="Split molecules")
-    def split_molecules(self, layer: MoleculesLayer, by: OneOf[_get_split_molecules_choices]):
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Split molecules by feature")
+    def split_molecules(
+        self,
+        layer: MoleculesLayer,
+        by: OneOf[_get_split_molecules_choices], 
+        delete_old: bool = False,
+    ):
         """Split molecules by a feature column."""
         _prefix = f"{layer.name}-Group"
         n_unique = layer.molecules.features[by].n_unique()
@@ -1403,6 +1422,8 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(f"Too many groups ({n_unique}). Did you choose a float column?")
         for i, (_, mole) in enumerate(layer.molecules.groupby(by)):
             self.add_molecules(mole, name=f"{_prefix}{i}")
+        if delete_old:
+            self.parent_viewer.layers.remove(layer)
     
     @impl_preview(split_molecules, auto_call=True)
     def _during_split_molecules_preview(self, layer: MoleculesLayer, by: str):
@@ -1422,7 +1443,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         translation: Annotated[
             tuple[nm, nm, nm],
-            {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation (nm)"}
+            {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}
         ],
         internal: bool = True,
     ):
@@ -1540,7 +1561,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self["paint_molecules"].mgui
-        if gui is None:
+        if gui is None or gui.layer.value is None:
             return []
         return gui.layer.value.features.columns
         

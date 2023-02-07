@@ -1,30 +1,29 @@
-from typing import Callable, Iterator, Union, TYPE_CHECKING, Annotated
+from typing import Callable, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
 from magicclass import (
-    magicclass, magicmenu, do_not_record, field, vfield, MagicTemplate, 
-    set_design, abstractapi, FieldGroup
+    magicclass, magicmenu, field, vfield, MagicTemplate, 
+    set_design, abstractapi
 )
-from magicclass.widgets import HistoryFileEdit, Table, PushButton
+from magicclass.widgets import HistoryFileEdit
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-from acryo import TomogramCollection, Molecules, SubtomogramLoader, alignment
+from acryo import Molecules, SubtomogramLoader, alignment
 
 import numpy as np
 import impy as ip
 import polars as pl
 import napari
 
-from cylindra.project import CylindraProject
 from cylindra.types import MoleculesLayer
 from cylindra import utils
 from cylindra.const import (
-    ALN_SUFFIX, GlobalVariables as GVar, MoleculesHeader as Mole, nm
+    ALN_SUFFIX, MoleculesHeader as Mole, nm
 )
 
 from .widget_utils import FileFilter
-from . import widget_utils
+from . import widget_utils, _shared_doc
 
 if TYPE_CHECKING:
     from napari.layers import Image, Layer
@@ -63,10 +62,10 @@ def _get_alignment(method: str):
 
 # widgets
 
-# TEMPLATE_CHOICES = ("From file", "From layer")
 MASK_CHOICES = ("No mask", "Blur template", "From file")
 
 @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False, record=False)
+@_shared_doc.update_cls
 class MaskParameters(MagicTemplate):
     """
     Parameters for soft mask creation.

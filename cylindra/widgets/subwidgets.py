@@ -83,15 +83,18 @@ class Molecules_(MagicTemplate):
         map_along_pf = abstractapi()
     show_orientation = abstractapi()
     extend_molecules = abstractapi()
-    concatenate_molecules = abstractapi()
-    merge_molecule_info = abstractapi()
-    split_molecules = abstractapi()
     translate_molecules = abstractapi()
+    @magicmenu(name="Combine")
+    class Combine(MagicTemplate):
+        """Combine existing molecules."""
+        concatenate_molecules = abstractapi()
+        merge_molecule_info = abstractapi()
     @magicmenu(name="Features")
     class MoleculeFeatures(MagicTemplate):
         """Analysis based on molecule features."""
         show_molecule_features = abstractapi()
         filter_molecules = abstractapi()
+        split_molecules = abstractapi()
         paint_molecules = abstractapi()
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
@@ -117,6 +120,7 @@ class Others(MagicTemplate):
         show_full_macro = abstractapi()
         show_native_macro = abstractapi()
         sep0 = field(Separator)
+        load_macro_file = abstractapi()
         run_file = abstractapi()
     Global_variables = GlobalVariables
     open_logger = abstractapi()
