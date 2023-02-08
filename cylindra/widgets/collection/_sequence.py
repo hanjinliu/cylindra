@@ -3,8 +3,9 @@ from timeit import default_timer
 from magicclass import (
     magicclass, field, vfield, MagicTemplate, set_design, abstractapi, Icon
 )
-from magicclass.widgets import Table, EvalLineEdit, ComboBox, Container
+from magicclass.widgets import EvalLineEdit, ComboBox, Container
 from magicclass.types import Path
+from magicclass.ext.polars import DataFrameView
 from acryo import TomogramCollection, Molecules
 
 import numpy as np
@@ -128,8 +129,7 @@ class ProjectSequenceEdit(MagicTemplate):
     def preview_features(self):
         col = get_collection(self.projects.paths, predicate=None)
         df = col.molecules.to_dataframe()
-        table = Table(value=df.to_pandas())
-        table.read_only = True
+        table = DataFrameView(value=df)
         dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
         dock.setFloating(True)
 
@@ -141,8 +141,7 @@ class ProjectSequenceEdit(MagicTemplate):
         df = col.molecules.to_dataframe()
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
-        table = Table(value=df.to_pandas())
-        table.read_only = True
+        table = DataFrameView(value=df)
         dock = self.parent_viewer.window.add_dock_widget(table, name="Features (filtered)", area="left")
         dock.setFloating(True)
         

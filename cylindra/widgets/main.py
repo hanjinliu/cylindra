@@ -16,6 +16,7 @@ from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         set_design, set_options, setup_function_gui)
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.ext.polars import DataFrameView
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit, Logger
@@ -1498,8 +1499,7 @@ class CylindraMainWidget(MagicTemplate):
         from magicgui.widgets import Table, Container, ComboBox
         
         cbox = ComboBox(choices=get_monomer_layers)
-        table = Table(value=[])
-        table.read_only = True
+        table = DataFrameView(value={})
         @cbox.changed.connect
         def _update_table(layer: MoleculesLayer):
             if layer is not None:
