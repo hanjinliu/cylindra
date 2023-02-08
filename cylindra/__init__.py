@@ -15,10 +15,8 @@ from cylindra.core import (
     read_localprops,
     read_globalprops,
     collect_projects,
+    layer_to_coordinates,
 )
-from cylindra.components import CylTomogram, CylinderModel
-from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.widget_utils import add_molecules, layer_to_coordinates
 from cylindra.__about__ import __version__, __author__, __email__
 
 from magicclass import defaults
@@ -37,9 +35,5 @@ __all__ = [
     "read_localprops",
     "read_globalprops",
     "collect_projects",
-    "CylTomogram",
-    "CylinderModel",
-    "CylindraMainWidget",
-    "add_molecules",
     "layer_to_coordinates",
 ]

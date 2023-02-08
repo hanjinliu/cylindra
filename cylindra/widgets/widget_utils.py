@@ -97,18 +97,6 @@ def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
     return ndi.affine_transform(arr2, matrix=mtx, order=1, prefilter=False)
 
 
-def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
-    """Convert point coordinates of a Points layer into a structured array."""
-    if npf is None:
-        npf = layer.molecules.features[Mole.pf].max() + 1
-    data = layer.data.reshape(-1, npf, 3)
-    import impy as ip
-
-    data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
-    data.axes["dim"].labels = ("z", "y", "x")
-    return data
-
-
 def plot_seam_search_result(score: np.ndarray, npf: int):
     import matplotlib.pyplot as plt
     imax = np.argmax(score)

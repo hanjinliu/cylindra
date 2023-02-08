@@ -2,10 +2,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
 from contextlib import suppress
+from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import napari
     from acryo import Molecules
+    from cylindra._molecules_layer import MoleculesLayer
     from cylindra.project import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline
@@ -196,8 +198,24 @@ def read_globalprops(file: PathLike):
         return pd.read_csv(path, index_col=0)
 
 
-def collect_projects(files: Iterable[PathLike]) -> ProjectSequence:
+def collect_projects(files: PathLike | Iterable[PathLike]) -> ProjectSequence:
     from cylindra.project import ProjectSequence
-    
+
+    if isinstance(files, (str, Path)) and "*" in str(files):
+        import glob
+
+        files = glob.glob(str(files))
     seq = ProjectSequence.from_paths(files)
     return seq
+
+
+def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
+    """Convert point coordinates of a Points layer into a structured array."""
+    if npf is None:
+        npf = layer.molecules.features[Mole.pf].max() + 1
+    data = layer.data.reshape(-1, npf, 3)
+    import impy as ip
+
+    data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
+    data.axes["dim"].labels = ("z", "y", "x")
+    return data
