@@ -1067,11 +1067,10 @@ class SubtomogramAveraging(MagicTemplate):
             parent._LoggerWindow.show()
             
             if img_avg is not None:
-                from .widget_utils import FscResult
                 _rec_layer: "Image" = self._show_reconstruction(
                     img_avg, name = f"[AVG]{layer.name}",
                 )
-                _rec_layer.metadata["fsc"] = FscResult(
+                _rec_layer.metadata["fsc"] = widget_utils.FscResult(
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
                 )
         return _calculate_fsc_on_return
