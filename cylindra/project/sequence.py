@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import suppress
 from pathlib import Path
 
 from abc import ABC, abstractmethod
@@ -113,11 +114,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         self._projects.insert(index, value)
     
     @classmethod
-    def from_paths(cls, paths: Iterable[str | Path], check_scale: bool = True) -> Self:
+    def from_paths(cls, paths: Iterable[str | Path], *, check_scale: bool = True, skip_exc: bool = False) -> Self:
         """Add all the projects of the given paths."""
         self = cls(check_scale=check_scale)
-        for path in paths:
-            self.add(path)
+        if skip_exc:
+            for path in paths:
+                with suppress(Exception):
+                    self.add(path)    
+        else:
+            for path in paths:
+                self.add(path)
         return self
     
     def add(self, path: str | Path) -> Self:
@@ -150,7 +156,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 raise ValueError(f"Localprops not found in project at {prj.project_path}.")
             df = pl.read_csv(path)
             dataframes.append(
-                df.with_columns(pl.repeat(idx, pl.count()).cast(pl.UInt16).alias("image-id"))
+                df.with_columns(pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image))
             )
         return pl.concat(dataframes, how="vertical")
 
@@ -161,7 +167,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             path = prj.globalprops
             if path is None and not allow_none:
                 raise ValueError(f"Globalprops not found in project at {prj.project_path}.")
-            imagespec = pl.Series("image-id", np.array([idx])).cast(pl.UInt16)
+            imagespec = pl.Series(Mole.image, np.array([idx])).cast(pl.UInt16)
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
         return pl.concat(dataframes, how="vertical")

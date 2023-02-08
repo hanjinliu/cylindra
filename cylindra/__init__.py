@@ -12,8 +12,6 @@ from cylindra.core import (
     read_project,
     read_molecules,
     read_spline,
-    read_localprops,
-    read_globalprops,
     collect_projects,
     layer_to_coordinates,
 )
@@ -32,8 +30,6 @@ __all__ = [
     "read_project",
     "read_molecules",
     "read_spline",
-    "read_localprops",
-    "read_globalprops",
     "collect_projects",
     "layer_to_coordinates",
 ]

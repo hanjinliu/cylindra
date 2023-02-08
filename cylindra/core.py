@@ -149,63 +149,24 @@ def read_spline(file: PathLike) -> CylSpline:
     return CylSpline.from_json(file)
 
 
-def read_localprops(file: PathLike):
+def collect_projects(files: PathLike | Iterable[PathLike], *, skip_exc: bool = False) -> ProjectSequence:
     """
-    Read local-property file(s) as a `DataFrameList`.
+    Collect project files into a ProjectSequence object.
+    
+    >>> collect_projects("path/to/dir/*.json")
 
     Parameters
     ----------
-    file : PathLike
-        File path.
-
-    Returns
-    -------
-    DataFrameList
-        Dictionary of data frames.
+    files : path-like or iterable of path-like
+        Project file paths or a glob pattern.
     """
-    from cylindra._list import DataFrameList
-    
-    if Path(file).is_dir():
-        return DataFrameList.glob_csv(file)
-    return DataFrameList.from_csv(file)
-
-def read_globalprops(file: PathLike):
-    """
-    Read a local-property file as a `DataFrameList`.
-
-    Parameters
-    ----------
-    file : PathLike
-        File path.
-
-    Returns
-    -------
-    DataFrameList
-        Dictionary of data frames.
-    """
-    import pandas as pd
-    
-    path = Path(file)
-    if path.is_dir():
-        dfs: list[pd.DataFrame] = []
-        for p in path.glob("**/globalprops.csv"):
-            df = pd.read_csv(p, index_col=0)
-            dfs.append(df)
-        if len(dfs) == 0:
-            raise FileNotFoundError(f"No globalprops.csv file found under {path}.")
-        return pd.concat(dfs, axis=0, ignore_index=True)
-    else:
-        return pd.read_csv(path, index_col=0)
-
-
-def collect_projects(files: PathLike | Iterable[PathLike]) -> ProjectSequence:
     from cylindra.project import ProjectSequence
 
     if isinstance(files, (str, Path)) and "*" in str(files):
         import glob
 
         files = glob.glob(str(files))
-    seq = ProjectSequence.from_paths(files)
+    seq = ProjectSequence.from_paths(files, skip_exc=skip_exc)
     return seq
 
 
