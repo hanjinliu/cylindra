@@ -772,7 +772,6 @@ class CylindraMainWidget(MagicTemplate):
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[Optional[OneOf["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = "MinusToPlus",
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
-        nsamples: Annotated[int, {"min": 1, "max": 100}] = 1,
     ):
         """
         Automatically detect the polarities and align if necessary.
@@ -791,9 +790,6 @@ class CylindraMainWidget(MagicTemplate):
             To which direction splines will be aligned.
         depth : nm, default is 40 nm
             Depth of the subtomogram to be sampled.
-        nsamples : int, default is 1
-            Number of sampling on each spline. Cylindric subtomograms will be sampled
-            at positions 1/n, ..., (n-1)/n.
         """
         binsize = self.layer_image.metadata["current_binsize"]
         tomo = self.tomogram
@@ -803,19 +799,22 @@ class CylindraMainWidget(MagicTemplate):
         length_px = tomo.nm2pixel(depth, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
-        points = np.linspace(0, 1.0, nsamples + 2)[1:-1]
-        
         ori_clockwise = Ori(clockwise_is)
         ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
         for i, spl in enumerate(self.tomogram.splines):
-            img_flat = 0.0
-            for point in points:
-                coords = spl.local_cylindrical((0.5, width_px/2), length_px, point, scale=current_scale)
-                mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
-                img_flat = ip.asarray(mapped, axes="rya").proj("y") + img_flat
+            if spl.radius is None:
+                r_range = 0.5, width_px / 2
+            else:
+                r_px = tomo.nm2pixel(spl.radius, binsize=binsize)
+                r_range = (GVar.inner * r_px, GVar.outer * r_px)
+            point = 0.5
+            coords = spl.local_cylindrical(r_range, length_px, point, scale=current_scale)
+            mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
+            img_flat = ip.asarray(mapped, axes="rya").proj("y")
             npf = utils.roundint(spl.globalprops[H.nPF][0])
             pw_peak = img_flat.local_power_spectra(
                 key=ip.slicer.a[npf-1:npf+2],
+                upsample_factor=20,
                 dims="ra",
             ).proj("a", method=np.max)
             r_argmax = np.argmax(pw_peak)
