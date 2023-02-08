@@ -2,12 +2,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
 from contextlib import suppress
-import numpy as np
-import polars as pl
 
 if TYPE_CHECKING:
     import napari
-    from acryo import Molecules, TomogramCollection
+    from acryo import Molecules
+    from cylindra.project import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline
     from cylindra.project import CylindraProject
@@ -196,23 +195,9 @@ def read_globalprops(file: PathLike):
     else:
         return pd.read_csv(path, index_col=0)
 
-def collect_tomograms(files: Iterable[PathLike], order: int = 3) -> TomogramCollection:
-    import impy as ip
-    from acryo import TomogramCollection
-    from cylindra.const import GlobalVariables as GVar
+
+def collect_projects(files: Iterable[PathLike]) -> ProjectSequence:
+    from cylindra.project import ProjectSequence
     
-    col = TomogramCollection(order=order)
-    need_initialize = True
-
-    for file in files:
-        project = read_project(file)
-        tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
-        if need_initialize:
-            template = ip.imread(project.template_image)
-            col = col.replace(output_shape=template.shape, scale=tomogram.scale.x)
-            need_initialize = False
-
-        for fp in project.molecules:
-            col.add_tomogram(tomogram, molecules=read_molecules(fp))
-
-    return col
+    seq = ProjectSequence.from_paths(files)
+    return seq

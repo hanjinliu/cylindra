@@ -14,6 +14,7 @@ from cylindra.core import (
     read_spline,
     read_localprops,
     read_globalprops,
+    collect_projects,
 )
 from cylindra.components import CylTomogram, CylinderModel
 from cylindra.widgets import CylindraMainWidget
@@ -35,6 +36,7 @@ __all__ = [
     "read_spline",
     "read_localprops",
     "read_globalprops",
+    "collect_projects",
     "CylTomogram",
     "CylinderModel",
     "CylindraMainWidget",

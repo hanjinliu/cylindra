@@ -258,3 +258,14 @@ def test_molecule_features(ui: CylindraMainWidget):
     ui.filter_molecules(layer=ui.parent_viewer.layers['Mono-0'], predicate='pl.col("position-nm") < 9.2')
     ui.calculate_molecule_features(layer=ui.parent_viewer.layers['Mono-0'], column_name='new', expression='pl.col("pf-id") < 4')
     ui.calculate_intervals(layer=ui.parent_viewer.layers['Mono-0'])
+
+def test_auto_align(ui: CylindraMainWidget):
+    path = TEST_PATH / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.register_path(coords=coords_13pf)
+    ui.register_path(coords=coords_13pf[::-1])
+    
+    ui.cylindrical_fit(interval=32.0)
+    ui.auto_align_to_polarity(clockwise_is="MinusToPlus", align_to="MinusToPlus")
+    assert ui.tomogram.splines[0].orientation == "MinusToPlus"
+    assert ui.tomogram.splines[1].orientation == "MinusToPlus"
