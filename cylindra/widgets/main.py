@@ -1496,7 +1496,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def show_molecule_features(self):
         """Show molecules features in a table widget."""
-        from magicgui.widgets import Table, Container, ComboBox
+        from magicgui.widgets import Container, ComboBox
         
         cbox = ComboBox(choices=get_monomer_layers)
         table = DataFrameView(value={})

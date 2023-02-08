@@ -1100,17 +1100,12 @@ class SubtomogramAveraging(MagicTemplate):
         Parameters
         ----------
         {layer}{mask_params}{size}{bin_size}{interpolation}
-        n_components : _type_, optional
-            _description_, by default 2
-        n_clusters : _type_, optional
-            _description_, by default 2
-        seed : _type_, optional
+        n_components : int, default is 2
+            The number of PCA dimensions.
+        n_clusters : int, default is 2
+            The number of clusters.
+        seed : int, optional
             _description_, by default 0
-
-        Returns
-        -------
-        _type_
-            _description_
         """
         mask = self.params._get_mask(params=mask_params)
         if size is None:
@@ -1121,12 +1116,13 @@ class SubtomogramAveraging(MagicTemplate):
             None, mask, binsize=bin_size, molecules=layer.molecules, order=interpolation, shape=shape
         )
         
-        _, pca = loader.classify(mask, seed=seed, n_components=n_components, n_clusters=n_clusters)
+        out, pca = loader.classify(mask, seed=seed, n_components=n_components, n_clusters=n_clusters)
         
         @thread_worker.to_callback
         def _on_return():
             from .pca import PcaViewer
             
+            layer.molecules = out.molecules
             pca_viewer = PcaViewer(pca)
             dock = self.parent_viewer.window.add_dock_widget(
                 pca_viewer, area="right", allowed_areas=["right"]

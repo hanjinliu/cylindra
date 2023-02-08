@@ -60,18 +60,25 @@ class PcaViewer(MagicTemplate):
             
         base_image = vfield(int).with_choices(_get_choices)
         iso_threshold = field(label="Iso threshold", widget_type=FloatSlider)
+        rendering = vfield(str, label="Rendering").with_choices(["iso", "mip"])
         canvas = field(Vispy3DCanvas)
         
         @base_image.connect
         def _update_canvas(self):
             pca = self.find_ancestor(PcaViewer, cache=True)._pca
-            self._image.data = pca.get_bases()[self.base_image]
-            self.iso_threshold.min = self._image.data.min()
-            self.iso_threshold.max = self._image.data.max()
+            img: np.ndarray = pca.get_bases()[self.base_image]
+            
+            self._image.data = img
+            self.iso_threshold.min = img.min()
+            self.iso_threshold.max = img.max()
         
         @iso_threshold.connect
         def _update_threshold(self, val: float):
             self._image.iso_threshold = val
+        
+        @rendering.connect
+        def _update_rendering(self, val: str):
+            self._image.rendering = val
             
         def __post_init__(self):
             self._image = self.canvas.add_image(np.arange(8).reshape(2, 2, 2), rendering="iso")

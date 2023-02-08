@@ -28,6 +28,7 @@ class MoleculesLayer(Points):
             raise TypeError('Must be a Molecules object')
         self.data = mole.pos
         self._molecules = mole
+        Points.features.fset(self, mole.features.to_pandas())
 
     @property
     def features(self):
