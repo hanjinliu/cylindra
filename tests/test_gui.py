@@ -199,6 +199,7 @@ def test_simulator(ui: CylindraMainWidget):
     ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 15), arange=(0, 14), n_allev=1)
     ui.cylinder_simulator.dilate(radius=-0.5, yrange=(11, 15), arange=(0, 14), n_allev=1)
     ui.cylinder_simulator.send_moleclues_to_viewer()
+    ui.cylinder_simulator.close()
 
 def test_single_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[2])
@@ -210,6 +211,7 @@ def test_single_simulation(ui: CylindraMainWidget):
         n_tilt = 11,
         interpolation=1,
     )
+    ui.cylinder_simulator.close()
 
 def test_batch_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[4])
@@ -231,6 +233,7 @@ def test_batch_simulation(ui: CylindraMainWidget):
             seed=0,
         )
         assert len(list(dirpath.glob("*.mrc"))) == 2
+    ui.cylinder_simulator.close()
 
 def test_project_viewer(ui: CylindraMainWidget):
     view_project(TEST_PATH / "test-project.json").close()
