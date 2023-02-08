@@ -1,11 +1,12 @@
 from typing import Callable, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
+from qtpy.QtCore import Qt
 from magicclass import (
     magicclass, magicmenu, field, vfield, MagicTemplate, 
     set_design, abstractapi
 )
-from magicclass.widgets import HistoryFileEdit
+from magicclass.widgets import HistoryFileEdit, Separator
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
@@ -97,8 +98,11 @@ class SubtomogramAnalysis(MagicTemplate):
     average_all = abstractapi()
     average_subset = abstractapi()
     split_and_average = abstractapi()
+    sep0 = field(Separator)
     calculate_correlation = abstractapi()
     calculate_fsc = abstractapi()
+    classify_pca = abstractapi()
+    sep1 = field(Separator)
     seam_search = abstractapi()
 
 @magicmenu
@@ -272,6 +276,7 @@ class StaParameters(MagicTemplate):
     
 
 @magicclass(widget_type="scrollable")
+@_shared_doc.update_cls
 class SubtomogramAveraging(MagicTemplate):
     """
     Widget for subtomogram averaging.
@@ -1075,6 +1080,64 @@ class SubtomogramAveraging(MagicTemplate):
                 )
         return _calculate_fsc_on_return
     
+    @Subtomogram_analysis.wraps
+    @set_design(text="PCA/K-means classification")
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("PCA/K-means classification of {!r}"))
+    def classify_pca(
+        self,
+        layer: MoleculesLayer,
+        mask_params: Bound[params._get_mask_params],
+        size: _SubVolumeSize = None,
+        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
+        n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+    ):
+        """
+        Classify molecules in a layer using PCA and K-means clustering.
+
+        Parameters
+        ----------
+        {layer}{mask_params}{size}{bin_size}{interpolation}
+        n_components : _type_, optional
+            _description_, by default 2
+        n_clusters : _type_, optional
+            _description_, by default 2
+        seed : _type_, optional
+            _description_, by default 0
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        mask = self.params._get_mask(params=mask_params)
+        if size is None:
+            shape = self._get_shape_in_nm()
+        else:
+            shape = (size,) * 3
+        loader, _, mask = self._check_binning_for_alignment(
+            None, mask, binsize=bin_size, molecules=layer.molecules, order=interpolation, shape=shape
+        )
+        
+        _, pca = loader.classify(mask, seed=seed, n_components=n_components, n_clusters=n_clusters)
+        
+        @thread_worker.to_callback
+        def _on_return():
+            from .pca import PcaViewer
+            
+            pca_viewer = PcaViewer(pca)
+            dock = self.parent_viewer.window.add_dock_widget(
+                pca_viewer, area="right", allowed_areas=["right"]
+            )
+            dock.setFloating(True)
+            dock.setAllowedAreas(Qt.DockWidgetArea.NoDockWidgetArea)
+            dock.resize(420, 320)
+
+        return _on_return
+        
+
     @Subtomogram_analysis.wraps
     @set_design(text="Seam search")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
