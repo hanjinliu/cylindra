@@ -257,6 +257,10 @@ class CylindraProject(BaseProject):
             gui.sta._set_mask_params(self.mask_parameters)
             gui.reset_choices()
             gui._need_save = False
+            
+            # paint if needed
+            if self.localprops:
+                gui.paint_cylinders()
         
         return _load_project_on_return
     

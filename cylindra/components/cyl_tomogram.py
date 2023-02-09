@@ -1030,7 +1030,6 @@ class CylTomogram(Tomogram):
     def get_cylinder_model(
         self,
         i: int,
-        length: nm | None = None,
         offsets: tuple[float, float] = (0., 0.,),
         **kwargs,
     ) -> CylinderModel:
@@ -1041,8 +1040,6 @@ class CylTomogram(Tomogram):
         ----------
         i : int
             Spline ID from which model will be created.
-        length : nm, optional
-            Length of the spline to be used for model construction.
         offsets : tuple of float, optional
             Offset of the model. See :meth:`map_monomers` for details.
 
@@ -1052,9 +1049,7 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self._splines[i]
-        
-        if length is None:
-            length = spl.length()
+        length = spl.length()
         
         if all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
             props = kwargs
@@ -1097,8 +1092,8 @@ class CylTomogram(Tomogram):
         self, 
         i: int = None,
         *, 
-        length: nm | None = None,
         offsets: tuple[nm, float] = None,
+        invert: bool = False,
     ) -> Molecules:
         """
         Map coordinates of monomers in world coordinate.
@@ -1118,8 +1113,11 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, length=length, offsets=offsets)
-        mole = model.to_molecules(self._splines[i])
+        model = self.get_cylinder_model(i, offsets=offsets)
+        spl = self.splines[i]
+        if invert:
+            spl = spl.invert()
+        mole = model.to_molecules(spl)
         return mole
     
     @batch_process

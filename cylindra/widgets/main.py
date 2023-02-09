@@ -1162,7 +1162,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_monomers(
         self,
         splines: SomeOf[_get_splines] = (),
-        length: Annotated[Optional[nm], {"text": "Use full length"}] = None,
+        orientation: Optional= False,
     ):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
@@ -1171,18 +1171,18 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         splines : iterable of int
             Select splines to map monomers.
-        length : nm, optional
-            Length from the tip where monomers will be mapped.
+        invert : bool
+            Whether to map monomers in the inverted direction.
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        molecules = tomo.map_monomers(i=splines, length=length)
+        molecules = tomo.map_monomers(i=splines, invert=invert)
         
         self.log.print_html("<code>map_monomers</code>")
         for i, mol in enumerate(molecules):
             _name = f"Mono-{i}"
-            add_molecules(self.parent_viewer, mol, _name)
+            self.add_molecules(mol, _name)
             self.log.print(f"{_name!r}: n = {len(mol)}")
             
         self._need_save = True
