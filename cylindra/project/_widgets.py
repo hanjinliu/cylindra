@@ -4,8 +4,9 @@ import numpy as np
 import polars as pl
 import impy as ip
 from magicclass import magicclass, field, vfield, MagicTemplate
-from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label, Table
+from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label
 from magicclass.ext.vispy import Vispy3DCanvas
+from magicclass.ext.polars import DataFrameView
 from acryo import Molecules
 
 if TYPE_CHECKING:
@@ -92,19 +93,17 @@ class ComponentsViewer(MagicTemplate):
 
 @magicclass(labels=False, widget_type="split", record=False)
 class Properties(MagicTemplate):
-    table_local = field([], widget_type=Table)
-    table_global = field([], widget_type=Table)
+    table_local = field(widget_type=DataFrameView)
+    table_global = field(widget_type=DataFrameView)
     
     def _from_project(self, project: "CylindraProject"):
         if path := project.localprops:
             df = pl.read_csv(path)
-            self.table_local.value = df.to_dict(as_series=False)
-        self.table_local.read_only = True
+            self.table_local.value = df
         
         if path := project.globalprops:
             df = pl.read_csv(path)
-            self.table_global.value = df.to_dict(as_series=False)
-        self.table_global.read_only = True
+            self.table_global.value = df
 
 
 @magicclass(record=False)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from cylindra import read_molecules, read_spline, read_project, read_localprops
+from cylindra import read_molecules, read_spline, read_project
 
 TEST_DIR = Path(__file__).parent
 
@@ -11,6 +11,3 @@ def test_read_spline():
 
 def test_read_project():
     read_project(TEST_DIR / "test-project.json")
-
-def test_read_localprops():
-    read_localprops(TEST_DIR / "test-project_results" / "localprops.csv")

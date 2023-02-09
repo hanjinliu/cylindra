@@ -106,6 +106,7 @@ class MoleculesHeader(SimpleNamespace):
     interval = "interval-nm"  # interval between two molecules
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
+    image = "image-id"
 
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""

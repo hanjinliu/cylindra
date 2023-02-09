@@ -98,6 +98,8 @@ class CylinderSimulator(MagicTemplate):
         self._points: layers.Points3D = None
         self._selections: layers.Points3D = None
         self._layer_control = None
+        self.canvas.max_width = 240
+        self.canvas.max_height = 500
 
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model

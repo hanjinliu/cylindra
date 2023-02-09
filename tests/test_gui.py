@@ -3,7 +3,8 @@ import tempfile
 
 from numpy.testing import assert_allclose
 from acryo import Molecules
-from cylindra import view_project, CylindraMainWidget
+from cylindra import view_project
+from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
@@ -153,6 +154,9 @@ def test_sta(ui: CylindraMainWidget):
     ui.load_molecules(TEST_PATH/"monomers.txt")
     mole_read = ui.get_molecules('monomers')
     assert_molecule_equal(mole, mole_read)
+    
+    with tempfile.TemporaryDirectory() as dirpath:
+        ui.sta.save_last_average(dirpath)
 
 def test_clip_spline(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"
@@ -199,6 +203,7 @@ def test_simulator(ui: CylindraMainWidget):
     ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 15), arange=(0, 14), n_allev=1)
     ui.cylinder_simulator.dilate(radius=-0.5, yrange=(11, 15), arange=(0, 14), n_allev=1)
     ui.cylinder_simulator.send_moleclues_to_viewer()
+    ui.cylinder_simulator.close()
 
 def test_single_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[2])
@@ -210,6 +215,7 @@ def test_single_simulation(ui: CylindraMainWidget):
         n_tilt = 11,
         interpolation=1,
     )
+    ui.cylinder_simulator.close()
 
 def test_batch_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5, bin_size=[4])
@@ -231,6 +237,7 @@ def test_batch_simulation(ui: CylindraMainWidget):
             seed=0,
         )
         assert len(list(dirpath.glob("*.mrc"))) == 2
+    ui.cylinder_simulator.close()
 
 def test_project_viewer(ui: CylindraMainWidget):
     view_project(TEST_PATH / "test-project.json").close()
@@ -255,3 +262,14 @@ def test_molecule_features(ui: CylindraMainWidget):
     ui.filter_molecules(layer=ui.parent_viewer.layers['Mono-0'], predicate='pl.col("position-nm") < 9.2')
     ui.calculate_molecule_features(layer=ui.parent_viewer.layers['Mono-0'], column_name='new', expression='pl.col("pf-id") < 4')
     ui.calculate_intervals(layer=ui.parent_viewer.layers['Mono-0'])
+
+def test_auto_align(ui: CylindraMainWidget):
+    path = TEST_PATH / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.register_path(coords=coords_13pf)
+    ui.register_path(coords=coords_13pf[::-1])
+    
+    ui.cylindrical_fit(interval=32.0)
+    ui.auto_align_to_polarity(clockwise_is="MinusToPlus", align_to="MinusToPlus")
+    assert ui.tomogram.splines[0].orientation == "MinusToPlus"
+    assert ui.tomogram.splines[1].orientation == "MinusToPlus"

@@ -1,11 +1,12 @@
 from typing import Callable, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
+from qtpy.QtCore import Qt
 from magicclass import (
-    magicclass, magicmenu, field, vfield, MagicTemplate, 
+    do_not_record, magicclass, magicmenu, field, vfield, MagicTemplate, 
     set_design, abstractapi
 )
-from magicclass.widgets import HistoryFileEdit
+from magicclass.widgets import HistoryFileEdit, Separator
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
@@ -97,9 +98,13 @@ class SubtomogramAnalysis(MagicTemplate):
     average_all = abstractapi()
     average_subset = abstractapi()
     split_and_average = abstractapi()
-    calculate_correlation = abstractapi()
+    sep0 = field(Separator)
     calculate_fsc = abstractapi()
+    classify_pca = abstractapi()
+    sep1 = field(Separator)
     seam_search = abstractapi()
+    sep2 = field(Separator)
+    save_last_average = abstractapi()
 
 @magicmenu
 class Refinement(MagicTemplate):
@@ -135,7 +140,7 @@ class StaParameters(MagicTemplate):
         value=(-60., 60.), text="No missing-wedge", options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}}
     )
     
-    _last_average: ip.ImgArray = None
+    _last_average: ip.ImgArray = None  # the global average result
     
     def __init__(self, scale_getter: Callable[[], float] = None):
         self._get_scale = scale_getter
@@ -272,6 +277,7 @@ class StaParameters(MagicTemplate):
     
 
 @magicclass(widget_type="scrollable")
+@_shared_doc.update_cls
 class SubtomogramAveraging(MagicTemplate):
     """
     Widget for subtomogram averaging.
@@ -306,28 +312,45 @@ class SubtomogramAveraging(MagicTemplate):
             return parent.tomogram.scale
         return None
 
+    @magicclass(properties={"margins": (0, 0, 0, 0)})
+    class Buttons(MagicTemplate):
+        show_template = abstractapi()
+        show_mask = abstractapi()
+    
+    @Buttons.wraps
     @set_design(text="Show template")
+    @do_not_record
     def show_template(self):
         """Load and show template image."""
-        self._show_reconstruction(self.params._get_template(), name="Template image", store=False)
+        self._show_reconstruction(self.template, name="Template image", store=False)
     
+    @Buttons.wraps
     @set_design(text="Show mask")
+    @do_not_record
     def show_mask(self):
         """Load and show mask image."""
-        self._show_reconstruction(self.params._get_mask(), name="Mask image", store=False)
+        self._show_reconstruction(self.mask, name="Mask image", store=False)
     
     @property
-    def template(self) -> Union[ip.ImgArray, None]:
+    def template(self) -> "ip.ImgArray | None":
         """Template image."""
         return self.params._get_template()
     
     @property
-    def mask(self) -> ip.ImgArray:
+    def mask(self) -> "ip.ImgArray | None":
         """Mask image."""
         return self.params._get_mask()
+    
+    @property
+    def last_average(self) -> "ip.ImgArray | None":
+        """Last averaged image if exists."""
+        return self.params._last_average
 
-    def _get_shape_in_nm(self) -> tuple[int, ...]:
-        return self.params._get_shape_in_nm()
+    def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
+        if default is None:
+            return self.params._get_shape_in_nm()
+        else:
+            return (default,) * 3
         
     def _set_mask_params(self, params):
         return self.params._set_mask_params(params)
@@ -406,10 +429,7 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         molecules = layer.molecules
         tomo = parent.tomogram
-        if size is None:
-            shape = self._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
+        shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation
         )
@@ -454,10 +474,7 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         molecules = layer.molecules
         nmole = len(molecules)
-        if size is None:
-            shape = self._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
+        shape = self._get_shape_in_nm(size)
         if nmole < number:
             raise ValueError(f"There are only {nmole} subtomograms.")
         if method == "steps":
@@ -509,10 +526,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.molecules
-        if size is None:
-            shape = self._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
+        shape = self._get_shape_in_nm(size)
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation
         )
@@ -695,10 +709,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.molecules
-        if size is None:
-            shape = self._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
+        shape = self._get_shape_in_nm(size)
         loader, _, _ = self._check_binning_for_alignment(
             template=None, 
             mask=None, 
@@ -946,38 +957,6 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @Subtomogram_analysis.wraps
-    @set_design(text="Calculate correlation")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating correlation of {!r}"))
-    def calculate_correlation(
-        self,
-        layer: MoleculesLayer,
-        template_path: Bound[params._get_template],
-        mask_params: Bound[params._get_mask_params],
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        show_average: bool = True,
-    ):
-        t0 = default_timer()
-        parent = self._get_parent()
-        molecules = layer.molecules
-        template = self.params._get_template(path=template_path)
-        mask = self.params._get_mask(params=mask_params)
-        shape = self._get_shape_in_nm()
-        
-        loader = parent.tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=1, order=interpolation
-        )
-        img_avg = ip.asarray(loader.average(), axes="zyx")
-        img_avg.set_scale(zyx=loader.scale)
-        zncc = ip.zncc(img_avg * mask, template * mask)
-        parent.log.print_html(f"<code>calculate_correlation</code> ({default_timer() - t0:.1f} sec)")
-        parent.log.print_html(f"Cross correlation with template = <b>{zncc:.3f}</b>")
-        if not show_average:
-            return
-        return thread_worker.to_callback(
-            self._show_reconstruction, img_avg, f"[AVG]{layer.name}"
-        )
-
-    @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating FSC of {!r}"))
     def calculate_fsc(
@@ -1012,14 +991,9 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         mole = layer.molecules
         mask = self.params._get_mask(params=mask_params)
-        if size is None:
-            shape = self._get_shape_in_nm()
-        else:
-            shape = (size,) * 3
+        shape = self._get_shape_in_nm(size)
         loader = parent.tomogram.get_subtomogram_loader(
-            mole,
-            shape,
-            order=interpolation,
+            mole, shape, order=interpolation,
         )
         if mask is None:
             mask = 1.
@@ -1067,15 +1041,65 @@ class SubtomogramAveraging(MagicTemplate):
             parent._LoggerWindow.show()
             
             if img_avg is not None:
-                from .widget_utils import FscResult
                 _rec_layer: "Image" = self._show_reconstruction(
                     img_avg, name = f"[AVG]{layer.name}",
                 )
-                _rec_layer.metadata["fsc"] = FscResult(
+                _rec_layer.metadata["fsc"] = widget_utils.FscResult(
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
                 )
         return _calculate_fsc_on_return
     
+    @Subtomogram_analysis.wraps
+    @set_design(text="PCA/K-means classification")
+    @dask_thread_worker.with_progress(desc=_fmt_layer_name("PCA/K-means classification of {!r}"))
+    def classify_pca(
+        self,
+        layer: MoleculesLayer,
+        mask_params: Bound[params._get_mask_params],
+        size: _SubVolumeSize = None,
+        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
+        n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+    ):
+        """
+        Classify molecules in a layer using PCA and K-means clustering.
+
+        Parameters
+        ----------
+        {layer}{mask_params}{size}{bin_size}{interpolation}
+        n_components : int, default is 2
+            The number of PCA dimensions.
+        n_clusters : int, default is 2
+            The number of clusters.
+        seed : int, optional
+            _description_, by default 0
+        """
+        mask = self.params._get_mask(params=mask_params)
+        shape = self._get_shape_in_nm(size)
+        loader, _, mask = self._check_binning_for_alignment(
+            None, mask, binsize=bin_size, molecules=layer.molecules, order=interpolation, shape=shape
+        )
+        
+        out, pca = loader.classify(mask, seed=seed, n_components=n_components, n_clusters=n_clusters)
+        
+        @thread_worker.to_callback
+        def _on_return():
+            from .pca import PcaViewer
+            
+            layer.molecules = out.molecules
+            pca_viewer = PcaViewer(pca)
+            dock = self.parent_viewer.window.add_dock_widget(
+                pca_viewer, area="right", allowed_areas=["right"]
+            )
+            dock.setFloating(True)
+            dock.setAllowedAreas(Qt.DockWidgetArea.NoDockWidgetArea)
+            dock.resize(420, 320)
+
+        return _on_return
+        
+
     @Subtomogram_analysis.wraps
     @set_design(text="Seam search")
     @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
@@ -1144,6 +1168,15 @@ class SubtomogramAveraging(MagicTemplate):
             layer.metadata["seam-search-score"] = score
         
         return _seam_search_on_return
+    
+    @Subtomogram_analysis.wraps
+    @set_design(text="Save last average")
+    def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
+        path = Path(path)
+        img = self.last_average
+        if img is None:
+            raise ValueError("No average image is available. You have to average subtomograms first.")
+        img.imsave(path)
 
     @average_all.started.connect
     @align_averaged.started.connect

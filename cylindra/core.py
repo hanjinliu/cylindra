@@ -2,12 +2,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
 from contextlib import suppress
-import numpy as np
-import polars as pl
+from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import napari
-    from acryo import Molecules, TomogramCollection
+    from acryo import Molecules
+    from cylindra._molecules_layer import MoleculesLayer
+    from cylindra.project import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline
     from cylindra.project import CylindraProject
@@ -148,71 +149,34 @@ def read_spline(file: PathLike) -> CylSpline:
     return CylSpline.from_json(file)
 
 
-def read_localprops(file: PathLike):
+def collect_projects(files: PathLike | Iterable[PathLike], *, skip_exc: bool = False) -> ProjectSequence:
     """
-    Read local-property file(s) as a `DataFrameList`.
+    Collect project files into a ProjectSequence object.
+    
+    >>> collect_projects("path/to/dir/*.json")
 
     Parameters
     ----------
-    file : PathLike
-        File path.
-
-    Returns
-    -------
-    DataFrameList
-        Dictionary of data frames.
+    files : path-like or iterable of path-like
+        Project file paths or a glob pattern.
     """
-    from cylindra._list import DataFrameList
-    
-    if Path(file).is_dir():
-        return DataFrameList.glob_csv(file)
-    return DataFrameList.from_csv(file)
+    from cylindra.project import ProjectSequence
 
-def read_globalprops(file: PathLike):
-    """
-    Read a local-property file as a `DataFrameList`.
+    if isinstance(files, (str, Path)) and "*" in str(files):
+        import glob
 
-    Parameters
-    ----------
-    file : PathLike
-        File path.
+        files = glob.glob(str(files))
+    seq = ProjectSequence.from_paths(files, skip_exc=skip_exc)
+    return seq
 
-    Returns
-    -------
-    DataFrameList
-        Dictionary of data frames.
-    """
-    import pandas as pd
-    
-    path = Path(file)
-    if path.is_dir():
-        dfs: list[pd.DataFrame] = []
-        for p in path.glob("**/globalprops.csv"):
-            df = pd.read_csv(p, index_col=0)
-            dfs.append(df)
-        if len(dfs) == 0:
-            raise FileNotFoundError(f"No globalprops.csv file found under {path}.")
-        return pd.concat(dfs, axis=0, ignore_index=True)
-    else:
-        return pd.read_csv(path, index_col=0)
 
-def collect_tomograms(files: Iterable[PathLike], order: int = 3) -> TomogramCollection:
+def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
+    """Convert point coordinates of a Points layer into a structured array."""
+    if npf is None:
+        npf = layer.molecules.features[Mole.pf].max() + 1
+    data = layer.data.reshape(-1, npf, 3)
     import impy as ip
-    from acryo import TomogramCollection
-    from cylindra.const import GlobalVariables as GVar
-    
-    col = TomogramCollection(order=order)
-    need_initialize = True
 
-    for file in files:
-        project = read_project(file)
-        tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
-        if need_initialize:
-            template = ip.imread(project.template_image)
-            col = col.replace(output_shape=template.shape, scale=tomogram.scale.x)
-            need_initialize = False
-
-        for fp in project.molecules:
-            col.add_tomogram(tomogram, molecules=read_molecules(fp))
-
-    return col
+    data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
+    data.axes["dim"].labels = ("z", "y", "x")
+    return data
