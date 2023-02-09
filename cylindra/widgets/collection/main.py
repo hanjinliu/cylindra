@@ -107,10 +107,7 @@ class ProjectCollectionWidget(MagicTemplate):
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
     ):
-        if size is None:
-            shape = self.StaWidget.params._get_shape_in_nm()
-        else:
-            shape = (size, size, size)
+        shape = self._get_shape_in_nm(size)
         col = get_collection(paths, interpolation, shape, predicate=predicate)
         img = ip.asarray(col.average(), axes="zyx")
         img.set_scale(zyx=col.scale)
@@ -152,13 +149,12 @@ class ProjectCollectionWidget(MagicTemplate):
             tilt_range=tilt_range,
         )
         
-        for _ids, mole in aligned.molecules.groupby(by=[Mole.id, "image-id"]):
+        for _ids, mole in aligned.molecules.groupby(by=[Mole.id, Mole.image]):
             image_id: int = _ids[1]
             prj = self._project_sequence[image_id]
             mole.to_csv(prj.result_dir / f"aligned_{_ids[0]}.csv")
         return aligned
-    
-    
+
     @subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
     @dask_thread_worker.with_progress(desc="Calculating FSC")
@@ -192,7 +188,7 @@ class ProjectCollectionWidget(MagicTemplate):
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         mask = self.StaWidget.params._get_mask(params=mask_params)
-        shape = self.StaWidget.params._get_shape_in_nm()
+        shape = self._get_shape_in_nm(size)
         col = get_collection(paths, interpolation, shape, predicate=predicate)
     
         if mask is None:
@@ -250,3 +246,9 @@ class ProjectCollectionWidget(MagicTemplate):
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
                 )
         return _calculate_fsc_on_return
+    
+    def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
+        if default is None:
+            return self.StaWidget.params._get_shape_in_nm()
+        else:
+            return (default,) * 3

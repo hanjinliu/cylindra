@@ -3,7 +3,8 @@ import tempfile
 
 from numpy.testing import assert_allclose
 from acryo import Molecules
-from cylindra import view_project, CylindraMainWidget
+from cylindra import view_project
+from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
@@ -153,6 +154,9 @@ def test_sta(ui: CylindraMainWidget):
     ui.load_molecules(TEST_PATH/"monomers.txt")
     mole_read = ui.get_molecules('monomers')
     assert_molecule_equal(mole, mole_read)
+    
+    with tempfile.TemporaryDirectory() as dirpath:
+        ui.sta.save_last_average(dirpath)
 
 def test_clip_spline(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"

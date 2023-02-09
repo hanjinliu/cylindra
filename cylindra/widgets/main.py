@@ -1713,7 +1713,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("F3")
     @do_not_record
     def pick_next(self):
-        """Automatically pick cylinder center using previous two points."""        
+        """Automatically pick cylinder center using previous two points."""
         stride_nm = self.toolbar.Adjust.stride
         angle_pre = self.toolbar.Adjust.angle_precision
         angle_dev = self.toolbar.Adjust.angle_deviation

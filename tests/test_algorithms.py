@@ -1,8 +1,7 @@
-from cylindra import CylTomogram
+from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
 from pathlib import Path
 import numpy as np
-import impy as ip
 import pytest
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
