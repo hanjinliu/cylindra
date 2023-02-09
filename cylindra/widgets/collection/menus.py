@@ -7,6 +7,7 @@ from magicclass.widgets import Separator
 @magicmenu(name="File")
 class File(MagicTemplate):
     add_children = abstractapi()
+    add_children_glob = abstractapi()
     load_project = abstractapi()
     save_project = abstractapi()
 
