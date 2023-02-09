@@ -17,7 +17,7 @@ from ..widget_utils import FileFilter
 from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
-from .menus import File, SubtomogramAnalysis
+from .menus import File, Splines, SubtomogramAnalysis
 from ._sequence import get_collection, ProjectSequenceEdit
 
 if TYPE_CHECKING:
@@ -40,8 +40,9 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 class ProjectCollectionWidget(MagicTemplate):
     
     # Menus
-    file = field(File, name="File")
-    subtomogram_analysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
+    File = field(File)
+    Splines = field(Splines)
+    SubtomogramAnalysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
     
     collection = ProjectSequenceEdit  # list of projects
     
@@ -86,6 +87,12 @@ class ProjectCollectionWidget(MagicTemplate):
         """
         return CylindraCollectionProject.save_gui(self, Path(json_path))
 
+    @Splines.wraps
+    def view_localprops(self):
+        """View local properties of splines."""
+        from cylindra.widgets.collection._localprops import LocalPropsViewer
+        return LocalPropsViewer(self.project_sequence).show()
+
     @nogui
     @do_not_record
     def set_sequence(self, col: ProjectSequence):
@@ -98,7 +105,7 @@ class ProjectCollectionWidget(MagicTemplate):
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
 
-    @subtomogram_analysis.wraps
+    @SubtomogramAnalysis.wraps
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all(
         self, 
@@ -116,7 +123,7 @@ class ProjectCollectionWidget(MagicTemplate):
             self.StaWidget.params._show_reconstruction, img, f"[AVG]Collection"
         )
     
-    @subtomogram_analysis.wraps
+    @SubtomogramAnalysis.wraps
     @dask_thread_worker.with_progress(desc="Aligning all projects")
     def align_all(
         self, 
@@ -155,7 +162,7 @@ class ProjectCollectionWidget(MagicTemplate):
             mole.to_csv(prj.result_dir / f"aligned_{_ids[0]}.csv")
         return aligned
 
-    @subtomogram_analysis.wraps
+    @SubtomogramAnalysis.wraps
     @set_design(text="Calculate FSC")
     @dask_thread_worker.with_progress(desc="Calculating FSC")
     def calculate_fsc(

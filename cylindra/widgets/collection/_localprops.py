@@ -6,7 +6,7 @@ from cylindra.const import PropertyNames as H, MoleculesHeader as Mole, IDName
 from cylindra.project import ProjectSequence
 
 @magicclass
-class DataFrameListWidget(MagicTemplate):
+class LocalPropsViewer(MagicTemplate):
     plt = field(QtPlotCanvas)
     data_index = field(str).with_choices([])
     column = vfield(str).with_choices([H.yPitch, H.skewAngle, H.nPF, H.riseAngle])
