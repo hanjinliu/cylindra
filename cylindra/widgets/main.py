@@ -1807,7 +1807,7 @@ class CylindraMainWidget(MagicTemplate):
         if all_df is None:
             raise ValueError("No local property found.")
         bin_scale = self.layer_image.scale[0] # scale of binned reference image
-        binsize = utils.roundint(bin_scale/tomo.scale)
+        binsize = utils.roundint(bin_scale / tomo.scale)
         ft_size = self._current_ft_size
         
         lz, ly, lx = [utils.roundint(r/bin_scale*1.73)*2 + 1 for r in [15, ft_size/2, 15]]
@@ -1817,8 +1817,8 @@ class CylindraMainWidget(MagicTemplate):
         matrices = []
         for i, spl in enumerate(tomo.splines):
             # Prepare template hollow image
-            r0 = spl.radius/tomo.scale*0.9/binsize
-            r1 = spl.radius/tomo.scale*1.1/binsize
+            r0 = spl.radius / tomo.scale * 0.9 / binsize
+            r1 = spl.radius / tomo.scale * 1.1 / binsize
             _sq = (z - lz/2 - 0.5)**2 + (x - lx/2 - 0.5)**2
             domains = []
             dist = [-np.inf] + list(spl.distances()) + [np.inf]
@@ -1844,8 +1844,8 @@ class CylindraMainWidget(MagicTemplate):
         # paint roughly
         for i, crd in enumerate(tomo.collect_anchor_coords()):
             center = tomo.nm2pixel(crd, binsize=binsize)
-            sl = []
-            outsl = []
+            sl: list[slice] = []
+            outsl: list[slice] = []
             # We should deal with the borders of image.
             for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
                 _sl, _pad = utils.make_slice_and_pad(c - l//2, c + l//2 + 1, size)
@@ -1861,8 +1861,8 @@ class CylindraMainWidget(MagicTemplate):
         
         # paint finely
         ref = self.layer_image.data
-        thr = np.percentile(ref[lbl>0], 5)
-        lbl[ref<thr] = 0
+        thr = np.percentile(ref[lbl > 0], 5)
+        lbl[ref < thr] = 0
         
         # Labels layer properties
         _id = "ID"

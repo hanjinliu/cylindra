@@ -1172,11 +1172,12 @@ class SubtomogramAveraging(MagicTemplate):
     @Subtomogram_analysis.wraps
     @set_design(text="Save last average")
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
+        """Save the lastly generated average image."""
         path = Path(path)
         img = self.last_average
         if img is None:
             raise ValueError("No average image is available. You have to average subtomograms first.")
-        img.imsave(path)
+        return img.imsave(path)
 
     @average_all.started.connect
     @align_averaged.started.connect
@@ -1191,8 +1192,7 @@ class SubtomogramAveraging(MagicTemplate):
         mole = aligned_loader.molecules
         
         points = parent.add_molecules(
-            mole,
-            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+            mole, name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
         layer.visible = False
         parent.log.print(f"{layer.name!r} --> {points.name!r}")

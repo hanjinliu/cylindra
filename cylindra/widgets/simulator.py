@@ -1,6 +1,5 @@
 from typing import Any, TYPE_CHECKING, Annotated
 import json
-import datetime
 import matplotlib.pyplot as plt
 
 from magicgui.widgets import RangeSlider

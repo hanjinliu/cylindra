@@ -16,4 +16,4 @@ class SubtomogramAnalysis(MagicTemplate):
     average_all = abstractapi()
     sep0 = field(Separator)
     align_all = abstractapi()
-    # calculate_fsc = abstractapi()
+    calculate_fsc = abstractapi()
