@@ -1,7 +1,7 @@
 from typing import Annotated, TYPE_CHECKING
 from macrokit import Expr
 from magicclass import (
-    magicclass, do_not_record, field, nogui, MagicTemplate, set_design
+    magicclass, do_not_record, field, nogui, MagicTemplate, set_design, set_options
 )
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
@@ -18,6 +18,7 @@ from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
 from .menus import File, Splines, SubtomogramAnalysis
+from ._localprops import LocalPropsViewer
 from ._sequence import get_collection, ProjectSequenceEdit
 
 if TYPE_CHECKING:
@@ -44,6 +45,8 @@ class ProjectCollectionWidget(MagicTemplate):
     Splines = field(Splines)
     SubtomogramAnalysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
     
+    _Localprops = field(LocalPropsViewer)
+    
     collection = ProjectSequenceEdit  # list of projects
     
     @magicclass(widget_type="collapsible", name="Subtomogram analysis")
@@ -63,11 +66,12 @@ class ProjectCollectionWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Add projects")
-    def add_children(self, paths: list[Path.Read[FileFilter.JSON]]):
+    def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
             self.project_sequence.add(path)
             self.collection.projects._add(path)
+        self.reset_choices()
         return 
     
     @File.wraps
@@ -80,9 +84,9 @@ class ProjectCollectionWidget(MagicTemplate):
         for path in glob.glob(pattern):
             self.project_sequence.add(path)
             self.collection.projects._add(path)
+        self.reset_choices()
         return 
     
-
     @File.wraps
     @set_design(text="Load project")
     @do_not_record
@@ -105,10 +109,13 @@ class ProjectCollectionWidget(MagicTemplate):
         return CylindraCollectionProject.save_gui(self, Path(json_path))
 
     @Splines.wraps
+    @set_design(text="View local properties")
     def view_localprops(self):
         """View local properties of splines."""
-        from cylindra.widgets.collection._localprops import LocalPropsViewer
-        return LocalPropsViewer(self.project_sequence).show()
+        self._Localprops.show()
+        self._Localprops._set_seq(self.project_sequence)
+        self._Localprops.native.parentWidget().resize(400, 300)
+        return
 
     @nogui
     @do_not_record
@@ -118,6 +125,7 @@ class ProjectCollectionWidget(MagicTemplate):
         self.collection.projects._project_sequence = col
         for prj in col:
             self.collection.projects._add(prj.project_path)
+        self.reset_choices()
 
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
