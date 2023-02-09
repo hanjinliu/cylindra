@@ -1,7 +1,6 @@
-from typing import Iterator, Union, TYPE_CHECKING, Annotated
-from timeit import default_timer
+from typing import Iterator
 from magicclass import (
-    magicclass, field, vfield, MagicTemplate, set_design, abstractapi, Icon
+    magicclass, field, vfield, MagicTemplate, set_design, abstractapi
 )
 from magicclass.widgets import EvalLineEdit, ComboBox, Container
 from magicclass.types import Path
@@ -12,7 +11,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 
-from cylindra.project import CylindraProject
+from cylindra.project import CylindraProject, ProjectSequence
 from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole
 
 
@@ -26,7 +25,9 @@ class Project(MagicTemplate):
     def remove_project(self):
         """Remove this project from the list."""
         parent = self.find_ancestor(ProjectPaths)
-        parent.remove(self)
+        idx = parent.index(self)
+        del parent[idx]
+        del parent._project_sequence[idx]
     
     @set_design(text="Open")
     def send_to_viewer(self):
@@ -51,6 +52,9 @@ class Project(MagicTemplate):
 
 @magicclass(widget_type="scrollable", labels=False, record=False, properties={"min_height": 20})
 class ProjectPaths(MagicTemplate):
+    def __init__(self):
+        self._project_sequence = ProjectSequence()
+
     def _add(self, path: Path):
         prj = Project._from_path(path)
         self.append(prj)

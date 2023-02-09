@@ -54,17 +54,34 @@ class ProjectCollectionWidget(MagicTemplate):
         self._project_sequence = ProjectSequence()
         self.StaWidget.params._get_scale = self._get_scale
 
+    @property
+    def project_sequence(self) -> ProjectSequence:
+        return self.collection.projects._project_sequence
+
     def _get_scale(self):
-        return self._project_sequence._scale_validator.value
+        return self.project_sequence._scale_validator.value
 
     @File.wraps
-    @set_design(text="Add child projects")
+    @set_design(text="Add projects")
     def add_children(self, paths: list[Path.Read[FileFilter.JSON]]):
-        """Load a project json file."""
+        """Add project json files as the child projects."""
         for path in paths:
-            self._project_sequence.add(path)
+            self.project_sequence.add(path)
             self.collection.projects._add(path)
         return 
+    
+    @File.wraps
+    @set_design(text="Add projects with wildcard path")
+    def add_children_glob(self, pattern: str):
+        """Add project json files using wildcard path."""
+        import glob
+
+        pattern = str(pattern)
+        for path in glob.glob(pattern):
+            self.project_sequence.add(path)
+            self.collection.projects._add(path)
+        return 
+    
 
     @File.wraps
     @set_design(text="Load project")
@@ -98,7 +115,7 @@ class ProjectCollectionWidget(MagicTemplate):
     def set_sequence(self, col: ProjectSequence):
         if not isinstance(col, ProjectSequence):
             raise TypeError(f"Expected a ProjectCollection, got {type(col)}")
-        self._project_sequence = col
+        self.collection.projects._project_sequence = col
         for prj in col:
             self.collection.projects._add(prj.project_path)
 

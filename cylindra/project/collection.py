@@ -43,7 +43,7 @@ class CylindraCollectionProject(BaseProject):
             dependency_versions = _versions,
             macro=as_relative(macro_path),
             children=[as_relative(fp) for fp in gui._get_project_paths()],
-            filter_predicate=gui.collection._get_expression(),
+            filter_predicate=str(gui.collection.FilterExpr.filter_expression),
         )
     
     def to_sequence(self) -> "ProjectSequence":
