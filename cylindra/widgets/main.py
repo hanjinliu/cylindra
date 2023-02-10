@@ -1162,7 +1162,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_monomers(
         self,
         splines: SomeOf[_get_splines] = (),
-        orientation: Optional= False,
+        orientation: OneOf[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
@@ -1173,11 +1173,12 @@ class CylindraMainWidget(MagicTemplate):
             Select splines to map monomers.
         invert : bool
             Whether to map monomers in the inverted direction.
+        {orientation}
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        molecules = tomo.map_monomers(i=splines, invert=invert)
+        molecules = tomo.map_monomers(i=splines, orientation=orientation)
         
         self.log.print_html("<code>map_monomers</code>")
         for i, mol in enumerate(molecules):
@@ -1194,7 +1195,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SomeOf[_get_splines] = (),
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
-        length: Annotated[Optional[nm], {"text": "Use full length"}] = None,
+        orientation: OneOf[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
@@ -1204,13 +1205,12 @@ class CylindraMainWidget(MagicTemplate):
         splines : iterable of int
             Select splines to map monomers.
         {interval}
-        length : nm, optional
-            Length from the tip where monomers will be mapped.
+        {orientation}
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        mols = tomo.map_centers(i=splines, interval=interval, length=length)
+        mols = tomo.map_centers(i=splines, interval=interval, orientation=orientation)
         self.log.print_html("<code>map_centers</code>")
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
@@ -1226,6 +1226,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SomeOf[_get_splines],
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         angle_offset: Annotated[float, {"max": 360}] = 0.0,
+        orientation: OneOf[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
@@ -1235,11 +1236,10 @@ class CylindraMainWidget(MagicTemplate):
         splines : iterable of int
             Select splines to map monomers.
         {interval}
-        angle_offset : float, default is 0.0
-            Offset of PF angle in radian.
+        {orientation}
         """
         tomo = self.tomogram
-        mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset)
+        mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset, orientation=orientation)
         self.log.print_html("<code>map_along_PF</code>")
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
