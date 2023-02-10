@@ -1,5 +1,5 @@
 from typing import Annotated, TYPE_CHECKING
-from macrokit import Expr
+from macrokit import Symbol, Expr
 from magicclass import (
     magicclass, do_not_record, field, nogui, MagicTemplate, set_design
 )
@@ -17,7 +17,7 @@ from ..widget_utils import FileFilter
 from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
-from .menus import File, SubtomogramAnalysis
+from .menus import File, SubtomogramAnalysis, Macro
 from ._sequence import get_collection, ProjectSequenceEdit
 
 if TYPE_CHECKING:
@@ -35,13 +35,15 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 @magicclass(
     widget_type="scrollable",
     properties={"min_height": 240},
-    symbol=Expr("getattr", ["ui", "batch"]),
+    symbol=Expr("getattr", [Symbol("ui"), "batch"]),
 )
 class ProjectCollectionWidget(MagicTemplate):
     
     # Menus
     file = field(File, name="File")
     subtomogram_analysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
+    
+    # MacroMenu = field(Macro, name="Macro")
     
     collection = ProjectSequenceEdit  # list of projects
     

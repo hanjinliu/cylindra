@@ -206,8 +206,6 @@ class StaParameters(MagicTemplate):
         self,
         params: Union[str, tuple[int, float], None] = _sentinel
     ) -> Union[ip.ImgArray, None]:
-        from .main import CylindraMainWidget
-        
         if params is self._sentinel:
             params = self._get_mask_params()
         else:
@@ -234,6 +232,7 @@ class StaParameters(MagicTemplate):
             raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
     
         if parent_scale := self._get_scale():
+            print(self._get_template().scale, mask_image.scale)
             scale_ratio = mask_image.scale.x / parent_scale
             if scale_ratio < 0.99 or 1.01 < scale_ratio:
                 mask_image = mask_image.rescale(scale_ratio)
