@@ -1,7 +1,7 @@
 from typing import Annotated, TYPE_CHECKING
 from macrokit import Symbol, Expr
 from magicclass import (
-    magicclass, do_not_record, field, nogui, MagicTemplate, set_design
+    magicclass, do_not_record, field, nogui, MagicTemplate, set_design, set_options
 )
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
@@ -17,7 +17,8 @@ from ..widget_utils import FileFilter
 from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
-from .menus import File, SubtomogramAnalysis, Macro
+from .menus import File, Splines, SubtomogramAnalysis, Macro
+from ._localprops import LocalPropsViewer
 from ._sequence import get_collection, ProjectSequenceEdit
 
 if TYPE_CHECKING:
@@ -40,10 +41,12 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 class ProjectCollectionWidget(MagicTemplate):
     
     # Menus
-    file = field(File, name="File")
-    subtomogram_analysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
+    File = field(File)
+    Splines = field(Splines)
+    SubtomogramAnalysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
+    MacroMenu = field(Macro, name="Macro")
     
-    # MacroMenu = field(Macro, name="Macro")
+    _Localprops = field(LocalPropsViewer)
     
     collection = ProjectSequenceEdit  # list of projects
     
@@ -64,11 +67,12 @@ class ProjectCollectionWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Add projects")
-    def add_children(self, paths: list[Path.Read[FileFilter.JSON]]):
+    def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
             self.project_sequence.add(path)
             self.collection.projects._add(path)
+        self.reset_choices()
         return 
     
     @File.wraps
@@ -81,9 +85,9 @@ class ProjectCollectionWidget(MagicTemplate):
         for path in glob.glob(pattern):
             self.project_sequence.add(path)
             self.collection.projects._add(path)
+        self.reset_choices()
         return 
     
-
     @File.wraps
     @set_design(text="Load project")
     @do_not_record
@@ -105,6 +109,15 @@ class ProjectCollectionWidget(MagicTemplate):
         """
         return CylindraCollectionProject.save_gui(self, Path(json_path))
 
+    @Splines.wraps
+    @set_design(text="View local properties")
+    def view_localprops(self):
+        """View local properties of splines."""
+        self._Localprops.show()
+        self._Localprops._set_seq(self.project_sequence)
+        self._Localprops.native.parentWidget().resize(400, 300)
+        return
+
     @nogui
     @do_not_record
     def set_sequence(self, col: ProjectSequence):
@@ -113,11 +126,12 @@ class ProjectCollectionWidget(MagicTemplate):
         self.collection.projects._project_sequence = col
         for prj in col:
             self.collection.projects._add(prj.project_path)
+        self.reset_choices()
 
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
 
-    @subtomogram_analysis.wraps
+    @SubtomogramAnalysis.wraps
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all(
         self, 
@@ -135,7 +149,7 @@ class ProjectCollectionWidget(MagicTemplate):
             self.StaWidget.params._show_reconstruction, img, f"[AVG]Collection"
         )
     
-    @subtomogram_analysis.wraps
+    @SubtomogramAnalysis.wraps
     @dask_thread_worker.with_progress(desc="Aligning all projects")
     def align_all(
         self, 
@@ -174,7 +188,7 @@ class ProjectCollectionWidget(MagicTemplate):
             mole.to_csv(prj.result_dir / f"aligned_{_ids[0]}.csv")
         return aligned
 
-    @subtomogram_analysis.wraps
+    @SubtomogramAnalysis.wraps
     @set_design(text="Calculate FSC")
     @dask_thread_worker.with_progress(desc="Calculating FSC")
     def calculate_fsc(
@@ -265,6 +279,16 @@ class ProjectCollectionWidget(MagicTemplate):
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
                 )
         return _calculate_fsc_on_return
+    
+    @MacroMenu.wraps
+    def show_macro(self):
+        self.macro.widget.duplicate().show()
+        return None
+    
+    @MacroMenu.wraps
+    def show_native_macro(self):
+        self.macro.widget.show()
+        return None
     
     def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
         if default is None:

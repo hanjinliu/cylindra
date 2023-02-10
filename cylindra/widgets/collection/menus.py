@@ -11,6 +11,11 @@ class File(MagicTemplate):
     load_project = abstractapi()
     save_project = abstractapi()
 
+@magicmenu
+class Splines(MagicTemplate):
+    """Analyze splines collectively."""
+    view_localprops = abstractapi()
+
 @magicmenu(name="Subtomogram Analysis")
 class SubtomogramAnalysis(MagicTemplate):
     """Analysis of subtomograms."""

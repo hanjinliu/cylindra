@@ -6,25 +6,34 @@ from cylindra.const import PropertyNames as H, MoleculesHeader as Mole, IDName
 from cylindra.project import ProjectSequence
 
 @magicclass
-class DataFrameListWidget(MagicTemplate):
+class LocalPropsViewer(MagicTemplate):
     plt = field(QtPlotCanvas)
-    data_index = field(str).with_choices([])
-    column = vfield(str).with_choices([H.yPitch, H.skewAngle, H.nPF, H.riseAngle])
+    
+    def _get_data_index(self, w=None) -> list[str]:
+        return [(f"image={k[0]}, spline={k[1]}", k) for k in self._groups.keys()]
+    
+    def _get_columns(self, w=None) -> list[str]:
+        return [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]
 
-    def __init__(self, seq: ProjectSequence) -> None:
+    data_index = field(str, label="Data").with_choices(_get_data_index)
+    column = vfield(str, label="Column name").with_choices(_get_columns)
+
+    def __init__(self) -> None:
+        self._groups = {}
+    
+    def _set_seq(self, seq: ProjectSequence) -> None:
         if not isinstance(seq, ProjectSequence):
             raise TypeError(f"Expected ProjectSequence, got {type(seq)}.")
-        self._df = seq.localprops()
-        self._groups = dict(self._df.groupby(by=[Mole.image, IDName.spline]))
+        _df = seq.localprops()
+        self._groups = dict(_df.groupby(by=[Mole.image, IDName.spline], maintain_order=True))
+        self.reset_choices()
 
     def __post_init__(self) -> None:
-        self.plt.background_color = [0.96, 0.96, 0.96, 1]
         self.plt.legend.visible = False
         self.plt.show_grid(x=True, y=True, alpha=0.5)
         self.plt.xlabel = "distance (nm)"
         self.data_index.choices = list(map(str, self._groups.keys()))
         self.reset_choices()
-    
     
     @data_index.connect
     @column.connect

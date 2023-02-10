@@ -152,13 +152,15 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(self._projects):
             path = prj.localprops
-            if path is None and not allow_none:
-                raise ValueError(f"Localprops not found in project at {prj.project_path}.")
-            df = pl.read_csv(path)
-            dataframes.append(
-                df.with_columns(pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image))
-            )
-        return pl.concat(dataframes, how="vertical")
+            if path is None:
+                if not allow_none:
+                    raise ValueError(f"Localprops not found in project at {prj.project_path}.")
+            else:
+                df = pl.read_csv(path)
+                dataframes.append(
+                    df.with_columns(pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image))
+                )
+        return pl.concat(dataframes, how="diagonal")
 
     def globalprops(self, allow_none: bool = True) -> pl.DataFrame:
         """Collect all globalprops into a single dataframe."""
@@ -170,7 +172,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             imagespec = pl.Series(Mole.image, np.array([idx])).cast(pl.UInt16)
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
-        return pl.concat(dataframes, how="vertical")
+        return pl.concat(dataframes, how="diagonal")
     
     def to_dataframe(self) -> pl.DataFrame:
         """Convert project information to a dataframe."""
