@@ -67,6 +67,7 @@ class ProjectCollectionWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Add projects")
+    @do_not_record
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
@@ -77,6 +78,7 @@ class ProjectCollectionWidget(MagicTemplate):
     
     @File.wraps
     @set_design(text="Add projects with wildcard path")
+    @do_not_record
     def add_children_glob(self, pattern: str):
         """Add project json files using wildcard path."""
         import glob
@@ -244,7 +246,7 @@ class ProjectCollectionWidget(MagicTemplate):
             freq, fsc = ip.fsc(img0 * mask, img1 * mask, dfreq=dfreq)
             fsc_all.append(fsc)
         if show_average:
-            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / len(img.shape.i)
+            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / img.shape.i
             img_avg.set_scale(zyx=col.scale)
         else:
             img_avg = None
@@ -281,11 +283,13 @@ class ProjectCollectionWidget(MagicTemplate):
         return _calculate_fsc_on_return
     
     @MacroMenu.wraps
+    @do_not_record
     def show_macro(self):
         self.macro.widget.duplicate().show()
         return None
     
     @MacroMenu.wraps
+    @do_not_record
     def show_native_macro(self):
         self.macro.widget.show()
         return None
