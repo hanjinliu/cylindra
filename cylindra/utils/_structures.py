@@ -2,10 +2,11 @@ from __future__ import annotations
 import numpy as np
 import impy as ip
 from dask import array as da
-from acryo import SubtomogramLoader
-from cylindra.const import Mode
+from acryo import Molecules, SubtomogramLoader
+from cylindra.const import Mode, MoleculesHeader as Mole, GlobalVariables as GVar
 
 from ._correlation import mirror_zncc
+from ._misc import diff
 
 def try_all_seams(
     loader: SubtomogramLoader,
@@ -127,3 +128,46 @@ def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: 
         
     angle = angs[np.argmax(corrs)]
     return angle
+
+def _molecules_to_spline(mole: Molecules):
+    """Convert well aligned molecule positions into a spline."""
+    from cylindra.components import CylSpline
+
+    spl = CylSpline(degree=GVar.splOrder)
+    npf = int(round(mole.features[Mole.pf].max() + 1))
+    all_coords = mole.pos.reshape(-1, npf, 3)
+    mean_coords = np.mean(all_coords, axis=1)
+    spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
+    return spl
+
+def _reshaped_positions(mole: Molecules) -> np.ndarray:
+    try:
+        pf_label = mole.features[Mole.pf]
+        pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
+        for pf in range(pf_label.max() + 1):
+            pos_list.append(mole.pos[pf_label == pf])
+        pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
+        
+    except Exception as e:
+        raise TypeError(
+            f"Reshaping failed. Molecules must be correctly labeled at {Mole.pf!r} "
+            f"feature. Original error is\n{type(e).__name__}: {e}"
+        ) from e
+    return pos
+
+def calc_interval(mole: Molecules, spline_precision: float) -> np.ndarray:
+    spl = _molecules_to_spline(mole)
+    pos = _reshaped_positions(mole)
+    u = spl.world_to_y(mole.pos, precision=spline_precision)
+    spl_vec = spl(u, der=1)
+    
+    y_interval = diff(pos, spl_vec)
+    
+    properties = y_interval.ravel()
+    if properties[0] < 0:
+        properties = -properties
+    
+    return properties
+
+def calc_skew(mole: Molecules, spline_precision: float) -> np.ndarray:
+    

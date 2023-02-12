@@ -1657,30 +1657,8 @@ class CylindraMainWidget(MagicTemplate):
             projective interval.
         """
         mole = layer.molecules
-        spl = widget_utils.molecules_to_spline(layer)
-        try:
-            pf_label = mole.features[Mole.pf]
-            pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
-            for pf in range(pf_label.max() + 1):
-                pos_list.append(mole.pos[pf_label == pf])
-            pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
-            
-        except Exception as e:
-            raise TypeError(
-                f"Reshaping failed. Molecules represented by layer {layer.name} must be "
-                f"correctly labeled at {Mole.pf!r} feature. Original error is\n"
-                f"{type(e).__name__}: {e}"
-            ) from e
+        properties = utils.calc_interval(mole, spline_precision)
         
-        u = spl.world_to_y(mole.pos, precision=spline_precision)
-        spl_vec = spl(u, der=1)
-        
-        from cylindra.utils import diff
-        y_interval = diff(pos, spl_vec)
-        
-        properties = y_interval.ravel()
-        if properties[0] < 0:
-            properties = -properties
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
         layer.features = layer.molecules.features.with_columns([pl.Series(Mole.interval, properties)])
         self.reset_choices()  # choices regarding of features need update
@@ -1689,6 +1667,15 @@ class CylindraMainWidget(MagicTemplate):
         layer.set_colormap(Mole.interval, _clim, self.label_colormap)
         self._need_save = True
         return None
+    
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Calculate intervals")
+    def calculate_skews(
+        self,
+        layer: MoleculesLayer,
+        spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
+    ):
+        ...
     
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")

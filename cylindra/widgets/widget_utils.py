@@ -57,15 +57,6 @@ def change_viewer_focus(
     viewer.dims.set_current_step(axis=0, value=center[0]/v_scale[0]*scale)
     return None
 
-def molecules_to_spline(layer: MoleculesLayer) -> CylSpline:
-    """Convert well aligned molecule positions into a spline."""
-    mole = layer.molecules
-    spl = CylSpline(degree=GVar.splOrder)
-    npf = int(round(mole.features[Mole.pf].max() + 1))
-    all_coords = mole.pos.reshape(-1, npf, 3)
-    mean_coords = np.mean(all_coords, axis=1)
-    spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
-    return spl
 
 def y_coords_to_start_number(u: np.ndarray, npf: int):
     """infer start number using the y coordinates in spline coordinate system."""

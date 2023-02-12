@@ -99,6 +99,7 @@ class Molecules_(MagicTemplate):
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
         calculate_intervals = abstractapi()
+        calculate_skews = abstractapi()
     
 @magicmenu
 class Analysis(MagicTemplate):
