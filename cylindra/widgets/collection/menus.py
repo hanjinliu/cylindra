@@ -23,3 +23,9 @@ class SubtomogramAnalysis(MagicTemplate):
     sep0 = field(Separator)
     align_all = abstractapi()
     calculate_fsc = abstractapi()
+
+@magicmenu(name="Macro")
+class Macro(MagicTemplate):
+    """Macro operations."""
+    show_macro = abstractapi()
+    show_native_macro = abstractapi()

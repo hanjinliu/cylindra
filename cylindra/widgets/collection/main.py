@@ -1,5 +1,5 @@
 from typing import Annotated, TYPE_CHECKING
-from macrokit import Expr
+from macrokit import Symbol, Expr
 from magicclass import (
     magicclass, do_not_record, field, nogui, MagicTemplate, set_design, set_options
 )
@@ -17,7 +17,7 @@ from ..widget_utils import FileFilter
 from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
-from .menus import File, Splines, SubtomogramAnalysis
+from .menus import File, Splines, SubtomogramAnalysis, Macro
 from ._localprops import LocalPropsViewer
 from ._sequence import get_collection, ProjectSequenceEdit
 
@@ -36,7 +36,7 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 @magicclass(
     widget_type="scrollable",
     properties={"min_height": 240},
-    symbol=Expr("getattr", ["ui", "batch"]),
+    symbol=Expr("getattr", [Symbol("ui"), "batch"]),
 )
 class ProjectCollectionWidget(MagicTemplate):
     
@@ -44,6 +44,7 @@ class ProjectCollectionWidget(MagicTemplate):
     File = field(File)
     Splines = field(Splines)
     SubtomogramAnalysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
+    MacroMenu = field(Macro, name="Macro")
     
     _Localprops = field(LocalPropsViewer)
     
@@ -66,6 +67,7 @@ class ProjectCollectionWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Add projects")
+    @do_not_record
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
@@ -76,6 +78,7 @@ class ProjectCollectionWidget(MagicTemplate):
     
     @File.wraps
     @set_design(text="Add projects with wildcard path")
+    @do_not_record
     def add_children_glob(self, pattern: str):
         """Add project json files using wildcard path."""
         import glob
@@ -243,7 +246,7 @@ class ProjectCollectionWidget(MagicTemplate):
             freq, fsc = ip.fsc(img0 * mask, img1 * mask, dfreq=dfreq)
             fsc_all.append(fsc)
         if show_average:
-            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / len(img.shape.i)
+            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / img.shape.i
             img_avg.set_scale(zyx=col.scale)
         else:
             img_avg = None
@@ -278,6 +281,18 @@ class ProjectCollectionWidget(MagicTemplate):
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
                 )
         return _calculate_fsc_on_return
+    
+    @MacroMenu.wraps
+    @do_not_record
+    def show_macro(self):
+        self.macro.widget.duplicate().show()
+        return None
+    
+    @MacroMenu.wraps
+    @do_not_record
+    def show_native_macro(self):
+        self.macro.widget.show()
+        return None
     
     def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
         if default is None:

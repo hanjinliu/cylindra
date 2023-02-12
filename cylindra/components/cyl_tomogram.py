@@ -983,7 +983,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         *, 
         interval: nm | None = None,
-        length: nm | None = None,
+        orientation: Ori | str | None = None,
     ) -> Molecules:
         """
         Mapping molecules along the center of a cylinder.
@@ -994,22 +994,19 @@ class CylTomogram(Tomogram):
             Spline ID that mapping will be calculated.
         interval : float (nm), optional
             Interval of molecules.
-        length : float (nm), optional
-            Length of spline to be used for mapping. If not given, the whole spline
-            will be used.
 
         Returns
         -------
         Molecules
             Molecules object with mapped coordinates and angles.
         """        
-        spl = self.splines[i]
+        spl = _invert_if_needed(self.splines[i], orientation)
         props = self.splines[i].globalprops
         if props is None:
             props = self.global_ft_params(i)
         
-        lp = props[H.yPitch] * 2
-        skew = props[H.skewAngle]
+        lp = props[H.yPitch][0] * 2
+        skew = props[H.skewAngle][0]
         
         # Set interval to the dimer length by default.
         if interval is None:
@@ -1017,13 +1014,10 @@ class CylTomogram(Tomogram):
         
         # Check length.
         spl_length = spl.length()
-        if length is None:
-            length = spl_length
-        else:
-            length = min(length, spl_length)
-            
+        length = spl_length
+    
         npoints = length / interval + 1
-        skew_angles = np.arange(npoints) * interval/lp * skew
+        skew_angles = np.arange(npoints) * interval / lp * skew
         u = np.arange(npoints) * interval / length
         return spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
 
@@ -1093,7 +1087,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         *, 
         offsets: tuple[nm, float] = None,
-        invert: bool = False,
+        orientation: Ori | str | None = None,
     ) -> Molecules:
         """
         Map coordinates of monomers in world coordinate.
@@ -1114,9 +1108,7 @@ class CylTomogram(Tomogram):
             Object that represents monomer positions and angles.
         """
         model = self.get_cylinder_model(i, offsets=offsets)
-        spl = self.splines[i]
-        if invert:
-            spl = spl.invert()
+        spl = _invert_if_needed(self.splines[i], orientation)
         mole = model.to_molecules(spl)
         return mole
     
@@ -1127,6 +1119,7 @@ class CylTomogram(Tomogram):
         *,
         interval: nm | None = None,
         angle_offset: float = 0.0,
+        orientation: Ori | str | None = None,
     ) -> Molecules:
         """
         Mapping molecules along a protofilament line.
@@ -1150,9 +1143,9 @@ class CylTomogram(Tomogram):
         props = self.splines[i].globalprops
         if props is None:
             props = self.global_ft_params(i)
-        lp = props[H.yPitch] * 2
-        skew = props[H.skewAngle]
-        spl = self._splines[i]
+        lp = props[H.yPitch][0] * 2
+        skew = props[H.skewAngle][0]
+        spl = _invert_if_needed(self.splines[i], orientation)
         
         if interval is None:
             interval = lp
@@ -1412,3 +1405,12 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     phase = np.exp(1j * input)
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)
+
+def _invert_if_needed(spl: CylSpline, orientation: Ori | str | None) -> CylSpline:
+    if orientation is not None:
+        orientation = Ori(orientation)
+        if orientation is Ori.none or spl.orientation is Ori.none:
+            raise ValueError("Either orientation should not be none.")
+        if orientation is not spl.orientation:
+            spl = spl.invert()
+    return spl

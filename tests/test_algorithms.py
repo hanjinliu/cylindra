@@ -68,3 +68,16 @@ def test_chunked_straightening():
     
     assert abs(prop0[H.yPitch][0] - prop1[H.yPitch][0]) < 1e-6
     assert abs(prop0[H.skewAngle][0] - prop1[H.skewAngle][0]) < 1e-6
+
+@pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])
+def test_mapping(orientation):
+    path = Path(__file__).parent / "13pf_MT.tif"
+    tomo = CylTomogram.imread(path)
+    tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    tomo.fit()
+    tomo.set_radius(radius=9)
+    tomo.splines[0].orientation = "PlusToMinus"
+    
+    tomo.map_monomers(orientation=orientation)
+    tomo.map_centers(orientation=orientation)
+    tomo.map_pf_line(orientation=orientation)
