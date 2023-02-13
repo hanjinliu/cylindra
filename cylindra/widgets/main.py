@@ -1644,46 +1644,52 @@ class CylindraMainWidget(MagicTemplate):
     ):
         """
         Calculate intervals between adjucent molecules.
-        
-        If filter is applied, connections and boundary padding mode are safely defined using 
-        global properties. For instance, with 13_3 microtubule, the 13-th monomer in the first 
-        round is connected to the 1st monomer in the 4th round.
 
         Parameters
         ----------
         {layer}
         spline_precision : nm, optional
-            Precision in nm that is used to define the direction of molecules for calculating
-            projective interval.
+            Precision in nm that is used to define the direction of molecules.
         """
         mole = layer.molecules
         properties = utils.calc_interval(mole, spline_precision)
         
-        _clim = [GVar.yPitchMin, GVar.yPitchMax]
         layer.features = layer.molecules.features.with_columns([pl.Series(Mole.interval, properties)])
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
+        _clim = [GVar.yPitchMin, GVar.yPitchMax]
         layer.set_colormap(Mole.interval, _clim, self.label_colormap)
         self._need_save = True
         return None
     
     @Molecules_.MoleculeFeatures.wraps
-    @set_design(text="Calculate intervals")
+    @set_design(text="Calculate skews")
     def calculate_skews(
         self,
         layer: MoleculesLayer,
         spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
     ):
+        """
+        Calculate skews between adjucent molecules.
+
+        Parameters
+        ----------
+        {layer}
+        spline_precision : nm, optional
+            Precision in nm that is used to define the direction of molecules.
+        """
         mole = layer.molecules
         properties = utils.calc_skew(mole, spline_precision)
         
-        _clim = [GVar.yPitchMin, GVar.yPitchMax]
+        extreme = np.max(np.abs(properties))
         layer.features = layer.molecules.features.with_columns([pl.Series(Mole.skew, properties)])
         self.reset_choices()  # choices regarding of features need update
 
         # Set colormap
-        layer.set_colormap(Mole.skew, _clim, self.label_colormap)
+        _clim = [-extreme, extreme]
+        cmap = Colormap(["blue", "white", "red"])
+        layer.set_colormap(Mole.skew, _clim, cmap)
         self._need_save = True
         return None
     

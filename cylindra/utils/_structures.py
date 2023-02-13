@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+from numpy.typing import NDArray
 import impy as ip
 from dask import array as da
 from acryo import Molecules, SubtomogramLoader
@@ -139,10 +140,10 @@ def _molecules_to_spline(mole: Molecules):
     spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
     return spl
 
-def _reshaped_positions(mole: Molecules) -> np.ndarray:
+def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
     try:
         pf_label = mole.features[Mole.pf]
-        pos_list: list[np.ndarray] = []  # each shape: (y, ndim)
+        pos_list: list[NDArray[np.float32]] = []  # each shape: (y, ndim)
         for pf in range(pf_label.max() + 1):
             pos_list.append(mole.pos[pf_label == pf])
         pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
@@ -154,7 +155,7 @@ def _reshaped_positions(mole: Molecules) -> np.ndarray:
         ) from e
     return pos
 
-def calc_interval(mole: Molecules, spline_precision: float) -> np.ndarray:
+def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
     spl = _molecules_to_spline(mole)
     pos = _reshaped_positions(mole)
     u = spl.world_to_y(mole.pos, precision=spline_precision)
@@ -165,9 +166,10 @@ def calc_interval(mole: Molecules, spline_precision: float) -> np.ndarray:
     # equivalent to padding mode "reflect"
     interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
     
-    vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
+    vec_len = np.linalg.norm(spl_vec, axis=2)  # length of spline vector
+    vec_norm = spl_vec / vec_len[:, np.newaxis]
     vec_norm = vec_norm.reshape(-1, npf, ndim)  # normalized spline vector
-    y_interval: np.ndarray = np.sum(interv_vec * vec_norm, axis=2)  # inner product
+    y_interval = np.sum(interv_vec * vec_norm, axis=2)  # inner product
     y_interval[-1] = -1.  # fill invalid values with -1
     
     properties = y_interval.ravel()
@@ -176,7 +178,7 @@ def calc_interval(mole: Molecules, spline_precision: float) -> np.ndarray:
     
     return properties
 
-def calc_skew(mole: Molecules, spline_precision: float) -> np.ndarray:
+def calc_skew(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
     spl = _molecules_to_spline(mole)
     pos = _reshaped_positions(mole)
     u = spl.world_to_y(mole.pos, precision=spline_precision)
@@ -185,18 +187,21 @@ def calc_skew(mole: Molecules, spline_precision: float) -> np.ndarray:
     spl_pos = spl(u, der=0)
     spl_vec = spl(u, der=1)
     
-    radius = np.linalg.norm(spl_pos - mole.pos, axis=1).reshape(-1, npf, ndim)
+    mole_to_spl_vec = (spl_pos - mole.pos).reshape(ny, npf, ndim)
+    radius = np.linalg.norm(mole_to_spl_vec, axis=2)
     
     # equivalent to padding mode "reflect"
     interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
-    interv_vec_norm = np.linalg.norm(interv_vec, axis=2)
+    interv_vec_len = np.linalg.norm(interv_vec, axis=2)
+    interv_vec_norm = interv_vec / interv_vec_len[:, :, np.newaxis]
 
-    spl_vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
+    spl_vec_len = np.linalg.norm(spl_vec, axis=1)
+    spl_vec_norm = spl_vec / spl_vec_len[:, np.newaxis]
     spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)  
-
-    skew_sin = np.linalg.norm(np.cross(interv_vec_norm, spl_vec_norm, axis=2), axis=2)  # cross product
-
-    interv = np.linalg.norm(interv_vec, axis=2)
-    skew = np.rad2deg(interv * skew_sin / radius)
     
-    return skew
+    skew_cross = np.cross(interv_vec_norm, spl_vec_norm, axis=2)  # cross product
+    inner = np.sum(skew_cross * mole_to_spl_vec, axis=2)
+    skew_sin = np.linalg.norm(skew_cross, axis=2) * np.sign(inner)
+
+    skew = np.rad2deg(2 * interv_vec_len * skew_sin / radius)
+    return skew.ravel()

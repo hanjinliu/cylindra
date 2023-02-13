@@ -285,7 +285,12 @@ class ProjectCollectionWidget(MagicTemplate):
     @MacroMenu.wraps
     @do_not_record
     def show_macro(self):
-        self.macro.widget.duplicate().show()
+        from cylindra import instance
+        ui = instance()
+        macro_str = self.macro.widget.textedit.value
+        win = ui.macro.widget.new_window("Batch")
+        win.textedit.value = macro_str
+        win.show()
         return None
     
     @MacroMenu.wraps
