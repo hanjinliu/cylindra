@@ -1675,7 +1675,18 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
     ):
-        ...
+        mole = layer.molecules
+        properties = utils.calc_skew(mole, spline_precision)
+        
+        _clim = [GVar.yPitchMin, GVar.yPitchMax]
+        layer.features = layer.molecules.features.with_columns([pl.Series(Mole.skew, properties)])
+        self.reset_choices()  # choices regarding of features need update
+
+        # Set colormap
+        layer.set_colormap(Mole.skew, _clim, self.label_colormap)
+        self._need_save = True
+        return None
+    
     
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")

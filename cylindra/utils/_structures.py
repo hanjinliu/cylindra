@@ -6,7 +6,6 @@ from acryo import Molecules, SubtomogramLoader
 from cylindra.const import Mode, MoleculesHeader as Mole, GlobalVariables as GVar
 
 from ._correlation import mirror_zncc
-from ._misc import diff
 
 def try_all_seams(
     loader: SubtomogramLoader,
@@ -161,7 +160,15 @@ def calc_interval(mole: Molecules, spline_precision: float) -> np.ndarray:
     u = spl.world_to_y(mole.pos, precision=spline_precision)
     spl_vec = spl(u, der=1)
     
-    y_interval = diff(pos, spl_vec)
+    ny, npf, ndim = pos.shape
+    
+    # equivalent to padding mode "reflect"
+    interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
+    
+    vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
+    vec_norm = vec_norm.reshape(-1, npf, ndim)  # normalized spline vector
+    y_interval: np.ndarray = np.sum(interv_vec * vec_norm, axis=2)  # inner product
+    y_interval[-1] = -1.  # fill invalid values with -1
     
     properties = y_interval.ravel()
     if properties[0] < 0:
@@ -170,4 +177,26 @@ def calc_interval(mole: Molecules, spline_precision: float) -> np.ndarray:
     return properties
 
 def calc_skew(mole: Molecules, spline_precision: float) -> np.ndarray:
+    spl = _molecules_to_spline(mole)
+    pos = _reshaped_positions(mole)
+    u = spl.world_to_y(mole.pos, precision=spline_precision)
+    ny, npf, ndim = pos.shape
     
+    spl_pos = spl(u, der=0)
+    spl_vec = spl(u, der=1)
+    
+    radius = np.linalg.norm(spl_pos - mole.pos, axis=1).reshape(-1, npf, ndim)
+    
+    # equivalent to padding mode "reflect"
+    interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
+    interv_vec_norm = np.linalg.norm(interv_vec, axis=2)
+
+    spl_vec_norm: np.ndarray = spl_vec / np.sqrt(np.sum(spl_vec**2, axis=1))[:, np.newaxis]
+    spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)  
+
+    skew_sin = np.linalg.norm(np.cross(interv_vec_norm, spl_vec_norm, axis=2), axis=2)  # cross product
+
+    interv = np.linalg.norm(interv_vec, axis=2)
+    skew = np.rad2deg(interv * skew_sin / radius)
+    
+    return skew

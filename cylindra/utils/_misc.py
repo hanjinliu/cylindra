@@ -146,21 +146,6 @@ def map_coordinates(
         cval=cval,
     )
 
-def diff(
-    pos: np.ndarray,
-    vec: np.ndarray,
-) -> np.ndarray:
-    ny, npf, ndim = pos.shape
-    
-    # equivalent to padding mode "reflect"
-    pitch_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
-    
-    vec_norm: np.ndarray = vec / np.sqrt(np.sum(vec**2, axis=1))[:, np.newaxis]
-    vec_norm = vec_norm.reshape(-1, npf, ndim)
-    y_interval: np.ndarray = np.sum(pitch_vec * vec_norm, axis=2)  # inner product
-    y_interval[-1] = -1.  # fill invalid values with -1
-    return y_interval
-
 
 class Projections:
     """Class that stores projections of a 3D image."""
