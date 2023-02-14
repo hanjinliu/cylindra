@@ -67,10 +67,12 @@ class PcaViewer(MagicTemplate):
         def _update_canvas(self):
             pca = self.find_ancestor(PcaViewer, cache=True)._pca
             img: np.ndarray = pca.get_bases()[self.base_image]
-            
-            self._image.data = img
-            self.iso_threshold.min = img.min()
-            self.iso_threshold.max = img.max()
+            imgmin = img.min()
+            imgmax = img.max()
+            imgnorm = (img - imgmin) / (imgmax - imgmin)
+            self._image.data = imgnorm
+            self.iso_threshold.min = 0
+            self.iso_threshold.max = 1
         
         @iso_threshold.connect
         def _update_threshold(self, val: float):

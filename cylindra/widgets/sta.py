@@ -47,10 +47,13 @@ METHOD_CHOICES = (
 # functions
 def _fmt_layer_name(fmt: str):
     """Define a formatter for progressbar description."""
-    def _formatter(**kwargs):
-        layer: Layer = kwargs["layer"]
+    def _formatter(layer: "Layer"):
         return fmt.format(layer.name)
     return _formatter
+
+def _align_averaged_fmt(layer: "Layer"):
+    yield f"Subtomogram averaging of {layer.name!r}"
+    yield f"Aligning template to the average image of {layer.name!r}"
 
 def _get_alignment(method: str):
     if method == "zncc":
@@ -541,7 +544,7 @@ class SubtomogramAveraging(MagicTemplate):
     
     @Refinement.wraps
     @set_design(text="Align averaged")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Aligning averaged image of {!r}"))
+    @dask_thread_worker.with_progress(descs=_align_averaged_fmt)
     def align_averaged(
         self,
         layer: MoleculesLayer,
@@ -584,7 +587,7 @@ class SubtomogramAveraging(MagicTemplate):
         
         max_shifts = tuple(np.array([dy, dy, dx]) / _scale * 0.6)
         img = loader.average()
-        
+
         if bin_size > 1 and img.shape != template.shape:
             # if multiscaled image is used, there could be shape mismatch
             sl = tuple(slice(0, s) for s in template.shape)
@@ -1057,8 +1060,9 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = None,
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         bin_size: OneOf[_get_available_binsize] = 1,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1068,21 +1072,25 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{mask_params}{size}{bin_size}{interpolation}
+        {layer}{mask_params}{size}{cutoff}{interpolation}{bin_size}
         n_components : int, default is 2
             The number of PCA dimensions.
         n_clusters : int, default is 2
             The number of clusters.
-        seed : int, optional
-            _description_, by default 0
+        seed : int, default is 0
+            Random seed.
         """
         mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm(size)
         loader, _, mask = self._check_binning_for_alignment(
-            None, mask, binsize=bin_size, molecules=layer.molecules, order=interpolation, shape=shape
+            None, mask, binsize=bin_size, molecules=layer.molecules, 
+            order=interpolation, shape=shape
         )
         
-        out, pca = loader.classify(mask, seed=seed, n_components=n_components, n_clusters=n_clusters)
+        out, pca = loader.classify(
+            mask=mask, seed=seed, cutoff=cutoff, n_components=n_components, 
+            n_clusters=n_clusters
+        )
         
         @thread_worker.to_callback
         def _on_return():
