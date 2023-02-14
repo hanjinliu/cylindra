@@ -1,10 +1,15 @@
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from functools import wraps
-import numpy as np
 import polars as pl
 from acryo import Molecules
 from napari.layers import Points
+from cylindra.const import MoleculesHeader as Mole
 
+if TYPE_CHECKING:
+    import impy as ip
+    
 class MoleculesLayer(Points):
     _type_string = "points"
 
@@ -71,3 +76,16 @@ class MoleculesLayer(Points):
         else:
             raise ValueError(f"Cannot paint by feature {column.name} of type {column.dtype}.")
         self.refresh()
+        return None
+    
+    def layer_to_coordinates(self, npf: int | None = None) -> ip.ImgArray:
+        """Convert point coordinates of a Points layer into a structured array."""
+        import impy as ip
+
+        if npf is None:
+            npf = self.molecules.features[Mole.pf].max() + 1
+        data = self.data.reshape(-1, npf, 3)
+
+        data = ip.asarray(data, name=self.name, axes=["L", "PF", "dim"])
+        data.axes["dim"].labels = ("z", "y", "x")
+        return data

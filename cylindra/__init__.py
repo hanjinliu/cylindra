@@ -4,6 +4,8 @@ if sys.platform == "darwin":
     # cylindra has menu bars in sub widgets.
     from qtpy.QtCore import QCoreApplication, Qt
     QCoreApplication.setAttribute(Qt.AA_DontUseNativeMenuBar)
+    
+    del QCoreApplication, Qt
 
 from cylindra.core import (
     start,
@@ -13,7 +15,6 @@ from cylindra.core import (
     read_molecules,
     read_spline,
     collect_projects,
-    layer_to_coordinates,
 )
 from cylindra.__about__ import __version__, __author__, __email__
 
@@ -31,5 +32,4 @@ __all__ = [
     "read_molecules",
     "read_spline",
     "collect_projects",
-    "layer_to_coordinates",
 ]
