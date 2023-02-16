@@ -55,6 +55,10 @@ def _align_averaged_fmt(layer: "Layer"):
     yield f"Subtomogram averaging of {layer.name!r}"
     yield f"Aligning template to the average image of {layer.name!r}"
 
+def _align_viterbi_fmt(layer: "Layer"):
+    yield f"Calculating cross-correlation landscape of {layer.name!r}"
+    yield f"Running Viterbi alignment of {layer.name!r}"
+
 def _get_alignment(method: str):
     if method == "zncc":
         return alignment.ZNCCAlignment
@@ -799,7 +803,7 @@ class SubtomogramAveraging(MagicTemplate):
     
     @Refinement.wraps
     @set_design(text="Viterbi Alignment")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Viterbi-alignment of {!r}"))
+    @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
     def align_all_viterbi(
         self,
         layer: MoleculesLayer,
