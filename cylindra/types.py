@@ -1,4 +1,4 @@
-from typing import NewType, List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import re
 import numpy as np
 import impy as ip
@@ -6,12 +6,13 @@ import polars as pl
 import magicgui
 from napari.utils._magicgui import find_viewer_ancestor
 from cylindra._molecules_layer import MoleculesLayer
+
 if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget
 
 
 # This function will be called by magicgui to find all the available monomer layers.
-def get_monomer_layers(gui: "CategoricalWidget") -> List[MoleculesLayer]:
+def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []

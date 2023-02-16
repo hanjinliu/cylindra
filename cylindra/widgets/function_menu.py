@@ -1,5 +1,5 @@
 import os
-from typing import List, Annotated
+from typing import Annotated
 from magicclass import (
     magicclass,
     vfield,
@@ -13,7 +13,7 @@ import numpy as np
 import impy as ip
 import operator
 from napari.types import LayerDataTuple
-from napari.layers import Image, Layer
+from napari.layers import Image, Labels, Layer
 
 from cylindra.utils import set_gpu
 
@@ -49,7 +49,7 @@ class Volume(MagicTemplate):
             return None
         img = _convert_array(layer.data, layer.scale[-1])
         out = img.binning(binsize=bin_size, check_edges=False)
-        translate: List[float] = []
+        translate: list[float] = []
         for k, v in img.scale.items():
             if k in ["z", "y", "x"]:
                 translate.append((bin_size - 1) / 2 * v)
@@ -114,6 +114,19 @@ class Volume(MagicTemplate):
                 img0.imsave(os.path.join(fp, f"image-{i}.mrc"))
         else:
             img.imsave(path)
+    
+    @set_design(text="Save label as mask")
+    def save_label_as_mask(self, layer: Labels, path: Path.Save):
+        """Save a label as mask."""
+        lbl: np.ndarray = layer.data
+        if lbl.min() != 0 or np.unique(lbl).size != 2:
+            raise ValueError("The label must be binary.")
+        if lbl.ndim == 3:
+            axes = "zyx"
+        else:
+            axes = None
+        lbl = ip.asarray(lbl, axes=axes, dtype=np.bool_)
+        lbl.imsave(path)
     
     @set_design(text="Plane clip")
     def plane_clip(self):

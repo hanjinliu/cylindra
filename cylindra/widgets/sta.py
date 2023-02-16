@@ -1081,7 +1081,10 @@ class SubtomogramAveraging(MagicTemplate):
             Random seed.
         """
         mask = self.params._get_mask(params=mask_params)
-        shape = self._get_shape_in_nm(size)
+        if size is None:
+            shape = mask.shape
+        else:
+            shape = (size,) * 3
         loader, _, mask = self._check_binning_for_alignment(
             None, mask, binsize=bin_size, molecules=layer.molecules, 
             order=interpolation, shape=shape

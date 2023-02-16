@@ -78,7 +78,7 @@ class MoleculesLayer(Points):
         self.refresh()
         return None
     
-    def layer_to_coordinates(self, npf: int | None = None) -> ip.ImgArray:
+    def to_coordinates(self, npf: int | None = None) -> ip.ImgArray:
         """Convert point coordinates of a Points layer into a structured array."""
         import impy as ip
 

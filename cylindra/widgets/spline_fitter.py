@@ -1,11 +1,10 @@
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import numpy as np
 import impy as ip
 
 from magicclass import (
     magicclass,
     field,
-    do_not_record,
     MagicTemplate,
     bind_key,
     set_design,
@@ -75,7 +74,7 @@ class SplineFitter(MagicTemplate):
         return None
     
     def __post_init__(self):
-        self.shifts: List[np.ndarray] = None
+        self.shifts: list[np.ndarray] = None
         self.canvas.min_height = 160
         self.fit_done = True
         self.canvas.add_infline(pos=[0, 0], degree=90, color="lime", lw=2)

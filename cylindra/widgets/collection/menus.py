@@ -1,7 +1,4 @@
-from typing import Iterator, Union, TYPE_CHECKING, Annotated
-from magicclass import (
-    magicclass, magicmenu, field, MagicTemplate, abstractapi
-)
+from magicclass import magicmenu, field, MagicTemplate, abstractapi
 from magicclass.widgets import Separator
 
 @magicmenu(name="File")
