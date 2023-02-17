@@ -21,7 +21,7 @@ class PcaViewer(MagicTemplate):
         self.choicey = 1
 
     @property
-    def pca(self) -> PcaClassifier:
+    def pca(self) -> "PcaClassifier":
         return self._pca
     
     @property

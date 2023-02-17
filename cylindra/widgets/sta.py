@@ -55,9 +55,21 @@ def _align_averaged_fmt(layer: "Layer"):
     yield f"Subtomogram averaging of {layer.name!r}"
     yield f"Aligning template to the average image of {layer.name!r}"
 
+def _align_template_free_fmt(layer: "Layer"):
+    yield f"Caching subtomograms of {layer.name!r}"
+    yield f"Averaging subtomograms of {layer.name!r}"
+    yield f"Aligning subtomograms of {layer.name!r}"
+
 def _align_viterbi_fmt(layer: "Layer"):
     yield f"Calculating cross-correlation landscape of {layer.name!r}"
     yield f"Running Viterbi alignment of {layer.name!r}"
+
+def _classify_pca_fmt(layer: "Layer"):
+    yield f"Caching subtomograms of {layer.name!r}"
+    yield f"Creating template image for PCA clustering"
+    yield f"Fitting PCA model"
+    yield f"Transforming all the images"
+    yield f"Creating average images for each cluster"
 
 def _get_alignment(method: str):
     if method == "zncc":
@@ -383,7 +395,7 @@ class SubtomogramAveraging(MagicTemplate):
         if shape is None:
             shape = self._get_shape_in_nm()
         loader = self.find_ancestor(CylindraMainWidget).tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=binsize, order=order
+            molecules, shape, binsize=binsize, order=order  # TODO: np.array(shape)//binsize ??
         )
         if binsize > 1:
             if template is None:
@@ -690,7 +702,7 @@ class SubtomogramAveraging(MagicTemplate):
     
     @Refinement.wraps
     @set_design(text="Align all (template-free)")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Template-free alignment of {!r}"))
+    @dask_thread_worker.with_progress(descs=_align_template_free_fmt)
     def align_all_template_free(
         self,
         layer: MoleculesLayer,
@@ -1058,12 +1070,12 @@ class SubtomogramAveraging(MagicTemplate):
     
     @Subtomogram_analysis.wraps
     @set_design(text="PCA/K-means classification")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("PCA/K-means classification of {!r}"))
+    @dask_thread_worker.with_progress(descs=_classify_pca_fmt)
     def classify_pca(
         self,
         layer: MoleculesLayer,
         mask_params: Bound[params._get_mask_params],
-        size: _SubVolumeSize = None,
+        size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1084,11 +1096,15 @@ class SubtomogramAveraging(MagicTemplate):
         seed : int, default is 0
             Random seed.
         """
+        parent = self._get_parent()
+        
         mask = self.params._get_mask(params=mask_params)
         if size is None:
+            if mask is None:
+                raise ValueError("Either `size` or `mask` must be specified.")
             shape = mask.shape
         else:
-            shape = (size,) * 3
+            shape = (parent.tomogram.nm2pixel(size),) * 3
         loader, _, mask = self._check_binning_for_alignment(
             None, mask, binsize=bin_size, molecules=layer.molecules, 
             order=interpolation, shape=shape
@@ -1096,9 +1112,14 @@ class SubtomogramAveraging(MagicTemplate):
         
         out, pca = loader.classify(
             mask=mask, seed=seed, cutoff=cutoff, n_components=n_components, 
-            n_clusters=n_clusters
+            n_clusters=n_clusters, label_name="cluster",
         )
         
+        avgs_dict = out.groupby("cluster").average(mask.shape)
+        avgs = ip.asarray(
+            np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
+        ).set_scale(zyx=loader.scale, unit="nm")
+
         @thread_worker.to_callback
         def _on_return():
             from .pca import PcaViewer
@@ -1111,6 +1132,8 @@ class SubtomogramAveraging(MagicTemplate):
             dock.setFloating(True)
             dock.setAllowedAreas(Qt.DockWidgetArea.NoDockWidgetArea)
             dock.resize(420, 320)
+            
+            self._show_reconstruction(avgs, name=f"[PCA]{layer.name}", store=False)
 
         return _on_return
         
