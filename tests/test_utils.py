@@ -200,4 +200,16 @@ def test_viterbi():
                   [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
     )
     assert z == 9.0
-    
+
+@pytest.mark.parametrize(
+    "label, expected",
+    [
+        (np.array([[1, 1, 1, 1], [0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0]]).ravel(), 0),
+        (np.array([[1, 1, 1, 0], [0, 0, 0, 1], [1, 1, 1, 0], [0, 0, 0, 1]]).ravel(), 3),
+        (np.array([[1, 1, 0, 0], [0, 0, 1, 1], [1, 1, 0, 0], [0, 0, 1, 1]]).ravel(), 2),
+        (np.array([[1, 0, 0, 0], [0, 1, 1, 1], [1, 0, 0, 0], [0, 1, 1, 1]]).ravel(), 1),
+        (np.array([[1, 0, 1, 0], [0, 0, 0, 1], [1, 1, 1, 0], [1, 0, 0, 1]]).ravel(), 3),
+    ]    
+)
+def test_infer_seam(label, expected: int):
+    assert utils.infer_seam_from_labels(label, npf=4) == expected

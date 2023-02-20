@@ -4,6 +4,7 @@ from numpy.typing import NDArray
 import impy as ip
 from dask import array as da
 from acryo import Molecules, SubtomogramLoader
+
 from cylindra.const import Mode, MoleculesHeader as Mole, GlobalVariables as GVar
 
 from ._correlation import mirror_zncc
@@ -166,7 +167,7 @@ def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float3
     # equivalent to padding mode "reflect"
     interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
     
-    vec_len = np.linalg.norm(spl_vec, axis=2)  # length of spline vector
+    vec_len = np.linalg.norm(spl_vec, axis=1)  # length of spline vector
     vec_norm = spl_vec / vec_len[:, np.newaxis]
     vec_norm = vec_norm.reshape(-1, npf, ndim)  # normalized spline vector
     y_interval = np.sum(interv_vec * vec_norm, axis=2)  # inner product
@@ -205,3 +206,26 @@ def calc_skew(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
 
     skew = np.rad2deg(2 * interv_vec_len * skew_sin / radius)
     return skew.ravel()
+
+def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:
+    label = np.asarray(label)
+    nmole = label.size
+    unique_values = np.unique(label)
+    if len(unique_values) != 2:
+        raise ValueError(f"Label must have exactly two unique values, but got {unique_values}")
+    
+    def _binarize(x: NDArray[np.bool_]) -> NDArray[np.int8]:
+        return np.where(x, 1, -1)
+    
+    bin_label = _binarize(label == unique_values[0])
+
+    _id = np.arange(nmole)
+    assert _id.size % npf == 0
+
+    scores: list[int] = []
+    for pf in range(npf):
+        res = (_id - pf) // npf
+        sl = _binarize(res % 2 == 0)
+        score = abs(np.sum(bin_label * sl))
+        scores.append(score)
+    return np.argmax(scores)
