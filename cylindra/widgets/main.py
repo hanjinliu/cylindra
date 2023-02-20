@@ -1693,6 +1693,21 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
     
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Seam search by feature")
+    def seam_search_by_feature(self, layer: MoleculesLayer, feature_name: str):
+        """Search for seams by a feature."""
+        feat = layer.features
+        if feature_name not in feat.columns:
+            raise ValueError(f"Column {feature_name} does not exist.")
+        npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
+        seam = utils.infer_seam_from_labels(feat[feature_name], npf=npf)
+        _id = np.arange(len(feat))
+        res = (_id - seam) // npf
+        layer.features = layer.molecules.features.with_columns(
+            [pl.Series(Mole.isotype, res)]
+        )
+        return None
     
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
@@ -2364,8 +2379,9 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @setup_function_gui(split_molecules)
+    @setup_function_gui(seam_search_by_feature)
     def _(self, gui):
-        gui.layer.changed.connect(gui.by.reset_choices)    
+        gui[0].changed.connect(gui[1].reset_choices)    
 
 ############################################################################################
 #   Other helper functions
