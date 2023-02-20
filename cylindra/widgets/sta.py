@@ -14,6 +14,7 @@ from acryo import Molecules, SubtomogramLoader, alignment
 from acryo.pipe import reader, soft_otsu, resize
 
 import numpy as np
+from numpy.typing import NDArray
 import impy as ip
 import polars as pl
 import napari
@@ -176,7 +177,7 @@ class StaParameters(MagicTemplate):
         self.params.visible = (v == MASK_CHOICES[1])
         self.mask_path.visible = (v == MASK_CHOICES[2])
 
-    def _get_template(self, path: Union[Path, None] = None) -> ip.ImgArray:
+    def _get_template(self, path: Union[Path, None] = None):
         if path is None:
             path = self.template_path
         else:
@@ -188,26 +189,13 @@ class StaParameters(MagicTemplate):
                     "No average image found. You can uncheck 'Use last averaged image' and select "
                     "a template image from a file."
                 )
-            img = self._last_average
+            provider = resize(self._last_average, self._last_average.scale.x)
         else:
             path = Path(path)
             if path.is_dir():
                 raise TypeError(f"Template image must be a file, got {path}.")
-            img = ip.imread(path)
-            
-        if img.ndim != 3:
-            raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
-
-        if parent_scale := self._get_scale():
-            scale_ratio = img.scale.x / parent_scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                img = img.rescale(scale_ratio)
-
-        return img
-    
-    def _get_shape_in_nm(self) -> tuple[int, ...]:
-        template = self._get_template()
-        return tuple(s * template.scale.x for s in template.shape)
+            provider = reader(path)
+        return provider
     
     def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
         v = self.mask_choice
@@ -224,7 +212,7 @@ class StaParameters(MagicTemplate):
     def _get_mask(
         self,
         params: Union[str, tuple[int, float], None] = _sentinel
-    ) -> Union[ip.ImgArray, None]:
+    ):
         if params is self._sentinel:
             params = self._get_mask_params()
         else:
@@ -238,23 +226,10 @@ class StaParameters(MagicTemplate):
         if params is None:
             return None
         elif isinstance(params, tuple):
-            thr = self._get_template().threshold()
-            scale: nm = thr.scale.x
-            mask_image = thr.smooth_mask(
-                sigma=params[1]/scale, 
-                dilate_radius=utils.roundint(params[0]/scale),
-            )
+            radius, sigma = params
+            return soft_otsu(radius=radius, sigma=sigma)
         else:
-            mask_image = ip.imread(self.mask_path.mask_path)
-        
-        if mask_image.ndim != 3:
-            raise TypeError(f"Mask image must be 3-D, got {mask_image.ndim}-D.")
-    
-        if parent_scale := self._get_scale():
-            scale_ratio = mask_image.scale.x / parent_scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                mask_image = mask_image.rescale(scale_ratio)
-        return mask_image
+            return reader(params)
     
     def _set_mask_params(self, params):
         if params is None:
@@ -353,12 +328,16 @@ class SubtomogramAveraging(MagicTemplate):
     @property
     def template(self) -> "ip.ImgArray | None":
         """Template image."""
-        return self.params._get_template()
+        loader = self._get_loader(binsize=1, molecules=Molecules.empty())
+        template, _ = loader.normalize_input(self.params._get_template())
+        return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale)
     
     @property
     def mask(self) -> "ip.ImgArray | None":
         """Mask image."""
-        return self.params._get_mask()
+        loader = self._get_loader(binsize=1, molecules=Molecules.empty())
+        _, mask = loader.normalize_input(self.params._get_template(), self.params._get_mask())
+        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale)
     
     @property
     def last_average(self) -> "ip.ImgArray | None":
@@ -367,7 +346,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
         if default is None:
-            return self.params._get_shape_in_nm()
+            return self.template.shape
         else:
             return (default,) * 3
         
@@ -377,38 +356,21 @@ class SubtomogramAveraging(MagicTemplate):
     def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True) -> "Image":
         return self.params._show_reconstruction(image, name, store)
 
-    def _check_binning_for_alignment(
+    def _get_loader(
         self,
-        template: "ip.ImgArray | list[ip.ImgArray]",
-        mask: "ip.ImgArray | None",
         binsize: int,
         molecules: Molecules,
         order: int = 1,
-        shape: tuple[nm, nm, nm] = None,
-    ) -> tuple[SubtomogramLoader, ip.ImgArray, "np.ndarray | None"]:
+    ) -> SubtomogramLoader:
         """
         Returns proper subtomogram loader, template image and mask image that matche the 
         bin size.
         """
         from .main import CylindraMainWidget
 
-        if shape is None:
-            shape = self._get_shape_in_nm()
-        loader = self.find_ancestor(CylindraMainWidget).tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=binsize, order=order
+        return self.find_ancestor(CylindraMainWidget).tomogram.get_subtomogram_loader(
+            molecules, binsize=binsize, order=order
         )
-        if binsize > 1:
-            if template is None:
-                pass
-            elif isinstance(template, list):
-                template = [tmp.binning(binsize, check_edges=False) for tmp in template]
-            else:
-                template = template.binning(binsize, check_edges=False)
-            if mask is not None:
-                mask = mask.binning(binsize, check_edges=False)
-        if isinstance(mask, np.ndarray):
-            mask = np.asarray(mask)
-        return loader, template, mask
     
     def _get_parent(self):
         from .main import CylindraMainWidget
@@ -585,33 +547,23 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         t0 = default_timer()
         mole = layer.molecules
-        template = self.params._get_template(path=template_path)
-        mask = self.params._get_mask(params=mask_params)
-        if mask is not None and template.shape != mask.shape:
-            raise ValueError(
-                f"Shape mismatch between tempalte image ({tuple(template.shape)}) "
-                f"and mask image ({tuple(mask.shape)})."
-            )
-        
-        loader, template, mask = self._check_binning_for_alignment(
-            template, mask, bin_size, mole, order=1
+        loader = self._get_loader(bin_size, mole, order=1)
+        template, mask = loader.normalize_input(
+            template=self.params._get_template(path=template_path),
+            mask=self.params._get_mask(params=mask_params),
         )
+        
         _scale = parent.tomogram.scale * bin_size
+
         npf = mole.features[Mole.pf].max() + 1
         dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
         
         max_shifts = tuple(np.array([dy, dy, dx]) / _scale * 0.6)
-        img = loader.average()
+        img = loader.average(template.shape)
 
-        if bin_size > 1 and img.shape != template.shape:
-            # if multiscaled image is used, there could be shape mismatch
-            sl = tuple(slice(0, s) for s in template.shape)
-            img = img[sl]
-
-        model_cls = _get_alignment(method)
-        model = model_cls(
-            template.value,
+        model = _get_alignment(method)(
+            template,
             mask,
             cutoff=1.0,
             rotations=(z_rotation, y_rotation, x_rotation),
@@ -631,8 +583,6 @@ class SubtomogramAveraging(MagicTemplate):
         parent.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
 
         parent._need_save = True
-        img_trans = ip.asarray(img_trans, axes="zyx")
-        img_trans.set_scale(zyx=_scale)
         
         @thread_worker.to_callback
         def _align_averaged_on_return():
@@ -642,7 +592,7 @@ class SubtomogramAveraging(MagicTemplate):
             )
             img_norm = utils.normalize_image(img_trans)
             temp_norm = utils.normalize_image(template)
-            merge: np.ndarray = np.stack([img_norm, temp_norm, img_norm], axis=-1)
+            merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
             layer.visible = False
             parent.log.print(f"{layer.name!r} --> {points.name!r}")
             with parent.log.set_plt():
@@ -678,20 +628,17 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = default_timer()
         parent = self._get_parent()
-        template = self.params._get_template(path=template_path)
-        mask = self.params._get_mask(params=mask_params)
         
-        loader, template, mask = self._check_binning_for_alignment(
-            template, mask, binsize=bin_size, molecules=layer.molecules, order=interpolation,
+        loader = self._get_loader(
+            binsize=bin_size, molecules=layer.molecules, order=interpolation,
         )
-        model_cls = _get_alignment(method)
         aligned_loader = loader.align(
-            template=template.value, 
-            mask=mask,
+            template=self.params._get_template(path=template_path), 
+            mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            alignment_model=model_cls,
+            alignment_model=_get_alignment(method),
             tilt_range=tilt_range,
         )
         
@@ -728,21 +675,18 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         molecules = layer.molecules
         shape = self._get_shape_in_nm(size)
-        loader, _, _ = self._check_binning_for_alignment(
-            template=None, 
-            mask=None, 
+        loader = self._get_loader(
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-            shape=shape,
         )
-        model_cls = _get_alignment(method)
         aligned_loader = loader.align_no_template(
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            alignment_model=model_cls,
+            alignment_model=_get_alignment(method),
             tilt_range=tilt_range,
+            output_shape=shape,
         )
         
         parent.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
@@ -784,28 +728,20 @@ class SubtomogramAveraging(MagicTemplate):
         molecules = layer.molecules
         templates = [self.params._get_template(path=template_path)]
         for path in other_templates:
-            img = ip.imread(path)
-            scale_ratio = img.scale.x / parent.tomogram.scale
-            if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                img = img.rescale(scale_ratio)
-            templates.append(img)
+            templates.append(reader(path))
 
-        mask = self.params._get_mask(params=mask_params)
-        loader, templates, mask = self._check_binning_for_alignment(
-            templates,
-            mask,
+        loader = self._get_loader(
             binsize=bin_size,
             molecules=molecules, 
             order=interpolation,
         )
-        model_cls = _get_alignment(method)
         aligned_loader = loader.align_multi_templates(
-            templates=[np.asarray(t) for t in templates], 
-            mask=mask,
+            templates=templates, 
+            mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            alignment_model=model_cls,
+            alignment_model=_get_alignment(method),
             tilt_range=tilt_range,
         )
         parent.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
@@ -851,19 +787,19 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.molecules
-        template = self.params._get_template(path=template_path)
-        mask = self.params._get_mask(params=mask_params)
         shape_nm = self._get_shape_in_nm()
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape=shape_nm, order=interpolation
         )
+        template = loader.normalize_template(self.params._get_template(path=template_path))
+        mask = loader.normalize_mask(self.params._get_mask(params=mask_params))
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
         parent.log.print_html(f"Search size (px): {search_size}")
         model = alignment.ZNCCAlignment(
-            template.value,
+            template,
             mask,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
@@ -1008,11 +944,11 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         mole = layer.molecules
-        mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm(size)
         loader = parent.tomogram.get_subtomogram_loader(
             mole, shape, order=interpolation,
         )
+        _, mask = loader.normalize_input(mask=self.params._get_mask(params=mask_params))
         if mask is None:
             mask = 1.
         if dfreq is None:
@@ -1097,19 +1033,21 @@ class SubtomogramAveraging(MagicTemplate):
         """
         parent = self._get_parent()
         
-        mask = self.params._get_mask(params=mask_params)
+        loader = self._get_loader(
+            binsize=bin_size, 
+            molecules=layer.molecules, 
+            order=interpolation
+        )
+
+        _, mask = loader.normalize_input(mask=self.params._get_mask(params=mask_params))
         if size is None:
             if mask is None:
                 raise ValueError("Either `size` or `mask` must be specified.")
             shape = mask.shape
         else:
             shape = (parent.tomogram.nm2pixel(size),) * 3
-        loader, _, mask = self._check_binning_for_alignment(
-            None, mask, binsize=bin_size, molecules=layer.molecules, 
-            order=interpolation, shape=shape
-        )
         
-        out, pca = loader.classify(
+        out, pca = loader.replace(output_shape=shape).classify(
             mask=mask, seed=seed, cutoff=cutoff, n_components=n_components, 
             n_clusters=n_clusters, label_name="cluster",
         )
@@ -1166,15 +1104,23 @@ class SubtomogramAveraging(MagicTemplate):
         """
         parent = self._get_parent()
         mole = layer.molecules
-        template = self.params._get_template(path=template_path)
-        mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm()
         loader = parent.tomogram.get_subtomogram_loader(mole, shape, order=interpolation)
         if npf is None:
             npf = mole.features[Mole.pf].max() + 1
 
+        template, mask = loader.normalize_input(
+            template=self.params._get_template(path=template_path),
+            mask=self.params._get_mask(params=mask_params),
+        )
+        
+        
         corrs, img_ave, all_labels = utils.try_all_seams(
-            loader=loader, npf=npf, template=template, mask=mask, cutoff=cutoff
+            loader=loader.replace(output_shape=template.shape),
+            npf=npf, 
+            template=ip.asarray(template, axes="zyx"),
+            mask=ip.asarray(mask, axes="zyx"),
+            cutoff=cutoff,
         )
         
         parent._need_save = True

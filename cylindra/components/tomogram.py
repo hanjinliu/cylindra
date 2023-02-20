@@ -259,10 +259,6 @@ class Tomogram:
         """Create a subtomogram loader from molecules."""
         from acryo import SubtomogramLoader
         
-        if shape is None:
-            output_shape = None
-        else:
-            output_shape = tuple(self.nm2pixel(shape, binsize=binsize))
         if binsize == 1:
             try:
                 img = self.get_multiscale(1)
@@ -272,10 +268,15 @@ class Tomogram:
             tr = -self.multiscale_translation(binsize)
             mole = mole.translate([tr, tr, tr])
             img = self.get_multiscale(binsize)
+        
+        kwargs = dict(
+            order=order,
+            scale=self.scale*binsize,
+        )
+        if shape is not None:
+            kwargs["output_shape"] = tuple(self.nm2pixel(shape, binsize=binsize))
         return SubtomogramLoader(
             img.value,
             mole,
-            output_shape=output_shape,
-            order=order,
-            scale=self.scale*binsize,
+            **kwargs,
         )
