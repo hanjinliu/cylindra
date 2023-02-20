@@ -177,7 +177,7 @@ class StaParameters(MagicTemplate):
         self.params.visible = (v == MASK_CHOICES[1])
         self.mask_path.visible = (v == MASK_CHOICES[2])
 
-    def _get_template(self, path: Union[Path, None] = None):
+    def _get_template(self, path: Union[Path, None] = None, allow_none: bool = False):
         if path is None:
             path = self.template_path
         else:
@@ -185,6 +185,8 @@ class StaParameters(MagicTemplate):
         
         if path is None:
             if self._last_average is None:
+                if allow_none:
+                    return None
                 raise ValueError(
                     "No average image found. You can uncheck 'Use last averaged image' and select "
                     "a template image from a file."
@@ -193,6 +195,8 @@ class StaParameters(MagicTemplate):
         else:
             path = Path(path)
             if path.is_dir():
+                if allow_none:
+                    return None
                 raise TypeError(f"Template image must be a file, got {path}.")
             provider = reader(path)
         return provider
@@ -336,7 +340,9 @@ class SubtomogramAveraging(MagicTemplate):
     def mask(self) -> "ip.ImgArray | None":
         """Mask image."""
         loader = self._get_loader(binsize=1, molecules=Molecules.empty())
-        _, mask = loader.normalize_input(self.params._get_template(), self.params._get_mask())
+        _, mask = loader.normalize_input(
+            self.params._get_template(allow_none=True), self.params._get_mask()
+        )
         return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale)
     
     @property
@@ -344,9 +350,10 @@ class SubtomogramAveraging(MagicTemplate):
         """Last averaged image if exists."""
         return self.params._last_average
 
-    def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
+    def _get_shape_in_nm(self, default: int = None) -> tuple[nm, nm, nm]:
         if default is None:
-            return self.template.shape
+            tmp = self.template
+            return tuple(np.array(tmp.shape) * tmp.scale.x)
         else:
             return (default,) * 3
         
@@ -556,11 +563,8 @@ class SubtomogramAveraging(MagicTemplate):
         _scale = parent.tomogram.scale * bin_size
 
         npf = mole.features[Mole.pf].max() + 1
-        dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # longitudinal shift
+        dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1])**2))  # axial shift
         dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf])**2))  # lateral shift
-        
-        max_shifts = tuple(np.array([dy, dy, dx]) / _scale * 0.6)
-        img = loader.average(template.shape)
 
         model = _get_alignment(method)(
             template,
@@ -569,7 +573,10 @@ class SubtomogramAveraging(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             tilt_range=None,  # NOTE: because input is an average
         )
-        img_trans, result = model.fit(img, max_shifts=max_shifts)
+        img_trans, result = model.fit(
+            loader.average(template.shape),
+            max_shifts=tuple(np.array([dy, dy, dx]) / _scale * 0.6)
+        )
         rotator = Rotation.from_quat(result.quat)
         mole_trans = mole.linear_transform(result.shift * _scale, rotator)
         
@@ -948,7 +955,10 @@ class SubtomogramAveraging(MagicTemplate):
         loader = parent.tomogram.get_subtomogram_loader(
             mole, shape, order=interpolation,
         )
-        _, mask = loader.normalize_input(mask=self.params._get_mask(params=mask_params))
+        _, mask = loader.normalize_input(
+            template=self.params._get_template(allow_none=True),
+            mask=self.params._get_mask(params=mask_params)
+        )
         if mask is None:
             mask = 1.
         if dfreq is None:
