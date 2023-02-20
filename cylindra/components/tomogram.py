@@ -252,13 +252,17 @@ class Tomogram:
     def get_subtomogram_loader(
         self,
         mole: Molecules,
-        shape: tuple[nm, nm, nm], 
+        shape: tuple[nm, nm, nm] | None = None,
         binsize: int = 1,
         order: int = 1,
     ) -> SubtomogramLoader:
         """Create a subtomogram loader from molecules."""
         from acryo import SubtomogramLoader
-        output_shape = tuple(self.nm2pixel(shape, binsize=binsize))
+        
+        if shape is None:
+            output_shape = None
+        else:
+            output_shape = tuple(self.nm2pixel(shape, binsize=binsize))
         if binsize == 1:
             try:
                 img = self.get_multiscale(1)

@@ -1,7 +1,7 @@
 from typing import Callable, Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
-from qtpy.QtCore import Qt
+from scipy.spatial.transform import Rotation
 from magicclass import (
     do_not_record, magicclass, magicmenu, field, vfield, MagicTemplate, 
     set_design, abstractapi
@@ -11,6 +11,7 @@ from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
 from acryo import Molecules, SubtomogramLoader, alignment
+from acryo.pipe import reader, soft_otsu, resize
 
 import numpy as np
 import impy as ip
@@ -175,7 +176,7 @@ class StaParameters(MagicTemplate):
         self.params.visible = (v == MASK_CHOICES[1])
         self.mask_path.visible = (v == MASK_CHOICES[2])
 
-    def _get_template(self, path: Union[Path, None] = None, rescale: bool = True) -> ip.ImgArray:
+    def _get_template(self, path: Union[Path, None] = None) -> ip.ImgArray:
         if path is None:
             path = self.template_path
         else:
@@ -197,11 +198,10 @@ class StaParameters(MagicTemplate):
         if img.ndim != 3:
             raise TypeError(f"Template image must be 3-D, got {img.ndim}-D.")
 
-        if rescale:
-            if parent_scale := self._get_scale():
-                scale_ratio = img.scale.x / parent_scale
-                if scale_ratio < 0.99 or 1.01 < scale_ratio:
-                    img = img.rescale(scale_ratio)
+        if parent_scale := self._get_scale():
+            scale_ratio = img.scale.x / parent_scale
+            if scale_ratio < 0.99 or 1.01 < scale_ratio:
+                img = img.rescale(scale_ratio)
 
         return img
     
@@ -331,7 +331,7 @@ class SubtomogramAveraging(MagicTemplate):
             return parent.tomogram.scale
         return None
 
-    @magicclass(properties={"margins": (0, 0, 0, 0)})
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
         show_template = abstractapi()
         show_mask = abstractapi()
@@ -340,14 +340,14 @@ class SubtomogramAveraging(MagicTemplate):
     @set_design(text="Show template")
     @do_not_record
     def show_template(self):
-        """Load and show template image."""
+        """Load and show template image in the scale of the tomogram."""
         self._show_reconstruction(self.template, name="Template image", store=False)
     
     @Buttons.wraps
     @set_design(text="Show mask")
     @do_not_record
     def show_mask(self):
-        """Load and show mask image."""
+        """Load and show mask image in the scale of the tomogram."""
         self._show_reconstruction(self.mask, name="Mask image", store=False)
     
     @property
@@ -395,7 +395,7 @@ class SubtomogramAveraging(MagicTemplate):
         if shape is None:
             shape = self._get_shape_in_nm()
         loader = self.find_ancestor(CylindraMainWidget).tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=binsize, order=order  # TODO: np.array(shape)//binsize ??
+            molecules, shape, binsize=binsize, order=order
         )
         if binsize > 1:
             if template is None:
@@ -609,7 +609,6 @@ class SubtomogramAveraging(MagicTemplate):
             sl = tuple(slice(0, s) for s in template.shape)
             img = img[sl]
 
-        from scipy.spatial.transform import Rotation
         model_cls = _get_alignment(method)
         model = model_cls(
             template.value,
@@ -948,7 +947,7 @@ class SubtomogramAveraging(MagicTemplate):
                 quats[_sl, :] = sub_quats
 
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-            from scipy.spatial.transform import Rotation
+
             rotvec = Rotation.from_quat(quats).as_rotvec()
             molecules_opt.features = molecules_opt.features.with_columns(
                 [
@@ -1123,7 +1122,8 @@ class SubtomogramAveraging(MagicTemplate):
         @thread_worker.to_callback
         def _on_return():
             from .pca import PcaViewer
-            
+            from qtpy.QtCore import Qt
+
             layer.molecules = out.molecules
             pca_viewer = PcaViewer(pca)
             dock = self.parent_viewer.window.add_dock_widget(
