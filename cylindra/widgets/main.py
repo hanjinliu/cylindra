@@ -1401,18 +1401,24 @@ class CylindraMainWidget(MagicTemplate):
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
         self.add_molecules(mole, name="Mono-merged")
     
-    def _get_split_molecules_choices(self, w=None) -> list[str]:
-        mgui = self["split_molecules"].mgui
-        if mgui is None or mgui.layer.value is None:
+    def _get_selected_layer_choice(self, w=None) -> list[str]:
+        try:
+            parent = w.parent.parent()
+            if parent is None:
+                return []
+            mgui = parent._magic_widget
+            if mgui is None or mgui.layer.value is None:
+                return []
+            return mgui.layer.value.features.columns
+        except Exception as e:
             return []
-        return mgui.layer.value.features.columns
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Split molecules by feature")
     def split_molecules(
         self,
         layer: MoleculesLayer,
-        by: OneOf[_get_split_molecules_choices], 
+        by: OneOf[_get_selected_layer_choice], 
         delete_old: bool = False,
     ):
         """Split molecules by a feature column."""
@@ -1695,7 +1701,11 @@ class CylindraMainWidget(MagicTemplate):
     
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Seam search by feature")
-    def seam_search_by_feature(self, layer: MoleculesLayer, feature_name: str):
+    def seam_search_by_feature(
+        self,
+        layer: MoleculesLayer,
+        feature_name: OneOf[_get_selected_layer_choice],
+    ):
         """Search for seams by a feature."""
         feat = layer.features
         if feature_name not in feat.columns:
@@ -1705,7 +1715,7 @@ class CylindraMainWidget(MagicTemplate):
         _id = np.arange(len(feat))
         res = (_id - seam) // npf
         layer.features = layer.molecules.features.with_columns(
-            [pl.Series(Mole.isotype, res)]
+            [pl.Series(Mole.isotype, res % 2)]
         )
         return None
     
