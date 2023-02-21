@@ -5,7 +5,7 @@ from magicclass import (
 from magicclass.widgets import EvalLineEdit, ComboBox, Container
 from magicclass.types import Path
 from magicclass.ext.polars import DataFrameView
-from acryo import TomogramCollection, Molecules
+from acryo import BatchLoader, Molecules
 
 import numpy as np
 import impy as ip
@@ -131,7 +131,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @Buttons.wraps
     @set_design(text="Preview table")
     def preview_features(self):
-        col = get_collection(self.projects.paths, predicate=None)
+        col = get_batch_loader(self.projects.paths, predicate=None)
         df = col.molecules.to_dataframe()
         table = DataFrameView(value=df)
         dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
@@ -141,7 +141,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @set_design(text="Preview", max_width=52)
     def preview_filtered_molecules(self):
         """Preview filtered molecules."""
-        col = get_collection(self.projects.paths, predicate=self._get_expression())
+        col = get_batch_loader(self.projects.paths, predicate=self._get_expression())
         df = col.molecules.to_dataframe()
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
@@ -154,12 +154,20 @@ class ProjectSequenceEdit(MagicTemplate):
         if wdt.value == "":
             return None
         return wdt.eval()
+    
+    def _get_dummy_loader(self):
+        paths = self.projects.paths
+        if len(paths) == 0:
+            raise ValueError("No projects found.")
+        loader = get_batch_loader(paths, order=1, load=False)
+        return loader
 
-def get_collection(
+def get_batch_loader(
     project_paths: list[Path], 
     order: int = 3, 
     output_shape: tuple[nm, nm, nm] = None,
     predicate: "str | pl.Expr | None" = None,
+    load: bool = True,
 ):
     # check scales
     projects: list[CylindraProject] = []
@@ -173,21 +181,22 @@ def get_collection(
         raise ValueError("All projects must have the same scale.")
 
     if output_shape is None:
-        col = TomogramCollection(order=order)
+        col = BatchLoader(order=order)
     else:
         output_shape = tuple(np.round(np.array(output_shape) / scale).astype(int))
-        col = TomogramCollection(order=order, output_shape=output_shape, scale=scale)
-        
-    for idx, project in enumerate(projects):
-        tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
+        col = BatchLoader(order=order, output_shape=output_shape, scale=scale)
+    
+    if load:
+        for idx, project in enumerate(projects):
+            tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
 
-        for fp in project.molecules:
-            fp = Path(fp)
-            mole = Molecules.from_csv(fp)
-            mole.features = mole.features.with_columns(
-                [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
-            )
-            col.add_tomogram(tomogram.value, molecules=mole, image_id=idx)
+            for fp in project.molecules:
+                fp = Path(fp)
+                mole = Molecules.from_csv(fp)
+                mole.features = mole.features.with_columns(
+                    [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
+                )
+                col.add_tomogram(tomogram.value, molecules=mole, image_id=idx)
     if predicate is not None:
         col = col.filter(predicate)
     return col

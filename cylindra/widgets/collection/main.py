@@ -19,7 +19,7 @@ from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_ali
 
 from .menus import File, Splines, SubtomogramAnalysis, Macro
 from ._localprops import LocalPropsViewer
-from ._sequence import get_collection, ProjectSequenceEdit
+from ._sequence import get_batch_loader, ProjectSequenceEdit
 
 if TYPE_CHECKING:
     from napari.layers import Image
@@ -56,14 +56,27 @@ class ProjectCollectionWidget(MagicTemplate):
     
     def __post_init__(self):
         self._project_sequence = ProjectSequence()
-        self.StaWidget.params._get_scale = self._get_scale
 
     @property
     def project_sequence(self) -> ProjectSequence:
         return self.collection.projects._project_sequence
 
-    def _get_scale(self):
-        return self.project_sequence._scale_validator.value
+    @property
+    def template(self) -> "ip.ImgArray | None":
+        """Template image."""
+        loader = self.collection._get_dummy_loader()
+        template, _ = loader.normalize_input(self.StaWidget.params._get_template())
+        return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale)
+    
+    @property
+    def mask(self) -> "ip.ImgArray | None":
+        """Mask image."""
+        loader = self.collection._get_dummy_loader()
+        _, mask = loader.normalize_input(
+            self.StaWidget.params._get_template(allow_none=True), 
+            self.StaWidget.params._get_mask()
+        )
+        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale)
 
     @File.wraps
     @set_design(text="Add projects")
@@ -143,7 +156,7 @@ class ProjectCollectionWidget(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
     ):
         shape = self._get_shape_in_nm(size)
-        col = get_collection(paths, interpolation, shape, predicate=predicate)
+        col = get_batch_loader(paths, interpolation, shape, predicate=predicate)
         img = ip.asarray(col.average(), axes="zyx")
         img.set_scale(zyx=col.scale)
         
@@ -168,14 +181,15 @@ class ProjectCollectionWidget(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
     ):
-        template = self.StaWidget.params._get_template(path=template_path)
-        mask = self.StaWidget.params._get_mask(params=mask_params)
-        shape = self.StaWidget.params._get_shape_in_nm()
-        col = get_collection(paths, interpolation, shape, predicate=predicate)
+        col = get_batch_loader(paths, interpolation, predicate=predicate)
+        template, mask = col.normalize_input(
+            template=self.StaWidget.params._get_template(path=template_path),
+            mask=self.StaWidget.params._get_mask(params=mask_params),
+        )
         
         model_cls = _get_alignment(method)
         aligned = col.align(
-            template=template.value, 
+            template=template,
             mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
@@ -224,7 +238,7 @@ class ProjectCollectionWidget(MagicTemplate):
         """
         mask = self.StaWidget.params._get_mask(params=mask_params)
         shape = self._get_shape_in_nm(size)
-        col = get_collection(paths, interpolation, shape, predicate=predicate)
+        col = get_batch_loader(paths, interpolation, shape, predicate=predicate)
     
         if mask is None:
             mask = 1.
@@ -301,6 +315,7 @@ class ProjectCollectionWidget(MagicTemplate):
     
     def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
         if default is None:
-            return self.StaWidget.params._get_shape_in_nm()
+            tmp = self.template
+            return tuple(np.array(tmp.shape) * tmp.scale.x)
         else:
             return (default,) * 3

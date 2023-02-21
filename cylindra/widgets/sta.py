@@ -11,7 +11,7 @@ from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
 from acryo import Molecules, SubtomogramLoader, alignment
-from acryo.pipe import reader, soft_otsu, resize
+from acryo.pipe import from_file, soft_otsu, from_array
 
 import numpy as np
 from numpy.typing import NDArray
@@ -54,24 +54,28 @@ def _fmt_layer_name(fmt: str):
     return _formatter
 
 def _align_averaged_fmt(layer: "Layer"):
-    yield f"Subtomogram averaging of {layer.name!r}"
-    yield f"Aligning template to the average image of {layer.name!r}"
+    yield f"(0/2) Subtomogram averaging of {layer.name!r}"
+    yield f"(1/2) Aligning template to the average image of {layer.name!r}"
+    yield "(2/2) Finishing"
 
 def _align_template_free_fmt(layer: "Layer"):
-    yield f"Caching subtomograms of {layer.name!r}"
-    yield f"Averaging subtomograms of {layer.name!r}"
-    yield f"Aligning subtomograms of {layer.name!r}"
+    yield f"(0/3) Caching subtomograms of {layer.name!r}"
+    yield f"(1/3) Averaging subtomograms of {layer.name!r}"
+    yield f"(2/3) Aligning subtomograms of {layer.name!r}"
+    yield "(3/3) Finishing"
 
 def _align_viterbi_fmt(layer: "Layer"):
-    yield f"Calculating cross-correlation landscape of {layer.name!r}"
-    yield f"Running Viterbi alignment of {layer.name!r}"
+    yield f"(0/2) Calculating cross-correlation landscape of {layer.name!r}"
+    yield f"(1/2) Running Viterbi alignment of {layer.name!r}"
+    yield "(2/2) Finishing"
 
 def _classify_pca_fmt(layer: "Layer"):
-    yield f"Caching subtomograms of {layer.name!r}"
-    yield f"Creating template image for PCA clustering"
-    yield f"Fitting PCA model"
-    yield f"Transforming all the images"
-    yield f"Creating average images for each cluster"
+    yield f"(0/5) Caching subtomograms of {layer.name!r}"
+    yield f"(1/5) Creating template image for PCA clustering"
+    yield f"(2/5) Fitting PCA model"
+    yield f"(3/5) Transforming all the images"
+    yield f"(4/5) Creating average images for each cluster"
+    yield "(5/5) Finishing"
 
 def _get_alignment(method: str):
     if method == "zncc":
@@ -162,9 +166,6 @@ class StaParameters(MagicTemplate):
     )
     
     _last_average: ip.ImgArray = None  # the global average result
-    
-    def __init__(self, scale_getter: Callable[[], float] = None):
-        self._get_scale = scale_getter
 
     def __post_init__(self):
         self._template: ip.ImgArray= None
@@ -191,14 +192,14 @@ class StaParameters(MagicTemplate):
                     "No average image found. You can uncheck 'Use last averaged image' and select "
                     "a template image from a file."
                 )
-            provider = resize(self._last_average, self._last_average.scale.x)
+            provider = from_array(self._last_average, self._last_average.scale.x)
         else:
             path = Path(path)
             if path.is_dir():
                 if allow_none:
                     return None
                 raise TypeError(f"Template image must be a file, got {path}.")
-            provider = reader(path)
+            provider = from_file(path)
         return provider
     
     def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
@@ -233,7 +234,7 @@ class StaParameters(MagicTemplate):
             radius, sigma = params
             return soft_otsu(radius=radius, sigma=sigma)
         else:
-            return reader(params)
+            return from_file(params)
     
     def _set_mask_params(self, params):
         if params is None:
@@ -291,24 +292,12 @@ class SubtomogramAveraging(MagicTemplate):
     """
     Subtomogram_analysis = field(SubtomogramAnalysis)
     Refinement = field(Refinement)
+    params = StaParameters
     
     @property
     def sub_viewer(self):
         return self.params._viewer
     
-    params = StaParameters
-    
-    def __post_init__(self):
-        self.params._get_scale = self._get_scale
-        
-    def _get_scale(self):
-        from .main import CylindraMainWidget
-        
-        parent = self.find_ancestor(CylindraMainWidget)
-        
-        if parent.tomogram is not None:
-            return parent.tomogram.scale
-        return None
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
@@ -735,7 +724,7 @@ class SubtomogramAveraging(MagicTemplate):
         molecules = layer.molecules
         templates = [self.params._get_template(path=template_path)]
         for path in other_templates:
-            templates.append(reader(path))
+            templates.append(from_file(path))
 
         loader = self._get_loader(
             binsize=bin_size,
@@ -1049,7 +1038,10 @@ class SubtomogramAveraging(MagicTemplate):
             order=interpolation
         )
 
-        _, mask = loader.normalize_input(mask=self.params._get_mask(params=mask_params))
+        _, mask = loader.normalize_input(
+            template=self.params._get_template(allow_none=True),
+            mask=self.params._get_mask(params=mask_params),
+        )
         if size is None:
             if mask is None:
                 raise ValueError("Either `size` or `mask` must be specified.")
@@ -1123,8 +1115,7 @@ class SubtomogramAveraging(MagicTemplate):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        
-        
+
         corrs, img_ave, all_labels = utils.try_all_seams(
             loader=loader.replace(output_shape=template.shape),
             npf=npf, 
