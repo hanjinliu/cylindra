@@ -10,7 +10,7 @@ from magicclass.ext.dask import dask_thread_worker
 import numpy as np
 import impy as ip
 
-from cylindra.project import ProjectSequence, CylindraCollectionProject
+from cylindra.project import ProjectSequence, CylindraBatchProject
 from cylindra.const import nm, MoleculesHeader as Mole
 
 from ..widget_utils import FileFilter
@@ -38,7 +38,7 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
     properties={"min_height": 240},
     symbol=Expr("getattr", [Symbol("ui"), "batch"]),
 )
-class ProjectCollectionWidget(MagicTemplate):
+class CylindraBatchWidget(MagicTemplate):
     
     # Menus
     File = field(File)
@@ -108,7 +108,7 @@ class ProjectCollectionWidget(MagicTemplate):
     @do_not_record
     def load_project(self, path: Path.Read[FileFilter.JSON]):
         """Load a project json file."""
-        project = CylindraCollectionProject.from_json(path)
+        project = CylindraBatchProject.from_json(path)
         return project.to_gui(self)
     
     @File.wraps
@@ -122,7 +122,7 @@ class ProjectCollectionWidget(MagicTemplate):
         json_path : Path
             Path of json file.
         """
-        return CylindraCollectionProject.save_gui(self, Path(json_path))
+        return CylindraBatchProject.save_gui(self, Path(json_path))
 
     @Splines.wraps
     @set_design(text="View local properties")

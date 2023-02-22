@@ -1,16 +1,15 @@
 from typing import Any, Union, TYPE_CHECKING
 from pathlib import Path
 
-from pydantic import BaseModel
 from cylindra.const import PropertyNames as H, get_versions
 from .sequence import ProjectSequence
 from ._base import BaseProject, PathLike
 
 if TYPE_CHECKING:
-    from cylindra.widgets.collection import ProjectCollectionWidget
+    from cylindra.widgets.batch import CylindraBatchWidget
 
     
-class CylindraCollectionProject(BaseProject):
+class CylindraBatchProject(BaseProject):
     datetime: str
     version: str
     dependency_versions: dict[str, str]
@@ -20,7 +19,7 @@ class CylindraCollectionProject(BaseProject):
     project_path: Union[Path, None] = None
 
     @classmethod
-    def from_gui(cls, gui: "ProjectCollectionWidget", json_path: Path) -> "CylindraCollectionProject":
+    def from_gui(cls, gui: "CylindraBatchWidget", json_path: Path) -> "CylindraBatchProject":
         """Create a project collection from a widget."""
         from datetime import datetime
         
@@ -52,13 +51,13 @@ class CylindraCollectionProject(BaseProject):
             seq.add(path)
         return seq
         
-    def to_gui(self, gui: "ProjectCollectionWidget") -> None:
+    def to_gui(self, gui: "CylindraBatchWidget") -> None:
         """Load a project collection into a widget."""
         gui.set_sequence(self.to_sequence())
         return None
 
     @classmethod
-    def save_gui(cls, gui: "ProjectCollectionWidget", json_path: PathLike) -> None:
+    def save_gui(cls, gui: "CylindraBatchWidget", json_path: PathLike) -> None:
         """Save a project collection from a widget."""
         json_path = Path(json_path)
         self = cls.from_gui(gui, json_path)

@@ -66,7 +66,7 @@ class ProjectPaths(MagicTemplate):
     @property
     def checked_indices(self) -> list[int]:
         indices: list[int] = []
-        for i, wdt in enumerate(self):
+        for i, wdt in enumerate(iter(self)):
             if wdt.check:
                 indices.append(i)
         return indices

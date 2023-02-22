@@ -5,7 +5,7 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, Iterable, Iterator, MutableSequence, SupportsIndex, TypeVar, overload
 
-from acryo import TomogramCollection, Molecules
+from acryo import BatchLoader, Molecules
 import numpy as np
 import impy as ip
 import polars as pl
@@ -54,8 +54,12 @@ class ScaleValidator(Validator[float]):
         return val
         
 class ProjectSequence(MutableSequence[CylindraProject]):
-    """Collection of Cylindra projects."""
-
+    """
+    Collection of Cylindra projects.
+    
+    This object is just for project management. BatchLoader, DataFrame and local/global
+    properties can be generated from this object.
+    """
     def __init__(self, *, check_scale: bool = True):
         self._projects: list[CylindraProject] = []
         self._scale_validator = ScaleValidator(check_scale)
@@ -114,7 +118,13 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         self._projects.insert(index, value)
     
     @classmethod
-    def from_paths(cls, paths: Iterable[str | Path], *, check_scale: bool = True, skip_exc: bool = False) -> Self:
+    def from_paths(
+        cls,
+        paths: Iterable[str | Path],
+        *,
+        check_scale: bool = True,
+        skip_exc: bool = False,
+    ) -> Self:
         """Add all the projects of the given paths."""
         self = cls(check_scale=check_scale)
         if skip_exc:
@@ -133,9 +143,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         self._projects.append(prj)
         return self
     
-    def sta_loader(self) -> TomogramCollection:
+    def sta_loader(self) -> BatchLoader:
         """Construct a STA loader from all the projects."""
-        col = TomogramCollection(scale=self._scale_validator.value)
+        col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy_imread(prj.image, chunks=GlobalVariables.daskChunk)
             for fp in prj.molecules:
@@ -184,10 +194,3 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             )
             dataframes.append(df)
         return pl.concat(dataframes, how="vertical")
-
-    def filter(self, predicate):
-        # TODO: 
-        new_loader = self.sta_loader().filter(predicate)
-        mole = new_loader.molecules
-        for idx, prj in enumerate(self):
-            ...

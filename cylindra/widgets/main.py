@@ -50,7 +50,7 @@ from cylindra.widgets.measure import SpectraMeasurer
 from cylindra.widgets.widget_utils import FileFilter, add_molecules, change_viewer_focus
 
 if TYPE_CHECKING:
-    from .collection import ProjectCollectionWidget
+    from .batch import CylindraBatchWidget
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
@@ -87,7 +87,7 @@ class CylindraMainWidget(MagicTemplate):
         return self._LoggerWindow.log
     
     @property
-    def batch(self) -> "ProjectCollectionWidget":
+    def batch(self) -> "CylindraBatchWidget":
         """Return the collection analyzer."""
         if self._batch is None:
             self.open_project_batch_analyzer()
@@ -1730,9 +1730,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open project collection analyzer")
     @do_not_record
     def open_project_batch_analyzer(self):
-        from .collection import ProjectCollectionWidget
+        from .batch import CylindraBatchWidget
         
-        uix = ProjectCollectionWidget()
+        uix = CylindraBatchWidget()
         self.parent_viewer.window.add_dock_widget(uix, area="left").setFloating(True)
         self._batch = uix
         return uix
