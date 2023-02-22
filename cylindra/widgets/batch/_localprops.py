@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import polars as pl
 from magicclass import MagicTemplate, magicclass, field, vfield
 from magicclass.ext.pyqtgraph import QtPlotCanvas
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole, IDName
@@ -20,6 +21,10 @@ class LocalPropsViewer(MagicTemplate):
 
     def __init__(self) -> None:
         self._groups = {}
+    
+    def _set_localprops(self, df: pl.DataFrame) -> None:
+        self._groups = dict(df.groupby(by=[Mole.image, IDName.spline], maintain_order=True))
+        self.reset_choices()
     
     def _set_seq(self, seq: ProjectSequence) -> None:
         if not isinstance(seq, ProjectSequence):

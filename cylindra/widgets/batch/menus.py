@@ -2,9 +2,9 @@ from magicclass import magicmenu, field, MagicTemplate, abstractapi
 from magicclass.widgets import Separator
 
 @magicmenu(name="File")
-class File(MagicTemplate):
-    add_children = abstractapi()
-    add_children_glob = abstractapi()
+class Projects(MagicTemplate):
+    open_constructor = abstractapi()
+    sep0 = field(Separator)
     load_project = abstractapi()
     save_project = abstractapi()
 

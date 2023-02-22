@@ -1,5 +1,5 @@
 from typing import Annotated, TYPE_CHECKING
-from acryo import BatchLoader
+from acryo import BatchLoader, Molecules
 from macrokit import Symbol, Expr
 from magicclass import (
     magicclass, do_not_record, field, nogui, MagicTemplate, set_design, set_options
@@ -12,15 +12,15 @@ import numpy as np
 import impy as ip
 
 from cylindra.project import ProjectSequence, CylindraBatchProject
-from cylindra.const import nm, MoleculesHeader as Mole
+from cylindra.const import nm, MoleculesHeader as Mole, GlobalVariables as GVar
+from cylindra.utils import roundint
 
 from ..widget_utils import FileFilter
 from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
-from .menus import File, Splines, SubtomogramAnalysis, Macro
-from ._localprops import LocalPropsViewer
-from ._sequence import get_batch_loader, ProjectSequenceEdit
+from .menus import Projects, SubtomogramAnalysis, Macro
+from ._sequence import ProjectSequenceEdit
 
 if TYPE_CHECKING:
     from napari.layers import Image
@@ -42,78 +42,80 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 class CylindraBatchWidget(MagicTemplate):
     
     # Menus
-    File = field(File)
-    Splines = field(Splines)
+    Projects = field(Projects)
     SubtomogramAnalysis = field(SubtomogramAnalysis, name="Subtomogram analysis")
     MacroMenu = field(Macro, name="Macro")
-    
-    _Localprops = field(LocalPropsViewer)
-    
-    collection = ProjectSequenceEdit  # list of projects
+
+    _loader_constructor = ProjectSequenceEdit
     
     @magicclass(widget_type="collapsible", name="Subtomogram analysis")
     class StaWidget(MagicTemplate):
         params = StaParameters
     
     def __post_init__(self):
-        self._project_sequence = ProjectSequence()
+        self._current_loader: "BatchLoader | None" = None
+
+    @_loader_constructor.wraps
+    def construct_loader(
+        self,
+        paths: Bound[_loader_constructor._get_loader_paths],
+        predicate: Bound[_loader_constructor._get_expression],
+    ):
+        loader = BatchLoader()
+        scales: list[float] = []
+        for img_id, (img_path, mole_paths) in enumerate(paths):
+            img = ip.lazy_imread(img_path, chunks=GVar.daskChunk)
+            scales.append(img.scale.x)
+            for mole_path in mole_paths:
+                mole = Molecules.from_csv(mole_path)
+                loader.add_tomogram(img.value, mole, img_id)
+            
+        if abs(max(scales) / min(scales) - 1) > 0.01:
+            raise ValueError("Scale error must be less than 1%.")
+        if predicate is not None:
+            loader = loader.filter(predicate)
+        self._current_loader = loader.replace(scale=np.mean(scales))
+        return self._current_loader
+
 
     @property
-    def project_sequence(self) -> ProjectSequence:
-        return self.collection.projects._project_sequence
-
+    def current_loader(self) -> BatchLoader:
+        if self._current_loader is None:
+            raise ValueError("No loader exists.")
+        return self._current_loader
+    
     @property
     def template(self) -> "ip.ImgArray | None":
         """Template image."""
-        loader = self.collection._get_dummy_loader()
+        loader = self.current_loader
         template, _ = loader.normalize_input(self.StaWidget.params._get_template())
         return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale)
     
     @property
     def mask(self) -> "ip.ImgArray | None":
         """Mask image."""
-        loader = self.collection._get_dummy_loader()
+        loader = self.current_loader
         _, mask = loader.normalize_input(
             self.StaWidget.params._get_template(allow_none=True), 
             self.StaWidget.params._get_mask()
         )
         return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale)
 
-    @File.wraps
-    @set_design(text="Add projects")
-    @do_not_record
-    def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
-        """Add project json files as the child projects."""
-        for path in paths:
-            self.project_sequence.add(path)
-            self.collection.projects._add(path)
-        self.reset_choices()
-        return 
+    @Projects.wraps
+    @set_design(text="Load")
+    def open_constructor(self):
+        self._loader_constructor.show()
     
-    @File.wraps
-    @set_design(text="Add projects with wildcard path")
-    @do_not_record
-    def add_children_glob(self, pattern: str):
-        """Add project json files using wildcard path."""
-        import glob
-
-        pattern = str(pattern)
-        for path in glob.glob(pattern):
-            self.project_sequence.add(path)
-            self.collection.projects._add(path)
-        self.reset_choices()
-        return 
-    
-    @File.wraps
-    @set_design(text="Load project")
+    @Projects.wraps
+    @set_design(text="Load batch project")
     @do_not_record
     def load_project(self, path: Path.Read[FileFilter.JSON]):
         """Load a project json file."""
         project = CylindraBatchProject.from_json(path)
         return project.to_gui(self)
     
-    @File.wraps
-    @set_design(text="Save project")
+    @Projects.wraps
+    @set_design(text="Save batch project")
     def save_project(self, json_path: Path.Save[FileFilter.JSON]):
         """
         Save current project state as a json file.
@@ -125,46 +127,35 @@ class CylindraBatchWidget(MagicTemplate):
         """
         return CylindraBatchProject.save_gui(self, Path(json_path))
 
-    @Splines.wraps
-    @set_design(text="View local properties")
-    def view_localprops(self):
-        """View local properties of splines."""
-        self._Localprops.show()
-        self._Localprops._set_seq(self.project_sequence)
-        self._Localprops.native.parentWidget().resize(400, 300)
-        return
 
     @nogui
     @do_not_record
     def set_sequence(self, col: ProjectSequence):
         if not isinstance(col, ProjectSequence):
             raise TypeError(f"Expected a ProjectCollection, got {type(col)}")
-        self.collection.projects._project_sequence = col
         for prj in col:
-            self.collection.projects._add(prj.project_path)
+            self._loader_constructor.projects._add(prj.project_path)
         self.reset_choices()
     
     @nogui
     @do_not_record
     def get_loader(self, order: int = 3, output_shape=None, predicate=None) -> BatchLoader:
-        return self.collection._get_batch_loader(order=order, output_shape=output_shape, predicate=predicate)
-
-    def _get_project_paths(self, w=None) -> list[Path]:
-        return self.collection.projects.paths
+        return self._loader_constructor._get_batch_loader(order=order, output_shape=output_shape, predicate=predicate)
 
     @SubtomogramAnalysis.wraps
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all(
         self, 
-        paths: Bound[_get_project_paths],
-        predicate: Bound[collection._get_expression],
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
     ):
-        shape = self._get_shape_in_nm(size)
-        col = get_batch_loader(paths, interpolation, shape, predicate=predicate)
-        img = ip.asarray(col.average(), axes="zyx")
-        img.set_scale(zyx=col.scale)
+        if size is None:
+            shape = self.template.shape
+        else:
+            shape = self._get_shape_in_px(roundint(size / self.current_loader.scale))
+        loader = self.current_loader.replace(output_shape=shape, order=interpolation)
+        img = ip.asarray(loader.average(), axes="zyx")
+        img.set_scale(zyx=loader.scale)
         
         return thread_worker.to_callback(
             self.StaWidget.params._show_reconstruction, img, f"[AVG]Collection"
@@ -173,9 +164,7 @@ class CylindraBatchWidget(MagicTemplate):
     @SubtomogramAnalysis.wraps
     @dask_thread_worker.with_progress(desc="Aligning all projects")
     def align_all(
-        self, 
-        paths: Bound[_get_project_paths], 
-        predicate: Bound[collection._get_expression],
+        self,
         template_path: Bound[StaWidget.params.template_path],
         mask_params: Bound[StaWidget.params._get_mask_params],
         tilt_range: Bound[StaWidget.params.tilt_range] = None,
@@ -187,27 +176,27 @@ class CylindraBatchWidget(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
     ):
-        col = get_batch_loader(paths, interpolation, predicate=predicate)
-        template, mask = col.normalize_input(
+        
+        template, mask = self.current_loader.normalize_input(
             template=self.StaWidget.params._get_template(path=template_path),
             mask=self.StaWidget.params._get_mask(params=mask_params),
         )
-        
-        model_cls = _get_alignment(method)
-        aligned = col.align(
+        loader = self.current_loader.replace(output_shape=template.shape, order=interpolation)
+        aligned = loader.align(
             template=template,
             mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            alignment_model=model_cls,
+            alignment_model= _get_alignment(method),
             tilt_range=tilt_range,
         )
         
-        for _ids, mole in aligned.molecules.groupby(by=[Mole.id, Mole.image]):
-            image_id: int = _ids[1]
-            prj = self._project_sequence[image_id]
-            mole.to_csv(prj.result_dir / f"aligned_{_ids[0]}.csv")
+        self._current_loader = aligned
+        # for _ids, mole in aligned.molecules.groupby(by=[Mole.id, Mole.image]):
+        #     image_id: int = _ids[1]
+        #     prj = self._project_sequence[image_id]
+        #     mole.to_csv(prj.result_dir / f"aligned_{_ids[0]}.csv")
         return aligned
 
     @SubtomogramAnalysis.wraps
@@ -215,8 +204,6 @@ class CylindraBatchWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Calculating FSC")
     def calculate_fsc(
         self,
-        paths: Bound[_get_project_paths], 
-        predicate: Bound[collection._get_expression],
         mask_params: Bound[StaWidget.params._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -242,16 +229,16 @@ class CylindraBatchWidget(MagicTemplate):
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
-        mask = self.StaWidget.params._get_mask(params=mask_params)
-        shape = self._get_shape_in_nm(size)
-        col = get_batch_loader(paths, interpolation, shape, predicate=predicate)
+        mask = self.mask
+        shape = self._get_shape_in_px(roundint(size / self.current_loader.scale))
+        loader = self.current_loader.replace(output_shape=shape, order=interpolation)
     
         if mask is None:
             mask = 1.
         if dfreq is None:
-            dfreq = 1.5 / min(shape) * col.scale
+            dfreq = 1.5 / min(shape) * loader.scale
         img = ip.asarray(
-            col.average_split(n_set=n_set, seed=seed, squeeze=False),
+            loader.average_split(n_set=n_set, seed=seed, squeeze=False),
             axes="ipzyx",
         )
         
@@ -267,7 +254,7 @@ class CylindraBatchWidget(MagicTemplate):
             fsc_all.append(fsc)
         if show_average:
             img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / img.shape.i
-            img_avg.set_scale(zyx=col.scale)
+            img_avg.set_scale(zyx=loader.scale)
         else:
             img_avg = None
 
@@ -284,10 +271,10 @@ class CylindraBatchWidget(MagicTemplate):
             parent = instance()
             parent.log.print_html("<b>Fourier Shell Correlation of the collection</b>")
             with parent.log.set_plt(rc_context={"font.size": 15}):
-                widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], col.scale)
+                widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], loader.scale)
             
-            resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, col.scale)
-            resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, col.scale)
+            resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
+            resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
             
             parent.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
             parent.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
@@ -319,9 +306,9 @@ class CylindraBatchWidget(MagicTemplate):
         self.macro.widget.show()
         return None
     
-    def _get_shape_in_nm(self, default: int = None) -> tuple[int, ...]:
+    def _get_shape_in_px(self, default: int = None) -> tuple[int, ...]:
         if default is None:
             tmp = self.template
-            return tuple(np.array(tmp.shape) * tmp.scale.x)
+            return tuple(np.array(tmp.shape))
         else:
             return (default,) * 3
