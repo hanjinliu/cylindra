@@ -88,7 +88,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @property
     def batch(self) -> "CylindraBatchWidget":
-        """Return the collection analyzer."""
+        """Return the batch analyzer."""
         if self._batch is None:
             self.open_project_batch_analyzer()
         return self._batch
@@ -1727,7 +1727,7 @@ class CylindraMainWidget(MagicTemplate):
         return self.sta.show()
     
     @Analysis.wraps
-    @set_design(text="Open project collection analyzer")
+    @set_design(text="Open project batch analyzer")
     @do_not_record
     def open_project_batch_analyzer(self):
         from .batch import CylindraBatchWidget

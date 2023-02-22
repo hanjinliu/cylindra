@@ -1,11 +1,13 @@
 from typing import Iterator
+
+from magicgui.widgets import ComboBox, Container
 from magicclass import (
-    magicclass, field, vfield, MagicTemplate, set_design, abstractapi
+    magicclass, field, nogui, vfield, MagicTemplate, set_design, abstractapi
 )
-from magicclass.widgets import EvalLineEdit, ComboBox, Container
+from magicclass.widgets import EvalLineEdit
 from magicclass.types import Path
 from magicclass.ext.polars import DataFrameView
-from acryo import BatchLoader, Molecules
+from acryo import BatchLoader, Molecules, SubtomogramLoader
 
 import numpy as np
 import impy as ip
@@ -14,41 +16,116 @@ import polars as pl
 from cylindra.project import CylindraProject, ProjectSequence
 from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole
 
+@magicclass(labels=False, properties={"margins": (0, 0, 0, 0)}, record=False, layout="horizontal")
+class MoleculeWidget(MagicTemplate):
+    check = vfield(True).with_options(text="")
+    line = field("").with_options(enabled=False)
+    
+    def _get_molecules(self) -> Molecules:
+        return Molecules.from_csv(self.line.value)
 
-@magicclass(widget_type="frame", record=False, properties={"margins": (0, 0, 0, 0)})
+@magicclass(widget_type="collapsible", record=False, name="Molecules")
+class MoleculeList(MagicTemplate):
+    def __iter__(self) -> Iterator[MoleculeWidget]:
+        return super().__iter__()
+
+    def _add_path(self, path: Path):
+        wdt = MoleculeWidget()
+        wdt.line.value = str(path)
+        wdt["check"].text = ""
+        self.append(wdt)
+
+@magicclass(labels=False, record=False, properties={"margins": (0, 0, 0, 0)}, layout="horizontal")
+class SplineWidget(MagicTemplate):
+    check = vfield(True).with_options(text="")
+    line = field("").with_options(enabled=False)
+
+@magicclass(widget_type="collapsible", record=False, name="Splines")
+class SplineList(MagicTemplate):
+    def _add_path(self, path: Path):
+        wdt = SplineWidget()
+        wdt.line.value = str(path)
+        wdt["check"].text = ""
+        self.append(wdt)
+
+
+@magicclass(widget_type="frame", labels=False, record=False, properties={"margins": (0, 0, 0, 0)})
 class Project(MagicTemplate):
     # a widget representing a single project
-    check = vfield(True).with_options(text="")
-    path = field("").with_options(enabled=False)
-    
-    @set_design(text="✕", max_width=30)
-    def remove_project(self):
-        """Remove this project from the list."""
-        parent = self.find_ancestor(ProjectPaths)
-        idx = parent.index(self)
-        del parent[idx]
-        del parent._project_sequence[idx]
-    
-    @set_design(text="Open")
-    def send_to_viewer(self):
-        """Send this project to the viewer."""
-        from cylindra.core import instance
-        
-        if ui := instance():
-            ui.load_project(self.path.value)
-        else:
-            raise ValueError("No Cylindra widget found!")
+    @magicclass(layout="horizontal", labels=False, properties={"margins": (0, 0, 0, 0)}, record=False)
+    class Header(MagicTemplate):
+        """
+        Project info.
 
-    def __post_init__(self):
-        self["check"].text = ""  # NOTE: should be updated here!
+        Attributes
+        ----------
+        check : bool
+            Whether to include this project in the batch processing.
+        path : str
+            Project path.
+        """
+        check = vfield(True).with_options(text="")
+        path = field("").with_options(enabled=False)
+        
+        @set_design(text="✕", max_width=30)
+        def remove_project(self):
+            """Remove this project from the list."""
+            parent = self.find_ancestor(ProjectPaths)
+            idx = parent.index(self)
+            del parent[idx]
+            del parent._project_sequence[idx]
+        
+        @set_design(text="Open")
+        def send_to_viewer(self):
+            """Send this project to the viewer."""
+            from cylindra.core import instance
+            
+            if ui := instance():
+                ui.load_project(self.path.value)
+            else:
+                raise ValueError("No Cylindra widget found!")
+
+        def __post_init__(self):
+            self["check"].text = ""  # NOTE: should be updated here!
+    
+    @magicclass(widget_type="groupbox", name="Components")
+    class Components(MagicTemplate):
+        pass
+    
+    splines = Components.field(SplineList)
+    molecules = Components.field(MoleculeList)
 
     @classmethod
     def _from_path(cls, path: Path):
-        self = cls(layout="horizontal", labels=False)
-        self.path.value = str(path)
-        self.path.tooltip = self.path
+        self = cls()
+        path = str(path)
+        self.Header.path.value = path
+        self.Header.path.tooltip = path
+        
+        project = CylindraProject.from_json(path)
+        
+        # load splines
+        for spline_path in project.splines:
+            self.splines._add_path(spline_path)
+        
+        # load molecules
+        for mole_path in project.molecules:
+            self.molecules._add_path(mole_path)
+
         self.margins = (0, 0, 0, 0)
         return self
+    
+    @nogui
+    def get_loader(self, order: int = 3) -> SubtomogramLoader:
+        path = self.Header.path.value
+        project = CylindraProject.from_json(path)
+        molecules = [mole._get_molecules() for mole in self.molecules if mole.check]
+        return SubtomogramLoader(
+            ip.lazy_imread(project.image).value,
+            molecules=Molecules.concat(molecules),
+            order=order,
+            scale=project.scale,
+        )
 
 @magicclass(widget_type="scrollable", labels=False, record=False, properties={"min_height": 20})
 class ProjectPaths(MagicTemplate):
@@ -58,7 +135,7 @@ class ProjectPaths(MagicTemplate):
     def _add(self, path: Path):
         prj = Project._from_path(path)
         self.append(prj)
-        self.min_height = min(len(self) * 50, 165)
+        self.min_height = min(len(self) * 100, 280)
     
     def __iter__(self) -> Iterator[Project]:
         return super().__iter__()
@@ -67,13 +144,13 @@ class ProjectPaths(MagicTemplate):
     def checked_indices(self) -> list[int]:
         indices: list[int] = []
         for i, wdt in enumerate(iter(self)):
-            if wdt.check:
+            if wdt.Header.check:
                 indices.append(i)
         return indices
             
     @property
     def paths(self) -> list[Path]:
-        return [Path(wdt.path.value) for wdt in self]
+        return [Path(wdt.Header.path.value) for wdt in self]
 
 
 
@@ -104,11 +181,26 @@ class ProjectSequenceEdit(MagicTemplate):
     def check_all(self):
         """Check all projects."""
         for wdt in self.projects:
-            wdt.check = True
-    
+            wdt.Header.check = True
     
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.projects.paths
+    
+    def _get_batch_loader(self, order: int, output_shape=None, predicate=None) -> BatchLoader:
+        loaders: list[SubtomogramLoader] = []
+        for prj in self.projects:
+            loader = prj.get_loader(order=order)
+            loaders.append(loader)
+        if len(set(ldr.scale for ldr in loaders)) > 1:
+            raise ValueError("All projects must have the same scale!")
+        batch_loader = BatchLoader.from_loaders(
+            loaders, order=order, scale=loaders[0].scale
+        )
+        if predicate is not None:
+            batch_loader = batch_loader.filter(predicate)
+        if output_shape is not None:
+            batch_loader = batch_loader.replace(output_shape=output_shape)
+        return batch_loader
 
     @Buttons.wraps
     @set_design(text="Preview components")
@@ -131,8 +223,8 @@ class ProjectSequenceEdit(MagicTemplate):
     @Buttons.wraps
     @set_design(text="Preview table")
     def preview_features(self):
-        col = get_batch_loader(self.projects.paths, predicate=None)
-        df = col.molecules.to_dataframe()
+        loader = get_batch_loader(self.projects.paths, predicate=None)
+        df = loader.molecules.to_dataframe()
         table = DataFrameView(value=df)
         dock = self.parent_viewer.window.add_dock_widget(table, name="Features", area="left")
         dock.setFloating(True)
@@ -141,8 +233,8 @@ class ProjectSequenceEdit(MagicTemplate):
     @set_design(text="Preview", max_width=52)
     def preview_filtered_molecules(self):
         """Preview filtered molecules."""
-        col = get_batch_loader(self.projects.paths, predicate=self._get_expression())
-        df = col.molecules.to_dataframe()
+        loader = get_batch_loader(self.projects.paths, predicate=self._get_expression())
+        df = loader.molecules.to_dataframe()
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)

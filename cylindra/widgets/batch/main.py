@@ -1,4 +1,5 @@
 from typing import Annotated, TYPE_CHECKING
+from acryo import BatchLoader
 from macrokit import Symbol, Expr
 from magicclass import (
     magicclass, do_not_record, field, nogui, MagicTemplate, set_design, set_options
@@ -142,6 +143,11 @@ class CylindraBatchWidget(MagicTemplate):
         for prj in col:
             self.collection.projects._add(prj.project_path)
         self.reset_choices()
+    
+    @nogui
+    @do_not_record
+    def get_loader(self, order: int = 3, output_shape=None, predicate=None) -> BatchLoader:
+        return self.collection._get_batch_loader(order=order, output_shape=output_shape, predicate=predicate)
 
     def _get_project_paths(self, w=None) -> list[Path]:
         return self.collection.projects.paths
