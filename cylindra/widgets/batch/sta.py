@@ -58,6 +58,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     class Header(MagicTemplate):
         loader_name = abstractapi()
         show_loader_info = abstractapi()
+        remove_loader = abstractapi()
         
     loader_name = Header.vfield(str).with_choices(choices=_get_loader_names)
     
@@ -100,6 +101,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
         cnt.native.setParent(self.native, cnt.native.windowFlags())
         cnt.show()
     
+    @Header.wraps
+    @set_design(text="✕", max_width=36)
+    def remove_loader(self, loader_name: Bound[_get_current_loader_name]):
+        """Remove this loader"""
+        loaderlist = self._get_parent()._loaders
+        del loaderlist[loader_name]
+
     params = StaParameters
     
     @BatchSubtomogramAnalysis.wraps

@@ -98,7 +98,7 @@ class Project(MagicTemplate):
         self.splines.enabled = value
         self.molecules.enabled = value
     
-    @magicclass(widget_type="groupbox", name="Components")
+    @magicclass(widget_type="collapsible", name="Components", record=False, properties={"margins": (12, 0, 0, 0)})
     class Components(MagicTemplate):
         pass
     
@@ -156,12 +156,16 @@ class Project(MagicTemplate):
         return df.filter(pl.col(IDName.spline).is_in(checked))
 
 
-@magicclass(widget_type="scrollable", labels=False, record=False, properties={"min_height": 20})
+@magicclass(
+    widget_type="scrollable", 
+    labels=False, 
+    record=False,
+    properties={"min_height": 20, "min_width": 250},
+)
 class ProjectPaths(MagicTemplate):
     def _add(self, path: Path):
         prj = Project._from_path(path)
         self.append(prj)
-        self.min_height = min(len(self) * 100, 280)
     
     def __iter__(self) -> Iterator[Project]:
         return super().__iter__()
@@ -305,6 +309,7 @@ class ProjectSequenceEdit(MagicTemplate):
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
         _set_parent(table, self)
+        table.show()
 
     @View.wraps
     @set_design(text="View filtered molecules in table")
@@ -316,6 +321,7 @@ class ProjectSequenceEdit(MagicTemplate):
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
         _set_parent(table, self)
+        table.show()
 
     @View.wraps
     @set_design(text="View local properties")

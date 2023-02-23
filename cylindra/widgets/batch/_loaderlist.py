@@ -56,7 +56,7 @@ class LoaderList(EventedList[LoaderInfo]):
     
     def insert(self, index: int, value: LoaderInfo) -> None:
         name = value.name
-        if self.find(name, default=-1) > 0:
+        if self.find(name, default=-1) >= 0:
             if re.match(r".+-\d+$", name):
                 prefix, s0 = name.rsplit("-", 1)
                 suffix = int(s0)

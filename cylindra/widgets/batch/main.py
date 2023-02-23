@@ -6,10 +6,9 @@ import polars as pl
 
 from acryo import BatchLoader, Molecules
 from macrokit import Symbol, Expr
-from magicclass import magicclass, do_not_record, field, nogui, MagicTemplate
+from magicclass import magicclass, do_not_record, field, MagicTemplate
 from magicclass.types import Bound
 
-from cylindra.project import ProjectSequence
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
 
 from .menus import Macro
@@ -68,15 +67,6 @@ class CylindraBatchWidget(MagicTemplate):
             LoaderInfo(new, name=name, paths=paths, predicate=predicate, parent=None)
         )
         return new
-
-    @nogui
-    @do_not_record
-    def set_sequence(self, col: ProjectSequence):
-        if not isinstance(col, ProjectSequence):
-            raise TypeError(f"Expected a ProjectCollection, got {type(col)}")
-        for prj in col:
-            self.constructor.projects._add(prj.project_path)
-        self.reset_choices()
 
     @MacroMenu.wraps
     @do_not_record
