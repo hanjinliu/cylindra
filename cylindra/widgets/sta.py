@@ -211,6 +211,16 @@ class StaParameters(MagicTemplate):
             params = self.mask_path.mask_path
         return params
     
+    def _set_mask_params(self, params):
+        if params is None:
+            self.mask_choice = MASK_CHOICES[0]
+        elif isinstance(params, (tuple, list, np.ndarray)):
+            self.mask_choice = MASK_CHOICES[1]
+            self.params.dilate_radius, self.params.sigma = params
+        else:
+            self.mask_choice = MASK_CHOICES[2]
+            self.mask_path.mask_path = params
+
     _sentinel = object()
     
     def _get_mask(self, params: "str | tuple[nm, nm] | None" = _sentinel):
