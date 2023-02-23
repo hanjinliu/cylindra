@@ -4,8 +4,7 @@ from magicgui.widgets import ComboBox, Container
 from magicclass import (
     magicclass, field, magicmenu, nogui, vfield, MagicTemplate, set_design, abstractapi
 )
-from magicclass.widgets import EvalLineEdit
-from magicclass.types import Path
+from magicclass.types import Path, ExprStr
 from magicclass.ext.polars import DataFrameView
 from acryo import BatchLoader, Molecules, SubtomogramLoader
 
@@ -13,7 +12,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 
-from cylindra.project import CylindraProject, ProjectSequence
+from cylindra.project import CylindraProject
 from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole, IDName
 from cylindra.widgets.widget_utils import FileFilter
 from ._localprops import LocalPropsViewer
@@ -200,9 +199,9 @@ class ProjectSequenceEdit(MagicTemplate):
         view_filtered_molecules = abstractapi()
         view_localprops = abstractapi()
 
-    seq_name = vfield("Loader").with_options(label="Sequence name:")
+    seq_name = vfield("Loader").with_options(label="Name:")
     projects = field(ProjectPaths)
-    filter_expression = field(str, label="Filter:", widget_type=EvalLineEdit).with_options(namespace={"pl": pl})
+    filter_expression = field(ExprStr.In[{"pl": pl}], label="Filter:")
     
     @Select.wraps
     def select_all_projects(self):
@@ -273,7 +272,7 @@ class ProjectSequenceEdit(MagicTemplate):
             lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
-        cont.native.setParent(self.native, cont.native.windowFlags())
+        _set_parent(cont, self)
         cont.show()
         cbox.changed.emit(cbox.value)
         return None
@@ -291,7 +290,7 @@ class ProjectSequenceEdit(MagicTemplate):
             lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
-        cont.native.setParent(self.native, cont.native.windowFlags())
+        _set_parent(cont, self)
         cont.show()
         cbox.changed.emit(cbox.value)
         return None
@@ -305,8 +304,7 @@ class ProjectSequenceEdit(MagicTemplate):
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
-        dock = self.parent_viewer.window.add_dock_widget(table, name="Features (filtered)", area="left")
-        dock.setFloating(True)
+        _set_parent(table, self)
 
     @View.wraps
     @set_design(text="View filtered molecules in table")
@@ -317,15 +315,14 @@ class ProjectSequenceEdit(MagicTemplate):
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
-        dock = self.parent_viewer.window.add_dock_widget(table, name="Features (filtered)", area="left")
-        dock.setFloating(True)
-    
+        _set_parent(table, self)
+
     @View.wraps
     @set_design(text="View local properties")
     def view_localprops(self):
         """View local properties of splines."""
         wdt = LocalPropsViewer()
-        wdt.native.setParent(self.native, wdt.native.windowFlags())
+        _set_parent(wdt, self)
         wdt.show()
         wdt._set_localprops(self._get_localprops())
         return
@@ -359,41 +356,5 @@ class ProjectSequenceEdit(MagicTemplate):
 
     construct_loader = abstractapi()
 
-def get_batch_loader(
-    project_paths: list[Path], 
-    order: int = 3, 
-    output_shape: tuple[nm, nm, nm] = None,
-    predicate: "str | pl.Expr | None" = None,
-    load: bool = True,
-):
-    # check scales
-    projects: list[CylindraProject] = []
-    scales: list[nm] = []
-    for path in project_paths:
-        project = CylindraProject.from_json(path)
-        projects.append(project)
-        scales.append(project.scale)
-    scale = scales[0]
-    if len(set(scales)) > 1:
-        raise ValueError("All projects must have the same scale.")
-
-    if output_shape is None:
-        col = BatchLoader(order=order)
-    else:
-        output_shape = tuple(np.round(np.array(output_shape) / scale).astype(int))
-        col = BatchLoader(order=order, output_shape=output_shape, scale=scale)
-    
-    if load:
-        for idx, project in enumerate(projects):
-            tomogram = ip.lazy_imread(project.image, chunks=GVar.daskChunk)
-
-            for fp in project.molecules:
-                fp = Path(fp)
-                mole = Molecules.from_csv(fp)
-                mole.features = mole.features.with_columns(
-                    [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
-                )
-                col.add_tomogram(tomogram.value, molecules=mole, image_id=idx)
-    if predicate is not None:
-        col = col.filter(predicate)
-    return col
+def _set_parent(wdt, parent):
+    wdt.native.setParent(parent.native, wdt.native.windowFlags())

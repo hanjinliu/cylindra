@@ -1,23 +1,18 @@
 from typing import Annotated, TYPE_CHECKING, Any
-import re
-import weakref
 
 import numpy as np
 import impy as ip
+import polars as pl
 
 from acryo import BatchLoader, Molecules
 from macrokit import Symbol, Expr
-from magicclass import (
-    magicclass, do_not_record, field, nogui, MagicTemplate, set_design
-)
-from magicclass.types import OneOf, Optional, Path, Bound
+from magicclass import magicclass, do_not_record, field, nogui, MagicTemplate
+from magicclass.types import Bound
 
-from cylindra.project import ProjectSequence, CylindraBatchProject
-from cylindra.const import nm, MoleculesHeader as Mole, GlobalVariables as GVar
+from cylindra.project import ProjectSequence
+from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
 
-from ..widget_utils import FileFilter
-
-from .menus import Projects, Macro
+from .menus import Macro
 from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit
 from ._loaderlist import LoaderList, LoaderInfo
@@ -33,7 +28,6 @@ from ._loaderlist import LoaderList, LoaderInfo
 class CylindraBatchWidget(MagicTemplate):
     
     # Menus
-    Projects = field(Projects)
     MacroMenu = field(Macro, name="Macro")
 
     constructor = ProjectSequenceEdit
@@ -60,7 +54,9 @@ class CylindraBatchWidget(MagicTemplate):
             img = ip.lazy_imread(img_path, chunks=GVar.daskChunk)
             scales.append(img.scale.x)
             for mole_path in mole_paths:
-                mole = Molecules.from_csv(mole_path)
+                mole = Molecules.from_csv(mole_path).with_features(
+                    [pl.repeat(mole_path.stem, pl.count()).alias(Mole.id)]
+                )
                 loader.add_tomogram(img.value, mole, img_id)
             
         if abs(max(scales) / min(scales) - 1) > 0.01:
@@ -69,30 +65,9 @@ class CylindraBatchWidget(MagicTemplate):
             loader = loader.filter(predicate)
         new = loader.replace(scale=np.mean(scales))
         self._loaders.append(
-            LoaderInfo(new, name=name, paths=paths, parent=None)
+            LoaderInfo(new, name=name, paths=paths, predicate=predicate, parent=None)
         )
         return new
-    
-    @Projects.wraps
-    @set_design(text="Load batch project")
-    @do_not_record
-    def load_project(self, path: Path.Read[FileFilter.JSON]):
-        """Load a project json file."""
-        project = CylindraBatchProject.from_json(path)
-        return project.to_gui(self)
-    
-    @Projects.wraps
-    @set_design(text="Save batch project")
-    def save_project(self, json_path: Path.Save[FileFilter.JSON]):
-        """
-        Save current project state as a json file.
-
-        Parameters
-        ----------
-        json_path : Path
-            Path of json file.
-        """
-        return CylindraBatchProject.save_gui(self, Path(json_path))
 
     @nogui
     @do_not_record

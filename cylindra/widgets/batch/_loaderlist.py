@@ -14,6 +14,7 @@ class LoaderInfo:
     loader: BatchLoader
     name: str
     paths: list[tuple[Path, list[Path]]] = dataclasses.field(default_factory=list)
+    predicate: "str | None" = None
     parent: "weakref.ReferenceType[LoaderInfo] | None" = None
     
     def get_parent(self):
@@ -22,7 +23,7 @@ class LoaderInfo:
         return self.parent()
     
     def rename(self, name: str):
-        return LoaderInfo(self.loader, name, self.paths, self.parent)
+        return LoaderInfo(self.loader, name, self.paths, self.predicate, self.parent)
 
 class LoaderList(EventedList[LoaderInfo]):
     @overload

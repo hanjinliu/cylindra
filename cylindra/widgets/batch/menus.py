@@ -1,10 +1,4 @@
-from magicclass import magicmenu, field, MagicTemplate, abstractapi
-from magicclass.widgets import Separator
-
-@magicmenu(name="File")
-class Projects(MagicTemplate):
-    load_project = abstractapi()
-    save_project = abstractapi()
+from magicclass import magicmenu, MagicTemplate, abstractapi
 
 @magicmenu
 class BatchSubtomogramAnalysis(MagicTemplate):

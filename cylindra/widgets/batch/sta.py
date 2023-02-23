@@ -1,22 +1,25 @@
 from typing import Annotated, TYPE_CHECKING
 
 import re
-from acryo import BatchLoader, Molecules
-from macrokit import Symbol, Expr
+from acryo import BatchLoader
+
+from magicgui.widgets import Container
 from magicclass import (
-    magicclass, do_not_record, field, vfield, nogui, MagicTemplate, set_design, abstractapi
+    magicclass, do_not_record, field, vfield, MagicTemplate, set_design, abstractapi
 )
-from magicclass.types import OneOf, Optional, Path, Bound
+from magicclass.types import OneOf, Optional, Bound, ExprStr
 from magicclass.utils import thread_worker
+from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.dask import dask_thread_worker
+from magicclass.ext.polars import DataFrameView
 
 import numpy as np
 import impy as ip
+import polars as pl
 
-from cylindra.const import nm, MoleculesHeader as Mole, ALN_SUFFIX
+from cylindra.const import nm, ALN_SUFFIX
 from cylindra.utils import roundint
 
-from ..widget_utils import FileFilter
 from .. import widget_utils
 from ..sta import StaParameters, INTERPOLATION_CHOICES, METHOD_CHOICES, _get_alignment
 
@@ -31,6 +34,8 @@ _XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.
 _MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
 
+POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
+
 @magicclass(name="Batch Subtomogram Analysis")
 class BatchSubtomogramAveraging(MagicTemplate):
     def _get_parent(self):
@@ -44,18 +49,100 @@ class BatchSubtomogramAveraging(MagicTemplate):
         except Exception:
             return []
         return [info.name for info in parent._loaders]
-
+    
+    # Menus
     BatchSubtomogramAnalysis = field(BatchSubtomogramAnalysis, name="Subtomogram Analysis")
     BatchRefinement = field(BatchRefinement, name="Refinement")
+
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    class Header(MagicTemplate):
+        loader_name = abstractapi()
+        show_loader_info = abstractapi()
+        
+    loader_name = Header.vfield(str).with_choices(choices=_get_loader_names)
     
-    loader_name = vfield(str).with_choices(choices=_get_loader_names)
+    def _get_current_loader_name(self, _=None) -> str:
+        return self.loader_name
+    
+    @Header.wraps
+    @set_design(text="??", max_width=36)
+    @do_not_record
+    def show_loader_info(self):
+        """Show information about this loader"""
+        loaderlist = self._get_parent()._loaders
+        info = loaderlist[self.loader_name]
+        loader = info.loader
+        if (parent := info.get_parent()) is not None:
+            parent_name = parent.name
+        else:
+            parent_name = "None"
+        if info.paths:
+            paths_list: list[str] = []
+            for imgpath, moles in info.paths:
+                paths_list.append(f"  - {imgpath}")
+                for molepath in moles:
+                    paths_list.append(f"    - {molepath}")
+            paths = "\n" + "\n".join(paths_list)
+        else:
+            paths = "None"
+        info_text = (
+            f"name: {info.name}\npaths: {paths}\npredicate: {info.predicate!r}\n"
+            f"parent: {parent_name}\nmolecule: n={loader.count()}"
+        )
+        view = DataFrameView(value=loader.molecules.to_dataframe())
+        txt = ConsoleTextEdit(value=info_text)
+        txt.read_only = True
+        cnt = Container(
+            widgets=[txt, view],
+            layout="horizontal",
+            labels=False
+        )
+        cnt.native.setParent(self.native, cnt.native.windowFlags())
+        cnt.show()
+    
     params = StaParameters
+    
+    @BatchSubtomogramAnalysis.wraps
+    @set_design(text="Filter loader")
+    def filter_loader(
+        self,
+        loader_name: Bound[_get_current_loader_name],
+        expression: ExprStr.In[POLARS_NAMESPACE],
+    ):
+        """
+        Filter the selected loader and add the filtered one to the list.
+
+        Parameters
+        ----------
+        loader_name : str
+            Name of the input loader
+        expression : str
+            polars expression that will be used to filter the loader. For example,
+            `pl.col("score") > 0.7` will filter out all low-score molecules.
+        """
+        if expression == "":
+            raise ValueError("Predicate is not given.")
+        loaderlist = self._get_parent()._loaders
+        info = loaderlist[loader_name]
+        loader = info.loader
+        pl_expr: pl.Expr = eval(str(expression), POLARS_NAMESPACE, {})
+        new = loader.filter(pl_expr)
+        loaderlist.append(
+            LoaderInfo(
+                new,
+                name=f"{info.name}-Filt",
+                predicate=expression,
+                parent=loader,
+            )
+        )
+        return None
 
     @BatchSubtomogramAnalysis.wraps
+    @set_design(text="Average all molecules")
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all(
         self,
-        loader_name: Bound[loader_name],
+        loader_name: Bound[_get_current_loader_name],
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
     ):
@@ -71,10 +158,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         )
     
     @BatchRefinement.wraps
-    @dask_thread_worker.with_progress(desc="Aligning all projects")
+    @set_design(text="Align all molecules")
+    @dask_thread_worker.with_progress(desc="Aligning all molecules")
     def align_all(
         self,
-        loader_name: Bound[loader_name],
+        loader_name: Bound[_get_current_loader_name],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         tilt_range: Bound[params.tilt_range] = None,
@@ -110,14 +198,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 parent=loader
             )
         )
-        return aligned
+        return None
 
     @BatchSubtomogramAnalysis.wraps
     @set_design(text="Calculate FSC")
     @dask_thread_worker.with_progress(desc="Calculating FSC")
     def calculate_fsc(
         self,
-        loader_name: Bound[loader_name],
+        loader_name: Bound[_get_current_loader_name],
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,

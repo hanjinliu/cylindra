@@ -1519,7 +1519,7 @@ class CylindraMainWidget(MagicTemplate):
     def filter_molecules(
         self,
         layer: MoleculesLayer,
-        predicate: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}]
+        predicate: ExprStr.In[POLARS_NAMESPACE]
     ):
         """
         Filter molecules by their features.
