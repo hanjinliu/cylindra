@@ -231,9 +231,9 @@ class StaParameters(MagicTemplate):
             return None
         elif isinstance(params, tuple):
             radius, sigma = params
-            return soft_otsu(radius=radius, sigma=sigma)
+            return pipe.soft_otsu(radius=radius, sigma=sigma)
         else:
-            return from_file(params)
+            return pipe.from_file(params)
     
     def _set_mask_params(self, params):
         if params is None:
