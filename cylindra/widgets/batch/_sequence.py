@@ -172,7 +172,7 @@ class ProjectPaths(MagicTemplate):
         return [Path(wdt.Header.path.value) for wdt in self]
 
     
-@magicclass(name="_Projects", record=False)
+@magicclass(name="Projects", record=False)
 class ProjectSequenceEdit(MagicTemplate):
     """
     Attributes
@@ -200,8 +200,8 @@ class ProjectSequenceEdit(MagicTemplate):
         view_filtered_molecules = abstractapi()
         view_localprops = abstractapi()
 
+    seq_name = vfield("Loader").with_options(label="Sequence name:")
     projects = field(ProjectPaths)
-    
     filter_expression = field(str, label="Filter:", widget_type=EvalLineEdit).with_options(namespace={"pl": pl})
     
     @Select.wraps

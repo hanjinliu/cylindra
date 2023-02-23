@@ -130,7 +130,7 @@ def angle_corr(img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: 
     angle = angs[np.argmax(corrs)]
     return angle
 
-def _molecules_to_spline(mole: Molecules):
+def molecules_to_spline(mole: Molecules):
     """Convert well aligned molecule positions into a spline."""
     from cylindra.components import CylSpline
 
@@ -157,7 +157,7 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
     return pos
 
 def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
-    spl = _molecules_to_spline(mole)
+    spl = molecules_to_spline(mole)
     pos = _reshaped_positions(mole)
     u = spl.world_to_y(mole.pos, precision=spline_precision)
     spl_vec = spl(u, der=1)
@@ -180,7 +180,7 @@ def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float3
     return properties
 
 def calc_skew(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
-    spl = _molecules_to_spline(mole)
+    spl = molecules_to_spline(mole)
     pos = _reshaped_positions(mole)
     u = spl.world_to_y(mole.pos, precision=spline_precision)
     ny, npf, ndim = pos.shape

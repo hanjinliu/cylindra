@@ -10,8 +10,7 @@ from magicclass.widgets import HistoryFileEdit, Separator
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-from acryo import Molecules, SubtomogramLoader, alignment
-from acryo.pipe import from_file, soft_otsu, from_array
+from acryo import Molecules, SubtomogramLoader, alignment, pipe
 
 import numpy as np
 from numpy.typing import NDArray
@@ -192,14 +191,14 @@ class StaParameters(MagicTemplate):
                     "No average image found. You can uncheck 'Use last averaged image' and select "
                     "a template image from a file."
                 )
-            provider = from_array(self._last_average, self._last_average.scale.x)
+            provider = pipe.from_array(self._last_average, self._last_average.scale.x)
         else:
             path = Path(path)
             if path.is_dir():
                 if allow_none:
                     return None
                 raise TypeError(f"Template image must be a file, got {path}.")
-            provider = from_file(path)
+            provider = pipe.from_file(path)
         return provider
     
     def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
@@ -297,7 +296,6 @@ class SubtomogramAveraging(MagicTemplate):
     @property
     def sub_viewer(self):
         return self.params._viewer
-    
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
@@ -323,7 +321,7 @@ class SubtomogramAveraging(MagicTemplate):
         """Template image."""
         loader = self._get_loader(binsize=1, molecules=Molecules.empty())
         template, _ = loader.normalize_input(self.params._get_template())
-        return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale)
+        return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
     
     @property
     def mask(self) -> "ip.ImgArray | None":
@@ -332,7 +330,7 @@ class SubtomogramAveraging(MagicTemplate):
         _, mask = loader.normalize_input(
             self.params._get_template(allow_none=True), self.params._get_mask()
         )
-        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale)
+        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
     
     @property
     def last_average(self) -> "ip.ImgArray | None":
@@ -724,7 +722,7 @@ class SubtomogramAveraging(MagicTemplate):
         molecules = layer.molecules
         templates = [self.params._get_template(path=template_path)]
         for path in other_templates:
-            templates.append(from_file(path))
+            templates.append(pipe.from_file(path))
 
         loader = self._get_loader(
             binsize=bin_size,

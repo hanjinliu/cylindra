@@ -41,8 +41,8 @@ class CylindraBatchProject(BaseProject):
             version = next(iter(_versions.values())),
             dependency_versions = _versions,
             macro=as_relative(macro_path),
-            children=[as_relative(fp.Header.path.value) for fp in gui._loader_constructor.projects],
-            filter_predicate=str(gui._loader_constructor.FilterExpr.filter_expression),
+            children=[as_relative(fp.Header.path.value) for fp in gui.constructor.projects],
+            filter_predicate=str(gui.constructor.FilterExpr.filter_expression),
         )
     
     def to_sequence(self) -> "ProjectSequence":

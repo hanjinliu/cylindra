@@ -36,8 +36,7 @@ from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.project import CylindraProject
 
 # widgets
-from cylindra.widgets import _previews, _shared_doc, subwidgets, widget_utils
-# from cylindra.widgets.feature_control import FeatureControl
+from cylindra.widgets import _previews, _shared_doc, subwidgets
 from cylindra.widgets.image_processor import ImageProcessor
 from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from cylindra.widgets.spline_control import SplineControl
@@ -1049,7 +1048,7 @@ class CylindraMainWidget(MagicTemplate):
         """        
         splines: list[CylSpline] = []
         for layer in layers:
-            spl = widget_utils.molecules_to_spline(layer)
+            spl = utils.molecules_to_spline(layer)
             splines.append(spl)
         
         self.tomogram.splines.clear()
@@ -1727,15 +1726,16 @@ class CylindraMainWidget(MagicTemplate):
         return self.sta.show()
     
     @Analysis.wraps
-    @set_design(text="Open project batch analyzer")
+    @set_design(text="Open batch analyzer")
     @do_not_record
     def open_project_batch_analyzer(self):
         from .batch import CylindraBatchWidget
         
-        uix = CylindraBatchWidget()
-        self.parent_viewer.window.add_dock_widget(uix, area="left").setFloating(True)
-        self._batch = uix
-        return uix
+        uibatch = CylindraBatchWidget()
+        uibatch.native.setParent(self.native, uibatch.native.windowFlags())
+        self._batch = uibatch
+        uibatch.show()
+        return uibatch
     
     @toolbar.wraps
     @set_design(icon=ICON_DIR/"pick_next.png")
