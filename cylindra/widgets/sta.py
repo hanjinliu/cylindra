@@ -1,4 +1,4 @@
-from typing import Callable, Union, TYPE_CHECKING, Annotated
+from typing import Union, TYPE_CHECKING, Annotated
 from timeit import default_timer
 import re
 from scipy.spatial.transform import Rotation
@@ -13,7 +13,6 @@ from magicclass.ext.dask import dask_thread_worker
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
 
 import numpy as np
-from numpy.typing import NDArray
 import impy as ip
 import polars as pl
 import napari
@@ -287,7 +286,7 @@ class SubtomogramAveraging(MagicTemplate):
     """
     Subtomogram_analysis = field(SubtomogramAnalysis)
     Refinement = field(Refinement)
-    params = StaParameters()
+    params = StaParameters
     
     @property
     def sub_viewer(self):
