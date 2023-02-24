@@ -8,7 +8,7 @@ from acryo import Molecules
 
 from cylindra.const import PropertyNames as H, get_versions
 from cylindra.types import MoleculesLayer
-from ._base import BaseProject, PathLike
+from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -42,6 +42,8 @@ class CylindraProject(BaseProject):
         self.localprops = resolve_path(self.localprops, file_dir)
         self.globalprops = resolve_path(self.globalprops, file_dir)
         self.template_image = resolve_path(self.template_image, file_dir)
+        if isinstance(self.mask_parameters, (Path, str)):
+            self.mask_parameters = resolve_path(self.mask_parameters, file_dir)
         self.global_variables = resolve_path(self.global_variables, file_dir)
         self.splines = [resolve_path(p, file_dir) for p in self.splines]
         self.molecules = [resolve_path(p, file_dir) for p in self.molecules]
@@ -124,7 +126,7 @@ class CylindraProject(BaseProject):
         
     @classmethod
     def save_gui(
-        cls: "CylindraProject",
+        cls: "type[CylindraProject]",
         gui: "CylindraMainWidget", 
         json_path: Path,
         results_dir: Union[Path, None] = None,
@@ -158,13 +160,11 @@ class CylindraProject(BaseProject):
         globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
         
         molecule_dataframes: list[pl.DataFrame] = []
-        molecules_paths: list[Path] = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
             mole = layer.molecules
             molecule_dataframes.append(mole.to_dataframe())
-            molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
         
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)  # create a directory if not exists.
@@ -182,13 +182,12 @@ class CylindraProject(BaseProject):
         gui.Others.Global_variables.save_variables(results_dir.parent / self.global_variables)
         
         if macro_str:
-            with open(results_dir.parent / self.macro, mode="w") as f:
-                f.write(macro_str)
+            fp = results_dir.parent / str(self.macro)
+            fp.write_text(macro_str)
         return None
     
     def to_gui(self, gui: "CylindraMainWidget", filter: bool = True):
         from cylindra.components import CylSpline, CylTomogram
-        from magicclass.utils import thread_worker
         
         gui.tomogram = CylTomogram.imread(
             path=self.image, 
@@ -225,7 +224,6 @@ class CylindraProject(BaseProject):
                 if "orientation" in spl.globalprops.columns:
                     spl.orientation = spl.globalprops["orientation"][0]
         
-        @thread_worker.to_callback
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(filt=filter)
             
@@ -281,15 +279,3 @@ class CylindraProject(BaseProject):
     @property
     def result_dir(self) -> Path:
         return Path(self.macro).parent
-
-def resolve_path(path: Union[str, Path, None], root: Path) -> Union[Path, None]:
-    """Resolve a relative path to an absolute path."""
-    if path is None:
-        return None
-    path = Path(path)
-    if path.is_absolute():
-        return path
-    path_joined = root / path
-    if path_joined.exists():
-        return path_joined
-    raise ValueError(f"Path {path} could not be resolved under root path {root}.")

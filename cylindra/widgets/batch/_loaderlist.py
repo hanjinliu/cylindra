@@ -4,7 +4,6 @@ from typing import overload
 import dataclasses
 import re
 from pathlib import Path
-import weakref
 from psygnal.containers import EventedList
 
 from acryo import BatchLoader
@@ -13,17 +12,10 @@ from acryo import BatchLoader
 class LoaderInfo:
     loader: BatchLoader
     name: str
-    paths: list[tuple[Path, list[Path]]] = dataclasses.field(default_factory=list)
-    predicate: "str | None" = None
-    parent: "weakref.ReferenceType[LoaderInfo] | None" = None
-    
-    def get_parent(self):
-        if self.parent is None:
-            return None
-        return self.parent()
-    
+    image_paths: dict[int, Path]
+
     def rename(self, name: str):
-        return LoaderInfo(self.loader, name, self.paths, self.predicate, self.parent)
+        return LoaderInfo(self.loader, name, self.image_paths)
 
 class LoaderList(EventedList[LoaderInfo]):
     @overload
@@ -42,8 +34,8 @@ class LoaderList(EventedList[LoaderInfo]):
         return super().__setitem__(index, value)
     
     def __delitem__(self, key: int | slice | str) -> None:
-        if isinstance(index, str):
-            index = self.find(index)
+        if isinstance(key, str):
+            key = self.find(key)
         return super().__delitem__(key)
     
     def find(self, name: str, default: int | None = None) -> int:

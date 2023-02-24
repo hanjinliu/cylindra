@@ -477,7 +477,7 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(self, path: Path.Read[FileFilter.JSON], filter: bool = True):
         """Load a project json file."""
         project = CylindraProject.from_json(path)
-        return project.to_gui(self, filter=filter)
+        return thread_worker.to_callback(project.to_gui(self, filter=filter))
     
     @File.wraps
     @set_design(text="Save project")

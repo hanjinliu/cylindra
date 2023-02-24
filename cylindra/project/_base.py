@@ -72,3 +72,15 @@ class BaseProject(BaseModel):
         """Resolve paths."""
         self.macro = Path(self.macro).resolve(file_dir)
         return None
+
+def resolve_path(path: Union[str, Path, None], root: Path) -> Union[Path, None]:
+    """Resolve a relative path to an absolute path."""
+    if path is None:
+        return None
+    path = Path(path)
+    if path.is_absolute():
+        return path
+    path_joined = root / path
+    if path_joined.exists():
+        return path_joined
+    raise ValueError(f"Path {path} could not be resolved under root path {root}.")

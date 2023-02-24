@@ -2,9 +2,10 @@ from typing import Iterator
 from fnmatch import fnmatch
 from magicgui.widgets import ComboBox, Container
 from magicclass import (
-    magicclass, field, magicmenu, nogui, vfield, MagicTemplate, set_design, abstractapi
+    do_not_record, magicclass, field, magicmenu, nogui, vfield, MagicTemplate, set_design, abstractapi
 )
 from magicclass.types import Path, ExprStr
+from magicclass.widgets import Separator
 from magicclass.ext.polars import DataFrameView
 from acryo import BatchLoader, Molecules, SubtomogramLoader
 
@@ -188,6 +189,10 @@ class ProjectSequenceEdit(MagicTemplate):
     class File(MagicTemplate):
         add_children = abstractapi()
         add_children_glob = abstractapi()
+        clear_children = abstractapi()
+        sep0 = field(Separator)
+        load_batch_project = abstractapi()
+        save_batch_project = abstractapi()
     
     @magicmenu
     class Select(MagicTemplate):
@@ -203,23 +208,31 @@ class ProjectSequenceEdit(MagicTemplate):
         view_filtered_molecules = abstractapi()
         view_localprops = abstractapi()
 
+    @magicmenu(name="Macro")
+    class MacroMenu(MagicTemplate):
+        show_macro = abstractapi()
+        show_native_macro = abstractapi()
+
     seq_name = vfield("Loader").with_options(label="Name:")
     projects = field(ProjectPaths)
     filter_expression = field(ExprStr.In[{"pl": pl}], label="Filter:")
     
     @Select.wraps
+    @do_not_record
     def select_all_projects(self):
         """Select all projects."""
         for wdt in self.projects:
             wdt.Header.check = True
     
     @Select.wraps
+    @do_not_record
     def select_projects_by_pattern(self, pattern: str):
         """Select projects by pattern matching."""
         for prj in self.projects:
             prj.Header.check = fnmatch(prj.Header.path.value, pattern)
     
     @Select.wraps
+    @do_not_record
     def select_molecules_by_pattern(self, pattern: str):
         """Select molecules by pattern matching."""
         for prj in self.projects:
@@ -264,6 +277,7 @@ class ProjectSequenceEdit(MagicTemplate):
         return pl.concat(dataframes, how="diagonal")
 
     @View.wraps
+    @do_not_record
     @set_design(text="View components in 3D")
     def view_components(self):
         """View all the splines and molecules that exist in this project."""
@@ -301,6 +315,7 @@ class ProjectSequenceEdit(MagicTemplate):
     
     
     @View.wraps
+    @do_not_record
     @set_design(text="View selected molecules in table")
     def view_molecules(self):
         mole = self._get_batch_loader().molecules
@@ -312,6 +327,7 @@ class ProjectSequenceEdit(MagicTemplate):
         table.show()
 
     @View.wraps
+    @do_not_record
     @set_design(text="View filtered molecules in table")
     def view_filtered_molecules(self):
         """Preview filtered molecules."""
@@ -324,6 +340,7 @@ class ProjectSequenceEdit(MagicTemplate):
         table.show()
 
     @View.wraps
+    @do_not_record
     @set_design(text="View local properties")
     def view_localprops(self):
         """View local properties of splines."""
@@ -340,6 +357,7 @@ class ProjectSequenceEdit(MagicTemplate):
         return wdt.eval()
 
     @File.wraps
+    @do_not_record
     @set_design(text="Add projects")
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
@@ -349,6 +367,7 @@ class ProjectSequenceEdit(MagicTemplate):
         return 
     
     @File.wraps
+    @do_not_record
     @set_design(text="Add projects with wildcard path")
     def add_children_glob(self, pattern: str):
         """Add project json files using wildcard path."""
@@ -359,6 +378,10 @@ class ProjectSequenceEdit(MagicTemplate):
             self.projects._add(path)
         self.reset_choices()
         return 
+    
+    @File.wraps
+    def clear_children(self):
+        self.projects.clear()
 
     construct_loader = abstractapi()
 

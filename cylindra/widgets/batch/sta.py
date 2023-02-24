@@ -1,3 +1,4 @@
+from tkinter import image_names
 from typing import Annotated, TYPE_CHECKING
 
 import re
@@ -17,7 +18,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 
-from cylindra.const import nm, ALN_SUFFIX
+from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
 
 from .. import widget_utils
@@ -73,22 +74,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         info = loaderlist[self.loader_name]
         loader = info.loader
-        if (parent := info.get_parent()) is not None:
-            parent_name = parent.name
-        else:
-            parent_name = "None"
-        if info.paths:
-            paths_list: list[str] = []
-            for imgpath, moles in info.paths:
-                paths_list.append(f"  - {imgpath}")
-                for molepath in moles:
-                    paths_list.append(f"    - {molepath}")
-            paths = "\n" + "\n".join(paths_list)
-        else:
-            paths = "None"
+        img_info = "\n" + "\n".join(
+            f"{img_id}: {img_path}" for img_id, img_path in info.image_paths.items()
+        )
+            
         info_text = (
-            f"name: {info.name}\npaths: {paths}\npredicate: {info.predicate!r}\n"
-            f"parent: {parent_name}\nmolecule: n={loader.count()}"
+            f"name: {info.name}\nmolecule: n={loader.count()}\nimages:{img_info}"
         )
         view = DataFrameView(value=loader.molecules.to_dataframe())
         txt = ConsoleTextEdit(value=info_text)
@@ -108,7 +99,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         del loaderlist[loader_name]
 
-    params = StaParameters
+    params = StaParameters()
     
     @BatchSubtomogramAnalysis.wraps
     @set_design(text="Filter loader")
@@ -135,12 +126,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader = info.loader
         pl_expr: pl.Expr = eval(str(expression), POLARS_NAMESPACE, {})
         new = loader.filter(pl_expr)
+        existing_id = set(new.features[Mole.image])
         loaderlist.append(
             LoaderInfo(
                 new,
                 name=f"{info.name}-Filt",
-                predicate=expression,
-                parent=loader,
+                image_paths={k: v for k, v in info.image_paths.items() if v in existing_id},
             )
         )
         return None
@@ -203,7 +194,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             LoaderInfo(
                 aligned,
                 name=_coerce_aligned_name(info.name, loaderlist),
-                parent=loader
+                image_paths=info.image_paths,
             )
         )
         return None

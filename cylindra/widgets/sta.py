@@ -287,7 +287,7 @@ class SubtomogramAveraging(MagicTemplate):
     """
     Subtomogram_analysis = field(SubtomogramAnalysis)
     Refinement = field(Refinement)
-    params = StaParameters
+    params = StaParameters()
     
     @property
     def sub_viewer(self):
