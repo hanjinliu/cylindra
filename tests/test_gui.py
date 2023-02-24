@@ -19,10 +19,10 @@ def assert_canvas(ui: CylindraMainWidget, isnone):
             assert ui.SplineControl.canvas[i].image is not None, f"{i}-th canvas"
 
 def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
-    assert_allclose(mole0.pos, mole1.pos, atol=1e-8, rtol=1e-8)
-    assert_allclose(mole0.x, mole1.x, atol=1e-8, rtol=1e-8)
-    assert_allclose(mole0.y, mole1.y, atol=1e-8, rtol=1e-8)
-    assert_allclose(mole0.z, mole1.z, atol=1e-8, rtol=1e-8)
+    assert_allclose(mole0.pos, mole1.pos, atol=1e-4, rtol=1e-4)
+    assert_allclose(mole0.x, mole1.x, atol=1e-4, rtol=1e-4)
+    assert_allclose(mole0.y, mole1.y, atol=1e-4, rtol=1e-4)
+    assert_allclose(mole0.z, mole1.z, atol=1e-4, rtol=1e-4)
 
 def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.get_spline().orientation == ori

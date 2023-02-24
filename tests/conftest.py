@@ -14,4 +14,6 @@ def ui(make_napari_viewer):
     _ui.close()
     if sv := _ui.sta.sub_viewer:
         sv.close()
+    if batch := _ui._batch:
+        batch.close()
     viewer.close()

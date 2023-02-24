@@ -1,25 +1,14 @@
-from magicclass import magicmenu, field, MagicTemplate, abstractapi
-from magicclass.widgets import Separator
-
-@magicmenu(name="File")
-class File(MagicTemplate):
-    add_children = abstractapi()
-    add_children_glob = abstractapi()
-    load_project = abstractapi()
-    save_project = abstractapi()
+from magicclass import magicmenu, MagicTemplate, abstractapi
 
 @magicmenu
-class Splines(MagicTemplate):
-    """Analyze splines collectively."""
-    view_localprops = abstractapi()
-
-@magicmenu(name="Subtomogram Analysis")
-class SubtomogramAnalysis(MagicTemplate):
-    """Analysis of subtomograms."""
+class BatchSubtomogramAnalysis(MagicTemplate):
     average_all = abstractapi()
-    sep0 = field(Separator)
-    align_all = abstractapi()
     calculate_fsc = abstractapi()
+
+@magicmenu
+class BatchRefinement(MagicTemplate):
+    """Refinement of subtomograms."""
+    align_all = abstractapi()
 
 @magicmenu(name="Macro")
 class Macro(MagicTemplate):

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import polars as pl
 from magicclass import MagicTemplate, magicclass, field, vfield
 from magicclass.ext.pyqtgraph import QtPlotCanvas
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole, IDName
-from cylindra.project import ProjectSequence
 
 @magicclass
 class LocalPropsViewer(MagicTemplate):
@@ -21,11 +21,8 @@ class LocalPropsViewer(MagicTemplate):
     def __init__(self) -> None:
         self._groups = {}
     
-    def _set_seq(self, seq: ProjectSequence) -> None:
-        if not isinstance(seq, ProjectSequence):
-            raise TypeError(f"Expected ProjectSequence, got {type(seq)}.")
-        _df = seq.localprops()
-        self._groups = dict(_df.groupby(by=[Mole.image, IDName.spline], maintain_order=True))
+    def _set_localprops(self, df: pl.DataFrame) -> None:
+        self._groups = dict(df.groupby(by=[Mole.image, IDName.spline], maintain_order=True))
         self.reset_choices()
 
     def __post_init__(self) -> None:

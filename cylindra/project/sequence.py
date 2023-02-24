@@ -3,7 +3,10 @@ from contextlib import suppress
 from pathlib import Path
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Iterable, Iterator, MutableSequence, SupportsIndex, TypeVar, overload
+from typing import (
+    TYPE_CHECKING, Any, Generic, Iterable, Iterator, MutableSequence, SupportsIndex, 
+    TypeVar, overload
+)
 
 from acryo import BatchLoader, Molecules
 import numpy as np
