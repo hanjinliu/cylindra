@@ -947,9 +947,7 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         mole = layer.molecules
 
-        loader = parent.tomogram.get_subtomogram_loader(
-            mole, order=interpolation,
-        )
+        loader = parent.tomogram.get_subtomogram_loader(mole, order=interpolation)
         _, mask = loader.normalize_input(
             template=self.params._get_template(allow_none=True),
             mask=self.params._get_mask(params=mask_params)
@@ -957,7 +955,6 @@ class SubtomogramAveraging(MagicTemplate):
         fsc, avg = loader.reshape(
             mask=mask, shape=None if size is None else (parent.tomogram.nm2pixel(size),)*3
         ).fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
-        fsc_all: list[np.ndarray] = []
         
         if show_average:
             img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
@@ -970,8 +967,8 @@ class SubtomogramAveraging(MagicTemplate):
         fsc_std = np.std(fsc_all, axis=1)
         crit_0143 = 0.143
         crit_0500 = 0.500
-        resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, parent.tomogram.scale)
-        resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, parent.tomogram.scale)
+        resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
+        resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
 
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
@@ -1028,42 +1025,32 @@ class SubtomogramAveraging(MagicTemplate):
             molecules=layer.molecules, 
             order=interpolation
         )
-
         _, mask = loader.normalize_input(
             template=self.params._get_template(allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
-        if size is None:
-            if mask is None:
-                raise ValueError("Either `size` or `mask` must be specified.")
-            shape = mask.shape
-        else:
-            shape = (parent.tomogram.nm2pixel(size),) * 3
-        
-        out, pca = loader.replace(output_shape=shape).classify(
+        out, pca = loader.reshape(
+            mask=mask,
+            shape=None if size is None else (parent.tomogram.nm2pixel(size),)*3
+        ).classify(
             mask=mask, seed=seed, cutoff=cutoff, n_components=n_components, 
             n_clusters=n_clusters, label_name="cluster",
         )
         
-        avgs_dict = out.groupby("cluster").average(mask.shape)
+        avgs_dict = out.groupby("cluster").average()
         avgs = ip.asarray(
             np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
         ).set_scale(zyx=loader.scale, unit="nm")
 
+        layer.molecules = out.molecules  # update features
+
         @thread_worker.to_callback
         def _on_return():
             from .pca import PcaViewer
-            from qtpy.QtCore import Qt
 
-            layer.molecules = out.molecules
             pca_viewer = PcaViewer(pca)
-            dock = self.parent_viewer.window.add_dock_widget(
-                pca_viewer, area="right", allowed_areas=["right"]
-            )
-            dock.setFloating(True)
-            dock.setAllowedAreas(Qt.DockWidgetArea.NoDockWidgetArea)
-            dock.resize(420, 320)
-            
+            pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
+            pca_viewer.show()
             self._show_reconstruction(avgs, name=f"[PCA]{layer.name}", store=False)
 
         return _on_return

@@ -633,7 +633,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Image.wraps
     @set_design(text="Add multi-scale")
-    @dask_thread_worker.with_progress(desc="Adding multiscale (bin = {bin_size})".format)
+    @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")
     def add_multiscale(self, bin_size: OneOf[2:9] = 4):
         """
         Add a new multi-scale image of current tomogram.

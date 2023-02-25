@@ -1,9 +1,12 @@
-from magicclass import magicmenu, MagicTemplate, abstractapi
+from magicclass import magicmenu, MagicTemplate, abstractapi, field
+from magicclass.widgets import Separator
 
 @magicmenu
 class BatchSubtomogramAnalysis(MagicTemplate):
     average_all = abstractapi()
     calculate_fsc = abstractapi()
+    sep0 = field(Separator)
+    classify_pca = abstractapi()
 
 @magicmenu
 class BatchRefinement(MagicTemplate):

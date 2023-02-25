@@ -28,6 +28,15 @@ from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alig
 from .menus import BatchSubtomogramAnalysis, BatchRefinement
 from ._loaderlist import LoaderList, LoaderInfo
 
+
+def _classify_pca_fmt():
+    yield f"(0/5) Caching all the subtomograms"
+    yield f"(1/5) Creating template image for PCA clustering"
+    yield f"(2/5) Fitting PCA model"
+    yield f"(3/5) Transforming all the images"
+    yield f"(4/5) Creating average images for each cluster"
+    yield "(5/5) Finishing"
+
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _ZRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
@@ -35,7 +44,7 @@ _YRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0
 _XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
 _MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"}]
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
-
+_BINSIZE = OneOf[(1, 2, 3, 4, 5, 6, 7, 8)]
 POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
 
 @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False, record=False)
@@ -278,12 +287,19 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader_name: Bound[_get_current_loader_name],
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        bin_size: _BINSIZE = 1,
     ):
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
         loader = loader.replace(output_shape=shape, order=interpolation)
-        img = ip.asarray(loader.average(), axes="zyx")
+        img = ip.asarray(
+            loader
+                .replace(output_shape=shape, order=interpolation)
+                .binning(bin_size, compute=False)
+                .average(), 
+            axes="zyx"
+        )
         img.set_scale(zyx=loader.scale)
         
         return thread_worker.to_callback(
@@ -306,6 +322,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
+        bin_size: _BINSIZE = 1,
     ):
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
@@ -314,16 +331,18 @@ class BatchSubtomogramAveraging(MagicTemplate):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        loader = loader.replace(output_shape=template.shape, order=interpolation)
-        aligned = loader.align(
-            template=template,
-            mask=mask,
-            max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            alignment_model= _get_alignment(method),
-            tilt_range=tilt_range,
-        )
+        aligned = loader  \
+            .replace(output_shape=template.shape, order=interpolation)  \
+            .binning(bin_size, compute=False)  \
+            .align(
+                template=template,
+                mask=mask,
+                max_shifts=max_shifts,
+                rotations=(z_rotation, y_rotation, x_rotation),
+                cutoff=cutoff,
+                alignment_model= _get_alignment(method),
+                tilt_range=tilt_range,
+            )
         loaderlist.append(
             LoaderInfo(
                 aligned,
@@ -368,54 +387,41 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
         loader = loader.replace(output_shape=shape, order=interpolation)
-        _, mask = loader.normalize_input(
-            template=self.params._get_template(allow_none=True),
-            mask=self.params._get_mask(params=mask_params)
-        )
-    
-        if mask is None:
-            mask = 1.
-        if dfreq is None:
-            dfreq = 1.5 / min(shape) * loader.scale
-        img = ip.asarray(
-            loader.average_split(n_set=n_set, seed=seed, squeeze=False),
-            axes="ipzyx",
-        )
+        if mask_params is None:
+            mask = None
+        else:
+            _, mask = loader.normalize_input(
+                template=self.params._get_template(allow_none=True),
+                mask=self.params._get_mask(params=mask_params)
+            )
         
-        # NOTE: images added with a big constant offset cause strong correlation at the
-        # masked edges. Here to avoid it, normalize images to minimize the artifact.
-        img -= img.mean()
-        img: ip.ImgArray
-
-        fsc_all: list[np.ndarray] = []
-        for i in range(n_set):
-            img0, img1 = img[i]
-            freq, fsc = ip.fsc(img0 * mask, img1 * mask, dfreq=dfreq)
-            fsc_all.append(fsc)
+        fsc, avg = loader  \
+            .reshape(mask=mask, shape=shape)  \
+            .fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
+        
         if show_average:
-            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / img.shape.i
-            img_avg.set_scale(zyx=loader.scale)
+            img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
         else:
             img_avg = None
 
-        fsc_all = np.stack(fsc_all, axis=1)
-        
+        freq = fsc["freq"].to_numpy()
+        fsc_all = fsc.select(pl.col("^FSC.*$")).to_numpy()
+        fsc_mean = np.mean(fsc_all, axis=1)
+        fsc_std = np.std(fsc_all, axis=1)
+        crit_0143 = 0.143
+        crit_0500 = 0.500
+        resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
+        resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
+
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
             from cylindra import instance
-            fsc_mean = np.mean(fsc_all, axis=1)
-            fsc_std = np.std(fsc_all, axis=1)
-            crit_0143 = 0.143
-            crit_0500 = 0.500
             
             parent = instance()
             parent.log.print_html("<b>Fourier Shell Correlation of the collection</b>")
             with parent.log.set_plt(rc_context={"font.size": 15}):
                 widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], loader.scale)
-            
-            resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
-            resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
-            
+
             parent.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
             parent.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
             parent._LoggerWindow.show()
@@ -429,6 +435,68 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 )
         return _calculate_fsc_on_return
     
+    @BatchSubtomogramAnalysis.wraps
+    @set_design(text="PCA/K-means classification")
+    @dask_thread_worker.with_progress(descs=_classify_pca_fmt)
+    def classify_pca(
+        self,
+        loader_name: Bound[_get_current_loader_name],
+        mask_params: Bound[params._get_mask_params],
+        size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}] = None,
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        bin_size: _BINSIZE = 1,
+        n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
+        n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+    ):
+        """
+        Classify molecules in a layer using PCA and K-means clustering.
+
+        Parameters
+        ----------
+        {layer}{mask_params}{size}{cutoff}{interpolation}{bin_size}
+        n_components : int, default is 2
+            The number of PCA dimensions.
+        n_clusters : int, default is 2
+            The number of clusters.
+        seed : int, default is 0
+            Random seed.
+        """
+        loaderlist = self._get_parent()._loaders
+        loader = loaderlist[loader_name].loader
+        shape = self._get_shape_in_px(size, loader)
+
+        _, mask = loader.normalize_input(
+            template=self.params._get_template(allow_none=True),
+            mask=self.params._get_mask(params=mask_params),
+        )
+        out, pca = loader  \
+            .reshape(mask=mask, shape=shape)  \
+            .replace(order=interpolation)  \
+            .binning(binsize=bin_size, compute=False)  \
+            .classify(
+                mask=mask, seed=seed, cutoff=cutoff, n_components=n_components, 
+                n_clusters=n_clusters, label_name="cluster",
+            )
+        
+        avgs_dict = out.groupby("cluster").average()
+        avgs = ip.asarray(
+            np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
+        ).set_scale(zyx=loader.scale, unit="nm")
+
+        loader.molecules.features = out.molecules.features
+
+        @thread_worker.to_callback
+        def _on_return():
+            from ..pca import PcaViewer
+
+            pca_viewer = PcaViewer(pca)
+            pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
+            pca_viewer.show()
+            self.params._show_reconstruction(avgs, name=f"[PCA]{loader_name}", store=False)
+
+        return _on_return
     
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
