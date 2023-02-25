@@ -349,6 +349,7 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         binsize: int,
         molecules: Molecules,
+        shape: tuple[nm, nm, nm] = None,
         order: int = 1,
     ) -> SubtomogramLoader:
         """
@@ -358,7 +359,7 @@ class SubtomogramAveraging(MagicTemplate):
         from .main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget).tomogram.get_subtomogram_loader(
-            molecules, binsize=binsize, order=order
+            molecules, binsize=binsize, order=order, shape=shape,
         )
     
     def _get_parent(self):
@@ -641,6 +642,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_template_free(
         self,
         layer: MoleculesLayer,
+        mask_params: Bound[params._get_mask_params],
         tilt_range: Bound[params.tilt_range] = None,
         size: _SubVolumeSize = 12.,
         max_shifts: _MaxShifts = (1., 1., 1.),
@@ -657,25 +659,36 @@ class SubtomogramAveraging(MagicTemplate):
         
         Parameters
         ----------
-        {layer}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
-        {interpolation}{method}{bin_size}
+        {layer}{mask_params}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}{x_rotation}
+        {cutoff}{interpolation}{method}{bin_size}
         """
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.molecules
-        shape = self._get_shape_in_nm(size)
+        if size is None:
+            if not isinstance(mask_params, (str, Path)):
+                raise ValueError(
+                    "Cannot infer subvolume size from given inputs. You have to provide a "
+                    "`size` or a mask path."
+                )
+            mask = self.params._get_mask(params=mask_params)
+            shape = mask.shape
+        else:
+            mask = self.params._get_mask(params=mask_params)
+            shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
+            
         loader = self._get_loader(
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-        )
+        ).replace(output_shape=shape)
         aligned_loader = loader.align_no_template(
+            mask=mask,
             max_shifts=max_shifts,
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
             tilt_range=tilt_range,
-            output_shape=shape,
         )
         
         parent.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
@@ -933,55 +946,40 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         mole = layer.molecules
-        shape = self._get_shape_in_nm(size)
+
         loader = parent.tomogram.get_subtomogram_loader(
-            mole, shape, order=interpolation,
+            mole, order=interpolation,
         )
         _, mask = loader.normalize_input(
             template=self.params._get_template(allow_none=True),
             mask=self.params._get_mask(params=mask_params)
         )
-        if mask is None:
-            mask = 1.
-        if dfreq is None:
-            dfreq = 1.5 / min(shape) * loader.scale
-        img = ip.asarray(
-            loader.average_split(n_set=n_set, seed=seed, squeeze=False),
-            axes="ipzyx",
-        )
-        
-        # NOTE: images added with a big constant offset cause strong correlation at the
-        # masked edges. Here to avoid it, normalize images to minimize the artifact.
-        img -= img.mean()
-        
+        fsc, avg = loader.reshape(
+            mask=mask, shape=None if size is None else (parent.tomogram.nm2pixel(size),)*3
+        ).fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
         fsc_all: list[np.ndarray] = []
-        for i in range(n_set):
-            img0, img1 = img[i]
-            freq, fsc = ip.fsc(img0 * mask, img1 * mask, dfreq=dfreq)
-            fsc_all.append(fsc)
+        
         if show_average:
-            img_avg = ip.asarray(img[0, 0] + img[0, 1], axes="zyx") / len(mole)
-            img_avg.set_scale(zyx=loader.scale)
+            img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
         else:
             img_avg = None
 
-        fsc_all = np.stack(fsc_all, axis=1)
-        parent.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
-        
+        freq = fsc["freq"].to_numpy()
+        fsc_all = fsc.select(pl.col("^FSC.*$")).to_numpy()
+        fsc_mean = np.mean(fsc_all, axis=1)
+        fsc_std = np.std(fsc_all, axis=1)
+        crit_0143 = 0.143
+        crit_0500 = 0.500
+        resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, parent.tomogram.scale)
+        resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, parent.tomogram.scale)
+
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
-            fsc_mean = np.mean(fsc_all, axis=1)
-            fsc_std = np.std(fsc_all, axis=1)
-            crit_0143 = 0.143
-            crit_0500 = 0.500
-            
+            parent.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
             parent.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
             with parent.log.set_plt(rc_context={"font.size": 15}):
                 widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], parent.tomogram.scale)
-            
-            resolution_0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, parent.tomogram.scale)
-            resolution_0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, parent.tomogram.scale)
-            
+
             parent.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
             parent.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
             parent._LoggerWindow.show()

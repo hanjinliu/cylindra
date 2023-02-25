@@ -365,6 +365,15 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Others.wraps
+    @set_design(text="Open command palette")
+    @do_not_record
+    @bind_key("Ctrl-P")
+    def open_command_palette(self):
+        from magicclass.command_palette import exec_command_palette
+        
+        return exec_command_palette(self)
+
+    @Others.wraps
     @set_design(text="Open logger")
     @do_not_record
     def open_logger(self):
@@ -715,7 +724,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         return None
 
-    @Splines.wraps
+    @Splines.Orientation.wraps
     @set_design(text="Invert spline")
     def invert_spline(self, spline: Bound[SplineControl.num] = None):
         """
@@ -741,7 +750,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
     
-    @Splines.wraps
+    @Splines.Orientation.wraps
     @set_design(text="Align to polarity")
     def align_to_polarity(self, orientation: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus"):
         """
@@ -764,7 +773,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
     
-    @Splines.wraps
+    @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
     def auto_align_to_polarity(
         self,
@@ -1062,7 +1071,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open spline clipper")
     @do_not_record
     def open_spline_clipper(self):
-        """Open the spline clipper widget."""
+        """Open the spline clipper widget to precisely clip spines."""
         self.spline_clipper.show()
         if self.tomogram.n_splines > 0:
             self.spline_clipper.load_spline(self.SplineControl.num)

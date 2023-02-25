@@ -60,17 +60,20 @@ class Splines(MagicTemplate):
     show_splines = abstractapi()
     add_anchors = abstractapi()
     sep0 = field(Separator)
-    invert_spline = abstractapi()
-    align_to_polarity = abstractapi()
-    auto_align_to_polarity = abstractapi()
+    @magicmenu
+    class Orientation(MagicTemplate):
+        """Adjust spline orientation."""        
+        invert_spline = abstractapi()
+        align_to_polarity = abstractapi()
+        auto_align_to_polarity = abstractapi()
     clip_spline = abstractapi()
+    open_spline_clipper = abstractapi()
     delete_spline = abstractapi()
     sep1 = field(Separator)
     fit_splines = abstractapi()
     fit_splines_manually = abstractapi()
     refine_splines = abstractapi()
     molecules_to_spline = abstractapi()
-    open_spline_clipper = abstractapi()
 
 @magicmenu
 class Molecules_(MagicTemplate):
@@ -125,6 +128,7 @@ class Others(MagicTemplate):
         sep0 = field(Separator)
         load_macro_file = abstractapi()
         run_file = abstractapi()
+    open_command_palette = abstractapi()
     Global_variables = GlobalVariables
     open_logger = abstractapi()
     clear_cache = abstractapi()

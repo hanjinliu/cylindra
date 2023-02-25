@@ -139,10 +139,10 @@ def test_sta(ui: CylindraMainWidget):
     
     # map monomer coordinates and save them.
     ui.map_monomers(splines=[0])
-    ui.sta.average_subset(ui.parent_viewer.layers['Mono-0'], size=18.)
-    ui.sta.calculate_fsc(ui.parent_viewer.layers['Mono-0'], mask_params=None, size=18.,
+    ui.sta.average_subset(ui.parent_viewer.layers['Mono-0'], size=8.)
+    ui.sta.calculate_fsc(ui.parent_viewer.layers['Mono-0'], mask_params=None, size=8.,
                      seed=0, interpolation=1)
-    template_path = TEST_PATH / "template.mrc"
+    template_path = TEST_PATH / "beta-tubulin.mrc"
     ui.sta.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
                       mask_params=(1, 1))
     ui.sta.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
@@ -211,7 +211,7 @@ def test_single_simulation(ui: CylindraMainWidget):
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(idx=0, interval=4.1, skew=-0.30, rise=11.0, npf=14, radius=9.14, offsets=(0.0, 0.18))
     ui.cylinder_simulator.simulate_tomogram(
-        template_path=TEST_PATH / "template.mrc",
+        template_path=TEST_PATH / "beta-tubulin.mrc",
         n_tilt = 11,
         interpolation=1,
     )
@@ -227,7 +227,7 @@ def test_batch_simulation(ui: CylindraMainWidget):
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
         ui.cylinder_simulator.simulate_tomogram_batch(
-            template_path=TEST_PATH / "template.mrc",
+            template_path=TEST_PATH / "beta-tubulin.mrc",
             save_path=dirpath,
             nsr=[0.5, 2.0],
             tilt_range=(-60.0, 60.0),
