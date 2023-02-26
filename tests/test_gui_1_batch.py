@@ -48,3 +48,9 @@ def test_calculate_fsc(ui: CylindraMainWidget):
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
     _load(ui)
     ui.batch.sta.classify_pca("Loader", mask_params=None, size=6.0, interpolation=1, bin_size=binsize)
+
+def test_filter(ui: CylindraMainWidget):
+    _load(ui)
+    ui.batch.sta.filter_loader("Loader", "pl.col('pf-id') == 1")
+    loader = ui.batch.sta.get_loader("Loader-Filt")
+    assert all(loader.features["pf-id"] == 1)

@@ -104,7 +104,7 @@ class MoleculesHeader(SimpleNamespace):
     zncc = "zncc"
     pcc = "pcc"
     interval = "interval-nm"  # interval between two molecules
-    skew = "skew-nm"
+    skew = "skew-deg"
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
     image = "image-id"
