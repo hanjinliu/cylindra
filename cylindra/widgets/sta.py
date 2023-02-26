@@ -242,6 +242,8 @@ class StaParameters(MagicTemplate):
             return pipe.from_file(params)
     
     def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True) -> "Image":
+        from skimage.filters.thresholding import threshold_yen
+
         if self._viewer is not None:
             try:
                 # This line will raise RuntimeError if viewer window had been closed by user.
@@ -260,10 +262,9 @@ class StaParameters(MagicTemplate):
         if store:
             self._last_average = image
         input_image = utils.normalize_image(image)
-        from skimage.filters.thresholding import threshold_yen
         thr = threshold_yen(input_image.value)
         layer = self._viewer.add_image(
-            input_image, scale=image.scale, name=name,
+            input_image.value, scale=image.scale, name=name,
             rendering="iso", iso_threshold=thr,
         )
         return layer
@@ -1106,7 +1107,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _seam_search_on_return():
-            self._show_reconstruction(img_ave, layer.name)
+            self._show_reconstruction(img_ave, layer.name, store=False)
             parent._LoggerWindow.show()
             
             # calculate score and the best PF position

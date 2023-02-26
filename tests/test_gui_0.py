@@ -6,6 +6,7 @@ from acryo import Molecules
 from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
+import time
 import pytest
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
@@ -38,7 +39,8 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 
 def test_io(ui: CylindraMainWidget):
     path = TEST_PATH / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=1)
+    ui.open_image(path=path, scale=1.052, bin_size=[1, 2])
+    ui.set_multiscale(1)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
     ui.cylindrical_fit(interval=24.0)
@@ -152,22 +154,21 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert ui.LocalProperties.params.pitch.txt == " -- nm"
     assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
 
-def test_sta(ui: CylindraMainWidget):
-    path = TEST_PATH / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=2)
-    ui.register_path(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
-    ui.cylindrical_fit(interval=16.0)
-    
-    # map monomer coordinates and save them.
-    ui.map_monomers(splines=[0])
-    ui.sta.average_subset(ui.parent_viewer.layers['Mono-0'], size=8.)
+
+@pytest.mark.parametrize("bin_size", [1, 2])
+def test_sta(ui: CylindraMainWidget, bin_size: int):
+    ui.load_project(TEST_PATH / "test-project.json")
+    ui.sta.average_all(ui.parent_viewer.layers['Mono-0'], size=12.0, bin_size=bin_size)
+    for method in ["steps", "first", "last", "random"]:
+        ui.sta.average_subset(ui.parent_viewer.layers['Mono-0'], size=12., method=method, bin_size=bin_size)
     ui.sta.calculate_fsc(ui.parent_viewer.layers['Mono-0'], mask_params=None, size=8.,
                      seed=0, interpolation=1)
     template_path = TEST_PATH / "beta-tubulin.mrc"
     ui.sta.align_averaged(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, 
-                      mask_params=(1, 1))
+                      mask_params=(1, 1), bin_size=bin_size)
     ui.sta.align_all(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1), 
-                 tilt_range=(-60., 60.), max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), interpolation=1)
+                 tilt_range=(-60., 60.), max_shifts=(1.0, 1.1, 1.0), y_rotation=(1.0, 1.0), interpolation=1, 
+                 bin_size=bin_size)
     ui.sta.seam_search(layer=ui.parent_viewer.layers['Mono-0'], template_path=template_path, mask_params=(1, 1))
     ui.save_molecules(layer=ui.parent_viewer.layers['Mono-0'], save_path=TEST_PATH/"monomers.txt")
     mole = ui.get_molecules('Mono-0')
@@ -182,8 +183,6 @@ def test_sta(ui: CylindraMainWidget):
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
     ui.load_project(TEST_PATH / "test-project.json")
-    if binsize != 1:
-        ui.add_multiscale(bin_size=binsize)
     ui.sta.classify_pca(ui.parent_viewer.layers["Mono-0"], mask_params=None, size=6.0, interpolation=1, bin_size=binsize)
 
 def test_clip_spline(ui: CylindraMainWidget):
