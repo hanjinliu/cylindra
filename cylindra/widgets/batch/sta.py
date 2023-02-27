@@ -5,7 +5,7 @@ from acryo import BatchLoader, pipe
 
 from magicgui.widgets import Container
 from magicclass import (
-    magicclass, do_not_record, field, vfield, MagicTemplate, set_design, abstractapi
+    magicclass, do_not_record, field, nogui, vfield, MagicTemplate, set_design, abstractapi
 )
 from magicclass.types import OneOf, Optional, Bound, ExprStr, Path
 from magicclass.utils import thread_worker
@@ -278,6 +278,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
             )
         )
         return None
+    
+    @nogui
+    def get_loader(self, name: str) -> BatchLoader:
+        """Return the acryo.BatchLoader object with the given name"""
+        info = self._get_parent()._loaders[name]
+        return info.loader
 
     @BatchSubtomogramAnalysis.wraps
     @set_design(text="Average all molecules")
