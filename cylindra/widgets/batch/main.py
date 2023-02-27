@@ -45,11 +45,9 @@ class CylindraBatchWidget(MagicTemplate):
         if name == "":
             raise ValueError("Name is empty!")
         loader = BatchLoader()
-        scales: list[float] = []
         image_paths: dict[int, Path] = {}
         for img_id, (img_path, mole_paths) in enumerate(paths):
             img = ip.lazy_imread(img_path, chunks=GVar.daskChunk)
-            scales.append(img.scale.x)
             image_paths[img_id] = Path(img_path)
             for mole_path in mole_paths:
                 mole_path = Path(mole_path)
@@ -57,12 +55,10 @@ class CylindraBatchWidget(MagicTemplate):
                     [pl.repeat(mole_path.stem, pl.count()).alias(Mole.id)]
                 )
                 loader.add_tomogram(img.value, mole, img_id)
-            
-        if abs(max(scales) / min(scales) - 1) > 0.01:
-            raise ValueError("Scale error must be less than 1%.")
+
         if predicate is not None:
             loader = loader.filter(predicate)
-        new = loader.replace(scale=np.mean(scales))
+        new = loader.replace(scale=self.constructor.scale.value)
         self._add_loader(new, name, image_paths)
         return new
     

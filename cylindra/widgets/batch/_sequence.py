@@ -74,12 +74,7 @@ class Project(MagicTemplate):
         check = vfield(True).with_options(text="")
         path = field("").with_options(enabled=False)
         
-        @set_design(text="✕", max_width=30)
-        def remove_project(self):
-            """Remove this project from the list."""
-            parent = self.find_ancestor(ProjectPaths)
-            idx = parent.index(self)
-            del parent[idx]
+        remove_project = abstractapi()
         
         @set_design(text="Open")
         def send_to_viewer(self):
@@ -94,6 +89,21 @@ class Project(MagicTemplate):
         def __post_init__(self):
             self["check"].text = ""  # NOTE: should be updated here!
     
+    def __init__(self, project: "CylindraProject | None" = None):
+        self._project = project
+    
+    @property
+    def project(self) -> "CylindraProject | None":
+        return self._project
+    
+    @Header.wraps
+    @set_design(text="✕", max_width=30)
+    def remove_project(self):
+        """Remove this project from the list."""
+        parent = self.find_ancestor(ProjectPaths)
+        idx = parent.index(self)
+        del parent[idx]
+
     @Header.check.connect
     def _on_checked(self, value: bool):
         self.splines.enabled = value
@@ -109,12 +119,11 @@ class Project(MagicTemplate):
     @classmethod
     def _from_path(cls, path: Path):
         """Create a Project widget from a project path."""
-        self = cls()
         path = str(path)
+        project = CylindraProject.from_json(path)
+        self = cls(project)
         self.Header.path.value = path
         self.Header.path.tooltip = path
-        
-        project = CylindraProject.from_json(path)
         
         # load splines
         for spline_path in project.splines:
@@ -164,9 +173,10 @@ class Project(MagicTemplate):
     properties={"min_height": 20, "min_width": 250},
 )
 class ProjectPaths(MagicTemplate):
-    def _add(self, path: Path):
+    def _add(self, path: Path) -> Project:
         prj = Project._from_path(path)
         self.append(prj)
+        return prj
     
     def __iter__(self) -> Iterator[Project]:
         return super().__iter__()
@@ -215,6 +225,7 @@ class ProjectSequenceEdit(MagicTemplate):
 
     seq_name = vfield("Loader").with_options(label="Name:")
     projects = field(ProjectPaths)
+    scale = field(1.0, label="Scale (nm):").with_options(min=0.001, step=0.0001, max=10.0)
     filter_expression = field(ExprStr.In[{"pl": pl}], label="Filter:")
     
     @Select.wraps
@@ -362,7 +373,8 @@ class ProjectSequenceEdit(MagicTemplate):
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
-            self.projects._add(path)
+            wdt = self.projects._add(path)
+            self.scale.value = wdt.project.scale
         self.reset_choices()
         return 
     
@@ -375,7 +387,8 @@ class ProjectSequenceEdit(MagicTemplate):
 
         pattern = str(pattern)
         for path in glob.glob(pattern):
-            self.projects._add(path)
+            wdt = self.projects._add(path)
+            self.scale.value = wdt.project.scale
         self.reset_choices()
         return 
     
