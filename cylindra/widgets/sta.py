@@ -265,7 +265,7 @@ class StaParameters(MagicTemplate):
         thr = threshold_yen(input_image.value)
         layer = self._viewer.add_image(
             input_image.value, scale=image.scale, name=name,
-            rendering="iso", iso_threshold=thr,
+            rendering="iso", iso_threshold=thr, blending="opaque",
         )
         return layer
     
@@ -558,20 +558,24 @@ class SubtomogramAveraging(MagicTemplate):
             tilt_range=None,  # NOTE: because input is an average
         )
         img_trans, result = model.fit(
-            loader.average(template.shape),
-            max_shifts=tuple(np.array([dy, dy, dx]) / _scale * 0.6)
+            loader.average(template.shape), 
+            max_shifts=tuple(np.array([dy, dy, dx]) / _scale * 0.6),
         )
+
         rotator = Rotation.from_quat(result.quat)
         mole_trans = mole.linear_transform(result.shift * _scale, rotator)
-        
+
         # logging
         parent.log.print_html(f"<code>align_averaged</code> ({default_timer() - t0:.1f} sec)")
         shift_nm = result.shift * _scale
-        vec_str = ", ".join(f"{x}<sub>shift</sub>" for x in "XYZ")
-        rotvec_str = ", ".join(f"{x}<sub>rot</sub>" for x in "XYZ")
-        shift_nm_str = ", ".join(f"{s:.2f} nm" for s in shift_nm[::-1])
-        rot_str = ", ".join(f"{s:.2f}" for s in rotator.as_rotvec()[::-1])
-        parent.log.print_html(f"{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}")
+        parent.log.print_html(
+            "{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}".format(
+                vec_str=", ".join(f"{x}<sub>shift</sub>" for x in "XYZ"),
+                rotvec_str=", ".join(f"{x}<sub>rot</sub>" for x in "XYZ"),
+                shift_nm_str=", ".join(f"{s:.2f} nm" for s in shift_nm[::-1]),
+                rot_str=", ".join(f"{s:.2f}" for s in rotator.as_rotvec()[::-1]),        
+            )
+        )
 
         parent._need_save = True
         
