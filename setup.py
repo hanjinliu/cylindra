@@ -56,6 +56,7 @@ setup(
         "pyqtgraph>=0.12.4",
         "mrcfile>=1.3.0",
         "napari>=0.4.17",
+        "qt-command-palette>=0.0.5",
     ],
     python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
