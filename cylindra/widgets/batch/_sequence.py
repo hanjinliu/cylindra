@@ -292,7 +292,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @set_design(text="View components in 3D")
     def view_components(self):
         """View all the splines and molecules that exist in this project."""
-        from cylindra.project import ComponentsViewer
+        from cylindra.project._widgets import ComponentsViewer
         cbox = ComboBox(choices=self._get_project_paths)
         comp_viewer = ComponentsViewer()
         

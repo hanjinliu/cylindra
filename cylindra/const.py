@@ -1,6 +1,5 @@
 from __future__ import annotations
 from enum import Enum
-import numpy as np
 from types import SimpleNamespace
 from typing import Any
 
@@ -165,9 +164,10 @@ class GlobalVariables:
     
     @classmethod
     def set_value(cls, **kwargs):
-        if kwargs.get("yPitchMin", -np.inf) >= kwargs.get("yPitchMax", np.inf):
+        inf = float("inf")
+        if kwargs.get("yPitchMin", -inf) >= kwargs.get("yPitchMax", inf):
             raise ValueError("'yPitchMin' must be smaller than 'yPitchMax'.")
-        if kwargs.get("minSkew", -np.inf) >= kwargs.get("maxSkew", np.inf):
+        if kwargs.get("minSkew", -inf) >= kwargs.get("maxSkew", inf):
             raise ValueError("'minSkew' must be smaller than 'maxSkew'.")
         for k, v in kwargs.items():
             if not hasattr(cls, k):
@@ -178,6 +178,7 @@ class GlobalVariables:
 def get_versions() -> dict[str, str]:
     """Return version info of relevant libraries."""
     import napari
+    import numpy as np
     import impy as ip
     import magicgui
     from cylindra.__about__ import __version__

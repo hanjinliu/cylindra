@@ -1,12 +1,8 @@
 import os
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
-import numpy as np
-import impy as ip
-import polars as pl
 import macrokit as mk
 from pydantic import BaseModel
-from acryo import Molecules, BatchLoader
 
 from cylindra.const import get_versions, GlobalVariables as GVar
 from ._base import BaseProject, PathLike, resolve_path
@@ -147,6 +143,9 @@ class CylindraBatchProject(BaseProject):
         
         
     def to_gui(self, gui: "CylindraBatchWidget"):
+        import impy as ip
+        from acryo import Molecules, BatchLoader
+
         for lmodel in self.loaders:
             loader = BatchLoader()
             for imginfo in lmodel.images:

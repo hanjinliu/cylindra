@@ -1,15 +1,14 @@
-import os
 import json
-from typing import Any, Union, TYPE_CHECKING
+from typing import Any, Union
 from enum import Enum
 from pathlib import Path
-import numpy as np
-import pandas as pd
-import polars as pl
 from pydantic import BaseModel
 
 def json_encoder(obj):    
     """An enhanced encoder."""
+    import numpy as np
+    import pandas as pd
+    import polars as pl
     
     if isinstance(obj, Enum):
         return obj.name
@@ -22,10 +21,11 @@ def json_encoder(obj):
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
     elif isinstance(obj, Path):
+        # return as a POSIX path
         if obj.is_absolute():
-            return str(obj)
+            return obj.as_posix()
         else:
-            return os.path.join(".", str(obj))
+            return "./" + obj.as_posix()
     else:
         raise TypeError(f"{obj!r} is not JSON serializable")
 
@@ -73,7 +73,14 @@ class BaseProject(BaseModel):
         self.macro = Path(self.macro).resolve(file_dir)
         return None
 
-def resolve_path(path: Union[str, Path, None], root: Path) -> Union[Path, None]:
+_void = object()
+
+def resolve_path(
+    path: Union[str, Path, None],
+    root: Path,
+    *,
+    default: "Path | None" = _void,
+) -> "Path | None":
     """Resolve a relative path to an absolute path."""
     if path is None:
         return None
@@ -83,4 +90,6 @@ def resolve_path(path: Union[str, Path, None], root: Path) -> Union[Path, None]:
     path_joined = root / path
     if path_joined.exists():
         return path_joined
-    raise ValueError(f"Path {path} could not be resolved under root path {root}.")
+    if default is _void:
+        raise ValueError(f"Path {path} could not be resolved under root path {root}.")
+    return default

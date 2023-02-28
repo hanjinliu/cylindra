@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     import napari
     from acryo import Molecules
     from cylindra._molecules_layer import MoleculesLayer
-    from cylindra.project import ProjectSequence
+    from cylindra.project.sequence import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline
     from cylindra.project import CylindraProject
@@ -36,11 +36,19 @@ def start(
         Give a viewer object and this viewer will be used as the parent.
     """
     from cylindra.widgets import CylindraMainWidget
+    import numpy as np
+    import impy as ip
+    import polars as pl
+    import matplotlib.pyplot as plt
+    from magicclass import defaults
     import logging
     
     global _CURRENT_INSTANCE
     
     ui = CylindraMainWidget()
+    
+    defaults["macro-highlight"] = True
+    del defaults
     
     if viewer is None:
         import napari
@@ -77,7 +85,10 @@ def start(
     _CURRENT_INSTANCE = ui
     
     with suppress(Exception):
-        viewer.window._qt_viewer.console.push({"ui": ui})
+        # update console namespace
+        viewer.window._qt_viewer.console.push(
+            {"ui": ui, "np": np, "ip": ip, "pl": pl, "plt": plt}
+        )
     return ui
 
 def instance() -> CylindraMainWidget | None:
@@ -160,7 +171,7 @@ def collect_projects(files: PathLike | Iterable[PathLike], *, skip_exc: bool = F
     files : path-like or iterable of path-like
         Project file paths or a glob pattern.
     """
-    from cylindra.project import ProjectSequence
+    from cylindra.project.sequence import ProjectSequence
 
     if isinstance(files, (str, Path)) and "*" in str(files):
         import glob

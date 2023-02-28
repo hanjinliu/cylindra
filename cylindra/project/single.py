@@ -1,17 +1,14 @@
 import os
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
-import numpy as np
-import polars as pl
 import macrokit as mk
-from acryo import Molecules
 
 from cylindra.const import PropertyNames as H, get_versions
-from cylindra.types import MoleculesLayer
 from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
+    import polars as pl
 
 
 class CylindraProject(BaseProject):
@@ -41,7 +38,7 @@ class CylindraProject(BaseProject):
         self.image = resolve_path(self.image, file_dir)
         self.localprops = resolve_path(self.localprops, file_dir)
         self.globalprops = resolve_path(self.globalprops, file_dir)
-        self.template_image = resolve_path(self.template_image, file_dir)
+        self.template_image = resolve_path(self.template_image, file_dir, default=None)
         if isinstance(self.mask_parameters, (Path, str)):
             self.mask_parameters = resolve_path(self.mask_parameters, file_dir)
         self.global_variables = resolve_path(self.global_variables, file_dir)
@@ -58,6 +55,7 @@ class CylindraProject(BaseProject):
         results_dir: Union[Path, None] = None,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
+        from cylindra.types import MoleculesLayer
         
         if json_path.suffix == "":
             json_path = json_path.with_suffix(".json")
@@ -143,6 +141,8 @@ class CylindraProject(BaseProject):
         results_dir : Path, optional
             The directory to save the results.
         """        
+        from cylindra.types import MoleculesLayer
+
         self = cls.from_gui(gui, json_path, results_dir)
         # save objects
         self.to_json(json_path)
@@ -159,7 +159,7 @@ class CylindraProject(BaseProject):
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
         globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
         
-        molecule_dataframes: list[pl.DataFrame] = []
+        molecule_dataframes: "list[pl.DataFrame]" = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
@@ -188,6 +188,9 @@ class CylindraProject(BaseProject):
     
     def to_gui(self, gui: "CylindraMainWidget", filter: bool = True):
         from cylindra.components import CylSpline, CylTomogram
+        import numpy as np
+        from acryo import Molecules
+        import polars as pl
         
         gui.tomogram = CylTomogram.imread(
             path=self.image, 

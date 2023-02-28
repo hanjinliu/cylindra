@@ -669,21 +669,15 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = default_timer()
         parent = self._get_parent()
         molecules = layer.molecules
+        mask = self.params._get_mask(params=mask_params)
         if size is None:
-            if not isinstance(mask_params, (str, Path)):
-                raise ValueError(
-                    "Cannot infer subvolume size from given inputs. You have to provide a "
-                    "`size` or a mask path."
-                )
-            mask = self.params._get_mask(params=mask_params)
-            shape = mask.shape
+            shape = None
         else:
-            mask = self.params._get_mask(params=mask_params)
             shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
             
         loader = self  \
             ._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)  \
-            .replace(output_shape=shape)
+            .reshape(mask, shape=shape)
 
         aligned_loader = loader.align_no_template(
             mask=mask,

@@ -18,11 +18,6 @@ from cylindra.core import (
 )
 from cylindra.__about__ import __version__, __author__, __email__
 
-from magicclass import defaults
-
-defaults["macro-highlight"] = True
-
-del defaults
 
 __all__ = [
     "start",
