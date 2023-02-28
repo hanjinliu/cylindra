@@ -52,20 +52,23 @@ def _fmt_layer_name(fmt: str):
     return _formatter
 
 def _align_averaged_fmt(layer: "Layer"):
-    yield f"(0/2) Subtomogram averaging of {layer.name!r}"
-    yield f"(1/2) Aligning template to the average image of {layer.name!r}"
-    yield "(2/2) Finishing"
-
-def _align_template_free_fmt(layer: "Layer"):
-    yield f"(0/3) Caching subtomograms of {layer.name!r}"
-    yield f"(1/3) Averaging subtomograms of {layer.name!r}"
-    yield f"(2/3) Aligning subtomograms of {layer.name!r}"
+    yield f"(0/3) Preparing template images for {layer.name!r}"
+    yield f"(1/3) Subtomogram averaging of {layer.name!r}"
+    yield f"(2/3) Aligning template to the average image of {layer.name!r}"
     yield "(3/3) Finishing"
 
+def _align_template_free_fmt(layer: "Layer"):
+    yield f"(0/4) Caching subtomograms of {layer.name!r}"
+    yield f"(1/4) Preparing template images for {layer.name!r}"
+    yield f"(2/4) Averaging subtomograms of {layer.name!r}"
+    yield f"(3/4) Aligning subtomograms of {layer.name!r}"
+    yield "(4/4) Finishing"
+
 def _align_viterbi_fmt(layer: "Layer"):
-    yield f"(0/2) Calculating cross-correlation landscape of {layer.name!r}"
-    yield f"(1/2) Running Viterbi alignment of {layer.name!r}"
-    yield "(2/2) Finishing"
+    yield f"(0/3) Preparing template images for {layer.name!r}"
+    yield f"(1/3) Calculating cross-correlation landscape of {layer.name!r}"
+    yield f"(2/3) Running Viterbi alignment of {layer.name!r}"
+    yield "(3/3) Finishing"
 
 def _classify_pca_fmt(layer: "Layer"):
     yield f"(0/5) Caching subtomograms of {layer.name!r}"
@@ -682,11 +685,10 @@ class SubtomogramAveraging(MagicTemplate):
             mask = self.params._get_mask(params=mask_params)
             shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
             
-        loader = self._get_loader(
-            binsize=bin_size,
-            molecules=molecules,
-            order=interpolation,
-        ).replace(output_shape=shape)
+        loader = self  \
+            ._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)  \
+            .replace(output_shape=shape)
+
         aligned_loader = loader.align_no_template(
             mask=mask,
             max_shifts=max_shifts,
@@ -813,7 +815,7 @@ class SubtomogramAveraging(MagicTemplate):
             tilt_range=tilt_range
         )
         
-        templates_ft = model._get_template_input()  # 3D (no rotation) or 4D (has rotation)
+        templates_ft = model._template_input  # 3D (no rotation) or 4D (has rotation)
         
         def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
             img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
