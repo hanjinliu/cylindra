@@ -6,7 +6,7 @@ import polars as pl
 
 from acryo import BatchLoader, Molecules
 from macrokit import Symbol, Expr
-from magicclass import confirm, magicclass, do_not_record, set_design, MagicTemplate
+from magicclass import confirm, magicclass, do_not_record, set_design, MagicTemplate, field
 from magicclass.types import Bound, Path, Optional
 
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
@@ -27,7 +27,7 @@ from ._loaderlist import LoaderList, LoaderInfo
 )
 class CylindraBatchWidget(MagicTemplate):
     constructor = ProjectSequenceEdit
-    sta = BatchSubtomogramAveraging
+    sta = field(BatchSubtomogramAveraging)
     
     def __init__(self):
         self._loaders = LoaderList()
