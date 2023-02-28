@@ -110,6 +110,8 @@ class CylindraMainWidget(MagicTemplate):
     # Toolbar
     toolbar = subwidgets.toolbar
     
+    # Child widgets
+    ImageInfo = subwidgets.ImageInfo
     SplineControl = SplineControl  # Widget for controling splines
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")  # Widget for summary of local properties
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")  # Widget for summary of glocal properties
@@ -585,27 +587,6 @@ class CylindraMainWidget(MagicTemplate):
         pviewer = CylindraProject.from_json(path).make_project_viewer()
         pviewer.native.setParent(self.native, pviewer.native.windowFlags())
         return pviewer.show()
-    
-    @Image.wraps
-    @set_design(text="Show image info")
-    def show_image_info(self):
-        """Show information of current active tomogram."""
-        tomo = self.tomogram
-        img = tomo.image
-        source = tomo.metadata.get("source", "Unknown")
-        scale = tomo.scale
-        shape_px = ", ".join(f"{s} px" for s in img.shape)
-        shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
-        value = (
-            f"File: {source}\n"
-            f"Voxel size: {scale:.4f} nm/px\n"
-            f"ZYX-Shape: ({shape_px}), ({shape_nm})"
-        )
-        w = ConsoleTextEdit(value=value)
-        w.read_only = True
-        w.native.setParent(self.native, w.native.windowFlags())
-        w.show()
-        return None
 
     @Image.wraps
     @set_design(text="Filter reference image")
@@ -2129,6 +2110,7 @@ class CylindraMainWidget(MagicTemplate):
             self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
         
         self.layer_image.metadata["current_binsize"] = bin_size
+        self.ImageInfo._from_tomogram(tomo)
         
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit

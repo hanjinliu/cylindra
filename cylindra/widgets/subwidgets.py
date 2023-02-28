@@ -1,11 +1,10 @@
 import os
 from typing import Union, TYPE_CHECKING
-from typing_extensions import Annotated
 from magicclass import (
-    magicclass, magicmenu, magictoolbar, do_not_record, field, vfield, MagicTemplate, 
+    magicclass, magicmenu, magictoolbar, field, vfield, MagicTemplate, 
     set_design, abstractapi
 )
-from magicclass.widgets import Separator
+from magicclass.widgets import Separator, ConsoleTextEdit
 from magicclass.types import OneOf, SomeOf
 from pathlib import Path
 import impy as ip
@@ -15,6 +14,7 @@ from ._previews import view_image
 
 from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
+from cylindra.components import CylTomogram
 from cylindra.const import GlobalVariables as GVar
 from cylindra.widgets.global_variables import GlobalVariables
 
@@ -41,7 +41,6 @@ class File(MagicTemplate):
 @magicmenu
 class Image(MagicTemplate):
     """Image processing and visualization"""
-    show_image_info = abstractapi()
     filter_reference_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
@@ -347,3 +346,33 @@ class ImageLoader(MagicTemplate):
     def preview_image(self):
         """Preview image at the path."""
         return view_image(self.path, parent=self)
+
+@magicclass(name="Image info", record=False, widget_type="collapsible", labels=False)
+class ImageInfo(MagicTemplate):
+    """
+    Attributes
+    ----------
+    source : str
+        Source file of the image.
+    shape : tuple of int
+        Shape of the image.
+    scale : float
+        Scale of the image.
+    """
+    def __post_init__(self):
+        self.text_edit.read_only = True
+
+    def _from_tomogram(self, tomo: CylTomogram):
+        img = tomo.image
+        source = tomo.metadata.get("source", "Unknown")
+        scale = tomo.scale
+        shape_px = ", ".join(f"{s} px" for s in img.shape)
+        shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
+        value = (
+            f"File: {source}\n"
+            f"Scale: {scale:.4f} nm/pixel\n"
+            f"ZYX-Shape: ({shape_px}), ({shape_nm})"
+        )
+        self.text_edit.value = value
+    
+    text_edit = field(widget_type=ConsoleTextEdit)
