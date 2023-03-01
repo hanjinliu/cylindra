@@ -9,7 +9,6 @@ from magicclass.widgets import Separator
 from magicclass.ext.polars import DataFrameView
 from acryo import BatchLoader, Molecules, SubtomogramLoader
 
-import numpy as np
 import impy as ip
 import polars as pl
 

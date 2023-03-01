@@ -267,7 +267,7 @@ class StaParameters(MagicTemplate):
         input_image = utils.normalize_image(image)
         thr = threshold_yen(input_image.value)
         layer = self._viewer.add_image(
-            input_image.value, scale=image.scale, name=name,
+            input_image, scale=image.scale, name=name,
             rendering="iso", iso_threshold=thr, blending="opaque",
         )
         return layer
