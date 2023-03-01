@@ -41,7 +41,7 @@ def start(
     import polars as pl
     import matplotlib.pyplot as plt
     from magicclass import defaults
-    import logging
+    from magicclass import logging
     
     global _CURRENT_INSTANCE
     
@@ -55,10 +55,10 @@ def start(
         viewer = napari.Viewer()
     
     # set logger
-    logger = logging.getLogger("cylindra")
-    logger.addHandler(ui.log)
+    logger = logging.getLogger("cylindra", show=False)
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
-    ui.log.setFormatter(formatter)
+    logger.widget.setFormatter(formatter)
+    logger.widget.min_height = 200
     
     # set log level
     if isinstance(log_level, str):
@@ -76,7 +76,7 @@ def start(
         name="cylindra"
     )
     dock.setMinimumHeight(300)
-    viewer.window.add_dock_widget(ui._LoggerWindow)
+    viewer.window.add_dock_widget(logger.widget, name="Log")
     
     if project_file is not None:
         ui.load_project(project_file)

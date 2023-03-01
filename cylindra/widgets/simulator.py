@@ -9,6 +9,7 @@ from magicclass import (
 )
 from magicclass.types import Bound, OneOf, Optional, Path
 from magicclass.utils import thread_worker
+from magicclass.logging import getLogger
 from magicclass.widgets import Separator
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.vispy import Vispy3DCanvas
@@ -34,6 +35,8 @@ _NPF = (GVar.nPFmin + GVar.nPFmax) // 2
 _RADIUS = _INTERVAL * _NPF / 2 / np.pi
 
 _TiltRange = Annotated[tuple[float, float], {"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0}]
+
+_Logger = getLogger("cylindra", show=False)
 
 def _simulate_batch_iter():
     yield "(0/2) Simulating projections"
@@ -388,7 +391,7 @@ class CylinderSimulator(MagicTemplate):
         simulator = TomogramSimulator(order=order, scale=scale)
         simulator.add_molecules(molecules=mole, image=template)
         simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
-        parent.log.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
+        _Logger.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
         
         # tilt ranges to array
         radon_model = RadonModel(
@@ -522,7 +525,7 @@ class CylinderSimulator(MagicTemplate):
             degs = radon_model.range.asarray()
             _, ny, nx = sino.shape
             ysize = max(4 / nx * ny, 4)
-            with parent.log.set_plt(rc_context={"font.size": 15}):
+            with _Logger.set_plt(rc_context={"font.size": 15}):
                 _, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, ysize))
                 for i, idx in enumerate([0, n_tilt//2, -1]):
                     axes[i].imshow(sino[idx], cmap="gray")
@@ -536,7 +539,7 @@ class CylinderSimulator(MagicTemplate):
         # plot some of the results
         @thread_worker.to_callback
         def _on_iradon_finished(rec: ip.ImgArray, title: str):
-            with parent.log.set_plt():
+            with _Logger.set_plt():
                 plt.imshow(rec.proj("z"), cmap="gray")
                 plt.title(title)
                 plt.show()
@@ -555,12 +558,12 @@ class CylinderSimulator(MagicTemplate):
             for i, rec in enumerate(recs):
                 file_name = save_path / f"image-{i}.{save_mode}"
                 rec.imsave(file_name)
-                parent.log.print(f"Image saved at {file_name!r}.")
+                _Logger.print(f"Image saved at {file_name!r}.")
         else:
             stack: ip.ImgArray = np.stack(recs, axis="t")
             file_name = save_path / "images.tif"
             stack.imsave(file_name)
-            parent.log.print(f"Image stack saved at {save_path!r}.")
+            _Logger.print(f"Image stack saved at {save_path!r}.")
 
         nsr_info = {i: val for i, val in enumerate(nsr)}
         js = {"settings": radon_model.dict(), "nsr": nsr_info}

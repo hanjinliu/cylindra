@@ -31,7 +31,7 @@ class LocalPropertiesWidget(MagicTemplate):
     class params(MagicTemplate):
         """Structural parameters at the current position"""
         
-        pitch = LabeledText("spacing")
+        spacing = LabeledText("spacing")
         skew = LabeledText("skew angle")
         structure = LabeledText("structure")
         
@@ -54,13 +54,13 @@ class LocalPropertiesWidget(MagicTemplate):
         self._skew_angle = None
         
     def _init_text(self):
-        self.params.pitch.txt = " -- nm"
+        self.params.spacing.txt = " -- nm"
         self.params.skew.txt = " -- °"
         self.params.structure.txt = " -- "
         return None
         
     def _set_text(self, pitch, skew, npf, start):
-        self.params.pitch.txt = f" {pitch:.2f} nm"
+        self.params.spacing.txt = f" {pitch:.2f} nm"
         self.params.skew.txt = f" {skew:.2f}°"
         self.params.structure.txt = f" {int(npf)}_{start:.1f}"
         return None
@@ -112,13 +112,18 @@ class GlobalPropertiesWidget(MagicTemplate):
     def __post_init__(self):
         self._init_text()
         
-    @magicclass(widget_type="groupbox", labels=False, name="lattice parameters")
+    @magicclass(
+        widget_type="groupbox",
+        labels=False,
+        name="lattice parameters",
+        properties={"margins": (0, 0, 0, 0)}
+    )
     class params(MagicTemplate):
         
         @magicclass(layout="horizontal", labels=False)
         class params1(MagicTemplate):
             
-            pitch = LabeledText("spacing")
+            spacing = LabeledText("spacing")
             skew = LabeledText("skew angle")
             structure = LabeledText("structure")
             
@@ -129,7 +134,7 @@ class GlobalPropertiesWidget(MagicTemplate):
             polarity = LabeledText("polarity")
             
     def _init_text(self):
-        self.params.params1.pitch.txt = " -- nm"
+        self.params.params1.spacing.txt = " -- nm"
         self.params.params1.skew.txt = " -- °"
         self.params.params1.structure.txt = " -- "
         self.params.params2.radius.txt = " -- nm"
@@ -137,7 +142,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         return None
         
     def _set_text(self, pitch, skew, npf, start, radius, orientation):
-        self.params.params1.pitch.txt = f" {pitch:.2f} nm"
+        self.params.params1.spacing.txt = f" {pitch:.2f} nm"
         self.params.params1.skew.txt = f" {skew:.2f}°"
         self.params.params1.structure.txt = f" {int(npf)}_{start:.1f}"
         self.params.params2.radius.txt = f" {radius:.2f} nm" if radius is not None else " -- nm"

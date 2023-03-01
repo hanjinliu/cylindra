@@ -9,6 +9,7 @@ from magicclass import (
 )
 from magicclass.types import OneOf, Optional, Bound, ExprStr, Path
 from magicclass.utils import thread_worker
+from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit, HistoryFileEdit
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.polars import DataFrameView
@@ -22,7 +23,7 @@ from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
 
 from .. import widget_utils
-from ..widget_utils import FileFilter
+from ..widget_utils import FileFilter, timer
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
 from .menus import BatchSubtomogramAnalysis, BatchRefinement
@@ -46,6 +47,8 @@ _MaxShifts = Annotated[tuple[nm, nm, nm], {"options": {"max": 10.0, "step": 0.1}
 _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options": {"value": 12., "max": 100.}, "label": "size (nm)"}]
 _BINSIZE = OneOf[(1, 2, 3, 4, 5, 6, 7, 8)]
 POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
+
+_Logger = getLogger("cylindra", show=False)
 
 @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False, record=False)
 class MaskParameters(MagicTemplate):
@@ -295,6 +298,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: _BINSIZE = 1,
     ):
+        t0 = timer("average_all (batch)")
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -306,10 +310,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 .average(), 
             axes="zyx"
         )
-        img.set_scale(zyx=loader.scale)
-        
+        img.set_scale(zyx=loader.scale, unit="nm")
+        t0.toc()
         return thread_worker.to_callback(
-            self.params._show_reconstruction, img, f"[AVG]Collection"
+            self.params._show_reconstruction, img, f"[AVG]{loader_name}"
         )
     
     @BatchRefinement.wraps
@@ -330,6 +334,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         method: OneOf[METHOD_CHOICES] = "zncc",
         bin_size: _BINSIZE = 1,
     ):
+        t0 = timer("align_all (batch)")
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         loader = info.loader
@@ -356,6 +361,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 image_paths=info.image_paths,
             )
         )
+        t0.toc()
         return None
 
     @BatchSubtomogramAnalysis.wraps
@@ -389,6 +395,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
+        t0 = timer("calculate_fsc (batch)")
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -421,20 +428,17 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
-            from cylindra import instance
-            
-            parent = instance()
-            parent.log.print_html("<b>Fourier Shell Correlation of the collection</b>")
-            with parent.log.set_plt(rc_context={"font.size": 15}):
+            t0.toc()
+            _Logger.print_html(f"<b>Fourier Shell Correlation of {loader_name!r}</b>")
+            with _Logger.set_plt(rc_context={"font.size": 15}):
                 widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], loader.scale)
 
-            parent.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
-            parent.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
-            parent._LoggerWindow.show()
+            _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
+            _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
             
             if img_avg is not None:
                 _rec_layer = self.params._show_reconstruction(
-                    img_avg, name = "[AVG]Collection",
+                    img_avg, name = f"[AVG]{loader_name}",
                 )
                 _rec_layer.metadata["fsc"] = widget_utils.FscResult(
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
@@ -469,6 +473,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         seed : int, default is 0
             Random seed.
         """
+        t0 = timer("classify_pca (batch)")
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -497,6 +502,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         def _on_return():
             from ..pca import PcaViewer
 
+            t0.toc()
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()

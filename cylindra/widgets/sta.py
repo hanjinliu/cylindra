@@ -1,5 +1,4 @@
 from typing import Union, TYPE_CHECKING, Annotated
-from timeit import default_timer
 import re
 from scipy.spatial.transform import Rotation
 from magicclass import (
@@ -10,6 +9,7 @@ from magicclass.widgets import HistoryFileEdit, Separator
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
+from magicclass.logging import getLogger
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
 
 import numpy as np
@@ -23,7 +23,7 @@ from cylindra.const import (
     ALN_SUFFIX, MoleculesHeader as Mole, nm
 )
 
-from .widget_utils import FileFilter
+from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc
 
 if TYPE_CHECKING:
@@ -43,6 +43,7 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
+_Logger = getLogger("cylindra", show=False)
 
 # functions
 def _fmt_layer_name(fmt: str):
@@ -400,7 +401,7 @@ class SubtomogramAveraging(MagicTemplate):
         ----------
         {layer}{size}{interpolation}{bin_size}
         """
-        t0 = default_timer()
+        t0 = timer("average_all")
         parent = self._get_parent()
         molecules = layer.molecules
         tomo = parent.tomogram
@@ -409,9 +410,8 @@ class SubtomogramAveraging(MagicTemplate):
             molecules, shape, binsize=bin_size, order=interpolation
         )
         img = ip.asarray(loader.average(), axes="zyx")
-        img.set_scale(zyx=loader.scale)
-        parent.log.print_html(f"<code>average_all</code> ({default_timer() - t0:.1f} sec)")
-        
+        img.set_scale(zyx=loader.scale, unit="nm")
+        t0.toc()
         return thread_worker.to_callback(
             self._show_reconstruction, img, f"[AVG]{layer.name}"
         )
@@ -445,7 +445,7 @@ class SubtomogramAveraging(MagicTemplate):
             Number of subtomograms to use.
         {bin_size}
         """
-        t0 = default_timer()
+        t0 = timer("average_subset")
         parent = self._get_parent()
         molecules = layer.molecules
         nmole = len(molecules)
@@ -472,7 +472,7 @@ class SubtomogramAveraging(MagicTemplate):
         
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale)
-        parent.log.print_html(f"<code>average_subset</code> ({default_timer() - t0:.1f} sec)")
+        t0.toc()
         return thread_worker.to_callback(
             self._show_reconstruction, img, f"[AVG(n={number})]{layer.name}"
         )
@@ -498,7 +498,7 @@ class SubtomogramAveraging(MagicTemplate):
             How many pairs of average will be calculated.
         {size}{interpolation}{bin_size}
         """
-        t0 = default_timer()
+        t0 = timer("split_and_average")
         parent = self._get_parent()
         molecules = layer.molecules
         shape = self._get_shape_in_nm(size)
@@ -508,8 +508,7 @@ class SubtomogramAveraging(MagicTemplate):
         axes = "ipzyx" if n_set > 1 else "pzyx"
         img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
         img.set_scale(zyx=loader.scale)
-        parent.log.print_html(f"<code>split_and_average</code> ({default_timer() - t0:.1f} sec)")
-
+        t0.toc()
         return thread_worker.to_callback(
             self._show_reconstruction, img, f"[Split]{layer.name}"
         )
@@ -538,8 +537,8 @@ class SubtomogramAveraging(MagicTemplate):
         ----------
         {layer}{template_path}{mask_params}{z_rotation}{y_rotation}{x_rotation}{bin_size}{method}
         """
+        t0 = timer("align_averaged")
         parent = self._get_parent()
-        t0 = default_timer()
         mole = layer.molecules
         loader = self._get_loader(bin_size, mole, order=1)
         template, mask = loader.normalize_input(
@@ -567,11 +566,11 @@ class SubtomogramAveraging(MagicTemplate):
 
         rotator = Rotation.from_quat(result.quat)
         mole_trans = mole.linear_transform(result.shift * _scale, rotator)
+        shift_nm = result.shift * _scale
 
         # logging
-        parent.log.print_html(f"<code>align_averaged</code> ({default_timer() - t0:.1f} sec)")
-        shift_nm = result.shift * _scale
-        parent.log.print_html(
+        t0.toc()
+        _Logger.print_html(
             "{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}".format(
                 vec_str=", ".join(f"{x}<sub>shift</sub>" for x in "XYZ"),
                 rotvec_str=", ".join(f"{x}<sub>rot</sub>" for x in "XYZ"),
@@ -592,8 +591,8 @@ class SubtomogramAveraging(MagicTemplate):
             temp_norm = utils.normalize_image(template)
             merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
             layer.visible = False
-            parent.log.print(f"{layer.name!r} --> {points.name!r}")
-            with parent.log.set_plt():
+            _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
+            with _Logger.set_plt():
                 widget_utils.plot_projections(merge)
 
         return _align_averaged_on_return
@@ -624,7 +623,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
         {x_rotation}{cutoff}{interpolation}{method}{bin_size}
         """
-        t0 = default_timer()
+        t0 = timer("align_all")
         parent = self._get_parent()
         
         loader = self._get_loader(
@@ -640,7 +639,7 @@ class SubtomogramAveraging(MagicTemplate):
             tilt_range=tilt_range,
         )
         
-        parent.log.print_html(f"<code>align_all</code> ({default_timer() - t0:.1f} sec)")
+        t0.toc()
         parent._need_save = True
         return self._align_all_on_return(aligned_loader, layer)
     
@@ -670,7 +669,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layer}{mask_params}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}{x_rotation}
         {cutoff}{interpolation}{method}{bin_size}
         """
-        t0 = default_timer()
+        t0 = timer("align_all_template_free")
         parent = self._get_parent()
         molecules = layer.molecules
         mask = self.params._get_mask(params=mask_params)
@@ -692,7 +691,7 @@ class SubtomogramAveraging(MagicTemplate):
             tilt_range=tilt_range,
         )
         
-        parent.log.print_html(f"<code>align_all_template_free</code> ({default_timer() - t0:.1f} sec)")
+        t0.toc()
         parent._need_save = True
         return self._align_all_on_return(aligned_loader, layer)
     
@@ -726,7 +725,7 @@ class SubtomogramAveraging(MagicTemplate):
         {mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
         {interpolation}{method}{bin_size}
         """
-        t0 = default_timer()
+        t0 = timer("align_all_multi_template")
         parent = self._get_parent()
         molecules = layer.molecules
         templates = [self.params._get_template(path=template_path)]
@@ -747,7 +746,7 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=_get_alignment(method),
             tilt_range=tilt_range,
         )
-        parent.log.print_html(f"<code>align_all_multi_template</code> ({default_timer() - t0:.1f} sec)")
+        t0.toc()
         parent._need_save = True
         return self._align_all_on_return(aligned_loader, layer)
     
@@ -787,7 +786,7 @@ class SubtomogramAveraging(MagicTemplate):
         from dask import array as da
         from dask import delayed
         
-        t0 = default_timer()
+        t0 = timer("align_all_viterbi")
         parent = self._get_parent()
         molecules = layer.molecules
         shape_nm = self._get_shape_in_nm()
@@ -800,7 +799,7 @@ class SubtomogramAveraging(MagicTemplate):
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        parent.log.print_html(f"Search size (px): {search_size}")
+        _Logger.print_html(f"Search size (px): {search_size}")
         model = alignment.ZNCCAlignment(
             template,
             mask,
@@ -890,20 +889,20 @@ class SubtomogramAveraging(MagicTemplate):
             rotvec = Rotation.from_quat(quats).as_rotvec()
             molecules_opt.features = molecules_opt.features.with_columns(
                 [
-                    pl.Series("rotvec-z", rotvec[:, 0]),
-                    pl.Series("rotvec-y", rotvec[:, 1]),
-                    pl.Series("rotvec-x", rotvec[:, 2]),
+                    pl.Series("align-dzrot", rotvec[:, 0]),
+                    pl.Series("align-dyrot", rotvec[:, 1]),
+                    pl.Series("align-dxrot", rotvec[:, 2]),
                 ]
             )
         
         molecules_opt.features = molecules_opt.features.with_columns(
             [
-                pl.Series("shift-z", all_shifts[:, 0]),
-                pl.Series("shift-y", all_shifts[:, 1]),
-                pl.Series("shift-x", all_shifts[:, 2]),
+                pl.Series("align-dz", all_shifts[:, 0]),
+                pl.Series("align-dy", all_shifts[:, 1]),
+                pl.Series("align-dx", all_shifts[:, 2]),
             ]
         )
-        parent.log.print_html(f"<code>align_all_viterbi</code> ({default_timer() - t0:.1f} sec)")
+        t0.toc()
         parent._need_save = True
         aligned_loader = SubtomogramLoader(
             parent.tomogram.image.value, 
@@ -944,7 +943,7 @@ class SubtomogramAveraging(MagicTemplate):
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
-        t0 = default_timer()
+        t0 = timer("calculate_fsc")
         parent = self._get_parent()
         mole = layer.molecules
 
@@ -973,15 +972,15 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
-            parent.log.print_html(f"<code>calculate_fsc</code> ({default_timer() - t0:.1f} sec)")
-            parent.log.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
-            with parent.log.set_plt(rc_context={"font.size": 15}):
+            t0.toc()
+            _Logger.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
+            with _Logger.set_plt(rc_context={"font.size": 15}):
                 widget_utils.plot_fsc(freq, fsc_mean, fsc_std, [crit_0143, crit_0500], parent.tomogram.scale)
 
-            parent.log.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
-            parent.log.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
-            parent._LoggerWindow.show()
-            
+            _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
+            _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
+            _Logger.widget.show()
+
             if img_avg is not None:
                 _rec_layer: "Image" = self._show_reconstruction(
                     img_avg, name = f"[AVG]{layer.name}",
@@ -1019,6 +1018,7 @@ class SubtomogramAveraging(MagicTemplate):
         seed : int, default is 0
             Random seed.
         """
+        t0 = timer("classify_pca")
         parent = self._get_parent()
         
         loader = self._get_loader(
@@ -1044,7 +1044,7 @@ class SubtomogramAveraging(MagicTemplate):
         ).set_scale(zyx=loader.scale, unit="nm")
 
         layer.molecules = out.molecules  # update features
-
+        t0.toc()
         @thread_worker.to_callback
         def _on_return():
             from .pca import PcaViewer
@@ -1083,6 +1083,7 @@ class SubtomogramAveraging(MagicTemplate):
             corresponding spline will be used.
         {cutoff}
         """
+        t0 = timer("seam_search")
         parent = self._get_parent()
         mole = layer.molecules
         shape = self._get_shape_in_nm()
@@ -1103,33 +1104,33 @@ class SubtomogramAveraging(MagicTemplate):
             cutoff=cutoff,
         )
         
+        # calculate score and the best PF position
+        corr1, corr2 = corrs[:npf], corrs[npf:]
+        score = np.empty_like(corrs)
+        score[:npf] = corr1 - corr2
+        score[npf:] = corr2 - corr1
+        imax = np.argmax(score)
+        layer.features = layer.molecules.features.with_columns(
+            [pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))]
+        )
+        layer.metadata["seam-search-score"] = score
+        
         parent._need_save = True
 
         @thread_worker.to_callback
         def _seam_search_on_return():
             self._show_reconstruction(img_ave, layer.name, store=False)
-            parent._LoggerWindow.show()
             
-            # calculate score and the best PF position
-            corr1, corr2 = corrs[:npf], corrs[npf:]
-            score = np.empty_like(corrs)
-            score[:npf] = corr1 - corr2
-            score[npf:] = corr2 - corr1
-            imax = np.argmax(score)
-                
             # plot all the correlation
-            parent.log.print_html("<code>Seam_search</code>")
-            with parent.log.set_plt(rc_context={"font.size": 15}):
-                parent.log.print(f"layer = {layer.name!r}")
-                parent.log.print(f"template = {str(template_path)!r}")
+            t0.toc()
+            _Logger.print_html("<code>Seam_search</code>")
+            with _Logger.set_plt(rc_context={"font.size": 15}):
+                _Logger.print(f"layer = {layer.name!r}")
+                _Logger.print(f"template = {str(template_path)!r}")
                 widget_utils.plot_seam_search_result(score, npf)
                 
             self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
             self.sub_viewer.layers[-1].metadata["Score"] = score
-            layer.features = layer.molecules.features.with_columns(
-                [pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))]
-            )
-            layer.metadata["seam-search-score"] = score
         
         return _seam_search_on_return
     
@@ -1159,7 +1160,7 @@ class SubtomogramAveraging(MagicTemplate):
             mole, name=_coerce_aligned_name(layer.name, self.parent_viewer),
         )
         layer.visible = False
-        parent.log.print(f"{layer.name!r} --> {points.name!r}")
+        _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
         return None
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
