@@ -40,8 +40,7 @@ def start(
     import impy as ip
     import polars as pl
     import matplotlib.pyplot as plt
-    from magicclass import defaults
-    from magicclass import logging
+    from magicclass import defaults, logging
     
     global _CURRENT_INSTANCE
     
@@ -55,7 +54,7 @@ def start(
         viewer = napari.Viewer()
     
     # set logger
-    logger = logging.getLogger("cylindra", show=False)
+    logger = logging.getLogger("cylindra")
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
     logger.widget.setFormatter(formatter)
     logger.widget.min_height = 200
@@ -87,7 +86,7 @@ def start(
     with suppress(Exception):
         # update console namespace
         viewer.window._qt_viewer.console.push(
-            {"ui": ui, "np": np, "ip": ip, "pl": pl, "plt": plt}
+            {"ui": ui, "np": np, "ip": ip, "pl": pl, "plt": plt, "Path": Path}
         )
     return ui
 

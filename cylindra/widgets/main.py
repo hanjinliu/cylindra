@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
-_Logger = getLogger("cylindra", show=False)
+_Logger = getLogger("cylindra")
 
 # namespace used in predicate
 POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}

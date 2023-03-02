@@ -43,7 +43,7 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
-_Logger = getLogger("cylindra", show=False)
+_Logger = getLogger("cylindra")
 
 # functions
 def _fmt_layer_name(fmt: str):
@@ -1177,4 +1177,3 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
-

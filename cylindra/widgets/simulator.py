@@ -36,7 +36,7 @@ _RADIUS = _INTERVAL * _NPF / 2 / np.pi
 
 _TiltRange = Annotated[tuple[float, float], {"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0}]
 
-_Logger = getLogger("cylindra", show=False)
+_Logger = getLogger("cylindra")
 
 def _simulate_batch_iter():
     yield "(0/2) Simulating projections"

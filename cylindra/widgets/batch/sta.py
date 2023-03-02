@@ -48,7 +48,7 @@ _SubVolumeSize = Annotated[Optional[nm], {"text": "Use template shape", "options
 _BINSIZE = OneOf[(1, 2, 3, 4, 5, 6, 7, 8)]
 POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
 
-_Logger = getLogger("cylindra", show=False)
+_Logger = getLogger("cylindra")
 
 @magicclass(layout="horizontal", widget_type="groupbox", name="Parameters", visible=False, record=False)
 class MaskParameters(MagicTemplate):
