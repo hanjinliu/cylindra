@@ -1411,12 +1411,11 @@ class CylindraMainWidget(MagicTemplate):
         delete_old: bool = False,
     ):
         """Split molecules by a feature column."""
-        _prefix = f"{layer.name}-Group"
         n_unique = layer.molecules.features[by].n_unique()
         if n_unique > 48:
             raise ValueError(f"Too many groups ({n_unique}). Did you choose a float column?")
-        for i, (_, mole) in enumerate(layer.molecules.groupby(by)):
-            self.add_molecules(mole, name=f"{_prefix}{i}")
+        for _key, mole in layer.molecules.groupby(by):
+            self.add_molecules(mole, name=f"{layer.name}_{_key}")
         if delete_old:
             self.parent_viewer.layers.remove(layer)
     

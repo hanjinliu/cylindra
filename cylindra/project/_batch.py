@@ -4,7 +4,7 @@ from pathlib import Path
 import macrokit as mk
 from pydantic import BaseModel
 
-from cylindra.const import get_versions, GlobalVariables as GVar
+from cylindra.const import get_versions, GlobalVariables as GVar, MoleculesHeader as Mole, nm
 from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class ImageInfo(BaseModel):
     id: int
     image: PathLike
-    scale: float
+    scale: nm
     
     def resolve_path(self, file_dir: PathLike):
         self.image = resolve_path(self.image, Path(file_dir))
@@ -24,6 +24,7 @@ class LoaderInfoModel(BaseModel):
     molecule: PathLike
     images: list[ImageInfo]
     name: str
+    scale: nm
     
     def resolve_path(self, file_dir: PathLike):
         file_dir = Path(file_dir)
@@ -96,7 +97,8 @@ class CylindraBatchProject(BaseProject):
                             scale=info.loader.scale,
                         )
                         for id, fp in info.image_paths.items()
-                    ]
+                    ],
+                    scale=info.loader.scale,
                 )
             )
 
@@ -147,14 +149,14 @@ class CylindraBatchProject(BaseProject):
         from acryo import Molecules, BatchLoader
 
         for lmodel in self.loaders:
-            loader = BatchLoader()
+            loader = BatchLoader(scale=lmodel.scale)
+            mole_dict = dict(Molecules.from_csv(lmodel.molecule).groupby(Mole.image))
             for imginfo in lmodel.images:
-                gui.construct_loader
                 loader.add_tomogram(
                     image=ip.lazy_imread(
                         imginfo.image, chunks=GVar.daskChunk
                     ).set_scale(zyx=imginfo.scale).value,
-                    molecules=Molecules.from_csv(lmodel.molecule),
+                    molecules=mole_dict[imginfo.id],
                     image_id=imginfo.id,
                 )
             image_paths = {imginfo.id: imginfo.image for imginfo in lmodel.images}

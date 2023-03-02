@@ -5,7 +5,8 @@ from acryo import BatchLoader, pipe
 
 from magicgui.widgets import Container
 from magicclass import (
-    magicclass, do_not_record, field, nogui, vfield, MagicTemplate, set_design, abstractapi
+    magicclass, do_not_record, field, nogui, vfield, MagicTemplate, set_design, abstractapi,
+    setup_function_gui
 )
 from magicclass.types import OneOf, Optional, Bound, ExprStr, Path
 from magicclass.utils import thread_worker
@@ -25,7 +26,7 @@ from .. import widget_utils
 from ..widget_utils import FileFilter
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
-from .menus import BatchSubtomogramAnalysis, BatchRefinement
+from .menus import BatchLoaderMenu, BatchSubtomogramAnalysis, BatchRefinement
 from ._loaderlist import LoaderList, LoaderInfo
 
 
@@ -197,6 +198,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     # Menus
     BatchSubtomogramAnalysis = field(BatchSubtomogramAnalysis, name="Subtomogram Analysis")
     BatchRefinement = field(BatchRefinement, name="Refinement")
+    BatchLoaderMenu = field(BatchLoaderMenu, name="Loader")
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Header(MagicTemplate):
@@ -244,7 +246,46 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
     params = StaParameters
     
-    @BatchSubtomogramAnalysis.wraps
+    def _get_selected_loader_choice(self, *_) -> list[str]:
+        try:
+            loader = self.get_loader(self.loader_name)
+            return loader.molecules.features.columns
+        except Exception:
+            return []
+
+    @BatchLoaderMenu.wraps
+    @set_design(text="Split loader")
+    def split_loader(
+        self,
+        loader_name: Bound[_get_current_loader_name],
+        by: OneOf[_get_selected_loader_choice],
+        delete_old: bool = False,
+    ):
+        parent = self._get_parent()
+        batch_info = parent._loaders[loader_name]
+        batch_loader = batch_info.loader
+        n_unique = batch_loader.molecules.features[by].n_unique()
+        if n_unique > 48:
+            raise ValueError(f"Too many groups ({n_unique}). Did you choose a float column?")
+        loaders = parent._loaders
+        for _key, loader in batch_loader.groupby(by):
+            existing_id = set(loader.features[Mole.image])
+            image_paths = {k: v for k, v in batch_info.image_paths.items() if v in existing_id}
+            parent._add_loader(loader, f"{loader_name}_{_key}", image_paths)
+
+        if delete_old:
+            idx = -1
+            for i, info in enumerate(loaders):
+                if info.loader is batch_loader:
+                    idx = i
+                    break
+            else:
+                idx = -1
+            if idx < 0:
+                raise RuntimeError("Loader not found.")
+            del loaders[idx]
+    
+    @BatchLoaderMenu.wraps
     @set_design(text="Filter loader")
     def filter_loader(
         self,
@@ -546,6 +587,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
             return tmp.shape
         else:
             return (roundint(default / loader.scale),) * 3
+
+    @setup_function_gui(split_loader)
+    def _(self, gui):
+        gui[0].changed.connect(gui[1].reset_choices)  
 
 def _coerce_aligned_name(name: str, loaders: LoaderList):
     num = 1

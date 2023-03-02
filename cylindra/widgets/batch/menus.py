@@ -13,6 +13,12 @@ class BatchRefinement(MagicTemplate):
     """Refinement of subtomograms."""
     align_all = abstractapi()
 
+@magicmenu
+class BatchLoaderMenu(MagicTemplate):
+    """Handle batch loader"""
+    split_loader = abstractapi()
+    filter_loader = abstractapi()
+
 @magicmenu(name="Macro")
 class Macro(MagicTemplate):
     """Macro operations."""

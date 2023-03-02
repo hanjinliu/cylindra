@@ -125,7 +125,7 @@ class Volume(MagicTemplate):
             axes = "zyx"
         else:
             axes = None
-        lbl = ip.asarray(lbl, axes=axes, dtype=np.bool_)
+        lbl = ip.asarray(lbl, axes=axes, dtype=np.bool_).set_scale(xyz=layer.scale[-1], unit="nm")
         lbl.imsave(path)
     
     @set_design(text="Plane clip")
