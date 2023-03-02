@@ -40,8 +40,7 @@ def start(
     import impy as ip
     import polars as pl
     import matplotlib.pyplot as plt
-    from magicclass import defaults
-    import logging
+    from magicclass import defaults, logging
     
     global _CURRENT_INSTANCE
     
@@ -56,9 +55,9 @@ def start(
     
     # set logger
     logger = logging.getLogger("cylindra")
-    logger.addHandler(ui.log)
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
-    ui.log.setFormatter(formatter)
+    logger.widget.setFormatter(formatter)
+    logger.widget.min_height = 200
     
     # set log level
     if isinstance(log_level, str):
@@ -76,7 +75,7 @@ def start(
         name="cylindra"
     )
     dock.setMinimumHeight(300)
-    viewer.window.add_dock_widget(ui._LoggerWindow)
+    viewer.window.add_dock_widget(logger.widget, name="Log")
     
     if project_file is not None:
         ui.load_project(project_file)
@@ -87,7 +86,7 @@ def start(
     with suppress(Exception):
         # update console namespace
         viewer.window._qt_viewer.console.push(
-            {"ui": ui, "np": np, "ip": ip, "pl": pl, "plt": plt}
+            {"ui": ui, "np": np, "ip": ip, "pl": pl, "plt": plt, "Path": Path}
         )
     return ui
 

@@ -2,11 +2,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Sequence, TYPE_CHECKING
 from dataclasses import dataclass
+from timeit import default_timer
 
 import numpy as np
 from scipy import ndimage as ndi
 import polars as pl
 
+from magicclass.logging import getLogger
 import napari
 
 from cylindra.components import CylSpline
@@ -26,6 +28,16 @@ class FileFilter(SimpleNamespace):
     PY = "Python (*.py);;All files (*)"
     MOD = "Model files (*.mod);;All files (*.txt;*.csv)"
 
+
+class timer:
+    def __init__(self, name: str):
+        self.name = name
+        self.start = default_timer()
+    
+    def toc(self):
+        getLogger("cylindra").print_html(
+            f"<code>{self.name}</code> ({default_timer() - self.start:.1f} sec)"
+        )
 
 def add_molecules(viewer: napari.Viewer, mol: Molecules, name: str) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
