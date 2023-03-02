@@ -42,6 +42,7 @@ class CylindraBatchWidget(MagicTemplate):
         predicate: Bound[constructor._get_expression],
         name: Bound[constructor.seq_name],
     ):
+        """Construct a batch loader object from the given paths and predicate"""
         if name == "":
             raise ValueError("Name is empty!")
         loader = BatchLoader()

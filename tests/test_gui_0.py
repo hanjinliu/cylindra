@@ -138,21 +138,21 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.num = 0
     ui.SplineControl.pos = 1
     assert_orientation(ui, "MinusToPlus")
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
+    assert ui.LocalProperties.params.spacing.txt == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.spacing.txt == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
     
     ui.SplineControl.num = 1
     assert ui.SplineControl.pos == 1
     assert_orientation(ui, "MinusToPlus")
-    assert ui.LocalProperties.params.pitch.txt == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
+    assert ui.LocalProperties.params.spacing.txt == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
+    assert ui.GlobalProperties.params.params1.spacing.txt == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
     
     assert_canvas(ui, [False, False, False])
     
     ui.clear_all()
     
-    assert ui.LocalProperties.params.pitch.txt == " -- nm"
-    assert ui.GlobalProperties.params.params1.pitch.txt == " -- nm"
+    assert ui.LocalProperties.params.spacing.txt == " -- nm"
+    assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])

@@ -19,6 +19,7 @@ from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
 from magicclass.utils import thread_worker
+from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit, Logger
 from napari.layers import Image, Labels, Layer, Points
 from napari.utils.colormaps import Colormap, label_colormap
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
+_Logger = getLogger("cylindra")
 
 # namespace used in predicate
 POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
@@ -74,17 +76,6 @@ class CylindraMainWidget(MagicTemplate):
     spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")  # Widget for measuring FFT parameters from a 2D power spectra
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")  # Widget for subtomogram analysis
 
-    # The logger widget.
-    @magicclass(labels=False, name="Logger")
-    @set_design(min_height=200)
-    class _LoggerWindow(MagicTemplate):
-        log = field(Logger, name="Log")
-    
-    @property
-    def log(self):
-        """Return the logger widget."""
-        return self._LoggerWindow.log
-    
     @property
     def batch(self) -> "CylindraBatchWidget":
         """Return the batch analyzer."""
@@ -252,7 +243,7 @@ class CylindraMainWidget(MagicTemplate):
                 if global_props:
                     df = self.tomogram.collect_globalprops(i=splines).to_pandas().transpose()
                     df.columns = [f"Spline-{i}" for i in splines]
-                    self.log.print_table(df, precision=3)
+                    _Logger.print_table(df, precision=3)
             if local_props and paint:
                 self.paint_cylinders()
             if global_props:
@@ -380,8 +371,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_logger(self):
         """Open logger window."""
-        self._LoggerWindow.show()
-        return None
+        return _Logger.widget.show()
 
     @Others.wraps
     @set_design(text="Clear cache")
@@ -809,7 +799,7 @@ class CylindraMainWidget(MagicTemplate):
             r_argmax = np.argmax(pw_peak)
             clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
             spl.orientation = ori_clockwise if clkwise else ori_anticlockwise
-            self.log.print(f"Spline {i} was {spl.orientation.name}.")
+            _Logger.print(f"Spline {i} was {spl.orientation.name}.")
         
         if align_to is not None:
             self.align_to_polarity(orientation=align_to)
@@ -1122,7 +1112,7 @@ class CylindraMainWidget(MagicTemplate):
         def _global_ft_analysis_on_return():
             df = self.tomogram.collect_globalprops().to_pandas().transpose()
             df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
-            self.log.print_table(df, precision=3)
+            _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
         
         for i in range(self.tomogram.n_splines):
@@ -1169,11 +1159,11 @@ class CylindraMainWidget(MagicTemplate):
             splines = tuple(range(len(tomo.splines)))
         molecules = tomo.map_monomers(i=splines, orientation=orientation)
         
-        self.log.print_html("<code>map_monomers</code>")
+        _Logger.print_html("<code>map_monomers</code>")
         for i, mol in enumerate(molecules):
             _name = f"Mono-{i}"
             self.add_molecules(mol, _name)
-            self.log.print(f"{_name!r}: n = {len(mol)}")
+            _Logger.print(f"{_name!r}: n = {len(mol)}")
             
         self._need_save = True
         return molecules
@@ -1200,11 +1190,11 @@ class CylindraMainWidget(MagicTemplate):
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, orientation=orientation)
-        self.log.print_html("<code>map_centers</code>")
+        _Logger.print_html("<code>map_centers</code>")
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
             add_molecules(self.parent_viewer, mol, _name)
-            self.log.print(f"{_name!r}: n = {len(mol)}")
+            _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return None
     
@@ -1229,11 +1219,11 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         mols = tomo.map_pf_line(i=splines, interval=interval, angle_offset=angle_offset, orientation=orientation)
-        self.log.print_html("<code>map_along_PF</code>")
+        _Logger.print_html("<code>map_along_PF</code>")
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
             add_molecules(self.parent_viewer, mol, _name)
-            self.log.print(f"{_name!r}: n = {len(mol)}")
+            _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return None
 
@@ -1364,9 +1354,9 @@ class CylindraMainWidget(MagicTemplate):
             layer.visible = False
             layer_names.append(layer.name)
         
-        self.log.print_html("<code>concatenate_molecules</code>")
-        self.log.print("Concatenated:", ", ".join(layer_names))
-        self.log.print(f"{points.name!r}: n = {len(all_molecules)}")
+        _Logger.print_html("<code>concatenate_molecules</code>")
+        _Logger.print("Concatenated:", ", ".join(layer_names))
+        _Logger.print(f"{points.name!r}: n = {len(all_molecules)}")
         return None
 
     @Molecules_.Combine.wraps
@@ -1949,8 +1939,8 @@ class CylindraMainWidget(MagicTemplate):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         xmin, xmax = self.label_colorlimit
-        self._LoggerWindow.show()
-        with self.log.set_plt(rc_context={"font.size": 15}):
+        _Logger.widget.show()
+        with _Logger.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
             plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])
@@ -2132,7 +2122,7 @@ class CylindraMainWidget(MagicTemplate):
             _name = os.path.join(*parts[-2:])
         except Exception:
             _name = f"Tomogram<{hex(id(tomo))}>"
-        self.log.print_html(f"<h2>{_name}</h2>")
+        _Logger.print_html(f"<h2>{_name}</h2>")
         self.clear_all()
         if filt:
             self.filter_reference_image()
