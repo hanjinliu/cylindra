@@ -38,11 +38,11 @@ _TiltRange = Annotated[tuple[float, float], {"label": "Tilt range (deg)", "widge
 
 _Logger = getLogger("cylindra")
 
-def _simulate_batch_iter():
-    yield "(0/2) Simulating projections"
-    i = 0
-    while True:
-        yield f"(1/2) Back-projection of {i}-th image"
+def _simulate_batch_iter(nsr):
+    n = len(nsr)
+    yield f"(0/{n + 1}) Simulating projections"
+    for i in range(n):
+        yield f"({i + 1}/{n + 1}) Back-projection of {i}-th image"
 
 class CylinderParameters:
     """Parameters for cylinder model."""
@@ -411,7 +411,6 @@ class CylinderSimulator(MagicTemplate):
         nsr: Annotated[float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}] = 2.0,
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
-        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 10}}] = [4],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         filter: bool = True,
         seed: Optional[int] = None,
@@ -435,8 +434,6 @@ class CylinderSimulator(MagicTemplate):
             Minimum and maximum tilt angles.
         n_tilt : int
             Number of tilt angles.
-        bin_size : list of int
-            List of binning to be applied to the image for visualization.
         interpolation : int
             Interpolation method used during the simulation.
         filter : bool, default is True
@@ -459,8 +456,8 @@ class CylinderSimulator(MagicTemplate):
         
         # back projection
         rec = radon_model.inverse_transform(sino)
-        tomo = CylTomogram.from_image(rec, binsize=bin_size)
-        parent.tomogram = tomo
+        bin_size = [x[0] for x in parent.tomogram.multiscaled]
+        parent.tomogram = CylTomogram.from_image(rec, binsize=bin_size)
         return thread_worker.to_callback(parent._send_tomogram_to_viewer, filter)
 
     def _directory_not_empty(self):

@@ -6,7 +6,6 @@ from acryo import Molecules
 from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
-import time
 import pytest
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]

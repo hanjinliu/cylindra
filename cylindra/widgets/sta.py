@@ -979,7 +979,6 @@ class SubtomogramAveraging(MagicTemplate):
 
             _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>")
             _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>")
-            _Logger.widget.show()
 
             if img_avg is not None:
                 _rec_layer: "Image" = self._show_reconstruction(
