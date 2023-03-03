@@ -191,7 +191,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Run")
     @thread_worker.with_progress(
         desc="Running cylindrical fitting", 
-        total="(1+n_refine+int(local_props)+int(global_props))*len(splines)",
+        total="(1 + n_refine + int(local_props) + int(global_props)) * len(splines)",
     )
     def cylindrical_fit(
         self,
@@ -746,6 +746,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
+    @thread_worker
     def auto_align_to_polarity(
         self,
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
@@ -768,7 +769,7 @@ class CylindraMainWidget(MagicTemplate):
         align_to : Ori, default is Ori.MinusToPlus
             To which direction splines will be aligned.
         depth : nm, default is 40 nm
-            Depth of the subtomogram to be sampled.
+            Depth (Y-length) of the subtomogram to be sampled.
         """
         binsize = self.layer_image.metadata["current_binsize"]
         tomo = self.tomogram
@@ -792,9 +793,7 @@ class CylindraMainWidget(MagicTemplate):
             img_flat = ip.asarray(mapped, axes="rya").proj("y")
             npf = utils.roundint(spl.globalprops[H.nPF][0])
             pw_peak = img_flat.local_power_spectra(
-                key=ip.slicer.a[npf-1:npf+2],
-                upsample_factor=20,
-                dims="ra",
+                key=ip.slicer.a[npf-1:npf+2], upsample_factor=20, dims="ra",
             ).proj("a", method=np.max)
             r_argmax = np.argmax(pw_peak)
             clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
@@ -802,7 +801,7 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"Spline {i} was {spl.orientation.name}.")
         
         if align_to is not None:
-            self.align_to_polarity(orientation=align_to)
+            return thread_worker.to_callback(self.align_to_polarity, align_to)
         return None
     
     @Splines.wraps
@@ -1198,6 +1197,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open batch analyzer")
     @do_not_record
     def open_project_batch_analyzer(self):
+        """Open the batch analyzer widget."""
         from .batch import CylindraBatchWidget
         
         uibatch = CylindraBatchWidget()
@@ -1853,6 +1853,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
+    @thread_worker
     @set_design(text="Paint cylinders")
     def paint_cylinders(self):
         """
@@ -1947,17 +1948,19 @@ class CylindraMainWidget(MagicTemplate):
         props = pd.concat([back, df[columns]], ignore_index=True)
         
         # Add labels layer
-        if self.layer_paint is None:
-            self.layer_paint = self.parent_viewer.add_labels(
-                lbl, color=color, scale=self.layer_image.scale,
-                translate=self.layer_image.translate, opacity=0.33, name="Label",
-                properties=props
-            )
-        else:
-            self.layer_paint.data = lbl
-            self.layer_paint.properties = props
-        self._update_colormap()
-        return None
+        @thread_worker.to_callback
+        def _on_return():
+            if self.layer_paint is None:
+                self.layer_paint = self.parent_viewer.add_labels(
+                    lbl, color=color, scale=self.layer_image.scale,
+                    translate=self.layer_image.translate, opacity=0.33, name="Label",
+                    properties=props
+                )
+            else:
+                self.layer_paint.data = lbl
+                self.layer_paint.properties = props
+            self._update_colormap()
+        return _on_return
     
     @Image.wraps
     @set_options(auto_call=True)
