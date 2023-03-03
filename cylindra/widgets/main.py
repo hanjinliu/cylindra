@@ -20,7 +20,7 @@ from magicclass.ext.polars import DataFrameView
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
-from magicclass.widgets import ConsoleTextEdit, Logger
+from magicclass.widgets import ConsoleTextEdit
 from napari.layers import Image, Labels, Layer, Points
 from napari.utils.colormaps import Colormap, label_colormap
 from scipy import ndimage as ndi
@@ -1121,6 +1121,62 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return _global_ft_analysis_on_return
     
+    def _get_reanalysis_macro(self, path: Path):
+        _manual_operations = {
+            "open_image", "register_path", "load_splines", "load_molecules",
+            "delete_spline", "add_multiscale", "set_multiscale",
+        }
+        _ui_sym = mk.symbol(self)
+        project = CylindraProject.from_json(path)
+        macro_path = Path(project.macro)
+        macro_expr = mk.parse(macro_path.read_text())
+        exprs: list[mk.Expr] = []
+        breaked_line: "mk.Expr | None" = None
+        for line in macro_expr.args:
+            if line.head is not mk.Head.call:
+                breaked_line  = line
+                break
+            _fn, *_ = line.split_call()
+            if _fn.head is not mk.Head.getattr:
+                breaked_line  = line
+                break
+            first, *attrs = _fn.split_getattr()
+            if first != _ui_sym or len(attrs) != 1:
+                breaked_line  = line
+                break
+            if str(attrs[0]) not in _manual_operations:
+                breaked_line  = line
+                break
+            exprs.append(line)
+        if breaked_line is not None:
+            exprs.append(mk.Expr(mk.Head.comment, [str(breaked_line) + " ... breaked here."]))
+        
+        return mk.Expr(mk.Head.block, exprs)
+
+    @Analysis.wraps
+    @set_design(text="Re-analyze project")
+    @do_not_record
+    def load_project_for_reanalysis(self, path: Path.Read[FileFilter.JSON]):
+        """
+        Load a project file to re-analyze the data.
+        
+        This method will extract the first manual operations from a project file and
+        run them. This is useful when you want to re-analyze the data with a different
+        parameter set, or when there were some improvements in cylindra.
+        """
+        macro = self._get_reanalysis_macro(path)
+        return macro.eval({mk.symbol(self): self})
+    
+    @impl_preview(load_project_for_reanalysis, text="Preview extracted code")
+    def _preview_load_project_for_reanalysis(self, path: Path):
+        macro = self._get_reanalysis_macro(path)
+        w = ConsoleTextEdit(value=str(macro))
+        w.syntax_highlight("python")
+        w.read_only = True
+        w.native.setParent(self.native, w.native.windowFlags())
+        w.show()
+        return None
+
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
     @thread_worker.with_progress(desc="Calculating power spectra")
@@ -1130,6 +1186,25 @@ class CylindraMainWidget(MagicTemplate):
         if self.tomogram.n_splines > 0:
             self.spectra_measurer.load_spline(self.SplineControl.num)
         return thread_worker.to_callback(self.spectra_measurer.show)
+    
+    @Analysis.wraps
+    @set_design(text="Open subtomogram analyzer")
+    @do_not_record
+    def open_subtomogram_analyzer(self):
+        """Open the subtomogram analyzer dock widget."""
+        return self.sta.show()
+    
+    @Analysis.wraps
+    @set_design(text="Open batch analyzer")
+    @do_not_record
+    def open_project_batch_analyzer(self):
+        from .batch import CylindraBatchWidget
+        
+        uibatch = CylindraBatchWidget()
+        uibatch.native.setParent(self.native, uibatch.native.windowFlags())
+        self._batch = uibatch
+        uibatch.show()
+        return uibatch
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     #   Monomer mapping methods
@@ -1696,25 +1771,6 @@ class CylindraMainWidget(MagicTemplate):
             [pl.Series(Mole.isotype, res % 2)]
         )
         return None
-    
-    @Analysis.wraps
-    @set_design(text="Open subtomogram analyzer")
-    @do_not_record
-    def open_subtomogram_analyzer(self):
-        """Open the subtomogram analyzer dock widget."""
-        return self.sta.show()
-    
-    @Analysis.wraps
-    @set_design(text="Open batch analyzer")
-    @do_not_record
-    def open_project_batch_analyzer(self):
-        from .batch import CylindraBatchWidget
-        
-        uibatch = CylindraBatchWidget()
-        uibatch.native.setParent(self.native, uibatch.native.windowFlags())
-        self._batch = uibatch
-        uibatch.show()
-        return uibatch
     
     @toolbar.wraps
     @set_design(icon=ICON_DIR/"pick_next.png")
