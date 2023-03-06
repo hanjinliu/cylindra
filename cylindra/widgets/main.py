@@ -746,7 +746,7 @@ class CylindraMainWidget(MagicTemplate):
     
     @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
-    @thread_worker
+    @thread_worker.with_progress(desc="Auto-detecting polarities...", total="len(self.tomogram.splines)")
     def auto_align_to_polarity(
         self,
         clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
@@ -798,7 +798,8 @@ class CylindraMainWidget(MagicTemplate):
             r_argmax = np.argmax(pw_peak)
             clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
             spl.orientation = ori_clockwise if clkwise else ori_anticlockwise
-            _Logger.print(f"Spline {i} was {spl.orientation.name}.")
+            
+            yield thread_worker.to_callback(_Logger.print, f"Spline {i} was {spl.orientation.name}.")
         
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
@@ -1853,7 +1854,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @thread_worker
+    @thread_worker.with_progress(desc="Paint cylinders ...")
     @set_design(text="Paint cylinders")
     def paint_cylinders(self):
         """
@@ -1898,13 +1899,19 @@ class CylindraMainWidget(MagicTemplate):
                 domain[:, ly//2+ry+1:] = 0
                 domain = domain.astype(np.float32)
                 domains.append(domain)
+                yield
                 
             cylinders.append(domains)
             matrices.append(spl.affine_matrix(center=center, inverse=True))
         
         cylinders = np.concatenate(cylinders, axis=0)
         matrices = np.concatenate(matrices, axis=0)
-        out = _multi_affine(cylinders, matrices) > 0.3
+        
+        out = np.empty_like(cylinders)
+        for i, (img, matrix) in enumerate(zip(cylinders, matrices)):
+            out[i] = ndi.affine_transform(img, matrix, order=1, cval=0, prefilter=False)
+            yield
+        out = out > 0.3
             
         # paint roughly
         for i, crd in enumerate(tomo.collect_anchor_coords()):
@@ -1919,6 +1926,7 @@ class CylindraMainWidget(MagicTemplate):
                     slice(_pad[0] if _pad[0] > 0 else None,
                          -_pad[1] if _pad[1] > 0 else None)
                 )
+                yield
 
             sl = tuple(sl)
             outsl = tuple(outsl)
