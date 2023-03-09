@@ -803,6 +803,10 @@ class CylindraMainWidget(MagicTemplate):
         
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
+        else:
+            pass
+            # for i in range(len(tomo.splines)):  TODO: make this work
+            #     self._set_orientation_marker(i)
         return None
     
     @Splines.wraps
