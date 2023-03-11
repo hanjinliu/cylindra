@@ -803,7 +803,13 @@ class CylindraMainWidget(MagicTemplate):
         
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
-        return None
+        else:
+            @thread_worker.to_callback
+            def _on_return():
+                for i in range(len(tomo.splines)):
+                    self._set_orientation_marker(i)
+                return
+            return _on_return
     
     @Splines.wraps
     @set_options(clip_lengths={"options": {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}})
@@ -2356,6 +2362,7 @@ class CylindraMainWidget(MagicTemplate):
         
         spl = self.tomogram.splines[idx]
         str_of_interest = string_arr[spec]
+
         if spl.orientation == Ori.none:
             str_of_interest[:] = ""
         elif spl.orientation == Ori.MinusToPlus:
