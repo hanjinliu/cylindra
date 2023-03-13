@@ -1349,7 +1349,10 @@ class CylindraMainWidget(MagicTemplate):
     def extend_molecules(
         self,
         layer: MoleculesLayer,
-        specs: Annotated[list[tuple[int, tuple[int, int]]], {"label": "prepend/append", "layout": "vertical"}] = (),
+        counts: Annotated[
+            list[tuple[int, tuple[int, int]]],
+            {"label": "prepend/append", "layout": "vertical"}
+        ] = (),
     ):
         """
         Extend the existing molecules at the edges.
@@ -1357,15 +1360,18 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
-        
+        counts : list of (int, (int, int))
+            List of (PF, (prepend, append)) pairs. For instance, (0, (2, 3)) means that
+            two molecules will be prepended and three molecules will be appended to the
+            protofilament labeled with 0.
         """
-        out = widget_utils.extend_protofilament(layer.molecules, dict(specs))
+        out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
         name = layer.name + "-extended"
-        self.add_molecules(out, name)
+        return self.add_molecules(out, name)
     
     @impl_preview(extend_molecules, auto_call=True)
-    def _preview_extend_molecules(self, layer: MoleculesLayer, specs: list[tuple[int, tuple[int, int]]]):
-        out = widget_utils.extend_protofilament(layer.molecules, dict(specs))
+    def _preview_extend_molecules(self, layer: MoleculesLayer, counts: list[tuple[int, tuple[int, int]]]):
+        out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
         viewer = self.parent_viewer
         name = "<Preview>"
         if name in viewer.layers:
@@ -1373,7 +1379,7 @@ class CylindraMainWidget(MagicTemplate):
             layer.data = out.pos
         else:
             layer = self.add_molecules(out, name=name)
-            layer.face_color = layer.edge_color = "crimson"
+        layer.face_color = layer.edge_color = "crimson"
         try:
             is_active = yield
         finally:

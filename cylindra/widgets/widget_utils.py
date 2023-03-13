@@ -215,16 +215,16 @@ class FscResult:
     resolution_0143: nm
     resolution_0500: nm
 
-def extend_protofilament(mole: Molecules, specs: dict[int, tuple[int, int]]) -> Molecules:
+def extend_protofilament(mole: Molecules, counts: dict[int, tuple[int, int]]) -> Molecules:
     existing_pf_id = set(mole.features[Mole.pf].unique())
-    if not specs.keys() <= existing_pf_id:
-        raise ValueError(f"Invalid ID: {specs.keys() - existing_pf_id}")
+    if not counts.keys() <= existing_pf_id:
+        raise ValueError(f"Invalid ID: {counts.keys() - existing_pf_id}")
     df = mole.to_dataframe()
     zyxp = [Mole.z, Mole.y, Mole.x, Mole.position]
-    pf_id_dtype = mole.features[Mole.pf].dtype
+    schema = {c: df[c].dtype for c in [Mole.z, Mole.y, Mole.x, Mole.zvec, Mole.yvec, Mole.xvec, Mole.position, Mole.pf]}
     to_prepend: list[Molecules] = []
     to_append: list[Molecules] = []
-    for _pf_id, (_n_prepend, _n_append) in specs.items():
+    for _pf_id, (_n_prepend, _n_append) in counts.items():
         df_filt = df.filter(pl.col(Mole.pf) == _pf_id).sort(pl.col(Mole.position))
         prepend_start = df_filt[0]
         prepend_vec = prepend_start.select(zyxp) - df_filt[1].select(zyxp)
@@ -241,8 +241,9 @@ def extend_protofilament(mole: Molecules, specs: dict[int, tuple[int, int]]) -> 
                 Mole.yvec: np.full(_n_prepend, prepend_start[Mole.yvec][0]),
                 Mole.xvec: np.full(_n_prepend, prepend_start[Mole.xvec][0]),
                 Mole.position: prepend_start[Mole.position][0] + prepend_vec[Mole.position][0] * rng,
-                Mole.pf: pl.Series(np.full(_n_prepend, _pf_id), dtype=pf_id_dtype),
-            }
+                Mole.pf: np.full(_n_prepend, _pf_id),
+            },
+            schema=schema,
         )
         
         rng = np.arange(1, _n_append + 1)
@@ -255,10 +256,13 @@ def extend_protofilament(mole: Molecules, specs: dict[int, tuple[int, int]]) -> 
                 Mole.yvec: np.full(_n_append, append_start[Mole.yvec][0]),
                 Mole.xvec: np.full(_n_append, append_start[Mole.xvec][0]),
                 Mole.position: append_start[Mole.position][0] + append_vec[Mole.position][0] * rng,
-                Mole.pf: pl.Series(np.full(_n_append, _pf_id), dtype=pf_id_dtype),
-            }
+                Mole.pf: np.full(_n_append, _pf_id),
+            },
+            schema=schema,
         )
-        to_prepend.append(Molecules.from_dataframe(df_prepend))
-        to_append.append(Molecules.from_dataframe(df_append))
+        if df_prepend.shape[0] > 0:
+            to_prepend.append(Molecules.from_dataframe(df_prepend))
+        if df_append.shape[0] > 0:
+            to_append.append(Molecules.from_dataframe(df_append))
     return Molecules.concat(to_prepend + [mole] + to_append)
             
