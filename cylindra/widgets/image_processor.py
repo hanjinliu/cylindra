@@ -9,6 +9,7 @@ from magicclass import (
 )
 from magicclass.utils import thread_worker
 from magicclass.types import Optional, OneOf, SomeOf
+from magicclass.ext.dask import dask_thread_worker
 import impy as ip
 from .widget_utils import FileFilter
 from ._previews import view_image
@@ -51,7 +52,7 @@ class ImageProcessor(MagicTemplate):
     def _confirm_path(self):
         return self.output_image.exists()
     
-    @thread_worker(progress={"desc": "Converting data type."})
+    @dask_thread_worker.with_progress(desc="Converting data type.")
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def convert_dtype(self, dtype: OneOf["int8", "uint8", "uint16", "float32"]):
@@ -61,7 +62,7 @@ class ImageProcessor(MagicTemplate):
         out.imsave(self.output_image)
         return None
     
-    @thread_worker(progress={"desc": "Inverting image."})
+    @dask_thread_worker.with_progress(desc="Inverting image.")
     @set_design(text="Invert")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def invert(self):
@@ -71,7 +72,7 @@ class ImageProcessor(MagicTemplate):
         out.imsave(self.output_image)
         return None
     
-    @thread_worker(progress={"desc": "Low-pass filtering."})
+    @dask_thread_worker.with_progress(desc="Low-pass filtering.")
     @set_design(text="Low-pass filter")
     @set_options(
         cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
@@ -85,7 +86,7 @@ class ImageProcessor(MagicTemplate):
         out.imsave(self.output_image)
         return None
     
-    @thread_worker(progress={"desc": "Binning."})
+    @dask_thread_worker.with_progress(desc="Binning.")
     @set_design(text="Binning")
     @set_options(bin_size={"min": 2, "max": 16, "step": 1},)
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
@@ -96,7 +97,7 @@ class ImageProcessor(MagicTemplate):
         out.imsave(self.output_image)
         return None
     
-    @thread_worker(progress={"desc": "Flipping image."})
+    @dask_thread_worker.with_progress(desc="Flipping image.")
     @set_design(text="Flip image")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def flip(self, axes: SomeOf["x", "y", "z"] = ()):

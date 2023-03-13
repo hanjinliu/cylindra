@@ -11,13 +11,10 @@ import polars as pl
 from magicclass.logging import getLogger
 import napari
 
-from cylindra.components import CylSpline
-from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
+from acryo import Molecules
+from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole, nm
 from cylindra.types import MoleculesLayer
 
-if TYPE_CHECKING:
-    from acryo import Molecules
-    from cylindra.const import nm
 
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
@@ -75,15 +72,6 @@ def y_coords_to_start_number(u: np.ndarray, npf: int):
     a0 = (u[-npf] - u[0]) / (u.size - npf)
     a1 = np.mean((u[::npf] - u[(npf-1)::npf])/(npf - 1))
     return int(round(a1/a0))
-
-def coords_to_params(pos: np.ndarray, npf: int) -> tuple[float, float, float]:
-    """infer pitch length using the y coordinates in spline coordinate system."""
-    ndim = 3
-    pos = pos.reshape(-1, npf, ndim)
-    ypitch = np.mean(np.sqrt(np.sum(np.diff(pos, axis=0)**2, axis=2)))
-    lateral_spacing = np.mean(np.sqrt(np.sum(np.diff(pos, axis=1)**2, axis=2)))
-    radius = lateral_spacing * npf / 2 / np.pi
-    return ypitch, lateral_spacing, radius
 
 
 def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
@@ -226,3 +214,51 @@ class FscResult:
     std: np.ndarray
     resolution_0143: nm
     resolution_0500: nm
+
+def extend_protofilament(mole: Molecules, specs: dict[int, tuple[int, int]]) -> Molecules:
+    existing_pf_id = set(mole.features[Mole.pf].unique())
+    if not specs.keys() <= existing_pf_id:
+        raise ValueError(f"Invalid ID: {specs.keys() - existing_pf_id}")
+    df = mole.to_dataframe()
+    zyxp = [Mole.z, Mole.y, Mole.x, Mole.position]
+    pf_id_dtype = mole.features[Mole.pf].dtype
+    to_prepend: list[Molecules] = []
+    to_append: list[Molecules] = []
+    for _pf_id, (_n_prepend, _n_append) in specs.items():
+        df_filt = df.filter(pl.col(Mole.pf) == _pf_id).sort(pl.col(Mole.position))
+        prepend_start = df_filt[0]
+        prepend_vec = prepend_start.select(zyxp) - df_filt[1].select(zyxp)
+        append_start = df_filt[-1]
+        append_vec = append_start.select(zyxp) - df_filt[-2].select(zyxp)
+        
+        rng = np.arange(_n_prepend, 0, -1)
+        df_prepend = pl.DataFrame(
+            {
+                Mole.z: prepend_start[Mole.z][0] + prepend_vec[Mole.z][0] * rng,
+                Mole.y: prepend_start[Mole.y][0] + prepend_vec[Mole.y][0] * rng,
+                Mole.x: prepend_start[Mole.x][0] + prepend_vec[Mole.x][0] * rng,
+                Mole.zvec: np.full(_n_prepend, prepend_start[Mole.zvec][0]),
+                Mole.yvec: np.full(_n_prepend, prepend_start[Mole.yvec][0]),
+                Mole.xvec: np.full(_n_prepend, prepend_start[Mole.xvec][0]),
+                Mole.position: prepend_start[Mole.position][0] + prepend_vec[Mole.position][0] * rng,
+                Mole.pf: pl.Series(np.full(_n_prepend, _pf_id), dtype=pf_id_dtype),
+            }
+        )
+        
+        rng = np.arange(1, _n_append + 1)
+        df_append = pl.DataFrame(
+            {
+                Mole.z: append_start[Mole.z][0] + append_vec[Mole.z][0] * rng,
+                Mole.y: append_start[Mole.y][0] + append_vec[Mole.y][0] * rng,
+                Mole.x: append_start[Mole.x][0] + append_vec[Mole.x][0] * rng,
+                Mole.zvec: np.full(_n_append, append_start[Mole.zvec][0]),
+                Mole.yvec: np.full(_n_append, append_start[Mole.yvec][0]),
+                Mole.xvec: np.full(_n_append, append_start[Mole.xvec][0]),
+                Mole.position: append_start[Mole.position][0] + append_vec[Mole.position][0] * rng,
+                Mole.pf: pl.Series(np.full(_n_append, _pf_id), dtype=pf_id_dtype),
+            }
+        )
+        to_prepend.append(Molecules.from_dataframe(df_prepend))
+        to_append.append(Molecules.from_dataframe(df_append))
+    return Molecules.concat(to_prepend + [mole] + to_append)
+            

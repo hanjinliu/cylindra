@@ -38,6 +38,7 @@ from cylindra.project import CylindraProject
 
 # widgets
 from cylindra.widgets import _previews, _shared_doc, subwidgets
+from cylindra.widgets import widget_utils
 from cylindra.widgets.image_processor import ImageProcessor
 from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from cylindra.widgets.spline_control import SplineControl
@@ -1344,13 +1345,11 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Molecules_.wraps
-    @set_options(auto_call=True)
     @set_design(text="Extend molecules")
     def extend_molecules(
         self,
         layer: MoleculesLayer,
-        prepend: int = 0,
-        append: int = 0,
+        specs: Annotated[list[tuple[int, tuple[int, int]]], {"label": "prepend/append", "layout": "vertical"}] = (),
     ):
         """
         Extend the existing molecules at the edges.
@@ -1358,57 +1357,29 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
-        prepend : int, default is 0
-            Number of molecules to be prepended for each protofilament.
-        append : int, default is 0
-            Number of molecules to be appended for each protofilament.
-        """        
-        ndim = 3
-        mole = layer.molecules
-        npf = utils.roundint(mole.features[Mole.pf].max() + 1)
-        pos = mole.pos.reshape(-1, npf, ndim)
-        quat = mole.rotator.as_quat()
-        if prepend > 0:
-            dvec_pre = pos[0] - pos[1]
-            pos_pre = np.stack(
-                [pos[0] + dvec_pre * n for n in range(1, prepend + 1)], axis=0
-            )
-            quat_pre = np.concatenate([quat[:npf]] * prepend, axis=0)
-        else:
-            pos_pre = np.zeros((0, npf, ndim), dtype=np.float32)
-            quat_pre = np.zeros((0, 4), dtype=np.float32)
-        if append > 0:
-            dvec_post = pos[-1] - pos[-2]
-            pos_post = np.stack(
-                [pos[-1] + dvec_post * n for n in range(1 + append + 1)], axis=0
-            )
-            quat_post = np.concatenate([quat[-npf:]] * append, axis=0)
-        else:
-            pos_post = np.zeros((0, npf, ndim), dtype=np.float32)
-            quat_post = np.zeros((0, 4), dtype=np.float32)
         
-        pos_extended: np.ndarray = np.concatenate([pos_pre, pos, pos_post], axis=0)
-        quat_extended = np.concatenate([quat_pre, quat, quat_post], axis=0)
-        features = {Mole.pf: pl.Series(np.arange(len(mole_new), dtype=np.uint32)) % npf}
-        from scipy.spatial.transform import Rotation
-        mole_new = Molecules(
-            pos_extended.reshape(-1, ndim),
-            Rotation.from_quat(quat_extended),
-            features=features,
-        )
-        
+        """
+        out = widget_utils.extend_protofilament(layer.molecules, dict(specs))
         name = layer.name + "-extended"
+        self.add_molecules(out, name)
+    
+    @impl_preview(extend_molecules, auto_call=True)
+    def _preview_extend_molecules(self, layer: MoleculesLayer, specs: list[tuple[int, tuple[int, int]]]):
+        out = widget_utils.extend_protofilament(layer.molecules, dict(specs))
         viewer = self.parent_viewer
-        if name not in viewer.layers:
-            points_layer = add_molecules(self.parent_viewer, mole_new, name)
-            layer.visible = False
+        name = "<Preview>"
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = out.pos
         else:
-            points_layer: Layer = viewer.layers[name]
-            if not isinstance(points_layer, MoleculesLayer):
-                points_layer.name = points_layer.name + "-0"
-            points_layer.molecules = mole_new
-            points_layer.selected_data = set()
-        return None
+            layer = self.add_molecules(out, name=name)
+            layer.face_color = layer.edge_color = "crimson"
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+        return out
     
     @Molecules_.Combine.wraps
     @set_design(text="Concatenate molecules")
