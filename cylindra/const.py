@@ -107,6 +107,12 @@ class MoleculesHeader(SimpleNamespace):
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
     image = "image-id"
+    z = "z"
+    y = "y"
+    x = "x"
+    zvec = "zvec"
+    yvec = "yvec"
+    xvec = "xvec"
 
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
