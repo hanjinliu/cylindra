@@ -1361,6 +1361,8 @@ class CylindraMainWidget(MagicTemplate):
         append : int, default is 0
             Number of molecules to be appended for each protofilament.
         """        
+        from scipy.spatial.transform import Rotation
+
         ndim = 3
         mole = layer.molecules
         npf = utils.roundint(mole.features[Mole.pf].max() + 1)
@@ -1388,7 +1390,6 @@ class CylindraMainWidget(MagicTemplate):
         pos_extended: np.ndarray = np.concatenate([pos_pre, pos, pos_post], axis=0)
         quat_extended = np.concatenate([quat_pre, quat, quat_post], axis=0)
         features = {Mole.pf: pl.Series(np.arange(len(mole_new), dtype=np.uint32)) % npf}
-        from scipy.spatial.transform import Rotation
         mole_new = Molecules(
             pos_extended.reshape(-1, ndim),
             Rotation.from_quat(quat_extended),
