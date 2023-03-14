@@ -221,7 +221,8 @@ def extend_protofilament(mole: Molecules, counts: dict[int, tuple[int, int]]) ->
         raise ValueError(f"Invalid ID: {counts.keys() - existing_pf_id}")
     df = mole.to_dataframe()
     zyxp = [Mole.z, Mole.y, Mole.x, Mole.position]
-    schema = {c: df[c].dtype for c in [Mole.z, Mole.y, Mole.x, Mole.zvec, Mole.yvec, Mole.xvec, Mole.position, Mole.pf]}
+    predictables = [Mole.z, Mole.y, Mole.x, Mole.zvec, Mole.yvec, Mole.xvec, Mole.position, Mole.pf]
+    schema = {c: df[c].dtype for c in predictables}
     to_prepend: list[Molecules] = []
     to_append: list[Molecules] = []
     for _pf_id, (_n_prepend, _n_append) in counts.items():

@@ -11,6 +11,8 @@ import numpy as np
 import polars as pl
 import pandas as pd
 from acryo import Molecules, SubtomogramLoader
+
+from magicgui.widgets import Widget
 from magicclass import (MagicTemplate, bind_key, build_help, confirm,
                         do_not_record, field, get_function_gui, magicclass, impl_preview, nogui,
                         set_design, set_options, setup_function_gui)
@@ -1355,7 +1357,7 @@ class CylindraMainWidget(MagicTemplate):
         ] = (),
     ):
         """
-        Extend the existing molecules at the edges.
+        Extend the existing molecules by linear outerpolation.
         
         Parameters
         ----------
@@ -1439,7 +1441,7 @@ class CylindraMainWidget(MagicTemplate):
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
         self.add_molecules(mole, name="Mono-merged")
     
-    def _get_selected_layer_choice(self, w=None) -> list[str]:
+    def _get_selected_layer_choice(self, w: Widget) -> list[str]:
         try:
             parent = w.parent.parent()
             if parent is None:
