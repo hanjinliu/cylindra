@@ -62,11 +62,23 @@ _Logger = getLogger("cylindra")
 # namespace used in predicate
 POLARS_NAMESPACE = {"pl": pl, "int": int, "float": float, "str": str, "np": np, "__builtins__": {}}
 
+# stylesheet
+_STYLE = """
+QCommandLineEdit {
+    font-family: "Arial";
+    font-size: 15px;
+}
+QCommandList {
+    font-family: "Arial";
+    font-size: 15px;
+}
+"""
+
 ############################################################################################
 #   The Main Widget of cylindra
 ############################################################################################
 
-@magicclass(widget_type="scrollable", name="cylindra")
+@magicclass(widget_type="scrollable", stylesheet=_STYLE, name="cylindra")
 @_shared_doc.update_cls
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
@@ -367,7 +379,7 @@ class CylindraMainWidget(MagicTemplate):
     def open_command_palette(self):
         from magicclass.command_palette import exec_command_palette
         
-        return exec_command_palette(self)
+        return exec_command_palette(self, alignment="screen")
 
     @Others.wraps
     @set_design(text="Open logger")
