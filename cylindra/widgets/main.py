@@ -1735,6 +1735,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
+    @thread_worker.with_progress(desc="Paint cylinders ...")
     @set_design(text="Paint cylinders")
     def paint_cylinders(self):
         """
@@ -1782,6 +1783,7 @@ class CylindraMainWidget(MagicTemplate):
                 
             cylinders.append(domains)
             matrices.append(spl.affine_matrix(center=center, inverse=True))
+            yield
         
         cylinders = np.concatenate(cylinders, axis=0)
         matrices = np.concatenate(matrices, axis=0)
@@ -1808,7 +1810,8 @@ class CylindraMainWidget(MagicTemplate):
             sl = tuple(sl)
             outsl = tuple(outsl)
             lbl[sl][out[i][outsl]] = i + 1
-        
+            yield
+
         # paint finely
         ref = self.layer_image.data
         thr = np.percentile(ref[lbl > 0], 5)
@@ -1832,18 +1835,20 @@ class CylindraMainWidget(MagicTemplate):
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df[columns]], ignore_index=True)
         
-        # Add labels layer
-        if self.layer_paint is None:
-            self.layer_paint = self.parent_viewer.add_labels(
-                lbl, color=color, scale=self.layer_image.scale,
-                translate=self.layer_image.translate, opacity=0.33, name="Label",
-                properties=props
-            )
-        else:
-            self.layer_paint.data = lbl
-            self.layer_paint.properties = props
-        self._update_colormap()
-        return None
+        @thread_worker.to_callback
+        def _on_return():
+            # Add labels layer
+            if self.layer_paint is None:
+                self.layer_paint = self.parent_viewer.add_labels(
+                    lbl, color=color, scale=self.layer_image.scale,
+                    translate=self.layer_image.translate, opacity=0.33, name="Label",
+                    properties=props
+                )
+            else:
+                self.layer_paint.data = lbl
+                self.layer_paint.properties = props
+            self._update_colormap()
+        return _on_return
     
     @Image.wraps
     @set_options(auto_call=True)
