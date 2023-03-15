@@ -843,30 +843,6 @@ class CylindraMainWidget(MagicTemplate):
         fgui.clip_lengths.value = (0., 0.)
         return None
     
-    @impl_preview(clip_spline, auto_call=True)
-    def _during_clip_spline(self, spline: int, clip_lengths: tuple[nm, nm]):
-        tomo = self.tomogram
-        name = "Spline preview"
-        spl = self.tomogram.splines[spline]
-        length = spl.length()
-        start, stop = np.array(clip_lengths) / length
-        verts = tomo.splines[spline].clip(start, 1 - stop).partition(100)
-        verts_2d = verts[:, 1:]
-        viewer = self.parent_viewer
-        if name in viewer.layers:
-            layer: Layer = viewer.layers[name]
-            layer.data = verts_2d
-        else:
-            layer = viewer.add_shapes(
-                verts_2d, shape_type="path", edge_color="crimson", edge_width=3, 
-                name=name
-            )
-        try:
-            is_active = yield
-        finally:
-            if not is_active and layer in viewer.layers:
-                viewer.layers.remove(layer)
-    
     @Splines.wraps
     @set_design(text="Delete spline")
     def delete_spline(self, i: Bound[SplineControl.num]):
@@ -1176,16 +1152,6 @@ class CylindraMainWidget(MagicTemplate):
         macro = self._get_reanalysis_macro(path)
         return macro.eval({mk.symbol(self): self})
     
-    @impl_preview(load_project_for_reanalysis, text="Preview extracted code")
-    def _preview_load_project_for_reanalysis(self, path: Path):
-        macro = self._get_reanalysis_macro(path)
-        w = ConsoleTextEdit(value=str(macro))
-        w.syntax_highlight("python")
-        w.read_only = True
-        w.native.setParent(self.native, w.native.windowFlags())
-        w.show()
-        return None
-
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
     @thread_worker.with_progress(desc="Calculating power spectra")
@@ -1371,24 +1337,6 @@ class CylindraMainWidget(MagicTemplate):
         name = layer.name + "-extended"
         return self.add_molecules(out, name)
     
-    @impl_preview(extend_molecules, auto_call=True)
-    def _preview_extend_molecules(self, layer: MoleculesLayer, counts: list[tuple[int, tuple[int, int]]]):
-        out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
-        viewer = self.parent_viewer
-        name = "<Preview>"
-        if name in viewer.layers:
-            layer: Layer = viewer.layers[name]
-            layer.data = out.pos
-        else:
-            layer = self.add_molecules(out, name=name)
-        layer.face_color = layer.edge_color = "crimson"
-        try:
-            is_active = yield
-        finally:
-            if not is_active and layer in viewer.layers:
-                viewer.layers.remove(layer)
-        return out
-    
     @Molecules_.Combine.wraps
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(self, layers: SomeOf[get_monomer_layers], delete_old: bool = True):
@@ -1470,17 +1418,6 @@ class CylindraMainWidget(MagicTemplate):
         if delete_old:
             self.parent_viewer.layers.remove(layer)
     
-    @impl_preview(split_molecules, auto_call=True)
-    def _during_split_molecules_preview(self, layer: MoleculesLayer, by: str):
-        with _temp_layer_colors(layer):
-            series = layer.molecules.features[by]
-            unique_values = series.unique()
-            # NOTE: the first color is translucent
-            cmap = label_colormap(unique_values.len() + 1, seed=0.9414)
-            layer.face_color_cycle = layer.edge_color_cycle = cmap.colors[1:]
-            layer.face_color = layer.edge_color = by
-            yield
-
     @Molecules_.wraps
     @set_design(text="Translate molecules")
     def translate_molecules(
@@ -1513,28 +1450,6 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(out, name=name)
         return mole
         
-    @impl_preview(translate_molecules, auto_call=True)
-    def _during_translate_molecules(self, layer: MoleculesLayer, translation, internal: bool):
-        mole = layer.molecules
-        if internal:
-            out = mole.translate_internal(translation)
-        else:
-            out = mole.translate(translation)
-        viewer = self.parent_viewer
-        name = "<Preview>"
-        if name in viewer.layers:
-            layer: Layer = viewer.layers[name]
-            layer.data = out.pos
-        else:
-            layer = self.add_molecules(out, name=name)
-            layer.face_color = layer.edge_color = "crimson"
-        try:
-            is_active = yield
-        finally:
-            if not is_active and layer in viewer.layers:
-                viewer.layers.remove(layer)
-        return out
-
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Show molecule features")
     @do_not_record
@@ -1577,31 +1492,6 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(out, name=name)
         return mole
         
-    @impl_preview(filter_molecules, auto_call=True)
-    def _during_filter_molecules(self, layer: MoleculesLayer, predicate: str):
-        mole = layer.molecules
-        viewer = self.parent_viewer
-        try:
-            expr = eval(predicate, POLARS_NAMESPACE, {})
-        except Exception:
-            yield
-            return
-        out = mole.filter(expr)
-        name = "<Preview>"
-        if name in viewer.layers:
-            layer: Layer = viewer.layers[name]
-            layer.data = out.pos
-        else:
-            layer = self.add_molecules(out, name=name)
-        # filtering changes the number of molecules. We need to update the colors.
-        layer.face_color = layer.edge_color = "crimson"
-        try:
-            is_active = yield
-        finally:
-            if not is_active and layer in viewer.layers:
-                viewer.layers.remove(layer)
-        return out
-    
     def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self["paint_molecules"].mgui
@@ -1635,12 +1525,6 @@ class CylindraMainWidget(MagicTemplate):
         arr = np.array([low[1], high[1]])
         layer.set_colormap(feature_name, rng, arr)
     
-    @impl_preview(paint_molecules, auto_call=True)
-    def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
-        with _temp_layer_colors(layer):
-            self.paint_molecules(layer, feature_name, low, high)
-            yield
-
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
@@ -1839,7 +1723,6 @@ class CylindraMainWidget(MagicTemplate):
         return None
     
     @Image.wraps
-    @thread_worker.with_progress(desc="Paint cylinders ...")
     @set_design(text="Paint cylinders")
     def paint_cylinders(self):
         """
@@ -1884,7 +1767,6 @@ class CylindraMainWidget(MagicTemplate):
                 domain[:, ly//2+ry+1:] = 0
                 domain = domain.astype(np.float32)
                 domains.append(domain)
-                yield
                 
             cylinders.append(domains)
             matrices.append(spl.affine_matrix(center=center, inverse=True))
@@ -1895,7 +1777,6 @@ class CylindraMainWidget(MagicTemplate):
         out = np.empty_like(cylinders)
         for i, (img, matrix) in enumerate(zip(cylinders, matrices)):
             out[i] = ndi.affine_transform(img, matrix, order=1, cval=0, prefilter=False)
-            yield
         out = out > 0.3
             
         # paint roughly
@@ -1911,7 +1792,6 @@ class CylindraMainWidget(MagicTemplate):
                     slice(_pad[0] if _pad[0] > 0 else None,
                          -_pad[1] if _pad[1] > 0 else None)
                 )
-                yield
 
             sl = tuple(sl)
             outsl = tuple(outsl)
@@ -1941,19 +1821,17 @@ class CylindraMainWidget(MagicTemplate):
         props = pd.concat([back, df[columns]], ignore_index=True)
         
         # Add labels layer
-        @thread_worker.to_callback
-        def _on_return():
-            if self.layer_paint is None:
-                self.layer_paint = self.parent_viewer.add_labels(
-                    lbl, color=color, scale=self.layer_image.scale,
-                    translate=self.layer_image.translate, opacity=0.33, name="Label",
-                    properties=props
-                )
-            else:
-                self.layer_paint.data = lbl
-                self.layer_paint.properties = props
-            self._update_colormap()
-        return _on_return
+        if self.layer_paint is None:
+            self.layer_paint = self.parent_viewer.add_labels(
+                lbl, color=color, scale=self.layer_image.scale,
+                translate=self.layer_image.translate, opacity=0.33, name="Label",
+                properties=props
+            )
+        else:
+            self.layer_paint.data = lbl
+            self.layer_paint.properties = props
+        self._update_colormap()
+        return None
     
     @Image.wraps
     @set_options(auto_call=True)
@@ -2391,6 +2269,123 @@ class CylindraMainWidget(MagicTemplate):
     def _preview_table(self, paths: list[str]):
         return _previews.view_tables(paths, parent=self)
     
+    
+    @impl_preview(clip_spline, auto_call=True)
+    def _during_clip_spline(self, spline: int, clip_lengths: tuple[nm, nm]):
+        tomo = self.tomogram
+        name = "Spline preview"
+        spl = self.tomogram.splines[spline]
+        length = spl.length()
+        start, stop = np.array(clip_lengths) / length
+        verts = tomo.splines[spline].clip(start, 1 - stop).partition(100)
+        verts_2d = verts[:, 1:]
+        viewer = self.parent_viewer
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = verts_2d
+        else:
+            layer = viewer.add_shapes(
+                verts_2d, shape_type="path", edge_color="crimson", edge_width=3, 
+                name=name
+            )
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+    
+    @impl_preview(load_project_for_reanalysis, text="Preview extracted code")
+    def _preview_load_project_for_reanalysis(self, path: Path):
+        macro = self._get_reanalysis_macro(path)
+        w = ConsoleTextEdit(value=str(macro))
+        w.syntax_highlight("python")
+        w.read_only = True
+        w.native.setParent(self.native, w.native.windowFlags())
+        w.show()
+        return None
+
+    @impl_preview(extend_molecules, auto_call=True)
+    def _preview_extend_molecules(self, layer: MoleculesLayer, counts: list[tuple[int, tuple[int, int]]]):
+        out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
+        viewer = self.parent_viewer
+        name = "<Preview>"
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = out.pos
+        else:
+            layer = self.add_molecules(out, name=name)
+        layer.face_color = layer.edge_color = "crimson"
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+        return out
+    
+    @impl_preview(split_molecules, auto_call=True)
+    def _during_split_molecules_preview(self, layer: MoleculesLayer, by: str):
+        with _temp_layer_colors(layer):
+            series = layer.molecules.features[by]
+            unique_values = series.unique()
+            # NOTE: the first color is translucent
+            cmap = label_colormap(unique_values.len() + 1, seed=0.9414)
+            layer.face_color_cycle = layer.edge_color_cycle = cmap.colors[1:]
+            layer.face_color = layer.edge_color = by
+            yield
+
+    @impl_preview(translate_molecules, auto_call=True)
+    def _during_translate_molecules(self, layer: MoleculesLayer, translation, internal: bool):
+        mole = layer.molecules
+        if internal:
+            out = mole.translate_internal(translation)
+        else:
+            out = mole.translate(translation)
+        viewer = self.parent_viewer
+        name = "<Preview>"
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = out.pos
+        else:
+            layer = self.add_molecules(out, name=name)
+            layer.face_color = layer.edge_color = "crimson"
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+        return out
+
+    @impl_preview(filter_molecules, auto_call=True)
+    def _during_filter_molecules(self, layer: MoleculesLayer, predicate: str):
+        mole = layer.molecules
+        viewer = self.parent_viewer
+        try:
+            expr = eval(predicate, POLARS_NAMESPACE, {})
+        except Exception:
+            yield
+            return
+        out = mole.filter(expr)
+        name = "<Preview>"
+        if name in viewer.layers:
+            layer: Layer = viewer.layers[name]
+            layer.data = out.pos
+        else:
+            layer = self.add_molecules(out, name=name)
+        # filtering changes the number of molecules. We need to update the colors.
+        layer.face_color = layer.edge_color = "crimson"
+        try:
+            is_active = yield
+        finally:
+            if not is_active and layer in viewer.layers:
+                viewer.layers.remove(layer)
+        return out
+    
+    @impl_preview(paint_molecules, auto_call=True)
+    def _during_preview(self, layer: MoleculesLayer, feature_name: str, low, high):
+        with _temp_layer_colors(layer):
+            self.paint_molecules(layer, feature_name, low, high)
+            yield
+
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Setups
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -2429,14 +2424,6 @@ class CylindraMainWidget(MagicTemplate):
 ############################################################################################
 #   Other helper functions
 ############################################################################################
-
-def _multi_affine(images, matrices, cval: float = 0, order=1):
-    out = np.empty_like(images)
-    for i, (img, matrix) in enumerate(zip(images, matrices)):
-        out[i] = ndi.affine_transform(
-            img, matrix, order=order, cval=cval, prefilter=order>1
-        )
-    return out
 
 @contextmanager
 def _temp_layer_colors(layer: MoleculesLayer):
