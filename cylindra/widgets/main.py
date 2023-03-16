@@ -386,7 +386,12 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def open_logger(self):
         """Open logger window."""
-        return _Logger.widget.show()
+        wdt = _Logger.widget
+        name = "Log"
+        if name in self.parent_viewer.window._dock_widgets:
+            self.parent_viewer.window._dock_widgets[name].show()
+        else:
+            self.parent_viewer.window.add_dock_widget(wdt, name=name)
 
     @Others.wraps
     @set_design(text="Clear cache")
@@ -1886,7 +1891,6 @@ class CylindraMainWidget(MagicTemplate):
         """Create a colorbar from the current colormap."""
         arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
         xmin, xmax = self.label_colorlimit
-        _Logger.widget.show()
         with _Logger.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
             plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
@@ -2270,7 +2274,6 @@ class CylindraMainWidget(MagicTemplate):
                 name=f"spline-{i}-anc",
             )
         return None
-
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Preview methods
