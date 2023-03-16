@@ -56,7 +56,6 @@ class MoleculesLayer(Points):
         cmap_input,
     ):
         """Set colormap to a molecules layer."""
-        from polars.datatypes import IntegralType, FractionalType
         from napari.utils import Colormap
 
         column = self.molecules.features[name]
@@ -64,12 +63,12 @@ class MoleculesLayer(Points):
             cmap = cmap_input
         else:
             cmap = Colormap(cmap_input, name="MoleculeFeatures")
-        if issubclass(column.dtype, IntegralType):
+        if column.dtype.__name__[0] in "IU":
             cmin, cmax = clim
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
             colors = cmap.map(arr)
             self.face_color = self.edge_color = colors
-        elif issubclass(column.dtype, FractionalType):
+        elif column.dtype.__name__[0] == "F":
             self.face_color = self.edge_color = column.name
             self.face_colormap = self.edge_colormap = cmap
             self.face_contrast_limits = self.edge_contrast_limits = clim

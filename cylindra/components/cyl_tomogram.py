@@ -1211,7 +1211,8 @@ class CylTomogram(Tomogram):
             props.append(
                 prop.with_columns([
                     pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
-                    pl.arange(0, pl.count()).cast(pl.UInt16).alias(IDName.pos)
+                    pl.arange(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
+                    pl.col(H.nPF).cast(pl.UInt8),
                 ])
             )
         
@@ -1250,7 +1251,8 @@ class CylTomogram(Tomogram):
                     [
                         pl.Series("radius", [self._splines[i_].radius]),
                         pl.Series("orientation", [str(self._splines[i_].orientation)]),
-                        pl.Series(IDName.spline, [i_])
+                        pl.Series(IDName.spline, [i_]),
+                        pl.col(H.nPF).cast(pl.UInt8),
                     ]
                 )
             )
@@ -1313,14 +1315,14 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     
     # First transform around the expected length of y-pitch.
     ylength_nm = img.shape.y * img.scale.y
-    y0 = ceilint(ylength_nm/GVar.yPitchMax) - 1
-    y1 = max(ceilint(ylength_nm/GVar.yPitchMin), y0+1)
+    y0 = ceilint(ylength_nm / GVar.yPitchMax) - 1
+    y1 = max(ceilint(ylength_nm / GVar.yPitchMin), y0 + 1)
     up_a = 20
     up_y = max(int(6000/img.shape.y), 1)
     npfrange = ceilint(npfmax/2) # The peak of longitudinal periodicity is always in this range. 
     
     power = img.local_power_spectra(
-        key=f"y={y0}:{y1};a={-npfrange}:{npfrange+1}",
+        key=ip.slicer.y[y0:y1].a[-npfrange:npfrange+1],
         upsample_factor=[1, up_y, up_a], 
         dims="rya",
     ).proj("r")
@@ -1328,25 +1330,25 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     ymaxp = np.argmax(power.proj("a"))
     
-    amax_f = amax - npfrange*up_a
-    ymaxp_f = ymaxp + y0*up_y
-    ymax_f = ymax + y0*up_y
-    a_freq = np.fft.fftfreq(img.shape.a*up_a)
-    y_freq = np.fft.fftfreq(img.shape.y*up_y)
+    amax_f = amax - npfrange * up_a
+    ymaxp_f = ymaxp + y0 * up_y
+    ymax_f = ymax + y0 * up_y
+    a_freq = np.fft.fftfreq(img.shape.a * up_a)
+    y_freq = np.fft.fftfreq(img.shape.y * up_y)
     
     rise = np.arctan(-a_freq[amax_f]/y_freq[ymax_f])
-    y_pitch = 1.0/y_freq[ymaxp_f]*img.scale.y
+    yspace = 1.0/y_freq[ymaxp_f]*img.scale.y
     
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
-    y_factor = abs(radius/y_pitch/img.shape.a*img.shape.y/2)
-    dy_min = ceilint(tandg(GVar.minSkew)*y_factor*npfmin) - 1
-    dy_max = max(ceilint(tandg(GVar.maxSkew)*y_factor*npfmax), dy_min+1)
+    y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
+    dy_min = ceilint(tandg(GVar.minSkew) * y_factor * npfmin) - 1
+    dy_max = max(ceilint(tandg(GVar.maxSkew) * y_factor * npfmax), dy_min + 1)
     up_a = 20
     up_y = max(int(21600/(img.shape.y)), 1)
-    
+
     power = img.local_power_spectra(
-        key=f"y={dy_min}:{dy_max};a={npfmin}:{npfmax}", 
+        key=ip.slicer.y[dy_min:dy_max].a[npfmin:npfmax],
         upsample_factor=[1, up_y, up_a], 
         dims="rya",
     ).proj("r")
@@ -1354,27 +1356,31 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
     amaxp = np.argmax(power.proj("y"))
     
-    amax_f = amax + npfmin*up_a
-    amaxp_f = amaxp + npfmin*up_a
-    ymax_f = ymax + dy_min*up_y
-    a_freq = np.fft.fftfreq(img.shape.a*up_a)
-    y_freq = np.fft.fftfreq(img.shape.y*up_y)
+    amax_f = amax + npfmin * up_a
+    amaxp_f = amaxp + npfmin * up_a
+    ymax_f = ymax + dy_min * up_y
+    a_freq = np.fft.fftfreq(img.shape.a * up_a)
+    y_freq = np.fft.fftfreq(img.shape.y * up_y)
     
     # When skew angle is positive and y-coordinate increses, a-coordinate will
     # decrese.
-    skew = np.arctan(y_freq[ymax_f]/a_freq[amax_f]*2*y_pitch/radius)
+    skew = np.arctan(y_freq[ymax_f] / a_freq[amax_f] * 2 * yspace / radius)
     
     if rise == 0.0:
         start = 0.0
     else:
-        start = l_circ/y_pitch/(np.tan(skew) + 1/np.tan(rise))
+        start = l_circ / yspace / (np.tan(skew) + 1 / np.tan(rise))
     
-    return np.array([np.rad2deg(rise), 
-                     y_pitch, 
-                     np.rad2deg(skew), 
-                     amaxp_f/up_a,
-                     abs(start)], 
-                    dtype=np.float32)
+    return np.array(
+        [
+            np.rad2deg(rise), 
+            yspace, 
+            np.rad2deg(skew), 
+            amaxp_f / up_a,
+            abs(start)
+        ], 
+        dtype=np.float32,
+    )
 
 def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> pl.DataFrame:
     results = _local_dft_params(img, radius)
@@ -1383,7 +1389,7 @@ def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> pl.DataFrame:
             H.riseAngle: [results[0]],
             H.yPitch: [results[1]],
             H.skewAngle: [results[2]],
-            H.nPF: [int(round(results[3]))],
+            H.nPF: pl.Series([int(round(results[3]))], dtype=pl.UInt8),
             H.start: [results[4]],
         }
     )

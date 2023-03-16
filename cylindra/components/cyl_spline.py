@@ -38,7 +38,7 @@ class CylSpline(Spline):
 
         Returns
         -------
-        Spline3D
+        CylSpline
             Inverted object
         """
         inverted = super().invert()

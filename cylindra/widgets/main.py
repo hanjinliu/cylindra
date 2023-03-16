@@ -2185,7 +2185,7 @@ class CylindraMainWidget(MagicTemplate):
         spl = self.tomogram.splines[i]
         if spl.globalprops is not None:
             headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = spl.globalprops[headers].row(0)
+            pitch, skew, npf, start = spl.globalprops.select(headers).row(0)
             radius = spl.radius
             ori = spl.orientation
             self.GlobalProperties._set_text(pitch, skew, npf, start, radius, ori)
@@ -2216,7 +2216,7 @@ class CylindraMainWidget(MagicTemplate):
         length = spl.length()
         scale = self.layer_image.scale[0]
         
-        n = int(length/interval) + 1
+        n = max(int(length / interval) + 1, 2)
         fit = spl(np.linspace(0, 1, n))
         self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
@@ -2409,8 +2409,6 @@ class CylindraMainWidget(MagicTemplate):
     
     @setup_function_gui(paint_molecules)
     def _(self, gui):
-        from polars.datatypes import NumericType, IntegralType
-        
         gui.layer.changed.connect(gui.feature_name.reset_choices)
         
         @gui.layer.changed.connect
@@ -2421,12 +2419,12 @@ class CylindraMainWidget(MagicTemplate):
                 return
             layer: MoleculesLayer = gui.layer.value
             series = layer.molecules.features[feature_name]
-            if issubclass(series.dtype, NumericType):
+            if series.dtype.__name__[0] in "IUF":
                 gui.low[0].min = gui.high[0].min = series.min()
                 gui.low[0].max = gui.high[0].max = series.max()
                 gui.low[0].value = gui.low[0].min
                 gui.high[0].value = gui.high[0].max
-                if issubclass(series.dtype, IntegralType):
+                if series.dtype.__name__[0] in "IU":
                     gui.low[0].step = gui.high[0].step = 1
                 else:
                     gui.low[0].step = gui.high[0].step = None

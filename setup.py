@@ -21,8 +21,9 @@ class build_ext(build_ext):
 
 
 INFO = {}
+CYLINDRA = "cylindra"
 
-with open("cylindra/__about__.py", encoding="utf-8") as f:
+with open(f"{CYLINDRA}/__about__.py", encoding="utf-8") as f:
     for line in f:
         if line.startswith("__version__"):
             INFO["version"] = line.strip().split()[-1][1:-1]
@@ -36,14 +37,14 @@ with open("README.md", "r") as f:
     README = f.read()
     
 setup(
-    name="cylindra",
+    name=CYLINDRA,
     description="Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical structures",
     long_description=README,
     long_description_content_type="text/markdown",
     **INFO,
     license="BSD 3-Clause",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    package_data={"cylindra": ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]},
+    package_data={CYLINDRA: ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]},
     include_package_data=True,
     setup_requires=["pybind11>=2.9.2"],
     cmdclass={"build_ext": build_ext},
@@ -54,6 +55,7 @@ setup(
         "magicgui>=0.7.2",
         "magic-class>=0.6.14",
         "pyqtgraph>=0.12.4",
+        "pyarrow>=11.0.0",
         "mrcfile>=1.3.0",
         "napari>=0.4.17",
         "qt-command-palette>=0.0.6",
@@ -61,6 +63,6 @@ setup(
     python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
     entry_points={
-        "console_scripts": ["cylindra=cylindra.__main__:main"],
+        "console_scripts": [f"{CYLINDRA}={CYLINDRA}.__main__:main"],
     },
 )

@@ -226,6 +226,9 @@ class CylindraProject(BaseProject):
                     spl.radius = spl.globalprops["radius"][0]
                 if "orientation" in spl.globalprops.columns:
                     spl.orientation = spl.globalprops["orientation"][0]
+                spl.globalprops = spl.globalprops.select([
+                    H.riseAngle, H.yPitch, H.skewAngle, pl.col(H.nPF).cast(pl.UInt8), H.start,
+                ])
         
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(filt=filter)
