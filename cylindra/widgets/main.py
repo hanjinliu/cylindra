@@ -1674,7 +1674,7 @@ class CylindraMainWidget(MagicTemplate):
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
         tomo = self.tomogram
-        binsize = utils.roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
+        binsize = utils.roundint(self.layer_image.scale[0] / tomo.scale)  # scale of binned reference image
         
         length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)

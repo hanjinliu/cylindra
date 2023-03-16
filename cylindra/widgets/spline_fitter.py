@@ -1,4 +1,3 @@
-from typing import TYPE_CHECKING
 import numpy as np
 import impy as ip
 
@@ -55,9 +54,21 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         return parent.tomogram.splines[i]
     
+    def _get_binsize(self) -> int:
+        parent = self._get_parent()
+        return roundint(parent.layer_image.scale[0] / parent.tomogram.scale)
+    
+    def _get_max_interval(self, _=None):
+        return self._max_interval
+
     @controller.wraps
     @set_design(text="Fit")
-    def fit(self, shifts: Bound[_get_shifts], i: Bound[controller.num]):
+    def fit(
+        self, 
+        shifts: Bound[_get_shifts], 
+        i: Bound[controller.num],
+        max_interval: Bound[_get_max_interval],
+    ):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         parent = self._get_parent()
@@ -65,12 +76,13 @@ class SplineFitter(MagicTemplate):
         spl = self._get_spline(i)
         
         min_cr = GVar.minCurvatureRadius
+        spl.make_anchors(max_interval=max_interval)
         spl.shift_coa(
-            shifts=shifts*self.binsize*_scale,
+            shifts=shifts * self._get_binsize() * _scale,
             min_radius=min_cr, 
             weight_ramp=(min_cr/10, 0.5),
         )
-        spl.make_anchors(max_interval=self.max_interval)
+        spl.make_anchors(max_interval=max_interval)
         self.fit_done = True
         self._cylinder_changed()
         parent._update_splines_in_images()
@@ -108,6 +120,7 @@ class SplineFitter(MagicTemplate):
         j = self.controller.pos.value
         if self.shifts[i] is None:
             return
+        binsize = self._get_binsize()
         itemv = self.canvas.layers[0]
         itemh = self.canvas.layers[1]
         item_circ_inner = self.canvas.layers[2]
@@ -117,11 +130,11 @@ class SplineFitter(MagicTemplate):
         
         tomo = self._get_parent().tomogram
         r_max: nm = GVar.fitWidth/2
-        nbin = max(roundint(r_max/tomo.scale/self.binsize/2), 8)
+        nbin = max(roundint(r_max / tomo.scale / binsize / 2), 8)
         prof = self.subtomograms[j].radial_profile(center=[z, x], nbin=nbin, r_max=r_max)
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax-5, imax+5)
-        r_peak = (imax_sub+0.5)/nbin*r_max/tomo.scale/self.binsize
+        r_peak = (imax_sub + 0.5) / nbin * r_max / tomo.scale / binsize
         
         theta = np.linspace(0, 2*np.pi, 100, endpoint=False)
         item_circ_inner.xdata = r_peak * GVar.inner * np.cos(theta) + x
@@ -134,15 +147,14 @@ class SplineFitter(MagicTemplate):
         return None
     
     def _load_parent_state(self, max_interval: nm):
-        self.max_interval = max_interval
+        self._max_interval = max_interval
         parent = self._get_parent()
         tomo = parent.tomogram
         for i in range(tomo.n_splines):
             spl = tomo.splines[i]
-            spl.make_anchors(max_interval=self.max_interval)
+            spl.make_anchors(max_interval=self._max_interval)
             
         self.shifts = [None] * tomo.n_splines
-        self.binsize = parent.layer_image.metadata["current_binsize"]
         self.controller.num.max = tomo.n_splines - 1
         self.controller.num.value = 0
         self._cylinder_changed()
@@ -159,14 +171,15 @@ class SplineFitter(MagicTemplate):
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=self.binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=self.binsize)
+        binsize = self._get_binsize()
+        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
+        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
         
         mole = spl.anchors_to_molecules()
         coords = mole.cartesian_at(
             index=slice(None),
             shape=(width_px, length_px, width_px), 
-            scale=tomo.scale*self.binsize
+            scale=tomo.scale * binsize
         )
         out: list[ip.ImgArray] = []
         for crds in coords:
