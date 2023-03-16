@@ -1646,7 +1646,15 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         feature_name: OneOf[_get_selected_layer_choice],
     ):
-        """Search for seams by a feature."""
+        """
+        Search for seams by a feature.
+        
+        Parameters
+        ----------
+        {layer}
+        feature_name : str
+            Name of the feature that will be used for seam search.
+        """
         feat = layer.features
         if feature_name not in feat.columns:
             raise ValueError(f"Column {feature_name} does not exist.")
@@ -1902,6 +1910,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Simulate cylindric structure")
     @do_not_record
     def open_simulator(self):
+        """Open the simulator widget."""
         return self.cylinder_simulator.show()
     
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

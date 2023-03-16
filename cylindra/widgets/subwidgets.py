@@ -214,7 +214,7 @@ class runner_params2:
     paint = vfield(True)
 
 
-@magicclass(name="Run cylindrical fitting", record=False)
+@magicclass(name="_Run cylindrical fitting", record=False)
 class Runner(MagicTemplate):
     """
     Attributes
@@ -296,7 +296,7 @@ class Runner(MagicTemplate):
     
     cylindrical_fit = abstractapi()
 
-@magicclass(name="Open image", record=False)
+@magicclass(name="_Open image", record=False)
 class ImageLoader(MagicTemplate):
     """
     Load an image file and process it before sending it to the viewer.
