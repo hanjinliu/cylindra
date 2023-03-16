@@ -51,6 +51,10 @@ class SplineFitter(MagicTemplate):
         i = self.controller.num.value
         return np.round(self.shifts[i], 3)
     
+    def _get_spline(self, i: int):
+        parent = self._get_parent()
+        return parent.tomogram.splines[i]
+    
     @controller.wraps
     @set_design(text="Fit")
     def fit(self, shifts: Bound[_get_shifts], i: Bound[controller.num]):
@@ -58,7 +62,7 @@ class SplineFitter(MagicTemplate):
         shifts = np.asarray(shifts)
         parent = self._get_parent()
         _scale = parent.tomogram.scale
-        spl = self.splines[i]
+        spl = self._get_spline(i)
         
         min_cr = GVar.minCurvatureRadius
         spl.shift_coa(
@@ -97,7 +101,7 @@ class SplineFitter(MagicTemplate):
     
     def _get_parent(self):
         from .main import CylindraMainWidget
-        return self.find_ancestor(CylindraMainWidget)
+        return self.find_ancestor(CylindraMainWidget, cache=True)
     
     def _update_cross(self, x: float, z: float):
         i = self.controller.num.value
@@ -152,7 +156,6 @@ class SplineFitter(MagicTemplate):
         tomo = parent.tomogram
         
         spl = tomo.splines[i]
-        self.splines = tomo.splines
         npos = spl.anchors.size
         self.shifts[i] = np.zeros((npos, 2))
         
