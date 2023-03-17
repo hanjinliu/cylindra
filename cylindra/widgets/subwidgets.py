@@ -112,6 +112,7 @@ class Analysis(MagicTemplate):
     local_ft_analysis = abstractapi()
     global_ft_analysis = abstractapi()
     sep0 = field(Separator)
+    reanalyze_image = abstractapi()
     load_project_for_reanalysis = abstractapi()
     sep1 = field(Separator)
     open_spectra_measurer = abstractapi()

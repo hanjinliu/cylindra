@@ -967,7 +967,11 @@ class CylindraMainWidget(MagicTemplate):
         """Measure cylinder radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
-        return None
+        @thread_worker.to_callback
+        def _on_return():
+            for i, spl in enumerate(self.tomogram.splines):
+                _Logger.print_html(f"Spline-{i} ... {spl.radius:.2f} nm")
+        return _on_return
     
     @Splines.wraps
     @set_design(text="Refine splines")
@@ -1124,36 +1128,25 @@ class CylindraMainWidget(MagicTemplate):
         return _global_ft_analysis_on_return
     
     def _get_reanalysis_macro(self, path: Path):
-        _manual_operations = {
-            "open_image", "register_path", "load_splines", "load_molecules",
-            "delete_spline", "add_multiscale", "set_multiscale",
-        }
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_json(path)
         macro_path = Path(project.macro)
         macro_expr = mk.parse(macro_path.read_text())
-        exprs: list[mk.Expr] = []
-        breaked_line: "mk.Expr | None" = None
-        for line in macro_expr.args:
-            if line.head is not mk.Head.call:
-                breaked_line  = line
-                break
-            _fn, *_ = line.split_call()
-            if _fn.head is not mk.Head.getattr:
-                breaked_line  = line
-                break
-            first, *attrs = _fn.split_getattr()
-            if first != _ui_sym or len(attrs) != 1:
-                breaked_line  = line
-                break
-            if str(attrs[0]) not in _manual_operations:
-                breaked_line  = line
-                break
-            exprs.append(line)
-        if breaked_line is not None:
-            exprs.append(mk.Expr(mk.Head.comment, [str(breaked_line) + " ... breaked here."]))
+        return _filter_macro_for_reanalysis(macro_expr, _ui_sym)
+
+    @Analysis.wraps
+    @set_design(text="Re-analyze current tomogram")
+    @do_not_record
+    def reanalyze_image(self):
+        """
+        Reanalyze the current tomogram.
         
-        return mk.Expr(mk.Head.block, exprs)
+        This method will extract the first manual operations from current session.
+        For better reproducibility, this method will reload the image.
+        """
+        _ui_sym = mk.symbol(self)
+        macro = _filter_macro_for_reanalysis(self._format_macro()[self._macro_offset:], _ui_sym)
+        return macro.eval({_ui_sym: self})
 
     @Analysis.wraps
     @set_design(text="Re-analyze project")
@@ -1171,13 +1164,13 @@ class CylindraMainWidget(MagicTemplate):
     
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
-    @thread_worker.with_progress(desc="Calculating power spectra")
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        if self.tomogram.n_splines > 0:
-            self.spectra_measurer.load_spline(self.SplineControl.num)
-        return thread_worker.to_callback(self.spectra_measurer.show)
+        if self.tomogram is not None and self.tomogram.n_splines > 0:
+            binsize = utils.roundint(self.layer_image.scale[0] / self.tomogram.scale)
+            self.spectra_measurer.load_spline(self.SplineControl.num, binsize)
+        return self.spectra_measurer.show()
     
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
@@ -1679,7 +1672,7 @@ class CylindraMainWidget(MagicTemplate):
             raise IndexError("Auto pick needs at least two points in the working layer.")
         
         tomo = self.tomogram
-        binsize = utils.roundint(self.layer_image.scale[0]/tomo.scale)  # scale of binned reference image
+        binsize = utils.roundint(self.layer_image.scale[0] / tomo.scale)  # scale of binned reference image
         
         length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
@@ -2461,3 +2454,31 @@ def _temp_layer_colors(layer: MoleculesLayer):
         layer.edge_colormap = ecmap
         layer.face_contrast_limits = fclim
         layer.edge_contrast_limits = eclim
+
+def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
+    _manual_operations = {
+        "open_image", "register_path", "load_splines", "load_molecules",
+        "delete_spline", "add_multiscale", "set_multiscale", "spline_fitter.fit"
+    }
+    exprs: list[mk.Expr] = []
+    breaked_line: "mk.Expr | None" = None
+    for line in macro_expr.args:
+        if line.head is not mk.Head.call:
+            breaked_line  = line
+            break
+        _fn, *_ = line.split_call()
+        if _fn.head is not mk.Head.getattr:
+            breaked_line  = line
+            break
+        first, *attrs = _fn.split_getattr()
+        if first != ui_sym:
+            breaked_line  = line
+            break
+        if ".".join(map(str, attrs)) not in _manual_operations:
+            breaked_line  = line
+            break
+        exprs.append(line)
+    if breaked_line is not None:
+        exprs.append(mk.Expr(mk.Head.comment, [str(breaked_line) + " ... breaked here."]))
+    
+    return mk.Expr(mk.Head.block, exprs)
