@@ -169,6 +169,9 @@ class SplineFitter(MagicTemplate):
         
         spl = tomo.splines[i]
         npos = spl.anchors.size
+        if self.shifts is None:
+            self.shifts = [None] * tomo.n_splines
+
         self.shifts[i] = np.zeros((npos, 2))
         
         binsize = self._get_binsize()

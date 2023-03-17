@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 from enum import Enum
 
-from magicclass import magicclass, abstractapi, set_design, vfield, field, MagicTemplate
-from magicclass.types import Bound, Path
+from magicclass import magicclass, abstractapi, set_design, vfield, field, MagicTemplate, get_button
+from magicclass.types import Bound, Path, OneOf
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 import numpy as np
 
+from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
 
 if TYPE_CHECKING:
@@ -132,6 +133,7 @@ class SpectraMeasurer(MagicTemplate):
     class SidePanel(MagicTemplate):
         parameters = abstractapi()
         load_spline = abstractapi()
+        set_binsize = abstractapi()
         select_axial_peak = abstractapi()
         select_angular_peak = abstractapi()
         log_scale = abstractapi()
@@ -148,15 +150,17 @@ class SpectraMeasurer(MagicTemplate):
         value = MeasureMode(value)
         
         # update button texts
+        btn_axial = get_button(self.select_axial_peak)
+        btn_angular = get_button(self.select_angular_peak)
         if value is MeasureMode.none:
-            self.SidePanel[2].text = "Select axial peak"
-            self.SidePanel[3].text = "Select angular peak"
+            btn_axial.text = "Select axial peak"
+            btn_angular.text = "Select angular peak"
         elif value is MeasureMode.axial:
-            self.SidePanel[2].text = "Selecting ..."
-            self.SidePanel[3].text = "Select angular peak"
+            btn_axial.text = "Selecting ..."
+            btn_angular.text = "Select angular peak"
         else:
-            self.SidePanel[2].text = "Select axial peak"
-            self.SidePanel[3].text = "Select ..."
+            btn_axial.text = "Select axial peak"
+            btn_angular.text = "Select ..."
         self._mode = value
     
     def _get_parent(self) -> "CylindraMainWidget":
@@ -168,14 +172,23 @@ class SpectraMeasurer(MagicTemplate):
         parent = self._get_parent()
         return parent.SplineControl.num
     
+    def _get_binsize(self, *_) -> int:
+        parent = self._get_parent()
+        return roundint(parent.layer_image.scale[0] / parent.tomogram.scale)
+    
+    def _get_binsize_choices(self, *_) -> list[int]:
+        parent = self._get_parent()
+        return [k for k, _ in parent.tomogram.multiscaled]
+
     @SidePanel.wraps
-    def load_spline(self, idx: Bound[_get_current_index]):
+    @set_design(text="Load spline")
+    def load_spline(self, idx: Bound[_get_current_index], binsize: Bound[_get_binsize] = 1):
         """Load current spline to the canvas."""
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
         parent = self._get_parent()
         tomo = parent.tomogram
         self.parameters.radius = tomo.splines[idx].radius
-        polar = tomo.straighten_cylindric(idx)
+        polar = tomo.straighten_cylindric(idx, binsize=binsize)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
 
         self.canvas.layers.clear()
@@ -190,6 +203,11 @@ class SpectraMeasurer(MagicTemplate):
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
     
     @SidePanel.wraps
+    @set_design(text="Set bin size")
+    def set_binsize(self, binsize: OneOf[_get_binsize_choices]):
+        self.load_spline(self._get_current_index(), binsize)
+
+    @SidePanel.wraps
     def select_axial_peak(self):
         """Click to start selecting the axial peak."""
         self.mode = MeasureMode.axial
@@ -200,7 +218,7 @@ class SpectraMeasurer(MagicTemplate):
         self.mode = MeasureMode.angular
     
     @log_scale.connect
-    def _on_log_scale_changed(self, value):
+    def _on_log_scale_changed(self, value: bool):
         if value:
             self.canvas.image = np.log(self._image + 1e-12)
         else:
@@ -219,7 +237,7 @@ class SpectraMeasurer(MagicTemplate):
         scale = parent.tomogram.scale
         
         if self.mode == MeasureMode.axial:
-            self.parameters.spacing = abs(1.0 / yfreq * scale)
+            self.parameters.spacing = abs(1.0 / yfreq * scale) * self._get_binsize()
             self.parameters.rise = np.rad2deg(np.arctan(-afreq / yfreq))
             
             if self._layer_axial in self.canvas.layers:

@@ -962,7 +962,11 @@ class CylindraMainWidget(MagicTemplate):
         """Measure cylinder radius for each spline path."""        
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
-        return None
+        @thread_worker.to_callback
+        def _on_return():
+            for i, spl in enumerate(self.tomogram.splines):
+                _Logger.print_html(f"Spline-{i} ... {spl.radius:.2f} nm")
+        return _on_return
     
     @Splines.wraps
     @set_design(text="Refine splines")
@@ -1121,7 +1125,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_reanalysis_macro(self, path: Path):
         _manual_operations = {
             "open_image", "register_path", "load_splines", "load_molecules",
-            "delete_spline", "add_multiscale", "set_multiscale",
+            "delete_spline", "add_multiscale", "set_multiscale", "spline_fitter.fit"
         }
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_json(path)
@@ -1138,10 +1142,10 @@ class CylindraMainWidget(MagicTemplate):
                 breaked_line  = line
                 break
             first, *attrs = _fn.split_getattr()
-            if first != _ui_sym or len(attrs) != 1:
+            if first != _ui_sym:
                 breaked_line  = line
                 break
-            if str(attrs[0]) not in _manual_operations:
+            if ".".join(map(str, attrs)) not in _manual_operations:
                 breaked_line  = line
                 break
             exprs.append(line)
@@ -1166,13 +1170,13 @@ class CylindraMainWidget(MagicTemplate):
     
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
-    @thread_worker.with_progress(desc="Calculating power spectra")
     @do_not_record
     def open_spectra_measurer(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
-        if self.tomogram.n_splines > 0:
-            self.spectra_measurer.load_spline(self.SplineControl.num)
-        return thread_worker.to_callback(self.spectra_measurer.show)
+        if self.tomogram is not None and self.tomogram.n_splines > 0:
+            binsize = utils.roundint(self.layer_image.scale[0] / self.tomogram.scale)
+            self.spectra_measurer.load_spline(self.SplineControl.num, binsize)
+        return self.spectra_measurer.show()
     
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
