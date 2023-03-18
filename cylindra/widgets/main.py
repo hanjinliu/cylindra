@@ -212,12 +212,12 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Bound[_runner._get_splines_to_run] = (),
         bin_size: Bound[_runner.bin_size] = 1,
+        max_shift: Bound[_runner._get_max_shift] = 5.0,
+        edge_sigma: Bound[_runner.params1.edge_sigma] = 2.0,
+        n_refine: Bound[_runner.n_refine] = 1,
+        local_props: Bound[_runner.local_props] = True,
         interval: Bound[_runner.params2.interval] = 32.0,
         ft_size: Bound[_runner.params2.ft_size] = 32.0,
-        n_refine: Bound[_runner.n_refine] = 1,
-        max_shift: Bound[_runner.params1.max_shift] = 5.0,
-        edge_sigma: Bound[_runner._get_edge_sigma] = 2.0,
-        local_props: Bound[_runner.local_props] = True,
         global_props: Bound[_runner.global_props] = True,
         paint: Bound[_runner.params2.paint] = True,
     ):
@@ -232,7 +232,8 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         _on_yield = thread_worker.to_callback(self._update_splines_in_images)
         for i_spl in splines:
-            tomo.fit(i=i_spl, edge_sigma=edge_sigma, max_shift=max_shift, binsize=bin_size)
+            if max_shift > 0:
+                tomo.fit(i=i_spl, edge_sigma=edge_sigma, max_shift=max_shift, binsize=bin_size)
             
             for _ in range(n_refine):
                 yield _on_yield
@@ -250,7 +251,7 @@ class CylindraMainWidget(MagicTemplate):
 
         self._current_ft_size = ft_size
         self._need_save = True
-        
+
         @thread_worker.to_callback
         def _cylindrical_fit_on_return():
             if local_props or global_props:
@@ -1496,7 +1497,7 @@ class CylindraMainWidget(MagicTemplate):
             A polars-style filter predicate, such as `pl.col("pf-id") == 3`
         """
         mole = layer.molecules
-        expr = eval(str(predicate), POLARS_NAMESPACE, {})
+        expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
         out = mole.filter(expr)
         name = f"{layer.name}-Filt"
         layer = self.add_molecules(out, name=name)

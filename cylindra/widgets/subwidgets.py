@@ -5,7 +5,7 @@ from magicclass import (
     set_design, abstractapi
 )
 from magicclass.widgets import Separator, ConsoleTextEdit
-from magicclass.types import OneOf, SomeOf
+from magicclass.types import OneOf, SomeOf, Optional
 from pathlib import Path
 import impy as ip
 
@@ -179,7 +179,7 @@ class toolbar(MagicTemplate):
 
 # Runner
 
-@magicclass(widget_type="groupbox", name="Parameters", record=False)
+@magicclass(widget_type="groupbox", name="Fitting parameters", record=False)
 class runner_params1:
     """
     Parameters used in spline fitting.
@@ -187,15 +187,16 @@ class runner_params1:
     Attributes
     ----------
     edge_sigma : nm
-        Sharpness of dense-mode mask at the edges.
+        Sharpness of dense-mode mask at the edges. Useful if cylindric structures are 
+        densely packed. Initial spline position must be 'almost' fitted in dense-mode.
     max_shift : nm
-        Maximum shift in nm of manually selected spline to the true center.
+        Maximum shift in nm of manually selected spline to the true center.        
     """
-    edge_sigma = vfield(2.0, label="edge sigma")
+    edge_sigma = vfield(Optional[float], label="Edge sigma").with_options(value=2.0, options=dict(step=0.1, min=0.0, max=50.0), text="Don't use dense mode")
     max_shift = vfield(5.0, label="Maximum shift (nm)").with_options(max=50.0, step=0.5)
+    
 
-
-@magicclass(widget_type="groupbox", name="Parameters", record=False)
+@magicclass(widget_type="groupbox", name="Local-CFT parameters", record=False)
 class runner_params2:
     """
     Parameters used in calculation of local properties.
@@ -211,7 +212,7 @@ class runner_params2:
         Check if paint the tomogram with the local properties.
     """
     interval = vfield(32.0, label="Interval (nm)").with_options(min=1.0, max=200.0)
-    ft_size = vfield(32.0, label="Local DFT window size (nm)").with_options(min=1.0, max=200.0)
+    ft_size = vfield(32.0, label="Local-CFT window size (nm)").with_options(min=1.0, max=200.0)
     paint = vfield(True)
 
 
@@ -226,9 +227,6 @@ class Runner(MagicTemplate):
         Splines that will be analyzed
     bin_size : int
         Set to >1 to use binned image for fitting.
-    dense_mode : bool
-        Check if cylindric structures are densely packed. Initial spline position
-        must be 'almost' fitted in dense mode.
     n_refine : int
         Iteration number of spline refinement.
     local_props : bool
@@ -263,7 +261,8 @@ class Runner(MagicTemplate):
     all_splines = vfield(True).with_options(text="Run for all the splines.")
     splines = vfield(SomeOf[_get_splines]).with_options(visible=False)
     bin_size = vfield(OneOf[_get_available_binsize])
-    dense_mode = vfield(True, label="Use dense-mode")
+    
+    fit = vfield(True, label="Fit splines")
     params1 = runner_params1
     n_refine = vfield(1, label="Refinement iteration").with_options(max=10)
     local_props = vfield(True, label="Calculate local properties")
@@ -271,16 +270,16 @@ class Runner(MagicTemplate):
     global_props = vfield(True, label="Calculate global properties")
 
     @all_splines.connect
-    def _toggle_spline_list(self):
-        self["splines"].visible = not self.all_splines
-        
-    @dense_mode.connect
-    def _toggle_dense_mode_sigma(self):
-        self.params1["edge_sigma"].visible = self.dense_mode
+    def _toggle_spline_list(self, val: bool):
+        self["splines"].visible = not val
+    
+    @fit.connect
+    def _toggle_fit_params(self, visible: bool):
+        self.params1.visible = visible
     
     @local_props.connect
-    def _toggle_localprops_params(self):
-        self.params2.visible = self.local_props
+    def _toggle_localprops_params(self, visible: bool):
+        self.params2.visible = visible
     
     def _get_splines_to_run(self, w=None) -> list[int]:
         if self.all_splines:
@@ -289,11 +288,8 @@ class Runner(MagicTemplate):
         else:
             return self.splines
     
-    def _get_edge_sigma(self, w=None) -> Union[float, None]:
-        if self.dense_mode:
-            return self.params1.edge_sigma
-        else:
-            return None
+    def _get_max_shift(self, w=None) -> "float | None":
+        return self.params1.max_shift
     
     cylindrical_fit = abstractapi()
 

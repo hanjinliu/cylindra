@@ -311,7 +311,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         loader = info.loader
-        pl_expr: pl.Expr = eval(str(expression), POLARS_NAMESPACE, {})
+        pl_expr = ExprStr(expression, POLARS_NAMESPACE).eval()
         new = loader.filter(pl_expr)
         existing_id = set(new.features[Mole.image])
         loaderlist.append(
