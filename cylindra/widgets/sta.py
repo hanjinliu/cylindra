@@ -793,8 +793,10 @@ class SubtomogramAveraging(MagicTemplate):
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape=shape_nm, order=interpolation
         )
-        template = loader.normalize_template(self.params._get_template(path=template_path))
-        mask = loader.normalize_mask(self.params._get_mask(params=mask_params))
+        template, mask = loader.normalize_input(
+            template=self.params._get_template(path=template_path),
+            mask=self.params._get_mask(params=mask_params),
+        )
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)

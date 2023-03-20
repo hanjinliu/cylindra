@@ -248,12 +248,13 @@ class CylinderSimulator(MagicTemplate):
 
     @FromViewer.wraps
     @set_design(text="Save image")
-    def save_image(self, path: Path, dtype: OneOf[np.int8, np.int16, np.float32] = np.float32):
+    def save_image(self, path: Path.Save[FileFilter.IMAGE], dtype: OneOf["int8", "int16", "float32"] = "float32"):
         """Save the current image to a file."""
-        img = self.parent_widget.tomogram.image.compute()
+        img = self.parent_widget.tomogram.image
         if np.dtype(dtype).kind == "i":
-            amax = max(-img.min(), img.max())
-            img = (img / amax * np.iinfo(dtype).max)
+            from dask import array as da
+            amax = max(da.compute([-img.min(), img.max()]))
+            img: ip.LazyImgArray = (img / amax * np.iinfo(dtype).max)
         img.imsave(path, dtype=dtype)
         return None
 
@@ -391,6 +392,7 @@ class CylinderSimulator(MagicTemplate):
         simulator = TomogramSimulator(order=order, scale=scale)
         simulator.add_molecules(molecules=mole, image=template)
         simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
+        simulated_image.set_scale(template)
         _Logger.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
         
         # tilt ranges to array
