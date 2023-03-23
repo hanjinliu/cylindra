@@ -1101,7 +1101,7 @@ class SubtomogramAveraging(MagicTemplate):
             loader=loader.replace(output_shape=template.shape),
             npf=npf, 
             template=ip.asarray(template, axes="zyx"),
-            mask=ip.asarray(mask, axes="zyx"),
+            mask=mask,
             cutoff=cutoff,
         )
         

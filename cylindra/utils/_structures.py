@@ -13,7 +13,7 @@ def try_all_seams(
     loader: SubtomogramLoader,
     npf: int,
     template: ip.ImgArray,
-    mask: ip.ImgArray | None = None,
+    mask: NDArray[np.float32] | None = None,
     cutoff: float = 0.5,
 ) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
     """
@@ -41,7 +41,7 @@ def try_all_seams(
     labels: list[np.ndarray] = []  # list of boolean arrays
     
     if mask is None:
-        mask = 1.
+        mask = 1
     
     masked_template = (template * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
     _id = np.arange(len(loader.molecules))
