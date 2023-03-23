@@ -288,7 +288,7 @@ class Runner(MagicTemplate):
         else:
             return self.splines
     
-    def _get_max_shift(self, w=None) -> "float | None":
+    def _get_max_shift(self, w=None):
         return self.params1.max_shift
     
     cylindrical_fit = abstractapi()
