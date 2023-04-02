@@ -155,9 +155,9 @@ class Volume(MagicTemplate):
 @magicclass(record=False)
 class PlaneClip(MagicTemplate):
     layer = vfield(Layer)
-    x = vfield(FloatRangeSlider)
-    y = vfield(FloatRangeSlider)
-    z = vfield(FloatRangeSlider)
+    x = vfield(tuple[float, float], widget_type=FloatRangeSlider)
+    y = vfield(tuple[float, float], widget_type=FloatRangeSlider)
+    z = vfield(tuple[float, float], widget_type=FloatRangeSlider)
 
     @property
     def xmin_plane(self):
@@ -209,12 +209,12 @@ class PlaneClip(MagicTemplate):
         layer = self.layer
         if not layer:
             return
-        xmin = layer.extent.data[0, -1]
-        xmax = layer.extent.data[1, -1]
-        ymin = layer.extent.data[0, -2]
-        ymax = layer.extent.data[1, -2]
-        zmin = layer.extent.data[0, -3]
-        zmax = layer.extent.data[1, -3]
+        xmin = layer.extent.world[0, -1]
+        xmax = layer.extent.world[1, -1]
+        ymin = layer.extent.world[0, -2]
+        ymax = layer.extent.world[1, -2]
+        zmin = layer.extent.world[0, -3]
+        zmax = layer.extent.world[1, -3]
         
         self["x"].range = xmin, xmax
         self["y"].range = ymin, ymax
