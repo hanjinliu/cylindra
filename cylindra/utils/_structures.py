@@ -169,7 +169,7 @@ def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float3
     
     vec_len = np.linalg.norm(spl_vec, axis=1)  # length of spline vector
     vec_norm = spl_vec / vec_len[:, np.newaxis]
-    vec_norm = vec_norm.reshape(-1, npf, ndim)  # normalized spline vector
+    vec_norm = vec_norm.reshape(-1, npf, ndim)  # normalized spline vector  # TODO: don't use reshape
     y_interval = np.sum(interv_vec * vec_norm, axis=2)  # inner product
     y_interval[-1] = -1.  # fill invalid values with -1
     
@@ -198,7 +198,7 @@ def calc_skew(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
 
     spl_vec_len = np.linalg.norm(spl_vec, axis=1)
     spl_vec_norm = spl_vec / spl_vec_len[:, np.newaxis]
-    spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)  
+    spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)  # TODO: don't use reshape
     
     skew_cross = np.cross(interv_vec_norm, spl_vec_norm, axis=2)  # cross product
     inner = np.sum(skew_cross * mole_to_spl_vec, axis=2)

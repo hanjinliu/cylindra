@@ -182,11 +182,11 @@ def collect_projects(files: PathLike | Iterable[PathLike], *, skip_exc: bool = F
 
 def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
     """Convert point coordinates of a Points layer into a structured array."""
+    import impy as ip
+    
     if npf is None:
         npf = layer.molecules.features[Mole.pf].max() + 1
     data = layer.data.reshape(-1, npf, 3)
-    import impy as ip
-
     data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
     data.axes["dim"].labels = ("z", "y", "x")
     return data
