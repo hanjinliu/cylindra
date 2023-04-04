@@ -1596,6 +1596,8 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
         layer.features = utils.with_interval(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
         
@@ -1615,6 +1617,8 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
         layer.features = utils.with_skew(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
         extreme = np.max(np.abs(layer.features[Mole.skew]))

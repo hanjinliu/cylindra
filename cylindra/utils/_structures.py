@@ -8,7 +8,12 @@ import impy as ip
 from dask import array as da
 from acryo import Molecules, SubtomogramLoader
 
-from cylindra.const import Mode, MoleculesHeader as Mole, GlobalVariables as GVar
+from cylindra.const import (
+    Mode, 
+    MoleculesHeader as Mole,
+    GlobalVariables as GVar,
+    PropertyNames as H,
+)
 
 from ._correlation import mirror_zncc
 
