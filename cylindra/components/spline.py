@@ -4,9 +4,9 @@ from functools import lru_cache
 from typing import Callable, Sequence, TypedDict, TYPE_CHECKING
 import warnings
 import logging
-import json
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
@@ -518,7 +518,11 @@ class Spline(BaseComponent):
         return length * np.asarray(positions)
 
 
-    def __call__(self, positions: np.ndarray | float = None, der: int = 0) -> np.ndarray:
+    def __call__(
+        self,
+        positions: NDArray[np.number] | float | None = None,
+        der: int = 0,
+    ) -> NDArray[np.float32]:
         """
         Calculate coordinates (or n-th derivative) at points on the spline.
 

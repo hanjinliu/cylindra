@@ -53,6 +53,7 @@ class MoleculesLayer(Points):
 
     @property
     def source_component(self) -> BaseComponent | None:
+        """The source tomographic component object."""
         if self._source_component is None:
             return None
         return self._source_component()
