@@ -565,8 +565,12 @@ class SubtomogramAveraging(MagicTemplate):
         )
 
         rotator = Rotation.from_quat(result.quat)
-        mole_trans = mole.linear_transform(result.shift * _scale, rotator)
         shift_nm = result.shift * _scale
+        mole_trans = (
+            mole
+            .linear_transform(result.shift * _scale, rotator)
+            .with_features([pl.col(Mole.position) + shift_nm[1]])
+        )
 
         # logging
         t0.toc()
@@ -586,6 +590,7 @@ class SubtomogramAveraging(MagicTemplate):
             points = parent.add_molecules(
                 mole_trans,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
             )
             img_norm = utils.normalize_image(img_trans)
             temp_norm = utils.normalize_image(template)
@@ -1158,7 +1163,9 @@ class SubtomogramAveraging(MagicTemplate):
         mole = aligned_loader.molecules
         
         points = parent.add_molecules(
-            mole, name=_coerce_aligned_name(layer.name, self.parent_viewer),
+            mole, 
+            name=_coerce_aligned_name(layer.name, self.parent_viewer),
+            source=layer.source_component,
         )
         layer.visible = False
         _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")

@@ -12,9 +12,9 @@ from magicclass.logging import getLogger
 import napari
 
 from acryo import Molecules
-from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole, nm
+from cylindra.const import MoleculesHeader as Mole, nm
 from cylindra.types import MoleculesLayer
-
+from cylindra.components._base import BaseComponent
 
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
@@ -36,7 +36,12 @@ class timer:
             f"<code>{self.name}</code> ({default_timer() - self.start:.1f} sec)"
         )
 
-def add_molecules(viewer: napari.Viewer, mol: Molecules, name: str) -> MoleculesLayer:
+def add_molecules(
+    viewer: napari.Viewer,
+    mol: Molecules,
+    name: str,
+    source: BaseComponent | None = None,
+) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
     layer = MoleculesLayer(
         mol,
@@ -46,6 +51,8 @@ def add_molecules(viewer: napari.Viewer, mol: Molecules, name: str) -> Molecules
         out_of_slice_display=True,
         name=name,
     )
+    if source is not None:
+        layer.source_component = source
     viewer.add_layer(layer)
     layer.shading = "spherical"
     layer.editable = False
@@ -216,6 +223,7 @@ class FscResult:
     resolution_0500: nm
 
 def extend_protofilament(mole: Molecules, counts: dict[int, tuple[int, int]]) -> Molecules:
+    """Extend a protofilament by linearly outpolation."""
     existing_pf_id = set(mole.features[Mole.pf].unique())
     if not counts.keys() <= existing_pf_id:
         raise ValueError(f"Invalid ID: {counts.keys() - existing_pf_id}")

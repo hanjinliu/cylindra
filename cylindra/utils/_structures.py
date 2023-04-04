@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
+import polars as pl
 import impy as ip
 from dask import array as da
 from acryo import Molecules, SubtomogramLoader
@@ -136,7 +137,7 @@ def molecules_to_spline(mole: Molecules):
 
     spl = CylSpline(degree=GVar.splOrder)
     npf = int(round(mole.features[Mole.pf].max() + 1))
-    all_coords = mole.pos.reshape(-1, npf, 3)
+    all_coords = mole.pos.reshape(-1, npf, 3)  # TODO: don't reshape
     mean_coords = np.mean(all_coords, axis=1)
     spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
     return spl
@@ -178,6 +179,13 @@ def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float3
         properties = -properties
     
     return properties
+
+def _calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
+    _index_column_key = "__index_column"
+    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    for key, sub in mole0.groupby(Mole.pf):
+        sub.pos
+    
 
 def calc_skew(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
     spl = molecules_to_spline(mole)
