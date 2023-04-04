@@ -25,6 +25,7 @@ class CylindraProject(BaseProject):
     localprops: Union[PathLike, None]
     globalprops: Union[PathLike, None]
     molecules: list[PathLike]
+    molecule_sources: Union[list[Union[int, None]], None] = None
     global_variables: PathLike
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, tuple[float, float], PathLike]
@@ -56,6 +57,7 @@ class CylindraProject(BaseProject):
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
         from cylindra.types import MoleculesLayer
+        from datetime import datetime
         
         if json_path.suffix == "":
             json_path = json_path.with_suffix(".json")
@@ -79,18 +81,22 @@ class CylindraProject(BaseProject):
             
         # Save path of molecules
         molecules_paths: list[Path] = []
+        molecule_sources: list[Union[int, None]] = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
             molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
-        
+            try:
+                _src = gui.tomogram.splines.index(layer.source_component)
+            except ValueError:
+                _src = None
+            molecule_sources.append(_src)
+            
         # Save path of  global variables
         gvar_path = results_dir / "global_variables.json"
         
         # Save path of macro
         macro_path = results_dir / "script.py"
-        
-        from datetime import datetime
         
         file_dir = json_path.parent
         def as_relative(p: Path):
@@ -112,6 +118,7 @@ class CylindraProject(BaseProject):
             localprops = as_relative(localprops_path),
             globalprops = as_relative(globalprops_path),
             molecules = [as_relative(p) for p in molecules_paths],
+            molecule_sources=molecule_sources,
             global_variables = as_relative(gvar_path),
             template_image = as_relative(gui.sta.params.template_path),
             mask_parameters = gui.sta.params._get_mask_params(),
@@ -240,9 +247,12 @@ class CylindraProject(BaseProject):
                     gui.sample_subtomograms()
             
             # load molecules
-            for path in self.molecules:
+            for idx, path in enumerate(self.molecules):
                 mole = Molecules.from_csv(path)
-                gui.add_molecules(mole, name=Path(path).stem)
+                _src = None
+                if self.molecule_sources is not None:
+                    _src = splines[self.molecule_sources[idx]]
+                gui.add_molecules(mole, name=Path(path).stem, source=_src)
             
             # load global variables
             if self.global_variables:
