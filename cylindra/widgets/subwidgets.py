@@ -134,7 +134,6 @@ class Others(MagicTemplate):
     Global_variables = GlobalVariables
     open_logger = abstractapi()
     clear_cache = abstractapi()
-    send_ui_to_console = abstractapi()
     @magicmenu
     class Help(MagicTemplate):
         open_help = abstractapi()

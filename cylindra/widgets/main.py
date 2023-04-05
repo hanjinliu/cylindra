@@ -173,16 +173,16 @@ class CylindraMainWidget(MagicTemplate):
     def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a spline path."""        
         if coords is None:
-            coords = self.layer_work.data
+            _coords = self.layer_work.data
         else:
-            coords = np.asarray(coords)
+            _coords = np.asarray(coords)
         
-        if coords.size == 0:
+        if _coords.size == 0:
             warnings.warn("No points are in viewer.", UserWarning)
             return None
 
         tomo = self.tomogram
-        tomo.add_spline(coords)
+        tomo.add_spline(_coords)
         spl = tomo.splines[-1]
         
         # draw path
@@ -403,15 +403,7 @@ class CylindraMainWidget(MagicTemplate):
         if self.tomogram is not None:
             self.tomogram.clear_cache()
         return None
-    
-    @Others.wraps
-    @set_design(text="Send UI to console")
-    @do_not_record
-    def send_ui_to_console(self, identifier: str = "ui"):
-        """Send this widget instance to napari console by any identifier."""
-        self.parent_viewer.update_console({identifier: self})
-        return None
-    
+
     @Others.Help.wraps
     @set_design(text="Info")
     @do_not_record
