@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import weakref
 from functools import wraps
 import polars as pl
 from acryo import Molecules
@@ -9,6 +10,7 @@ from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import impy as ip
+    from cylindra.components._base import BaseComponent
     
 class MoleculesLayer(Points):
     _type_string = "points"
@@ -18,6 +20,7 @@ class MoleculesLayer(Points):
         if not isinstance(data, Molecules):
             raise TypeError('data must be a Molecules object')
         self._molecules = data
+        self._source_component: weakref.ReferenceType[BaseComponent] | None = None
         super().__init__(data.pos, **kwargs)
         if data.features is not None:
             self.features = data.features
@@ -48,6 +51,19 @@ class MoleculesLayer(Points):
         Points.features.fset(self, df)
         self._molecules.features = df
 
+    @property
+    def source_component(self) -> BaseComponent | None:
+        """The source tomographic component object."""
+        if self._source_component is None:
+            return None
+        return self._source_component()
+    
+    @source_component.setter
+    def source_component(self, obj: BaseComponent):
+        from cylindra.components._base import BaseComponent
+        if not isinstance(obj, BaseComponent):
+            raise TypeError('Must be a CylSpline object')
+        self._source_component = weakref.ref(obj)
     
     def set_colormap(
         self,

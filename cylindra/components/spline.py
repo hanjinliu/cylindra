@@ -4,9 +4,9 @@ from functools import lru_cache
 from typing import Callable, Sequence, TypedDict, TYPE_CHECKING
 import warnings
 import logging
-import json
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 from skimage.transform._warps import _linear_polar_mapping
@@ -16,6 +16,7 @@ from acryo.molecules import axes_to_rotator
 
 from cylindra.utils import ceilint, interval_divmod, roundint
 from cylindra.const import Mode, nm
+from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -41,7 +42,7 @@ class SplineInfo(TypedDict):
     lims: tuple[float, float]
 
 
-class Spline:
+class Spline(BaseComponent):
     """
     3D spline curve model with coordinate system. Anchor points can be set via ``anchor``
     property. Every time spline parameters or anchors are updated, hash value of Spline
@@ -517,7 +518,11 @@ class Spline:
         return length * np.asarray(positions)
 
 
-    def __call__(self, positions: np.ndarray | float = None, der: int = 0) -> np.ndarray:
+    def __call__(
+        self,
+        positions: NDArray[np.number] | float | None = None,
+        der: int = 0,
+    ) -> NDArray[np.float32]:
         """
         Calculate coordinates (or n-th derivative) at points on the spline.
 
@@ -646,44 +651,6 @@ class Spline:
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
         return self
-    
-
-    def to_json(self, file_path: str) -> None:
-        """
-        Save spline model in a json format.
-
-        Parameters
-        ----------
-        file_path : str
-            Path to the file.
-        """
-        file_path = str(file_path)
-        
-        with open(file_path, mode="w") as f:
-            json.dump(self.to_dict(), f, indent=4, separators=(", ", ": "))
-        
-        return None
-    
-    @classmethod
-    def from_json(cls, file_path: str) -> Self:
-        """
-        Construct a spline model from a json file.
-
-        Parameters
-        ----------
-        file_path : str
-            Path to json file.
-
-        Returns
-        -------
-        Spline
-            Spline object constructed from the json file.
-        """
-        file_path = str(file_path)
-        
-        with open(file_path, mode="r") as f:
-            js = json.load(f)
-        return cls.from_dict(js)
         
     def affine_matrix(
         self, 

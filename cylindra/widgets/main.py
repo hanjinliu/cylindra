@@ -54,6 +54,7 @@ from cylindra.widgets.widget_utils import FileFilter, add_molecules, change_view
 
 if TYPE_CHECKING:
     from .batch import CylindraBatchWidget
+    from cylindra.components._base import BaseComponent
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
@@ -1224,7 +1225,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html("<code>map_monomers</code>")
         for i, mol in enumerate(molecules):
             _name = f"Mono-{i}"
-            self.add_molecules(mol, _name)
+            self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
             _Logger.print(f"{_name!r}: n = {len(mol)}")
             
         self._need_save = True
@@ -1255,7 +1256,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html("<code>map_centers</code>")
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
-            add_molecules(self.parent_viewer, mol, _name)
+            self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return None
@@ -1284,7 +1285,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html("<code>map_along_PF</code>")
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
-            add_molecules(self.parent_viewer, mol, _name)
+            self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return None
@@ -1346,7 +1347,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
         name = layer.name + "-extended"
-        return self.add_molecules(out, name)
+        return self.add_molecules(out, name, source=layer.source_component)
     
     @Molecules_.Combine.wraps
     @set_design(text="Concatenate molecules")
@@ -1398,7 +1399,8 @@ class CylindraMainWidget(MagicTemplate):
         _rot = rotation.molecules
         _feat = features.molecules
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
-        self.add_molecules(mole, name="Mono-merged")
+        self.add_molecules(mole, name="Mono-merged", source=pos.source_component)
+        return None
     
     def _get_selected_layer_choice(self, w: Widget) -> list[str]:
         try:
@@ -1425,9 +1427,10 @@ class CylindraMainWidget(MagicTemplate):
         if n_unique > 48:
             raise ValueError(f"Too many groups ({n_unique}). Did you choose a float column?")
         for _key, mole in layer.molecules.groupby(by):
-            self.add_molecules(mole, name=f"{layer.name}_{_key}")
+            self.add_molecules(mole, name=f"{layer.name}_{_key}", source=layer.source_component)
         if delete_old:
             self.parent_viewer.layers.remove(layer)
+        return None
     
     @Molecules_.wraps
     @set_design(text="Translate molecules")
@@ -1455,10 +1458,17 @@ class CylindraMainWidget(MagicTemplate):
         mole = layer.molecules
         if internal:
             out = mole.translate_internal(translation)
+            if Mole.position in out.features.columns:
+                # update spline position feature
+                dy = translation[1]
+                out = out.with_features([pl.col(Mole.position) + dy])
         else:
             out = mole.translate(translation)
+            if Mole.position in out.features.columns:
+                # spline position is not predictable.
+                out = out.drop_features([Mole.position])
         name = f"{layer.name}-Shift"
-        layer = self.add_molecules(out, name=name)
+        layer = self.add_molecules(out, name=name, source=layer.source_component)
         return mole
         
     @Molecules_.MoleculeFeatures.wraps
@@ -1500,7 +1510,7 @@ class CylindraMainWidget(MagicTemplate):
         expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
         out = mole.filter(expr)
         name = f"{layer.name}-Filt"
-        layer = self.add_molecules(out, name=name)
+        self.add_molecules(out, name=name, source=layer.source_component)
         return mole
         
     def _get_paint_molecules_choice(self, w=None) -> list[str]:
@@ -1574,27 +1584,21 @@ class CylindraMainWidget(MagicTemplate):
             new_feat = feat.with_columns([pl.Series(column_name, pl_expr)])
         layer.features = new_feat
         self.reset_choices()  # choices regarding of features need update
+        return None
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
-    def calculate_intervals(
-        self,
-        layer: MoleculesLayer,
-        spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
-    ):
+    def calculate_intervals(self, layer: MoleculesLayer):
         """
         Calculate intervals between adjucent molecules.
 
         Parameters
         ----------
         {layer}
-        spline_precision : nm, optional
-            Precision in nm that is used to define the direction of molecules.
         """
-        mole = layer.molecules
-        properties = utils.calc_interval(mole, spline_precision)
-        
-        layer.features = layer.molecules.features.with_columns([pl.Series(Mole.interval, properties)])
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        layer.features = utils.with_interval(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
         
         # Set colormap
@@ -1605,26 +1609,19 @@ class CylindraMainWidget(MagicTemplate):
     
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate skews")
-    def calculate_skews(
-        self,
-        layer: MoleculesLayer,
-        spline_precision: Annotated[nm, {"min": 0.05, "max": 5.0, "step": 0.05, "label": "spline precision (nm)"}] = 0.2,
-    ):
+    def calculate_skews(self, layer: MoleculesLayer):
         """
         Calculate skews between adjucent molecules.
 
         Parameters
         ----------
         {layer}
-        spline_precision : nm, optional
-            Precision in nm that is used to define the direction of molecules.
         """
-        mole = layer.molecules
-        properties = utils.calc_skew(mole, spline_precision)
-        
-        extreme = np.max(np.abs(properties))
-        layer.features = layer.molecules.features.with_columns([pl.Series(Mole.skew, properties)])
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        layer.features = utils.with_skew(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
+        extreme = np.max(np.abs(layer.features[Mole.skew]))
 
         # Set colormap
         _clim = [-extreme, extreme]
@@ -1941,9 +1938,14 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def add_molecules(self, molecules: Molecules, name: str = None):
+    def add_molecules(
+        self,
+        molecules: Molecules,
+        name: str = None,
+        source: "BaseComponent | None" = None,
+    ):
         """Add molecules as a points layer to the viewer."""
-        return add_molecules(self.parent_viewer, molecules, name)
+        return add_molecules(self.parent_viewer, molecules, name, source=source)
 
     @nogui
     @do_not_record

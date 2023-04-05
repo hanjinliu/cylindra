@@ -1,13 +1,24 @@
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
+import polars as pl
 import impy as ip
 from dask import array as da
 from acryo import Molecules, SubtomogramLoader
 
-from cylindra.const import Mode, MoleculesHeader as Mole, GlobalVariables as GVar
+from cylindra.const import (
+    Mode, 
+    MoleculesHeader as Mole,
+    GlobalVariables as GVar,
+    PropertyNames as H,
+)
 
 from ._correlation import mirror_zncc
+
+if TYPE_CHECKING:
+    from cylindra.components import CylSpline
 
 def try_all_seams(
     loader: SubtomogramLoader,
@@ -135,8 +146,7 @@ def molecules_to_spline(mole: Molecules):
     from cylindra.components import CylSpline
 
     spl = CylSpline(degree=GVar.splOrder)
-    npf = int(round(mole.features[Mole.pf].max() + 1))
-    all_coords = mole.pos.reshape(-1, npf, 3)
+    all_coords = _reshaped_positions(mole)
     mean_coords = np.mean(all_coords, axis=1)
     spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
     return spl
@@ -156,56 +166,64 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
         ) from e
     return pos
 
-def calc_interval(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
-    spl = molecules_to_spline(mole)
-    pos = _reshaped_positions(mole)
-    u = spl.world_to_y(mole.pos, precision=spline_precision)
-    spl_vec = spl(u, der=1)
-    
-    ny, npf, ndim = pos.shape
-    
-    # equivalent to padding mode "reflect"
-    interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
-    
-    vec_len = np.linalg.norm(spl_vec, axis=1)  # length of spline vector
-    vec_norm = spl_vec / vec_len[:, np.newaxis]
-    vec_norm = vec_norm.reshape(-1, npf, ndim)  # normalized spline vector  # TODO: don't use reshape
-    y_interval = np.sum(interv_vec * vec_norm, axis=2)  # inner product
-    y_interval[-1] = -1.  # fill invalid values with -1
-    
-    properties = y_interval.ravel()
-    if properties[0] < 0:
-        properties = -properties
-    
-    return properties
+def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
+    _index_column_key = "__index_column"
+    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    _spl_len = spl.length()
+    _subsets: list[Molecules] = []
+    for _, sub in mole0.groupby(Mole.pf):
+        _pos = sub.pos
+        _interv_vec = np.diff(_pos, axis=0, append=0)
+        _u = sub.features[Mole.position] / _spl_len
+        _spl_vec = spl(_u, der=1)
+        _spl_vec_len = np.linalg.norm(_spl_vec, axis=1)  # lengths of spline vectors
+        _spl_vec_norm = _spl_vec / _spl_vec_len[:, np.newaxis]
+        _y_interv = np.sum(_interv_vec * _spl_vec_norm, axis=1)  # projection by inner product
+        _y_interv[-1] = -1.  # fill invalid values with -1
+        _subsets.append(sub.with_features(pl.Series(Mole.interval, _y_interv)))
+    return (
+        Molecules
+        .concat(_subsets)
+        .sort(_index_column_key)
+        .drop_features(_index_column_key)
+        .features
+    )
 
-def calc_skew(mole: Molecules, spline_precision: float) -> NDArray[np.float32]:
-    spl = molecules_to_spline(mole)
-    pos = _reshaped_positions(mole)
-    u = spl.world_to_y(mole.pos, precision=spline_precision)
-    ny, npf, ndim = pos.shape
-    
-    spl_pos = spl(u, der=0)
-    spl_vec = spl(u, der=1)
-    
-    mole_to_spl_vec = (spl_pos - mole.pos).reshape(ny, npf, ndim)
-    radius = np.linalg.norm(mole_to_spl_vec, axis=2)
-    
-    # equivalent to padding mode "reflect"
-    interv_vec = np.diff(pos, axis=0, append=(2*pos[-1] - pos[-2])[np.newaxis])  
-    interv_vec_len = np.linalg.norm(interv_vec, axis=2)
-    interv_vec_norm = interv_vec / interv_vec_len[:, :, np.newaxis]
+def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
+    _index_column_key = "__index_column"
+    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    _spl_len = spl.length()
+    _subsets: list[Molecules] = []
+    for _, sub in mole0.groupby(Mole.pf):
+        _pos = sub.pos
+        _interv_vec = np.diff(_pos, axis=0, append=0)
+        _interv_vec_len = np.linalg.norm(_interv_vec, axis=1)
+        _interv_vec_norm = _interv_vec / _interv_vec_len[:, np.newaxis]
 
-    spl_vec_len = np.linalg.norm(spl_vec, axis=1)
-    spl_vec_norm = spl_vec / spl_vec_len[:, np.newaxis]
-    spl_vec_norm = spl_vec_norm.reshape(-1, npf, ndim)  # TODO: don't use reshape
-    
-    skew_cross = np.cross(interv_vec_norm, spl_vec_norm, axis=2)  # cross product
-    inner = np.sum(skew_cross * mole_to_spl_vec, axis=2)
-    skew_sin = np.linalg.norm(skew_cross, axis=2) * np.sign(inner)
+        _u = sub.features[Mole.position] / _spl_len
+        _spl_pos = spl(_u, der=0)
+        _spl_vec = spl(_u, der=1)
+        
+        _mole_to_spl_vec = _spl_pos - _pos
+        _radius = np.linalg.norm(_mole_to_spl_vec, axis=1)
 
-    skew = np.rad2deg(2 * interv_vec_len * skew_sin / radius)
-    return skew.ravel()
+        _spl_vec_len = np.linalg.norm(_spl_vec, axis=1)  # lengths of spline vectors
+        _spl_vec_norm = _spl_vec / _spl_vec_len[:, np.newaxis]
+        
+        _skew_cross = np.cross(_interv_vec_norm, _spl_vec_norm, axis=1)  # cross product
+        _inner = np.sum(_skew_cross * _mole_to_spl_vec, axis=1)
+        _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
+        
+        _skew = np.rad2deg(2 * _interv_vec_len * _skew_sin / _radius)
+        _skew = 0
+        _subsets.append(sub.with_features(pl.Series(Mole.skew, _skew)))
+    return (
+        Molecules
+        .concat(_subsets)
+        .sort(_index_column_key)
+        .drop_features(_index_column_key)
+        .features
+    )
 
 def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:
     label = np.asarray(label)
