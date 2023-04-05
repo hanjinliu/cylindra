@@ -727,7 +727,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         self.reset_choices()
         
-        need_resample = self.SplineControl.canvas[0].image is not None
+        need_resample = self.SplineControl.need_resample
         self._init_widget_state()
         if need_resample:
             self.sample_subtomograms()
@@ -746,7 +746,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation : Ori, default is Ori.MinusToPlus
             To which direction splines will be aligned.
         """
-        need_resample = self.SplineControl.canvas[0].image is not None
+        need_resample = self.SplineControl.need_resample
         self.tomogram.align_to_polarity(orientation=orientation)
         self._update_splines_in_images()
         self._init_widget_state()
@@ -875,8 +875,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         self.layer_prof.features = new_features
         self.layer_prof.feature_defaults[SPLINE_ID] = len(self.tomogram.splines)
-        need_resample = self.SplineControl.canvas[0].image is not None
-        if need_resample:
+        if self.SplineControl.need_resample:
             self.sample_subtomograms()
         self._need_save = True
         return None

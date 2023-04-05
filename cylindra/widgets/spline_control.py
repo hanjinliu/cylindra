@@ -37,7 +37,7 @@ class SplineControl(MagicTemplate):
         
         self.canvas.enabled = False
         
-    def _get_splines(self, widget=None) -> list[int]:
+    def _get_splines(self, *_) -> list[int]:
         """Get list of spline objects for categorical widgets."""
         from .main import CylindraMainWidget
         try:
@@ -64,6 +64,7 @@ class SplineControl(MagicTemplate):
     def set_pf_number(self, i: Bound[num], npf: int = 13):
         """Manually update protofilament number."""
         from .main import CylindraMainWidget
+
         parent = self.find_ancestor(CylindraMainWidget)
         if parent.tomogram is None or i is None:
             return None
@@ -95,7 +96,12 @@ class SplineControl(MagicTemplate):
         spl.orientation = orientation
         parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
         parent._set_orientation_marker(i)
+        self._update_canvas()
         return None
+    
+    @property
+    def need_resample(self) -> bool:
+        return self.canvas[0].image is not None
     
     @num.connect
     def _num_changed(self):
@@ -210,25 +216,28 @@ class SplineControl(MagicTemplate):
         lz, ly, lx = np.array(proj.shape)
         
         if parent._current_ft_size is None:
-            ylen = 25/binsize/tomo.scale
+            ylen = 25 / binsize / tomo.scale
         else:
-            ylen = parent._current_ft_size/2/binsize/tomo.scale
+            ylen = parent._current_ft_size / 2 / binsize / tomo.scale
         
         # draw a square in YX-view
-        ymin, ymax = ly/2 - ylen - 0.5, ly/2 + ylen + 0.5
+        ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
         r_px = spl.radius/tomo.scale/binsize
         r = r_px * GVar.outer
-        xmin, xmax = -r + lx/2 - 0.5, r + lx/2 + 0.5
+        xmin, xmax = -r + lx / 2 - 0.5, r + lx / 2 + 0.5
         self.canvas[0].add_curve([xmin, xmin, xmax, xmax, xmin], 
                                  [ymin, ymax, ymax, ymin, ymin], 
                                  color="lime")
 
         # draw two circles in ZX-view
-        theta = np.linspace(0, 2*np.pi, 360)
-        r = r_px * GVar.inner
-        self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
-        r = r_px * GVar.outer
-        self.canvas[1].add_curve(r*np.cos(theta) + lx/2, r*np.sin(theta) + lz/2, color="lime")
+        self.canvas[1].add_curve(*_circle(r_px * GVar.inner, center=(lx/2, lz/2)), color="lime")
+        self.canvas[1].add_curve(*_circle(r_px * GVar.outer, center=(lx/2, lz/2)), color="lime")
+        
+        # draw polarity
+        if spl.orientation == "PlusToMinus":
+            self.canvas[2].add_text(lx/2, lz/2, "+", size=16, color="lime", anchor=(0.5, 0.5))
+        elif spl.orientation == "MinusToPlus":
+            self.canvas[2].add_text(lx/2, lz/2, "-", size=16, color="lime", anchor=(0.5, 0.5))
         
         # update pyqtgraph
         if spl.localprops is not None:
@@ -243,3 +252,10 @@ class SplineControl(MagicTemplate):
             if img is not None:
                 self.canvas[i].contrast_limits = [img.min(), img.max()]
         return None
+
+def _circle(r: float, center: tuple[float, float] = (0, 0)) -> tuple[np.ndarray, np.ndarray]:
+    """Return the coordinates of a circle with radius r and center center."""
+    theta = np.linspace(0, 2 * np.pi, 360)
+    x = r * np.cos(theta) + center[0]
+    y = r * np.sin(theta) + center[1]
+    return x, y

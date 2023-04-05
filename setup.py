@@ -52,8 +52,7 @@ setup(
     install_requires=[
         "impy-array>=2.2.1",
         "acryo>=0.2.0",
-        "magicgui>=0.7.2",
-        "magic-class>=0.6.14",
+        "magic-class>=0.6.16",
         "pyqtgraph>=0.12.4",
         "pyarrow>=11.0.0",
         "mrcfile>=1.3.0",
