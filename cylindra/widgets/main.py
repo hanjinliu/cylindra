@@ -144,7 +144,6 @@ class CylindraMainWidget(MagicTemplate):
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.overview.min_height = 300
-        
         return None
 
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:

@@ -34,21 +34,19 @@ class PEET(MagicTemplate):
             the molecule coordinates.
         """        
         from .cmd import read_mod
+
         mod = read_mod(mod_path).values
+        mod[:, 1:] -= 0.5  # shift to center of voxel
         shifts, angs = _read_shift_and_angle(ang_path)
         mol = Molecules.from_euler(pos=mod*self.scale, angles=angs, degrees=True)
         if shift_mol:
-            mol.translate(shifts*self.scale, copy=False)
+            mol.translate(shifts * self.scale, copy=False)
         
         add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
 
-    def save_monomers(
-        self, 
-        save_dir: Path.Dir,
-        layer: MoleculesLayer,
-    ):
+    def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
         """
-        Save monomer angles in PEET format.
+        Save monomer positions and angles in the PEET format.
 
         Parameters
         ----------
@@ -76,7 +74,7 @@ class PEET(MagicTemplate):
         if len(layers) == 0:
             raise ValueError("No monomer found.")
         mol = Molecules.concat([l.molecules for l in layers])
-        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
+        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)  # TODO: file name!
         return None
     
     def shift_monomers(
@@ -216,7 +214,7 @@ yaxisContourNum = NaN
 flgWedgeWeight = 1
 sampleSphere = 'none'
 sampleInterval = NaN
-maskType = 'mask.mrc'
+maskType = $(maskType)
 maskModelPts = []
 insideMaskRadius = 0
 outsideMaskRadius = NaN
