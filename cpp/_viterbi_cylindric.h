@@ -16,7 +16,7 @@ class CylindricIterator {
     public:
         CylinderGeometry geometry;
         ssize_t count() { return geometry.nY * geometry.nA; };
-        std::tuple<ssize_t, ssize_t> nth(ssize_t i);
+        // std::tuple<ssize_t, ssize_t> nth(ssize_t i);
         std::vector<std::tuple<ssize_t, ssize_t>> sourceOf(ssize_t y, ssize_t a);
         CylindricIterator(CylinderGeometry _geometry) : geometry(_geometry) {};
         CylindricIterator(ssize_t nY, ssize_t nA, ssize_t nRise) : geometry(nY, nA, nRise) {
@@ -29,10 +29,24 @@ class CylindricIterator {
 /// @brief Return the indices corresponding to the i-th element of the iterator.
 /// @param i The index of the element.
 /// @return A tuple of indices (y, a).
-std::tuple<ssize_t, ssize_t> CylindricIterator::nth(ssize_t i) {
-    ssize_t y = i / geometry.nA;
-    ssize_t a = i % geometry.nA;
-    return std::make_tuple(y, a);
+std::vector<std::tuple<ssize_t, ssize_t>> CylindricIterator::sourceOf(ssize_t y, ssize_t a) {
+    if (y <= 1) {
+        // sourceOf must not be called on the first protofilamnet ring.
+        throw py::value_error("y must be greater than 1.");
+    }
+    if (geometry.nRise <= 0) {
+        if (a > 0) {
+            return {{y - 1, a}, {y, a - 1}};
+        } else {
+            return {{y - 1, a}, {y - geometry.nRise, geometry.nA - 1}};
+        }
+    } else {
+        if (a < geometry.nA - 1) {
+            return {{y - 1, a}, {y, a + 1}};
+        } else {
+            return {{y - 1, a}, {y + geometry.nRise, 0}};
+        }
+    }
 }
 
 # endif
