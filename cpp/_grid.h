@@ -10,9 +10,11 @@
 namespace py = pybind11;
 using ssize_t = Py_ssize_t;
 
+/// A 1D grid for Viterbi alignment.
+/// This class contains the score landscape, coordinate systems and the shape.
 class ViterbiGrid {
     public:
-        py::array_t<double> score;
+        py::array_t<double> score; // A 4D array, where score_array[n, z, y, x] is the score of the n-th molecule at the grid point (z, y, x).
         CoordinateSystem<double>* coords;  // coordinate system of each molecule
         ssize_t nmole, nz, ny, nx;  // number of molecules, number of grid points in z, y, x directions
 
@@ -34,16 +36,33 @@ class ViterbiGrid {
             ny = _score_info.shape[2];
             nx = _score_info.shape[3];
 
+            // check the input shapes
             if (origin.shape(0) != nmole || origin.shape(1) != 3) {
-                throw std::invalid_argument("Shape of 'origin' must be (" + std::to_string(nmole) + ", 3) but got (" + std::to_string(origin.shape(0)) + ", " + std::to_string(origin.shape(1)) + ").");
+                throw std::invalid_argument(
+                    "Shape of 'origin' must be (" + std::to_string(nmole) + ", 3) "
+                    "but got (" + std::to_string(origin.shape(0)) + ", " + std::to_string(origin.shape(1)) + ")."
+                );
             } else if (zvec.shape(0) != nmole || zvec.shape(1) != 3) {
-                throw std::invalid_argument("Shape of 'zvec' must be (" + std::to_string(nmole) + ", 3) but got (" + std::to_string(zvec.shape(0)) + ", " + std::to_string(zvec.shape(1)) + ").");
+                throw std::invalid_argument(
+                    "Shape of 'zvec' must be (" + std::to_string(nmole) + ", 3) "
+                    "but got (" + std::to_string(zvec.shape(0)) + ", " + std::to_string(zvec.shape(1)) + ")."
+                );
             } else if (yvec.shape(0) != nmole || yvec.shape(1) != 3) {
-                throw std::invalid_argument("Shape of 'yvec' must be (" + std::to_string(nmole) + ", 3) but got (" + std::to_string(yvec.shape(0)) + ", " + std::to_string(yvec.shape(1)) + ").");
+                throw std::invalid_argument(
+                    "Shape of 'yvec' must be (" + std::to_string(nmole) + ", 3) "
+                    "but got (" + std::to_string(yvec.shape(0)) + ", " + std::to_string(yvec.shape(1)) + ")."
+                );
             } else if (xvec.shape(0) != nmole || xvec.shape(1) != 3) {
-                throw std::invalid_argument("Shape of 'xvec' must be (" + std::to_string(nmole) + ", 3) but got (" + std::to_string(xvec.shape(0)) + ", " + std::to_string(xvec.shape(1)) + ").");
+                throw std::invalid_argument(
+                    "Shape of 'xvec' must be (" + std::to_string(nmole) + ", 3) "
+                    "but got (" + std::to_string(xvec.shape(0)) + ", " + std::to_string(xvec.shape(1)) + ")."
+                );
             } else if (nmole < 2 || nz < 2 || ny < 2 || nx < 2) {
-                throw std::invalid_argument("Invalid shape of 'score': (" + std::to_string(nmole) + ", " + std::to_string(nz) + ", " + std::to_string(ny) + ", " + std::to_string(nx) + ").");
+                throw std::invalid_argument(
+                    "Invalid shape of 'score': (" 
+                    + std::to_string(nmole) + ", " + std::to_string(nz) + ", " 
+                    + std::to_string(ny) + ", " + std::to_string(nx) + ")."
+                );
             }
 
             // Allocation of arrays of coordinate system.
@@ -58,11 +77,14 @@ class ViterbiGrid {
                 coords[t].update(_ori, _ez, _ey, _ex);
             }
         };
+
         std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
         auto ViterbiGrid::prepViterbiLattice();
 };
 
+/// Prepare the Viterbi lattice and initialize the initial states.
+/// Return the mutable reference of the Viterbi lattice.
 auto ViterbiGrid::prepViterbiLattice() {
     auto viterbi_lattice_ = py::array_t<double>{{nmole, nz, ny, nx}};
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
@@ -218,7 +240,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 {
 	auto dist_min2 = dist_min * dist_min;
 	auto dist_max2 = dist_max * dist_max;
-	auto cos_skew = std::cos(skew_max);
+	auto cos_skew_max = std::cos(skew_max);
 
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{nmole, ssize_t(3)}};
@@ -268,7 +290,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 					auto ab = std::sqrt(a2 * b2);
 					auto cos = vec.dot(origin_vector) / ab;
 
-					if (cos < cos_skew) {
+					if (cos < cos_skew_max) {
 						// check angle of displacement vector of origins and that of
 						// points of interests. Smaller cosine means larger skew.
 						continue;
@@ -327,7 +349,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 
 			auto ab = std::sqrt(a2 * b2);
 			auto cos = vec.dot(origin_vector) / ab;
-			if (cos < cos_skew) {
+			if (cos < cos_skew_max) {
 				// check angle.
 				continue;
 			}
