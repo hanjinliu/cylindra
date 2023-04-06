@@ -1542,7 +1542,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer, 
         column_name: str,
-        expression: Annotated[ExprStr, {"namespace": POLARS_NAMESPACE}],
+        expression: ExprStr.In[POLARS_NAMESPACE],
     ):
         """
         Calculate a new feature from the existing features.
