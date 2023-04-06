@@ -46,26 +46,14 @@ def viterbi(
     (N, 3) int array and float
         Optimal indices and optimal score.
     """
-    nmole, nz, ny, nx = score.shape
-    if origin.shape != (nmole, 3):
-        raise ValueError(f"Shape of 'origin' must be ({nmole}, 3) but got {origin.shape}.")
-    if zvec.shape != (nmole, 3):
-        raise ValueError(f"Shape of 'zvec' must be ({nmole}, 3) but got {zvec.shape}.")
-    if yvec.shape != (nmole, 3):
-        raise ValueError(f"Shape of 'yvec' must be ({nmole}, 3) but got {yvec.shape}.")
-    if xvec.shape != (nmole, 3):
-        raise ValueError(f"Shape of 'xvec' must be ({nmole}, 3) but got {xvec.shape}.")
     if dist_min >= dist_max:
         raise ValueError("'dist_min' must be smaller than 'dist_max'.")
-    if nmole < 2 or nz < 2 or ny < 2 or nx < 2:
-        raise ValueError(f"Invalid shape of 'score': {score.shape}.")
     
+    grid = _cpp_ext.ViterbiGrid(score, origin, zvec, yvec, xvec)
     if skew_max is None:
-        out = _cpp_ext.viterbi(score, origin, zvec, yvec, xvec, dist_min, dist_max)
+        out = grid.viterbi_simple(dist_min, dist_max)
     else:
-        out = _cpp_ext.viterbiAngularConstraint(
-            score, origin, zvec, yvec, xvec, dist_min, dist_max, skew_max
-        )
+        out = grid.viterbi(dist_min, dist_max, skew_max)
     return out
 
 

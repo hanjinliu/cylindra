@@ -8,8 +8,14 @@ from setuptools.command.build_ext import build_ext
 class build_ext(build_ext):
     def finalize_options(self):
         from pybind11.setup_helpers import Pybind11Extension
-        self.distribution.ext_modules[:] = [Pybind11Extension(
-            "cylindra._cpp_ext", ["cpp/main.cpp"], cxx_std=11)]
+
+        self.distribution.ext_modules[:] = [
+            Pybind11Extension(
+                "cylindra._cpp_ext",
+                ["cpp/main.cpp"],
+                cxx_std=11
+            )
+        ]
         super().finalize_options()
 
     def build_extensions(self):
@@ -46,7 +52,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={CYLINDRA: ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]},
     include_package_data=True,
-    setup_requires=["pybind11>=2.9.2"],
+    setup_requires=["pybind11>=2.10.4"],
     cmdclass={"build_ext": build_ext},
     py_modules=[],
     install_requires=[
