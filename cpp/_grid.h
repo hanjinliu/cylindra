@@ -123,7 +123,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
-			bool neighbor_found = false;
 			auto end_point = coords[t].at(z1, y1, x1);
 			// iterate over all the start points
 			for (auto y0 = 0; y0 < nx; ++y0) {
@@ -161,17 +160,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 					if (distance2 < dist_min2 || dist_max2 < distance2) {
 						continue;
 					}
-					neighbor_found = true;
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
 				}}
 			}
-			
-			if (!neighbor_found) {
-				viterbi_lattice(t, z1, y1, x1) = -std::numeric_limits<double>::infinity();
-			} else {
-				auto next_score = score.data(t, z1, y1, x1);
-				viterbi_lattice(t, z1, y1, x1) = max + *next_score;
-			}
+			auto next_score = score.data(t, z1, y1, x1);
+			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
 		}}}
 	}
 
@@ -247,58 +240,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
-			bool neighbor_found = false;
 			auto end_point = coords[t].at(z1, y1, x1);
-			for (auto z0 = 0; z0 < nz; ++z0) {
-			for (auto y0 = 0; y0 < nx; ++y0) {
-				// If distances are not in the range of [dist_min, dist_max] at the edges, i.e., 
-				// x=0 and x=nx-1, then other points are not in the range either.
-				// Since valid range of distance is relatively small, this check largely improves
-				// performance.
-				#pragma warning(push)
-				#pragma warning(disable:4244)
-				auto distance2_0 = (coords[t - 1].at(z0, y0, 0.0) - end_point).length2();
-				auto distance2_1 = (coords[t - 1].at(z0, y0, nx-1) - end_point).length2();
-				#pragma warning(pop)
-				
-				bool is_0_smaller = distance2_0 < dist_min2;
-				bool is_1_smaller = distance2_1 < dist_min2;
-				if (is_0_smaller && is_1_smaller) {
-					continue;
-				}
-				bool is_0_larger = dist_max2 < distance2_0;
-				bool is_1_larger = dist_max2 < distance2_1;
-				if (is_0_larger && is_1_larger) {
-					continue;
-				}
-				
-				for (auto x0 = 0; x0 < nx; ++x0) {
-					auto vec = coords[t-1].at(z0, y0, x0) - end_point;
-					auto a2 = vec.length2();
-
-					if (a2 < dist_min2 || dist_max2 < a2) {
-						// check distance between two points
-						continue;
-					}
-
-					// Use formula: a.dot(b) = |a|*|b|*cos(C)
-					auto ab = std::sqrt(a2 * b2);
-					auto cos = vec.dot(origin_vector) / ab;
-
-					if (cos < cos_skew_max) {
-						// check angle of displacement vector of origins and that of
-						// points of interests. Smaller cosine means larger skew.
-						continue;
-					}
-
-					neighbor_found = true;
-					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
-				}
-			}}
-
-
-
-
 			// iterate over all the start points
 			for (auto y0 = 0; y0 < nx; ++y0) {
 				// If the length from point (x1, y1, z1) to the four corners at y=y0 is all
@@ -338,7 +280,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 						continue;
 					}
 					// Use formula: a.dot(b) = |a|*|b|*cos(C)
-					auto a2 = vec.length2();
 					auto ab = std::sqrt(a2 * b2);
 					auto cos = vec.dot(origin_vector) / ab;
 
@@ -347,17 +288,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 						// points of interests. Smaller cosine means larger skew.
 						continue;
 					}
-					neighbor_found = true;
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
 				}}
 			}
-			
-			if (!neighbor_found) {
-				viterbi_lattice(t, z1, y1, x1) = -std::numeric_limits<double>::infinity();
-			} else {
-				auto next_score = score.data(t, z1, y1, x1);
-				viterbi_lattice(t, z1, y1, x1) = max + *next_score;
-			}
+			auto next_score = score.data(t, z1, y1, x1);
+			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
 		}}}
 	}
 

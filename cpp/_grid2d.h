@@ -165,7 +165,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto y1 = 0; y1 < ny; ++y1) {
                 for (auto x1 = 0; x1 < nx; ++x1) {
                     auto max = -std::numeric_limits<double>::infinity();
-                    bool neighbor_found = false;
                     auto end_point = coords.at(t1, s1).at(z1, y1, x1);
                     for (auto y0o = 0; y0o < nx; ++y0o) {
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
@@ -237,7 +236,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                     continue;
                                 }
 
-                                neighbor_found = true;
                                 max = std::max(
                                     max,
                                     viterbi_lattice(t0o, s0o, z0o, y0o, x0o)
@@ -247,12 +245,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         }
                     }
                 
-                    if (!neighbor_found) {
-                        viterbi_lattice(t1, s1, z1, y1, x1) = -std::numeric_limits<double>::infinity();
-                    } else {
-                        auto next_score = score.data(t1, s1, z1, y1, x1);
-                        viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
-                    }
+                    auto next_score = score.data(t1, s1, z1, y1, x1);
+                    viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
 
             } else if (sources.hasLongitudinal()) {
@@ -267,7 +261,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto y1 = 0; y1 < ny; ++y1) {
                 for (auto x1 = 0; x1 < nx; ++x1) {
                     auto max = -std::numeric_limits<double>::infinity();
-                    bool neighbor_found = false;
                     auto end_point = coords.at(t1, s1).at(z1, y1, x1);
                     for (auto y0 = 0; y0 < nx; ++y0) {
                     for (auto z0 = 0; z0 < nz; ++z0) {
@@ -307,17 +300,12 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                 continue;
                             }
 
-                            neighbor_found = true;
                             max = std::max(max, viterbi_lattice(t0, s0, z0, y0, x0));
                         }
                     }}
                 
-                    if (!neighbor_found) {
-                        viterbi_lattice(t1, s1, z1, y1, x1) = -std::numeric_limits<double>::infinity();
-                    } else {
-                        auto next_score = score.data(t1, s1, z1, y1, x1);
-                        viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
-                    }
+                    auto next_score = score.data(t1, s1, z1, y1, x1);
+                    viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
     
             } else if (sources.hasLateral()) {
@@ -332,7 +320,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto y1 = 0; y1 < ny; ++y1) {
                 for (auto x1 = 0; x1 < nx; ++x1) {
                     auto max = -std::numeric_limits<double>::infinity();
-                    bool neighbor_found = false;
                     auto end_point = coords.at(t1, s1).at(z1, y1, x1);
                     for (auto y0 = 0; y0 < nx; ++y0) {
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
@@ -393,18 +380,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                     continue;
                                 }
 
-                                neighbor_found = true;
                                 max = std::max(max, viterbi_lattice(t0, s0, z0, y0, x0));
                             }
                         }
                     }
                 
-                    if (!neighbor_found) {
-                        viterbi_lattice(t1, z1, y1, x1) = -std::numeric_limits<double>::infinity();
-                    } else {
-                        auto next_score = score.data(t1, s1, z1, y1, x1);
-                        viterbi_lattice(t1, z1, y1, x1) = max + *next_score;
-                    }
+                    auto next_score = score.data(t1, s1, z1, y1, x1);
+                    viterbi_lattice(t1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
             } else {
                 // No source. Just copy the score.
