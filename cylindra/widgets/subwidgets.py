@@ -1,5 +1,4 @@
 import os
-from typing import Union, TYPE_CHECKING
 from magicclass import (
     magicclass, magicmenu, magictoolbar, field, vfield, MagicTemplate, 
     set_design, abstractapi

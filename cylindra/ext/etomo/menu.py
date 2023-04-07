@@ -2,16 +2,13 @@ from typing import Annotated
 import numpy as np
 import pandas as pd
 
-from magicclass import magicmenu, set_options, MagicTemplate
+from magicclass import magicmenu, MagicTemplate
 from magicclass.types import Path
 from acryo import Molecules
 
-from cylindra.utils import roundint
-from cylindra.const import EulerAxes, MoleculesHeader as Mole
 from cylindra.types import get_monomer_layers, MoleculesLayer
 from cylindra.widgets.widget_utils import add_molecules, FileFilter
 
-# BUG: cylindra coordinates and PEET coordinates do not match (slight difference).
 
 @magicmenu
 class PEET(MagicTemplate):
@@ -37,22 +34,19 @@ class PEET(MagicTemplate):
             the molecule coordinates.
         """        
         from .cmd import read_mod
+
         mod = read_mod(mod_path).values
+        mod[:, 1:] -= 0.5  # shift to center of voxel
         shifts, angs = _read_shift_and_angle(ang_path)
         mol = Molecules.from_euler(pos=mod*self.scale, angles=angs, degrees=True)
         if shift_mol:
-            mol.translate(shifts*self.scale, copy=False)
+            mol.translate(shifts * self.scale, copy=False)
         
         add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
 
-    def save_monomers(
-        self, 
-        save_dir: Path.Dir,
-        layer: MoleculesLayer,
-        save_protofilaments_separately: bool = False
-    ):
+    def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
         """
-        Save monomer angles in PEET format.
+        Save monomer positions and angles in the PEET format.
 
         Parameters
         ----------
@@ -60,20 +54,10 @@ class PEET(MagicTemplate):
             Saving path.
         layer : Points
             Select the Vectors layer to save.
-        save_protofilaments_separately : bool, default is False
-            Check if you want to save monomers on each protofilament in separate files.
         """        
         save_dir = Path(save_dir)
         mol = layer.molecules
-        from .cmd  import save_mod, save_angles
-        if save_protofilaments_separately:
-            npf = roundint(layer.molecules.features[Mole.pf].max() + 1)
-            for pf in range(npf):
-                sl = slice(pf, None, npf)
-                save_mod(save_dir/f"coordinates-PF{pf:0>2}.mod", mol.pos[sl, ::-1]/self.scale)
-                save_angles(save_dir/f"angles-PF{pf:0>2}.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True)[sl])
-        else:
-            _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
+        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
         return None
     
     def save_all_monomers(self, save_dir: Path.Dir):
@@ -90,9 +74,7 @@ class PEET(MagicTemplate):
         if len(layers) == 0:
             raise ValueError("No monomer found.")
         mol = Molecules.concat([l.molecules for l in layers])
-        from .cmd  import save_mod, save_angles
-        save_mod(save_dir/"coordinates.mod", mol.pos[:, ::-1]/self.scale)
-        save_angles(save_dir/"angles.csv", mol.euler_angle(EulerAxes.ZXZ, degrees=True))
+        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)  # TODO: file name!
         return None
     
     def shift_monomers(
@@ -138,10 +120,62 @@ class PEET(MagicTemplate):
         else:
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
     
+    def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
+        try:
+            parent = self._get_parent()
+            return get_monomer_layers(parent)
+        except Exception:
+            return []
+    
+    def export_project(self, layer: MoleculesLayer, save_dir: Path.Dir, project_name: str = "MyProject"):
+        """
+        Export cylindra state as a PEET prm file.
+
+        Parameters
+        ----------
+        save_dir : Path
+            Saving path.
+        """        
+        save_dir = Path(save_dir)
+        parent = self._get_parent()
+        template_image = parent.sta.template
+        mask_image = parent.sta.mask
+        
+        # paths
+        coordinates_path = save_dir / "coordinates.mod"
+        angles_path = save_dir / "angles.csv"
+        template_path = save_dir / "template-image.mrc"
+        mask_path = save_dir / "mask-image.mrc"
+        prm_path = save_dir / f"{project_name}.prm"
+        
+        txt = PEET_TEMPLATE.format(
+            tomograms=str(parent.tomogram.source),
+            coordinates=str(coordinates_path),
+            angles=str(angles_path),
+            tilt_range=list(parent.sta.params.tilt_range),
+            template=str(template_path),
+            project_name=project_name,
+            shape=list(template_image.shape),
+            mask_type=str(mask_path),
+        )
+        
+        # save files
+        prm_path.write_text(txt)
+        mol = layer.molecules
+        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
+        template_image.imsave(template_path)
+        mask_image.imsave(mask_path)
+        
+        return None
+    
     @property
     def scale(self) -> float:
+        return self._get_parent().tomogram.scale
+    
+    def _get_parent(self):
         from cylindra.widgets import CylindraMainWidget
-        return self.find_ancestor(CylindraMainWidget, cache=True).tomogram.scale
+
+        return self.find_ancestor(CylindraMainWidget, cache=True)
 
 
 def _read_angle(ang_path: str) -> np.ndarray:
@@ -176,8 +210,15 @@ def _read_shift_and_angle(path: str) -> tuple["np.ndarray | None", np.ndarray]:
         shifts_data = None
     return shifts_data, ang_data
 
-def _save_molecules(save_dir: Path, mol: Molecules, scale: float, mod_name: str = None, csv_name: str = None):
+def _save_molecules(
+    save_dir: Path,
+    mol: Molecules,
+    scale: float,
+    mod_name: "str | None" = None, 
+    csv_name: "str | None" = None
+):
     from .cmd import save_mod, save_angles
+
     if mod_name is None:
         mod_name = "coordinates.mod"
     elif not mod_name.endswith(".mod"):
@@ -186,30 +227,31 @@ def _save_molecules(save_dir: Path, mol: Molecules, scale: float, mod_name: str 
         csv_name = "angles.csv"
     elif not csv_name.endswith(".csv"):
         csv_name += ".csv"
-    save_mod(save_dir/mod_name, mol.pos[:, ::-1]/scale)
-    save_angles(save_dir/csv_name, mol.euler_angle(EulerAxes.ZXZ, degrees=True))
+    
+    pos = mol.pos[:, ::-1] / scale
+    pos[:, 1:] += 0.5
+    save_mod(save_dir / mod_name, pos)
+    save_angles(save_dir / csv_name, mol.euler_angle("ZXZ", degrees=True))
     return None
 
-def _list_to_cell(l: list[str]) -> str:
-    return "{" + ", ".join(l) + "}"
 
 PEET_TEMPLATE = """
-fnVolume = {$(Tomograms)}
-fnModParticle = {$(Coordinates)}
-initMOTL = {$(Angles)}
-tiltRange = {[-60, 60]}
-dPhi = {0:0:0}
-dTheta = {0:0:0}
-dPsi = {0:0:0}
-searchRadius = {[4]}
-lowCutoff = {[0, 0.05]}
-hiCutoff = {[0.9, 0.05]}
-refThreshold = {100}
+fnVolume = {{{tomograms!r}}}
+fnModParticle = {{{coordinates!r}}}
+initMOTL = {{{angles!r}}}
+tiltRange = {{{tilt_range!r}}}
+dPhi = {{0:0:0}}
+dTheta = {{0:0:0}}
+dPsi = {{0:0:0}}
+searchRadius = {{[4]}}
+lowCutoff = {{[0, 0.05]}}
+hiCutoff = {{[0.9, 0.05]}}
+refThreshold = {{100}}
 duplicateShiftTolerance = [0]
 duplicateAngularTolerance = [0]
-reference = $(Template)
-fnOutput = $(ProjectName)
-szVol = $(Shape)
+reference = {template!r}
+fnOutput = {project_name!r}
+szVol = {shape!r}
 alignedBaseName = ''
 debugLevel = 3
 lstThresholds = [40000:1000:45000]
@@ -222,7 +264,7 @@ yaxisContourNum = NaN
 flgWedgeWeight = 1
 sampleSphere = 'none'
 sampleInterval = NaN
-maskType = 'mask.mrc'
+maskType = {mask_type!r}
 maskModelPts = []
 insideMaskRadius = 0
 outsideMaskRadius = NaN
