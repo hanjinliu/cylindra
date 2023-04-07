@@ -165,12 +165,12 @@ def test_mt_pad():
 
 def test_viterbi():
     from cylindra.utils import viterbi
+    
+    # there is only one position with score 1.0 for each landscape
     score = np.zeros((10, 5, 5, 5))
-    for i in range(10):
+    for i in [0, 1, 2, 3, 5, 6, 8, 9]:
         score[i, 0, 0, 0] = 1.0
-    score[4, 0, 0, 0] = 0.0
     score[4, 1, 2, 1] = 1.0
-    score[7, 0, 0, 0] = 0.0
     score[7, 4, 4, 4] = 1.0
     zvec = np.array([[1., 0., 0.]]*10)
     yvec = np.array([[0., 1., 0.]]*10)

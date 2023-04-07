@@ -13,21 +13,22 @@ namespace py = pybind11;
 
 // --- Index struct -----------------------------------------------------------
 
-/// Tuple of unsigned integers
+/// Struct of unsigned integers for an index on a cylinder.
 struct Index {
     ssize_t y, a;
     Index(ssize_t y, ssize_t a) : y(y), a(a) {}
 
-    /// @brief Check if the index is valid for a given geometry.
-    /// @param nY Size of the longitudinal axis.
-    /// @param nA Size of the lateral axis.
-    /// @return Index is valid or not.
+    /// Check if the index is valid for a given geometry.
     bool isValid(ssize_t nY, ssize_t nA) {
         return y >= 0 && y < nY && a >= 0 && a < nA;
     }
+    /// __repr__ for python 
+    std::string pyRepr() {
+        return "Index(y=" + std::to_string(y) + ", a=" + std::to_string(a) + ")";
+    }
 };
 
-/// Tuple of signed integers.
+/// Struct of signed integers for an index on a cylinder.
 /// This struct is used for not-resolved-yet indices.
 struct SignedIndex {
     ssize_t y, a;
@@ -45,6 +46,9 @@ struct Sources {
     Sources(std::pair<ssize_t, ssize_t> _lon) : lon(_lon), lat({-1, -1}) {};
     Sources(std::pair<ssize_t, ssize_t> _lon, std::pair<ssize_t, ssize_t> _lat) : lon(_lon), lat(_lat) {};
     
+    /// Check if the source has a longitudinal contact.
+    bool hasLongitudinal() { return lon.first >= 0; };
+
     /// Check if the source has a lateral contact.
     bool hasLateral() { return lat.first >= 0; };
 
@@ -58,6 +62,17 @@ struct Sources {
     void setValue(std::pair<ssize_t, ssize_t> _lon, std::pair<ssize_t, ssize_t> _lat) {
         lon = _lon;
         lat = _lat;
+    };
+
+    /// __repr__ for python
+    std::string pyRepr() {
+        std::string repr = "Sources(lon=(" + std::to_string(lon.first) + ", "
+            + std::to_string(lon.second) + ")";
+        if (hasLateral()) {
+            repr += ", lat=(" + std::to_string(lat.first) + ", " + std::to_string(lat.second) + ")";
+        }
+        repr += ")";
+        return repr;
     };
 };
 
@@ -82,6 +97,10 @@ class CylinderGeometry {
         Index indexStart();
         Index indexEnd();
         ssize_t convertAngular(ssize_t ang);
+        std::string pyRepr() {
+            return "CylinderGeometry(nY=" + std::to_string(nY) +
+                ", nA=" + std::to_string(nA) + ", nRise=" + std::to_string(nRise) + ")";
+        };
 
     private:
         ssize_t compress(Index);
@@ -181,10 +200,6 @@ inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<Index> indi
 /// @param a Angular coordinate of which source will be returned.
 /// @return A tuple of indices (y, a).
 inline Sources CylinderGeometry::sourceOf(ssize_t y, ssize_t a) {
-    if (y <= 1) {
-        // sourceOf must not be called on the first protofilamnet ring.
-        throw py::value_error("y must be greater than 1.");
-    }
     Sources sources;
     if (nRise <= 0) {
         if (a > 0) {

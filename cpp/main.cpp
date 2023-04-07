@@ -12,12 +12,21 @@ namespace py = pybind11;
 // define pybind11 module
 PYBIND11_MODULE(_cpp_ext, m) {
 	m.doc() = "C++ extensions";
-  	m.def("alleviate", &alleviate, "Alleviate coordinates.");
+  	m.def("alleviate", &alleviate, "Alleviate coordinates on a cylindric grid.");
     py::class_<ViterbiGrid>(m, "ViterbiGrid")
         .def(py::init<py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>>())
         .def("viterbi_simple", &ViterbiGrid::viterbiSimple)
         .def("viterbi", &ViterbiGrid::viterbi);
-    py::class_<CylindricIterator>(m, "CylindricIterator")
+    py::class_<CylinderGeometry>(m, "CylinderGeometry")
         .def(py::init<ssize_t, ssize_t, ssize_t>())
-        .def("source_of", &CylindricIterator::sourceOf);
+        .def("source_of", &CylinderGeometry::sourceOf)
+        .def("__repr__", &CylinderGeometry::pyRepr);
+    py::class_<Sources>(m, "Sources")
+        .def("has_longitudinal", &Sources::hasLongitudinal)
+        .def("has_lateral", &Sources::hasLateral)
+        .def("__repr__", &Sources::pyRepr);
+    py::class_<Index>(m, "Index")
+        .def(py::init<ssize_t, ssize_t>())
+        .def("is_valid", &Index::isValid)
+        .def("__repr__", &Index::pyRepr);
 }
