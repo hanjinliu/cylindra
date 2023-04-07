@@ -120,10 +120,62 @@ class PEET(MagicTemplate):
         else:
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
     
+    def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
+        try:
+            parent = self._get_parent()
+            return get_monomer_layers(parent)
+        except Exception:
+            return []
+    
+    def export_project(self, layer: MoleculesLayer, save_dir: Path.Dir, project_name: str = "MyProject"):
+        """
+        Export cylindra state as a PEET prm file.
+
+        Parameters
+        ----------
+        save_dir : Path
+            Saving path.
+        """        
+        save_dir = Path(save_dir)
+        parent = self._get_parent()
+        template_image = parent.sta.template
+        mask_image = parent.sta.mask
+        
+        # paths
+        coordinates_path = save_dir / "coordinates.mod"
+        angles_path = save_dir / "angles.csv"
+        template_path = save_dir / "template-image.mrc"
+        mask_path = save_dir / "mask-image.mrc"
+        prm_path = save_dir / f"{project_name}.prm"
+        
+        txt = PEET_TEMPLATE.format(
+            tomograms=str(parent.tomogram.source),
+            coordinates=str(coordinates_path),
+            angles=str(angles_path),
+            tilt_range=list(parent.sta.params.tilt_range),
+            template=str(template_path),
+            project_name=project_name,
+            shape=list(template_image.shape),
+            mask_type=str(mask_path),
+        )
+        
+        # save files
+        prm_path.write_text(txt)
+        mol = layer.molecules
+        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
+        template_image.imsave(template_path)
+        mask_image.imsave(mask_path)
+        
+        return None
+    
     @property
     def scale(self) -> float:
+        return self._get_parent().tomogram.scale
+    
+    def _get_parent(self):
         from cylindra.widgets import CylindraMainWidget
-        return self.find_ancestor(CylindraMainWidget, cache=True).tomogram.scale
+
+        return self.find_ancestor(CylindraMainWidget, cache=True)
 
 
 def _read_angle(ang_path: str) -> np.ndarray:
@@ -182,26 +234,24 @@ def _save_molecules(
     save_angles(save_dir / csv_name, mol.euler_angle("ZXZ", degrees=True))
     return None
 
-def _list_to_cell(l: list[str]) -> str:
-    return "{" + ", ".join(l) + "}"
 
 PEET_TEMPLATE = """
-fnVolume = {$(Tomograms)}
-fnModParticle = {$(Coordinates)}
-initMOTL = {$(Angles)}
-tiltRange = {[-60, 60]}
-dPhi = {0:0:0}
-dTheta = {0:0:0}
-dPsi = {0:0:0}
-searchRadius = {[4]}
-lowCutoff = {[0, 0.05]}
-hiCutoff = {[0.9, 0.05]}
-refThreshold = {100}
+fnVolume = {{{tomograms!r}}}
+fnModParticle = {{{coordinates!r}}}
+initMOTL = {{{angles!r}}}
+tiltRange = {{{tilt_range!r}}}
+dPhi = {{0:0:0}}
+dTheta = {{0:0:0}}
+dPsi = {{0:0:0}}
+searchRadius = {{[4]}}
+lowCutoff = {{[0, 0.05]}}
+hiCutoff = {{[0.9, 0.05]}}
+refThreshold = {{100}}
 duplicateShiftTolerance = [0]
 duplicateAngularTolerance = [0]
-reference = $(Template)
-fnOutput = $(ProjectName)
-szVol = $(Shape)
+reference = {template!r}
+fnOutput = {project_name!r}
+szVol = {shape!r}
 alignedBaseName = ''
 debugLevel = 3
 lstThresholds = [40000:1000:45000]
@@ -214,7 +264,7 @@ yaxisContourNum = NaN
 flgWedgeWeight = 1
 sampleSphere = 'none'
 sampleInterval = NaN
-maskType = $(maskType)
+maskType = {mask_type!r}
 maskModelPts = []
 insideMaskRadius = 0
 outsideMaskRadius = NaN
