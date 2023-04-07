@@ -17,6 +17,7 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def(py::init<py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>>())
         .def("viterbi_simple", &ViterbiGrid::viterbiSimple)
         .def("viterbi", &ViterbiGrid::viterbi);
-  	// m.def("viterbi", &viterbi, "Viterbi algorithm for alignment.");
-  	// m.def("viterbiAngularConstraint", &viterbiAngularConstraint, "Viterbi algorithm for alignment.");
+    py::class_<CylindricIterator>(m, "CylindricIterator")
+        .def(py::init<ssize_t, ssize_t, ssize_t>())
+        .def("source_of", &CylindricIterator::sourceOf);
 }

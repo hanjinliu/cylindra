@@ -11,21 +11,56 @@
 using ssize_t = Py_ssize_t;
 namespace py = pybind11;
 
-// tuple of unsigned integers
+// --- Index struct -----------------------------------------------------------
+
+/// Tuple of unsigned integers
 struct Index {
     ssize_t y, a;
     Index(ssize_t y, ssize_t a) : y(y), a(a) {}
+
+    /// @brief Check if the index is valid for a given geometry.
+    /// @param nY Size of the longitudinal axis.
+    /// @param nA Size of the lateral axis.
+    /// @return Index is valid or not.
     bool isValid(ssize_t nY, ssize_t nA) {
         return y >= 0 && y < nY && a >= 0 && a < nA;
     }
 };
 
-// Tuple of signed integers.
-// This struct is used for not-resolved-yet indices.
+/// Tuple of signed integers.
+/// This struct is used for not-resolved-yet indices.
 struct SignedIndex {
     ssize_t y, a;
     SignedIndex(ssize_t y, ssize_t a) : y(y), a(a) {}
 };
+
+/// List of source indices.
+/// This class is used to store the indices of the longitudinal and lateral sources.
+/// The lateral source is optional.
+struct Sources {
+    std::pair<ssize_t, ssize_t> lon;  // longitudinal source
+    std::pair<ssize_t, ssize_t> lat;  // lateral source
+
+    Sources() : lon({-1, -1}), lat({-1, -1}) {};  // default constructor
+    Sources(std::pair<ssize_t, ssize_t> _lon) : lon(_lon), lat({-1, -1}) {};
+    Sources(std::pair<ssize_t, ssize_t> _lon, std::pair<ssize_t, ssize_t> _lat) : lon(_lon), lat(_lat) {};
+    
+    /// Check if the source has a lateral contact.
+    bool hasLateral() { return lat.first >= 0; };
+
+    /// Update the longitudinal source.
+    void setValue(std::pair<ssize_t, ssize_t> _lon) {
+        lon = _lon;
+        lat = {-1, -1};
+    };
+
+    /// Update the longitudinal and lateral source.
+    void setValue(std::pair<ssize_t, ssize_t> _lon, std::pair<ssize_t, ssize_t> _lat) {
+        lon = _lon;
+        lat = _lat;
+    };
+};
+
 
 // Class that defines a geometry of a cylinder.
 // A "geometry" defines the connectivity of an assembly of molecules.
@@ -42,6 +77,11 @@ class CylinderGeometry {
         std::vector<Index> getNeighbor(ssize_t, ssize_t);
         std::vector<Index> getNeighbors(std::vector<Index>);
         Index getIndex(ssize_t, ssize_t);
+        ssize_t count() { return nY * nA; };
+        Sources sourceOf(ssize_t y, ssize_t a);
+        Index indexStart();
+        Index indexEnd();
+        ssize_t convertAngular(ssize_t ang);
 
     private:
         ssize_t compress(Index);
@@ -49,6 +89,8 @@ class CylinderGeometry {
         SignedIndex getSignedIndex(ssize_t, ssize_t);
 };
 
+/// @brief Unchecked normalization of the input index considering the rise number.
+/// @return SignedIndex object with the normalized index.
 inline SignedIndex CylinderGeometry::getSignedIndex(ssize_t y, ssize_t a) {
     while (a >= nA) {
         a -= nA;
@@ -61,6 +103,8 @@ inline SignedIndex CylinderGeometry::getSignedIndex(ssize_t y, ssize_t a) {
     return SignedIndex(y, a);
 }
 
+/// @brief Normalize the input index considering the rise number.
+/// @return UnsignedIndex object with the normalized index.
 inline Index CylinderGeometry::getIndex(ssize_t y, ssize_t a) {
     auto idx = getSignedIndex(y, a);
     if (idx.y < 0 || nY <= idx.y) {
@@ -129,6 +173,65 @@ inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<Index> indi
         neighbors.push_back(decompress(neighbor));
     }
     return neighbors;
+}
+
+
+/// @brief Return the indices corresponding to the i-th element of the iterator.
+/// @param y Longitudinal coordinate of which source will be returned.
+/// @param a Angular coordinate of which source will be returned.
+/// @return A tuple of indices (y, a).
+inline Sources CylinderGeometry::sourceOf(ssize_t y, ssize_t a) {
+    if (y <= 1) {
+        // sourceOf must not be called on the first protofilamnet ring.
+        throw py::value_error("y must be greater than 1.");
+    }
+    Sources sources;
+    if (nRise <= 0) {
+        if (a > 0) {
+            sources.setValue({y - 1, a}, {y, a - 1});
+        } else {
+            auto y0 = y - nRise;
+            if (y0 >= 0) {
+                sources.setValue({y - 1, a}, {y0, nA - 1});
+            } else {
+                sources.setValue({y - 1, a});
+            }
+        }
+    } else {
+        if (a < nA - 1) {
+            sources.setValue({y - 1, a}, {y, a + 1});
+        } else {
+            sources.setValue({y - 1, a}, {y + nRise, 0});
+        }
+    }
+    return sources;
+}
+
+/// Return the starting index of Viterbi lattice.
+inline Index CylinderGeometry::indexStart() {
+    if (nRise >= 0) {
+        return Index(0, 0);
+    } else {
+        return Index(0, nA - 1); 
+    }
+}
+
+/// Return the ending index of Viterbi lattice.
+inline Index CylinderGeometry::indexEnd() {
+    if (nRise >= 0) {
+        return Index(nY - 1, nA - 1);
+    } else {
+        return Index(nY - 1, 0);
+    }
+}
+
+/// Reverse angular iteration if nRise is negative.
+inline ssize_t CylinderGeometry::convertAngular(ssize_t ang) {
+    if (nRise >= 0) {
+        return ang;
+    } else {
+        return nA - ang - 1;
+    }
 }
 
 // Compresses the index tuple into a single ssize_t.

@@ -38,27 +38,27 @@ class ViterbiGrid {
 
             // check the input shapes
             if (origin.shape(0) != nmole || origin.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'origin' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(origin.shape(0)) + ", " + std::to_string(origin.shape(1)) + ")."
                 );
             } else if (zvec.shape(0) != nmole || zvec.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'zvec' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(zvec.shape(0)) + ", " + std::to_string(zvec.shape(1)) + ")."
                 );
             } else if (yvec.shape(0) != nmole || yvec.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'yvec' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(yvec.shape(0)) + ", " + std::to_string(yvec.shape(1)) + ")."
                 );
             } else if (xvec.shape(0) != nmole || xvec.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'xvec' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(xvec.shape(0)) + ", " + std::to_string(xvec.shape(1)) + ")."
                 );
             } else if (nmole < 2 || nz < 2 || ny < 2 || nx < 2) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Invalid shape of 'score': (" 
                     + std::to_string(nmole) + ", " + std::to_string(nz) + ", " 
                     + std::to_string(ny) + ", " + std::to_string(nx) + ")."
@@ -80,7 +80,7 @@ class ViterbiGrid {
 
         std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
-        auto ViterbiGrid::prepViterbiLattice();
+        auto prepViterbiLattice();
 };
 
 /// Prepare the Viterbi lattice and initialize the initial states.
@@ -136,13 +136,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 				auto distance2_0 = (coords[t-1].at(z0_d, y0_d, 0.0) - end_point).length2();
 				auto distance2_1 = (coords[t-1].at(z0_d, y0_d, static_cast<double>(nx-1)) - end_point).length2();
 				bool is_0_smaller = distance2_0 < dist_min2;
-				bool is_0_larger = dist_max2 < distance2_0;
 				bool is_1_smaller = distance2_1 < dist_min2;
+				if (is_0_smaller && is_1_smaller) {
+					continue;
+				}
+				bool is_0_larger = dist_max2 < distance2_0;
 				bool is_1_larger = dist_max2 < distance2_1;
-				bool both_smaller = is_0_smaller && is_1_smaller;
-				bool both_larger = is_0_larger && is_1_larger;
-				
-				if (both_smaller || both_larger) {
+				if (is_0_larger && is_1_larger) {
 					continue;
 				}
 
@@ -266,17 +266,18 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 				// performance.
 				auto distance2_0 = (coords[t - 1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
 				auto distance2_1 = (coords[t - 1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
-				bool is_0_smaller = distance2_0 < dist_min2;
-				bool is_0_larger = dist_max2 < distance2_0;
-				bool is_1_smaller = distance2_1 < dist_min2;
-				bool is_1_larger = dist_max2 < distance2_1;
-				auto both_smaller = is_0_smaller && is_1_smaller;
-				auto both_larger = is_0_larger && is_1_larger;
 				
-				if (both_smaller || both_larger) {
+				bool is_0_smaller = distance2_0 < dist_min2;
+				bool is_1_smaller = distance2_1 < dist_min2;
+				if (is_0_smaller && is_1_smaller) {
 					continue;
 				}
-
+				bool is_0_larger = dist_max2 < distance2_0;
+				bool is_1_larger = dist_max2 < distance2_1;
+				if (is_0_larger && is_1_larger) {
+					continue;
+				}
+				
 				for (auto x0 = 0; x0 < nx; ++x0) {
 					auto vec = coords[t-1].at(z0, y0, x0) - end_point;
 					auto a2 = vec.length2();
