@@ -94,6 +94,7 @@ class CylinderGeometry {
         Index getIndex(ssize_t, ssize_t);
         ssize_t count() { return nY * nA; };
         Sources sourceOf(ssize_t y, ssize_t a);
+        Sources backwardSourceOf(ssize_t y, ssize_t a);
         Index indexStart();
         Index indexEnd();
         ssize_t convertAngular(ssize_t ang);
@@ -217,6 +218,33 @@ inline Sources CylinderGeometry::sourceOf(ssize_t y, ssize_t a) {
             sources.setValue({y - 1, a}, {y, a + 1});
         } else {
             sources.setValue({y - 1, a}, {y + nRise, 0});
+        }
+    }
+    return sources;
+}
+
+inline Sources CylinderGeometry::backwardSourceOf(ssize_t y, ssize_t a) {
+    Sources sources;
+    auto ynext = y + 1;
+    if (ynext >= nY) {
+        ynext = -1;
+    }
+    if (nRise <= 0) {
+        if (a < nA - 1) {
+            sources.setValue({ynext, a}, {y, a + 1});
+        } else {
+            auto y0 = y + nRise;
+            if (y0 < nY - 1) {
+                sources.setValue({ynext, a}, {y0, nA - 1});
+            } else {
+                sources.setValue({ynext, a});
+            }
+        }
+    } else {
+        if (a < nA - 1) {
+            sources.setValue({y + 1, a}, {y, a - 1});
+        } else {
+            sources.setValue({y + 1, a}, {y + nRise, 0});
         }
     }
     return sources;

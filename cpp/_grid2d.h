@@ -403,7 +403,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 
 	// find maximum score
 	double max_score = -std::numeric_limits<double>::infinity();
-	auto prev = Vector3D<int>(0, 0, 0);
     auto index_end = geometry.indexEnd();
 	
     for (auto z = 0; z < nz; ++z) {
@@ -412,51 +411,116 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
         auto s = viterbi_lattice(index_end.y, index_end.a, z, y, x);
         if (s > max_score) {
             max_score = s;
-            prev.z = z;
-            prev.y = y;
-            prev.x = x;
         }
     }}}
-
-	state_sequence(index_end.y, index_end.a, 0) = prev.z;
-	state_sequence(index_end.y, index_end.a, 1) = prev.y;
-	state_sequence(index_end.y, index_end.a, 2) = prev.x;
-
 	// backward tracking
     // TODO: consider 2D
     
-	for (auto t0 = naxial - 2; t0 >= 0; --t0) {
+	for (auto t0 = naxial - 1; t0 >= 0; --t0) {
         for (auto s0 = 0; s0 < nang; ++s0) {
             s0 = geometry.convertAngular(s0);
+            auto bsrc = geometry.backwardSourceOf(t0, s0);
             double max = -std::numeric_limits<double>::infinity();
             auto argmax = Vector3D<int>(0, 0, 0);
-            auto point_prev_lon = coords.at(t0 + 1, s0).at(prev.z, prev.y, prev.x);
-            auto point_prev_lat = coords.at(t0, s0 + 1).at(prev.z, prev.y, prev.x);
+            if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
+                auto t1o = bsrc.lon.first;
+                auto s1o = bsrc.lon.second;
+                auto t1a = bsrc.lat.first;
+                auto s1a = bsrc.lat.second;
+                auto zargmaxo = state_sequence(t1o, s1o, 0);
+                auto yargmaxo = state_sequence(t1o, s1o, 1);
+                auto xargmaxo = state_sequence(t1o, s1o, 2);
+                auto zargmaxa = state_sequence(t1a, s1a, 0);
+                auto yargmaxa = state_sequence(t1a, s1a, 1);
+                auto xargmaxa = state_sequence(t1a, s1a, 2);
+                auto point_prev_lon = coords.at(t1o, s1o).at(zargmaxo, yargmaxo, xargmaxo);
+                auto point_prev_lat = coords.at(t1a, s1a).at(zargmaxa, yargmaxa, xargmaxa);
 
-            for (auto z0 = 0; z0 < nz; ++z0) {
-            for (auto y0 = 0; y0 < ny; ++y0) {
-            for (auto x0 = 0; x0 < nx; ++x0) {
-                auto vec = coords.at(t0, s0).at(z0, y0, x0) - point_prev_lon;
-                auto a2 = vec.length2();
+                for (auto z0 = 0; z0 < nz; ++z0) {
+                for (auto y0 = 0; y0 < ny; ++y0) {
+                for (auto x0 = 0; x0 < nx; ++x0) {
+                    auto point0 = coords.at(t0, s0).at(z0, y0, x0);
+                    auto a2_lon = (point0 - point_prev_lon).length2();
 
-                if (a2 < dist_min2 || dist_max2 < a2) {
-                    // check distance.
-                    continue;
-                }
+                    if (a2_lon < dist_min2 || dist_max2 < a2_lon) {
+                        // check distance.
+                        continue;
+                    }
 
+                    auto a2_lat = (point0 - point_prev_lat).length2();
 
+                    if (a2_lat < lat_dist_min2 || lat_dist_max2 < a2_lat) {
+                        // check distance.
+                        continue;
+                    }
+                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
+                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                        argmax = Vector3D<int>(z0, y0, x0);
+                    }
+                }}}
 
-                auto value = viterbi_lattice(t0, z0, y0, x0);
-                if (max < value) {
-                    max = value;
-                    argmax = Vector3D<int>(z0, y0, x0);
-                }
-            }}}
-            
-            prev = argmax;
-            state_sequence(t0, 0) = prev.z;
-            state_sequence(t0, 1) = prev.y;
-            state_sequence(t0, 2) = prev.x;
+            } else if (bsrc.hasLongitudinal()) {
+                auto t1 = bsrc.lon.first;
+                auto s1 = bsrc.lon.second;
+                auto zargmax = state_sequence(t1, s1, 0);
+                auto yargmax = state_sequence(t1, s1, 1);
+                auto xargmax = state_sequence(t1, s1, 2);
+                auto point_prev_lon = coords.at(t1, s1).at(zargmax, yargmax, xargmax);
+
+                for (auto z0 = 0; z0 < nz; ++z0) {
+                for (auto y0 = 0; y0 < ny; ++y0) {
+                for (auto x0 = 0; x0 < nx; ++x0) {
+                    auto vec = coords.at(t0, s0).at(z0, y0, x0) - point_prev_lon;
+                    auto a2 = vec.length2();
+
+                    if (a2 < dist_min2 || dist_max2 < a2) {
+                        // check distance.
+                        continue;
+                    }
+                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
+                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                        argmax = Vector3D<int>(z0, y0, x0);
+                    }
+                }}}
+            } else if (bsrc.hasLateral()) {
+                auto t1 = bsrc.lat.first;
+                auto s1 = bsrc.lat.second;
+                auto zargmax = state_sequence(t1, s1, 0);
+                auto yargmax = state_sequence(t1, s1, 1);
+                auto xargmax = state_sequence(t1, s1, 2);
+                auto point_prev_lat = coords.at(t1, s1).at(zargmax, yargmax, xargmax);
+
+                for (auto z0 = 0; z0 < nz; ++z0) {
+                for (auto y0 = 0; y0 < ny; ++y0) {
+                for (auto x0 = 0; x0 < nx; ++x0) {
+                    auto vec = coords.at(t0, s0).at(z0, y0, x0) - point_prev_lat;
+                    auto a2 = vec.length2();
+
+                    if (a2 < lat_dist_min2 || lat_dist_max2 < a2) {
+                        // check distance.
+                        continue;
+                    }
+                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
+                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                        argmax = Vector3D<int>(z0, y0, x0);
+                    }
+                }}}
+
+            } else {
+                for (auto z0 = 0; z0 < nz; ++z0) {
+                for (auto y0 = 0; y0 < ny; ++y0) {
+                for (auto x0 = 0; x0 < nx; ++x0) {
+                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
+                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                        argmax = Vector3D<int>(z0, y0, x0);
+                    }
+                }}}
+                max_score = max;
+            }
+
+            state_sequence(t0, s0, 0) = argmax.z;
+            state_sequence(t0, s0, 1) = argmax.y;
+            state_sequence(t0, s0, 2) = argmax.x;
 	    }
     }
 
