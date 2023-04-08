@@ -124,6 +124,12 @@ auto ViterbiGrid2D::prepViterbiLattice() {
 }
 
 
+/// @brief 2D, distance-constrained Viterbi alignment on a cylindric grid.
+/// @param dist_min Minimum distance between two longitudinally consecutive molecules.
+/// @param dist_max Maximum distance between two longitudinally consecutive molecules.
+/// @param lat_dist_min Minimum distance between two latitudinally consecutive molecules.
+/// @param lat_dist_max Maximum distance between two latitudinally consecutive molecules.
+/// @return {state_sequence, score} State sequence and the score of the optimal path.
 std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 	double dist_min,  // NOTE: upsample factor must be considered
 	double dist_max,
@@ -401,21 +407,10 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
         }  // end of s1
     }  // end of t1
 
-	// find maximum score
 	double max_score = -std::numeric_limits<double>::infinity();
     auto index_end = geometry.indexEnd();
-	
-    for (auto z = 0; z < nz; ++z) {
-    for (auto y = 0; y < ny; ++y) {
-    for (auto x = 0; x < nx; ++x) {
-        auto s = viterbi_lattice(index_end.y, index_end.a, z, y, x);
-        if (s > max_score) {
-            max_score = s;
-        }
-    }}}
-	// backward tracking
-    // TODO: consider 2D
-    
+
+    // backward tracking    
 	for (auto t0 = naxial - 1; t0 >= 0; --t0) {
         for (auto s0 = 0; s0 < nang; ++s0) {
             s0 = geometry.convertAngular(s0);
@@ -423,6 +418,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
             double max = -std::numeric_limits<double>::infinity();
             auto argmax = Vector3D<int>(0, 0, 0);
             if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
+                // Find the maximum position with the constraint of the distance from
+                // the backward sources.
                 auto t1o = bsrc.lon.first;
                 auto s1o = bsrc.lon.second;
                 auto t1a = bsrc.lat.first;
@@ -482,6 +479,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         argmax = Vector3D<int>(z0, y0, x0);
                     }
                 }}}
+
             } else if (bsrc.hasLateral()) {
                 auto t1 = bsrc.lat.first;
                 auto s1 = bsrc.lat.second;
