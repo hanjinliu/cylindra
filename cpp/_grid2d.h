@@ -250,7 +250,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                 max = std::max(
                                     max,
                                     viterbi_lattice(t0o, s0o, z0o, y0o, x0o)
-                                     + viterbi_lattice(t0a, s0a, z0a, y0a, x0a)  // TODO: add??
+                                    + viterbi_lattice(t0a, s0a, z0a, y0a, x0a)  // TODO: add??
                                 );
                             }}}}  // end of x0o, y0a, z0a, z0o
                         }

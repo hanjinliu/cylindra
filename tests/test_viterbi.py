@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_equal
 from cylindra.components import CylSpline, CylinderModel
 
 def test_viterbi_1d():
@@ -53,12 +53,21 @@ def test_viterbi_2d():
     xvec = mole.x.reshape(4, 3, -1)
     origin = mole.pos.reshape(4, 3, -1)
 
-    for i, j in [(0, 0), (0, 1), (1, 0), (1, 1), (2, 1), (2, 2)]:
-        score[i, j, 0, 0, 0] = 1.0
-    score[0, 2, 1, 2, 1] = 1.0
-    score[1, 2, 4, 4, 4] = 1.0
-    score[2, 2, 2, 2, 2] = 1.0
-    score[3, 2, 1, 1, 1] = 1.0
+    for i in range(4):
+        for j in range(3):
+            if i != 1:
+                score[i, j, 1, 2, 1] = 1.0
+            else:
+                score[i, j, 4, 4, 4] = 1.0
 
     grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, 2)
-    states, z = grid.viterbi(0.8, 2, 0.8, 2)
+    states, z = grid.viterbi(0.0, 10000.0, 0.0, 10000.0)
+
+    answer = np.zeros((4, 3, 3))
+    for i in range(4):
+        for j in range(3):
+            if i != 1:
+                answer[i, j, :] = [1, 2, 1]
+            else:
+                answer[i, j, :] = [4, 4, 4]
+    assert_equal(states, answer)
