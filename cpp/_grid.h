@@ -81,6 +81,10 @@ class ViterbiGrid {
         std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
         auto prepViterbiLattice();
+		std::string pyRepr() {
+			return "ViterbiGrid(nmole=" + std::to_string(nmole) + ", nz=" + std::to_string(nz)
+				+ ", ny=" + std::to_string(ny) + ", nx=" + std::to_string(nx) + ")";
+		}
 };
 
 /// Prepare the Viterbi lattice and initialize the initial states.

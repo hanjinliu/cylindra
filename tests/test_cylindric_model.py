@@ -2,6 +2,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 import pytest
 from cylindra.components import CylinderModel, Spline, indexer as Idx
+from cylindra._cpp_ext import CylinderGeometry
 
 def test_cylindric_model_construction():
     # Test the constructor
@@ -90,3 +91,59 @@ def test_alleviate_works(idx):
 
     model.alleviate(shifted, 1)
     model.alleviate(shifted, 2)
+
+@pytest.mark.parametrize(
+    ["nrise", "index", "source"],
+    [(3, (0, 0), []),
+     (3, (0, 3), [(-1, -1), (0, 2)]),
+     (3, (1, 0), [(0, 0)]),
+     (3, (2, 0), [(1, 0)]),
+     (3, (3, 0), [(2, 0), (0, 4)]),
+     (3, (5, 2), [(4, 2), (5, 1)]),
+     (3, (9, 4), [(8, 4), (9, 3)]),
+     (-3, (0, 0), [(-1, -1), (0, 1)]),
+     (-3, (0, 4), []),
+     (-3, (1, 4), [(0, 4)]),
+     (-3, (2, 4), [(1, 4)]),
+     (-3, (3, 4), [(2, 4), (0, 0)]),
+     (-3, (5, 2), [(4, 2), (5, 3)]),
+     (-3, (9, 0), [(8, 0), (9, 1)]),
+     ]
+)
+def test_cylinder_source_forward(
+    nrise: int,
+    index: tuple[int, int],
+    source: list[tuple[int, int]],
+):
+    geometry = CylinderGeometry(10, 5, nrise)
+    assert geometry.source_forward(*index) == source
+
+
+@pytest.mark.parametrize(
+    ["nrise", "index", "source"],
+    [(3, (0, 0), [(1, 0), (0, 1)]),
+     (3, (3, 4), [(4, 4), (6, 0)]),
+     (3, (5, 2), [(6, 2), (5, 3)]),
+     (3, (9, 4), []),
+     (3, (9, 3), [(-1, -1), (9, 4)]),
+     (3, (8, 4), [(9, 4)]),
+     (3, (7, 4), [(8, 4)]),
+     (3, (6, 4), [(7, 4), (9, 0)]),
+     (-3, (0, 0), [(1, 0), (3, 4)]),
+     (-3, (3, 4), [(4, 4), (3, 3)]),
+     (-3, (5, 2), [(6, 2), (5, 1)]),
+     (-3, (9, 0), []),
+     (-3, (9, 1), [(-1, -1), (9, 0)]),
+     (-3, (8, 0), [(9, 0)]),
+     (-3, (7, 0), [(8, 0)]),
+     (-3, (6, 0), [(7, 0), (9, 4)]),
+     ]
+)
+def test_cylinder_source_backward(
+    nrise: int,
+    index: tuple[int, int],
+    source: list[tuple[int, int]],
+):
+    geometry = CylinderGeometry(10, 5, nrise)
+    assert geometry.source_backward(*index) == source
+

@@ -100,7 +100,12 @@ class ViterbiGrid2D {
         auto getGeometry() {
             CylinderGeometry geometry(naxial, nang, nrise);
             return geometry;
-        }
+        };
+        std::string pyRepr() {
+			return "ViterbiGrid(naxial=" + std::to_string(naxial) + ", nang=" + std::to_string(nang)
+                + ", nz=" + std::to_string(nz) + ", ny=" + std::to_string(ny)
+                + ", nx=" + std::to_string(nx) + ")";
+		};
 };
 
 /// Prepare the Viterbi lattice and initialize the initial states.
@@ -151,9 +156,9 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 
 	// forward
 	for (auto t1 = 0; t1 < naxial; ++t1) {
-        for (auto s1 = 0; s1 < nang; ++s1) {
-            s1 = geometry.convertAngular(s1);
-            auto sources = geometry.sourceOf(t1, s1);
+        for (auto _s1 = 0; _s1 < nang; ++_s1) {
+            auto s1 = geometry.convertAngular(_s1);
+            auto sources = geometry.sourceForward(t1, s1);
 
             if (sources.hasLateral() && sources.hasLongitudinal()) {
                 // If (t1, s1) has both longitudinal and lateral sources, then we have to check
@@ -226,18 +231,18 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             for (auto z0a = 0; z0a < nz; ++z0a) {
                             for (auto y0a = 0; y0a < ny; ++y0a) {
                             for (auto x0o = 0; x0o < nx; ++x0o) {
-                                auto vec = coords.at(t0o, s0o).at(z0o, y0o, x0o) - end_point;
-                                auto a2 = vec.length2();
+                                auto vec_o = coords.at(t0o, s0o).at(z0o, y0o, x0o) - end_point;
+                                auto a2o = vec_o.length2();
 
-                                if (a2 < dist_min2 || dist_max2 < a2) {
+                                if (a2o < dist_min2 || dist_max2 < a2o) {
                                     // check distance between two points
                                     continue;
                                 }
                                 
-                                auto vec = coords.at(t0a, s0a).at(z0a, y0a, x0a) - end_point;
-                                auto a2 = vec.length2();
+                                auto vec_a = coords.at(t0a, s0a).at(z0a, y0a, x0a) - end_point;
+                                auto a2a = vec_a.length2();
 
-                                if (a2 < lat_dist_min2 || lat_dist_max2 < a2) {
+                                if (a2a < lat_dist_min2 || lat_dist_max2 < a2a) {
                                     // check distance between two points
                                     continue;
                                 }
@@ -392,7 +397,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                     }
                 
                     auto next_score = score.data(t1, s1, z1, y1, x1);
-                    viterbi_lattice(t1, z1, y1, x1) = max + *next_score;
+                    viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
             } else {
                 // No source. Just copy the score.
@@ -412,9 +417,9 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 
     // backward tracking    
 	for (auto t0 = naxial - 1; t0 >= 0; --t0) {
-        for (auto s0 = 0; s0 < nang; ++s0) {
-            s0 = geometry.convertAngular(s0);
-            auto bsrc = geometry.backwardSourceOf(t0, s0);
+        for (auto _s0 = 0; _s0 < nang; ++_s0) {
+            auto s0 = geometry.convertAngular(_s0);
+            auto bsrc = geometry.sourceBackward(t0, s0);
             double max = -std::numeric_limits<double>::infinity();
             auto argmax = Vector3D<int>(0, 0, 0);
             if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
