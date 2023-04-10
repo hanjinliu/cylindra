@@ -168,8 +168,7 @@ inline SignedIndex CylinderGeometry::getSignedIndex(ssize_t y, ssize_t a) {
 inline Index CylinderGeometry::getIndex(ssize_t y, ssize_t a) {
     auto idx = getSignedIndex(y, a);
     if (idx.y < 0 || nY <= idx.y) {
-        char msg[64];
-        sprintf(msg, "Index (%lld, %lld) out of bounds.", idx.y, idx.a);
+        auto msg = "Index (" + std::to_string(idx.y) + ", " + std::to_string(idx.a) + ") out of bounds.";
         throw py::index_error(msg);
     }
     return Index(idx.y, idx.a);
