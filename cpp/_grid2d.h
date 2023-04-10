@@ -40,16 +40,16 @@ class Coords2DGrid {
 /// This class contains the score landscape, coordinate systems and the shape.
 class ViterbiGrid2D {
     public:
-        py::array_t<double> score; // A 5D array, where score_array[ny, na, z, y, x] is the score of the (ny, na) molecule at the grid point (z, y, x).
+        py::array_t<float> score; // A 5D array, where score_array[ny, na, z, y, x] is the score of the (ny, na) molecule at the grid point (z, y, x).
         Coords2DGrid coords;  // coordinate system of each molecule
         ssize_t naxial, nang, nz, ny, nx;  // number of molecules, number of grid points in z, y, x directions
         ssize_t nrise;
         ViterbiGrid2D (
-            py::array_t<double> &score_array,
-            py::array_t<double> &origin,
-            py::array_t<double> &zvec,
-            py::array_t<double> &yvec,
-            py::array_t<double> &xvec,
+            py::array_t<float> &score_array,
+            py::array_t<float> &origin,
+            py::array_t<float> &zvec,
+            py::array_t<float> &yvec,
+            py::array_t<float> &xvec,
             ssize_t n_rise
         ) {
             score = score_array;

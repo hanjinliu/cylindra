@@ -14,16 +14,16 @@ using ssize_t = Py_ssize_t;
 /// This class contains the score landscape, coordinate systems and the shape.
 class ViterbiGrid {
     public:
-        py::array_t<double> score; // A 4D array, where score_array[n, z, y, x] is the score of the n-th molecule at the grid point (z, y, x).
+        py::array_t<float> score; // A 4D array, where score_array[n, z, y, x] is the score of the n-th molecule at the grid point (z, y, x).
         CoordinateSystem<double>* coords;  // coordinate system of each molecule
         ssize_t nmole, nz, ny, nx;  // number of molecules, number of grid points in z, y, x directions
 
         ViterbiGrid (
-            py::array_t<double> &score_array,
-            py::array_t<double> &origin,
-            py::array_t<double> &zvec,
-            py::array_t<double> &yvec,
-            py::array_t<double> &xvec
+            py::array_t<float> &score_array,
+            py::array_t<float> &origin,
+            py::array_t<float> &zvec,
+            py::array_t<float> &yvec,
+            py::array_t<float> &xvec
         ) {
             score = score_array;
 

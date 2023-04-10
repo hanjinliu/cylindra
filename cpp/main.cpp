@@ -17,13 +17,13 @@ PYBIND11_MODULE(_cpp_ext, m) {
   	m.def("alleviate", &alleviate, "Alleviate coordinates on a cylindric grid.");
 
     py::class_<ViterbiGrid>(m, "ViterbiGrid")
-        .def(py::init<py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>>())
+        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>>())
         .def("viterbi", py::overload_cast<double, double>(&ViterbiGrid::viterbi))
         .def("viterbi", py::overload_cast<double, double, double>(&ViterbiGrid::viterbi))
         .def("__repr__", &ViterbiGrid::pyRepr);
     
     py::class_<ViterbiGrid2D>(m, "ViterbiGrid2D")
-        .def(py::init<py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>, ssize_t>())
+        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>())
         .def("viterbi", &ViterbiGrid2D::viterbi)
         .def("__repr__", &ViterbiGrid2D::pyRepr);
     
