@@ -11,13 +11,16 @@
 namespace py = pybind11;
 using ssize_t = Py_ssize_t;
 
+/// A 2D array of CoordinateSystem objects.
+/// Pointer of pointers cannot be safely handled by C++. This class mimics the
+/// 2D get-item operations on a flattened array.
 class Coords2DGrid {
     public:
         CoordinateSystem<double>* coords;  // flattened coordinate system array
         ssize_t naxial, nang;
         CoordinateSystem<double> at(ssize_t y, ssize_t a) {
             if (y < 0 || y >= naxial || a < 0 || a >= nang) {
-                // TODO: remove this later. Should be unchecked.
+                // TODO: remove this in the future. Should be unchecked.
                 auto msg = "Index out of range. Grid shape is (y=" + std::to_string(naxial)
                     + ", a=" + std::to_string(nang) + "but accessed at y = "
                     + std::to_string(y) + ", a = " + std::to_string(a);
