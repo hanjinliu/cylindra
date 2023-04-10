@@ -113,18 +113,8 @@ class ViterbiGrid2D {
 auto ViterbiGrid2D::prepViterbiLattice() {
     auto viterbi_lattice_ = py::array_t<double>{{naxial, nang, nz, ny, nx}};
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<5>();
-
-	// initialization at the start position
-    auto geometry = getGeometry();
-    auto idx = geometry.indexStart();
-    for (auto z = 0; z < nz; ++z) {
-        for (auto y = 0; y < ny; ++y) {
-            for (auto x = 0; x < nx; ++x) {
-                viterbi_lattice(idx.y, idx.a, z, y, x) = *score.data(idx.y, idx.a, z, y, x);
-            }
-        }
-    }
-
+    // For 2D grid, scores of the initial position will be initialized during the
+    // for-loop in the `viterbi` method.
     return viterbi_lattice;
 }
 
@@ -142,6 +132,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
     double lat_dist_max
 )
 {
+    #pragma warning(push)
+    #pragma warning(disable:4244)
 	auto dist_min2 = dist_min * dist_min;
 	auto dist_max2 = dist_max * dist_max;
     auto lat_dist_min2 = lat_dist_min * lat_dist_min;
@@ -181,14 +173,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
                         // shorter than dist_min, then any point in the plane is invalid, considering
                         // the convexity of the shell-range created by [dist_min, dist_max].
-                        #pragma warning(push)
-                        #pragma warning(disable:4244)
                         auto point_0y0 = coords.at(t0o, s0o).at(0.0, y0o, 0.0);
                         auto dist2_00 = (point_0y0 - end_point).length2();
                         auto dist2_01 = (coords.at(t0o, s0o).at(0.0, y0o, nx-1) - end_point).length2();
                         auto dist2_10 = (coords.at(t0o, s0o).at(nz-1, y0o, 0.0) - end_point).length2();
                         auto dist2_11 = (coords.at(t0o, s0o).at(nz-1, y0o, nx-1) - end_point).length2();
-                        #pragma warning(pop)
                         if (
                             dist2_00 < dist_min2 
                             && dist2_01 < dist_min2 
@@ -526,7 +515,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
             state_sequence(t0, s0, 2) = argmax.x;
 	    }
     }
-
+    #pragma warning(pop)
 	return {state_sequence_, max_score};
 }
 
