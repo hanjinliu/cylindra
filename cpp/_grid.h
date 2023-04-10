@@ -38,27 +38,27 @@ class ViterbiGrid {
 
             // check the input shapes
             if (origin.shape(0) != nmole || origin.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'origin' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(origin.shape(0)) + ", " + std::to_string(origin.shape(1)) + ")."
                 );
             } else if (zvec.shape(0) != nmole || zvec.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'zvec' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(zvec.shape(0)) + ", " + std::to_string(zvec.shape(1)) + ")."
                 );
             } else if (yvec.shape(0) != nmole || yvec.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'yvec' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(yvec.shape(0)) + ", " + std::to_string(yvec.shape(1)) + ")."
                 );
             } else if (xvec.shape(0) != nmole || xvec.shape(1) != 3) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Shape of 'xvec' must be (" + std::to_string(nmole) + ", 3) "
                     "but got (" + std::to_string(xvec.shape(0)) + ", " + std::to_string(xvec.shape(1)) + ")."
                 );
             } else if (nmole < 2 || nz < 2 || ny < 2 || nx < 2) {
-                throw std::invalid_argument(
+                throw py::value_error(
                     "Invalid shape of 'score': (" 
                     + std::to_string(nmole) + ", " + std::to_string(nz) + ", " 
                     + std::to_string(ny) + ", " + std::to_string(nx) + ")."
@@ -80,7 +80,11 @@ class ViterbiGrid {
 
         std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
-        auto ViterbiGrid::prepViterbiLattice();
+        auto prepViterbiLattice();
+		std::string pyRepr() {
+			return "ViterbiGrid(nmole=" + std::to_string(nmole) + ", nz=" + std::to_string(nz)
+				+ ", ny=" + std::to_string(ny) + ", nx=" + std::to_string(nx) + ")";
+		}
 };
 
 /// Prepare the Viterbi lattice and initialize the initial states.
@@ -112,6 +116,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	auto state_sequence_ = py::array_t<ssize_t>{{nmole, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<2>();
 	auto viterbi_lattice = prepViterbiLattice();
+	int n_calculated = 0;
 
 	py::gil_scoped_release nogil;  // without GIL
 
@@ -122,62 +127,45 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
-			bool neighbor_found = false;
 			auto end_point = coords[t].at(z1, y1, x1);
 			// iterate over all the start points
-			for (auto z0 = 0; z0 < nz; ++z0) {
 			for (auto y0 = 0; y0 < nx; ++y0) {
-				// If distances are not in the range of [dist_min, dist_max] at the edges,
-				// i.e., x=0 and x=nx-1, then other points are not in the range either.
-				// Since valid range of distance is relatively small, this check largely
-				// improves performance.
-				double z0_d = static_cast<double>(z0);
-				double y0_d = static_cast<double>(y0);
-				auto distance2_0 = (coords[t-1].at(z0_d, y0_d, 0.0) - end_point).length2();
-				auto distance2_1 = (coords[t-1].at(z0_d, y0_d, static_cast<double>(nx-1)) - end_point).length2();
-				bool is_0_smaller = distance2_0 < dist_min2;
-				bool is_0_larger = dist_max2 < distance2_0;
-				bool is_1_smaller = distance2_1 < dist_min2;
-				bool is_1_larger = dist_max2 < distance2_1;
-				bool both_smaller = is_0_smaller && is_1_smaller;
-				bool both_larger = is_0_larger && is_1_larger;
-				
-				if (both_smaller || both_larger) {
+				// If the length from point (x1, y1, z1) to the four corners at y=y0 is all
+				// shorter than dist_min, then any point in the plane is invalid, considering
+				// the convexity of the shell-range created by [dist_min, dist_max].
+				#pragma warning(push)
+				#pragma warning(disable:4244)
+				auto point_0y0 = coords[t-1].at(0.0, y0, 0.0);
+				auto dist2_00 = (point_0y0 - end_point).length2();
+				auto dist2_01 = (coords[t-1].at(0.0, y0, nx-1) - end_point).length2();
+				auto dist2_10 = (coords[t-1].at(nz-1, y0, 0.0) - end_point).length2();
+				auto dist2_11 = (coords[t-1].at(nz-1, y0, nx-1) - end_point).length2();
+				#pragma warning(pop)
+				if (
+					dist2_00 < dist_min2 
+					&& dist2_01 < dist_min2 
+					&& dist2_10 < dist_min2 
+					&& dist2_11 < dist_min2
+				) {
 					continue;
 				}
 
-				if (!is_0_smaller && !is_0_larger) {
-					if (!is_1_smaller && !is_1_larger) {
-						max = std::max(
-							{
-								max, 
-								viterbi_lattice(t - 1, z0, y0, 0), 
-								viterbi_lattice(t - 1, z0, y0, nx-1)
-							}
-						);
-					}
-					else {
-						max = std::max(max, viterbi_lattice(t - 1, z0, y0, 0));
-					}
-					neighbor_found = true;
-				}
-				else if (!is_1_smaller && !is_1_larger) {
-					max = std::max(max, viterbi_lattice(t - 1, z0, y0, nx-1));
-					neighbor_found = true;
+				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
+				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
+				// is invalid.
+				if (point_0y0.pointToPlaneDistance(coords[t-1].ey, end_point) > dist_max) {
+					continue;  // break?
 				}
 
-				for (auto x0 = 1; x0 < nx-1; ++x0) {
+				// Calculate distances from all the possible start points.
+				for (auto z0 = 0; z0 < nz; ++z0) {
+				for (auto x0 = 0; x0 < nx; ++x0) {
 					auto distance2 = (coords[t-1].at(z0, y0, x0) - end_point).length2();
 					if (distance2 < dist_min2 || dist_max2 < distance2) {
 						continue;
 					}
-					neighbor_found = true;
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
-				}
-			}}
-			
-			if (!neighbor_found) {
-				viterbi_lattice(t, z1, y1, x1) = -std::numeric_limits<double>::infinity();
+				}}
 			}
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
@@ -256,36 +244,45 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<double>::infinity();
-			bool neighbor_found = false;
 			auto end_point = coords[t].at(z1, y1, x1);
-			for (auto z0 = 0; z0 < nz; ++z0) {
+			// iterate over all the start points
 			for (auto y0 = 0; y0 < nx; ++y0) {
-				// If distances are not in the range of [dist_min, dist_max] at the edges, i.e., 
-				// x=0 and x=nx-1, then other points are not in the range either.
-				// Since valid range of distance is relatively small, this check largely improves
-				// performance.
-				auto distance2_0 = (coords[t - 1].at(static_cast<double>(z0), static_cast<double>(y0), 0.0) - end_point).length2();
-				auto distance2_1 = (coords[t - 1].at(static_cast<double>(z0), static_cast<double>(y0), static_cast<double>(nx-1)) - end_point).length2();
-				bool is_0_smaller = distance2_0 < dist_min2;
-				bool is_0_larger = dist_max2 < distance2_0;
-				bool is_1_smaller = distance2_1 < dist_min2;
-				bool is_1_larger = dist_max2 < distance2_1;
-				auto both_smaller = is_0_smaller && is_1_smaller;
-				auto both_larger = is_0_larger && is_1_larger;
-				
-				if (both_smaller || both_larger) {
+				// If the length from point (x1, y1, z1) to the four corners at y=y0 is all
+				// shorter than dist_min, then any point in the plane is invalid, considering
+				// the convexity of the shell-range created by [dist_min, dist_max].
+				#pragma warning(push)
+				#pragma warning(disable:4244)
+				auto point_0y0 = coords[t-1].at(0.0, y0, 0.0);
+				auto dist2_00 = (point_0y0 - end_point).length2();
+				auto dist2_01 = (coords[t-1].at(0.0, y0, nx-1) - end_point).length2();
+				auto dist2_10 = (coords[t-1].at(nz-1, y0, 0.0) - end_point).length2();
+				auto dist2_11 = (coords[t-1].at(nz-1, y0, nx-1) - end_point).length2();
+				#pragma warning(pop)
+				if (
+					dist2_00 < dist_min2 
+					&& dist2_01 < dist_min2 
+					&& dist2_10 < dist_min2 
+					&& dist2_11 < dist_min2
+				) {
 					continue;
 				}
 
+				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
+				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
+				// is invalid.
+				if (point_0y0.pointToPlaneDistance(coords[t-1].ey, end_point) > dist_max) {
+					continue;  // break?
+				}
+
+				// Calculate distances from all the possible start points.
+				for (auto z0 = 0; z0 < nz; ++z0) {
 				for (auto x0 = 0; x0 < nx; ++x0) {
 					auto vec = coords[t-1].at(z0, y0, x0) - end_point;
 					auto a2 = vec.length2();
-
+					
 					if (a2 < dist_min2 || dist_max2 < a2) {
-						// check distance between two points
 						continue;
 					}
-
 					// Use formula: a.dot(b) = |a|*|b|*cos(C)
 					auto ab = std::sqrt(a2 * b2);
 					auto cos = vec.dot(origin_vector) / ab;
@@ -295,14 +292,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 						// points of interests. Smaller cosine means larger skew.
 						continue;
 					}
-
-					neighbor_found = true;
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
-				}
-			}}
-			
-			if (!neighbor_found) {
-				viterbi_lattice(t, z1, y1, x1) = -std::numeric_limits<double>::infinity();
+				}}
 			}
 			auto next_score = score.data(t, z1, y1, x1);
 			viterbi_lattice(t, z1, y1, x1) = max + *next_score;
