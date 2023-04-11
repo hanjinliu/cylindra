@@ -120,7 +120,24 @@ class CylinderModel:
     
     @property
     def nrise(self) -> int:
+        """
+        Rise number of the model.
+        
+        Molecule at (Y, self.shape[1]) is same as (Y - nrise, 0).
+        """
         return int(np.round(self.tilts[1] * self.shape[1]))
+    
+    @property
+    def distance_longitudinal(self) -> float:
+        ...
+        
+    @property
+    def distance_lateral(self) -> float:
+        dy, da = self.intervals
+        tan0, tan1 = self.tilts
+        
+        v1 = np.array([tan1, 1], dtype=np.float32)
+        
     
     def __repr__(self) -> str:
         _cls = type(self).__name__

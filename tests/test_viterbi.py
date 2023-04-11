@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.testing import assert_equal
+import pytest
 from cylindra.components import CylSpline, CylinderModel
 
 def test_viterbi_1d():
@@ -41,7 +42,8 @@ def test_viterbi_1d():
     )
     assert z == 9.0
 
-def test_viterbi_2d():
+@pytest.mark.parametrize("nrise", [2, -2])
+def test_viterbi_2d(nrise: int):
     from cylindra._cpp_ext import ViterbiGrid2D
 
     score = np.zeros((4, 3, 5, 5, 5))
@@ -60,7 +62,7 @@ def test_viterbi_2d():
             else:
                 score[i, j, 4, 4, 4] = 1.0
 
-    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, 2)
+    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
     states, z = grid.viterbi(0.0, 10000.0, 0.0, 10000.0)
 
     answer = np.zeros((4, 3, 3))
