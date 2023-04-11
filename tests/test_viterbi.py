@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_allclose, assert_equal
+from numpy.testing import assert_equal
 from cylindra.components import CylSpline, CylinderModel
 
 def test_viterbi_1d():
@@ -18,7 +18,7 @@ def test_viterbi_1d():
 
     grid = ViterbiGrid(score, origin, zvec, yvec, xvec)
     states, z = grid.viterbi(0., 10000.)
-    assert_allclose(
+    assert_equal(
         states, 
         np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
                   [0, 0, 0], [0, 0, 0], [4, 4, 4], [0, 0, 0], [0, 0, 0]])
@@ -26,7 +26,7 @@ def test_viterbi_1d():
     assert z == 10.0
     
     states, z = grid.viterbi(2*np.sqrt(3), 10000)
-    assert_allclose(
+    assert_equal(
         states, 
         np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
                   [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
@@ -34,7 +34,7 @@ def test_viterbi_1d():
     assert z == 9.0
 
     states, z = grid.viterbi(0., 7*np.sqrt(3))
-    assert_allclose(
+    assert_equal(
         states, 
         np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
                   [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])

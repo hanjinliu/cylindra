@@ -67,43 +67,27 @@ class ViterbiGrid {
 
             // Allocation of arrays of coordinate system.
             // Offsets and orientations of local coordinates of score landscape are well-defined by this.
-            coords = new CoordinateSystem<double>[nmole];
+            auto _coords = new CoordinateSystem<double>[nmole];
             
             for (auto t = 0; t < nmole; ++t) {
                 auto _ori = Vector3D<double>(*origin.data(t, 0), *origin.data(t, 1), *origin.data(t, 2));
                 auto _ez = Vector3D<double>(*zvec.data(t, 0), *zvec.data(t, 1), *zvec.data(t, 2));
                 auto _ey = Vector3D<double>(*yvec.data(t, 0), *yvec.data(t, 1), *yvec.data(t, 2));
                 auto _ex = Vector3D<double>(*xvec.data(t, 0), *xvec.data(t, 1), *xvec.data(t, 2));
-                coords[t].update(_ori, _ez, _ey, _ex);
+                _coords[t].update(_ori, _ez, _ey, _ex);
             }
+
+			coords = _coords;
         };
 
         std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
-        auto prepViterbiLattice();
 		std::string pyRepr() {
 			return "ViterbiGrid(nmole=" + std::to_string(nmole) + ", nz=" + std::to_string(nz)
 				+ ", ny=" + std::to_string(ny) + ", nx=" + std::to_string(nx) + ")";
 		}
 };
-
-/// Prepare the Viterbi lattice and initialize the initial states.
-/// Return the mutable reference of the Viterbi lattice.
-auto ViterbiGrid::prepViterbiLattice() {
-    auto viterbi_lattice_ = py::array_t<double>{{nmole, nz, ny, nx}};
-	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
-
-	// initialization at t = 0
-	for (auto z = 0; z < nz; ++z) {
-        for (auto y = 0; y < ny; ++y) {
-            for (auto x = 0; x < nx; ++x) {
-                viterbi_lattice(0, z, y, x) = *score.data(0, z, y, x);
-            }
-        }
-    }
-    return viterbi_lattice;
-}
 
 std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	double dist_min,  // NOTE: upsample factor must be considered
@@ -119,8 +103,19 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{nmole, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<2>();
-	auto viterbi_lattice = prepViterbiLattice();
-	int n_calculated = 0;
+	
+	// Prepare the Viterbi lattice and initialize the initial states.
+	auto viterbi_lattice_ = py::array_t<float>{{nmole, nz, ny, nx}};
+	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
+
+	// initialization at t = 0
+	for (auto z = 0; z < nz; ++z) {
+        for (auto y = 0; y < ny; ++y) {
+            for (auto x = 0; x < nx; ++x) {
+                viterbi_lattice(0, z, y, x) = *score.data(0, z, y, x);
+            }
+        }
+    }
 
 	py::gil_scoped_release nogil;  // without GIL
 
@@ -130,7 +125,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 		for (auto z1 = 0; z1 < nz; ++z1) {
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
-			auto max = -std::numeric_limits<double>::infinity();
+			auto max = -std::numeric_limits<float>::infinity();
 			auto end_point = coords[t].at(z1, y1, x1);
 			// iterate over all the start points
 			for (auto y0 = 0; y0 < nx; ++y0) {
@@ -214,7 +209,6 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 				argmax = Vector3D<int>(z0, y0, x0);
 			}
 		}}}
-		
 		prev = argmax;
 		state_sequence(t, 0) = prev.z;
 		state_sequence(t, 1) = prev.y;
@@ -250,7 +244,20 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{nmole, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<2>();
-	auto viterbi_lattice = prepViterbiLattice();
+	
+	// Prepare the Viterbi lattice and initialize the initial states.
+	auto viterbi_lattice_ = py::array_t<float>{{nmole, nz, ny, nx}};
+	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
+
+	// initialization at t = 0
+	for (auto z = 0; z < nz; ++z) {
+        for (auto y = 0; y < ny; ++y) {
+            for (auto x = 0; x < nx; ++x) {
+                viterbi_lattice(0, z, y, x) = *score.data(0, z, y, x);
+            }
+        }
+    }
+
 	py::gil_scoped_release nogil;  // without GIL
 
 	// forward
@@ -260,7 +267,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 		for (auto z1 = 0; z1 < nz; ++z1) {
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
-			auto max = -std::numeric_limits<double>::infinity();
+			auto max = -std::numeric_limits<float>::infinity();
 			auto end_point = coords[t].at(z1, y1, x1);
 			// iterate over all the start points
 			for (auto y0 = 0; y0 < nx; ++y0) {

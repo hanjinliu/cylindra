@@ -104,7 +104,8 @@ class ViterbiGrid2D {
             double lat_dist_min,
             double lat_dist_max
         );
-        auto prepViterbiLattice();
+
+        /// Get the geometry object of the grid.
         auto getGeometry() {
             CylinderGeometry geometry(naxial, nang, nrise);
             return geometry;
@@ -115,16 +116,6 @@ class ViterbiGrid2D {
                 + ", nx=" + std::to_string(nx) + ")";
 		};
 };
-
-/// Prepare the Viterbi lattice and initialize the initial states.
-/// Return the mutable reference of the Viterbi lattice.
-auto ViterbiGrid2D::prepViterbiLattice() {
-    auto viterbi_lattice_ = py::array_t<double>{{naxial, nang, nz, ny, nx}};
-	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<5>();
-    // For 2D grid, scores of the initial position will be initialized during the
-    // for-loop in the `viterbi` method.
-    return viterbi_lattice;
-}
 
 
 /// @brief 2D, distance-constrained Viterbi alignment on a cylindric grid.
@@ -156,7 +147,12 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{naxial, nang, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<3>();
-	auto viterbi_lattice = prepViterbiLattice();
+	
+    // For 2D grid, scores of the initial position will be initialized during the
+    // for-loop in the `viterbi` method.
+    auto viterbi_lattice_ = py::array_t<double>{{naxial, nang, nz, ny, nx}};
+	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<5>();
+
     auto geometry = getGeometry();
 	py::gil_scoped_release nogil;  // without GIL
 
