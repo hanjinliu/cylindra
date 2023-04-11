@@ -4,7 +4,7 @@ from scipy import ndimage as ndi
 import impy as ip
 
 try:
-    from .. import _cpp_ext
+    from .._cpp_ext import ViterbiGrid, ViterbiGrid2D
 except ImportError:
     # In case build failed
     pass
@@ -46,12 +46,9 @@ def viterbi(
     (N, 3) int array and float
         Optimal indices and optimal score.
     """
-    if dist_min >= dist_max:
-        raise ValueError("'dist_min' must be smaller than 'dist_max'.")
-    
-    grid = _cpp_ext.ViterbiGrid(score, origin, zvec, yvec, xvec)
+    grid = ViterbiGrid(score, origin, zvec, yvec, xvec)
     if skew_max is None:
-        out = grid.viterbi_simple(dist_min, dist_max)
+        out = grid.viterbi(dist_min, dist_max)
     else:
         out = grid.viterbi(dist_min, dist_max, skew_max)
     return out

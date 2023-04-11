@@ -11,17 +11,24 @@
 namespace py = pybind11;
 using ssize_t = Py_ssize_t;
 
+/// A 2D array of CoordinateSystem objects.
+/// Pointer of pointers cannot be safely handled by C++. This class mimics the
+/// 2D get-item operations on a flattened array.
 class Coords2DGrid {
     public:
         CoordinateSystem<double>* coords;  // flattened coordinate system array
         ssize_t naxial, nang;
         CoordinateSystem<double> at(ssize_t y, ssize_t a) {
             if (y < 0 || y >= naxial || a < 0 || a >= nang) {
-                throw py::index_error("Index out of range.");  // TODO: remove this later
+                // TODO: remove this in the future. Should be unchecked.
+                auto msg = "Index out of range. Grid shape is (y=" + std::to_string(naxial)
+                    + ", a=" + std::to_string(nang) + "but accessed at y = "
+                    + std::to_string(y) + ", a = " + std::to_string(a);
+                throw py::index_error(msg);
             }
             return coords[y * nang + a];
         }
-        Coords2DGrid() {};
+        Coords2DGrid() : naxial(0), nang(0) {};
         Coords2DGrid(ssize_t _naxial, ssize_t _nang) {
             naxial = _naxial;
             nang = _nang;
@@ -33,16 +40,16 @@ class Coords2DGrid {
 /// This class contains the score landscape, coordinate systems and the shape.
 class ViterbiGrid2D {
     public:
-        py::array_t<double> score; // A 5D array, where score_array[ny, na, z, y, x] is the score of the (ny, na) molecule at the grid point (z, y, x).
+        py::array_t<float> score; // A 5D array, where score_array[ny, na, z, y, x] is the score of the (ny, na) molecule at the grid point (z, y, x).
         Coords2DGrid coords;  // coordinate system of each molecule
         ssize_t naxial, nang, nz, ny, nx;  // number of molecules, number of grid points in z, y, x directions
         ssize_t nrise;
         ViterbiGrid2D (
-            py::array_t<double> score_array,
-            py::array_t<double> origin,
-            py::array_t<double> zvec,
-            py::array_t<double> yvec,
-            py::array_t<double> xvec,
+            py::array_t<float> &score_array,
+            py::array_t<float> &origin,
+            py::array_t<float> &zvec,
+            py::array_t<float> &yvec,
+            py::array_t<float> &xvec,
             ssize_t n_rise
         ) {
             score = score_array;
@@ -77,7 +84,7 @@ class ViterbiGrid2D {
 
             // Allocation of arrays of coordinate system.
             // Offsets and orientations of local coordinates of score landscape are well-defined by this.
-            Coords2DGrid coords(naxial, nang);
+            Coords2DGrid _coords(naxial, nang);
             
             for (auto t = 0; t < naxial; ++t) {
                 for (auto s = 0; s < nang; ++s) {
@@ -85,9 +92,10 @@ class ViterbiGrid2D {
                     auto _ez = Vector3D<double>(*zvec.data(t, s, 0), *zvec.data(t, s, 1), *zvec.data(t, s, 2));
                     auto _ey = Vector3D<double>(*yvec.data(t, s, 0), *yvec.data(t, s, 1), *yvec.data(t, s, 2));
                     auto _ex = Vector3D<double>(*xvec.data(t, s, 0), *xvec.data(t, s, 1), *xvec.data(t, s, 2));
-                    coords.at(t, s).update(_ori, _ez, _ey, _ex);
+                    _coords.at(t, s).update(_ori, _ez, _ey, _ex);
                 }
             }
+            coords = _coords;
         };
 
         std::tuple<py::array_t<ssize_t>, double> viterbi(
@@ -134,6 +142,12 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 {
     #pragma warning(push)
     #pragma warning(disable:4244)
+
+    if (dist_min >= dist_max) {
+		throw py::value_error("`dist_min` must be smaller than `dist_max`.");
+	} else if (lat_dist_min >= lat_dist_max) {
+		throw py::value_error("`lat_dist_min` must be smaller than `lat_dist_max`.");
+	}
 	auto dist_min2 = dist_min * dist_min;
 	auto dist_max2 = dist_max * dist_max;
     auto lat_dist_min2 = lat_dist_min * lat_dist_min;
@@ -196,14 +210,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 
                         for (auto x0a = 0; x0a < nx; ++x0a) {
                             // check the distance between two points to speed up
-                            #pragma warning(push)
-                            #pragma warning(disable:4244)
                             auto point_00x = coords.at(t0a, s0a).at(0.0, 0.0, x0a);
                             dist2_00 = (point_00x - end_point).length2();
                             dist2_01 = (coords.at(t0a, s0a).at(0.0, 0.0, nx-1) - end_point).length2();
                             dist2_10 = (coords.at(t0a, s0a).at(nz-1, 0.0, 0.0) - end_point).length2();
                             dist2_11 = (coords.at(t0a, s0a).at(nz-1, 0.0, nx-1) - end_point).length2();
-                            #pragma warning(pop)
                             if (
                                 dist2_00 < lat_dist_min2 
                                 && dist2_01 < lat_dist_min2 
@@ -239,7 +250,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                 max = std::max(
                                     max,
                                     viterbi_lattice(t0o, s0o, z0o, y0o, x0o)
-                                     + viterbi_lattice(t0a, s0a, z0a, y0a, x0a)  // TODO: add??
+                                    + viterbi_lattice(t0a, s0a, z0a, y0a, x0a)  // TODO: add??
                                 );
                             }}}}  // end of x0o, y0a, z0a, z0o
                         }
@@ -267,14 +278,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
                         // shorter than dist_min, then any point in the plane is invalid, considering
                         // the convexity of the shell-range created by [dist_min, dist_max].
-                        #pragma warning(push)
-                        #pragma warning(disable:4244)
                         auto point_0y0 = coords.at(t0, s0).at(0.0, y0, 0.0);
                         auto dist2_00 = (point_0y0 - end_point).length2();
                         auto dist2_01 = (coords.at(t0, s0).at(0.0, y0, nx-1) - end_point).length2();
                         auto dist2_10 = (coords.at(t0, s0).at(nz-1, y0, 0.0) - end_point).length2();
                         auto dist2_11 = (coords.at(t0, s0).at(nz-1, y0, nx-1) - end_point).length2();
-                        #pragma warning(pop)
                         if (
                             dist2_00 < dist_min2 
                             && dist2_01 < dist_min2 
@@ -325,14 +333,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
                         // shorter than dist_min, then any point in the plane is invalid, considering
                         // the convexity of the shell-range created by [dist_min, dist_max].
-                        #pragma warning(push)
-                        #pragma warning(disable:4244)
                         auto point_0y0 = coords.at(t0, s0).at(0.0, y0, 0.0);
                         auto dist2_00 = (point_0y0 - end_point).length2();
                         auto dist2_01 = (coords.at(t0, s0).at(0.0, y0, nx-1) - end_point).length2();
                         auto dist2_10 = (coords.at(t0, s0).at(nz-1, y0, 0.0) - end_point).length2();
                         auto dist2_11 = (coords.at(t0, s0).at(nz-1, y0, nx-1) - end_point).length2();
-                        #pragma warning(pop)
                         if (
                             dist2_00 < dist_min2 
                             && dist2_01 < dist_min2 
@@ -351,14 +356,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 
                         for (auto x0 = 0; x0 < nx; ++x0) {
                             // check the distance between two points to speed up
-                            #pragma warning(push)
-                            #pragma warning(disable:4244)
                             auto point_0yx = coords.at(t0, s0).at(0.0, y0, x0);
                             auto dist2_00 = (point_0yx - end_point).length2();
                             auto dist2_01 = (coords.at(t0, s0).at(0.0, y0, nx-1) - end_point).length2();
                             auto dist2_10 = (coords.at(t0, s0).at(nz-1, y0, 0.0) - end_point).length2();
                             auto dist2_11 = (coords.at(t0, s0).at(nz-1, y0, nx-1) - end_point).length2();
-                            #pragma warning(pop)
                             if (
                                 dist2_00 < lat_dist_min2 
                                 && dist2_01 < lat_dist_min2 

@@ -14,16 +14,16 @@ using ssize_t = Py_ssize_t;
 /// This class contains the score landscape, coordinate systems and the shape.
 class ViterbiGrid {
     public:
-        py::array_t<double> score; // A 4D array, where score_array[n, z, y, x] is the score of the n-th molecule at the grid point (z, y, x).
+        py::array_t<float> score; // A 4D array, where score_array[n, z, y, x] is the score of the n-th molecule at the grid point (z, y, x).
         CoordinateSystem<double>* coords;  // coordinate system of each molecule
         ssize_t nmole, nz, ny, nx;  // number of molecules, number of grid points in z, y, x directions
 
         ViterbiGrid (
-            py::array_t<double> score_array,
-            py::array_t<double> origin,
-            py::array_t<double> zvec,
-            py::array_t<double> yvec,
-            py::array_t<double> xvec
+            py::array_t<float> &score_array,
+            py::array_t<float> &origin,
+            py::array_t<float> &zvec,
+            py::array_t<float> &yvec,
+            py::array_t<float> &xvec
         ) {
             score = score_array;
 
@@ -79,6 +79,7 @@ class ViterbiGrid {
         };
 
         std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
+        std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max);
         std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
         auto prepViterbiLattice();
 		std::string pyRepr() {
@@ -109,6 +110,9 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	double dist_max
 )
 {
+	if (dist_min >= dist_max) {
+		throw py::value_error("`dist_min` must be smaller than `dist_max`.");
+	}
 	auto dist_min2 = dist_min * dist_min;
 	auto dist_max2 = dist_max * dist_max;
 
@@ -220,12 +224,25 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	return {state_sequence_, max_score};
 }
 
+
+std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
+	double dist_min, double dist_max
+)
+{
+	return viterbiSimple(dist_min, dist_max);
+}
+
 std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 	double dist_min,  // NOTE: upsample factor must be considered
 	double dist_max,
 	double skew_max  // NOTE: this parameter must be in radian
 )
 {
+	if (dist_min >= dist_max) {
+		throw py::value_error("`dist_min` must be smaller than `dist_max`.");
+	} else if (skew_max <= 0.0 || skew_max > 3.14159) {
+		throw py::value_error("`skew_max` must be in (0, pi/2)");
+	}
 	auto dist_min2 = dist_min * dist_min;
 	auto dist_max2 = dist_max * dist_max;
 	auto cos_skew_max = std::cos(skew_max);

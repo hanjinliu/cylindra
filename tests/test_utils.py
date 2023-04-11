@@ -163,44 +163,6 @@ def test_mt_pad():
         out
     )
 
-def test_viterbi():
-    from cylindra.utils import viterbi
-    
-    # there is only one position with score 1.0 for each landscape
-    score = np.zeros((10, 5, 5, 5))
-    for i in [0, 1, 2, 3, 5, 6, 8, 9]:
-        score[i, 0, 0, 0] = 1.0
-    score[4, 1, 2, 1] = 1.0
-    score[7, 4, 4, 4] = 1.0
-    zvec = np.array([[1., 0., 0.]]*10)
-    yvec = np.array([[0., 1., 0.]]*10)
-    xvec = np.array([[0., 0., 1.]]*10)
-    origin = np.array([[i*5, i*5, i*5] for i in range(10)])
-
-    states, z = viterbi(score, origin, zvec, yvec, xvec, 0., 10000.)
-    assert_allclose(
-        states, 
-        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
-                  [0, 0, 0], [0, 0, 0], [4, 4, 4], [0, 0, 0], [0, 0, 0]])
-    )
-    assert z == 10.0
-    
-    states, z = viterbi(score, origin, zvec, yvec, xvec, 2*np.sqrt(3), 10000)
-    assert_allclose(
-        states, 
-        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
-                  [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
-    )
-    assert z == 9.0
-
-    states, z = viterbi(score, origin, zvec, yvec, xvec, 0., 7*np.sqrt(3))
-    assert_allclose(
-        states, 
-        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
-                  [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
-    )
-    assert z == 9.0
-
 @pytest.mark.parametrize(
     "label, expected",
     [

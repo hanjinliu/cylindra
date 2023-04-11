@@ -1309,7 +1309,7 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
 
 def _local_dft_params(img: ip.ImgArray, radius: nm):
     img = img - img.mean()
-    l_circ: nm = 2*np.pi*radius
+    l_circ: nm = 2 * np.pi * radius
     npfmin = GVar.nPFmin
     npfmax = GVar.nPFmax
     
@@ -1383,14 +1383,14 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     )
 
 def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> pl.DataFrame:
-    results = _local_dft_params(img, radius)
+    rise, space, skew, npf, start = _local_dft_params(img, radius)
     df = pl.DataFrame(
         {
-            H.riseAngle: [results[0]],
-            H.yPitch: [results[1]],
-            H.skewAngle: [results[2]],
-            H.nPF: pl.Series([int(round(results[3]))], dtype=pl.UInt8),
-            H.start: [results[4]],
+            H.riseAngle: pl.Series([rise], dtype=pl.Float32),
+            H.yPitch: pl.Series([space], dtype=pl.Float32),
+            H.skewAngle: pl.Series([skew], dtype=pl.Float32),
+            H.nPF: pl.Series([int(round(npf))], dtype=pl.UInt8),
+            H.start: pl.Series([start], dtype=pl.Float32),
         }
     )
     return df
