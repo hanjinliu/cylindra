@@ -115,6 +115,21 @@ class ViterbiGrid2D {
                 + ", nz=" + std::to_string(nz) + ", ny=" + std::to_string(ny)
                 + ", nx=" + std::to_string(nx) + ")";
 		};
+
+		#pragma warning(push)
+		#pragma warning(disable:4244)
+		/// Get the world coordinates of the point (z, y, x) in the local coordinate system of the molecule
+        /// at (lon, lat).
+		py::array_t<double> worldPos(ssize_t lon, ssize_t lat, ssize_t z, ssize_t y, ssize_t x) {
+			auto _pos = coords.at(lon, lat).at(Vector3D<double>(z, y, x));
+            py::array_t<double> pos = py::array_t<double>(3);
+            auto pos_mut = pos.mutable_unchecked<1>();
+            pos_mut(0) = _pos.z;
+            pos_mut(1) = _pos.y;
+            pos_mut(2) = _pos.x;
+			return pos;
+		}
+        #pragma warning(pop)
 };
 
 

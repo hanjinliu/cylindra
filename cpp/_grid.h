@@ -87,6 +87,20 @@ class ViterbiGrid {
 			return "ViterbiGrid(nmole=" + std::to_string(nmole) + ", nz=" + std::to_string(nz)
 				+ ", ny=" + std::to_string(ny) + ", nx=" + std::to_string(nx) + ")";
 		}
+		
+		#pragma warning(push)
+		#pragma warning(disable:4244)
+		/// Get the world coordinates of the point (z, y, x) in the local coordinate system of the n-th molecule.
+		py::array_t<double> worldPos(ssize_t n, ssize_t z, ssize_t y, ssize_t x) {
+			auto _pos = coords[n].at(Vector3D<double>(z, y, x));
+			py::array_t<double> pos = py::array_t<double>(3);
+            auto pos_mut = pos.mutable_unchecked<1>();
+            pos_mut(0) = _pos.z;
+            pos_mut(1) = _pos.y;
+            pos_mut(2) = _pos.x;
+			return pos;
+		}
+		#pragma warning(pop)
 };
 
 std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
@@ -128,17 +142,19 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 			auto max = -std::numeric_limits<float>::infinity();
 			auto end_point = coords[t].at(z1, y1, x1);
 			// iterate over all the start points
-			for (auto y0 = 0; y0 < nx; ++y0) {
+			for (auto y0 = 0; y0 < ny; ++y0) {
 				// If the length from point (x1, y1, z1) to the four corners at y=y0 is all
 				// shorter than dist_min, then any point in the plane is invalid, considering
 				// the convexity of the shell-range created by [dist_min, dist_max].
+
+				auto coord = coords[t-1];
 				#pragma warning(push)
 				#pragma warning(disable:4244)
-				auto point_0y0 = coords[t-1].at(0.0, y0, 0.0);
+				auto point_0y0 = coord.at(0.0, y0, 0.0);
 				auto dist2_00 = (point_0y0 - end_point).length2();
-				auto dist2_01 = (coords[t-1].at(0.0, y0, nx-1) - end_point).length2();
-				auto dist2_10 = (coords[t-1].at(nz-1, y0, 0.0) - end_point).length2();
-				auto dist2_11 = (coords[t-1].at(nz-1, y0, nx-1) - end_point).length2();
+				auto dist2_01 = (coord.at(0.0, y0, nx-1) - end_point).length2();
+				auto dist2_10 = (coord.at(nz-1, y0, 0.0) - end_point).length2();
+				auto dist2_11 = (coord.at(nz-1, y0, nx-1) - end_point).length2();
 				#pragma warning(pop)
 				if (
 					dist2_00 < dist_min2 
@@ -152,14 +168,14 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
 				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
 				// is invalid.
-				if (point_0y0.pointToPlaneDistance2(coords[t-1].ey, end_point) > dist_max2) {
-					continue;  // break?
+				if (point_0y0.pointToPlaneDistance2(coord.ey, end_point) > dist_max2) {
+					continue;  // safe to break?
 				}
 
 				// Calculate distances from all the possible start points.
 				for (auto z0 = 0; z0 < nz; ++z0) {
 				for (auto x0 = 0; x0 < nx; ++x0) {
-					auto distance2 = (coords[t-1].at(z0, y0, x0) - end_point).length2();
+					auto distance2 = (coord.at(z0, y0, x0) - end_point).length2();
 					if (distance2 < dist_min2 || dist_max2 < distance2) {
 						continue;
 					}
