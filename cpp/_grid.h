@@ -152,7 +152,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
 				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
 				// is invalid.
-				if (point_0y0.pointToPlaneDistance(coords[t-1].ey, end_point) > dist_max) {
+				if (point_0y0.pointToPlaneDistance2(coords[t-1].ey, end_point) > dist_max2) {
 					continue;  // break?
 				}
 
@@ -294,7 +294,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
 				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
 				// is invalid.
-				if (point_0y0.pointToPlaneDistance(coords[t-1].ey, end_point) > dist_max) {
+				if (point_0y0.pointToPlaneDistance2(coords[t-1].ey, end_point) > dist_max2) {
 					continue;  // break?
 				}
 

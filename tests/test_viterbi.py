@@ -45,6 +45,7 @@ def test_viterbi_1d():
 @pytest.mark.parametrize("nrise", [2, -2])
 def test_viterbi_2d(nrise: int):
     from cylindra._cpp_ext import ViterbiGrid2D
+    from timeit import default_timer
 
     score = np.zeros((4, 3, 5, 5, 5))
     spl = CylSpline.line([0, 0, 0], [3, 3, 3])
@@ -63,7 +64,10 @@ def test_viterbi_2d(nrise: int):
                 score[i, j, 4, 4, 4] = 1.0
 
     grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
+    t0 = default_timer()
     states, z = grid.viterbi(0.0, 10000.0, 0.0, 10000.0)
+    msec = (default_timer() - t0) * 1000
+    print(f"{msec:2f} msec")
 
     answer = np.zeros((4, 3, 3))
     for i in range(4):

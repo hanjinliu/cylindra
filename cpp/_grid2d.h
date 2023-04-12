@@ -183,11 +183,12 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
                         // shorter than dist_min, then any point in the plane is invalid, considering
                         // the convexity of the shell-range created by [dist_min, dist_max].
-                        auto point_0y0 = coords.at(t0o, s0o).at(0.0, y0o, 0.0);
+                        auto coord = coords.at(t0o, s0o);
+                        auto point_0y0 = coord.at(0.0, y0o, 0.0);
                         auto dist2_00 = (point_0y0 - end_point).length2();
-                        auto dist2_01 = (coords.at(t0o, s0o).at(0.0, y0o, nx-1) - end_point).length2();
-                        auto dist2_10 = (coords.at(t0o, s0o).at(nz-1, y0o, 0.0) - end_point).length2();
-                        auto dist2_11 = (coords.at(t0o, s0o).at(nz-1, y0o, nx-1) - end_point).length2();
+                        auto dist2_01 = (coord.at(0.0, y0o, nx-1) - end_point).length2();
+                        auto dist2_10 = (coord.at(nz-1, y0o, 0.0) - end_point).length2();
+                        auto dist2_11 = (coord.at(nz-1, y0o, nx-1) - end_point).length2();
                         if (
                             dist2_00 < dist_min2 
                             && dist2_01 < dist_min2 
@@ -200,7 +201,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // If the length of perpendicular line drawn from point (x1, y1, z1) to the
                         // plane of (_, y0, _) is longer than dist_max, then any point in the plane
                         // is invalid.
-                        if (point_0y0.pointToPlaneDistance(coords.at(t0o, s0o).ey, end_point) > dist_max) {
+                        if (point_0y0.pointToPlaneDistance2(coord.ey, end_point) > dist_max2) {
                             continue;  // break?
                         }
 
@@ -219,7 +220,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             ) {
                                 continue;
                             }
-                            if (point_00x.pointToPlaneDistance(coords.at(t0a, s0a).ex, end_point) > dist_max) {
+                            if (point_00x.pointToPlaneDistance2(coords.at(t0a, s0a).ex, end_point) > lat_dist_max2) {
                                 continue;  // break?
                             }
 
@@ -227,7 +228,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             for (auto z0a = 0; z0a < nz; ++z0a) {
                             for (auto y0a = 0; y0a < ny; ++y0a) {
                             for (auto x0o = 0; x0o < nx; ++x0o) {
-                                auto vec_o = coords.at(t0o, s0o).at(z0o, y0o, x0o) - end_point;
+                                auto vec_o = coord.at(z0o, y0o, x0o) - end_point;
                                 auto a2o = vec_o.length2();
 
                                 if (a2o < dist_min2 || dist_max2 < a2o) {
@@ -291,7 +292,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // If the length of perpendicular line drawn from point (x1, y1, z1) to the
                         // plane of (_, y0, _) is longer than dist_max, then any point in the plane
                         // is invalid.
-                        if (point_0y0.pointToPlaneDistance(coords.at(t0, s0).ey, end_point) > dist_max) {
+                        if (point_0y0.pointToPlaneDistance2(coords.at(t0, s0).ey, end_point) > dist_max2) {
                             continue;  // break?
                         }
 
@@ -327,8 +328,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                     auto end_point = coords.at(t1, s1).at(z1, y1, x1);
                     for (auto x0 = 0; x0 < nx; ++x0) {
                         // check the distance between two points to speed up
-                        auto point_0yx = coords.at(t0, s0).at(0.0, 0.0, x0);
-                        auto dist2_00 = (point_0yx - end_point).length2();
+                        auto point_00x = coords.at(t0, s0).at(0.0, 0.0, x0);
+                        auto dist2_00 = (point_00x - end_point).length2();
                         auto dist2_01 = (coords.at(t0, s0).at(0.0, ny-1, x0) - end_point).length2();
                         auto dist2_10 = (coords.at(t0, s0).at(nz-1, 0.0, x0) - end_point).length2();
                         auto dist2_11 = (coords.at(t0, s0).at(nz-1, ny-1, x0) - end_point).length2();
@@ -340,7 +341,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         ) {
                             continue;
                         }
-                        if (point_0yx.pointToPlaneDistance(coords.at(t0, s0).ex, end_point) > lat_dist_max) {
+                        if (point_00x.pointToPlaneDistance2(coords.at(t0, s0).ex, end_point) > lat_dist_max2) {
                             continue;  // break?
                         }
 
@@ -349,7 +350,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             auto vec = coords.at(t0, s0).at(z0, y0, x0) - end_point;
                             auto a2 = vec.length2();
 
-                            if (a2 < dist_min2 || dist_max2 < a2) {
+                            if (a2 < lat_dist_min2 || lat_dist_max2 < a2) {
                                 // check distance between two points
                                 continue;
                             }

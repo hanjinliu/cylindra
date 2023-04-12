@@ -940,8 +940,8 @@ class SubtomogramAveraging(MagicTemplate):
         x_rotation: _XRotation = (0., 0.),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        distance_range_long: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "Longitudinal range (nm)"}] = (3.9, 4.4),
-        distance_range_lat: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 10.0, "step": 0.1}, "label": "Lateral range (nm)"}] = (3.0, 4.4),
+        distance_range_long: Annotated[tuple[nm, nm], {"options": {"min": 0.1, "max": 1000.0, "step": 0.1}, "label": "Longitudinal range (nm)"}] = (3.9, 4.4),
+        distance_range_lat: Annotated[tuple[nm, nm], {"options": {"min": 0.1, "max": 1000.0, "step": 0.1}, "label": "Lateral range (nm)"}] = (4.7, 5.1),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         from dask import array as da
