@@ -33,11 +33,11 @@ def main():
 
     log_level = "DEBUG" if args.debug else "INFO"
     
-    from . import start
+    from cylindra import start
+    import numpy, impy, polars
     
     ui = start(project_file=project_file, globals_file=globals_file, log_level=log_level)
 
-    import numpy, impy, polars
     ui.parent_viewer.update_console({"ui": ui, "ip": impy, "np": numpy, "pl": polars})
     return ui.parent_viewer.show(block=True)
 
