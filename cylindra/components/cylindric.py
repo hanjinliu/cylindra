@@ -35,7 +35,7 @@ class CylinderModel:
     def __init__(
         self,
         shape: tuple[int, int],
-        tilts: tuple[float, float],
+        tilts: tuple[float, float] = (0., 0.),
         interval: float = 1.0,
         radius: float = 1.0,
         offsets: tuple[float, float] = (0., 0.),
@@ -53,6 +53,11 @@ class CylinderModel:
                 raise ValueError("Shifts shape mismatch")
             self._displace = np.asarray(displace, dtype=np.float32)
     
+    def with_nrise(self, nrise: int) -> Self:
+        """Return an updated model with given rise number."""
+        tilts_lat = nrise / self.shape[1]
+        return self.replace(tilts=(self.tilts[0], tilts_lat))
+
     def replace(
         self,
         tilts: tuple[float, float] | None = None,
@@ -127,16 +132,16 @@ class CylinderModel:
         """
         return int(np.round(self.tilts[1] * self.shape[1]))
     
-    @property
-    def distance_longitudinal(self) -> float:
-        ...
+    # @property
+    # def distance_longitudinal(self) -> float:
+    #     ...
         
-    @property
-    def distance_lateral(self) -> float:
-        dy, da = self.intervals
-        tan0, tan1 = self.tilts
+    # @property
+    # def distance_lateral(self) -> float:
+    #     dy, da = self.intervals
+    #     tan0, tan1 = self.tilts
         
-        v1 = np.array([tan1, 1], dtype=np.float32)
+    #     v1 = np.array([tan1, 1], dtype=np.float32)
         
     
     def __repr__(self) -> str:

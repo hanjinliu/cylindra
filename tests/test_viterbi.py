@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_array_less
 import pytest
 from cylindra.components import CylSpline, CylinderModel
 
@@ -66,8 +66,9 @@ def test_viterbi_1d_distance(seed: int):
         pos0 = grid.world_pos(i, *states[i])
         dist.append(np.sqrt(np.sum((pos1 - pos0) ** 2)))
     dist = np.array(dist)
-    assert np.all(dist_min <= dist), "dist_min <= dist not satisfied"
-    assert np.all(dist <= dist_max), "dist_max >= dist not satisfied"
+
+    assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
+    assert_array_less(dist, dist_max, "dist_max > dist not satisfied")
 
 @pytest.mark.parametrize("nrise", [2, -2])
 def test_viterbi_2d(nrise: int):
@@ -105,27 +106,59 @@ def test_viterbi_2d(nrise: int):
                 answer[i, j, :] = [4, 4, 4]
     assert_equal(states, answer)
 
-# def test_viterbi_2d_distance():
-#     from cylindra._cpp_ext import ViterbiGrid2D
+@pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
+def test_viterbi_2d_distance(seed):
+    from cylindra._cpp_ext import ViterbiGrid2D
 
-#     n = 4
-#     dist_min, dist_max = 2*np.sqrt(3), 7*np.sqrt(3)
-#     rng = np.random.default_rng(1234)
-#     score = rng.random((n, 3, 5, 5, 5)).astype(np.float32)
+    ny = 5
+    npf = 4
+    radius = 10
+    yspace = 10
+    narr = np.arange(ny * npf).reshape(ny, npf)
+    
+    lat_dist_avg = np.hypot(np.sqrt(2) * radius, yspace / 4)
+    dist_min, dist_max = yspace - 1.2, yspace + 1.2
+    lat_dist_min, lat_dist_max = lat_dist_avg - 1.4, lat_dist_avg + 1.4
 
-#     zvec = np.array([[1., 0., 0.]] * n)
-#     yvec = np.array([[0., 1., 0.]] * n)
-#     xvec = np.array([[0., 0., 1.]] * n)
-#     origin = np.array([[i*5, i*5, i*5] for i in range(n)])
+    rng = np.random.default_rng(seed)
+    score = rng.random((ny, npf, 5, 5, 5)).astype(np.float32)
 
-#     grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, 2)
-#     states, z = grid.viterbi(dist_min, dist_max, dist_min, dist_max)
+    origin = np.stack(
+        [radius * np.cos(np.pi / 2 * narr),
+         yspace / 4 * narr,
+         radius * np.sin(np.pi / 2 * narr)],
+        axis=-1,
+    )  # shape (ny, npf, 3)
+    
+    def _cross(x, y) -> np.ndarray:  # just for typing
+        return -np.cross(x, y, axis=-1)
+        
+    zvec = np.stack([origin[:, :, 0], np.zeros((ny, npf)), origin[:, :, 2]], axis=-1) / radius
+    yvec = np.array([[0., 1., 0.]] * ny * npf).reshape(ny, npf, 3)
+    xvec = _cross(yvec, zvec)
 
-#     dist = []
-#     for i in range(n - 1):
-#         pos1 = grid.world_pos(i + 1, *states[i + 1])
-#         pos0 = grid.world_pos(i, *states[i])
-#         dist.append(np.sqrt(np.sum((pos1 - pos0) ** 2)))
-#     dist = np.array(dist)
-#     assert np.all(dist_min <= dist), "dist_min <= dist not satisfied"
-#     assert np.all(dist <= dist_max), "dist_max >= dist not satisfied"
+    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, 1)
+    states, z = grid.viterbi(dist_min, dist_max, lat_dist_min, lat_dist_max)
+    assert_array_less(-1, states)
+
+    dist = []
+    for i in range(ny - 1):
+        for j in range(npf - 1):
+            pos1 = grid.world_pos(i + 1, j, *states[i + 1, j])
+            pos0 = grid.world_pos(i, j, *states[i, j])
+            dist.append(np.sqrt(np.sum((pos1 - pos0) ** 2)))
+    dist = np.array(dist)
+    
+    dist_lat = []
+    for k in range(ny * npf - 1):
+        i0, j0 = divmod(k, npf)
+        i1, j1 = divmod(k + 1, npf)
+        pos1 = grid.world_pos(i1, j1, *states[i1, j1])
+        pos0 = grid.world_pos(i0, j0, *states[i0, j0])
+        dist_lat.append(np.sqrt(np.sum((pos1 - pos0) ** 2)))
+    dist_lat = np.array(dist_lat)
+
+    assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
+    assert_array_less(dist, dist_max, "dist < dist_max not satisfied")
+    assert_array_less(lat_dist_min, dist_lat, "lat_dist_min < dist_lat not satisfied")
+    assert_array_less(dist_lat, lat_dist_max, "dist_lat < lat_dist_max not satisfied")

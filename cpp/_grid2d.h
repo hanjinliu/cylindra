@@ -19,20 +19,19 @@ class Coords2DGrid {
         CoordinateSystem<double>* coords;  // flattened coordinate system array
         ssize_t naxial, nang;
         CoordinateSystem<double> at(ssize_t y, ssize_t a) {
-            if (y < 0 || y >= naxial || a < 0 || a >= nang) {
-                // TODO: remove this in the future. Should be unchecked.
-                auto msg = "Index out of range. Grid shape is (y=" + std::to_string(naxial)
-                    + ", a=" + std::to_string(nang) + "but accessed at y = "
-                    + std::to_string(y) + ", a = " + std::to_string(a);
-                throw py::index_error(msg);
-            }
             return coords[y * nang + a];
+        }
+        CoordinateSystem<double>* at_mut(ssize_t y, ssize_t a) {
+            return &coords[y * nang + a];
         }
         Coords2DGrid() : naxial(0), nang(0) {};
         Coords2DGrid(ssize_t _naxial, ssize_t _nang) {
             naxial = _naxial;
             nang = _nang;
             coords = new CoordinateSystem<double>[naxial * nang];
+            for (auto i = 0; i < naxial * nang; ++i) {
+                coords[i] = CoordinateSystem<double>();
+            }
         };
 };
 
@@ -92,7 +91,7 @@ class ViterbiGrid2D {
                     auto _ez = Vector3D<double>(*zvec.data(t, s, 0), *zvec.data(t, s, 1), *zvec.data(t, s, 2));
                     auto _ey = Vector3D<double>(*yvec.data(t, s, 0), *yvec.data(t, s, 1), *yvec.data(t, s, 2));
                     auto _ex = Vector3D<double>(*xvec.data(t, s, 0), *xvec.data(t, s, 1), *xvec.data(t, s, 2));
-                    _coords.at(t, s).update(_ori, _ez, _ey, _ex);
+                    (*_coords.at_mut(t, s)).update(_ori, _ez, _ey, _ex);
                 }
             }
             coords = _coords;
@@ -194,7 +193,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto x1 = 0; x1 < nx; ++x1) {
                     auto max = -std::numeric_limits<float>::infinity();
                     auto end_point = coords.at(t1, s1).at(z1, y1, x1);
-                    for (auto y0o = 0; y0o < nx; ++y0o) {
+                    for (auto y0o = 0; y0o < ny; ++y0o) {
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
                         // shorter than dist_min, then any point in the plane is invalid, considering
                         // the convexity of the shell-range created by [dist_min, dist_max].
@@ -239,9 +238,9 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                 continue;  // break?
                             }
 
-                            for (auto z0o = 0; z0o < nz; ++z0o) {
                             for (auto z0a = 0; z0a < nz; ++z0a) {
                             for (auto y0a = 0; y0a < ny; ++y0a) {
+                            for (auto z0o = 0; z0o < nz; ++z0o) {
                             for (auto x0o = 0; x0o < nx; ++x0o) {
                                 auto vec_o = coord.at(z0o, y0o, x0o) - end_point;
                                 auto a2o = vec_o.length2();
@@ -395,11 +394,11 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 
     // backward tracking    
 	for (auto t0 = naxial - 1; t0 >= 0; --t0) {
-        for (auto _s0 = 0; _s0 < nang; ++_s0) {
+        for (auto _s0 = nang - 1; _s0 >= 0; --_s0) {
             auto s0 = geometry.convertAngular(_s0);
             auto bsrc = geometry.sourceBackward(t0, s0);
             double max = -std::numeric_limits<double>::infinity();
-            auto argmax = Vector3D<int>(0, 0, 0);
+            auto argmax = Vector3D<int>(-1, -1, -1);
             if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
                 // Find the maximum position with the constraint of the distance from
                 // the backward sources.
