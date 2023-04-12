@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from typing import Callable, Any, TYPE_CHECKING
+import numpy as np
 from numpy.typing import ArrayLike
 import polars as pl
 
 from .spline import Spline
-from cylindra.const import nm, SplineAttributes as K, Ori
+from cylindra.const import nm, SplineAttributes as K, Ori, PropertyNames as H
+from cylindra.utils import roundint
+from cylindra.components.cylindric import CylinderModel
 
 if TYPE_CHECKING:
     Degenerative = Callable[[ArrayLike], Any]
@@ -108,3 +111,58 @@ class CylSpline(Spline):
             self._orientation = Ori.none
         else:
             self._orientation = Ori(value)
+
+    
+    def cylinder_model(self, offsets: tuple[float, float] = (0., 0.,), **kwargs) -> CylinderModel:
+        """
+        Return the cylinder model of the spline.
+
+        Parameters
+        ----------
+        offsets : tuple of float, optional
+            Offset of the model. See :meth:`map_monomers` for details.
+
+        Returns
+        -------
+        CylinderModel
+            The cylinder model.
+        """
+        length = self.length()
+        
+        if all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
+            props = kwargs
+        else:
+            # Get structural parameters
+            props = self.globalprops
+            if props is None:
+                raise ValueError("No global properties are set.")
+            props = {k: props[k][0] for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}
+        
+        pitch = props[H.yPitch]
+        skew = props[H.skewAngle]
+        rise = props[H.riseAngle]
+        npf = roundint(props[H.nPF])
+        radius = kwargs.get("radius", self.radius)
+        
+        ny = roundint(length/pitch) # number of monomers in y-direction
+        tan_rise = np.tan(np.deg2rad(rise))
+
+        # Construct meshgrid
+        # a-coordinate must be radian.
+        # If starting number is non-integer, we must determine the seam position to correctly
+        # map monomers. Use integer here.
+        tilts = (
+            np.deg2rad(skew) / (4 * np.pi) * npf,
+            roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf,
+        )
+
+        if offsets is None:
+            offsets = (0., 0.)
+        
+        return CylinderModel(
+            shape=(ny, npf),
+            tilts=tilts,
+            interval=pitch,
+            radius=radius,
+            offsets=offsets,
+        )

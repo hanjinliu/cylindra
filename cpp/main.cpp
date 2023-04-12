@@ -20,11 +20,13 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>>())
         .def("viterbi", py::overload_cast<double, double>(&ViterbiGrid::viterbi))
         .def("viterbi", py::overload_cast<double, double, double>(&ViterbiGrid::viterbi))
+        .def("world_pos", &ViterbiGrid::worldPos)
         .def("__repr__", &ViterbiGrid::pyRepr);
     
     py::class_<ViterbiGrid2D>(m, "ViterbiGrid2D")
         .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>())
         .def("viterbi", &ViterbiGrid2D::viterbi)
+        .def("world_pos", &ViterbiGrid2D::worldPos)
         .def("__repr__", &ViterbiGrid2D::pyRepr);
     
     // `CylinderGeometry` is exported mainly for testing

@@ -16,6 +16,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 import napari
+from cylindra.components.cyl_spline import CylSpline
 
 from cylindra.types import MoleculesLayer
 from cylindra import utils
@@ -27,6 +28,7 @@ from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
     from napari.layers import Image, Layer
 
 # annotated types
@@ -141,7 +143,7 @@ class Refinement(MagicTemplate):
     align_all_template_free = abstractapi()
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
-
+    align_all_viterbi_2d = abstractapi()
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
 class StaParameters(MagicTemplate):
@@ -818,7 +820,10 @@ class SubtomogramAveraging(MagicTemplate):
         templates_ft = model._template_input  # 3D (no rotation) or 4D (has rotation)
         
         def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
-            img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
+            if mask is None:
+                img0 = ip.asarray(img0, axes="zyx").lowpass_filter(cutoff=cutoff)
+            else:
+                img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
             template_ft = template_ft * model._get_missing_wedge_mask(quat)
             lds = utils.zncc_landscape(
                 img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor
@@ -902,6 +907,117 @@ class SubtomogramAveraging(MagicTemplate):
                 ]
             )
         
+        molecules_opt.features = molecules_opt.features.with_columns(
+            [
+                pl.Series("align-dz", all_shifts[:, 0]),
+                pl.Series("align-dy", all_shifts[:, 1]),
+                pl.Series("align-dx", all_shifts[:, 2]),
+            ]
+        )
+        t0.toc()
+        parent._need_save = True
+        aligned_loader = SubtomogramLoader(
+            parent.tomogram.image.value, 
+            molecules_opt, 
+            order=interpolation, 
+            output_shape=template.shape,
+        )
+        return self._align_all_on_return(aligned_loader, layer)
+    
+    
+    @Refinement.wraps
+    @set_design(text="Viterbi Alignment (2D)")
+    @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
+    def align_all_viterbi_2d(
+        self,
+        layer: MoleculesLayer,
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params] = None,
+        tilt_range: Bound[params.tilt_range] = None,
+        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (0., 0.),
+        x_rotation: _XRotation = (0., 0.),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        distance_range_long: Annotated[tuple[nm, nm], {"options": {"min": 0.1, "max": 1000.0, "step": 0.1}, "label": "Longitudinal range (nm)"}] = (3.9, 4.4),
+        distance_range_lat: Annotated[tuple[nm, nm], {"options": {"min": 0.1, "max": 1000.0, "step": 0.1}, "label": "Lateral range (nm)"}] = (4.7, 5.1),
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+    ):
+        from dask import array as da
+        from cylindra._cpp_ext import ViterbiGrid2D
+        
+        t0 = timer("align_all_viterbi_2d")
+        parent = self._get_parent()
+        molecules = layer.molecules
+        shape_nm = self._get_shape_in_nm()
+        loader = parent.tomogram.get_subtomogram_loader(
+            molecules, shape=shape_nm, order=interpolation
+        )
+        template, mask = loader.normalize_input(
+            template=self.params._get_template(path=template_path),
+            mask=self.params._get_mask(params=mask_params),
+        )
+        max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
+        search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
+        _Logger.print_html(f"Search size (px): {search_size}")
+        model = alignment.ZNCCAlignment(
+            template,
+            mask,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            cutoff=cutoff,
+            tilt_range=tilt_range
+        )
+        
+        templates_ft = model._template_input  # 3D (no rotation) or 4D (has rotation)
+        
+        def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
+            if mask is None:
+                img0 = ip.asarray(img0, axes="zyx").lowpass_filter(cutoff=cutoff)
+            else:
+                img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
+            template_ft = template_ft * model._get_missing_wedge_mask(quat)
+            lds = utils.zncc_landscape(
+                img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor
+            )
+            return np.asarray(lds)
+        
+        has_rotation = templates_ft.ndim > 3
+        if has_rotation:
+            raise NotImplementedError("2D Viterbi alignment with rotation is not implemented yet.")
+    
+        tasks = loader.construct_mapping_tasks(
+            func,
+            ip.asarray(templates_ft, axes="zyx"),
+            max_shifts=max_shifts_px,
+            var_kwarg={"quat": molecules.quaternion()},
+        )
+        score = np.stack(da.compute(tasks)[0], axis=0)
+
+        scale = parent.tomogram.scale
+        offset = np.array(shape_nm) / 2 - scale
+        m0 = molecules.translate_internal(-offset)
+        
+        dist_lon = np.array(distance_range_long) / scale * upsample_factor
+        dist_lat = np.array(distance_range_lat) / scale * upsample_factor
+        spl: CylSpline = layer.source_component
+        _cyl_model = spl.cylinder_model()
+        _grid_shape = _cyl_model.shape
+        _vit_grid = ViterbiGrid2D(
+            score.reshape(*_grid_shape, *score.shape[1:]),
+            (m0.pos / scale * upsample_factor).reshape(*_grid_shape, 3), 
+            m0.z.reshape(*_grid_shape, 3), 
+            m0.y.reshape(*_grid_shape, 3), 
+            m0.x.reshape(*_grid_shape, 3), 
+            _cyl_model.nrise,
+        )
+        
+        shift, _ = _vit_grid.viterbi(*dist_lon, *dist_lat)
+        offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
+        all_shifts_px = ((shift - offset) / upsample_factor).reshape(-1, 3)
+        all_shifts = all_shifts_px * scale
+        
+        molecules_opt = molecules.translate_internal(all_shifts)
         molecules_opt.features = molecules_opt.features.with_columns(
             [
                 pl.Series("align-dz", all_shifts[:, 0]),

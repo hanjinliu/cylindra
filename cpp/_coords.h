@@ -33,7 +33,7 @@ class Vector3D {
 		Vector3D(py::array_t<T> &vec): Vector3D<T>(vec.data(0), vec.data(1), vec.data(2)) {}
 		void update(T z0, T y0, T x0) {z=z0; y=y0; x=x0;};
 		py::array_t<T> asarray();
-		T pointToPlaneDistance(Vector3D<T> &norm, Vector3D<T> &other);
+		T pointToPlaneDistance2(Vector3D<T> &norm, Vector3D<T> &other);
 };
 
 
@@ -110,10 +110,10 @@ py::array_t<T> Vector3D<T>::asarray() {
 	return arr_;
 }
 
-/// Calculate the distance between the point `other` and the plane defined by the
+/// Calculate the square of distance between the point `other` and the plane defined by the
 /// normal vector `norm` and the point `this`. 
 template<typename T>
-T Vector3D<T>::pointToPlaneDistance(Vector3D<T> &norm, Vector3D<T> &other) {
+T Vector3D<T>::pointToPlaneDistance2(Vector3D<T> &norm, Vector3D<T> &other) {
 	return (other - *this).dot(norm);
 }
 
