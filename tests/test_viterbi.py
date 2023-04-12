@@ -107,10 +107,10 @@ def test_viterbi_2d(nrise: int):
     assert_equal(states, answer)
 
 @pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
-def test_viterbi_2d_distance(seed):
+@pytest.mark.parametrize("ny", [5, 20])
+def test_viterbi_2d_distance(seed: int, ny: int):
     from cylindra._cpp_ext import ViterbiGrid2D
 
-    ny = 5
     npf = 4
     radius = 10
     yspace = 10
@@ -162,3 +162,5 @@ def test_viterbi_2d_distance(seed):
     assert_array_less(dist, dist_max, "dist < dist_max not satisfied")
     assert_array_less(lat_dist_min, dist_lat, "lat_dist_min < dist_lat not satisfied")
     assert_array_less(dist_lat, lat_dist_max, "dist_lat < lat_dist_max not satisfied")
+
+    assert_array_less(0, np.max(states, axis=(1, 2)))
