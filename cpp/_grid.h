@@ -210,12 +210,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	// backward tracking
 	for (auto t = nmole - 2; t >= 0; --t) {
 		double max = -std::numeric_limits<double>::infinity();
-		auto argmax = Vector3D<int>(0, 0, 0);
+		auto argmax = Vector3D<int>(-1, -1, -1);
 		auto point_prev = coords[t+1].at(prev.z, prev.y, prev.x);
+		auto coord = coords[t];
 		for (auto z0 = 0; z0 < nz; ++z0) {
 		for (auto y0 = 0; y0 < ny; ++y0) {
 		for (auto x0 = 0; x0 < nx; ++x0) {
-			auto distance2 = (point_prev - coords[t].at(z0, y0, x0)).length2();
+			auto distance2 = (point_prev - coord.at(z0, y0, x0)).length2();
 			if (distance2 < dist_min2 || dist_max2 < distance2) {
 				continue;
 			}

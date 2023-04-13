@@ -175,6 +175,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
         for (auto _s1 = 0; _s1 < nang; ++_s1) {
             auto s1 = geometry.convertAngular(_s1);
             auto sources = geometry.sourceForward(t1, s1);
+            auto coord_end = coords.at(t1, s1);
 
             if (sources.hasLateral() && sources.hasLongitudinal()) {
                 // If (t1, s1) has both longitudinal and lateral sources, then we have to check
@@ -192,17 +193,110 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto y1 = 0; y1 < ny; ++y1) {
                 for (auto x1 = 0; x1 < nx; ++x1) {
                     auto max = -std::numeric_limits<float>::infinity();
-                    auto end_point = coords.at(t1, s1).at(z1, y1, x1);
+                    auto end_point = coord_end.at(z1, y1, x1);
+                    auto coord_o = coords.at(t0o, s0o);
+                    auto coord_a = coords.at(t0a, s0a);
                     for (auto y0o = 0; y0o < ny; ++y0o) {
                         // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
                         // shorter than dist_min, then any point in the plane is invalid, considering
                         // the convexity of the shell-range created by [dist_min, dist_max].
-                        auto coord = coords.at(t0o, s0o);
-                        auto point_0y0 = coord.at(0.0, y0o, 0.0);
+                        auto point_0y0 = coord_o.at(0.0, y0o, 0.0);
                         auto dist2_00 = (point_0y0 - end_point).length2();
-                        auto dist2_01 = (coord.at(0.0, y0o, nx-1) - end_point).length2();
-                        auto dist2_10 = (coord.at(nz-1, y0o, 0.0) - end_point).length2();
-                        auto dist2_11 = (coord.at(nz-1, y0o, nx-1) - end_point).length2();
+                        auto dist2_01 = (coord_o.at(0.0, y0o, nx-1) - end_point).length2();
+                        auto dist2_10 = (coord_o.at(nz-1, y0o, 0.0) - end_point).length2();
+                        auto dist2_11 = (coord_o.at(nz-1, y0o, nx-1) - end_point).length2();
+                        if (
+                            dist2_00 < dist_min2 
+                            && dist2_01 < dist_min2 
+                            && dist2_10 < dist_min2 
+                            && dist2_11 < dist_min2
+                        ) {
+                            continue;
+                        }
+
+                        // If the length of perpendicular line drawn from point (x1, y1, z1) to the
+                        // plane of (_, y0, _) is longer than dist_max, then any point in the plane
+                        // is invalid.
+                        if (point_0y0.pointToPlaneDistance2(coord_o.ey, end_point) > dist_max2) {
+                            continue;  // break?
+                        }
+
+                        for (auto x0a = 0; x0a < nx; ++x0a) {
+                            // check the distance between two points to speed up
+                            auto point_00x = coord_a.at(0.0, 0.0, x0a);
+                            auto dist2_00 = (point_00x - end_point).length2();
+                            auto dist2_01 = (coord_a.at(0.0, ny-1, x0a) - end_point).length2();
+                            auto dist2_10 = (coord_a.at(nz-1, 0.0, x0a) - end_point).length2();
+                            auto dist2_11 = (coord_a.at(nz-1, ny-1, x0a) - end_point).length2();
+                            if (
+                                dist2_00 < lat_dist_min2 
+                                && dist2_01 < lat_dist_min2 
+                                && dist2_10 < lat_dist_min2 
+                                && dist2_11 < lat_dist_min2
+                            ) {
+                                continue;
+                            }
+                            if (point_00x.pointToPlaneDistance2(coord_a.ex, end_point) > lat_dist_max2) {
+                                continue;  // break?
+                            }
+
+                            for (auto z0a = 0; z0a < nz; ++z0a) {
+                            for (auto y0a = 0; y0a < ny; ++y0a) {
+                            for (auto z0o = 0; z0o < nz; ++z0o) {
+                            for (auto x0o = 0; x0o < nx; ++x0o) {
+                                auto vec_o = coord_o.at(z0o, y0o, x0o) - end_point;
+                                auto a2o = vec_o.length2();
+
+                                if (a2o < dist_min2 || dist_max2 < a2o) {
+                                    // check distance between two points
+                                    continue;
+                                }
+                                
+                                auto vec_a = coord_a.at(z0a, y0a, x0a) - end_point;
+                                auto a2a = vec_a.length2();
+
+                                if (a2a < lat_dist_min2 || lat_dist_max2 < a2a) {
+                                    // check distance between two points
+                                    continue;
+                                }
+
+                                max = std::max({
+                                    max,
+                                    viterbi_lattice(t0o, s0o, z0o, y0o, x0o),
+                                    viterbi_lattice(t0a, s0a, z0a, y0a, x0a)
+                                });
+                            }}}}  // end of x0o, y0a, z0a, z0o
+                        }
+                    }
+                
+                    auto next_score = score.data(t1, s1, z1, y1, x1);
+                    viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
+                }}}  // end of x1, y1, z1
+
+            } else if (sources.hasLongitudinal()) {
+                // if (t1, s1) has only longitudinal source (first or last |nRise| molecules),
+                // then we have to check the distances between (t1, s1, z1, y1, x1) and
+                // (t0, s0, z0, y0, x0) for each (z1, y1, x1, z0, y0, x0), only for the longitudinal
+                // source (t0, s0).
+
+                auto t0 = sources.lon.first;
+                auto s0 = sources.lon.second;
+                auto coord = coords.at(t0, s0);
+                for (auto z1 = 0; z1 < nz; ++z1) {
+                for (auto y1 = 0; y1 < ny; ++y1) {
+                for (auto x1 = 0; x1 < nx; ++x1) {
+                    auto max = -std::numeric_limits<float>::infinity();
+                    auto end_point = coord_end.at(z1, y1, x1);
+                    for (auto y0 = 0; y0 < nx; ++y0) {
+                    for (auto z0 = 0; z0 < nz; ++z0) {
+                        // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
+                        // shorter than dist_min, then any point in the plane is invalid, considering
+                        // the convexity of the shell-range created by [dist_min, dist_max].
+                        auto point_0y0 = coord.at(0.0, y0, 0.0);
+                        auto dist2_00 = (point_0y0 - end_point).length2();
+                        auto dist2_01 = (coord.at(0.0, y0, nx-1) - end_point).length2();
+                        auto dist2_10 = (coord.at(nz-1, y0, 0.0) - end_point).length2();
+                        auto dist2_11 = (coord.at(nz-1, y0, nx-1) - end_point).length2();
                         if (
                             dist2_00 < dist_min2 
                             && dist2_01 < dist_min2 
@@ -219,99 +313,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             continue;  // break?
                         }
 
-                        for (auto x0a = 0; x0a < nx; ++x0a) {
-                            // check the distance between two points to speed up
-                            auto point_00x = coords.at(t0a, s0a).at(0.0, 0.0, x0a);
-                            dist2_00 = (point_00x - end_point).length2();
-                            dist2_01 = (coords.at(t0a, s0a).at(0.0, 0.0, nx-1) - end_point).length2();
-                            dist2_10 = (coords.at(t0a, s0a).at(nz-1, 0.0, 0.0) - end_point).length2();
-                            dist2_11 = (coords.at(t0a, s0a).at(nz-1, 0.0, nx-1) - end_point).length2();
-                            if (
-                                dist2_00 < lat_dist_min2 
-                                && dist2_01 < lat_dist_min2 
-                                && dist2_10 < lat_dist_min2 
-                                && dist2_11 < lat_dist_min2
-                            ) {
-                                continue;
-                            }
-                            if (point_00x.pointToPlaneDistance2(coords.at(t0a, s0a).ex, end_point) > lat_dist_max2) {
-                                continue;  // break?
-                            }
-
-                            for (auto z0a = 0; z0a < nz; ++z0a) {
-                            for (auto y0a = 0; y0a < ny; ++y0a) {
-                            for (auto z0o = 0; z0o < nz; ++z0o) {
-                            for (auto x0o = 0; x0o < nx; ++x0o) {
-                                auto vec_o = coord.at(z0o, y0o, x0o) - end_point;
-                                auto a2o = vec_o.length2();
-
-                                if (a2o < dist_min2 || dist_max2 < a2o) {
-                                    // check distance between two points
-                                    continue;
-                                }
-                                
-                                auto vec_a = coords.at(t0a, s0a).at(z0a, y0a, x0a) - end_point;
-                                auto a2a = vec_a.length2();
-
-                                if (a2a < lat_dist_min2 || lat_dist_max2 < a2a) {
-                                    // check distance between two points
-                                    continue;
-                                }
-
-                                max = std::max(
-                                    max,
-                                    viterbi_lattice(t0o, s0o, z0o, y0o, x0o)
-                                    + viterbi_lattice(t0a, s0a, z0a, y0a, x0a)  // TODO: add??
-                                );
-                            }}}}  // end of x0o, y0a, z0a, z0o
-                        }
-                    }
-                
-                    auto next_score = score.data(t1, s1, z1, y1, x1);
-                    viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
-                }}}  // end of x1, y1, z1
-
-            } else if (sources.hasLongitudinal()) {
-                // if (t1, s1) has only longitudinal source (first or last |nRise| molecules),
-                // then we have to check the distances between (t1, s1, z1, y1, x1) and
-                // (t0, s0, z0, y0, x0) for each (z1, y1, x1, z0, y0, x0), only for the longitudinal
-                // source (t0, s0).
-
-                auto t0 = sources.lon.first;
-                auto s0 = sources.lon.second;        
-                for (auto z1 = 0; z1 < nz; ++z1) {
-                for (auto y1 = 0; y1 < ny; ++y1) {
-                for (auto x1 = 0; x1 < nx; ++x1) {
-                    auto max = -std::numeric_limits<float>::infinity();
-                    auto end_point = coords.at(t1, s1).at(z1, y1, x1);
-                    for (auto y0 = 0; y0 < nx; ++y0) {
-                    for (auto z0 = 0; z0 < nz; ++z0) {
-                        // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
-                        // shorter than dist_min, then any point in the plane is invalid, considering
-                        // the convexity of the shell-range created by [dist_min, dist_max].
-                        auto point_0y0 = coords.at(t0, s0).at(0.0, y0, 0.0);
-                        auto dist2_00 = (point_0y0 - end_point).length2();
-                        auto dist2_01 = (coords.at(t0, s0).at(0.0, y0, nx-1) - end_point).length2();
-                        auto dist2_10 = (coords.at(t0, s0).at(nz-1, y0, 0.0) - end_point).length2();
-                        auto dist2_11 = (coords.at(t0, s0).at(nz-1, y0, nx-1) - end_point).length2();
-                        if (
-                            dist2_00 < dist_min2 
-                            && dist2_01 < dist_min2 
-                            && dist2_10 < dist_min2 
-                            && dist2_11 < dist_min2
-                        ) {
-                            continue;
-                        }
-
-                        // If the length of perpendicular line drawn from point (x1, y1, z1) to the
-                        // plane of (_, y0, _) is longer than dist_max, then any point in the plane
-                        // is invalid.
-                        if (point_0y0.pointToPlaneDistance2(coords.at(t0, s0).ey, end_point) > dist_max2) {
-                            continue;  // break?
-                        }
-
                         for (auto x0 = 0; x0 < nx; ++x0) {
-                            auto vec = coords.at(t0, s0).at(z0, y0, x0) - end_point;
+                            auto vec = coord.at(z0, y0, x0) - end_point;
                             auto a2 = vec.length2();
 
                             if (a2 < dist_min2 || dist_max2 < a2) {
@@ -335,18 +338,19 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 
                 auto t0 = sources.lat.first;
                 auto s0 = sources.lat.second;
+                auto coord = coords.at(t0, s0);
                 for (auto z1 = 0; z1 < nz; ++z1) {
                 for (auto y1 = 0; y1 < ny; ++y1) {
                 for (auto x1 = 0; x1 < nx; ++x1) {
                     auto max = -std::numeric_limits<float>::infinity();
-                    auto end_point = coords.at(t1, s1).at(z1, y1, x1);
+                    auto end_point = coord_end.at(z1, y1, x1);
                     for (auto x0 = 0; x0 < nx; ++x0) {
                         // check the distance between two points to speed up
-                        auto point_00x = coords.at(t0, s0).at(0.0, 0.0, x0);
+                        auto point_00x = coord.at(0.0, 0.0, x0);
                         auto dist2_00 = (point_00x - end_point).length2();
-                        auto dist2_01 = (coords.at(t0, s0).at(0.0, ny-1, x0) - end_point).length2();
-                        auto dist2_10 = (coords.at(t0, s0).at(nz-1, 0.0, x0) - end_point).length2();
-                        auto dist2_11 = (coords.at(t0, s0).at(nz-1, ny-1, x0) - end_point).length2();
+                        auto dist2_01 = (coord.at(0.0, ny-1, x0) - end_point).length2();
+                        auto dist2_10 = (coord.at(nz-1, 0.0, x0) - end_point).length2();
+                        auto dist2_11 = (coord.at(nz-1, ny-1, x0) - end_point).length2();
                         if (
                             dist2_00 < lat_dist_min2 
                             && dist2_01 < lat_dist_min2 
@@ -355,13 +359,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         ) {
                             continue;
                         }
-                        if (point_00x.pointToPlaneDistance2(coords.at(t0, s0).ex, end_point) > lat_dist_max2) {
+                        if (point_00x.pointToPlaneDistance2(coord.ex, end_point) > lat_dist_max2) {
                             continue;  // break?
                         }
 
                         for (auto y0 = 0; y0 < nx; ++y0) {
                         for (auto z0 = 0; z0 < nz; ++z0) {
-                            auto vec = coords.at(t0, s0).at(z0, y0, x0) - end_point;
+                            auto vec = coord.at(z0, y0, x0) - end_point;
                             auto a2 = vec.length2();
 
                             if (a2 < lat_dist_min2 || lat_dist_max2 < a2) {
@@ -390,14 +394,14 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
     }  // end of t1
 
 	double max_score = -std::numeric_limits<double>::infinity();
-    auto index_end = geometry.indexEnd();
 
-    // backward tracking    
+    // backward tracking
 	for (auto t0 = naxial - 1; t0 >= 0; --t0) {
         for (auto _s0 = nang - 1; _s0 >= 0; --_s0) {
             auto s0 = geometry.convertAngular(_s0);
+            auto coord = coords.at(t0, s0);
             auto bsrc = geometry.sourceBackward(t0, s0);
-            double max = -std::numeric_limits<double>::infinity();
+            auto max = -std::numeric_limits<float>::infinity();
             auto argmax = Vector3D<int>(-1, -1, -1);
             if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
                 // Find the maximum position with the constraint of the distance from
@@ -409,16 +413,16 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 auto zargmaxo = state_sequence(t1o, s1o, 0);
                 auto yargmaxo = state_sequence(t1o, s1o, 1);
                 auto xargmaxo = state_sequence(t1o, s1o, 2);
+                auto point_prev_lon = coords.at(t1o, s1o).at(zargmaxo, yargmaxo, xargmaxo);
                 auto zargmaxa = state_sequence(t1a, s1a, 0);
                 auto yargmaxa = state_sequence(t1a, s1a, 1);
                 auto xargmaxa = state_sequence(t1a, s1a, 2);
-                auto point_prev_lon = coords.at(t1o, s1o).at(zargmaxo, yargmaxo, xargmaxo);
                 auto point_prev_lat = coords.at(t1a, s1a).at(zargmaxa, yargmaxa, xargmaxa);
 
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
                 for (auto x0 = 0; x0 < nx; ++x0) {
-                    auto point0 = coords.at(t0, s0).at(z0, y0, x0);
+                    auto point0 = coord.at(z0, y0, x0);
                     auto a2_lon = (point0 - point_prev_lon).length2();
 
                     if (a2_lon < dist_min2 || dist_max2 < a2_lon) {
@@ -432,8 +436,10 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                         // check distance.
                         continue;
                     }
-                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
-                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+
+                    auto current = viterbi_lattice(t0, s0, z0, y0, x0);
+                    if (max < current) {
+                        max = current;
                         argmax = Vector3D<int>(z0, y0, x0);
                     }
                 }}}
@@ -449,15 +455,16 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
                 for (auto x0 = 0; x0 < nx; ++x0) {
-                    auto vec = coords.at(t0, s0).at(z0, y0, x0) - point_prev_lon;
+                    auto vec = coord.at(z0, y0, x0) - point_prev_lon;
                     auto a2 = vec.length2();
 
                     if (a2 < dist_min2 || dist_max2 < a2) {
                         // check distance.
                         continue;
                     }
-                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
-                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                    auto current = viterbi_lattice(t0, s0, z0, y0, x0);
+                    if (max < current) {
+                        max = current;
                         argmax = Vector3D<int>(z0, y0, x0);
                     }
                 }}}
@@ -473,15 +480,16 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
                 for (auto x0 = 0; x0 < nx; ++x0) {
-                    auto vec = coords.at(t0, s0).at(z0, y0, x0) - point_prev_lat;
+                    auto vec = coord.at(z0, y0, x0) - point_prev_lat;
                     auto a2 = vec.length2();
 
                     if (a2 < lat_dist_min2 || lat_dist_max2 < a2) {
                         // check distance.
                         continue;
                     }
-                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
-                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                    auto current = viterbi_lattice(t0, s0, z0, y0, x0);
+                    if (max < current) {
+                        max = current;
                         argmax = Vector3D<int>(z0, y0, x0);
                     }
                 }}}
@@ -490,8 +498,9 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
                 for (auto x0 = 0; x0 < nx; ++x0) {
-                    if (max < viterbi_lattice(t0, s0, z0, y0, x0)) {
-                        max = viterbi_lattice(t0, s0, z0, y0, x0);
+                    auto current = viterbi_lattice(t0, s0, z0, y0, x0);
+                    if (max < current) {
+                        max = current;
                         argmax = Vector3D<int>(z0, y0, x0);
                     }
                 }}}
