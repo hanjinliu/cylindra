@@ -110,6 +110,7 @@ def test_viterbi_2d(nrise: int):
 @pytest.mark.parametrize("ny", [5, 20])
 def test_viterbi_2d_distance(seed: int, ny: int):
     from cylindra._cpp_ext import ViterbiGrid2D
+    from timeit import default_timer
 
     npf = 4
     radius = 10
@@ -138,7 +139,11 @@ def test_viterbi_2d_distance(seed: int, ny: int):
     xvec = _cross(yvec, zvec)
 
     grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, 1)
+    t0 = default_timer()
     states, z = grid.viterbi(dist_min, dist_max, lat_dist_min, lat_dist_max)
+    msec = (default_timer() - t0) * 1000
+    print(f"{msec:2f} msec")
+    
     assert_array_less(-1, states)
 
     dist = []
