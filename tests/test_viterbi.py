@@ -95,7 +95,7 @@ def test_viterbi_2d(nrise: int):
     t0 = default_timer()
     states, z = grid.viterbi(0.0, 10000.0, 0.0, 10000.0)
     msec = (default_timer() - t0) * 1000
-    print(f"{msec:2f} msec")
+    print(f"{msec:2f} msec, score={z}")
 
     answer = np.zeros((4, 3, 3))
     for i in range(4):
@@ -105,6 +105,7 @@ def test_viterbi_2d(nrise: int):
             else:
                 answer[i, j, :] = [4, 4, 4]
     assert_equal(states, answer)
+    assert_array_less(0, np.max(states, axis=(1, 2)))
 
 @pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
 @pytest.mark.parametrize("ny", [5, 20])
@@ -113,7 +114,8 @@ def test_viterbi_2d_distance(seed: int, ny: int):
     from timeit import default_timer
 
     npf = 4
-    radius = 10
+    nrise = 1
+    radius = 20
     yspace = 10
     narr = np.arange(ny * npf).reshape(ny, npf)
     
@@ -138,11 +140,11 @@ def test_viterbi_2d_distance(seed: int, ny: int):
     yvec = np.array([[0., 1., 0.]] * ny * npf).reshape(ny, npf, 3)
     xvec = _cross(yvec, zvec)
 
-    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, 1)
+    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
     t0 = default_timer()
     states, z = grid.viterbi(dist_min, dist_max, lat_dist_min, lat_dist_max)
     msec = (default_timer() - t0) * 1000
-    print(f"{msec:2f} msec")
+    print(f"{msec:2f} msec, score={z}")
     
     assert_array_less(-1, states)
 

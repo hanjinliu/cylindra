@@ -777,7 +777,13 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
-        Constrained subtomogram alignment using ZNCC landscaping and Viterbi algorithm.
+        Subtomogram alignment using 1D Viterbi alignment.
+        
+        1D Viterbi alignment is an alignment algorithm that considers the distance and
+        the skew angle between every longitudinally adjacent monomers. The classical 
+        Viterbi algorithm is used to find the global optimal solution of the alignment.
+        Note that Viterbi alignment is data size dependent, i.e. the alignment result
+        of a molecule may vary depending on the total number of molecules in the dataset.
 
         Parameters
         ----------
@@ -808,7 +814,7 @@ class SubtomogramAveraging(MagicTemplate):
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _Logger.print_html(f"Search size (px): {search_size}")
+        _Logger.print(f"Search size (px): {search_size}")
         model = alignment.ZNCCAlignment(
             template,
             mask,
@@ -865,8 +871,7 @@ class SubtomogramAveraging(MagicTemplate):
         npf = molecules.features[Mole.pf].max() + 1
         
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-        offset = np.array(shape_nm) / 2 - scale
-        molecules_origin = molecules.translate_internal(-offset)
+        molecules_origin = molecules.translate_internal(-(np.array(shape_nm) / 2 - scale))
         mole_list = [molecules_origin.subset(sl) for sl in slices]  # split each protofilament
         
         dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
@@ -944,6 +949,26 @@ class SubtomogramAveraging(MagicTemplate):
         distance_range_lat: Annotated[tuple[nm, nm], {"options": {"min": 0.1, "max": 1000.0, "step": 0.1}, "label": "Lateral range (nm)"}] = (4.7, 5.1),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
+        """
+        Subtomogram alignment using 2D Viterbi alignment.
+        
+        2D Viterbi alignment is an alignment algorithm that considers the distance between
+        every adjacent monomers. Computationally, 2D Viterbi algorithm is so intensive
+        that it is unsolvable for the protein alignment. This algorithm is an approximation.
+
+        Parameters
+        ----------
+        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
+        {x_rotation}{cutoff}{interpolation}
+        distance_range_long : tuple of float
+            Range of allowed distance between longitudianlly consecutive monomers.
+        distance_range_lat : tuple of float
+            Range of allowed distance between laterally consecutive monomers.
+        upsample_factor : int, default is 5
+            Upsampling factor of ZNCC landscape. Be careful not to set this parameter too 
+            large. Calculation will take much longer for larger ``upsample_factor``. 
+            Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
+        """
         from dask import array as da
         from cylindra._cpp_ext import ViterbiGrid2D
         
@@ -960,7 +985,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _Logger.print_html(f"Search size (px): {search_size}")
+        _Logger.print(f"Search size (px): {search_size}")
         model = alignment.ZNCCAlignment(
             template,
             mask,
@@ -995,8 +1020,7 @@ class SubtomogramAveraging(MagicTemplate):
         score = np.stack(da.compute(tasks)[0], axis=0)
 
         scale = parent.tomogram.scale
-        offset = np.array(shape_nm) / 2 - scale
-        m0 = molecules.translate_internal(-offset)
+        m0 = molecules.translate_internal(-(np.array(shape_nm) / 2 - scale))
         
         dist_lon = np.array(distance_range_long) / scale * upsample_factor
         dist_lat = np.array(distance_range_lat) / scale * upsample_factor
@@ -1006,14 +1030,16 @@ class SubtomogramAveraging(MagicTemplate):
         _vit_grid = ViterbiGrid2D(
             score.reshape(*_grid_shape, *score.shape[1:]),
             (m0.pos / scale * upsample_factor).reshape(*_grid_shape, 3), 
-            m0.z.reshape(*_grid_shape, 3), 
-            m0.y.reshape(*_grid_shape, 3), 
-            m0.x.reshape(*_grid_shape, 3), 
+            m0.z.reshape(*_grid_shape, 3),
+            m0.y.reshape(*_grid_shape, 3),
+            m0.x.reshape(*_grid_shape, 3),
             _cyl_model.nrise,
         )
         
-        shift, _ = _vit_grid.viterbi(*dist_lon, *dist_lat)
+        shift, total_score = _vit_grid.viterbi(*dist_lon, *dist_lat)
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
+        _check_viterbi_2d_shift(shift, offset)
+        _Logger.print_html(f"total score = <b>{total_score:.2f}</b>")
         all_shifts_px = ((shift - offset) / upsample_factor).reshape(-1, 3)
         all_shifts = all_shifts_px * scale
         
@@ -1301,3 +1327,19 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+def _check_viterbi_2d_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"):
+    invalid = shift[:, :, 0] < 0
+    if invalid.any():
+        invalid_indices = np.stack(np.where(invalid), axis=1)
+        msg_fmt = "Viterbi alignment could not determine the optimal positions for\n{}"
+        if invalid_indices.shape[0] < 10:
+            summary = ", ".join(map(lambda ar: "({}, {})".format(*ar), invalid_indices))
+            msg = msg_fmt.format("(y, pf) = " + summary)
+        else:
+            msg = msg_fmt.format(f"{invalid_indices.shape[0]}/{shift.size // 3} points.")
+        _Logger.print(msg)
+        for idx in invalid_indices:
+            shift[idx[0], idx[1], :] = offset
+    
+    return shift

@@ -260,11 +260,16 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                                     continue;
                                 }
 
-                                max = std::max({
+                                // | | | | |
+                                // + + + + + -
+                                // + + + + + -
+                                // + + + + + -
+                                max = std::max(
                                     max,
-                                    viterbi_lattice(t0o, s0o, z0o, y0o, x0o),
-                                    viterbi_lattice(t0a, s0a, z0a, y0a, x0a)
-                                });
+                                    viterbi_lattice(t0o, s0o, z0o, y0o, x0o)
+                                        + viterbi_lattice(t0a, s0a, z0a, y0a, x0a)
+                                        - viterbi_lattice(t0o, s0a, z0a, y0a, x0a)
+                                );
                             }}}}  // end of x0o, y0a, z0a, z0o
                         }
                     }

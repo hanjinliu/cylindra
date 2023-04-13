@@ -114,7 +114,7 @@ py::array_t<T> Vector3D<T>::asarray() {
 /// normal vector `norm` and the point `this`. 
 template<typename T>
 T Vector3D<T>::pointToPlaneDistance2(Vector3D<T> &norm, Vector3D<T> &other) {
-	return (other - *this).dot(norm);
+	return std::abs((other - *this).dot(norm));
 }
 
 // A CoordinateSystem defines a local Cartesian coordinate system.
