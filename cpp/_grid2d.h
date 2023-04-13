@@ -168,7 +168,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<5>();
 
     auto geometry = getGeometry();
-	// py::gil_scoped_release nogil;  // without GIL
+	py::gil_scoped_release nogil;  // without GIL
 
 	// forward
 	for (auto t1 = 0; t1 < naxial; ++t1) {
