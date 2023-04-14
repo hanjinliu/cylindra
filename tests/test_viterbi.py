@@ -107,6 +107,8 @@ def test_viterbi_2d(nrise: int):
     assert_equal(states, answer)
     assert_array_less(0, np.max(states, axis=(1, 2)))
 
+# @pytest.mark.parametrize("seed", [21])
+# @pytest.mark.parametrize(["ny", "npf"], [(5, 4)])
 @pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
 @pytest.mark.parametrize(["ny", "npf"], [(5, 4), (20, 4), (5, 12)])
 @pytest.mark.parametrize("nrise", [1, -1])
@@ -134,12 +136,12 @@ def test_viterbi_2d_distance(seed: int, ny: int, npf: int, nrise: int):
         )  # shape (ny, npf, 3)
     else:
         origin = np.stack(
-            [radius * np.cos(-np.pi / 2 * narr),
+            [radius * np.cos(np.pi / 2 * narr),
             -yspace / npf * (narr % npf) + yspace * (narr // npf),
-            radius * np.sin(-np.pi / 2 * narr)],
+            radius * np.sin(np.pi / 2 * narr)],
             axis=-1,
         )  # shape (ny, npf, 3)
-        score = score[:, ::-1]
+        score = score[:, ::-1, :, :, ::-1]
     
     def _cross(x, y) -> np.ndarray:  # just for typing
         return -np.cross(x, y, axis=-1)
