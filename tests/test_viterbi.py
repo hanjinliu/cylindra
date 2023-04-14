@@ -118,11 +118,11 @@ def test_viterbi_2d_distance(seed: int, ny: int, npf: int, nrise: int):
     yspace = 10
     narr = np.arange(ny * npf).reshape(ny, npf)
     
-    lat_dist_avg = np.hypot(np.sqrt(2) * radius, yspace / 4)
+    lat_dist_avg = np.hypot(np.sqrt(2) * radius, yspace / npf)
     dist_min, dist_max = yspace - 1.2, yspace + 1.2
     lat_dist_min, lat_dist_max = lat_dist_avg - 1.4, lat_dist_avg + 1.4
 
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed + ny * npf)
     score = rng.random((ny, npf, 5, 5, 5)).astype(np.float32)
 
     if nrise >= 0:
@@ -134,11 +134,12 @@ def test_viterbi_2d_distance(seed: int, ny: int, npf: int, nrise: int):
         )  # shape (ny, npf, 3)
     else:
         origin = np.stack(
-            [radius * np.cos(np.pi / 2 * narr),
+            [radius * np.cos(-np.pi / 2 * narr),
             -yspace / npf * (narr % npf) + yspace * (narr // npf),
-            radius * np.sin(np.pi / 2 * narr)],
+            radius * np.sin(-np.pi / 2 * narr)],
             axis=-1,
         )  # shape (ny, npf, 3)
+        score = score[:, ::-1]
     
     def _cross(x, y) -> np.ndarray:  # just for typing
         return -np.cross(x, y, axis=-1)

@@ -183,6 +183,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{naxial, nang, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<3>();
+    for (auto t = 0; t < naxial; ++t) {
+        for (auto s = 0; s < nang; ++s) {
+            for (auto i = 0; i < 3; ++i) {
+                state_sequence(t, s, i) = -1;
+            }
+        }
+    }
 	
     // For 2D grid, scores of the initial position will be initialized during the
     // for-loop in the `viterbi` method.
@@ -190,7 +197,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<5>();
 
     auto geometry = getGeometry();
-	// py::gil_scoped_release nogil;  // without GIL
+	py::gil_scoped_release nogil;  // without GIL
 
 	// forward
 	for (auto t1 = 0; t1 < naxial; ++t1) {
@@ -429,6 +436,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
             auto bsrc = geometry.sourceBackward(t0, s0);
             auto max = -std::numeric_limits<float>::infinity();
             auto argmax = Vector3D<int>(-1, -1, -1);
+
             if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
                 // Find the maximum position with the constraint of the distance from
                 // the backward sources.
@@ -439,12 +447,20 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 auto zargmaxo = state_sequence(t1o, s1o, 0);
                 auto yargmaxo = state_sequence(t1o, s1o, 1);
                 auto xargmaxo = state_sequence(t1o, s1o, 2);
-                auto point_prev_lon = coords.at(t1o, s1o).at(zargmaxo, yargmaxo, xargmaxo);
+                if (zargmaxo < 0 || yargmaxo < 0 || xargmaxo < 0) {
+                    // no source
+                    continue;
+                }
                 auto zargmaxa = state_sequence(t1a, s1a, 0);
                 auto yargmaxa = state_sequence(t1a, s1a, 1);
                 auto xargmaxa = state_sequence(t1a, s1a, 2);
+                if (zargmaxa < 0 || yargmaxa < 0 || xargmaxa < 0) {
+                    // no source
+                    continue;
+                }
+                
+                auto point_prev_lon = coords.at(t1o, s1o).at(zargmaxo, yargmaxo, xargmaxo);
                 auto point_prev_lat = coords.at(t1a, s1a).at(zargmaxa, yargmaxa, xargmaxa);
-
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
                 for (auto x0 = 0; x0 < nx; ++x0) {
@@ -476,6 +492,10 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 auto zargmax = state_sequence(t1, s1, 0);
                 auto yargmax = state_sequence(t1, s1, 1);
                 auto xargmax = state_sequence(t1, s1, 2);
+                if (zargmax < 0 || yargmax < 0 || xargmax < 0) {
+                    // no source
+                    continue;
+                }
                 auto point_prev_lon = coords.at(t1, s1).at(zargmax, yargmax, xargmax);
 
                 for (auto z0 = 0; z0 < nz; ++z0) {
@@ -501,6 +521,10 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 auto zargmax = state_sequence(t1, s1, 0);
                 auto yargmax = state_sequence(t1, s1, 1);
                 auto xargmax = state_sequence(t1, s1, 2);
+                if (zargmax < 0 || yargmax < 0 || xargmax < 0) {
+                    // no source
+                    continue;
+                }
                 auto point_prev_lat = coords.at(t1, s1).at(zargmax, yargmax, xargmax);
 
                 for (auto z0 = 0; z0 < nz; ++z0) {
