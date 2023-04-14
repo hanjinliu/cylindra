@@ -30,7 +30,7 @@ class Vector3D {
 		Vector3D(T z0, T y0, T x0) {z=z0; y=y0; x=x0;}
 		Vector3D() : Vector3D<T>(0, 0, 0) {}
 		Vector3D(Vector3D<T> &vec) : Vector3D<T>(vec.z, vec.y, vec.x) {}
-		Vector3D(py::array_t<T> &vec): Vector3D<T>(vec.data(0), vec.data(1), vec.data(2)) {}
+		Vector3D(py::array_t<T> &vec): Vector3D<T>(*vec.data(0), *vec.data(1), *vec.data(2)) {}
 		void update(T z0, T y0, T x0) {z=z0; y=y0; x=x0;};
 		py::array_t<T> asarray();
 		T pointToPlaneDistance2(Vector3D<T> &norm, Vector3D<T> &other);

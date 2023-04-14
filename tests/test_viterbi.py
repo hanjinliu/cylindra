@@ -108,13 +108,12 @@ def test_viterbi_2d(nrise: int):
     assert_array_less(0, np.max(states, axis=(1, 2)))
 
 @pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
-@pytest.mark.parametrize("ny", [5, 20])
-def test_viterbi_2d_distance(seed: int, ny: int):
+@pytest.mark.parametrize(["ny", "npf"], [(5, 4), (20, 4), (5, 12)])
+@pytest.mark.parametrize("nrise", [1, -1])
+def test_viterbi_2d_distance(seed: int, ny: int, npf: int, nrise: int):
     from cylindra._cpp_ext import ViterbiGrid2D
     from timeit import default_timer
 
-    npf = 4
-    nrise = 1
     radius = 20
     yspace = 10
     narr = np.arange(ny * npf).reshape(ny, npf)
@@ -126,12 +125,20 @@ def test_viterbi_2d_distance(seed: int, ny: int):
     rng = np.random.default_rng(seed)
     score = rng.random((ny, npf, 5, 5, 5)).astype(np.float32)
 
-    origin = np.stack(
-        [radius * np.cos(np.pi / 2 * narr),
-         yspace / 4 * narr,
-         radius * np.sin(np.pi / 2 * narr)],
-        axis=-1,
-    )  # shape (ny, npf, 3)
+    if nrise >= 0:
+        origin = np.stack(
+            [radius * np.cos(np.pi / 2 * narr),
+            yspace / npf * narr,
+            radius * np.sin(np.pi / 2 * narr)],
+            axis=-1,
+        )  # shape (ny, npf, 3)
+    else:
+        origin = np.stack(
+            [radius * np.cos(np.pi / 2 * narr),
+            -yspace / npf * (narr % npf) + yspace * (narr // npf),
+            radius * np.sin(np.pi / 2 * narr)],
+            axis=-1,
+        )  # shape (ny, npf, 3)
     
     def _cross(x, y) -> np.ndarray:  # just for typing
         return -np.cross(x, y, axis=-1)
@@ -148,22 +155,8 @@ def test_viterbi_2d_distance(seed: int, ny: int):
     
     assert_array_less(-1, states)
 
-    dist = []
-    for i in range(ny - 1):
-        for j in range(npf - 1):
-            pos1 = grid.world_pos(i + 1, j, *states[i + 1, j])
-            pos0 = grid.world_pos(i, j, *states[i, j])
-            dist.append(np.sqrt(np.sum((pos1 - pos0) ** 2)))
-    dist = np.array(dist)
-    
-    dist_lat = []
-    for k in range(ny * npf - 1):
-        i0, j0 = divmod(k, npf)
-        i1, j1 = divmod(k + 1, npf)
-        pos1 = grid.world_pos(i1, j1, *states[i1, j1])
-        pos0 = grid.world_pos(i0, j0, *states[i0, j0])
-        dist_lat.append(np.sqrt(np.sum((pos1 - pos0) ** 2)))
-    dist_lat = np.array(dist_lat)
+    dist = grid.all_longitudinal_distances(states)
+    dist_lat = grid.all_lateral_distances(states)
 
     assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
     assert_array_less(dist, dist_max, "dist < dist_max not satisfied")

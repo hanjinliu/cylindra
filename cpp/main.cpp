@@ -27,6 +27,10 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>())
         .def("viterbi", &ViterbiGrid2D::viterbi)
         .def("world_pos", &ViterbiGrid2D::worldPos)
+        .def("all_longitudinal_pairs", &ViterbiGrid2D::allLongitudinalPairs)
+        .def("all_lateral_pairs", &ViterbiGrid2D::allLateralPairs)
+        .def("all_longitudinal_distances", &ViterbiGrid2D::allLongitudinalDistances)
+        .def("all_lateral_distances", &ViterbiGrid2D::allLateralDistances)
         .def("__repr__", &ViterbiGrid2D::pyRepr);
     
     // `CylinderGeometry` is exported mainly for testing
@@ -50,6 +54,8 @@ PYBIND11_MODULE(_cpp_ext, m) {
     py::class_<Index>(m, "Index")
         .def(py::init<ssize_t, ssize_t>())
         .def("is_valid", &Index::isValid)
+        .def_readwrite("y", &Index::y)
+        .def_readwrite("a", &Index::a)
         .def("__repr__", &Index::pyRepr)
         .def("__eq__", &Index::pyEq);
 }

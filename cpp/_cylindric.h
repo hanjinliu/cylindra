@@ -138,6 +138,8 @@ class CylinderGeometry {
         Index indexStart();
         Index indexEnd();
         ssize_t convertAngular(ssize_t ang);
+        std::vector<std::pair<Index, Index>> allLongitudinalPairs();
+        std::vector<std::pair<Index, Index>> allLateralPairs();
         std::string pyRepr() {
             return "CylinderGeometry(nY=" + std::to_string(nY) +
                 ", nA=" + std::to_string(nA) + ", nRise=" + std::to_string(nRise) + ")";
@@ -324,6 +326,39 @@ inline ssize_t CylinderGeometry::convertAngular(ssize_t ang) {
     } else {
         return nA - ang - 1;
     }
+}
+
+/// Return all the pairs of indices that are connected longitudinally.
+std::vector<std::pair<Index, Index>> CylinderGeometry::allLongitudinalPairs() {
+    std::vector<std::pair<Index, Index>> pairs;
+    for (ssize_t y = 0; y < nY; ++y) {
+        for (ssize_t a = 0; a < nA; ++a) {
+            auto idx1 = Index(y, a);
+            auto sources = sourceForward(y, a);
+            if (sources.hasLongitudinal()) {
+                auto idx0 = Index(sources.lon.first, sources.lon.second);
+                pairs.push_back({idx0, idx1});
+            }
+        }
+    }
+    return pairs;
+}
+
+
+/// Return all the pairs of indices that are connected laterally.
+std::vector<std::pair<Index, Index>> CylinderGeometry::allLateralPairs() {
+    std::vector<std::pair<Index, Index>> pairs;
+    for (ssize_t y = 0; y < nY; ++y) {
+        for (ssize_t a = 0; a < nA; ++a) {
+            auto idx1 = Index(y, a);
+            auto sources = sourceForward(y, a);
+            if (sources.hasLateral()) {
+                auto idx0 = Index(sources.lat.first, sources.lat.second);
+                pairs.push_back({idx0, idx1});
+            }
+        }
+    }
+    return pairs;
 }
 
 // Compresses the index tuple into a single ssize_t.
