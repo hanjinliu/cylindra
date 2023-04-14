@@ -21,6 +21,9 @@ class Coords2DGrid {
         CoordinateSystem<double> at(ssize_t y, ssize_t a) {
             return coords[y * nang + a];
         }
+        CoordinateSystem<double> at(std::pair<ssize_t, ssize_t> y_a) {
+            return at(y_a.first, y_a.second);
+        }
         CoordinateSystem<double>* at_mut(ssize_t y, ssize_t a) {
             return &coords[y * nang + a];
         }
@@ -34,6 +37,31 @@ class Coords2DGrid {
             }
         };
 };
+
+#pragma warning(push)
+#pragma warning(disable:4244)
+
+Vector3D<double> stateAt(
+    py::detail::unchecked_mutable_reference<long long, 3i64> &state_array,
+    ssize_t y, 
+    ssize_t a
+)
+{
+    auto z_ = state_array(y, a, 0);
+    auto y_ = state_array(y, a, 1);
+    auto x_ = state_array(y, a, 2);
+    return Vector3D<double>(z_, y_, x_);
+}
+
+Vector3D<double> stateAt(
+    py::detail::unchecked_mutable_reference<long long, 3i64> &state_array,
+    std::pair<ssize_t, ssize_t> y_a
+)
+{
+    return stateAt(state_array, y_a.first, y_a.second);
+}
+
+#pragma warning(pop)
 
 /// A 2D grid for Viterbi alignment.
 /// This class contains the score landscape, coordinate systems and the shape.
@@ -440,27 +468,19 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
             if (bsrc.hasLongitudinal() && bsrc.hasLateral()) {
                 // Find the maximum position with the constraint of the distance from
                 // the backward sources.
-                auto t1o = bsrc.lon.first;
-                auto s1o = bsrc.lon.second;
-                auto t1a = bsrc.lat.first;
-                auto s1a = bsrc.lat.second;
-                auto zargmaxo = state_sequence(t1o, s1o, 0);
-                auto yargmaxo = state_sequence(t1o, s1o, 1);
-                auto xargmaxo = state_sequence(t1o, s1o, 2);
-                if (zargmaxo < 0 || yargmaxo < 0 || xargmaxo < 0) {
+                auto argmaxo = stateAt(state_sequence, bsrc.lon);
+                if (argmaxo.z < 0) {
                     // no source
                     continue;
                 }
-                auto zargmaxa = state_sequence(t1a, s1a, 0);
-                auto yargmaxa = state_sequence(t1a, s1a, 1);
-                auto xargmaxa = state_sequence(t1a, s1a, 2);
-                if (zargmaxa < 0 || yargmaxa < 0 || xargmaxa < 0) {
+                auto argmaxa = stateAt(state_sequence, bsrc.lat);
+                if (argmaxa.z < 0) {
                     // no source
                     continue;
                 }
                 
-                auto point_prev_lon = coords.at(t1o, s1o).at(zargmaxo, yargmaxo, xargmaxo);
-                auto point_prev_lat = coords.at(t1a, s1a).at(zargmaxa, yargmaxa, xargmaxa);
+                auto point_prev_lon = coords.at(bsrc.lon).at(argmaxo);
+                auto point_prev_lat = coords.at(bsrc.lat).at(argmaxa);
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
                 for (auto x0 = 0; x0 < nx; ++x0) {
@@ -487,16 +507,12 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 }}}
 
             } else if (bsrc.hasLongitudinal()) {
-                auto t1 = bsrc.lon.first;
-                auto s1 = bsrc.lon.second;
-                auto zargmax = state_sequence(t1, s1, 0);
-                auto yargmax = state_sequence(t1, s1, 1);
-                auto xargmax = state_sequence(t1, s1, 2);
-                if (zargmax < 0 || yargmax < 0 || xargmax < 0) {
+                auto argmaxo = stateAt(state_sequence, bsrc.lon);
+                if (argmaxo.z < 0) {
                     // no source
                     continue;
                 }
-                auto point_prev_lon = coords.at(t1, s1).at(zargmax, yargmax, xargmax);
+                auto point_prev_lon = coords.at(bsrc.lon).at(argmaxo);
 
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
@@ -516,16 +532,12 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 }}}
 
             } else if (bsrc.hasLateral()) {
-                auto t1 = bsrc.lat.first;
-                auto s1 = bsrc.lat.second;
-                auto zargmax = state_sequence(t1, s1, 0);
-                auto yargmax = state_sequence(t1, s1, 1);
-                auto xargmax = state_sequence(t1, s1, 2);
-                if (zargmax < 0 || yargmax < 0 || xargmax < 0) {
+                auto argmaxa = stateAt(state_sequence, bsrc.lat);
+                if (argmaxa.z < 0) {
                     // no source
                     continue;
                 }
-                auto point_prev_lat = coords.at(t1, s1).at(zargmax, yargmax, xargmax);
+                auto point_prev_lat = coords.at(bsrc.lat).at(argmaxa);
 
                 for (auto z0 = 0; z0 < nz; ++z0) {
                 for (auto y0 = 0; y0 < ny; ++y0) {
