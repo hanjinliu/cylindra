@@ -3,7 +3,7 @@ from numpy.testing import assert_equal, assert_array_less
 import pytest
 from cylindra.components import CylSpline, CylinderModel
 
-@pytest.mark.parametrize("scale", [0.01, 0.1, 1.0, 10.0, 100.0])
+@pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
 def test_viterbi_1d(scale):
     from cylindra._cpp_ext import ViterbiGrid
     
