@@ -128,6 +128,7 @@ class CylinderGeometry {
             nA = _nA;
             nRise = _nRise;
         };
+        CylinderGeometry() : CylinderGeometry(0, 0, 0) {};
         CylinderGeometry(ssize_t nY, ssize_t nA) : CylinderGeometry(nY, nA, 0) {};
         std::vector<Index> getNeighbor(ssize_t, ssize_t);
         std::vector<Index> getNeighbors(std::vector<Index>);

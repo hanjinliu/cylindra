@@ -4,7 +4,6 @@
 #include "_alleviate.h"
 #include "_cylindric.h"
 #include "_grid.h"
-#include "_grid2d.h"
 
 namespace py = pybind11;
 
@@ -23,18 +22,7 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def("viterbi", py::overload_cast<double, double, double>(&ViterbiGrid::viterbi), py::arg("dist_min"), py::arg("dist_max"), py::arg("skew_max"))
         .def("world_pos", &ViterbiGrid::worldPos, py::arg("n"), py::arg("z"), py::arg("y"), py::arg("x"))
         .def("__repr__", &ViterbiGrid::pyRepr);
-    
-    py::class_<ViterbiGrid2D>(m, "ViterbiGrid2D")
-        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>(),
-             py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
-        .def("viterbi", &ViterbiGrid2D::viterbi, py::arg("dist_min"), py::arg("dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
-        .def("world_pos", &ViterbiGrid2D::worldPos, py::arg("lon"), py::arg("lat"), py::arg("z"), py::arg("y"), py::arg("x"))
-        .def("all_longitudinal_pairs", &ViterbiGrid2D::allLongitudinalPairs)
-        .def("all_lateral_pairs", &ViterbiGrid2D::allLateralPairs)
-        .def("all_longitudinal_distances", &ViterbiGrid2D::allLongitudinalDistances, py::arg("states"))
-        .def("all_lateral_distances", &ViterbiGrid2D::allLateralDistances, py::arg("states"))
-        .def("__repr__", &ViterbiGrid2D::pyRepr);
-    
+
     // `CylinderGeometry` is exported mainly for testing
     py::class_<CylinderGeometry>(m, "CylinderGeometry")
         .def(py::init<ssize_t, ssize_t, ssize_t>(), py::arg("ny"), py::arg("na"), py::arg("nrise"))

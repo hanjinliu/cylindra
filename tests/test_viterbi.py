@@ -70,100 +70,100 @@ def test_viterbi_1d_distance(seed: int):
     assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
     assert_array_less(dist, dist_max, "dist_max > dist not satisfied")
 
-@pytest.mark.parametrize("nrise", [2, -2])
-def test_viterbi_2d(nrise: int):
-    from cylindra._cpp_ext import ViterbiGrid2D
-    from timeit import default_timer
+# @pytest.mark.parametrize("nrise", [2, -2])
+# def test_viterbi_2d(nrise: int):
+#     from cylindra._cpp_ext import ViterbiGrid2D
+#     from timeit import default_timer
 
-    score = np.zeros((4, 3, 5, 5, 5))
-    spl = CylSpline.line([0, 0, 0], [3, 3, 3])
-    model = CylinderModel((4, 3), (0, 0.2), radius=0.58)
-    mole = model.to_molecules(spl)
-    zvec = mole.z.reshape(4, 3, -1)
-    yvec = mole.y.reshape(4, 3, -1)
-    xvec = mole.x.reshape(4, 3, -1)
-    origin = mole.pos.reshape(4, 3, -1)
+#     score = np.zeros((4, 3, 5, 5, 5))
+#     spl = CylSpline.line([0, 0, 0], [3, 3, 3])
+#     model = CylinderModel((4, 3), (0, 0.2), radius=0.58)
+#     mole = model.to_molecules(spl)
+#     zvec = mole.z.reshape(4, 3, -1)
+#     yvec = mole.y.reshape(4, 3, -1)
+#     xvec = mole.x.reshape(4, 3, -1)
+#     origin = mole.pos.reshape(4, 3, -1)
 
-    for i in range(4):
-        for j in range(3):
-            if i != 1:
-                score[i, j, 1, 2, 1] = 1.0
-            else:
-                score[i, j, 4, 4, 4] = 1.0
+#     for i in range(4):
+#         for j in range(3):
+#             if i != 1:
+#                 score[i, j, 1, 2, 1] = 1.0
+#             else:
+#                 score[i, j, 4, 4, 4] = 1.0
 
-    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
-    t0 = default_timer()
-    states, z = grid.viterbi(0.0, 10000.0, 0.0, 10000.0)
-    msec = (default_timer() - t0) * 1000
-    print(f"{msec:2f} msec, score={z}")
+#     grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
+#     t0 = default_timer()
+#     states, z = grid.viterbi(0.0, 10000.0, 0.0, 10000.0)
+#     msec = (default_timer() - t0) * 1000
+#     print(f"{msec:2f} msec, score={z}")
 
-    answer = np.zeros((4, 3, 3))
-    for i in range(4):
-        for j in range(3):
-            if i != 1:
-                answer[i, j, :] = [1, 2, 1]
-            else:
-                answer[i, j, :] = [4, 4, 4]
-    assert_equal(states, answer)
-    assert_array_less(0, np.max(states, axis=(1, 2)))
+#     answer = np.zeros((4, 3, 3))
+#     for i in range(4):
+#         for j in range(3):
+#             if i != 1:
+#                 answer[i, j, :] = [1, 2, 1]
+#             else:
+#                 answer[i, j, :] = [4, 4, 4]
+#     assert_equal(states, answer)
+#     assert_array_less(0, np.max(states, axis=(1, 2)))
 
-# @pytest.mark.parametrize("seed", [21])
-# @pytest.mark.parametrize(["ny", "npf"], [(5, 4)])
-@pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
-@pytest.mark.parametrize(["ny", "npf"], [(5, 4), (20, 4), (5, 12)])
-@pytest.mark.parametrize("nrise", [1, -1])
-def test_viterbi_2d_distance(seed: int, ny: int, npf: int, nrise: int):
-    from cylindra._cpp_ext import ViterbiGrid2D
-    from timeit import default_timer
+# # @pytest.mark.parametrize("seed", [21])
+# # @pytest.mark.parametrize(["ny", "npf"], [(5, 4)])
+# @pytest.mark.parametrize("seed", [21, 32, 432, 9876, 1010])
+# @pytest.mark.parametrize(["ny", "npf"], [(5, 4), (20, 4), (5, 12)])
+# @pytest.mark.parametrize("nrise", [1, -1])
+# def test_viterbi_2d_distance(seed: int, ny: int, npf: int, nrise: int):
+#     from cylindra._cpp_ext import ViterbiGrid2D
+#     from timeit import default_timer
 
-    radius = 20
-    yspace = 10
-    narr = np.arange(ny * npf).reshape(ny, npf)
+#     radius = 20
+#     yspace = 10
+#     narr = np.arange(ny * npf).reshape(ny, npf)
     
-    lat_dist_avg = np.hypot(np.sqrt(2) * radius, yspace / npf)
-    dist_min, dist_max = yspace - 1.2, yspace + 1.2
-    lat_dist_min, lat_dist_max = lat_dist_avg - 1.4, lat_dist_avg + 1.4
+#     lat_dist_avg = np.hypot(np.sqrt(2) * radius, yspace / npf)
+#     dist_min, dist_max = yspace - 1.2, yspace + 1.2
+#     lat_dist_min, lat_dist_max = lat_dist_avg - 1.4, lat_dist_avg + 1.4
 
-    rng = np.random.default_rng(seed + ny * npf)
-    score = rng.random((ny, npf, 5, 5, 5)).astype(np.float32)
+#     rng = np.random.default_rng(seed + ny * npf)
+#     score = rng.random((ny, npf, 5, 5, 5)).astype(np.float32)
 
-    if nrise >= 0:
-        origin = np.stack(
-            [radius * np.cos(np.pi / 2 * narr),
-            yspace / npf * narr,
-            radius * np.sin(np.pi / 2 * narr)],
-            axis=-1,
-        )  # shape (ny, npf, 3)
-    else:
-        origin = np.stack(
-            [radius * np.cos(np.pi / 2 * narr),
-            -yspace / npf * (narr % npf) + yspace * (narr // npf),
-            radius * np.sin(np.pi / 2 * narr)],
-            axis=-1,
-        )  # shape (ny, npf, 3)
-        score = score[:, ::-1, :, :, ::-1]
+#     if nrise >= 0:
+#         origin = np.stack(
+#             [radius * np.cos(np.pi / 2 * narr),
+#             yspace / npf * narr,
+#             radius * np.sin(np.pi / 2 * narr)],
+#             axis=-1,
+#         )  # shape (ny, npf, 3)
+#     else:
+#         origin = np.stack(
+#             [radius * np.cos(np.pi / 2 * narr),
+#             -yspace / npf * (narr % npf) + yspace * (narr // npf),
+#             radius * np.sin(np.pi / 2 * narr)],
+#             axis=-1,
+#         )  # shape (ny, npf, 3)
+#         score = score[:, ::-1, :, :, ::-1]
     
-    def _cross(x, y) -> np.ndarray:  # just for typing
-        return -np.cross(x, y, axis=-1)
+#     def _cross(x, y) -> np.ndarray:  # just for typing
+#         return -np.cross(x, y, axis=-1)
         
-    zvec = np.stack([origin[:, :, 0], np.zeros((ny, npf)), origin[:, :, 2]], axis=-1) / radius
-    yvec = np.array([[0., 1., 0.]] * ny * npf).reshape(ny, npf, 3)
-    xvec = _cross(yvec, zvec)
+#     zvec = np.stack([origin[:, :, 0], np.zeros((ny, npf)), origin[:, :, 2]], axis=-1) / radius
+#     yvec = np.array([[0., 1., 0.]] * ny * npf).reshape(ny, npf, 3)
+#     xvec = _cross(yvec, zvec)
 
-    grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
-    t0 = default_timer()
-    states, z = grid.viterbi(dist_min, dist_max, lat_dist_min, lat_dist_max)
-    msec = (default_timer() - t0) * 1000
-    print(f"{msec:2f} msec, score={z}")
+#     grid = ViterbiGrid2D(score, origin, zvec, yvec, xvec, nrise)
+#     t0 = default_timer()
+#     states, z = grid.viterbi(dist_min, dist_max, lat_dist_min, lat_dist_max)
+#     msec = (default_timer() - t0) * 1000
+#     print(f"{msec:2f} msec, score={z}")
     
-    assert_array_less(-1, states)
+#     assert_array_less(-1, states)
 
-    dist = grid.all_longitudinal_distances(states)
-    dist_lat = grid.all_lateral_distances(states)
+#     dist = grid.all_longitudinal_distances(states)
+#     dist_lat = grid.all_lateral_distances(states)
 
-    assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
-    assert_array_less(dist, dist_max, "dist < dist_max not satisfied")
-    assert_array_less(lat_dist_min, dist_lat, "lat_dist_min < dist_lat not satisfied")
-    assert_array_less(dist_lat, lat_dist_max, "dist_lat < lat_dist_max not satisfied")
+#     assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
+#     assert_array_less(dist, dist_max, "dist < dist_max not satisfied")
+#     assert_array_less(lat_dist_min, dist_lat, "lat_dist_min < dist_lat not satisfied")
+#     assert_array_less(dist_lat, lat_dist_max, "dist_lat < lat_dist_max not satisfied")
 
-    assert_array_less(0, np.max(states, axis=(1, 2)))
+#     assert_array_less(0, np.max(states, axis=(1, 2)))
