@@ -6,6 +6,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include "_coords.h"
+#include "_constraint.h"
 
 namespace py = pybind11;
 using ssize_t = Py_ssize_t;
@@ -131,52 +132,28 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
         }
     }
 
+	auto constraint = Constraint(nz, ny, nx, dist_min2, dist_max2);
 	py::gil_scoped_release nogil;  // without GIL
 
 	// forward
 	for (auto t = 1; t < nmole; ++t) {
 		// iterate over all the end points
+		auto coord_prev = coords[t - 1];
+		auto coord = coords[t];
 		for (auto z1 = 0; z1 < nz; ++z1) {
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<float>::infinity();
-			auto end_point = coords[t].at(z1, y1, x1);
+			auto end_point = coord.at(z1, y1, x1);
 			// iterate over all the start points
 			for (auto y0 = 0; y0 < ny; ++y0) {
-				// If the length from point (x1, y1, z1) to the four corners at y=y0 is all
-				// shorter than dist_min, then any point in the plane is invalid, considering
-				// the convexity of the shell-range created by [dist_min, dist_max].
-
-				auto coord = coords[t-1];
-				#pragma warning(push)
-				#pragma warning(disable:4244)
-				auto point_0y0 = coord.at(0.0, y0, 0.0);
-				auto dist2_00 = (point_0y0 - end_point).length2();
-				auto dist2_01 = (coord.at(0.0, y0, nx-1) - end_point).length2();
-				auto dist2_10 = (coord.at(nz-1, y0, 0.0) - end_point).length2();
-				auto dist2_11 = (coord.at(nz-1, y0, nx-1) - end_point).length2();
-				#pragma warning(pop)
-				if (
-					dist2_00 < dist_min2 
-					&& dist2_01 < dist_min2 
-					&& dist2_10 < dist_min2 
-					&& dist2_11 < dist_min2
-				) {
+				if (constraint.fastCheckLongitudinal(coord_prev, end_point, y0) > 0) {
 					continue;
 				}
-
-				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
-				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
-				// is invalid.
-				if (point_0y0.pointToPlaneDistance2(coord.ey, end_point) > dist_max2) {
-					continue;  // safe to break?
-				}
-
 				// Calculate distances from all the possible start points.
 				for (auto z0 = 0; z0 < nz; ++z0) {
 				for (auto x0 = 0; x0 < nx; ++x0) {
-					auto distance2 = (coord.at(z0, y0, x0) - end_point).length2();
-					if (distance2 < dist_min2 || dist_max2 < distance2) {
+					if (constraint.checkConstraint(coord_prev.at(z0, y0, x0), end_point)) {
 						continue;
 					}
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
@@ -203,21 +180,20 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 		}
 	}}}
 
-	state_sequence(nmole-1, 0) = prev.z;
-	state_sequence(nmole-1, 1) = prev.y;
-	state_sequence(nmole-1, 2) = prev.x;
+	state_sequence(nmole - 1, 0) = prev.z;
+	state_sequence(nmole - 1, 1) = prev.y;
+	state_sequence(nmole - 1, 2) = prev.x;
 
 	// backward tracking
 	for (auto t = nmole - 2; t >= 0; --t) {
 		double max = -std::numeric_limits<double>::infinity();
 		auto argmax = Vector3D<int>(-1, -1, -1);
-		auto point_prev = coords[t+1].at(prev.z, prev.y, prev.x);
+		auto point_prev = coords[t + 1].at(prev.z, prev.y, prev.x);
 		auto coord = coords[t];
 		for (auto z0 = 0; z0 < nz; ++z0) {
 		for (auto y0 = 0; y0 < ny; ++y0) {
 		for (auto x0 = 0; x0 < nx; ++x0) {
-			auto distance2 = (point_prev - coord.at(z0, y0, x0)).length2();
-			if (distance2 < dist_min2 || dist_max2 < distance2) {
+			if (constraint.checkConstraint(coord.at(z0, y0, x0), point_prev)) {
 				continue;
 			}
 			auto value = viterbi_lattice(t, z0, y0, x0);
@@ -226,6 +202,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 				argmax = Vector3D<int>(z0, y0, x0);
 			}
 		}}}
+
 		prev = argmax;
 		state_sequence(t, 0) = prev.z;
 		state_sequence(t, 1) = prev.y;
@@ -275,62 +252,36 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
         }
     }
 
+	auto constraint = AngleConstraint(nz, ny, nx, dist_min2, dist_max2, cos_skew_max);
 	py::gil_scoped_release nogil;  // without GIL
 
 	// forward
 	for (auto t = 1; t < nmole; ++t) {
-		auto origin_vector = coords[t-1].origin - coords[t].origin;
-		auto b2 = origin_vector.length2();
+		auto coord_prev = coords[t - 1];
+		auto coord = coords[t];
+		auto origin_vector = coord_prev.origin - coord.origin;
+		auto origin_dist2 = origin_vector.length2();
 		for (auto z1 = 0; z1 < nz; ++z1) {
 		for (auto y1 = 0; y1 < ny; ++y1) {
 		for (auto x1 = 0; x1 < nx; ++x1) {
 			auto max = -std::numeric_limits<float>::infinity();
-			auto end_point = coords[t].at(z1, y1, x1);
+			auto end_point = coord.at(z1, y1, x1);
 			// iterate over all the start points
 			for (auto y0 = 0; y0 < nx; ++y0) {
-				// If the length from point (x1, y1, z1) to the four corners at y=y0 is all
-				// shorter than dist_min, then any point in the plane is invalid, considering
-				// the convexity of the shell-range created by [dist_min, dist_max].
-				#pragma warning(push)
-				#pragma warning(disable:4244)
-				auto point_0y0 = coords[t-1].at(0.0, y0, 0.0);
-				auto dist2_00 = (point_0y0 - end_point).length2();
-				auto dist2_01 = (coords[t-1].at(0.0, y0, nx-1) - end_point).length2();
-				auto dist2_10 = (coords[t-1].at(nz-1, y0, 0.0) - end_point).length2();
-				auto dist2_11 = (coords[t-1].at(nz-1, y0, nx-1) - end_point).length2();
-				#pragma warning(pop)
-				if (
-					dist2_00 < dist_min2 
-					&& dist2_01 < dist_min2 
-					&& dist2_10 < dist_min2 
-					&& dist2_11 < dist_min2
-				) {
+				if (constraint.fastCheckLongitudinal(coord_prev, end_point, y0) > 0) {
 					continue;
 				}
-
-				// If the length of perpendicular line drawn from point (x1, y1, z1) to the
-				// plane of (_, y0, _) is longer than dist_max, then any point in the plane
-				// is invalid.
-				if (point_0y0.pointToPlaneDistance2(coords[t-1].ey, end_point) > dist_max2) {
-					continue;  // break?
-				}
-
 				// Calculate distances from all the possible start points.
 				for (auto z0 = 0; z0 < nz; ++z0) {
 				for (auto x0 = 0; x0 < nx; ++x0) {
-					auto vec = coords[t-1].at(z0, y0, x0) - end_point;
-					auto a2 = vec.length2();
-					
-					if (a2 < dist_min2 || dist_max2 < a2) {
-						continue;
-					}
-					// Use formula: a.dot(b) = |a|*|b|*cos(C)
-					auto ab = std::sqrt(a2 * b2);
-					auto cos = vec.dot(origin_vector) / ab;
-
-					if (cos < cos_skew_max) {
-						// check angle of displacement vector of origins and that of
-						// points of interests. Smaller cosine means larger skew.
+					if (
+						constraint.checkConstraint(
+							coord.at(z0, y0, x0),
+							end_point,
+							origin_vector,
+							origin_dist2
+						)
+					) {
 						continue;
 					}
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
@@ -357,35 +308,32 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 		}
 	}}}
 
-	state_sequence(nmole-1, 0) = prev.z;
-	state_sequence(nmole-1, 1) = prev.y;
-	state_sequence(nmole-1, 2) = prev.x;
+	state_sequence(nmole - 1, 0) = prev.z;
+	state_sequence(nmole - 1, 1) = prev.y;
+	state_sequence(nmole - 1, 2) = prev.x;
 
 	// backward tracking
 	for (auto t = nmole - 2; t >= 0; --t) {
 		double max = -std::numeric_limits<double>::infinity();
 		auto argmax = Vector3D<int>(0, 0, 0);
-		auto point_prev = coords[t+1].at(prev.z, prev.y, prev.x);
-		auto origin_vector = coords[t].origin - coords[t+1].origin;
-		auto b2 = origin_vector.length2();
+		auto coord_prev = coords[t + 1];
+		auto point_prev = coord_prev.at(prev.z, prev.y, prev.x);
+		auto coord = coords[t];
+		auto origin_vector = coord.origin - coord_prev.origin;
+		auto origin_dist2 = origin_vector.length2();
 		for (auto z0 = 0; z0 < nz; ++z0) {
 		for (auto y0 = 0; y0 < ny; ++y0) {
 		for (auto x0 = 0; x0 < nx; ++x0) {
-			auto vec = coords[t].at(z0, y0, x0) - point_prev;
-			auto a2 = vec.length2();
-
-			if (a2 < dist_min2 || dist_max2 < a2) {
-				// check distance.
+			if (
+				constraint.checkConstraint(
+					coord.at(z0, y0, x0),
+					point_prev,
+					origin_vector,
+					origin_dist2
+				)
+			) {
 				continue;
 			}
-
-			auto ab = std::sqrt(a2 * b2);
-			auto cos = vec.dot(origin_vector) / ab;
-			if (cos < cos_skew_max) {
-				// check angle.
-				continue;
-			}
-
 			auto value = viterbi_lattice(t, z0, y0, x0);
 			if (max < value) {
 				max = value;

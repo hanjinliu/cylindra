@@ -131,6 +131,7 @@ class CylinderGeometry {
         CylinderGeometry(ssize_t nY, ssize_t nA) : CylinderGeometry(nY, nA, 0) {};
         std::vector<Index> getNeighbor(ssize_t, ssize_t);
         std::vector<Index> getNeighbors(std::vector<Index>);
+        std::vector<Index> getNeighbors(std::vector<std::pair<ssize_t, ssize_t>>);
         Index getIndex(ssize_t, ssize_t);
         ssize_t count() { return nY * nA; };
         Sources sourceForward(ssize_t y, ssize_t a);
@@ -236,6 +237,13 @@ inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<Index> indi
     return neighbors;
 }
 
+inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<std::pair<ssize_t, ssize_t>> indices) {
+    std::vector<Index> idx;
+    for (auto index : indices) {
+        idx.push_back(getIndex(index.first, index.second));
+    }
+    return getNeighbors(idx);
+}
 
 /// @brief Return the indices corresponding to the i-th element of the iterator.
 /// @param y Longitudinal coordinate of which source will be returned.

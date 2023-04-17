@@ -17,30 +17,34 @@ PYBIND11_MODULE(_cpp_ext, m) {
   	m.def("alleviate", &alleviate, "Alleviate coordinates on a cylindric grid.");
 
     py::class_<ViterbiGrid>(m, "ViterbiGrid")
-        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>>())
-        .def("viterbi", py::overload_cast<double, double>(&ViterbiGrid::viterbi))
-        .def("viterbi", py::overload_cast<double, double, double>(&ViterbiGrid::viterbi))
-        .def("world_pos", &ViterbiGrid::worldPos)
+        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>>(),
+             py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"))
+        .def("viterbi", py::overload_cast<double, double>(&ViterbiGrid::viterbi), py::arg("dist_min"), py::arg("dist_max"))
+        .def("viterbi", py::overload_cast<double, double, double>(&ViterbiGrid::viterbi), py::arg("dist_min"), py::arg("dist_max"), py::arg("skew_max"))
+        .def("world_pos", &ViterbiGrid::worldPos, py::arg("n"), py::arg("z"), py::arg("y"), py::arg("x"))
         .def("__repr__", &ViterbiGrid::pyRepr);
     
     py::class_<ViterbiGrid2D>(m, "ViterbiGrid2D")
-        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>())
-        .def("viterbi", &ViterbiGrid2D::viterbi)
-        .def("world_pos", &ViterbiGrid2D::worldPos)
+        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>(),
+             py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
+        .def("viterbi", &ViterbiGrid2D::viterbi, py::arg("dist_min"), py::arg("dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
+        .def("world_pos", &ViterbiGrid2D::worldPos, py::arg("lon"), py::arg("lat"), py::arg("z"), py::arg("y"), py::arg("x"))
         .def("all_longitudinal_pairs", &ViterbiGrid2D::allLongitudinalPairs)
         .def("all_lateral_pairs", &ViterbiGrid2D::allLateralPairs)
-        .def("all_longitudinal_distances", &ViterbiGrid2D::allLongitudinalDistances)
-        .def("all_lateral_distances", &ViterbiGrid2D::allLateralDistances)
+        .def("all_longitudinal_distances", &ViterbiGrid2D::allLongitudinalDistances, py::arg("states"))
+        .def("all_lateral_distances", &ViterbiGrid2D::allLateralDistances, py::arg("states"))
         .def("__repr__", &ViterbiGrid2D::pyRepr);
     
     // `CylinderGeometry` is exported mainly for testing
     py::class_<CylinderGeometry>(m, "CylinderGeometry")
-        .def(py::init<ssize_t, ssize_t, ssize_t>())
-        .def("source_forward", &CylinderGeometry::sourceForward)
-        .def("source_backward", &CylinderGeometry::sourceBackward)
-        .def("get_neighbors", &CylinderGeometry::getNeighbors)
-        .def("get_index", &CylinderGeometry::getIndex)
-        .def("convert_angular", &CylinderGeometry::convertAngular)
+        .def(py::init<ssize_t, ssize_t, ssize_t>(), py::arg("ny"), py::arg("na"), py::arg("nrise"))
+        .def("source_forward", &CylinderGeometry::sourceForward, py::arg("y"), py::arg("a"))
+        .def("source_backward", &CylinderGeometry::sourceBackward, py::arg("y"), py::arg("a"))
+        .def("get_neighbors", py::overload_cast<std::vector<std::pair<ssize_t, ssize_t>>>(&CylinderGeometry::getNeighbors), py::arg("indices"))
+        .def("get_index", &CylinderGeometry::getIndex, py::arg("y"), py::arg("a"))
+        .def("convert_angular", &CylinderGeometry::convertAngular, py::arg("ang"))
+        // .def("all_longitudinal_pairs", &ViterbiGrid2D::allLongitudinalPairs)
+        // .def("all_lateral_pairs", &ViterbiGrid2D::allLateralPairs)
         .def("__repr__", &CylinderGeometry::pyRepr);
 
     // `Sources` is exported mainly for testing
@@ -52,8 +56,8 @@ PYBIND11_MODULE(_cpp_ext, m) {
 
     // `Index` is exported mainly for testing
     py::class_<Index>(m, "Index")
-        .def(py::init<ssize_t, ssize_t>())
-        .def("is_valid", &Index::isValid)
+        .def(py::init<ssize_t, ssize_t>(), py::arg("y"), py::arg("a"))
+        .def("is_valid", &Index::isValid, py::arg("y"), py::arg("a"))
         .def_readwrite("y", &Index::y)
         .def_readwrite("a", &Index::a)
         .def("__repr__", &Index::pyRepr)

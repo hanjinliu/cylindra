@@ -27,6 +27,7 @@ class Vector3D {
         T angle(Vector3D<T> other);
 		T length2();
 		T length();
+		Vector3D<T> normed();
 		Vector3D(T z0, T y0, T x0) {z=z0; y=y0; x=x0;}
 		Vector3D() : Vector3D<T>(0, 0, 0) {}
 		Vector3D(Vector3D<T> &vec) : Vector3D<T>(vec.z, vec.y, vec.x) {}
@@ -99,6 +100,12 @@ T Vector3D<T>::angle(Vector3D<T> other) {
 template<typename T>
 T Vector3D<T>::length() {
 	return std::sqrt(length2());
+}
+
+template<typename T>
+Vector3D<T> Vector3D<T>::normed() {
+	T len = length();
+	return *this / len;
 }
 
 // convert a vector object into np.ndarray
