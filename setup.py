@@ -57,7 +57,7 @@ setup(
     py_modules=[],
     install_requires=[
         "impy-array>=2.2.1",
-        "acryo>=0.2.2",
+        "acryo>=0.2.3",
         "magic-class>=0.6.16",
         "pyqtgraph>=0.12.4",
         "pyarrow>=11.0.0",
@@ -67,6 +67,9 @@ setup(
     ],
     python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
+    extras_require={
+        "tests": ["pytest"],
+    },
     entry_points={
         "console_scripts": [f"{CYLINDRA}={CYLINDRA}.__main__:main"],
     },

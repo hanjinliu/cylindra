@@ -104,13 +104,13 @@ inline bool Constraint::checkConstraint(
 class AngleConstraint : public Constraint {
     public:
         double cos_max;
-        AngleConstraint(ssize_t _nz, ssize_t _ny, ssize_t _nx, double _dist_min2, double _dist_max2, double _cos_max) {
-            nz = _nz;
-            ny = _ny;
-            nx = _nx;
-            dist_min2 = _dist_min2;
-            dist_max2 = _dist_max2;
-            cos_max = _cos_max;
+        AngleConstraint(ssize_t nz, ssize_t ny, ssize_t nx, double dist_min2, double dist_max2, double cos_max) {
+            this->nz = nz;
+            this->ny = ny;
+            this->nx = nx;
+            this->dist_min2 = dist_min2;
+            this->dist_max2 = dist_max2;
+            this->cos_max = cos_max;
         }
         bool checkConstraint(Vector3D<double>&, Vector3D<double>&, Vector3D<double>&, double);
 };
@@ -129,7 +129,7 @@ inline bool AngleConstraint::checkConstraint(
 
     // Use formula: a.dot(b) = |a|*|b|*cos(C)
     auto ab = std::sqrt(dist2 * origin_dist2);
-    auto cos = vec.dot(origin_vector) / ab;
+    auto cos = std::abs(vec.dot(origin_vector)) / ab;
 
     if (cos < cos_max) {
         // check angle of displacement vector of origins and that of

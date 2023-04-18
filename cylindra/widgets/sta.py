@@ -815,55 +815,26 @@ class SubtomogramAveraging(MagicTemplate):
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
         _Logger.print(f"Search size (px): {search_size}")
-        model = alignment.ZNCCAlignment(
-            template,
-            mask,
+
+        model = alignment.ZNCCAlignment.with_params(
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            tilt_range=tilt_range
+            tilt_range=tilt_range,
         )
-        
-        templates_ft = model._template_input  # 3D (no rotation) or 4D (has rotation)
-        
-        def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
-            if mask is None:
-                img0 = ip.asarray(img0, axes="zyx").lowpass_filter(cutoff=cutoff)
-            else:
-                img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
-            template_ft = template_ft * model._get_missing_wedge_mask(quat)
-            lds = utils.zncc_landscape(
-                img0, template_ft.ifft(shift=False), max_shifts=max_shifts, upsample_factor=upsample_factor
-            )
-            return np.asarray(lds)
-        
-        has_rotation = templates_ft.ndim > 3
-        if not has_rotation:
-            tasks = loader.construct_mapping_tasks(
-                func,
-                ip.asarray(templates_ft, axes="zyx"),
-                max_shifts=max_shifts_px,
-                var_kwarg={"quat": molecules.quaternion()},
-            )
-            score = np.stack(da.compute(tasks)[0], axis=0)
+
+        score_dsk = loader.construct_landscape(
+            template, 
+            mask=mask, 
+            max_shifts=max_shifts, 
+            upsample=upsample_factor, 
+            alignment_model=model,
+        )
+
+        if not model.has_rotation:
+            score = score_dsk.compute()
         else:
-            all_tasks = [
-                da.stack(
-                    [
-                        da.from_delayed(a, shape=search_size, dtype=np.float32)
-                        for a in loader.construct_mapping_tasks(
-                            func,
-                            ip.asarray(template_ft, axes="zyx"),
-                            max_shifts=max_shifts_px,
-                            var_kwarg={"quat": molecules.quaternion()},
-                        )
-                    ],
-                    axis=0,
-                )
-                for template_ft in templates_ft
-            ]
-            all_tasks = da.stack(all_tasks, axis=0)
-            tasks = da.max(all_tasks, axis=0)
-            argmax = da.argmax(all_tasks, axis=0)
+            tasks = da.max(score_dsk, axis=1)
+            argmax = da.argmax(score_dsk, axis=1)
             out = da.compute([tasks, argmax], argmax)[0]
             score, argmax = out
 
@@ -887,11 +858,12 @@ class SubtomogramAveraging(MagicTemplate):
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
         all_shifts_px = np.empty((len(molecules), 3), dtype=np.float32)
         for i, (shift, _) in enumerate(vit_out):
+            _check_viterbi_shift(shift, max_shifts_px, i)
             all_shifts_px[slices[i], :] = (shift - offset) / upsample_factor
         all_shifts = all_shifts_px * scale
         
         molecules_opt = molecules.translate_internal(all_shifts)
-        if has_rotation:
+        if model.has_rotation:
             quats = np.zeros((len(molecules), 4), dtype=np.float32)
             for i, (shift, _) in enumerate(vit_out):
                 _sl = slices[i]
@@ -905,19 +877,15 @@ class SubtomogramAveraging(MagicTemplate):
 
             rotvec = Rotation.from_quat(quats).as_rotvec()
             molecules_opt.features = molecules_opt.features.with_columns(
-                [
-                    pl.Series("align-dzrot", rotvec[:, 0]),
-                    pl.Series("align-dyrot", rotvec[:, 1]),
-                    pl.Series("align-dxrot", rotvec[:, 2]),
-                ]
+                pl.Series("align-dzrot", rotvec[:, 0]),
+                pl.Series("align-dyrot", rotvec[:, 1]),
+                pl.Series("align-dxrot", rotvec[:, 2]),
             )
         
         molecules_opt.features = molecules_opt.features.with_columns(
-            [
-                pl.Series("align-dz", all_shifts[:, 0]),
-                pl.Series("align-dy", all_shifts[:, 1]),
-                pl.Series("align-dx", all_shifts[:, 2]),
-            ]
+            pl.Series("align-dz", all_shifts[:, 0]),
+            pl.Series("align-dy", all_shifts[:, 1]),
+            pl.Series("align-dx", all_shifts[:, 2]),
         )
         t0.toc()
         parent._need_save = True
@@ -1327,6 +1295,17 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]", i):
+    invalid = shift[:, 0] < 0
+    if invalid.any():
+        invalid_indices = np.where(invalid)[0]
+        _Logger.print(f"Viterbi alignment could not determine the optimal positions for PF={i!r}")
+        for idx in invalid_indices:
+            shift[idx, :] = offset
+    
+    return shift
+
 
 def _check_viterbi_2d_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"):
     invalid = shift[:, :, 0] < 0
