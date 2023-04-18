@@ -1209,11 +1209,11 @@ class CylTomogram(Tomogram):
                     raise ValueError(f"Local properties of spline {i_} is missing.")
                 continue
             props.append(
-                prop.with_columns([
+                prop.with_columns(
                     pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
                     pl.arange(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
                     pl.col(H.nPF).cast(pl.UInt8),
-                ])
+                )
             )
         
         if len(props) == 0:
@@ -1248,12 +1248,10 @@ class CylTomogram(Tomogram):
                 continue
             props.append(
                 prop.with_columns(
-                    [
-                        pl.Series("radius", [self._splines[i_].radius]),
-                        pl.Series("orientation", [str(self._splines[i_].orientation)]),
-                        pl.Series(IDName.spline, [i_]),
-                        pl.col(H.nPF).cast(pl.UInt8),
-                    ]
+                    pl.Series("radius", [self._splines[i_].radius]),
+                    pl.Series("orientation", [str(self._splines[i_].orientation)]),
+                    pl.Series(IDName.spline, [i_]),
+                    pl.col(H.nPF).cast(pl.UInt8),
                 )
             )
         

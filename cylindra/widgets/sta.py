@@ -75,10 +75,10 @@ def _align_viterbi_fmt(layer: "Layer"):
 
 def _classify_pca_fmt(layer: "Layer"):
     yield f"(0/5) Caching subtomograms of {layer.name!r}"
-    yield f"(1/5) Creating template image for PCA clustering"
-    yield f"(2/5) Fitting PCA model"
-    yield f"(3/5) Transforming all the images"
-    yield f"(4/5) Creating average images for each cluster"
+    yield "(1/5) Creating template image for PCA clustering"
+    yield "(2/5) Fitting PCA model"
+    yield "(3/5) Transforming all the images"
+    yield "(4/5) Creating average images for each cluster"
     yield "(5/5) Finishing"
 
 def _get_alignment(method: str):
@@ -394,11 +394,8 @@ class SubtomogramAveraging(MagicTemplate):
         bin_size: OneOf[_get_available_binsize] = 1,
     ):
         """
-        Subtomogram averaging using all the subvolumes.
+        Subtomogram averaging using all the molecules in the selected layer.
 
-        >>> loader = ui.tomogram.get_subtomogram_loader(molecules, shape)
-        >>> averaged = ui.tomogram
-            
         Parameters
         ----------
         {layer}{size}{interpolation}{bin_size}
@@ -431,8 +428,6 @@ class SubtomogramAveraging(MagicTemplate):
     ):
         """
         Subtomogram averaging using a subset of subvolumes.
-        
-        This function is equivalent to
 
         Parameters
         ----------
@@ -523,9 +518,9 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
-        z_rotation: _ZRotation = (3., 3.),
-        y_rotation: _YRotation = (15., 3.),
-        x_rotation: _XRotation = (3., 3.),
+        z_rotation: _ZRotation = (0., 0.),
+        y_rotation: _YRotation = (15., 1.),
+        x_rotation: _XRotation = (3., 1.),
         bin_size: OneOf[_get_available_binsize] = 1,
         method: OneOf[METHOD_CHOICES] = "zncc",
     ):
@@ -1013,11 +1008,9 @@ class SubtomogramAveraging(MagicTemplate):
         
         molecules_opt = molecules.translate_internal(all_shifts)
         molecules_opt.features = molecules_opt.features.with_columns(
-            [
-                pl.Series("align-dz", all_shifts[:, 0]),
-                pl.Series("align-dy", all_shifts[:, 1]),
-                pl.Series("align-dx", all_shifts[:, 2]),
-            ]
+            pl.Series("align-dz", all_shifts[:, 0]),
+            pl.Series("align-dy", all_shifts[:, 1]),
+            pl.Series("align-dx", all_shifts[:, 2]),
         )
         t0.toc()
         parent._need_save = True
@@ -1183,7 +1176,7 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params],
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        cutoff: _CutoffFreq = 0.5,
+        cutoff: _CutoffFreq = 0.25,
     ):
         """
         Search for the best seam position.
@@ -1227,7 +1220,7 @@ class SubtomogramAveraging(MagicTemplate):
         score[npf:] = corr2 - corr1
         imax = np.argmax(score)
         layer.features = layer.molecules.features.with_columns(
-            [pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))]
+            pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))
         )
         layer.metadata["seam-search-score"] = score
         

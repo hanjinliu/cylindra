@@ -1569,9 +1569,9 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(f"Column {column_name} already exists.")
         pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
         if isinstance(pl_expr, pl.Expr):
-            new_feat = feat.with_columns([pl_expr.alias(column_name)])
+            new_feat = feat.with_columns(pl_expr.alias(column_name))
         else:
-            new_feat = feat.with_columns([pl.Series(column_name, pl_expr)])
+            new_feat = feat.with_columns(pl.Series(column_name, pl_expr))
         layer.features = new_feat
         self.reset_choices()  # choices regarding of features need update
         return None
@@ -1644,7 +1644,7 @@ class CylindraMainWidget(MagicTemplate):
         _id = np.arange(len(feat))
         res = (_id - seam) // npf
         layer.features = layer.molecules.features.with_columns(
-            [pl.Series(Mole.isotype, res % 2)]
+            pl.Series(Mole.isotype, res % 2)
         )
         return None
     
@@ -1818,13 +1818,13 @@ class CylindraMainWidget(MagicTemplate):
         df = (
             all_df
             .select([IDName.spline, IDName.pos, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start])
-            .with_columns([
+            .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.riseAngle),
                 pl.col(H.yPitch),
                 pl.col(H.skewAngle),
-            ])
+            )
         ).to_pandas()
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df[columns]], ignore_index=True)

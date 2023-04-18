@@ -71,12 +71,12 @@ class SplineControl(MagicTemplate):
         spl = parent.tomogram.splines[i]
         if spl.localprops is not None:
             spl.localprops = spl.localprops.with_columns(
-                [pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF)]
+                pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF)
             )
             parent._update_local_properties_in_widget()
         if spl.globalprops is not None:
             spl.globalprops = spl.globalprops.with_columns(
-                [pl.Series(H.nPF, [npf]).cast(pl.UInt8)]
+                pl.Series(H.nPF, [npf]).cast(pl.UInt8)
             )
             parent._update_global_properties_in_widget()
         if self.canvas[0].image is not None:

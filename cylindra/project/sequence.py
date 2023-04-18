@@ -155,7 +155,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 fp = Path(fp)
                 mole = Molecules.from_csv(fp)
                 mole.features = mole.features.with_columns(
-                    [pl.repeat(fp.stem, pl.count()).alias(Mole.id)]
+                    pl.repeat(fp.stem, pl.count()).alias(Mole.id)
                 )
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
@@ -193,7 +193,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         for prj in self._projects:
             df = pl.DataFrame(prj.dict())
             df = df.with_columns(
-                [pl.Series("project-path", np.array([prj.project_path]))]
+                pl.Series("project-path", np.array([prj.project_path]))
             )
             dataframes.append(df)
         return pl.concat(dataframes, how="vertical")
