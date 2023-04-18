@@ -81,9 +81,10 @@ class ViterbiGrid {
 			coords = _coords;
         };
 
-        std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double dist_min, double dist_max);
-        std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max);
-        std::tuple<py::array_t<ssize_t>, double> viterbi(double dist_min, double dist_max, double skew_max);
+        std::tuple<py::array_t<ssize_t>, double> viterbiSimple(double, double);
+        std::tuple<py::array_t<ssize_t>, double> viterbi(double, double);
+        std::tuple<py::array_t<ssize_t>, double> viterbi(double, double, py::none);
+        std::tuple<py::array_t<ssize_t>, double> viterbi(double, double, double);
 		std::string pyRepr() {
 			return "ViterbiGrid(nmole=" + std::to_string(nmole) + ", nz=" + std::to_string(nz)
 				+ ", ny=" + std::to_string(ny) + ", nx=" + std::to_string(nx) + ")";
@@ -221,6 +222,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 }
 
 std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
+	double dist_min, double dist_max, py::none n = py::none()
+)
+{
+	return viterbiSimple(dist_min, dist_max);
+}
+
+std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 	double dist_min,  // NOTE: upsample factor must be considered
 	double dist_max,
 	double skew_max  // NOTE: this parameter must be in radian
@@ -228,7 +236,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 {
 	if (dist_min >= dist_max) {
 		throw py::value_error("`dist_min` must be smaller than `dist_max`.");
-	} else if (skew_max <= 0.0 || skew_max > 3.14159) {
+	} else if (skew_max <= 0.0 || skew_max > 3.1416 / 2) {
 		throw py::value_error("`skew_max` must be in (0, pi/2)");
 	}
 	auto dist_min2 = dist_min * dist_min;
@@ -257,6 +265,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 
 	// forward
 	for (auto t = 1; t < nmole; ++t) {
+		// iterate over all the end points
 		auto coord_prev = coords[t - 1];
 		auto coord = coords[t];
 		auto origin_vector = coord_prev.origin - coord.origin;
@@ -276,14 +285,13 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 				for (auto x0 = 0; x0 < nx; ++x0) {
 					if (
 						constraint.checkConstraint(
-							coord.at(z0, y0, x0),
+							coord_prev.at(z0, y0, x0),
 							end_point,
 							origin_vector,
 							origin_dist2
 						)
-					) {
-						continue;
-					}
+					) continue;
+
 					max = std::max(max, viterbi_lattice(t - 1, z0, y0, x0));
 				}}
 			}
@@ -331,9 +339,8 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 					origin_vector,
 					origin_dist2
 				)
-			) {
-				continue;
-			}
+			) continue;
+
 			auto value = viterbi_lattice(t, z0, y0, x0);
 			if (max < value) {
 				max = value;
