@@ -315,7 +315,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 	// backward tracking
 	for (auto t = nmole - 2; t >= 0; --t) {
 		double max = -std::numeric_limits<double>::infinity();
-		auto argmax = Vector3D<int>(0, 0, 0);
+		auto argmax = Vector3D<int>(-1, -1, -1);
 		auto coord_prev = coords[t + 1];
 		auto point_prev = coord_prev.at(prev.z, prev.y, prev.x);
 		auto coord = coords[t];
