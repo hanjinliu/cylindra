@@ -19,6 +19,7 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>>(),
              py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"))
         .def("viterbi", py::overload_cast<double, double>(&ViterbiGrid::viterbi), py::arg("dist_min"), py::arg("dist_max"))
+        .def("viterbi", py::overload_cast<double, double, py::none>(&ViterbiGrid::viterbi), py::arg("dist_min"), py::arg("dist_max"), py::arg("skew_max") = py::none())
         .def("viterbi", py::overload_cast<double, double, double>(&ViterbiGrid::viterbi), py::arg("dist_min"), py::arg("dist_max"), py::arg("skew_max"))
         .def("world_pos", &ViterbiGrid::worldPos, py::arg("n"), py::arg("z"), py::arg("y"), py::arg("x"))
         .def("__repr__", &ViterbiGrid::pyRepr);

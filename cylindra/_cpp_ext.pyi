@@ -11,13 +11,15 @@ class ViterbiGrid:
         zvec: np.ndarray,
         yvec: np.ndarray,
         xvec: np.ndarray,
-    ) -> None:
-        ...
-    
+    ) -> None: ...
     @overload
-    def viterbi(self, dist_min: float, dist_max: float, /) -> tuple[NDArray[np.int32], float]: ...
+    def viterbi(
+        self, dist_min: float, dist_max: float, /
+    ) -> tuple[NDArray[np.int32], float]: ...
     @overload
-    def viterbi(self, dist_min: float, dist_max: float, skew_max: float, /) -> tuple[NDArray[np.int32], float]: ...
+    def viterbi(
+        self, dist_min: float, dist_max: float, skew_max: float, /
+    ) -> tuple[NDArray[np.int32], float]: ...
     def world_pos(self, n: int, z: int, y: int, x: int, /) -> NDArray[np.float64]: ...
 
 class Sources:
@@ -41,10 +43,5 @@ class CylinderGeometry:
     def convert_angular(self, a: int, /) -> int: ...
 
 def alleviate(
-    arr: np.ndarray,
-    label: np.ndarray,
-    nrise: int,
-    iterations: int, 
-    /
-) -> None:
-    ...
+    arr: np.ndarray, label: np.ndarray, nrise: int, iterations: int, /
+) -> None: ...

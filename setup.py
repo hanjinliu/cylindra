@@ -1,8 +1,10 @@
 import os
+
 os.environ.setdefault("SETUPTOOLS_USE_DISTUTILS", "stdlib")
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
+
 
 # Modified from hmmlearn (https://github.com/hmmlearn/hmmlearn/blob/main/setup.py).
 class build_ext(build_ext):
@@ -10,11 +12,7 @@ class build_ext(build_ext):
         from pybind11.setup_helpers import Pybind11Extension
 
         self.distribution.ext_modules[:] = [
-            Pybind11Extension(
-                "cylindra._cpp_ext",
-                ["cpp/main.cpp"],
-                cxx_std=11
-            )
+            Pybind11Extension("cylindra._cpp_ext", ["cpp/main.cpp"], cxx_std=11)
         ]
         super().finalize_options()
 
@@ -39,9 +37,9 @@ with open(f"{CYLINDRA}/__about__.py", encoding="utf-8") as f:
             INFO["author_email"] = line.strip().split()[-1][1:-1]
 
 
-with open("README.md", "r") as f:
+with open("README.md") as f:
     README = f.read()
-    
+
 setup(
     name=CYLINDRA,
     description="Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical structures",
@@ -57,7 +55,7 @@ setup(
     py_modules=[],
     install_requires=[
         "impy-array>=2.2.1",
-        "acryo>=0.2.2",
+        "acryo>=0.2.3",
         "magic-class>=0.6.16",
         "pyqtgraph>=0.12.4",
         "pyarrow>=11.0.0",
@@ -67,6 +65,9 @@ setup(
     ],
     python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
+    extras_require={
+        "tests": ["pytest"],
+    },
     entry_points={
         "console_scripts": [f"{CYLINDRA}={CYLINDRA}.__main__:main"],
     },

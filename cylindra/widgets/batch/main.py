@@ -6,7 +6,14 @@ import polars as pl
 
 from acryo import BatchLoader, Molecules
 from macrokit import Symbol, Expr
-from magicclass import confirm, magicclass, do_not_record, set_design, MagicTemplate, field
+from magicclass import (
+    confirm,
+    magicclass,
+    do_not_record,
+    set_design,
+    MagicTemplate,
+    field,
+)
 from magicclass.types import Bound, Path, Optional
 
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
@@ -28,7 +35,7 @@ from ._loaderlist import LoaderList, LoaderInfo
 class CylindraBatchWidget(MagicTemplate):
     constructor = ProjectSequenceEdit
     sta = field(BatchSubtomogramAveraging)
-    
+
     def __init__(self):
         self._loaders = LoaderList()
         self._loaders.events.inserted.connect(self.reset_choices)
@@ -62,7 +69,7 @@ class CylindraBatchWidget(MagicTemplate):
         new = loader.replace(scale=self.constructor.scale.value)
         self._add_loader(new, name, image_paths)
         return new
-    
+
     def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
         self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))
 
@@ -70,13 +77,14 @@ class CylindraBatchWidget(MagicTemplate):
     @do_not_record
     def show_macro(self):
         from cylindra import instance
+
         ui = instance()
         macro_str = self.macro.widget.textedit.value
         win = ui.macro.widget.new_window("Batch")
         win.textedit.value = macro_str
         win.show()
         return None
-    
+
     @constructor.MacroMenu.wraps
     @do_not_record
     def show_native_macro(self):
@@ -85,7 +93,9 @@ class CylindraBatchWidget(MagicTemplate):
 
     @constructor.File.wraps
     @set_design(text="Load batch analysis project")
-    @confirm(text="Are you sure to clear all loaders?", condition="len(self._loaders) > 0")
+    @confirm(
+        text="Are you sure to clear all loaders?", condition="len(self._loaders) > 0"
+    )
     def load_batch_project(self, path: Path.Read[FileFilter.JSON]):
         """
         Load a batch project from a JSON file.
@@ -97,13 +107,15 @@ class CylindraBatchWidget(MagicTemplate):
         """
         self._loaders.clear()
         return CylindraBatchProject.from_json(path).to_gui(self)
-    
+
     @constructor.File.wraps
     @set_design(text="Save as batch analysis project")
     def save_batch_project(
-        self, 
+        self,
         json_path: Path.Save[FileFilter.JSON],
-        results_dir: Annotated[Optional[Path.Dir], {"text": "Save at the same directory"}] = None,
+        results_dir: Annotated[
+            Optional[Path.Dir], {"text": "Save at the same directory"}
+        ] = None,
     ):
         """
         Save the GUI state to a JSON file.

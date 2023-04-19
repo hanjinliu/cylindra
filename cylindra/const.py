@@ -17,7 +17,7 @@ class strEnum(Enum):
 
     def __str__(self):
         return self.value
-    
+
     def __eq__(self, other):
         if isinstance(other, str):
             return self.value == other
@@ -26,16 +26,16 @@ class strEnum(Enum):
 
 class Ori(strEnum):
     """Orientations"""
-    
+
     none = "none"
     PlusToMinus = "PlusToMinus"
     MinusToPlus = "MinusToPlus"
-    
+
     @classmethod
     def invert(cls, ori: Ori, allow_none: bool = True) -> Ori:
         """
         Invert orientation.
-        
+
         Parameters
         ----------
         ori : Ori
@@ -43,7 +43,7 @@ class Ori(strEnum):
         allow_none : bool, default is True
             If true, convert ``Ori.none`` into ``Ori.none``. Raise an error
             otherwise.
-        
+
         Returns
         -------
         Ori
@@ -60,16 +60,18 @@ class Ori(strEnum):
                 raise ValueError(f"{ori} cannot be inverted.")
         return out
 
+
 class PropertyNames(SimpleNamespace):
     """Header names for result table of local properties."""
-    
+
     splDistance = "splDistance"
     splPosition = "splPosition"
     riseAngle = "riseAngle"
     yPitch = "yPitch"
     skewAngle = "skewAngle"
-    nPF = "nPF"  
+    nPF = "nPF"
     start = "start"
+
 
 class IDName(SimpleNamespace):
     """ID names used in local properties."""
@@ -77,9 +79,10 @@ class IDName(SimpleNamespace):
     spline = "SplineID"
     pos = "PosID"
 
+
 class SplineAttributes(SimpleNamespace):
     """Keys of spline attributes."""
-    
+
     radius = "radius"
     orientation = "orientation"
     localprops = "localprops"
@@ -88,16 +91,17 @@ class SplineAttributes(SimpleNamespace):
 
 class Mode(SimpleNamespace):
     """Padding mode used in scipy.ndimage."""
-    
+
     grid_wrap = "grid-wrap"
     reflect = "reflect"
     mirror = "mirror"
     constant = "constant"
     nearest = "nearest"
 
+
 class MoleculesHeader(SimpleNamespace):
     """Feature header names for Molecules."""
-    
+
     pf = "pf-id"
     isotype = "isotype-id"
     zncc = "zncc"
@@ -114,9 +118,10 @@ class MoleculesHeader(SimpleNamespace):
     yvec = "yvec"
     xvec = "xvec"
 
+
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
-    
+
     xyz = "xyz"
     yzx = "yzx"
     zxy = "zxy"
@@ -145,7 +150,7 @@ class EulerAxes(strEnum):
 
 class GlobalVariables:
     """Global variables"""
-        
+
     nPFmin: int = 11
     nPFmax: int = 17
     splOrder: int = 3
@@ -160,14 +165,14 @@ class GlobalVariables:
     fitWidth: nm = 44.0
     daskChunk: int = (256, 256, 256)
     GPU: bool = True
-    
+
     @classmethod
     def get_value(cls) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for k in cls.__annotations__.keys():
             out[k] = getattr(cls, k)
         return out
-    
+
     @classmethod
     def set_value(cls, **kwargs):
         inf = float("inf")
@@ -190,7 +195,7 @@ def get_versions() -> dict[str, str]:
     from cylindra.__about__ import __version__
     import magicclass as mcls
     import dask
-    
+
     return {
         "cylindra": __version__,
         "numpy": np.__version__,

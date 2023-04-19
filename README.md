@@ -57,7 +57,7 @@ python setup.py build_ext --inplace
   from cylindra import start
 
   # launch a napari viewer with a cylindra dock widget.
-  ui = start()  
+  ui = start()
   ```
 
 ## Issues

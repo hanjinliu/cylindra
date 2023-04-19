@@ -15,10 +15,12 @@ class PEET(MagicTemplate):
     """PEET extension."""
 
     def read_monomers(
-        self, 
-        mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}], 
-        ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}], 
-        shift_mol: Annotated[bool, {"label": "Apply shifts to monomers if offsets are available."}] = True,
+        self,
+        mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
+        ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
+        shift_mol: Annotated[
+            bool, {"label": "Apply shifts to monomers if offsets are available."}
+        ] = True,
     ):
         """
         Read monomer coordinates and angles from PEET-format files.
@@ -32,16 +34,16 @@ class PEET(MagicTemplate):
         shift_mol : bool, default is True
             In PEET output csv there may be xOffset, yOffset, zOffset columns that can be directly applied to
             the molecule coordinates.
-        """        
+        """
         from .cmd import read_mod
 
         mod = read_mod(mod_path).values
         mod[:, 1:] -= 0.5  # shift to center of voxel
         shifts, angs = _read_shift_and_angle(ang_path)
-        mol = Molecules.from_euler(pos=mod*self.scale, angles=angs, degrees=True)
+        mol = Molecules.from_euler(pos=mod * self.scale, angles=angs, degrees=True)
         if shift_mol:
             mol.translate(shifts * self.scale, copy=False)
-        
+
         add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
 
     def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
@@ -54,12 +56,12 @@ class PEET(MagicTemplate):
             Saving path.
         layer : Points
             Select the Vectors layer to save.
-        """        
+        """
         save_dir = Path(save_dir)
         mol = layer.molecules
         _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
         return None
-    
+
     def save_all_monomers(self, save_dir: Path.Dir):
         """
         Save monomer angles in PEET format.
@@ -68,19 +70,21 @@ class PEET(MagicTemplate):
         ----------
         save_dir : Path
             Saving path.
-        """        
+        """
         save_dir = Path(save_dir)
         layers = get_monomer_layers(self)
         if len(layers) == 0:
             raise ValueError("No monomer found.")
         mol = Molecules.concat([l.molecules for l in layers])
-        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)  # TODO: file name!
+        _save_molecules(
+            save_dir=save_dir, mol=mol, scale=self.scale
+        )  # TODO: file name!
         return None
-    
+
     def shift_monomers(
-        self, 
+        self,
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
-        layer: MoleculesLayer, 
+        layer: MoleculesLayer,
         update: bool = False,
     ):
         """
@@ -94,12 +98,14 @@ class PEET(MagicTemplate):
             Points layer of target monomers.
         update : bool, default is False
             Check if update monomer coordinates in place.
-        """       
+        """
         mol = layer.molecules
         shifts, angs = _read_shift_and_angle(ang_path)
-        mol_shifted = mol.translate(shifts*self.scale)
-        mol_shifted = Molecules.from_euler(pos=mol_shifted.pos, angles=angs, degrees=True)
-        
+        mol_shifted = mol.translate(shifts * self.scale)
+        mol_shifted = Molecules.from_euler(
+            pos=mol_shifted.pos, angles=angs, degrees=True
+        )
+
         vector_data = np.stack([mol_shifted.pos, mol_shifted.z], axis=1)
         if update:
             layer.data = mol_shifted.pos
@@ -113,21 +119,26 @@ class PEET(MagicTemplate):
                 vector_layer.data = vector_data
             else:
                 self.parent_viewer.add_vectors(
-                    vector_data, edge_width=0.3, edge_color="crimson", length=2.4,
+                    vector_data,
+                    edge_width=0.3,
+                    edge_color="crimson",
+                    length=2.4,
                     name=vector_layer_name,
-                    )
+                )
             layer.molecules = mol_shifted
         else:
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
-    
+
     def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
         try:
             parent = self._get_parent()
             return get_monomer_layers(parent)
         except Exception:
             return []
-    
-    def export_project(self, layer: MoleculesLayer, save_dir: Path.Dir, project_name: str = "MyProject"):
+
+    def export_project(
+        self, layer: MoleculesLayer, save_dir: Path.Dir, project_name: str = "MyProject"
+    ):
         """
         Export cylindra state as a PEET prm file.
 
@@ -135,19 +146,19 @@ class PEET(MagicTemplate):
         ----------
         save_dir : Path
             Saving path.
-        """        
+        """
         save_dir = Path(save_dir)
         parent = self._get_parent()
         template_image = parent.sta.template
         mask_image = parent.sta.mask
-        
+
         # paths
         coordinates_path = save_dir / "coordinates.mod"
         angles_path = save_dir / "angles.csv"
         template_path = save_dir / "template-image.mrc"
         mask_path = save_dir / "mask-image.mrc"
         prm_path = save_dir / f"{project_name}.prm"
-        
+
         txt = PEET_TEMPLATE.format(
             tomograms=str(parent.tomogram.source),
             coordinates=str(coordinates_path),
@@ -158,20 +169,20 @@ class PEET(MagicTemplate):
             shape=list(template_image.shape),
             mask_type=str(mask_path),
         )
-        
+
         # save files
         prm_path.write_text(txt)
         mol = layer.molecules
         _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
         template_image.imsave(template_path)
         mask_image.imsave(mask_path)
-        
+
         return None
-    
+
     @property
     def scale(self) -> float:
         return self._get_parent().tomogram.scale
-    
+
     def _get_parent(self):
         from cylindra.widgets import CylindraMainWidget
 
@@ -184,9 +195,9 @@ def _read_angle(ang_path: str) -> np.ndarray:
         sep = "\t"
     else:
         sep = ","
-    
+
     csv = pd.read_csv(ang_path, sep=sep)
-    
+
     if csv.shape[1] == 3:
         try:
             header = np.array(csv.columns).astype(np.float64)
@@ -196,8 +207,11 @@ def _read_angle(ang_path: str) -> np.ndarray:
     elif "CCC" in csv.columns:
         csv_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values
     else:
-        raise ValueError(f"Could not interpret data format of {ang_path}:\n{csv.head(5)}")
+        raise ValueError(
+            f"Could not interpret data format of {ang_path}:\n{csv.head(5)}"
+        )
     return csv_data
+
 
 def _read_shift_and_angle(path: str) -> tuple["np.ndarray | None", np.ndarray]:
     """Read offsets and angles from PEET project"""
@@ -210,12 +224,13 @@ def _read_shift_and_angle(path: str) -> tuple["np.ndarray | None", np.ndarray]:
         shifts_data = None
     return shifts_data, ang_data
 
+
 def _save_molecules(
     save_dir: Path,
     mol: Molecules,
     scale: float,
-    mod_name: "str | None" = None, 
-    csv_name: "str | None" = None
+    mod_name: "str | None" = None,
+    csv_name: "str | None" = None,
 ):
     from .cmd import save_mod, save_angles
 
@@ -227,7 +242,7 @@ def _save_molecules(
         csv_name = "angles.csv"
     elif not csv_name.endswith(".csv"):
         csv_name += ".csv"
-    
+
     pos = mol.pos[:, ::-1] / scale
     pos[:, 1:] += 0.5
     save_mod(save_dir / mod_name, pos)

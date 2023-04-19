@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class CylinderModel:
     """
     A model class that describes a heterogenic cylindrical structure.
-    
+
     Parameters
     ----------
     shape : (int, int)
@@ -35,11 +35,11 @@ class CylinderModel:
     def __init__(
         self,
         shape: tuple[int, int],
-        tilts: tuple[float, float] = (0., 0.),
+        tilts: tuple[float, float] = (0.0, 0.0),
         interval: float = 1.0,
         radius: float = 1.0,
-        offsets: tuple[float, float] = (0., 0.),
-        displace: NDArray[np.floating] | None = None
+        offsets: tuple[float, float] = (0.0, 0.0),
+        displace: NDArray[np.floating] | None = None,
     ):
         self._shape = shape
         self._tilts = tilts
@@ -52,7 +52,7 @@ class CylinderModel:
             if displace.shape != shape + (3,):
                 raise ValueError("Shifts shape mismatch")
             self._displace = np.asarray(displace, dtype=np.float32)
-    
+
     def with_nrise(self, nrise: int) -> Self:
         """Return an updated model with given rise number."""
         tilts_lat = nrise / self.shape[1]
@@ -90,19 +90,19 @@ class CylinderModel:
     def copy(self) -> Self:
         """Make a copy of the model object."""
         return self.replace()
-    
+
     __copy__ = copy
-    
+
     @property
     def shape(self) -> tuple[int, int]:
         """Shape of the model in (axial, angular) orientation."""
         return self._shape
-    
+
     @property
     def radius(self) -> float:
         """Radius of the model."""
         return self._radius
-    
+
     @property
     def tilts(self) -> tuple[float, float]:
         """Normalized tilt of axial-to-angular direction and angular-to-axial one."""
@@ -122,28 +122,27 @@ class CylinderModel:
     def displace(self) -> NDArray[np.float32]:
         """Displacement vector of the molecules."""
         return self._displace
-    
+
     @property
     def nrise(self) -> int:
         """
         Rise number of the model.
-        
+
         Molecule at (Y, self.shape[1]) is same as (Y - nrise, 0).
         """
         return int(np.round(self.tilts[1] * self.shape[1]))
-    
+
     # @property
     # def distance_longitudinal(self) -> float:
     #     ...
-        
+
     # @property
     # def distance_lateral(self) -> float:
     #     dy, da = self.intervals
     #     tan0, tan1 = self.tilts
-        
+
     #     v1 = np.array([tan1, 1], dtype=np.float32)
-        
-    
+
     def __repr__(self) -> str:
         _cls = type(self).__name__
         strs: list[str] = []
@@ -167,14 +166,14 @@ class CylinderModel:
             "radius": self._radius,
             "offsets": self._offsets,
         }
-    
+
     def to_molecules(self, spl: Spline) -> Molecules:
         """
         Generate molecules from the coordinates and given spline.
-        
+
         Generated molecules will have following features.
-        - "molecules-pf" ... The index of the molecule in the angular direction 
-          (Protofilament number). 
+        - "molecules-pf" ... The index of the molecule in the angular direction
+          (Protofilament number).
         - "molecules-position" ... The position of the molecule in the axial direction.
           in nm. If the spline starts from the tip, position=0 is the tip.
         """
@@ -193,12 +192,12 @@ class CylinderModel:
         """Increment offsets attribute of the model."""
         _offsets = tuple(x + y for x, y in zip(self._offsets, offsets))
         return self.replace(offsets=_offsets)
-    
+
     def add_shift(self, shift: NDArray[np.floating]) -> Self:
         """Increment displace attribute of the model."""
         displace = self._displace + shift
         return self.replace(displace=displace)
-    
+
     def add_radial_shift(self, shift: NDArray[np.floating]) -> Self:
         """Add shift to the radial (r-axis) direction."""
         return self._add_directional_shift(shift, 0)
@@ -206,12 +205,14 @@ class CylinderModel:
     def add_axial_shift(self, shift: NDArray[np.floating]) -> Self:
         """Add shift to the axial (y-axis) direction."""
         return self._add_directional_shift(shift, 1)
-    
+
     def add_skew_shift(self, shift: NDArray[np.floating]) -> Self:
         """Add shift to the skew (a-axis) direction."""
         return self._add_directional_shift(shift, 2)
-    
-    def dilate(self, radius_shift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
+
+    def dilate(
+        self, radius_shift: float, sl: slice | tuple[slice, slice] | CylindricSlice
+    ) -> Self:
         """Locally add uniform shift to the radial (r-axis) direction."""
         shift = np.zeros(self.shape, dtype=np.float32)
         if not isinstance(sl, CylindricSlice):
@@ -220,36 +221,40 @@ class CylinderModel:
         shift3d = np.stack([shift, np.zeros_like(shift), np.zeros_like(shift)], axis=2)
         return self.add_shift(shift3d)
 
-    def expand(self, yshift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
+    def expand(
+        self, yshift: float, sl: slice | tuple[slice, slice] | CylindricSlice
+    ) -> Self:
         """Locally add uniform shift to the axial (y-axis) direction."""
         if not isinstance(sl, CylindricSlice):
             sl = indexer[sl]
-        
+
         displace = self._displace.copy()
         axis = 1
         for _y, _a in sl.resolve(self.shape, self.nrise):
             for start in range(_y.start, _y.stop):
                 displace[start:, _a, axis] += yshift
         return self.replace(displace=displace)
-        
-    def screw(self, angle_shift: float, sl: slice | tuple[slice, slice] | CylindricSlice) -> Self:
+
+    def screw(
+        self, angle_shift: float, sl: slice | tuple[slice, slice] | CylindricSlice
+    ) -> Self:
         """Locally add uniform shift to the skew (a-axis) direction."""
         if not isinstance(sl, CylindricSlice):
             sl = indexer[sl]
-        
+
         displace = self._displace.copy()
         axis = 2
         for _y, _a in sl.resolve(self.shape, self.nrise):
             for start in range(_y.start, _y.stop):
                 displace[start:, _a, axis] += angle_shift
         return self.replace(displace=displace)
-    
+
     def alleviate(self, label: ArrayLike, niter: int = 1) -> Self:
         """
         Alleviate displacements by iterative local-averaging algorithm.
-        
+
         This method should be called after e.g. `add_axial_shift`. Molecules adjacent to
-        the shifted molecules will be shifted to match the center of the surrounding 
+        the shifted molecules will be shifted to match the center of the surrounding
         molecules.
 
         Parameters
@@ -268,6 +273,7 @@ class CylinderModel:
             New model with updated parameters.
         """
         from cylindra._cpp_ext import alleviate
+
         label = np.asarray(label, dtype=np.int32)
         if label.shape[1] != 2:
             if label.shape == self.shape:
@@ -279,7 +285,7 @@ class CylinderModel:
         shifted = alleviate(shifted, label, self.nrise, niter)
         displace = shifted - mesh
         return self.replace(displace=displace)
-    
+
     def _add_directional_shift(self, displace: NDArray[np.floating], axis: int) -> Self:
         _displace = self._displace.copy()
         _displace[:, :, axis] += displace
@@ -289,7 +295,7 @@ class CylinderModel:
         """Get coordinate mesh with displacements applied."""
         mesh = self._get_mesh()
         return mesh + self._displace
-    
+
     def _get_mesh(self) -> NDArray[np.float32]:
         """Get canonical coordinate mesh."""
         mesh2d = oblique_meshgrid(
@@ -299,11 +305,12 @@ class CylinderModel:
         mesh3d = np.concatenate([radius_arr, mesh2d], axis=2)  # (Ny, Npf, 3)
         return mesh3d
 
+
 def oblique_meshgrid(
-    shape: tuple[int, int], 
-    tilts: tuple[float, float] = (0., 0.),
-    intervals: tuple[float, float] = (1., 1.),
-    offsets: tuple[float, float] = (0., 0.),
+    shape: tuple[int, int],
+    tilts: tuple[float, float] = (0.0, 0.0),
+    intervals: tuple[float, float] = (1.0, 1.0),
+    offsets: tuple[float, float] = (0.0, 0.0),
 ) -> NDArray[np.floating]:
     """
     Construct 2-D meshgrid in oblique coordinate system.
@@ -314,10 +321,10 @@ def oblique_meshgrid(
         Output shape. If ``shape = (a, b)``, length of the output mesh will be ``a`` along
         the first axis, and will be ``b`` along the second one.
     tilts : tuple[float, float], optional
-        Tilt tangents of each axis in world coordinate. Positive tangent means that the 
+        Tilt tangents of each axis in world coordinate. Positive tangent means that the
         corresponding axis tilt toward the line "y=x".
     intervals : tuple[float, float], optional
-        The intervals (or scale) of new axes. 
+        The intervals (or scale) of new axes.
     offsets : tuple[float, float], optional
         The origin of new coordinates.
 
@@ -330,24 +337,25 @@ def oblique_meshgrid(
     d0, d1 = intervals
     c0, c1 = offsets
     n0, n1 = shape
-    
+
     v0 = np.array([1, tan0], dtype=np.float32)
     v1 = np.array([tan1, 1], dtype=np.float32)
 
     out = np.empty((n0, n1, 2), dtype=np.float32)
-    
+
     for i in range(n0):
         for j in range(n1):
             out[i, j, :] = v0 * i + v1 * j
-    
+
     out[:, :, 0] = out[:, :, 0] * d0 + c0
     out[:, :, 1] = out[:, :, 1] * d1 + c1
     return out
 
+
 class CylindricSlice(NamedTuple):
     y: slice
     a: slice
-    
+
     def __repr__(self) -> str:
         _y, _a = self
         if _y == slice(None):
@@ -362,9 +370,10 @@ class CylindricSlice(NamedTuple):
 
     def get_resolver(self, rise: int) -> CylindricSliceResolver:
         return CylindricSliceResolver(*self, rise)
-    
+
     def resolve(self, shape: tuple[int, int], rise: int):
         return self.get_resolver(rise).resolve_slices(shape)
+
 
 class CylindricSliceConstructor:
     def __getitem__(self, key):
@@ -372,13 +381,15 @@ class CylindricSliceConstructor:
             return CylindricSlice(*key)
         return CylindricSlice(key, slice(None))
 
+
 indexer = CylindricSliceConstructor()
+
 
 class CylindricSliceResolver(NamedTuple):
     y: slice
     a: slice
     rise: int
-    
+
     def resolve_slices(self, shape: tuple[int, int]) -> list[CylindricSlice]:
         ny, na = shape
         _y, _a, rise = self
@@ -390,30 +401,31 @@ class CylindricSliceResolver(NamedTuple):
             astop = na
         if astart >= astop:
             raise ValueError("start must be larger than stop.")
-                
+
         slices: list[CylindricSlice] = []
         npart_start, res_start = divmod(astart, na)
         npart_stop, res_stop = divmod(astop, na)
-        
+
         i = npart_start
         s0 = res_start
         while i <= npart_stop:
             yoffset = i * rise
             s1 = na if i < npart_stop else res_stop
             slices.append(
-                CylindricSlice(slice(_y.start + yoffset, _y.stop + yoffset), slice(s0, s1))
+                CylindricSlice(
+                    slice(_y.start + yoffset, _y.stop + yoffset), slice(s0, s1)
+                )
             )
-            
+
             i += 1
             s0 = 0
-        
+
         return slices
-        
-            
+
     def get_slice(self, arr: np.ndarray) -> np.ndarray:
         slices = self.resolve_slices(arr.shape)
         return np.concatenate([arr[sl] for sl in slices], axis=1)
-    
+
     def set_slice(self, arr: np.ndarray, val: Any) -> None:
         slices = self.resolve_slices(arr.shape)
         start = 0

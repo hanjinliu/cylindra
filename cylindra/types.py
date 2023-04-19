@@ -16,15 +16,14 @@ def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
-    return [
-        x for x in viewer.layers 
-        if isinstance(x, MoleculesLayer)
-    ]
+    return [x for x in viewer.layers if isinstance(x, MoleculesLayer)]
+
 
 magicgui.register_type(MoleculesLayer, choices=get_monomer_layers)
 
 # Record 1D numpy array as a list of floats.
 from macrokit import register_type, parse
+
 register_type(np.ndarray, lambda arr: str(arr.tolist()))
 register_type(ip.ImgArray, lambda img: f"<image from {img.source}>")
 
@@ -32,6 +31,7 @@ _NumberPattern = r"[0-9]\.?[0-9]*"
 _RustTypes = r"(i8|i16|i32|i64|u8|u16|u32|u64|f32|f64)"
 _RustNumber = re.compile(f"\\(({_NumberPattern}){_RustTypes}\\)")
 _RustUtf8 = re.compile("\\(Utf8\\((.*)\\)\\)")
+
 
 @register_type(pl.Expr)
 def format_pl_expr(expr: pl.Expr) -> str:

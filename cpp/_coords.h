@@ -14,7 +14,7 @@ namespace py = pybind11;
 // A 3-D vector (or coordinate) object.
 // Implemented with simple operations.
 template <typename T>
-class Vector3D {	
+class Vector3D {
 	public:
 		T z; T y; T x;
 		Vector3D<T> operator+(Vector3D<T> &other);
@@ -118,7 +118,7 @@ py::array_t<T> Vector3D<T>::asarray() {
 }
 
 /// Calculate the square of distance between the point `other` and the plane defined by the
-/// normal vector `norm` and the point `this`. 
+/// normal vector `norm` and the point `this`.
 template<typename T>
 T Vector3D<T>::pointToPlaneDistance2(Vector3D<T> &norm, Vector3D<T> &other) {
 	return std::abs((other - *this).dot(norm));

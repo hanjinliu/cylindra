@@ -8,6 +8,7 @@ from psygnal.containers import EventedList
 
 from acryo import BatchLoader
 
+
 @dataclasses.dataclass(frozen=True)
 class LoaderInfo:
     loader: BatchLoader
@@ -17,35 +18,39 @@ class LoaderInfo:
     def rename(self, name: str):
         return LoaderInfo(self.loader, name, self.image_paths)
 
+
 class LoaderList(EventedList[LoaderInfo]):
     @overload
-    def __getitem__(self, index: int | str) -> LoaderInfo: ...
+    def __getitem__(self, index: int | str) -> LoaderInfo:
+        ...
+
     @overload
-    def __getitem__(self, index: slice) -> list[LoaderInfo]: ...
-    
+    def __getitem__(self, index: slice) -> list[LoaderInfo]:
+        ...
+
     def __getitem__(self, index) -> LoaderInfo:
         if isinstance(index, str):
             index = self.find(index)
         return super().__getitem__(index)
-    
+
     def __setitem__(self, index, value):
         if not isinstance(value, LoaderInfo):
             raise TypeError(f"Expected LoaderInfo, got {type(value)}")
         return super().__setitem__(index, value)
-    
+
     def __delitem__(self, key: int | slice | str) -> None:
         if isinstance(key, str):
             key = self.find(key)
         return super().__delitem__(key)
-    
+
     def find(self, name: str, default: int | None = None) -> int:
-        for i, info in enumerate(self): 
+        for i, info in enumerate(self):
             if info.name == name:
                 return i
         if default is None:
             raise ValueError(f"Loader {name!r} not found")
         return -1
-    
+
     def insert(self, index: int, value: LoaderInfo) -> None:
         name = value.name
         if self.find(name, default=-1) >= 0:
@@ -58,4 +63,3 @@ class LoaderList(EventedList[LoaderInfo]):
                 suffix += 1
             value = value.rename(f"{prefix}-{suffix}")
         return super().insert(index, value)
-

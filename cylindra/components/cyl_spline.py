@@ -15,26 +15,26 @@ if TYPE_CHECKING:
 
 
 class CylSpline(Spline):
-    """A spline object with cylindrical structure."""    
+    """A spline object with cylindrical structure."""
 
     _local_cache = (K.localprops,)
     _global_cache = (K.globalprops, K.radius, K.orientation)
-    
-    def __init__(self, degree: int = 3, *, lims: tuple[float, float] = (0., 1.)):
+
+    def __init__(self, degree: int = 3, *, lims: tuple[float, float] = (0.0, 1.0)):
         """
         Spline object for a cylinder.
-        
+
         Parameters
         ----------
         k : int, default is 3
             Spline order.
-        """        
+        """
         super().__init__(degree=degree, lims=lims)
         self.orientation = Ori.none
         self.radius: nm | None = None
         self.localprops: pl.DataFrame | None = None
         self.globalprops: pl.DataFrame | None = None
-    
+
     def invert(self) -> CylSpline:
         """
         Invert the direction of spline. Also invert orientation if exists.
@@ -50,11 +50,11 @@ class CylSpline(Spline):
             inverted.localprops = self.localprops[::-1]
         inverted.globalprops = self.globalprops
         return inverted
-    
+
     def clip(self, start: float, stop: float) -> CylSpline:
         """
         Clip spline and generate a new one.
-        
+
         This method does not convert spline bases. ``_lims`` is updated instead.
         For instance, if you want to clip spline at 20% to 80% position, call
         ``spl.clip(0.2, 0.8)``. If ``stop < start``, the orientation of spline
@@ -73,14 +73,14 @@ class CylSpline(Spline):
             Clipped spline.
         """
         clipped = super().clip(start, stop)
-        
+
         clipped.radius = self.radius
         if start > stop:
             clipped.orientation = Ori.invert(self.orientation)
         else:
             clipped.orientation = self.orientation
         return clipped
-    
+
     def restore(self) -> CylSpline:
         """
         Restore the original, not-clipped spline.
@@ -97,13 +97,12 @@ class CylSpline(Spline):
         else:
             original.orientation = self.orientation
         return original
-    
-        
+
     @property
     def orientation(self) -> Ori:
         """Orientation of spline."""
         return self._orientation
-    
+
     @orientation.setter
     def orientation(self, value: Ori | str | None):
         """Set orientation of spline."""
@@ -112,8 +111,14 @@ class CylSpline(Spline):
         else:
             self._orientation = Ori(value)
 
-    
-    def cylinder_model(self, offsets: tuple[float, float] = (0., 0.,), **kwargs) -> CylinderModel:
+    def cylinder_model(
+        self,
+        offsets: tuple[float, float] = (
+            0.0,
+            0.0,
+        ),
+        **kwargs,
+    ) -> CylinderModel:
         """
         Return the cylinder model of the spline.
 
@@ -128,7 +133,7 @@ class CylSpline(Spline):
             The cylinder model.
         """
         length = self.length()
-        
+
         if all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
             props = kwargs
         else:
@@ -136,15 +141,17 @@ class CylSpline(Spline):
             props = self.globalprops
             if props is None:
                 raise ValueError("No global properties are set.")
-            props = {k: props[k][0] for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}
-        
+            props = {
+                k: props[k][0] for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]
+            }
+
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
         rise = props[H.riseAngle]
         npf = roundint(props[H.nPF])
         radius = kwargs.get("radius", self.radius)
-        
-        ny = roundint(length/pitch) # number of monomers in y-direction
+
+        ny = roundint(length / pitch)  # number of monomers in y-direction
         tan_rise = np.tan(np.deg2rad(rise))
 
         # Construct meshgrid
@@ -157,8 +164,8 @@ class CylSpline(Spline):
         )
 
         if offsets is None:
-            offsets = (0., 0.)
-        
+            offsets = (0.0, 0.0)
+
         return CylinderModel(
             shape=(ny, npf),
             tilts=tilts,
