@@ -68,7 +68,7 @@ class Reservoir : public AbstractReservoir {
             }
         }
         float prob(float dE) override {
-            return (dE < 0) ? 1.0 : exp(-dE / temperature);
+            return (dE < 0) ? 1.0 : static_cast<float>(exp(-dE / temperature));
         }
 };
 

@@ -6,16 +6,22 @@
 #include <numeric>
 #include <cmath>
 
+template <typename Se, typename T>
 class AbstractBindingPotential {
-    virtual double operator()(double dist2, int type) { return 0.0; }
+    virtual T operator()(double dist2, Se &type) { return 0.0; }
 };
 
-class BindingPotential2D : AbstractBindingPotential {
+enum class EdgeType {
+    Longitudinal,
+    Lateral,
+};
+
+class BindingPotential2D : AbstractBindingPotential<EdgeType, float> {
     public:
-        virtual double longitudinal(double dist2) { return 0.0; };
-        virtual double lateral(double dist2) { return 0.0; };
-        double operator()(double dist2, int type) override {
-            if (type == 0) {
+        virtual float longitudinal(double dist2) { return 0.0; };
+        virtual float lateral(double dist2) { return 0.0; };
+        float operator()(double dist2, EdgeType &type) override {
+            if (type == EdgeType::Longitudinal) {
                 return longitudinal(dist2);
             } else {
                 return lateral(dist2);
@@ -31,7 +37,7 @@ class BoxPotential2D : public BindingPotential2D {
         double lat_dist_max2;
 
     public:
-        double longitudinal(double dist2) override {
+        float longitudinal(double dist2) override {
             if (dist2 < lon_dist_min2 || lon_dist_max2 < dist2) {
                 return std::numeric_limits<double>::infinity();
             } else {
@@ -39,7 +45,7 @@ class BoxPotential2D : public BindingPotential2D {
             }
         }
 
-        double lateral(double dist2) override {
+        float lateral(double dist2) override {
             if (dist2 < lat_dist_min2 || lat_dist_max2 < dist2) {
                 return std::numeric_limits<double>::infinity();
             } else {
@@ -63,12 +69,12 @@ class HarmonicPotential2D : BindingPotential2D {
             this->r1 = r1;
         }
 
-        double longitudinal(double dist2) override {
+        float longitudinal(double dist2) override {
             auto x = std::sqrt(dist2) - r0;
             return halfk0 * x * x;
         }
 
-        double lateral(double dist2) override {
+        float lateral(double dist2) override {
             auto x = std::sqrt(dist2) - r1;
             return halfk1 * x * x;
         }

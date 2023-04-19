@@ -50,7 +50,7 @@ namespace std {
     template<>
     struct hash<Index> {
     public:
-        size_t operator()(const Index& idx)const {
+        size_t operator()(const Index& idx) const {
             return idx.hash();
         }
     };

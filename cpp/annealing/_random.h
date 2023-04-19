@@ -23,12 +23,12 @@ class RandomNumberGenerator {
             return dist(eng);
         }
 
-        int uniformInt(int max) {
+        size_t uniformInt(size_t max) {
             return uniformInt(0, max);
         }
 
-        int uniformInt(int min, int max) {
-            std::uniform_int_distribution<int> dist(min, max - 1);
+        size_t uniformInt(size_t min, size_t max) {
+            std::uniform_int_distribution<size_t> dist(min, max - 1);
             return dist(eng);
         }
 

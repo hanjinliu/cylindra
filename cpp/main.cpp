@@ -27,8 +27,7 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def("__repr__", &ViterbiGrid::pyRepr);
 
     py::class_<CylindricAnnealingModel>(m, "CylindricAnnealingModel")
-        .def(py::init<py::array_t<float>, ssize_t, ssize_t>(),
-             py::arg("score"), py::arg("nrise"), py::arg("seed") = 0)
+        .def(py::init<int>(), py::arg("seed") = 0)
         .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
         .def("energy", &CylindricAnnealingModel::totalEnergy)
         .def("energy_array", &CylindricAnnealingModel::getEnergyArray)
@@ -66,8 +65,8 @@ PYBIND11_MODULE(_cpp_ext, m) {
     py::class_<RandomNumberGenerator>(m, "RandomNumberGenerator")
         .def(py::init<>())
         .def(py::init<int>(), py::arg("seed"))
-        .def("uniform_int", py::overload_cast<int>(&RandomNumberGenerator::uniformInt), py::arg("max"))
-        .def("uniform_int", py::overload_cast<int, int>(&RandomNumberGenerator::uniformInt), py::arg("min"), py::arg("max"))
+        .def("uniform_int", py::overload_cast<size_t>(&RandomNumberGenerator::uniformInt), py::arg("max"))
+        .def("uniform_int", py::overload_cast<size_t, size_t>(&RandomNumberGenerator::uniformInt), py::arg("min"), py::arg("max"))
         .def("uniform", py::overload_cast<>(&RandomNumberGenerator::uniform))
         .def("uniform", py::overload_cast<double, double>(&RandomNumberGenerator::uniform), py::arg("min"), py::arg("max"))
         .def("rand_shift", py::overload_cast<std::tuple<int, int, int>, std::tuple<int, int, int>>(&RandomNumberGenerator::randShift), py::arg("src"), py::arg("shape"));

@@ -13,12 +13,12 @@
 
 using ssize_t = Py_ssize_t;
 
-template <typename N, typename S, typename T>
+template <typename Sn, typename Se, typename T>
 class AbstractAnnealingModel {
     private:
         std::vector<T> energies;
     protected:
-        AbstractGraph<N, S, T> graph;
+        AbstractGraph<Sn, Se, T> graph;
         AbstractReservoir reservoir;
         RandomNumberGenerator rng;
 
@@ -26,7 +26,7 @@ class AbstractAnnealingModel {
         void setRandomState(int seed) { this.rng = RandomNumberGenerator(seed); }
 
     public:
-        void setGraph(AbstractGraph<N, S, T> graph) { this->graph = graph; }
+        void setGraph(AbstractGraph<Sn, Se, T> graph) { this->graph = graph; }
         void setReservoir(AbstractReservoir reservoir) { this->reservoir = reservoir; }
 
         void setTemperature(float temperature) { reservoir.setTemperature(temperature); }
@@ -40,39 +40,38 @@ class AbstractAnnealingModel {
 
 };
 
-template <typename N, typename S, typename T>
-void AbstractAnnealingModel<N, S, T>::proceed() {
-    auto idx = rng.uniformInt(graph.count());
-    auto result = graph.randomShift(rng);
-    auto prob = reservoir.prob(result.dGain);
+template <typename Sn, typename Se, typename T>
+void AbstractAnnealingModel<Sn, Se, T>::proceed() {
+    auto idx = rng.uniformInt(graph.nodeCount());
+    auto result = graph.tryRandomShift(rng);
+    auto prob = reservoir.prob(result.dE);
     auto last_energy = energies[energies.size() - 1];
 
     if (rng.bernoulli(prob)) {
         // accept shift
-        graph.setLocalState(idx, result.state);
-        energies.push_back(last_energy + result.dGain);
+        graph.applyShift(result);
+        energies.push_back(last_energy + result.dE);
     } else {
         // reject shift
         energies.push_back(last_energy);
     }
 }
 
-template <typename N, typename S, typename T>
-void AbstractAnnealingModel<N, S, T>::simulate(ssize_t nsteps) {
+template <typename Sn, typename Se, typename T>
+void AbstractAnnealingModel<Sn, Se, T>::simulate(ssize_t nsteps) {
     for (auto i = 0; i < nsteps; ++i) {
         proceed();
         reservoir.cool();
     }
 }
 
-class CylindricAnnealingModel : public AbstractAnnealingModel<Index, Vector3D<int>, float> {
+class CylindricAnnealingModel : public AbstractAnnealingModel<_NodeState, EdgeType, float> {
     protected:
         CylindricGraph graph;
     public:
-        CylindricAnnealingModel() {
-            this->graph = CylindricGraph();
+        CylindricAnnealingModel(int seed) {
             this->reservoir = Reservoir();
-            this->rng = RandomNumberGenerator();
+            this->rng = RandomNumberGenerator(seed);
         }
 
         void setReservoir(
@@ -91,7 +90,7 @@ class CylindricAnnealingModel : public AbstractAnnealingModel<Index, Vector3D<in
             py::array_t<float> &xvec,
             int nrise
         ) {
-            this->graph = CylindricGraph(score, origin, zvec, yvec, xvec, nrise);
+            this->graph.update(score, origin, zvec, yvec, xvec, nrise);
         }
 
         py::array_t<int> getShifts() { return graph.getShifts(); }

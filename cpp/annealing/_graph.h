@@ -5,8 +5,6 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
-#include <set>
-#include <unordered_map>
 
 #include "_random.h"
 #include "_binding_potential.h"
@@ -15,79 +13,82 @@
 
 template <typename S>
 struct ShiftResult {
+    size_t index;
     S state;
-    float dGain;
-    ShiftResult(S _state, float _dGain) : state(_state), dGain(_dGain) {}
+    float dE;
+    ShiftResult(size_t i, S s, float e) : index(i), state(s), dE(e) {}
 };
 
 /// @brief Abstract class for an undirected graph with scores.
-/// @tparam N type of node (e.g. 3D vector for a 3D grid)
-/// @tparam S type of internal state (e.g. bool for up/down)
-/// @tparam T type of score (e.g. float for negative energy)
-template <typename N, typename S, typename T>
+template <typename Sn, typename Se, typename T>
 class AbstractGraph {
-    protected:
-        std::unordered_map<N, std::set<N>> neighborsMap;  // to speed up neighbor lookup
-        std::unordered_map<std::pair<N, N>, int> edgeType;
     public:
-        std::vector<N> nodes;
+        std::vector<std::vector<size_t>> edges;  // id of connected edges of the i-th node
+        std::vector<std::pair<size_t, size_t>> edgeEnds;  // end nodes of the i-th edge
+        std::vector<Sn> nodeState;
+        std::vector<Se> edgeState;
 
-        AbstractGraph() {
-            this->nodes = std::vector<N>();
-            this->neighborsMap = std::unordered_map<N, std::set<N>>();
-        };
+        AbstractGraph() {};
 
-        void addEdge(N &node0, N &node1) {
-            this->neighborsMap[node0].insert(node1);
-            this->neighborsMap[node1].insert(node0);
-        };
+        virtual size_t nodeCount() { return nodeState.size(); };
+        virtual size_t edgeCount() { return edgeEnds.size(); };
 
-        /// Returns the number of nodes.
-        virtual int count() { return 0; };
+        void addEdge(size_t i, size_t j, Se edgestate) {
+            edges[i].push_back(edgeEnds.size());
+            edges[j].push_back(edgeEnds.size());
+            edgeEnds.push_back(std::make_pair(i, j));
+        }
 
-        /// Returns the local state of the molecule at `pos`.
-        virtual S localState(N &pos) { return S(); };
-
-        /// Sets the local state of the molecule at `pos`.
-        virtual void setLocalState(N &pos, S &state) { return; };
-
-        virtual S randomLocalNeighBorState(N &pos, S &state, RandomNumberGenerator &rng) { return S(); };
+        virtual Sn randomLocalNeighBorState(Sn &nodestate, RandomNumberGenerator &rng) { return nodestate; };
 
         /// Returns the "potential score" of molecule at `pos` of given `state`.
-        virtual T potential(N &pos, S &state) { return 0.0; };
+        virtual T potential(Sn &nodestate) { return 0; };
 
         /// Returns the "binding score" between adjacent molecules.
-        virtual T binding(N &pos0, N &pos1, S &state0, S &state1, int type) { return 0.0; };
+        virtual T binding(Sn &nodestate0, Sn &nodestate1, Se &edgestate) { return 0.0; };
 
         /// Returns the total score of the current graph state.
-        T totalEnergy() {
-            for (int i = 0; i < count(); i++) {
-                auto _node = nodes[i];
-                auto _state = localState(_node);
-                auto score = potential(_node, _state);
-                for (auto neighbor : neighborsMap[_node]) {
-                    score += binding(_node, neighbor, _state, localState(neighbor));
-                }
-            }
-        };
+        T totalEnergy();
 
-        ShiftResult<S> randomShift(RandomNumberGenerator &rng) {
-            auto idx = rng.uniformInt(graph.count());
-            auto pos = nodes[idx];
-            auto state_old = localState(pos);
-            auto score_old = potential(pos, state_old);
-            auto state_new = randomLocalNeighBorState(pos, state_old, rng);
-            auto score_new = potential(pos, state_new);
-            for (auto n: neighbors(pos)) {
-                auto nstate = localState(n);
-                score_old += binding(pos, n, state_old, nstate);
-                score_new += binding(pos, n, state_new, nstate);
-            }
-            auto dGain = score_new - score_old;
-            return ShiftResult(state_new, dGain);
+        ShiftResult<Sn> tryRandomShift(RandomNumberGenerator&);
+        void applyShift(ShiftResult<Sn> &result) {
+            nodeState[result.index] = result.state;
         }
 };
 
+template <typename Sn, typename Se, typename T>
+T AbstractGraph<Sn, Se, T>::totalEnergy() {
+    T score = 0;
+    for (auto s : nodeState) {
+        score += potential(s);
+    }
+    for (size_t i = 0; i < edgeEnds.size(); ++i) {
+        auto ends = edgeEnds[i];
+        score += binding(nodeState[ends.first], nodeState[ends.second], edgeState[i]);
+    }
+    return score;
+};
+
+template <typename Sn, typename Se, typename T>
+ShiftResult<Sn> AbstractGraph<Sn, Se, T>::tryRandomShift(RandomNumberGenerator &rng) {
+    auto idx = rng.uniformInt(nodeCount());
+    Sn state_old = nodeState[idx];
+    T E_old = potential(state_old);
+    Sn state_new = randomLocalNeighBorState(state_old, rng);
+    T E_new = potential(state_new);
+    auto connected_edges = edges[idx];
+
+    for (auto edgeid : connected_edges) {
+        auto ends = edgeEnds[edgeid];
+        auto other_idx = (ends.first == idx) ? ends.second : ends.first;
+        Sn other_state = nodeState[other_idx];
+        E_old += binding(state_old, other_state, edgeState[edgeid]);
+        E_new += binding(state_new, other_state, edgeState[edgeid]);
+    }
+
+    auto dE = E_new - E_old;
+    return ShiftResult<Sn>(idx, state_new, dE);
+}
 
 template <typename T>
 class Grid2D {
@@ -120,14 +121,24 @@ class Grid2D {
         };
 };
 
-class CylindricGraph : public AbstractGraph<Index, Vector3D<int>, float> {
+struct _NodeState {
+    Index index;
+    Vector3D<int> shift;
+    // _NodeState() {
+    //     index = Index(0, 0);
+    //     shift = Vector3D<int>(0, 0, 0);
+    // };
+    _NodeState(Index i, Vector3D<int> s) : index(i), shift(s) {};
+};
+
+
+class CylindricGraph : public AbstractGraph<_NodeState, EdgeType, float> {
     private:
         CylinderGeometry geometry;
-        Grid2D<Vector3D<int>> states;
         Grid2D<CoordinateSystem<double>> coords;
-        py::array_t<float> score;
+        py::array_t<float> score;  // 5D array
         BindingPotential2D bindingPotential;
-        std::vector<ssize_t> localShape;
+        Vector3D<int> localShape;
 
     public:
         CylindricGraph() {};
@@ -139,113 +150,115 @@ class CylindricGraph : public AbstractGraph<Index, Vector3D<int>, float> {
             py::array_t<float> &xvec,
             int nrise
         ) {
-            auto score_shape = score.request().shape;
-            if (score_shape.size() != 5) {
-                throw py::value_error("Score array must be 5D");
-            } else if (origin.shape(0) != score.shape(0) || zvec.shape(0) != score.shape(0) || yvec.shape(0) != score.shape(0) || xvec.shape(0) != score.shape(0)) {
-                throw py::value_error("Score array and vectors must have the same first dimension");
-            } else if (origin.shape(1) != score.shape(1) || zvec.shape(1) != score.shape(1) || yvec.shape(1) != score.shape(1) || xvec.shape(1) != score.shape(1)) {
-                throw py::value_error("Score array and vectors must have the same second dimension");
-            } else if (origin.shape(2) != 3 || zvec.shape(2) != 3 || yvec.shape(2) != 3 || xvec.shape(2) != 3) {
-                throw py::value_error("Vectors must be 3D");
-            }
-            auto naxial = score_shape[0];
-            auto nang = score_shape[1];
-
-            geometry = CylinderGeometry(naxial, nang, nrise);
-            auto nodes = std::vector<Index>();
-            auto edges = std::unordered_map<Index, std::set<Index>>();
-            for (auto y = 0; y < geometry.nY; ++y) {
-                for (auto a = 0; a < geometry.nA; ++a) {
-                    auto idx = Index(y, a);
-                    nodes.push_back(idx);
-                    auto neighbors = geometry.getNeighbor(idx.y, idx.a);
-                    for (auto n : neighbors) {
-                        edges[idx].insert(n);
-                    }
-                }
-            }
-            Grid2D<CoordinateSystem<double>> _coords(naxial, nang);
-
-            for (auto t = 0; t < naxial; ++t) {
-                for (auto s = 0; s < nang; ++s) {
-                    auto _ori = Vector3D<double>(*origin.data(t, s, 0), *origin.data(t, s, 1), *origin.data(t, s, 2));
-                    auto _ez = Vector3D<double>(*zvec.data(t, s, 0), *zvec.data(t, s, 1), *zvec.data(t, s, 2));
-                    auto _ey = Vector3D<double>(*yvec.data(t, s, 0), *yvec.data(t, s, 1), *yvec.data(t, s, 2));
-                    auto _ex = Vector3D<double>(*xvec.data(t, s, 0), *xvec.data(t, s, 1), *xvec.data(t, s, 2));
-                    _coords.setAt(t, s, CoordinateSystem<double>(_ori, _ez, _ey, _ex));
-                }
-            }
-
-            this->score = score;
-            this->coords = _coords;
-            this->localShape = std::vector<ssize_t>({score_shape[2], score_shape[3], score_shape[4]});
-            this->nodes = nodes;
-            this->neighborsMap = edges;
+            update(score, origin, zvec, yvec, xvec, nrise);
         }
 
-        int count() override {
-            return geometry.nY * geometry.nA;
+        void update(py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, int nrise);
+
+        _NodeState randomLocalNeighBorState(_NodeState &state, RandomNumberGenerator &rng) override {
+            auto idx = state.index;
+            auto shift = state.shift;
+            auto shift_new = rng.randShift(shift, localShape);
+            return _NodeState(idx, shift_new);
         }
 
-        Vector3D<int> localState(Index &pos) override {
-            return states.at(pos.y, pos.a);
-        }
-
-        void setLocalState(Index &pos, Vector3D<int> &state) override {
-            states.setAt(pos.y, pos.a, state);
-        }
-
-        Vector3D<int> randomLocalNeighBorState(Index &pos, Vector3D<int> &state, RandomNumberGenerator &rng) override {
-            auto neighbors = geometry.getNeighbor(pos.y, pos.a);
-            auto n = neighbors[rng.uniformInt(neighbors.size())];
-            return states.at(n.y, n.a);
-        }
-
-        float potential(Index &pos, Vector3D<int> &state) override {
-            auto vec = states.at(pos.y, pos.a);
-            return *score.data(vec.z, vec.y, vec.x);
+        float potential(_NodeState &nodestate) override {
+            auto idx = nodestate.index;
+            auto vec = nodestate.shift;
+            return *score.data(idx.y, idx.a, vec.z, vec.y, vec.x);
         }
 
         float binding(
-            Index &pos1,
-            Index &pos2,
-            Vector3D<int> &state1,
-            Vector3D<int> &state2,
-            int type
+            _NodeState &pos1,
+            _NodeState &pos2,
+            EdgeType &type
         ) override {
-            auto vec1 = states.at(pos1.y, pos1.a);
-            auto vec2 = states.at(pos2.y, pos2.a);
-            auto coord1 = coords.at(pos1.y, pos1.a);
-            auto coord2 = coords.at(pos2.y, pos2.a);
+            auto vec1 = pos1.shift;
+            auto vec2 = pos2.shift;
+            auto coord1 = coords.at(pos1.index.y, pos1.index.a);
+            auto coord2 = coords.at(pos2.index.y, pos2.index.a);
             auto dr = coord1.at(vec1.z, vec1.y, vec1.x) - coord2.at(vec2.z, vec2.y, vec2.x);
-
-            auto edge = std::make_pair(pos1, pos2);
-            auto ptr = edgeType.find(edge);
-
-            int type;
-            if (ptr != edgeType.end()) {
-                type = ptr->second;
-            } else {
-                type = 0;
-            }
             return bindingPotential(dr.length2(), type);
         }
 
         py::array_t<int> getShifts() {
             auto out = py::array_t<int>{{geometry.nY, geometry.nA, ssize_t(3)}};
-            for (auto i = 0; i < geometry.nY; ++i) {
-                for (auto j = 0; j < geometry.nA; ++j) {
-                    auto shift = states.at(i, j);
-                    out.mutable_at(i, j, 0) = shift.x;
-                    out.mutable_at(i, j, 1) = shift.y;
-                    out.mutable_at(i, j, 2) = shift.z;
-                }
+            for (auto state : nodeState) {
+                auto y = state.index.y;
+                auto a = state.index.a;
+                auto shift = state.shift;
+                out.mutable_at(y, a, 0) = shift.z;
+                out.mutable_at(y, a, 1) = shift.y;
+                out.mutable_at(y, a, 2) = shift.x;
             }
             return out;
         }
 };
 
+void CylindricGraph::update(
+    py::array_t<float> &score,
+    py::array_t<float> &origin,
+    py::array_t<float> &zvec,
+    py::array_t<float> &yvec,
+    py::array_t<float> &xvec,
+    int nrise
+) {
+    auto score_shape = score.request().shape;
+    if (score_shape.size() != 5) {
+        throw py::value_error("Score array must be 5D");
+    } else if (origin.shape(0) != score.shape(0) || zvec.shape(0) != score.shape(0) || yvec.shape(0) != score.shape(0) || xvec.shape(0) != score.shape(0)) {
+        throw py::value_error("Score array and vectors must have the same first dimension");
+    } else if (origin.shape(1) != score.shape(1) || zvec.shape(1) != score.shape(1) || yvec.shape(1) != score.shape(1) || xvec.shape(1) != score.shape(1)) {
+        throw py::value_error("Score array and vectors must have the same second dimension");
+    } else if (origin.shape(2) != 3 || zvec.shape(2) != 3 || yvec.shape(2) != 3 || xvec.shape(2) != 3) {
+        throw py::value_error("Vectors must be 3D");
+    }
+    auto naxial = score_shape[0];
+    auto nang = score_shape[1];
+
+    geometry = CylinderGeometry(naxial, nang, nrise);
+    localShape = Vector3D<int>(score_shape[2], score_shape[3], score_shape[4]);
+
+    nodeState.clear();
+    edgeState.clear();
+    edges.clear();
+    edgeEnds.clear();
+
+    auto center = localShape / 2;
+    for (auto y = 0; y < geometry.nY; ++y) {
+        for (auto a = 0; a < geometry.nA; ++a) {
+            auto idx = Index(y, a);
+            nodeState.push_back(_NodeState(idx, center));
+        }
+    }
+
+    for (auto pair : geometry.allLongitudinalPairs()) {
+        auto idx0 = geometry.nA * pair.first.y + pair.first.a;
+        auto idx1 = geometry.nA * pair.second.y + pair.second.a;
+        addEdge(idx0, idx1, EdgeType::Longitudinal);
+    }
+
+    for (auto pair : geometry.allLateralPairs()) {
+        auto idx0 = geometry.nA * pair.first.y + pair.first.a;
+        auto idx1 = geometry.nA * pair.second.y + pair.second.a;
+        addEdge(idx0, idx1, EdgeType::Lateral);
+    }
+
+    Grid2D<CoordinateSystem<double>> _coords(naxial, nang);
+
+    for (auto t = 0; t < naxial; ++t) {
+        for (auto s = 0; s < nang; ++s) {
+            auto _ori = Vector3D<double>(*origin.data(t, s, 0), *origin.data(t, s, 1), *origin.data(t, s, 2));
+            auto _ez = Vector3D<double>(*zvec.data(t, s, 0), *zvec.data(t, s, 1), *zvec.data(t, s, 2));
+            auto _ey = Vector3D<double>(*yvec.data(t, s, 0), *yvec.data(t, s, 1), *yvec.data(t, s, 2));
+            auto _ex = Vector3D<double>(*xvec.data(t, s, 0), *xvec.data(t, s, 1), *xvec.data(t, s, 2));
+            _coords.setAt(t, s, CoordinateSystem<double>(_ori, _ez, _ey, _ex));
+        }
+    }
+
+    this->score = score;
+    this->coords = _coords;
+}
 
 
 #endif
