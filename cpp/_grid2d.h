@@ -44,7 +44,7 @@ class Coords2DGrid {
 
 Vector3D<double> stateAt(
     py::detail::unchecked_mutable_reference<long long, 3i64> &state_array,
-    ssize_t y, 
+    ssize_t y,
     ssize_t a
 )
 {
@@ -82,7 +82,7 @@ class ViterbiGrid2D {
         );
 
         std::tuple<py::array_t<ssize_t>, double> viterbi(
-            double dist_min, 
+            double dist_min,
             double dist_max,
             double lat_dist_min,
             double lat_dist_max
@@ -161,8 +161,8 @@ ViterbiGrid2D::ViterbiGrid2D (
         throw py::value_error("Shape of 'xvec' is wrong.");
     } else if (naxial < 2 || nang < 2 || nz < 2 || ny < 2 || nx < 2) {
         throw py::value_error(
-            "Invalid shape of 'score': (" 
-            + std::to_string(naxial) + std::to_string(nang) + ", " + std::to_string(nz) + ", " 
+            "Invalid shape of 'score': ("
+            + std::to_string(naxial) + std::to_string(nang) + ", " + std::to_string(nz) + ", "
             + std::to_string(ny) + ", " + std::to_string(nx) + ")."
         );
     }
@@ -170,7 +170,7 @@ ViterbiGrid2D::ViterbiGrid2D (
     // Allocation of arrays of coordinate system.
     // Offsets and orientations of local coordinates of score landscape are well-defined by this.
     Coords2DGrid _coords(naxial, nang);
-    
+
     for (auto t = 0; t < naxial; ++t) {
         for (auto s = 0; s < nang; ++s) {
             auto _ori = Vector3D<double>(*origin.data(t, s, 0), *origin.data(t, s, 1), *origin.data(t, s, 2));
@@ -219,7 +219,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
             }
         }
     }
-	
+
     // For 2D grid, scores of the initial position will be initialized during the
     // for-loop in the `viterbi` method.
     auto viterbi_lattice_ = py::array_t<float>{{naxial, nang, nz, ny, nx}};
@@ -287,7 +287,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             }}
                         }
                     }
-                
+
                     auto next_score = score.data(t1, s1, z1, y1, x1);
                     viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
@@ -319,17 +319,17 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             max = std::max(max, viterbi_lattice(t0, s0, z0, y0, x0));
                         }
                     }}
-                
+
                     auto next_score = score.data(t1, s1, z1, y1, x1);
                     viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
-    
+
             } else if (sources.hasLateral()) {
                 // if (t1, s1) has only lateral source (first ring of molecules),
                 // then we have to check the distances between (t1, s1, z1, y1, x1) and
                 // (t0, s0, z0, y0, x0) for each (z1, y1, x1, z0, y0, x0), only for the lateral
                 // source (t0, s0).
-                
+
                 auto t0 = sources.lat.first;
                 auto s0 = sources.lat.second;
                 auto coord = coords.at(t0, s0);
@@ -351,7 +351,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                             max = std::max(max, viterbi_lattice(t0, s0, z0, y0, x0));
                         }}
                     }
-                
+
                     auto next_score = score.data(t1, s1, z1, y1, x1);
                     viterbi_lattice(t1, s1, z1, y1, x1) = max + *next_score;
                 }}}  // end of x1, y1, z1
@@ -386,7 +386,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid2D::viterbi(
                 if (argmaxo.z < 0) continue;
                 auto argmaxa = stateAt(state_sequence, bsrc.lat);
                 if (argmaxa.z < 0) continue;
-                
+
                 auto point_prev_lon = coords.at(bsrc.lon).at(argmaxo);
                 auto point_prev_lat = coords.at(bsrc.lat).at(argmaxa);
                 for (auto z0 = 0; z0 < nz; ++z0) {
@@ -486,7 +486,7 @@ py::array_t<double> ViterbiGrid2D::allLongitudinalDistances(py::array_t<int> &st
         auto x1 = states.at(idx1.y, idx1.a, 2);
         auto pos1 = worldPos(idx1.y, idx1.a, z1, y1, x1);
         Vector3D<double> vec1(pos1);
-        
+
         ptr[i] = (vec1 - vec0).length();
     }
     return result;
@@ -511,7 +511,7 @@ py::array_t<double> ViterbiGrid2D::allLateralDistances(py::array_t<int> &states)
         auto x1 = states.at(idx1.y, idx1.a, 2);
         auto pos1 = worldPos(idx1.y, idx1.a, z1, y1, x1);
         Vector3D<double> vec1(pos1);
-        
+
         ptr[i] = (vec1 - vec0).length();
     }
     return result;

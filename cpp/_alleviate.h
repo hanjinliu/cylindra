@@ -8,7 +8,7 @@ using ssize_t = Py_ssize_t;
 const double PI = 3.14159265358979323846;
 
 // Convert (N, 2) pyarray in to a vector of Index objects
-// As a pseudo-code example, arrayToIndices(np.array([[2, 3], [5, 4]])) will return 
+// As a pseudo-code example, arrayToIndices(np.array([[2, 3], [5, 4]])) will return
 // {Index(2, 3), Index(5, 4)}.
 std::vector<Index> arrayToIndices(py::array_t<ssize_t> array) {
     py::buffer_info _arr_info = array.request();
@@ -36,14 +36,14 @@ py::array_t<double> alleviate(
 ) {
     // get buffers
 	py::buffer_info _arr_info = arr.request();
-    
+
 	ssize_t ny = _arr_info.shape[0];
 	ssize_t na = _arr_info.shape[1];
 	ssize_t ndim = _arr_info.shape[2];
 
     auto indices = arrayToIndices(label);
 
-    // Create geometry. A geometry will consider the connectivity of molecules, 
+    // Create geometry. A geometry will consider the connectivity of molecules,
     // especially at the boundary of the cylinder.
     CylinderGeometry geometry(ny, na, nrise);
 
@@ -58,7 +58,7 @@ py::array_t<double> alleviate(
 
 			// Alleviate inter-molecule distances by taking the average of the neighbors
             // Note that along the angular axis, averaging should be calculated in the
-            // complex plane (in which mean([30 deg, 330 deg]) should return 0 deg, not 
+            // complex plane (in which mean([30 deg, 330 deg]) should return 0 deg, not
             // 180 deg).
             double sumR = 0.0, sumY = 0.0, sumACos = 0.0, sumASin = 0.0;
             for (auto nbr : curNeighbor) {

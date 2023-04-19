@@ -16,6 +16,7 @@ from cylindra.const import nm, GlobalVariables as GVar
 
 INITIAL_PATH = Path(user_config_dir("variables", "cylindra"))
 
+
 @magicmenu(name="Global variables ...")
 class GlobalVariables(MagicTemplate):
     @set_options(
@@ -55,7 +56,7 @@ class GlobalVariables(MagicTemplate):
         Parameters
         ----------
         nPFmin : int
-            Minimum protofilament numbers. 
+            Minimum protofilament numbers.
         nPFmax : int
             Maximum protofilament numbers.
         splOrder : int
@@ -74,15 +75,15 @@ class GlobalVariables(MagicTemplate):
             Radius x inner will be the inner surface of the cylinder.
         outer : float
             Radius x outer will be the outer surface of the cylinder.
-        """        
+        """
         GVar.set_value(**locals())
 
     @set_design(text="Load variables")
     def load_variables(self, path: Path.Read[FileFilter.JSON] = INITIAL_PATH):
         """Load global variables from a Json file."""
-        with open(path, mode="r") as f:
+        with open(path) as f:
             gvar: dict = json.load(f)
-        
+
         # for version compatibility
         annots = GVar.__annotations__.keys()
         _undef = set()
@@ -101,7 +102,7 @@ class GlobalVariables(MagicTemplate):
                 ),
                 parent=self.native,
             )
-        
+
         get_function_gui(self, "set_variables")(**gvar, update_widget=True)
         return None
 
@@ -113,6 +114,7 @@ class GlobalVariables(MagicTemplate):
             json.dump(gvar, f, indent=4, separators=(", ", ": "))
         return None
 
+
 def _is_empty(path: Path) -> bool:
     """Check if a directory is empty."""
     it = path.glob("*")
@@ -122,14 +124,15 @@ def _is_empty(path: Path) -> bool:
         return True
     return False
 
+
 # Initialize user config directory.
 if not INITIAL_PATH.exists() or _is_empty(INITIAL_PATH):
     try:
         if not INITIAL_PATH.exists():
             INITIAL_PATH.mkdir(parents=True)
-        
+
         import json
-        
+
         eukaryotic_mt_gvar = {
             "nPFmin": 11,
             "nPFmax": 17,
@@ -143,14 +146,10 @@ if not INITIAL_PATH.exists() or _is_empty(INITIAL_PATH):
             "outer": 1.3,
             "fitLength": 48.0,
             "fitWidth": 44.0,
-            "daskChunk": [
-                256,
-                256,
-                256
-            ],
+            "daskChunk": [256, 256, 256],
             "GPU": True,
         }
-        
+
         tmv_gvar = {
             "nPFmin": 15,
             "nPFmax": 17,
@@ -164,11 +163,7 @@ if not INITIAL_PATH.exists() or _is_empty(INITIAL_PATH):
             "outer": 1.5,
             "fitLength": 48.0,
             "fitWidth": 28.0,
-            "daskChunk": [
-                256,
-                256,
-                256
-            ],
+            "daskChunk": [256, 256, 256],
             "GPU": True,
         }
 

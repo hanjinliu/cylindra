@@ -60,8 +60,8 @@ class ViterbiGrid {
                 );
             } else if (nmole < 2 || nz < 2 || ny < 2 || nx < 2) {
                 throw py::value_error(
-                    "Invalid shape of 'score': (" 
-                    + std::to_string(nmole) + ", " + std::to_string(nz) + ", " 
+                    "Invalid shape of 'score': ("
+                    + std::to_string(nmole) + ", " + std::to_string(nz) + ", "
                     + std::to_string(ny) + ", " + std::to_string(nx) + ")."
                 );
             }
@@ -69,7 +69,7 @@ class ViterbiGrid {
             // Allocation of arrays of coordinate system.
             // Offsets and orientations of local coordinates of score landscape are well-defined by this.
             auto _coords = new CoordinateSystem<double>[nmole];
-            
+
             for (auto t = 0; t < nmole; ++t) {
                 auto _ori = Vector3D<double>(*origin.data(t, 0), *origin.data(t, 1), *origin.data(t, 2));
                 auto _ez = Vector3D<double>(*zvec.data(t, 0), *zvec.data(t, 1), *zvec.data(t, 2));
@@ -89,7 +89,7 @@ class ViterbiGrid {
 			return "ViterbiGrid(nmole=" + std::to_string(nmole) + ", nz=" + std::to_string(nz)
 				+ ", ny=" + std::to_string(ny) + ", nx=" + std::to_string(nx) + ")";
 		}
-		
+
 		#pragma warning(push)
 		#pragma warning(disable:4244)
 		/// Get the world coordinates of the point (z, y, x) in the local coordinate system of the n-th molecule.
@@ -119,7 +119,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{nmole, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<2>();
-	
+
 	// Prepare the Viterbi lattice and initialize the initial states.
 	auto viterbi_lattice_ = py::array_t<float>{{nmole, nz, ny, nx}};
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
@@ -168,7 +168,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbiSimple(
 	// find maximum score
 	double max_score = -std::numeric_limits<double>::infinity();
 	auto prev = Vector3D<int>(0, 0, 0);
-	
+
 	for (auto z = 0; z < nz; ++z) {
 	for (auto y = 0; y < ny; ++y) {
 	for (auto x = 0; x < nx; ++x) {
@@ -246,7 +246,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 	// prepare arrays
 	auto state_sequence_ = py::array_t<ssize_t>{{nmole, ssize_t(3)}};
 	auto state_sequence = state_sequence_.mutable_unchecked<2>();
-	
+
 	// Prepare the Viterbi lattice and initialize the initial states.
 	auto viterbi_lattice_ = py::array_t<float>{{nmole, nz, ny, nx}};
 	auto viterbi_lattice = viterbi_lattice_.mutable_unchecked<4>();
@@ -303,7 +303,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 	// find maximum score
 	double max_score = -std::numeric_limits<double>::infinity();
 	auto prev = Vector3D<int>(0, 0, 0);
-	
+
 	for (auto z = 0; z < nz; ++z) {
 	for (auto y = 0; y < ny; ++y) {
 	for (auto x = 0; x < nx; ++x) {
@@ -347,7 +347,7 @@ std::tuple<py::array_t<ssize_t>, double> ViterbiGrid::viterbi(
 				argmax = Vector3D<int>(z0, y0, x0);
 			}
 		}}}
-		
+
 		prev = argmax;
 		state_sequence(t, 0) = prev.z;
 		state_sequence(t, 1) = prev.y;

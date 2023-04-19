@@ -5,15 +5,22 @@ import pytest
 
 TEST_PATH = Path(__file__).parent
 
+
 def _load(ui: CylindraMainWidget):
     ui.batch.construct_loader(
         paths=[
-            (TEST_PATH / "13pf_MT.tif", 
-             [TEST_PATH / "test-project_results" / "Mono-0.csv",
-              TEST_PATH / "test-project_results" / "Mono-1.csv",])], 
+            (
+                TEST_PATH / "13pf_MT.tif",
+                [
+                    TEST_PATH / "test-project_results" / "Mono-0.csv",
+                    TEST_PATH / "test-project_results" / "Mono-1.csv",
+                ],
+            )
+        ],
         predicate=None,
-        name='Loader',
+        name="Loader",
     )
+
 
 def test_project_io(ui: CylindraMainWidget):
     _load(ui)
@@ -25,10 +32,12 @@ def test_project_io(ui: CylindraMainWidget):
         ui.batch.load_batch_project(path)
         assert len(ui.batch._loaders) == 1
 
+
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_average(ui: CylindraMainWidget, binsize: int):
     _load(ui)
     ui.batch.sta.average_all("Loader", size=6.0, bin_size=binsize)
+
 
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_align(ui: CylindraMainWidget, binsize: int):
@@ -40,14 +49,19 @@ def test_align(ui: CylindraMainWidget, binsize: int):
         bin_size=binsize,
     )
 
+
 def test_calculate_fsc(ui: CylindraMainWidget):
     _load(ui)
     ui.batch.sta.calculate_fsc("Loader", mask_params=None, size=6.0)
 
+
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
     _load(ui)
-    ui.batch.sta.classify_pca("Loader", mask_params=None, size=6.0, interpolation=1, bin_size=binsize)
+    ui.batch.sta.classify_pca(
+        "Loader", mask_params=None, size=6.0, interpolation=1, bin_size=binsize
+    )
+
 
 def test_filter(ui: CylindraMainWidget):
     _load(ui)

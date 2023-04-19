@@ -35,8 +35,8 @@ class Constraint : public AbstractConstraint {
 };
 
 inline int Constraint::fastCheckLongitudinal(
-    CoordinateSystem<double> &coord, 
-    Vector3D<double> &end_point, 
+    CoordinateSystem<double> &coord,
+    Vector3D<double> &end_point,
     ssize_t y0
 ) {
     auto point_0y0 = coord.at(0.0, y0, 0.0);
@@ -45,9 +45,9 @@ inline int Constraint::fastCheckLongitudinal(
     auto dist2_10 = (coord.at(nz-1, y0, 0.0) - end_point).length2();
     auto dist2_11 = (coord.at(nz-1, y0, nx-1) - end_point).length2();
     if (
-        dist2_00 < dist_min2 
-        && dist2_01 < dist_min2 
-        && dist2_10 < dist_min2 
+        dist2_00 < dist_min2
+        && dist2_01 < dist_min2
+        && dist2_10 < dist_min2
         && dist2_11 < dist_min2
     ) {
         return 1;
@@ -63,8 +63,8 @@ inline int Constraint::fastCheckLongitudinal(
 }
 
 inline int Constraint::fastCheckLateral(
-    CoordinateSystem<double> &coord, 
-    Vector3D<double> &end_point, 
+    CoordinateSystem<double> &coord,
+    Vector3D<double> &end_point,
     ssize_t x0
 ) {
     // If the length from point (x1, y1, z1) to the four corners at y=y0 is all
@@ -76,9 +76,9 @@ inline int Constraint::fastCheckLateral(
     auto dist2_10 = (coord.at(nz-1, 0.0, x0) - end_point).length2();
     auto dist2_11 = (coord.at(nz-1, ny-1, x0) - end_point).length2();
     if (
-        dist2_00 < dist_min2 
-        && dist2_01 < dist_min2 
-        && dist2_10 < dist_min2 
+        dist2_00 < dist_min2
+        && dist2_01 < dist_min2
+        && dist2_10 < dist_min2
         && dist2_11 < dist_min2
     ) {
         return 1;
@@ -90,7 +90,7 @@ inline int Constraint::fastCheckLateral(
 }
 
 inline bool Constraint::checkConstraint(
-    Vector3D<double> &start_point, 
+    Vector3D<double> &start_point,
     Vector3D<double> &end_point
 ) {
     auto dist2 = (start_point - end_point).length2();
@@ -116,7 +116,7 @@ class AngleConstraint : public Constraint {
 };
 
 inline bool AngleConstraint::checkConstraint(
-    Vector3D<double> &start_point, 
+    Vector3D<double> &start_point,
     Vector3D<double> &end_point,
     Vector3D<double> &origin_vector,
     double origin_dist2

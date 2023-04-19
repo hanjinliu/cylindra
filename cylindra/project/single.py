@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class CylindraProject(BaseProject):
     """A project of cylindra."""
-    
+
     datetime: str
     version: str
     dependency_versions: dict[str, str]
@@ -32,7 +32,7 @@ class CylindraProject(BaseProject):
     tilt_range: Union[tuple[float, float], None]
     macro: PathLike
     project_path: Union[Path, None] = None
-    
+
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
         file_dir = Path(file_dir)
@@ -51,54 +51,57 @@ class CylindraProject(BaseProject):
     @classmethod
     def from_gui(
         cls,
-        gui: "CylindraMainWidget", 
+        gui: "CylindraMainWidget",
         json_path: Path,
         results_dir: Union[Path, None] = None,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
         from cylindra.types import MoleculesLayer
         from datetime import datetime
-        
+
         if json_path.suffix == "":
             json_path = json_path.with_suffix(".json")
-        
+
         _versions = get_versions()
         tomo = gui.tomogram
-        localprops = tomo.collect_localprops()    
+        localprops = tomo.collect_localprops()
         globalprops = tomo.collect_globalprops()
-        
+
         if results_dir is None:
             results_dir = json_path.parent / (json_path.stem + "_results")
         else:
             results_dir = Path(results_dir)
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
-        globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
-        
+        globalprops_path = (
+            None if globalprops is None else results_dir / "globalprops.csv"
+        )
+
         # Save path of splines
         spline_paths: list[Path] = []
         for i, spl in enumerate(gui.tomogram.splines):
-            spline_paths.append(results_dir/f"spline-{i}.json")
-            
+            spline_paths.append(results_dir / f"spline-{i}.json")
+
         # Save path of molecules
         molecules_paths: list[Path] = []
         molecule_sources: list[Union[int, None]] = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
-            molecules_paths.append((results_dir/layer.name).with_suffix(".csv"))
+            molecules_paths.append((results_dir / layer.name).with_suffix(".csv"))
             try:
                 _src = gui.tomogram.splines.index(layer.source_component)
             except ValueError:
                 _src = None
             molecule_sources.append(_src)
-            
+
         # Save path of  global variables
         gvar_path = results_dir / "global_variables.json"
-        
+
         # Save path of macro
         macro_path = results_dir / "script.py"
-        
+
         file_dir = json_path.parent
+
         def as_relative(p: Path):
             try:
                 out = p.relative_to(file_dir)
@@ -107,38 +110,37 @@ class CylindraProject(BaseProject):
             return out
 
         self = cls(
-            datetime = datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-            version = next(iter(_versions.values())),
-            dependency_versions = _versions,
-            image = as_relative(tomo.source),
-            scale = tomo.scale,
-            multiscales = [x[0] for x in tomo.multiscaled],
-            current_ft_size = gui._current_ft_size,
-            splines = [as_relative(p) for p in spline_paths],
-            localprops = as_relative(localprops_path),
-            globalprops = as_relative(globalprops_path),
-            molecules = [as_relative(p) for p in molecules_paths],
+            datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+            version=next(iter(_versions.values())),
+            dependency_versions=_versions,
+            image=as_relative(tomo.source),
+            scale=tomo.scale,
+            multiscales=[x[0] for x in tomo.multiscaled],
+            current_ft_size=gui._current_ft_size,
+            splines=[as_relative(p) for p in spline_paths],
+            localprops=as_relative(localprops_path),
+            globalprops=as_relative(globalprops_path),
+            molecules=[as_relative(p) for p in molecules_paths],
             molecule_sources=molecule_sources,
-            global_variables = as_relative(gvar_path),
-            template_image = as_relative(gui.sta.params.template_path),
-            mask_parameters = gui.sta.params._get_mask_params(),
-            tilt_range = gui.sta.params.tilt_range,
-            macro = as_relative(macro_path),
+            global_variables=as_relative(gvar_path),
+            template_image=as_relative(gui.sta.params.template_path),
+            mask_parameters=gui.sta.params._get_mask_params(),
+            tilt_range=gui.sta.params.tilt_range,
+            macro=as_relative(macro_path),
             project_path=json_path,
         )
         return self
-        
-        
+
     @classmethod
     def save_gui(
         cls: "type[CylindraProject]",
-        gui: "CylindraMainWidget", 
+        gui: "CylindraMainWidget",
         json_path: Path,
         results_dir: Union[Path, None] = None,
     ) -> None:
         """
         Serialize the GUI state to a json file.
-        
+
         Parameters
         ----------
         gui : CylindraMainWidget
@@ -147,32 +149,34 @@ class CylindraProject(BaseProject):
             The path to the project json file.
         results_dir : Path, optional
             The directory to save the results.
-        """        
+        """
         from cylindra.types import MoleculesLayer
 
         self = cls.from_gui(gui, json_path, results_dir)
         # save objects
         self.to_json(json_path)
-        macro_str = str(gui._format_macro(gui.macro[gui._macro_offset:]))
-        
+        macro_str = str(gui._format_macro(gui.macro[gui._macro_offset :]))
+
         tomo = gui.tomogram
-        localprops = tomo.collect_localprops()    
+        localprops = tomo.collect_localprops()
         globalprops = tomo.collect_globalprops()
-        
+
         if results_dir is None:
             results_dir = json_path.parent / (json_path.stem + "_results")
         else:
             results_dir = Path(results_dir)
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
-        globalprops_path = None if globalprops is None else results_dir / "globalprops.csv"
-        
+        globalprops_path = (
+            None if globalprops is None else results_dir / "globalprops.csv"
+        )
+
         molecule_dataframes: "list[pl.DataFrame]" = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
             mole = layer.molecules
             molecule_dataframes.append(mole.to_dataframe())
-        
+
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)  # create a directory if not exists.
         if localprops_path:
@@ -185,34 +189,38 @@ class CylindraProject(BaseProject):
         if self.molecules:
             for df, path in zip(molecule_dataframes, self.molecules):
                 df.write_csv(results_dir.parent / path)
-        
-        gui.Others.Global_variables.save_variables(results_dir.parent / self.global_variables)
-        
+
+        gui.Others.Global_variables.save_variables(
+            results_dir.parent / self.global_variables
+        )
+
         if macro_str:
             fp = results_dir.parent / str(self.macro)
             fp.write_text(macro_str)
         return None
-    
+
     def to_gui(self, gui: "CylindraMainWidget", filter: bool = True):
         from cylindra.components import CylSpline, CylTomogram
         import numpy as np
         from acryo import Molecules
         import polars as pl
-        
+
         gui.tomogram = CylTomogram.imread(
-            path=self.image, 
-            scale=self.scale, 
-            binsize=self.multiscales, 
+            path=self.image,
+            scale=self.scale,
+            binsize=self.multiscales,
         )
-        
+
         gui._current_ft_size = self.current_ft_size
         gui._macro_offset = len(gui.macro)
-        
+
         # load splines
         splines = [CylSpline.from_json(path) for path in self.splines]
         localprops_path = self.localprops
         if localprops_path is not None:
-            all_localprops = dict(iter(pl.read_csv(localprops_path).groupby("SplineID")))
+            all_localprops = dict(
+                iter(pl.read_csv(localprops_path).groupby("SplineID"))
+            )
         else:
             all_localprops = {}
         globalprops_path = self.globalprops
@@ -221,7 +229,7 @@ class CylindraProject(BaseProject):
             all_globalprops = {i: df[i] for i in range(len(df))}
         else:
             all_globalprops = {}
-        
+
         for i, spl in enumerate(splines):
             spl.localprops = all_localprops.get(i, None)
             if spl.localprops is not None:
@@ -233,19 +241,25 @@ class CylindraProject(BaseProject):
                     spl.radius = spl.globalprops["radius"][0]
                 if "orientation" in spl.globalprops.columns:
                     spl.orientation = spl.globalprops["orientation"][0]
-                spl.globalprops = spl.globalprops.select([
-                    H.riseAngle, H.yPitch, H.skewAngle, pl.col(H.nPF).cast(pl.UInt8), H.start,
-                ])
-        
+                spl.globalprops = spl.globalprops.select(
+                    [
+                        H.riseAngle,
+                        H.yPitch,
+                        H.skewAngle,
+                        pl.col(H.nPF).cast(pl.UInt8),
+                        H.start,
+                    ]
+                )
+
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(filt=filter)
-            
+
             if splines:
                 gui.tomogram._splines = splines
                 gui._update_splines_in_images()
                 with gui.macro.blocked():
                     gui.sample_subtomograms()
-            
+
             # load molecules
             for idx, path in enumerate(self.molecules):
                 mole = Molecules.from_csv(path)
@@ -253,16 +267,16 @@ class CylindraProject(BaseProject):
                 if self.molecule_sources is not None:
                     _src = splines[self.molecule_sources[idx]]
                 gui.add_molecules(mole, name=Path(path).stem, source=_src)
-            
+
             # load global variables
             if self.global_variables:
                 with gui.macro.blocked():
                     gui.Others.Global_variables.load_variables(self.global_variables)
-            
+
             # append macro
             with open(self.macro) as f:
                 txt = f.read()
-                
+
             macro = mk.parse(txt)
             gui.macro.extend(macro.args)
 
@@ -271,22 +285,24 @@ class CylindraProject(BaseProject):
             gui.sta._set_mask_params(self.mask_parameters)
             gui.reset_choices()
             gui._need_save = False
-            
+
             # paint if needed
             if self.localprops:
                 gui.paint_cylinders()
-        
+
         return _load_project_on_return
-    
+
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""
         from ._widgets import ProjectViewer
+
         pviewer = ProjectViewer()
         pviewer._from_project(self)
         return pviewer
-    
+
     def make_component_viewer(self):
         from ._widgets import ComponentsViewer
+
         """Build a molecules viewer widget from this project."""
         mviewer = ComponentsViewer()
         mviewer._from_project(self)

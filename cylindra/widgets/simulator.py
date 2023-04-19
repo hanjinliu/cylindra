@@ -4,8 +4,16 @@ import matplotlib.pyplot as plt
 
 from magicgui.widgets import RangeSlider
 from magicclass import (
-    abstractapi, do_not_record, magicclass, magicmenu, MagicTemplate, set_design, field, 
-    vfield, impl_preview, confirm
+    abstractapi,
+    do_not_record,
+    magicclass,
+    magicmenu,
+    MagicTemplate,
+    set_design,
+    field,
+    vfield,
+    impl_preview,
+    confirm,
 )
 from magicclass.types import Bound, OneOf, Optional, Path
 from magicclass.utils import thread_worker
@@ -19,7 +27,13 @@ import impy as ip
 
 from acryo import TomogramSimulator
 
-from cylindra.components import CylTomogram, CylinderModel, CylSpline, indexer as Idx, RadonModel
+from cylindra.components import (
+    CylTomogram,
+    CylinderModel,
+    CylSpline,
+    indexer as Idx,
+    RadonModel,
+)
 from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
 from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
@@ -28,21 +42,35 @@ if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
-SAVE_MODE_CHOICES = (("separate mrc", "mrc"), ("separate tif", "tif"), ("single tif (TZYX)", "stack"))
+SAVE_MODE_CHOICES = (
+    ("separate mrc", "mrc"),
+    ("separate tif", "tif"),
+    ("single tif (TZYX)", "stack"),
+)
 
 _INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
 _NPF = (GVar.nPFmin + GVar.nPFmax) // 2
 _RADIUS = _INTERVAL * _NPF / 2 / np.pi
 
-_TiltRange = Annotated[tuple[float, float], {"label": "Tilt range (deg)", "widget_type": "FloatRangeSlider", "min": -90.0, "max": 90.0}]
+_TiltRange = Annotated[
+    tuple[float, float],
+    {
+        "label": "Tilt range (deg)",
+        "widget_type": "FloatRangeSlider",
+        "min": -90.0,
+        "max": 90.0,
+    },
+]
 
 _Logger = getLogger("cylindra")
+
 
 def _simulate_batch_iter(nsr):
     n = len(nsr)
     yield f"(0/{n + 1}) Simulating projections"
     for i in range(n):
         yield f"({i + 1}/{n + 1}) Back-projection of {i}-th image"
+
 
 class CylinderParameters:
     """Parameters for cylinder model."""
@@ -53,14 +81,14 @@ class CylinderParameters:
     npf: int = _NPF
     radius: nm = _RADIUS
     offsets: "tuple[nm, float]" = (0.0, 0.0)
-    
+
     def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
         """Update parameters"""
         kwargs = dict(**other, **kwargs)
         for k, v in kwargs.items():
             setattr(self, k, v)
         return None
-    
+
     def asdict(self) -> dict[str, Any]:
         """Return parameters as a dictionary."""
         return {
@@ -72,12 +100,14 @@ class CylinderParameters:
             "offsets": self.offsets,
         }
 
+
 # Main widget class
 @magicclass(widget_type="split", labels=False, layout="horizontal")
 class CylinderSimulator(MagicTemplate):
     @magicmenu(name="From viewer")
     class FromViewer(MagicTemplate):
         """Receive image or spline data from the viewer"""
+
         set_current_spline = abstractapi()
         load_spline_parameters = abstractapi()
         sep0 = field(Separator)
@@ -86,6 +116,7 @@ class CylinderSimulator(MagicTemplate):
     @magicmenu
     class Simulate(MagicTemplate):
         """Simulate using current model."""
+
         create_empty_image = abstractapi()
         simulate_tomogram = abstractapi()
         simulate_tomogram_batch = abstractapi()
@@ -107,22 +138,31 @@ class CylinderSimulator(MagicTemplate):
         self._model = model
         self._spline = spl
         mole = model.to_molecules(spl)
-        
+
         if self._points is None:
-            self._points = self.canvas.add_points(mole.pos, size=2.0, face_color="lime", edge_color="lime")
+            self._points = self.canvas.add_points(
+                mole.pos, size=2.0, face_color="lime", edge_color="lime"
+            )
             self._selections = self.canvas.add_points(
-                [[0, 0, 0]], size=2.0, face_color=[0, 0, 0, 0], edge_color="cyan", edge_width=1.5, spherical=False
+                [[0, 0, 0]],
+                size=2.0,
+                face_color=[0, 0, 0, 0],
+                edge_color="cyan",
+                edge_width=1.5,
+                spherical=False,
             )
             self._selections.visible = False
             arrow_data = np.expand_dims(spl.partition(100), axis=0)
-            self._spline_arrow = self.canvas.add_arrows(arrow_data, arrow_size=15, width=2.0)
+            self._spline_arrow = self.canvas.add_arrows(
+                arrow_data, arrow_size=15, width=2.0
+            )
             self._points.signals.size.connect_setattr(self._selections, "size")
         else:
             self._points.data = mole.pos
             self._select_molecules(self.Operator.yrange, self.Operator.arange)
         self._molecules = mole
         return None
-    
+
     @magicclass(properties={"min_width": 210})
     class Operator(MagicTemplate):
         """
@@ -139,8 +179,13 @@ class CylinderSimulator(MagicTemplate):
         show_selection : bool
             Check to show all the selected molecules
         """
-        yrange = vfield(tuple[int, int], label="axial", widget_type=RangeSlider, record=False)
-        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider, record=False).with_options(value=(0, 100))
+
+        yrange = vfield(
+            tuple[int, int], label="axial", widget_type=RangeSlider, record=False
+        )
+        arange = vfield(
+            tuple[int, int], label="angular", widget_type=RangeSlider, record=False
+        ).with_options(value=(0, 100))
         n_allev = vfield(1, label="alleviate", record=False).with_options(min=0, max=20)
         show_selection = vfield(True, label="show selected molecules", record=False)
 
@@ -150,26 +195,26 @@ class CylinderSimulator(MagicTemplate):
             self["arange"].max = na
             if self.arange[1] == amax_old:
                 self.arange = (self.arange[0], na)
-        
+
         @yrange.connect
         @arange.connect
         def _on_range_changed(self):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             parent._select_molecules(self.yrange, self.arange)
             return None
-        
+
         @show_selection.connect
         def _on_show_selection_changed(self, show: bool):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             parent._selections.visible = show
             return None
-        
+
         update_model = abstractapi()
         show_layer_control = abstractapi()
         expand = abstractapi()
         screw = abstractapi()
         dilate = abstractapi()
-        
+
         def _fill_shift(self, yrange, arange, val: float):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             shift = np.zeros(parent.model.shape, dtype=np.float32)
@@ -177,32 +222,40 @@ class CylinderSimulator(MagicTemplate):
             asl = slice(*arange)
             shift[ysl, asl] = val
             return shift, Idx[ysl, asl]
-        
+
     canvas = field(Vispy3DCanvas)  # the 3D viewer
 
     @property
     def parent_widget(self):
         from .main import CylindraMainWidget
+
         return self.find_ancestor(CylindraMainWidget, cache=True)
-    
+
     @property
     def model(self) -> CylinderModel:
         """Current cylinder model."""
         return self._model
-    
+
     @model.setter
     def model(self, model: CylinderModel):
         """Set new model and simulate molecules with the same spline."""
         return self._set_model(model, self._spline)
-    
+
     @Simulate.wraps
     @thread_worker.with_progress(desc="Creating an image")
     @set_design(text="Create an empty image")
-    @confirm(text="You may have unsaved data. Continue?", condition="self.parent_widget._need_save")
+    @confirm(
+        text="You may have unsaved data. Continue?",
+        condition="self.parent_widget._need_save",
+    )
     def create_empty_image(
-        self, 
-        size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (100., 200., 100.), 
-        scale: Annotated[nm , {"label": "pixel scale (nm/pixel)"}] = 0.25,
+        self,
+        size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (
+            100.0,
+            200.0,
+            100.0,
+        ),
+        scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
         bin_size: Annotated[list[int], {"options": {"min": 1, "max": 8}}] = [4],
     ):
         """
@@ -228,11 +281,11 @@ class CylinderSimulator(MagicTemplate):
         parent._macro_offset = len(parent.macro)
         parent.tomogram = tomo
         return thread_worker.to_callback(parent._send_tomogram_to_viewer, False)
-    
+
     def _get_current_index(self, *_) -> int:
         parent = self.parent_widget
         return parent.SplineControl.num
-    
+
     def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
         points = self._points.data
         npf = self._parameters.npf
@@ -248,13 +301,18 @@ class CylinderSimulator(MagicTemplate):
 
     @FromViewer.wraps
     @set_design(text="Save image")
-    def save_image(self, path: Path.Save[FileFilter.IMAGE], dtype: OneOf["int8", "int16", "float32"] = "float32"):
+    def save_image(
+        self,
+        path: Path.Save[FileFilter.IMAGE],
+        dtype: OneOf["int8", "int16", "float32"] = "float32",
+    ):
         """Save the current image to a file."""
         img = self.parent_widget.tomogram.image
         if np.dtype(dtype).kind == "i":
             from dask import array as da
+
             amax = max(da.compute([-img.min(), img.max()]))
-            img: ip.LazyImgArray = (img / amax * np.iinfo(dtype).max)
+            img: ip.LazyImgArray = img / amax * np.iinfo(dtype).max
         img.imsave(path, dtype=dtype)
         return None
 
@@ -268,7 +326,7 @@ class CylinderSimulator(MagicTemplate):
         self._spline_arrow = None
         self.update_model(idx, **self._parameters.asdict())
         return None
-    
+
     @FromViewer.wraps
     @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Bound[_get_current_index]):
@@ -296,7 +354,7 @@ class CylinderSimulator(MagicTemplate):
             raise ValueError("Molecules are not generated yet.")
         self.parent_widget.add_molecules(mole, name="Simulated")
         return None
-        
+
     @Operator.wraps
     @set_design(text="Show layer control", font_color="lime")
     @do_not_record
@@ -304,7 +362,7 @@ class CylinderSimulator(MagicTemplate):
         """Open layer control widget."""
         if self._points is None:
             raise ValueError("No layer found in this viewer.")
-        if self._layer_control is None:        
+        if self._layer_control is None:
             cnt = self._points.widgets.as_container()
             cnt.native.setParent(self.native, cnt.native.windowFlags())
             self._layer_control = cnt
@@ -317,16 +375,35 @@ class CylinderSimulator(MagicTemplate):
     def update_model(
         self,
         idx: Bound[_get_current_index],
-        interval: Annotated[nm, {"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"}] = CylinderParameters.interval,
-        skew: Annotated[float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}] = CylinderParameters.skew,
-        rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = CylinderParameters.rise,
-        npf: Annotated[int, {"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"}] = CylinderParameters.npf,
-        radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = CylinderParameters.radius,
-        offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = CylinderParameters.offsets,
+        interval: Annotated[
+            nm,
+            {
+                "min": 0.2,
+                "max": GVar.yPitchMax * 2,
+                "step": 0.01,
+                "label": "interval (nm)",
+            },
+        ] = CylinderParameters.interval,
+        skew: Annotated[
+            float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}
+        ] = CylinderParameters.skew,
+        rise: Annotated[
+            float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}
+        ] = CylinderParameters.rise,
+        npf: Annotated[
+            int, {"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"}
+        ] = CylinderParameters.npf,
+        radius: Annotated[
+            nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}
+        ] = CylinderParameters.radius,
+        offsets: Annotated[
+            tuple[float, float],
+            {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"},
+        ] = CylinderParameters.offsets,
     ):
         """
         Update cylinder model with new parameters.
-        
+
         Local structural displacement will be deleted because this function may change the number
         of molecules. This function should be called first.
 
@@ -350,13 +427,18 @@ class CylinderSimulator(MagicTemplate):
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
         self._parameters.update(
-            interval=interval, skew=skew, rise=rise, npf=npf, radius=radius, offsets=offsets
+            interval=interval,
+            skew=skew,
+            rise=rise,
+            npf=npf,
+            radius=radius,
+            offsets=offsets,
         )
         kwargs = {H.yPitch: interval, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
         model = tomo.get_cylinder_model(idx, offsets=offsets, radius=radius, **kwargs)
         self.model = model
         spl.radius = radius
-        
+
         op = self.Operator
         op._update_slider_lims(*self.model.shape)
         self._select_molecules(op.yrange, op.arange)  # update selection coordinates
@@ -384,33 +466,47 @@ class CylinderSimulator(MagicTemplate):
         template = ip.imread(path)
         scale_ratio = template.scale.x / tomo.scale
         template = template.rescale(scale_ratio)
-        
+
         # noise-free tomogram generation from the current cylinder model
         model = self.model
         mole = model.to_molecules(self._spline)
         scale = tomo.scale
         simulator = TomogramSimulator(order=order, scale=scale)
         simulator.add_molecules(molecules=mole, image=template)
-        simulated_image = ip.asarray(simulator.simulate(tomo.image.shape), like=template)
+        simulated_image = ip.asarray(
+            simulator.simulate(tomo.image.shape), like=template
+        )
         simulated_image.set_scale(template)
-        _Logger.print_html(f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated.")
-        
+        _Logger.print_html(
+            f"Tomogram of shape {tuple(simulated_image.shape)!r} is generated."
+        )
+
         # tilt ranges to array
         radon_model = RadonModel(
             range=(tilt_range[0], tilt_range[1], n_tilt),
             height=simulated_image.shape[0],
             order=order,
         )
-        
+
         return radon_model, radon_model.transform(simulated_image)
-        
+
     @Simulate.wraps
-    @dask_thread_worker.with_progress(descs=["(0/2) Simulating projections", "(1/2) Running back-projection", "(2/2) Finishing ..."])
+    @dask_thread_worker.with_progress(
+        descs=[
+            "(0/2) Simulating projections",
+            "(1/2) Running back-projection",
+            "(2/2) Finishing ...",
+        ]
+    )
     @set_design(text="Simulate a tomogram")
     def simulate_tomogram(
         self,
-        template_path: Annotated[Path.Read[FileFilter.IMAGE], {"label": "Template image"}],
-        nsr: Annotated[float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}] = 2.0,
+        template_path: Annotated[
+            Path.Read[FileFilter.IMAGE], {"label": "Template image"}
+        ],
+        nsr: Annotated[
+            float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}
+        ] = 2.0,
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -419,7 +515,7 @@ class CylinderSimulator(MagicTemplate):
     ):
         """
         Simulate a tomographic image using the current model, and send it to the viewer.
-        
+
         Simulation is performed in four steps. 1) Input template image is rotated/translated
         to every molecules in the model to create a noise-free volume. 2) Radon transform
         is performed to the volume, with given tilt angles. 3) Gaussian noise is added to
@@ -447,15 +543,17 @@ class CylinderSimulator(MagicTemplate):
         template = ip.imread(template_path)
         scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
-        
-        radon_model, sino = self._prep_radon(template_path, tilt_range, n_tilt, interpolation)
-        
+
+        radon_model, sino = self._prep_radon(
+            template_path, tilt_range, n_tilt, interpolation
+        )
+
         # add noise
         if nsr > 0:
             imax = sino.max()
             rng = ip.random.default_rng(seed)
             sino += rng.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
-        
+
         # back projection
         rec = radon_model.inverse_transform(sino)
         bin_size = [x[0] for x in parent.tomogram.multiscaled]
@@ -469,7 +567,7 @@ class CylinderSimulator(MagicTemplate):
         except StopIteration:
             return False
         return True
-        
+
     @Simulate.wraps
     @dask_thread_worker.with_progress(descs=_simulate_batch_iter)
     @set_design(text="Batch tomogram simulation")
@@ -478,7 +576,10 @@ class CylinderSimulator(MagicTemplate):
         self,
         template_path: Path.Read[FileFilter.IMAGE],
         save_path: Annotated[Path.Dir, {"label": "Save directory"}],
-        nsr: Annotated[list[float], {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}}] = [2.0],
+        nsr: Annotated[
+            list[float],
+            {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
+        ] = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -487,7 +588,7 @@ class CylinderSimulator(MagicTemplate):
     ):
         """
         Simulate tomographic images using the current model and save the images.
-        
+
         Parameters
         ----------
         template_path : Path
@@ -508,14 +609,16 @@ class CylinderSimulator(MagicTemplate):
             save_path.mkdir()
         if save_mode not in ("mrc", "tif", "stack"):
             raise ValueError(f"Invalid save mode {save_mode!r}.")
-        
+
         parent = self.parent_widget
         template = ip.imread(template_path)
         scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
-        
-        radon_model, sino = self._prep_radon(template_path, tilt_range, n_tilt, interpolation)
-        
+
+        radon_model, sino = self._prep_radon(
+            template_path, tilt_range, n_tilt, interpolation
+        )
+
         # plot some of the results
         @thread_worker.to_callback
         def _on_radon_finished():
@@ -526,13 +629,13 @@ class CylinderSimulator(MagicTemplate):
             ysize = max(4 / nx * ny, 4)
             with _Logger.set_plt(rc_context={"font.size": 15}):
                 _, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, ysize))
-                for i, idx in enumerate([0, n_tilt//2, -1]):
+                for i, idx in enumerate([0, n_tilt // 2, -1]):
                     axes[i].imshow(sino[idx], cmap="gray")
                     axes[i].set_title(f"deg = {degs[idx]:.1f}")
                     axes[i].set_axis_off()
-                
+
                 plt.show()
-        
+
         yield _on_radon_finished
 
         # plot some of the results
@@ -542,17 +645,19 @@ class CylinderSimulator(MagicTemplate):
                 plt.imshow(rec.proj("z"), cmap="gray")
                 plt.title(title)
                 plt.show()
-                
+
         # add noise and save image
         recs: list[ip.ImgArray] = []
         rng = ip.random.default_rng(seed)
         for nsr_val in nsr:
             imax = sino.max()
-            sino_noise = sino + rng.normal(scale=imax * nsr_val, size=sino.shape, axes=sino.axes)
+            sino_noise = sino + rng.normal(
+                scale=imax * nsr_val, size=sino.shape, axes=sino.axes
+            )
             rec = radon_model.inverse_transform(sino_noise)
             recs.append(rec)
             yield _on_iradon_finished(rec, f"N/S = {nsr_val:.1f}")
-        
+
         if save_mode in ("mrc", "tif"):
             for i, rec in enumerate(recs):
                 file_name = save_path / f"image-{i}.{save_mode}"
@@ -568,14 +673,16 @@ class CylinderSimulator(MagicTemplate):
         js = {"settings": radon_model.dict(), "nsr": nsr_info}
         with open(save_path / "simulation_info.json", "w") as f:
             json.dump(js, f, indent=4, separators=(", ", ": "))
-        return None 
+        return None
 
     @Operator.wraps
     @set_design(text="Expansion/Compaction", font_color="lime")
     @impl_preview(auto_call=True)
     def expand(
         self,
-        shift: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"}],
+        shift: Annotated[
+            nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"}
+        ],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
@@ -587,14 +694,16 @@ class CylinderSimulator(MagicTemplate):
             new_model = new_model.alleviate(shift_arr != 0, niter=n_allev)
         self.model = new_model
         return None
-    
+
     @Operator.wraps
     @set_design(text="Screw", font_color="lime")
     @impl_preview(auto_call=True)
     def screw(
-        self, 
-        skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
-        yrange: Bound[Operator.yrange], 
+        self,
+        skew: Annotated[
+            float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}
+        ],
+        yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
     ):
@@ -605,13 +714,15 @@ class CylinderSimulator(MagicTemplate):
             new_model = new_model.alleviate(shift != 0, niter=n_allev)
         self.model = new_model
         return None
-    
+
     @Operator.wraps
     @set_design(text="Dilation/Erosion", font_color="lime")
     @impl_preview(auto_call=True)
     def dilate(
         self,
-        radius: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}],
+        radius: Annotated[
+            nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}
+        ],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
@@ -623,7 +734,7 @@ class CylinderSimulator(MagicTemplate):
             new_model = new_model.alleviate(shift != 0, niter=n_allev)
         self.model = new_model
         return None
-    
+
     @expand.during_preview
     @screw.during_preview
     @dilate.during_preview
@@ -632,7 +743,7 @@ class CylinderSimulator(MagicTemplate):
         original = self.model
         yield
         self.model = original
-        
+
     @create_empty_image.started.connect
     def _show_simulator(self):
         self.show()

@@ -20,7 +20,7 @@ from cylindra.const import GlobalVariables as GVar
 class ImageProcessor(MagicTemplate):
     """
     Process image files.
-    
+
     Attributes
     ----------
     input_image : Path
@@ -32,10 +32,11 @@ class ImageProcessor(MagicTemplate):
     output_image : Path
         Path where output image will be saved..
     """
+
     input_image = vfield(Path).with_options(filter=FileFilter.IMAGE)
     suffix = vfield(Optional[str]).with_options(value="-0", text="Do not autofill")
     output_image = vfield(Path).with_options(filter=FileFilter.IMAGE, mode="w")
-    
+
     @input_image.connect
     @suffix.connect
     def _autofill_output_path(self):
@@ -43,15 +44,15 @@ class ImageProcessor(MagicTemplate):
             return
         input_path = Path(self.input_image)
         output_path = input_path.with_stem(input_path.stem + self.suffix)
-        
+
         n = 0
         while output_path.exists():
             output_path = output_path.with_stem(output_path.stem + f"-{n}")
         self.output_image = output_path
-    
+
     def _confirm_path(self):
         return self.output_image.exists()
-    
+
     @dask_thread_worker.with_progress(desc="Converting data type.")
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
@@ -61,7 +62,7 @@ class ImageProcessor(MagicTemplate):
         out = img.as_img_type(dtype)
         out.imsave(self.output_image)
         return None
-    
+
     @dask_thread_worker.with_progress(desc="Inverting image.")
     @set_design(text="Invert")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
@@ -71,7 +72,7 @@ class ImageProcessor(MagicTemplate):
         out = -img
         out.imsave(self.output_image)
         return None
-    
+
     @dask_thread_worker.with_progress(desc="Low-pass filtering.")
     @set_design(text="Low-pass filter")
     @set_options(
@@ -85,10 +86,12 @@ class ImageProcessor(MagicTemplate):
         out = img.tiled_lowpass_filter(cutoff, overlap=32, order=order)
         out.imsave(self.output_image)
         return None
-    
+
     @dask_thread_worker.with_progress(desc="Binning.")
     @set_design(text="Binning")
-    @set_options(bin_size={"min": 2, "max": 16, "step": 1},)
+    @set_options(
+        bin_size={"min": 2, "max": 16, "step": 1},
+    )
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def binning(self, bin_size: int = 4):
         """Bin image."""
@@ -96,7 +99,7 @@ class ImageProcessor(MagicTemplate):
         out = img.binning(bin_size, check_edges=False)
         out.imsave(self.output_image)
         return None
-    
+
     @dask_thread_worker.with_progress(desc="Flipping image.")
     @set_design(text="Flip image")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
@@ -107,12 +110,12 @@ class ImageProcessor(MagicTemplate):
             img = img[ip.slicer(a)[::-1]]
         img.imsave(self.output_image)
         return None
-    
+
     @set_design(text="Preview input image")
     def preview(self):
         """Open a preview of the input image."""
         view_image(self.input_image, self)
         return None
-        
+
     def _imread(self, path, chunks=GVar.daskChunk):
         return ip.lazy_imread(path, chunks=chunks)

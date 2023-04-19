@@ -22,12 +22,12 @@ struct Index {
     bool isValid(ssize_t nY, ssize_t nA) {
         return y >= 0 && y < nY && a >= 0 && a < nA;
     }
-    /// __repr__ for python 
+    /// __repr__ for python
     std::string pyRepr() {
         return "Index(y=" + std::to_string(y) + ", a=" + std::to_string(a) + ")";
     }
 
-    /// __eq__ for python 
+    /// __eq__ for python
     bool pyEq(std::pair<ssize_t, ssize_t> other) {
         return y == other.first && a == other.second;
     }
@@ -50,7 +50,7 @@ struct Sources {
     Sources() : lon({-1, -1}), lat({-1, -1}) {};  // default constructor
     Sources(std::pair<ssize_t, ssize_t> _lon) : lon(_lon), lat({-1, -1}) {};
     Sources(std::pair<ssize_t, ssize_t> _lon, std::pair<ssize_t, ssize_t> _lat) : lon(_lon), lat(_lat) {};
-    
+
     /// Check if the source has a longitudinal contact.
     bool hasLongitudinal() { return lon.first >= 0; };
 
@@ -202,7 +202,7 @@ inline std::vector<Index> CylinderGeometry::getNeighbor(ssize_t y, ssize_t a) {
     if (index_l.isValid(nY, nA)) {
         neighbors.push_back(index_l);
     }
-    
+
     // right neighbor
     auto index_r = (a < nA - 1) ? Index(y, a + 1) : Index(y + nRise, 0);
     if (index_r.isValid(nY, nA)) {
@@ -223,7 +223,7 @@ inline std::vector<Index> CylinderGeometry::getNeighbors(std::vector<Index> indi
             uniqueNeighbors.insert(compressed);
         }
     }
-    
+
     // remove inputs
     for (auto index : indices) {
         uniqueNeighbors.erase(compress(index));
@@ -314,7 +314,7 @@ inline Index CylinderGeometry::indexStart() {
     if (nRise >= 0) {
         return Index(0, 0);
     } else {
-        return Index(0, nA - 1); 
+        return Index(0, nA - 1);
     }
 }
 

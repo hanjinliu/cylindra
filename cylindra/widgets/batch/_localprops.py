@@ -5,13 +5,14 @@ from magicclass import MagicTemplate, magicclass, field, vfield
 from magicclass.ext.pyqtgraph import QtPlotCanvas
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole, IDName
 
+
 @magicclass
 class LocalPropsViewer(MagicTemplate):
     plt = field(QtPlotCanvas)
-    
+
     def _get_data_index(self, w=None) -> list[str]:
         return [(f"image={k[0]}, spline={k[1]}", k) for k in self._groups.keys()]
-    
+
     def _get_columns(self, w=None) -> list[str]:
         return [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]
 
@@ -20,9 +21,11 @@ class LocalPropsViewer(MagicTemplate):
 
     def __init__(self) -> None:
         self._groups = {}
-    
+
     def _set_localprops(self, df: pl.DataFrame) -> None:
-        self._groups = dict(df.groupby(by=[Mole.image, IDName.spline], maintain_order=True))
+        self._groups = dict(
+            df.groupby(by=[Mole.image, IDName.spline], maintain_order=True)
+        )
         self.reset_choices()
 
     def __post_init__(self) -> None:
@@ -31,7 +34,7 @@ class LocalPropsViewer(MagicTemplate):
         self.plt.xlabel = "distance (nm)"
         self.data_index.choices = list(map(str, self._groups.keys()))
         self.reset_choices()
-    
+
     @data_index.connect
     @column.connect
     def _replot(self):

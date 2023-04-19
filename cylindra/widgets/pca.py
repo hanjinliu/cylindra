@@ -9,6 +9,7 @@ from napari.utils.colormaps import label_colormap
 if TYPE_CHECKING:
     from acryo.classification import PcaClassifier
 
+
 @magicclass(record=False)
 class PcaViewer(MagicTemplate):
     def __init__(self, pca: "PcaClassifier"):
@@ -23,20 +24,20 @@ class PcaViewer(MagicTemplate):
     @property
     def pca(self) -> "PcaClassifier":
         return self._pca
-    
+
     @property
     def transform(self):
         if self._transform is None:
             self._transform = self.pca.get_transform()
         return self._transform
-    
+
     def _get_choices(self, w=None) -> list[tuple[str, int]]:
         return [(f"PC-{i}", i) for i in range(self.pca.n_components)]
 
     choicex = vfield(int, label="X axis").with_choices(_get_choices)
     choicey = vfield(int, label="Y axis").with_choices(_get_choices)
     canvas = field(QtPlotCanvas)
-    
+
     @choicex.connect
     @choicey.connect
     def _update_plot(self):

@@ -5,23 +5,26 @@ from typing import Callable, NamedTuple, TypeVar
 
 _T = TypeVar("_T", bound=type)
 
+
 class Parameter(NamedTuple):
     """
     Structure for a parameter description. A Parameter tuple is equivalent to the following.
-    
+
     _name_ : _type_
         _desc_
     """
+
     name: str
     type: str
     desc: str
-    
+
     def to_string(self, indent: int = 3) -> str:
         _indent1 = "    " * indent
         return f"{self.name} : {self.type}\n{_indent1}{self.desc}"
-        
+
+
 # fmt: off
-_PARAMETERS = [    
+_PARAMETERS = [
     Parameter(name="layer", type="MoleculesLayer", desc="Points layer of molecules to be used."),
     Parameter(name="layers", type="list of MoleculesLayer", desc="All the points layers of molecules to be used."),
     Parameter(name="template_path", type="Path or str", desc="Path to template image."),
@@ -44,6 +47,7 @@ _PARAMETERS = [
 
 _TRANSLATION_MAP = {param.name: param.to_string() for param in _PARAMETERS}
 
+
 def update_doc(f: Callable):
     """Update the __doc__ of a function."""
     doc = f.__doc__
@@ -51,6 +55,7 @@ def update_doc(f: Callable):
         doc = doc.replace("}{", "}\n        {")
         f.__doc__ = doc.format(**_TRANSLATION_MAP)
     return f
+
 
 def update_cls(cls: _T) -> _T:
     """Update the __doc__ of all methods in a class."""

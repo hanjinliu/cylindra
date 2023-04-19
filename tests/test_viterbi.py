@@ -2,74 +2,115 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_less
 import pytest
 
+
 def _get_grid(scale: float):
     from cylindra._cpp_ext import ViterbiGrid
-    
+
     # there is only one position with score 1.0 for each landscape
     score = np.zeros((10, 5, 5, 5))
     for i in [0, 1, 2, 3, 5, 6, 8, 9]:
         score[i, 0, 0, 0] = 1.0
     score[4, 1, 2, 1] = 1.0
     score[7, 4, 4, 4] = 1.0
-    zvec = np.array([[1., 0., 0.]]*10) * scale
-    yvec = np.array([[0., 1., 0.]]*10) * scale
-    xvec = np.array([[0., 0., 1.]]*10) * scale
-    origin = np.array([[i*5, i*5, i*5] for i in range(10)]) * scale
+    zvec = np.array([[1.0, 0.0, 0.0]] * 10) * scale
+    yvec = np.array([[0.0, 1.0, 0.0]] * 10) * scale
+    xvec = np.array([[0.0, 0.0, 1.0]] * 10) * scale
+    origin = np.array([[i * 5, i * 5, i * 5] for i in range(10)]) * scale
 
     return ViterbiGrid(score, origin, zvec, yvec, xvec)
+
 
 @pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
 @pytest.mark.parametrize("skew_max", [None, 3.14 / 2])
 def test_viterbi_1d(scale, skew_max):
     grid = _get_grid(scale)
-    
-    states, z = grid.viterbi(0., 10000. * scale, skew_max=skew_max)
+
+    states, z = grid.viterbi(0.0, 10000.0 * scale, skew_max=skew_max)
     assert_equal(
-        states, 
-        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
-                  [0, 0, 0], [0, 0, 0], [4, 4, 4], [0, 0, 0], [0, 0, 0]])
+        states,
+        np.array(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [1, 2, 1],
+                [0, 0, 0],
+                [0, 0, 0],
+                [4, 4, 4],
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        ),
     )
     assert z == 10.0
+
 
 @pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
 @pytest.mark.parametrize("skew_max", [None, 3.14 / 2])
 def test_viterbi_1d_lower_bound(scale, skew_max):
     grid = _get_grid(scale)
-    states, z = grid.viterbi(2*np.sqrt(3) * scale, 10000 * scale, skew_max=skew_max)
+    states, z = grid.viterbi(2 * np.sqrt(3) * scale, 10000 * scale, skew_max=skew_max)
     assert_equal(
-        states, 
-        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
-                  [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
+        states,
+        np.array(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [1, 2, 1],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        ),
     )
     assert z == 9.0
+
 
 @pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
 @pytest.mark.parametrize("skew_max", [None, 3.14 / 2])
 def test_viterbi_1d_upper_bound(scale, skew_max):
     grid = _get_grid(scale)
-    states, z = grid.viterbi(0., 7*np.sqrt(3) * scale, skew_max=skew_max)
+    states, z = grid.viterbi(0.0, 7 * np.sqrt(3) * scale, skew_max=skew_max)
     assert_equal(
-        states, 
-        np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 2, 1],
-                  [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
+        states,
+        np.array(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [1, 2, 1],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        ),
     )
     assert z == 9.0
+
 
 @pytest.mark.parametrize("seed", [1, 12, 1234, 12345, 9999])
 @pytest.mark.parametrize("skew_max", [None, 3.14 / 2, 3.14 / 3])
 def test_viterbi_1d_distance(seed: int, skew_max):
     from cylindra._cpp_ext import ViterbiGrid
-    
+
     n = 4
-    dist_min, dist_max = 2*np.sqrt(3), 7*np.sqrt(3)
+    dist_min, dist_max = 2 * np.sqrt(3), 7 * np.sqrt(3)
     rng = np.random.default_rng(seed)
     score = rng.random((n, 5, 5, 5)).astype(np.float32)
-    
-    zvec = np.array([[1., 0., 0.]] * n)
-    yvec = np.array([[0., 1., 0.]] * n)
-    xvec = np.array([[0., 0., 1.]] * n)
-    origin = np.array([[i*5, i*5, i*5] for i in range(n)])
-    
+
+    zvec = np.array([[1.0, 0.0, 0.0]] * n)
+    yvec = np.array([[0.0, 1.0, 0.0]] * n)
+    xvec = np.array([[0.0, 0.0, 1.0]] * n)
+    origin = np.array([[i * 5, i * 5, i * 5] for i in range(n)])
+
     grid = ViterbiGrid(score, origin, zvec, yvec, xvec)
     states, z = grid.viterbi(dist_min, dist_max, skew_max=skew_max)
     assert_array_less(-1, states, "states < -1 not satisfied")
