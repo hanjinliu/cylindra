@@ -4,8 +4,8 @@
 #include "_alleviate.h"
 #include "_cylindric.h"
 #include "_grid.h"
-#include "_random.h"
-#include "_anneal.h"
+#include "annealing/_random.h"
+#include "annealing/_model.h"
 
 namespace py = pybind11;
 
@@ -26,14 +26,13 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def("world_pos", &ViterbiGrid::worldPos, py::arg("n"), py::arg("z"), py::arg("y"), py::arg("x"))
         .def("__repr__", &ViterbiGrid::pyRepr);
 
-    py::class_<AnnealingModel>(m, "AnnealingModel")
+    py::class_<CylindricAnnealingModel>(m, "CylindricAnnealingModel")
         .def(py::init<py::array_t<float>, ssize_t, ssize_t>(),
              py::arg("score"), py::arg("nrise"), py::arg("seed") = 0)
-        .def("optimize", &AnnealingModel::optimize, py::arg("niter") = 10000)
-        .def("gain", &AnnealingModel::getGain)
-        .def("upper_limit", &AnnealingModel::upperLimit)
-        .def("gain_array", &AnnealingModel::getGainArray)
-        .def("shifts", &AnnealingModel::getShifts);
+        .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
+        .def("energy", &CylindricAnnealingModel::totalEnergy)
+        .def("energy_array", &CylindricAnnealingModel::getEnergyArray)
+        .def("shifts", &CylindricAnnealingModel::getShifts);
 
     // `CylinderGeometry` is exported mainly for testing
     py::class_<CylinderGeometry>(m, "CylinderGeometry")
@@ -61,6 +60,7 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def_readwrite("y", &Index::y)
         .def_readwrite("a", &Index::a)
         .def("__repr__", &Index::pyRepr)
+        .def("__hash__", &Index::hash)
         .def("__eq__", &Index::pyEq);
 
     py::class_<RandomNumberGenerator>(m, "RandomNumberGenerator")

@@ -1,6 +1,8 @@
 #ifndef _RANDOM_H
 #define _RANDOM_H
 
+#pragma once
+
 #include <random>
 #include "_coords.h"
 

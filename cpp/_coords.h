@@ -163,31 +163,4 @@ Vector3D<T> CoordinateSystem<T>::at(Vector3D<T> vec) {
 	return origin + ez * vec.z + ey * vec.y + ex * vec.x;
 }
 
-/// A 2D array of CoordinateSystem objects.
-/// Pointer of pointers cannot be safely handled by C++. This class mimics the
-/// 2D get-item operations on a flattened array.
-class Coords2DGrid {
-    public:
-        CoordinateSystem<double>* coords;  // flattened coordinate system array
-        ssize_t naxial, nang;
-        CoordinateSystem<double> at(ssize_t y, ssize_t a) {
-            return coords[y * nang + a];
-        }
-        CoordinateSystem<double> at(std::pair<ssize_t, ssize_t> y_a) {
-            return at(y_a.first, y_a.second);
-        }
-        CoordinateSystem<double>* at_mut(ssize_t y, ssize_t a) {
-            return &coords[y * nang + a];
-        }
-        Coords2DGrid() : naxial(0), nang(0) {};
-        Coords2DGrid(ssize_t _naxial, ssize_t _nang) {
-            naxial = _naxial;
-            nang = _nang;
-            coords = new CoordinateSystem<double>[naxial * nang];
-            for (auto i = 0; i < naxial * nang; ++i) {
-                coords[i] = CoordinateSystem<double>();
-            }
-        };
-};
-
 #endif
