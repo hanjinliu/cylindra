@@ -39,7 +39,9 @@ PYBIND11_MODULE(_cpp_ext, m) {
     py::class_<CylindricGraph>(m, "CylindricGraph")
         .def("node_count", &CylindricGraph::nodeCount)
         .def("edge_count", &CylindricGraph::edgeCount)
-        .def("edges", &CylindricGraph::getEdgeEnds);
+        .def("edges", &CylindricGraph::getEdgeEnds)
+        .def("longitudinal_distances", &CylindricGraph::getLongitudinalDistances)
+        .def("lateral_distances", &CylindricGraph::getLateralDistances);
 
     // `CylinderGeometry` is exported mainly for testing
     py::class_<CylinderGeometry>(m, "CylinderGeometry")

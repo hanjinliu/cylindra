@@ -30,7 +30,7 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
         Reservoir reservoir;
     public:
         CylindricAnnealingModel(int seed) {
-            setReservoir(1.0, 0.9999);
+            setReservoir(1.0, 0.995);
             this->rng = RandomNumberGenerator(seed);
         }
 
@@ -73,6 +73,10 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
         float totalEnergy() { return graph.totalEnergy(); }
         void simulate(ssize_t nsteps) override;
         void proceed() override;
+        void initialize() {
+            graph.initialize();
+            reservoir.initialize();
+        };
 
 };
 

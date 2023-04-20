@@ -19,12 +19,6 @@ class AbstractReservoir {
     public:
         virtual void cool() {};
         virtual float prob(float dE) { return 0.0; };
-        void setTemperature(double temperature) {
-            if (temperature <= 0) {
-                throw py::value_error("Temperature must be positive");
-            }
-            this->temperature = temperature;
-        }
 };
 
 /// @brief Basic reservoir class.
@@ -32,6 +26,7 @@ class AbstractReservoir {
 /// energy function.
 class Reservoir : public AbstractReservoir {
     private:
+        double initial_temperature;
         double temperature;
         double cooling_rate;
         double min_temperature;
@@ -50,6 +45,7 @@ class Reservoir : public AbstractReservoir {
             } else if (cooling_rate <= 0 || cooling_rate >= 1) {
                 throw py::value_error("Cooling rate must be in (0, 1)");
             }
+            this->initial_temperature = temperature;
             this->temperature = temperature;
             this->cooling_rate = cooling_rate;
             this->min_temperature = min_temperature;
@@ -64,6 +60,7 @@ class Reservoir : public AbstractReservoir {
         }
 
         float getTemperature() { return temperature; }
+        void initialize() { temperature = initial_temperature; }
 };
 
 #endif

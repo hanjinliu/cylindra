@@ -186,13 +186,28 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
             return out;
         }
 
-        BoxPotential2D potentialModel() {
-            return bindingPotential;
+        py::array_t<float> getLongitudinalDistances() { return getDistances(EdgeType::Longitudinal); }
+        py::array_t<float> getLateralDistances() { return getDistances(EdgeType::Lateral); }
+
+        py::array_t<float> getDistances(EdgeType type) {
+            std::vector<float> out;
+            for (auto i = 0; i < edgeCount(); ++i) {
+                auto state = edgeState[i];
+                if (state != type) continue;
+                auto nodes = edgeEnds[i];
+                auto pos1 = nodeState[nodes.first];
+                auto pos2 = nodeState[nodes.second];
+                auto coord1 = coords.at(pos1.index.y, pos1.index.a);
+                auto coord2 = coords.at(pos2.index.y, pos2.index.a);
+                auto dr = coord1.at(pos1.shift.z, pos1.shift.y, pos1.shift.x) - coord2.at(pos2.shift.z, pos2.shift.y, pos2.shift.x);
+                out.push_back(dr.length());
+            }
+            return py::array_t<float>(out.size(), out.data());
         }
 
-        void setPotentialModel(BoxPotential2D &model) {
-            bindingPotential = model;
-        }
+        BoxPotential2D potentialModel() { return bindingPotential; }
+
+        void setPotentialModel(BoxPotential2D &model) { bindingPotential = model; }
 
         void checkGraph() override {
             if (nodeCount() == 0) {
@@ -210,6 +225,17 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
 
         float totalEnergy();
         ShiftResult<NodeState> tryRandomShift(RandomNumberGenerator &rng);
+        void initialize() {
+            auto center = localShape / 2;
+            for (auto y = 0; y < geometry.nY; ++y) {
+                for (auto a = 0; a < geometry.nA; ++a) {
+                    auto idx = Index(y, a);
+                    auto i = geometry.nA * y + a;
+                    nodeState[i] = NodeState(idx, center);
+                }
+            }
+        }
+
 };
 
 void CylindricGraph::update(

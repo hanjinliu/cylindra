@@ -178,7 +178,7 @@ class Refinement(MagicTemplate):
     align_all_template_free = abstractapi()
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
-    align_all_viterbi_2d = abstractapi()
+    align_all_boltzmann = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -820,7 +820,7 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @Refinement.wraps
-    @set_design(text="Viterbi Alignment")
+    @set_design(text="1D Viterbi Alignment")
     @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
     def align_all_viterbi(
         self,
@@ -979,9 +979,9 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @Refinement.wraps
-    @set_design(text="Viterbi Alignment (2D)")
+    @set_design(text="2D Boltzmann Alignment")
     @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
-    def align_all_viterbi_2d(
+    def align_all_boltzmann(
         self,
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
@@ -1029,8 +1029,7 @@ class SubtomogramAveraging(MagicTemplate):
             large. Calculation will take much longer for larger ``upsample_factor``.
             Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
         """
-        from dask import array as da
-        from cylindra._cpp_ext import ViterbiGrid2D
+        from cylindra._cpp_ext import CylindricAnnealingModel
 
         t0 = timer("align_all_viterbi_2d")
         parent = self._get_parent()
@@ -1045,44 +1044,26 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _Logger.print(f"Search size (px): {search_size}")
-        model = alignment.ZNCCAlignment(
-            template,
-            mask,
+        model = alignment.ZNCCAlignment.with_params(
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             tilt_range=tilt_range,
         )
 
-        templates_ft = model._template_input  # 3D (no rotation) or 4D (has rotation)
-
-        def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
-            if mask is None:
-                img0 = ip.asarray(img0, axes="zyx").lowpass_filter(cutoff=cutoff)
-            else:
-                img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
-            template_ft = template_ft * model._get_missing_wedge_mask(quat)
-            lds = utils.zncc_landscape(
-                img0,
-                template_ft.ifft(shift=False),
-                max_shifts=max_shifts,
-                upsample_factor=upsample_factor,
-            )
-            return np.asarray(lds)
-
-        has_rotation = templates_ft.ndim > 3
-        if has_rotation:
-            raise NotImplementedError(
-                "2D Viterbi alignment with rotation is not implemented yet."
-            )
-
-        tasks = loader.construct_mapping_tasks(
-            func,
-            ip.asarray(templates_ft, axes="zyx"),
-            max_shifts=max_shifts_px,
-            var_kwarg={"quat": molecules.quaternion()},
+        score_dsk = loader.construct_landscape(
+            template,
+            mask=mask,
+            max_shifts=max_shifts,
+            upsample=upsample_factor,
+            alignment_model=model,
         )
-        score = np.stack(da.compute(tasks)[0], axis=0)
+
+        if not model.has_rotation:
+            score: np.ndarray = score_dsk.compute()
+        else:
+            raise NotImplementedError(
+                "2D Boltzmann alignment with rotation is not implemented yet."
+            )
 
         scale = parent.tomogram.scale
         m0 = molecules.translate_internal(-(np.array(shape_nm) / 2 - scale))
@@ -1092,20 +1073,38 @@ class SubtomogramAveraging(MagicTemplate):
         spl: CylSpline = layer.source_component
         _cyl_model = spl.cylinder_model()
         _grid_shape = _cyl_model.shape
-        _vit_grid = ViterbiGrid2D(
-            score.reshape(*_grid_shape, *score.shape[1:]),
-            (m0.pos / scale * upsample_factor).reshape(*_grid_shape, 3),
-            m0.z.reshape(*_grid_shape, 3),
-            m0.y.reshape(*_grid_shape, 3),
-            m0.x.reshape(*_grid_shape, 3),
+        _vec_shape = _grid_shape + (3,)
+        energy = -score
+
+        annealing = CylindricAnnealingModel(seed=0)
+        annealing.set_graph(
+            energy.reshape(_grid_shape + search_size),
+            (m0.pos / scale * upsample_factor).reshape(_vec_shape),
+            m0.z.reshape(_vec_shape),
+            m0.y.reshape(_vec_shape),
+            m0.x.reshape(_vec_shape),
             _cyl_model.nrise,
+        ).set_reservoir(
+            temperature=np.ptp(energy),
+            cooling_rate=0.995,
+        ).set_box_potential(
+            *dist_lon,
+            *dist_lat,
         )
 
-        shift, total_score = _vit_grid.viterbi(*dist_lon, *dist_lat)
+        _desc = lambda a: (a.min(), a.mean(), a.max())
+        print(_desc(annealing.graph().longitudinal_distances()))
+        print(_desc(annealing.graph().lateral_distances()))
+        print(dist_lon, dist_lat)
+
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        _check_viterbi_2d_shift(shift, offset)
-        _Logger.print_html(f"total score = <b>{total_score:.2f}</b>")
-        all_shifts_px = ((shift - offset) / upsample_factor).reshape(-1, 3)
+
+        energies = []
+        for i in range(1000):
+            annealing.simulate(100)
+            energies.append(annealing.energy())
+
+        all_shifts_px = ((annealing.shifts() - offset) / upsample_factor).reshape(-1, 3)
         all_shifts = all_shifts_px * scale
 
         molecules_opt = molecules.translate_internal(all_shifts)
@@ -1122,7 +1121,19 @@ class SubtomogramAveraging(MagicTemplate):
             order=interpolation,
             output_shape=template.shape,
         )
-        return self._align_all_on_return(aligned_loader, layer)
+
+        @thread_worker.to_callback
+        def _on_return():
+            self._align_all_on_return(aligned_loader, layer)
+            with _Logger.set_plt(rc_context={"font.size": 15}):
+                import matplotlib.pyplot as plt
+
+                plt.plot(-np.array(energies))
+                plt.xlabel("Repeat (x100)")
+                plt.ylabel("Score")
+                plt.show()
+
+        return _on_return
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
