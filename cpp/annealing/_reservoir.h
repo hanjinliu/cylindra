@@ -16,7 +16,6 @@ namespace py = pybind11;
 class AbstractReservoir {
     protected:
         double temperature;
-
     public:
         virtual void cool() {};
         virtual float prob(float dE) { return 0.0; };
@@ -36,16 +35,13 @@ class Reservoir : public AbstractReservoir {
         double temperature;
         double cooling_rate;
         double min_temperature;
-        unsigned int chunk;
-        unsigned int chunk_count;
     public:
         Reservoir() {
             this->temperature = 1.0;
             this->cooling_rate = 0.99;
             this->min_temperature = 0.0;
-            this->chunk = 1;
-            this->chunk_count = 0;
         }
+
         Reservoir(double temperature, double cooling_rate, double min_temperature = 0.0) {
             if (min_temperature < 0) {
                 throw py::value_error("Minimum temperature must be positive");
@@ -57,19 +53,17 @@ class Reservoir : public AbstractReservoir {
             this->temperature = temperature;
             this->cooling_rate = cooling_rate;
             this->min_temperature = min_temperature;
-            this->chunk = 1;
-            this->chunk_count = 0;
         }
+
         void cool() {
-            chunk_count++;
-            if (chunk_count == chunk) {
-                temperature = std::max(temperature * cooling_rate, min_temperature);
-                chunk_count = 0;
-            }
+            temperature = std::max(temperature * cooling_rate, min_temperature);
         }
+
         float prob(float dE) override {
-            return (dE < 0) ? 1.0 : static_cast<float>(exp(-dE / temperature));
+            return (dE < 0) ? 1 : static_cast<float>(exp(-dE / temperature));
         }
+
+        float getTemperature() { return temperature; }
 };
 
 #endif

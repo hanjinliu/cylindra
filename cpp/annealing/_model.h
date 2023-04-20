@@ -13,64 +13,24 @@
 
 using ssize_t = Py_ssize_t;
 
-template <typename Sn, typename Se, typename T>
 class AbstractAnnealingModel {
     protected:
-        AbstractGraph<Sn, Se, T> graph;
-        AbstractReservoir reservoir;
         RandomNumberGenerator rng;
 
-        void proceed();
-        void setRandomState(int seed) { this.rng = RandomNumberGenerator(seed); }
+        virtual void proceed() {};
+        void setRandomState(int seed) { rng = RandomNumberGenerator(seed); }
 
     public:
-        AbstractAnnealingModel& setGraph(AbstractGraph<Sn, Se, T> graph) & {
-            this->graph = graph;
-            return *this;
-        }
-        AbstractAnnealingModel& setReservoir(AbstractReservoir reservoir) & {
-            this->reservoir = reservoir;
-            return *this;
-        }
-        AbstractAnnealingModel& setTemperature(float temperature) & {
-            reservoir.setTemperature(temperature);
-            return *this;
-        }
-
-        void simulate(ssize_t nsteps);
-        T totalEnergy() { return graph.totalEnergy(); }
+        virtual void simulate(ssize_t nsteps) {};
 };
 
-template <typename Sn, typename Se, typename T>
-void AbstractAnnealingModel<Sn, Se, T>::proceed() {
-    auto idx = rng.uniformInt(graph.nodeCount());
-    auto result = graph.tryRandomShift(rng);
-    auto prob = reservoir.prob(result.dE);
-
-    if (rng.bernoulli(prob)) {
-        // accept shift
-        graph.applyShift(result);
-    }
-}
-
-template <typename Sn, typename Se, typename T>
-void AbstractAnnealingModel<Sn, Se, T>::simulate(ssize_t nsteps) {
-    if (nsteps < 0) {
-        throw py::value_error("nsteps must be non-negative.");
-    }
-    graph.checkGraph();
-    for (auto i = 0; i < nsteps; ++i) {
-        proceed();
-        reservoir.cool();
-    }
-}
-
-class CylindricAnnealingModel : public AbstractAnnealingModel<NodeState, EdgeType, float> {
+class CylindricAnnealingModel : public AbstractAnnealingModel {
     protected:
         CylindricGraph graph;
+        Reservoir reservoir;
     public:
         CylindricAnnealingModel(int seed) {
-            this->reservoir = Reservoir();
+            setReservoir(1.0, 0.9999);
             this->rng = RandomNumberGenerator(seed);
         }
 
@@ -79,10 +39,12 @@ class CylindricAnnealingModel : public AbstractAnnealingModel<NodeState, EdgeTyp
             float cooling_rate,
             float min_temperature = 0.0
         ) & {
-            this->reservoir = Reservoir(temperature, cooling_rate, min_temperature);
+            Reservoir rv(temperature, cooling_rate, min_temperature);
+            reservoir = rv;
             return *this;
         }
 
+        CylindricGraph getGraph() { return graph; }
         CylindricAnnealingModel& setGraph(
             py::array_t<float> &score,
             py::array_t<float> &origin,
@@ -91,7 +53,8 @@ class CylindricAnnealingModel : public AbstractAnnealingModel<NodeState, EdgeTyp
             py::array_t<float> &xvec,
             int nrise
         ) & {
-            this->graph.update(score, origin, zvec, yvec, xvec, nrise);
+            CylindricGraph gr(score, origin, zvec, yvec, xvec, nrise);
+            graph = gr;
             return *this;
         }
 
@@ -107,6 +70,31 @@ class CylindricAnnealingModel : public AbstractAnnealingModel<NodeState, EdgeTyp
         }
 
         py::array_t<int> getShifts() { return graph.getShifts(); }
+        float totalEnergy() { return graph.totalEnergy(); }
+        void simulate(ssize_t nsteps) override;
+        void proceed() override;
+
 };
+
+void CylindricAnnealingModel::proceed() {
+    auto idx = rng.uniformInt(graph.nodeCount());
+    auto result = graph.tryRandomShift(rng);
+    auto prob = reservoir.prob(result.dE);
+    if (rng.bernoulli(prob)) {
+        // accept shift
+        graph.applyShift(result);
+    }
+}
+
+void CylindricAnnealingModel::simulate(ssize_t nsteps) {
+    if (nsteps < 0) {
+        throw py::value_error("nsteps must be non-negative.");
+    }
+    graph.checkGraph();
+    for (auto i = 0; i < nsteps; ++i) {
+        proceed();
+        reservoir.cool();
+    }
+}
 
 #endif

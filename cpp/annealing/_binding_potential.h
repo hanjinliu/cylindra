@@ -42,6 +42,12 @@ class BoxPotential2D : public BindingPotential2D {
 
     public:
         bool isConcrete() override { return true; }
+        BoxPotential2D() {
+            this->lon_dist_min2 = 0;
+            this->lon_dist_max2 = std::numeric_limits<double>::infinity();
+            this->lat_dist_min2 = 0;
+            this->lat_dist_max2 = std::numeric_limits<double>::infinity();
+        }
         BoxPotential2D(double lon_dist_min, double lon_dist_max, double lat_dist_min, double lat_dist_max) {
             this->lon_dist_min2 = lon_dist_min * lon_dist_min;
             this->lon_dist_max2 = lon_dist_max * lon_dist_max;
@@ -51,17 +57,17 @@ class BoxPotential2D : public BindingPotential2D {
 
         float longitudinal(double dist2) override {
             if (dist2 < lon_dist_min2 || lon_dist_max2 < dist2) {
-                return std::numeric_limits<double>::infinity();
+                return std::numeric_limits<float>::infinity();
             } else {
-                return 0.0;
+                return 0;
             }
         }
 
         float lateral(double dist2) override {
             if (dist2 < lat_dist_min2 || lat_dist_max2 < dist2) {
-                return std::numeric_limits<double>::infinity();
+                return std::numeric_limits<float>::infinity();
             } else {
-                return 0.0;
+                return 0;
             }
         }
 };
@@ -84,12 +90,12 @@ class HarmonicPotential2D : BindingPotential2D {
 
         float longitudinal(double dist2) override {
             auto x = std::sqrt(dist2) - r0;
-            return halfk0 * x * x;
+            return static_cast<float>(halfk0 * x * x);
         }
 
         float lateral(double dist2) override {
             auto x = std::sqrt(dist2) - r1;
-            return halfk1 * x * x;
+            return static_cast<float>(halfk1 * x * x);
         }
 };
 

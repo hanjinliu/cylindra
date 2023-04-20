@@ -22,7 +22,7 @@ struct ShiftResult {
 /// @brief Abstract class for an undirected graph with scores.
 template <typename Sn, typename Se, typename T>
 class AbstractGraph {
-    private:
+    protected:
         std::vector<std::vector<size_t>> edges;  // id of connected edges of the i-th node
         std::vector<std::pair<size_t, size_t>> edgeEnds;  // end nodes of the i-th edge
         std::vector<Sn> nodeState;
@@ -31,8 +31,8 @@ class AbstractGraph {
     public:
         AbstractGraph() {};
 
-        virtual size_t nodeCount() { return nodeState.size(); };
-        virtual size_t edgeCount() { return edgeEnds.size(); };
+        size_t nodeCount() { return nodeState.size(); };
+        size_t edgeCount() { return edgeState.size(); };
 
         /// Add a node of given state to the graph.
         void addNode(const Sn &nodestate) {
@@ -52,12 +52,14 @@ class AbstractGraph {
             edges[i].push_back(edgeEnds.size());
             edges[j].push_back(edgeEnds.size());
             edgeEnds.push_back(std::make_pair(i, j));
+            edgeState.push_back(edgestate);
         }
 
         Sn &nodeStateAt(size_t i) & { return nodeState[i]; };
         Se &edgeStateAt(size_t i) & { return edgeState[i]; };
+        std::pair<size_t, size_t> edgeEndsAt(size_t i) & { return edgeEnds[i]; };
 
-        virtual Sn randomLocalNeighBorState(const Sn &nodestate, RandomNumberGenerator &rng) { return nodestate; };
+        virtual Sn randomLocalNeighBorState(const Sn &nodestate, RandomNumberGenerator &rng) { throw py::attribute_error("randomLocalNeighBorState() is not implemented.");};
 
         /// Returns the internal potential energy of molecule at `pos` of given `state`.
         virtual T internal(const Sn &nodestate) { return 0; };
@@ -65,16 +67,14 @@ class AbstractGraph {
         /// Returns the binding potential energy between adjacent molecules.
         virtual T binding(const Sn &nodestate0, const Sn &nodestate1, const Se &edgestate) { return 0; };
 
-        /// Returns the total score of the current graph state.
-        T totalEnergy();
-
         // Check if the current state of this graph is ready.
-        virtual void checkGraph() {};
+        virtual void checkGraph() { throw py::attribute_error("checkGraph() is not implemented.");};
 
-        ShiftResult<Sn> tryRandomShift(RandomNumberGenerator&);
         void applyShift(ShiftResult<Sn> &result) {
             nodeState[result.index] = result.state;
         }
+
+        std::vector<std::pair<size_t, size_t>> getEdgeEnds() { return edgeEnds; };
 
         /// Clear all the nodes and edges of the graph.
         void clearGraph() {
@@ -84,40 +84,6 @@ class AbstractGraph {
             edgeEnds.clear();
         }
 };
-
-template <typename Sn, typename Se, typename T>
-T AbstractGraph<Sn, Se, T>::totalEnergy() {
-    T score = 0;
-    for (auto s : nodeState) {
-        score += internal(s);
-    }
-    for (size_t i = 0; i < edgeEnds.size(); ++i) {
-        auto ends = edgeEnds[i];
-        score += binding(nodeState[ends.first], nodeState[ends.second], edgeState[i]);
-    }
-    return score;
-};
-
-template <typename Sn, typename Se, typename T>
-ShiftResult<Sn> AbstractGraph<Sn, Se, T>::tryRandomShift(RandomNumberGenerator &rng) {
-    auto idx = rng.uniformInt(nodeCount());
-    Sn state_old = nodeState[idx];
-    T E_old = internal(state_old);
-    Sn state_new = randomLocalNeighBorState(state_old, rng);
-    T E_new = internal(state_new);
-    auto connected_edges = edges[idx];
-
-    for (auto edgeid : connected_edges) {
-        auto ends = edgeEnds[edgeid];
-        auto other_idx = (ends.first == idx) ? ends.second : ends.first;
-        Sn other_state = nodeState[other_idx];
-        E_old += binding(state_old, other_state, edgeState[edgeid]);
-        E_new += binding(state_new, other_state, edgeState[edgeid]);
-    }
-
-    auto dE = E_new - E_old;
-    return ShiftResult<Sn>(idx, state_new, dE);
-}
 
 template <typename T>
 class Grid2D {
@@ -162,7 +128,7 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
         CylinderGeometry geometry;
         Grid2D<CoordinateSystem<double>> coords;
         py::array_t<float> score;  // 5D array
-        BindingPotential2D bindingPotential;
+        BoxPotential2D bindingPotential;
         Vector3D<int> localShape;
 
     public:
@@ -209,7 +175,7 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
         py::array_t<int> getShifts() {
             auto out = py::array_t<int>{{geometry.nY, geometry.nA, ssize_t(3)}};
             for (auto i = 0; i < nodeCount(); ++i) {
-                auto state = nodeStateAt(i);
+                auto state = nodeState[i];
                 auto y = state.index.y;
                 auto a = state.index.a;
                 auto shift = state.shift;
@@ -220,11 +186,11 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
             return out;
         }
 
-        BindingPotential2D potentialModel() {
+        BoxPotential2D potentialModel() {
             return bindingPotential;
         }
 
-        void setPotentialModel(BindingPotential2D &model) {
+        void setPotentialModel(BoxPotential2D &model) {
             bindingPotential = model;
         }
 
@@ -235,8 +201,15 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
                 throw py::value_error("graph has no edges.");
             } else if (!bindingPotential.isConcrete()) {
                 throw py::value_error("binding potential is not concrete.");
+            } else if (edgeEnds.size() != edgeCount()) {
+                throw py::value_error("edgeEnds.size() != edgeCount()");
+            } else if (edges.size() != nodeCount()) {
+                throw py::value_error("edges.size() != nodeCount");
             }
         }
+
+        float totalEnergy();
+        ShiftResult<NodeState> tryRandomShift(RandomNumberGenerator &rng);
 };
 
 void CylindricGraph::update(
@@ -301,5 +274,37 @@ void CylindricGraph::update(
     this->coords = _coords;
 }
 
+
+float CylindricGraph::totalEnergy() {
+    float score = 0;
+    for (auto i = 0; i < nodeCount(); ++i) {
+        score += internal(nodeState[i]);
+    }
+    for (size_t i = 0; i < edgeCount(); ++i) {
+        auto ends = edgeEnds[i];
+        score += binding(nodeState[ends.first], nodeState[ends.second], edgeState[i]);
+    }
+    return score;
+};
+
+ShiftResult<NodeState> CylindricGraph::tryRandomShift(RandomNumberGenerator &rng) {
+    auto idx = rng.uniformInt(nodeCount());
+    auto state_old = nodeState[idx];
+    auto E_old = internal(state_old);
+    auto state_new = randomLocalNeighBorState(state_old, rng);
+    auto E_new = internal(state_new);
+    auto connected_edges = edges[idx];
+
+    for (auto edgeid : connected_edges) {
+        auto ends = edgeEnds[edgeid];
+        auto other_idx = (ends.first == idx) ? ends.second : ends.first;
+        NodeState other_state = nodeState[other_idx];
+        E_old += binding(state_old, other_state, edgeState[edgeid]);
+        E_new += binding(state_new, other_state, edgeState[edgeid]);
+    }
+
+    auto dE = E_new - E_old;
+    return ShiftResult<NodeState>(idx, state_new, dE);
+}
 
 #endif
