@@ -22,37 +22,66 @@ struct ShiftResult {
 /// @brief Abstract class for an undirected graph with scores.
 template <typename Sn, typename Se, typename T>
 class AbstractGraph {
-    public:
+    private:
         std::vector<std::vector<size_t>> edges;  // id of connected edges of the i-th node
         std::vector<std::pair<size_t, size_t>> edgeEnds;  // end nodes of the i-th edge
         std::vector<Sn> nodeState;
         std::vector<Se> edgeState;
 
+    public:
         AbstractGraph() {};
 
         virtual size_t nodeCount() { return nodeState.size(); };
         virtual size_t edgeCount() { return edgeEnds.size(); };
 
-        void addEdge(size_t i, size_t j, Se edgestate) {
+        /// Add a node of given state to the graph.
+        void addNode(const Sn &nodestate) {
+            nodeState.push_back(nodestate);
+            edges.push_back(std::vector<size_t>());
+        }
+
+        /// add an edge between i-th and j-th nodes.
+        void addEdge(size_t i, size_t j, const Se &edgestate) {
+            if (i >= nodeCount() || j >= nodeCount()) {
+                throw py::index_error(
+                    "There are " + std::to_string(nodeCount()) +
+                    " nodes, but trying to add an edge between " + std::to_string(i) +
+                    " and " + std::to_string(j) + "."
+                );
+            }
             edges[i].push_back(edgeEnds.size());
             edges[j].push_back(edgeEnds.size());
             edgeEnds.push_back(std::make_pair(i, j));
         }
 
-        virtual Sn randomLocalNeighBorState(Sn &nodestate, RandomNumberGenerator &rng) { return nodestate; };
+        Sn &nodeStateAt(size_t i) & { return nodeState[i]; };
+        Se &edgeStateAt(size_t i) & { return edgeState[i]; };
 
-        /// Returns the "potential score" of molecule at `pos` of given `state`.
-        virtual T potential(Sn &nodestate) { return 0; };
+        virtual Sn randomLocalNeighBorState(const Sn &nodestate, RandomNumberGenerator &rng) { return nodestate; };
 
-        /// Returns the "binding score" between adjacent molecules.
-        virtual T binding(Sn &nodestate0, Sn &nodestate1, Se &edgestate) { return 0.0; };
+        /// Returns the internal potential energy of molecule at `pos` of given `state`.
+        virtual T internal(const Sn &nodestate) { return 0; };
+
+        /// Returns the binding potential energy between adjacent molecules.
+        virtual T binding(const Sn &nodestate0, const Sn &nodestate1, const Se &edgestate) { return 0; };
 
         /// Returns the total score of the current graph state.
         T totalEnergy();
 
+        // Check if the current state of this graph is ready.
+        virtual void checkGraph() {};
+
         ShiftResult<Sn> tryRandomShift(RandomNumberGenerator&);
         void applyShift(ShiftResult<Sn> &result) {
             nodeState[result.index] = result.state;
+        }
+
+        /// Clear all the nodes and edges of the graph.
+        void clearGraph() {
+            nodeState.clear();
+            edgeState.clear();
+            edges.clear();
+            edgeEnds.clear();
         }
 };
 
@@ -60,7 +89,7 @@ template <typename Sn, typename Se, typename T>
 T AbstractGraph<Sn, Se, T>::totalEnergy() {
     T score = 0;
     for (auto s : nodeState) {
-        score += potential(s);
+        score += internal(s);
     }
     for (size_t i = 0; i < edgeEnds.size(); ++i) {
         auto ends = edgeEnds[i];
@@ -73,9 +102,9 @@ template <typename Sn, typename Se, typename T>
 ShiftResult<Sn> AbstractGraph<Sn, Se, T>::tryRandomShift(RandomNumberGenerator &rng) {
     auto idx = rng.uniformInt(nodeCount());
     Sn state_old = nodeState[idx];
-    T E_old = potential(state_old);
+    T E_old = internal(state_old);
     Sn state_new = randomLocalNeighBorState(state_old, rng);
-    T E_new = potential(state_new);
+    T E_new = internal(state_new);
     auto connected_edges = edges[idx];
 
     for (auto edgeid : connected_edges) {
@@ -121,18 +150,14 @@ class Grid2D {
         };
 };
 
-struct _NodeState {
+struct NodeState {
     Index index;
     Vector3D<int> shift;
-    // _NodeState() {
-    //     index = Index(0, 0);
-    //     shift = Vector3D<int>(0, 0, 0);
-    // };
-    _NodeState(Index i, Vector3D<int> s) : index(i), shift(s) {};
+    NodeState(Index i, Vector3D<int> s) : index(i), shift(s) {};
 };
 
 
-class CylindricGraph : public AbstractGraph<_NodeState, EdgeType, float> {
+class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
     private:
         CylinderGeometry geometry;
         Grid2D<CoordinateSystem<double>> coords;
@@ -155,23 +180,23 @@ class CylindricGraph : public AbstractGraph<_NodeState, EdgeType, float> {
 
         void update(py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, int nrise);
 
-        _NodeState randomLocalNeighBorState(_NodeState &state, RandomNumberGenerator &rng) override {
+        NodeState randomLocalNeighBorState(const NodeState &state, RandomNumberGenerator &rng) override {
             auto idx = state.index;
             auto shift = state.shift;
             auto shift_new = rng.randShift(shift, localShape);
-            return _NodeState(idx, shift_new);
+            return NodeState(idx, shift_new);
         }
 
-        float potential(_NodeState &nodestate) override {
+        float internal(const NodeState &nodestate) override {
             auto idx = nodestate.index;
             auto vec = nodestate.shift;
             return *score.data(idx.y, idx.a, vec.z, vec.y, vec.x);
         }
 
         float binding(
-            _NodeState &pos1,
-            _NodeState &pos2,
-            EdgeType &type
+            const NodeState &pos1,
+            const NodeState &pos2,
+            const EdgeType &type
         ) override {
             auto vec1 = pos1.shift;
             auto vec2 = pos2.shift;
@@ -183,7 +208,8 @@ class CylindricGraph : public AbstractGraph<_NodeState, EdgeType, float> {
 
         py::array_t<int> getShifts() {
             auto out = py::array_t<int>{{geometry.nY, geometry.nA, ssize_t(3)}};
-            for (auto state : nodeState) {
+            for (auto i = 0; i < nodeCount(); ++i) {
+                auto state = nodeStateAt(i);
                 auto y = state.index.y;
                 auto a = state.index.a;
                 auto shift = state.shift;
@@ -193,22 +219,40 @@ class CylindricGraph : public AbstractGraph<_NodeState, EdgeType, float> {
             }
             return out;
         }
+
+        BindingPotential2D potentialModel() {
+            return bindingPotential;
+        }
+
+        void setPotentialModel(BindingPotential2D &model) {
+            bindingPotential = model;
+        }
+
+        void checkGraph() override {
+            if (nodeCount() == 0) {
+                throw py::value_error("graph is empty.");
+            } else if (edgeCount() == 0) {
+                throw py::value_error("graph has no edges.");
+            } else if (!bindingPotential.isConcrete()) {
+                throw py::value_error("binding potential is not concrete.");
+            }
+        }
 };
 
 void CylindricGraph::update(
-    py::array_t<float> &score,
+    py::array_t<float> &score_array,
     py::array_t<float> &origin,
     py::array_t<float> &zvec,
     py::array_t<float> &yvec,
     py::array_t<float> &xvec,
     int nrise
 ) {
-    auto score_shape = score.request().shape;
+    auto score_shape = score_array.request().shape;
     if (score_shape.size() != 5) {
         throw py::value_error("Score array must be 5D");
-    } else if (origin.shape(0) != score.shape(0) || zvec.shape(0) != score.shape(0) || yvec.shape(0) != score.shape(0) || xvec.shape(0) != score.shape(0)) {
+    } else if (origin.shape(0) != score_array.shape(0) || zvec.shape(0) != score_array.shape(0) || yvec.shape(0) != score_array.shape(0) || xvec.shape(0) != score_array.shape(0)) {
         throw py::value_error("Score array and vectors must have the same first dimension");
-    } else if (origin.shape(1) != score.shape(1) || zvec.shape(1) != score.shape(1) || yvec.shape(1) != score.shape(1) || xvec.shape(1) != score.shape(1)) {
+    } else if (origin.shape(1) != score_array.shape(1) || zvec.shape(1) != score_array.shape(1) || yvec.shape(1) != score_array.shape(1) || xvec.shape(1) != score_array.shape(1)) {
         throw py::value_error("Score array and vectors must have the same second dimension");
     } else if (origin.shape(2) != 3 || zvec.shape(2) != 3 || yvec.shape(2) != 3 || xvec.shape(2) != 3) {
         throw py::value_error("Vectors must be 3D");
@@ -219,16 +263,13 @@ void CylindricGraph::update(
     geometry = CylinderGeometry(naxial, nang, nrise);
     localShape = Vector3D<int>(score_shape[2], score_shape[3], score_shape[4]);
 
-    nodeState.clear();
-    edgeState.clear();
-    edges.clear();
-    edgeEnds.clear();
+    clearGraph();
 
     auto center = localShape / 2;
     for (auto y = 0; y < geometry.nY; ++y) {
         for (auto a = 0; a < geometry.nA; ++a) {
             auto idx = Index(y, a);
-            nodeState.push_back(_NodeState(idx, center));
+            addNode(NodeState(idx, center));
         }
     }
 
@@ -256,7 +297,7 @@ void CylindricGraph::update(
         }
     }
 
-    this->score = score;
+    this->score = score_array;
     this->coords = _coords;
 }
 

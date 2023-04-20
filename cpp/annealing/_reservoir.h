@@ -47,7 +47,7 @@ class Reservoir : public AbstractReservoir {
             this->chunk_count = 0;
         }
         Reservoir(double temperature, double cooling_rate, double min_temperature = 0.0) {
-            if (min_temperature <= 0) {
+            if (min_temperature < 0) {
                 throw py::value_error("Minimum temperature must be positive");
             } else if (temperature < min_temperature) {
                 throw py::value_error("Initial temperature must be greater than minimum temperature");

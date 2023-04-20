@@ -30,7 +30,9 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def(py::init<int>(), py::arg("seed") = 0)
         .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
         .def("energy", &CylindricAnnealingModel::totalEnergy)
-        .def("energy_array", &CylindricAnnealingModel::getEnergyArray)
+        .def("set_reservoir", &CylindricAnnealingModel::setReservoir, py::arg("temperature"), py::arg("cooling_rate"), py::arg("min_temperature") = 0.0)
+        .def("set_graph", &CylindricAnnealingModel::setGraph, py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
+        .def("set_box_potential", &CylindricAnnealingModel::setBoxPotential, py::arg("lon_dist_min"), py::arg("lon_dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
         .def("shifts", &CylindricAnnealingModel::getShifts);
 
     // `CylinderGeometry` is exported mainly for testing

@@ -39,7 +39,7 @@ class RandomNumberGenerator {
             return std::make_tuple(shift.z, shift.y, shift.x);
         }
 
-        Vector3D<int> randShift(Vector3D<int> src, Vector3D<int> shape) {
+        Vector3D<int> randShift(const Vector3D<int> src, const Vector3D<int> shape) {
             std::vector<Vector3D<int>> neighbors;
 
             if (0 < src.z && src.z < shape.z - 1) {

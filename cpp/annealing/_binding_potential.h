@@ -8,9 +8,12 @@
 
 template <typename Se, typename T>
 class AbstractBindingPotential {
-    virtual T operator()(double dist2, Se &type) { return 0.0; }
+    public:
+        virtual T operator()(double dist2, const Se &type) { return 0.0; }
+        virtual bool isConcrete() { return false; }
 };
 
+/// Enum of edge connection types used for cylindric grids.
 enum class EdgeType {
     Longitudinal,
     Lateral,
@@ -18,9 +21,10 @@ enum class EdgeType {
 
 class BindingPotential2D : AbstractBindingPotential<EdgeType, float> {
     public:
+        virtual bool isConcrete() { return false; }
         virtual float longitudinal(double dist2) { return 0.0; };
         virtual float lateral(double dist2) { return 0.0; };
-        float operator()(double dist2, EdgeType &type) override {
+        float operator()(double dist2, const EdgeType &type) override {
             if (type == EdgeType::Longitudinal) {
                 return longitudinal(dist2);
             } else {
@@ -37,6 +41,14 @@ class BoxPotential2D : public BindingPotential2D {
         double lat_dist_max2;
 
     public:
+        bool isConcrete() override { return true; }
+        BoxPotential2D(double lon_dist_min, double lon_dist_max, double lat_dist_min, double lat_dist_max) {
+            this->lon_dist_min2 = lon_dist_min * lon_dist_min;
+            this->lon_dist_max2 = lon_dist_max * lon_dist_max;
+            this->lat_dist_min2 = lat_dist_min * lat_dist_min;
+            this->lat_dist_max2 = lat_dist_max * lat_dist_max;
+        }
+
         float longitudinal(double dist2) override {
             if (dist2 < lon_dist_min2 || lon_dist_max2 < dist2) {
                 return std::numeric_limits<double>::infinity();
@@ -62,6 +74,7 @@ class HarmonicPotential2D : BindingPotential2D {
         double r1;
 
     public:
+        bool isConcrete() override { return true; }
         HarmonicPotential2D(double k0, double k1, double r0, double r1) {
             this->halfk0 = k0 / 2;
             this->halfk1 = k1 / 2;

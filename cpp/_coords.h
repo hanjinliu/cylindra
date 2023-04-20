@@ -35,6 +35,12 @@ class Vector3D {
 		void update(T z0, T y0, T x0) {z=z0; y=y0; x=x0;};
 		py::array_t<T> asarray();
 		T pointToPlaneDistance2(Vector3D<T> &norm, Vector3D<T> &other);
+		// copy constructor
+		Vector3D<T>(const Vector3D<T> &other) {
+			z = other.z;
+			y = other.y;
+			x = other.x;
+		}
 };
 
 
