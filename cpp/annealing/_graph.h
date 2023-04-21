@@ -146,6 +146,7 @@ class CylindricGraph : public AbstractGraph<NodeState, EdgeType, float> {
 
         void update(py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, py::array_t<float>&, int nrise);
 
+        /// Return a new NodeState that is a local neighbor of `state`.
         NodeState randomLocalNeighBorState(const NodeState &state, RandomNumberGenerator &rng) override {
             auto idx = state.index;
             auto shift = state.shift;

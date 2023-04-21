@@ -29,6 +29,7 @@ PYBIND11_MODULE(_cpp_ext, m) {
     py::class_<CylindricAnnealingModel>(m, "CylindricAnnealingModel")
         .def(py::init<int>(), py::arg("seed") = 0)
         .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
+        .def("optimization_state", &CylindricAnnealingModel::getOptimizationState, "Get the optimization state.")
         .def("energy", &CylindricAnnealingModel::totalEnergy, "Total energy of the curreny graph state.")
         .def("reservoir", &CylindricAnnealingModel::getReservoir, "Get the reservoir object.")
         .def("set_reservoir", &CylindricAnnealingModel::setReservoir, py::arg("temperature"), py::arg("time_constant"), py::arg("min_temperature") = 0.0, "Set the reservoir object.")

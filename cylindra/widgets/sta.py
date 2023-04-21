@@ -1003,7 +1003,7 @@ class SubtomogramAveraging(MagicTemplate):
                 "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
                 "label": "Lateral range (nm)",
             },
-        ] = (4.7, 5.1),
+        ] = (4.7, 5.3),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
@@ -1021,9 +1021,7 @@ class SubtomogramAveraging(MagicTemplate):
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
         upsample_factor : int, default is 5
-            Upsampling factor of ZNCC landscape. Be careful not to set this parameter too
-            large. Calculation will take much longer for larger ``upsample_factor``.
-            Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
+            Upsampling factor of ZNCC landscape.
         """
         from cylindra._cpp_ext import CylindricAnnealingModel
 
@@ -1067,7 +1065,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         annealing = CylindricAnnealingModel(seed=0)
         tc = molecules.pos.size * np.product(search_size)
-        initial_temperature = np.ptp(energy) * 2
+        initial_temperature = np.std(energy) * 4
         annealing.set_graph(
             energy.reshape(_grid_shape + search_size),
             (m0.pos / scale * upsample_factor).reshape(_vec_shape),
@@ -1093,9 +1091,22 @@ class SubtomogramAveraging(MagicTemplate):
 
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
         energies = []
-        while annealing.reservoir().temperature() > initial_temperature * 1e-3:
+        while (
+            annealing.reservoir().temperature() > initial_temperature * 1e-3
+            and annealing.optimization_state() == "not_converged"
+        ):
             annealing.simulate(1000)
             energies.append(annealing.energy())
+        energies = np.array(energies)
+
+        if annealing.optimization_state() == "failed":
+            raise RuntimeError(
+                "Failed to optimize the alignment. You may check the distance range."
+            )
+        elif annealing.optimization_state() == "not_converged":
+            _Logger.print("Optimization did not converge.")
+        elif annealing.optimization_state() == "converged":
+            _Logger.print(f"Optimization converged in ~{energies.size}K iterations.")
 
         all_shifts_px = ((annealing.shifts() - offset) / upsample_factor).reshape(-1, 3)
         all_shifts = all_shifts_px * scale
@@ -1117,7 +1128,6 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _on_return():
-            parent = self._get_parent()
             mole = aligned_loader.molecules
             points = parent.add_molecules(
                 mole,
@@ -1129,7 +1139,7 @@ class SubtomogramAveraging(MagicTemplate):
             with _Logger.set_plt(rc_context={"font.size": 15}):
                 import matplotlib.pyplot as plt
 
-                plt.plot(-np.array(energies))
+                plt.plot(-energies)
                 plt.xlabel("Repeat (x1000)")
                 plt.ylabel("Score")
                 plt.show()
@@ -1199,12 +1209,8 @@ class SubtomogramAveraging(MagicTemplate):
         fsc_std = np.std(fsc_all, axis=1)
         crit_0143 = 0.143
         crit_0500 = 0.500
-        resolution_0143 = widget_utils.calc_resolution(
-            freq, fsc_mean, crit_0143, loader.scale
-        )
-        resolution_0500 = widget_utils.calc_resolution(
-            freq, fsc_mean, crit_0500, loader.scale
-        )
+        res0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
+        res0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
 
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
@@ -1219,12 +1225,8 @@ class SubtomogramAveraging(MagicTemplate):
                     parent.tomogram.scale,
                 )
 
-            _Logger.print_html(
-                f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>"
-            )
-            _Logger.print_html(
-                f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>"
-            )
+            _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{res0500:.3f} nm</b>")
+            _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{res0143:.3f} nm</b>")
 
             if img_avg is not None:
                 _rec_layer: "Image" = self._show_reconstruction(
@@ -1232,7 +1234,7 @@ class SubtomogramAveraging(MagicTemplate):
                     name=f"[AVG]{layer.name}",
                 )
                 _rec_layer.metadata["fsc"] = widget_utils.FscResult(
-                    freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
+                    freq, fsc_mean, fsc_std, res0143, res0500
                 )
 
         return _calculate_fsc_on_return
