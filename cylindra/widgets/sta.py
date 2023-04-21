@@ -911,7 +911,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
         molecules_origin = molecules.translate_internal(
-            -(np.array(shape_nm) / 2 - scale)
+            -(np.array(max_shifts) - scale) / 2
         )
         mole_list = [
             molecules_origin.subset(sl) for sl in slices
@@ -988,9 +988,6 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params] = None,
         tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         distance_range_long: Annotated[
@@ -1010,16 +1007,15 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
-        Subtomogram alignment using 2D Viterbi alignment.
+        Subtomogram alignment using 2D Boltzmann alignment.
 
-        2D Viterbi alignment is an alignment algorithm that considers the distance between
-        every adjacent monomers. Computationally, 2D Viterbi algorithm is so intensive
-        that it is unsolvable for the protein alignment. This algorithm is an approximation.
+        2D Boltzmann alignment is an alignment algorithm that considers the distance between
+        every adjacent monomers. Two-dimensionally connected optimization can be approximated
+        by the simulated annealing algorithm.
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}
+        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{cutoff}{interpolation}
         distance_range_long : tuple of float
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
@@ -1031,7 +1027,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         from cylindra._cpp_ext import CylindricAnnealingModel
 
-        t0 = timer("align_all_viterbi_2d")
+        t0 = timer("align_all_boltzmann")
         parent = self._get_parent()
         molecules = layer.molecules
         shape_nm = self._get_shape_in_nm()
@@ -1045,7 +1041,6 @@ class SubtomogramAveraging(MagicTemplate):
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
         model = alignment.ZNCCAlignment.with_params(
-            rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             tilt_range=tilt_range,
         )
@@ -1058,15 +1053,9 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=model,
         )
 
-        if not model.has_rotation:
-            score: np.ndarray = score_dsk.compute()
-        else:
-            raise NotImplementedError(
-                "2D Boltzmann alignment with rotation is not implemented yet."
-            )
-
+        score: np.ndarray = score_dsk.compute()
         scale = parent.tomogram.scale
-        m0 = molecules.translate_internal(-(np.array(shape_nm) / 2 - scale))
+        m0 = molecules.translate_internal(-(np.array(max_shifts) - scale) / 2)
 
         dist_lon = np.array(distance_range_long) / scale * upsample_factor
         dist_lat = np.array(distance_range_lat) / scale * upsample_factor
@@ -1077,6 +1066,8 @@ class SubtomogramAveraging(MagicTemplate):
         energy = -score
 
         annealing = CylindricAnnealingModel(seed=0)
+        tc = molecules.pos.size * np.product(search_size)
+        initial_temperature = np.ptp(energy) * 2
         annealing.set_graph(
             energy.reshape(_grid_shape + search_size),
             (m0.pos / scale * upsample_factor).reshape(_vec_shape),
@@ -1085,23 +1076,25 @@ class SubtomogramAveraging(MagicTemplate):
             m0.x.reshape(_vec_shape),
             _cyl_model.nrise,
         ).set_reservoir(
-            temperature=np.ptp(energy),
-            cooling_rate=0.995,
+            temperature=initial_temperature,
+            time_constant=tc,
         ).set_box_potential(
             *dist_lon,
             *dist_lat,
         )
 
-        _desc = lambda a: (a.min(), a.mean(), a.max())
-        print(_desc(annealing.graph().longitudinal_distances()))
-        print(_desc(annealing.graph().lateral_distances()))
-        print(dist_lon, dist_lat)
+        def _logging_distances(a: "NDArray[np.float32]", prefix: str):
+            _mean = a.mean() * scale / upsample_factor
+            _std = a.std() * scale / upsample_factor
+            _Logger.print_html(f"{prefix}: {_mean:.2f} &#177; {_std:.2f} nm")
+
+        _logging_distances(annealing.graph().longitudinal_distances(), "Longitudinal")
+        _logging_distances(annealing.graph().lateral_distances(), "Lateral")
 
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-
         energies = []
-        for i in range(1000):
-            annealing.simulate(100)
+        while annealing.reservoir().temperature() > initial_temperature * 1e-3:
+            annealing.simulate(1000)
             energies.append(annealing.energy())
 
         all_shifts_px = ((annealing.shifts() - offset) / upsample_factor).reshape(-1, 3)
@@ -1124,12 +1117,20 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _on_return():
-            self._align_all_on_return(aligned_loader, layer)
+            parent = self._get_parent()
+            mole = aligned_loader.molecules
+            points = parent.add_molecules(
+                mole,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+            )
+            layer.visible = False
+            _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt(rc_context={"font.size": 15}):
                 import matplotlib.pyplot as plt
 
                 plt.plot(-np.array(energies))
-                plt.xlabel("Repeat (x100)")
+                plt.xlabel("Repeat (x1000)")
                 plt.ylabel("Score")
                 plt.show()
 
@@ -1452,24 +1453,5 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
         )
         for idx in invalid_indices:
             shift[idx, :] = offset
-
-    return shift
-
-
-def _check_viterbi_2d_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"):
-    invalid = shift[:, :, 0] < 0
-    if invalid.any():
-        invalid_indices = np.stack(np.where(invalid), axis=1)
-        msg_fmt = "Viterbi alignment could not determine the optimal positions for\n{}"
-        if invalid_indices.shape[0] < 10:
-            summary = ", ".join(map(lambda ar: "({}, {})".format(*ar), invalid_indices))
-            msg = msg_fmt.format("(y, pf) = " + summary)
-        else:
-            msg = msg_fmt.format(
-                f"{invalid_indices.shape[0]}/{shift.size // 3} points."
-            )
-        _Logger.print(msg)
-        for idx in invalid_indices:
-            shift[idx[0], idx[1], :] = offset
 
     return shift

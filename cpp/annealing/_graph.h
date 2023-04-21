@@ -298,6 +298,8 @@ void CylindricGraph::update(
 
     this->score = score_array;
     this->coords = _coords;
+    initialize();
+    return;
 }
 
 

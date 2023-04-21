@@ -98,6 +98,7 @@ void CylindricAnnealingModel::simulate(ssize_t nsteps) {
         throw py::value_error("nsteps must be non-negative.");
     }
     graph.checkGraph();
+	py::gil_scoped_release nogil;  // without GIL
     for (auto i = 0; i < nsteps; ++i) {
         proceed();
         reservoir.cool();
