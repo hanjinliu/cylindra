@@ -34,12 +34,13 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
             this->rng = RandomNumberGenerator(seed);
         }
 
+        Reservoir getReservoir() { return reservoir; }
         CylindricAnnealingModel& setReservoir(
             float temperature,
-            float cooling_rate,
+            float time_constant,
             float min_temperature = 0.0
         ) & {
-            Reservoir rv(temperature, cooling_rate, min_temperature);
+            Reservoir rv(temperature, time_constant, min_temperature);
             reservoir = rv;
             return *this;
         }
@@ -80,6 +81,7 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
 
 };
 
+/// Proceed the simulation step by one.
 void CylindricAnnealingModel::proceed() {
     auto idx = rng.uniformInt(graph.nodeCount());
     auto result = graph.tryRandomShift(rng);
@@ -90,6 +92,7 @@ void CylindricAnnealingModel::proceed() {
     }
 }
 
+/// Run simulation for the given number of steps.
 void CylindricAnnealingModel::simulate(ssize_t nsteps) {
     if (nsteps < 0) {
         throw py::value_error("nsteps must be non-negative.");

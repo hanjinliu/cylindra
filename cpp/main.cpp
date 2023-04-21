@@ -29,8 +29,9 @@ PYBIND11_MODULE(_cpp_ext, m) {
     py::class_<CylindricAnnealingModel>(m, "CylindricAnnealingModel")
         .def(py::init<int>(), py::arg("seed") = 0)
         .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
-        .def("energy", &CylindricAnnealingModel::totalEnergy)
-        .def("set_reservoir", &CylindricAnnealingModel::setReservoir, py::arg("temperature"), py::arg("cooling_rate"), py::arg("min_temperature") = 0.0)
+        .def("energy", &CylindricAnnealingModel::totalEnergy, "Total energy of the curreny graph state.")
+        .def("reservoir", &CylindricAnnealingModel::getReservoir, "Get the reservoir object.")
+        .def("set_reservoir", &CylindricAnnealingModel::setReservoir, py::arg("temperature"), py::arg("time_constant"), py::arg("min_temperature") = 0.0, "Set the reservoir object.")
         .def("graph", &CylindricAnnealingModel::getGraph)
         .def("set_graph", &CylindricAnnealingModel::setGraph, py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
         .def("set_box_potential", &CylindricAnnealingModel::setBoxPotential, py::arg("lon_dist_min"), py::arg("lon_dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
@@ -42,6 +43,10 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def("edges", &CylindricGraph::getEdgeEnds)
         .def("longitudinal_distances", &CylindricGraph::getLongitudinalDistances)
         .def("lateral_distances", &CylindricGraph::getLateralDistances);
+
+    py::class_<Reservoir>(m, "Reservoir")
+        .def("temperature", &Reservoir::getTemperature)
+        .def("initialize", &Reservoir::initialize);
 
     // `CylinderGeometry` is exported mainly for testing
     py::class_<CylinderGeometry>(m, "CylinderGeometry")

@@ -14,8 +14,6 @@ namespace py = pybind11;
 /// A reservoir implements a temperature schedule and a probability function for the
 /// given energy.
 class AbstractReservoir {
-    protected:
-        double temperature;
     public:
         virtual void cool() {};
         virtual float prob(float dE) { return 0.0; };
@@ -27,40 +25,56 @@ class AbstractReservoir {
 class Reservoir : public AbstractReservoir {
     private:
         double initial_temperature;
+        double temperature0;
         double temperature;
-        double cooling_rate;
+        double time_constant;
         double min_temperature;
+        size_t cool_count;
     public:
+        /// Default constructor.
         Reservoir() {
-            this->temperature = 1.0;
-            this->cooling_rate = 0.99;
-            this->min_temperature = 0.0;
+            initial_temperature = 1.0;
+            temperature0 = 1.0;
+            temperature = 1.0;
+            time_constant = 10000;
+            min_temperature = 0.0;
         }
 
-        Reservoir(double temperature, double cooling_rate, double min_temperature = 0.0) {
+        Reservoir(double temperature, double time_constant, double min_temperature = 0.0) {
+            // Check values
             if (min_temperature < 0) {
                 throw py::value_error("Minimum temperature must be positive");
             } else if (temperature < min_temperature) {
                 throw py::value_error("Initial temperature must be greater than minimum temperature");
-            } else if (cooling_rate <= 0 || cooling_rate >= 1) {
-                throw py::value_error("Cooling rate must be in (0, 1)");
+            } else if (time_constant <= 0) {
+                throw py::value_error("Time constant must be positive.");
             }
-            this->initial_temperature = temperature;
-            this->temperature = temperature;
-            this->cooling_rate = cooling_rate;
+            // initial temperature
+            initial_temperature = temperature;
+            this->time_constant = time_constant;
             this->min_temperature = min_temperature;
+            temperature0 = initial_temperature - min_temperature;
+            initialize();
         }
 
+        /// Cool the reservoir by one step.
         void cool() {
-            temperature = std::max(temperature * cooling_rate, min_temperature);
+            cool_count++;
+            temperature = temperature0 * exp(-static_cast<double>(cool_count) / time_constant) + min_temperature;
         }
 
+        /// Calculate the transition probability for the energy change dE.
         float prob(float dE) override {
             return (dE < 0) ? 1 : static_cast<float>(exp(-dE / temperature));
         }
 
         float getTemperature() { return temperature; }
-        void initialize() { temperature = initial_temperature; }
+
+        /// Initialize the reservoir.
+        void initialize() {
+            temperature = initial_temperature;
+            cool_count = 0;
+        }
 };
 
 #endif
