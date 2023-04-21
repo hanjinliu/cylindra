@@ -4,7 +4,8 @@
 #include "_alleviate.h"
 #include "_cylindric.h"
 #include "_grid.h"
-#include "_grid2d.h"
+#include "annealing/_random.h"
+#include "annealing/_model.h"
 
 namespace py = pybind11;
 
@@ -25,16 +26,27 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def("world_pos", &ViterbiGrid::worldPos, py::arg("n"), py::arg("z"), py::arg("y"), py::arg("x"))
         .def("__repr__", &ViterbiGrid::pyRepr);
 
-    py::class_<ViterbiGrid2D>(m, "ViterbiGrid2D")
-        .def(py::init<py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, py::array_t<float>, ssize_t>(),
-             py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
-        .def("viterbi", &ViterbiGrid2D::viterbi, py::arg("dist_min"), py::arg("dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
-        .def("world_pos", &ViterbiGrid2D::worldPos, py::arg("lon"), py::arg("lat"), py::arg("z"), py::arg("y"), py::arg("x"))
-        .def("all_longitudinal_pairs", &ViterbiGrid2D::allLongitudinalPairs)
-        .def("all_lateral_pairs", &ViterbiGrid2D::allLateralPairs)
-        .def("all_longitudinal_distances", &ViterbiGrid2D::allLongitudinalDistances, py::arg("states"))
-        .def("all_lateral_distances", &ViterbiGrid2D::allLateralDistances, py::arg("states"))
-        .def("__repr__", &ViterbiGrid2D::pyRepr);
+    py::class_<CylindricAnnealingModel>(m, "CylindricAnnealingModel")
+        .def(py::init<int>(), py::arg("seed") = 0)
+        .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
+        .def("energy", &CylindricAnnealingModel::totalEnergy, "Total energy of the curreny graph state.")
+        .def("reservoir", &CylindricAnnealingModel::getReservoir, "Get the reservoir object.")
+        .def("set_reservoir", &CylindricAnnealingModel::setReservoir, py::arg("temperature"), py::arg("time_constant"), py::arg("min_temperature") = 0.0, "Set the reservoir object.")
+        .def("graph", &CylindricAnnealingModel::getGraph)
+        .def("set_graph", &CylindricAnnealingModel::setGraph, py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
+        .def("set_box_potential", &CylindricAnnealingModel::setBoxPotential, py::arg("lon_dist_min"), py::arg("lon_dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
+        .def("shifts", &CylindricAnnealingModel::getShifts);
+
+    py::class_<CylindricGraph>(m, "CylindricGraph")
+        .def("node_count", &CylindricGraph::nodeCount)
+        .def("edge_count", &CylindricGraph::edgeCount)
+        .def("edges", &CylindricGraph::getEdgeEnds)
+        .def("longitudinal_distances", &CylindricGraph::getLongitudinalDistances)
+        .def("lateral_distances", &CylindricGraph::getLateralDistances);
+
+    py::class_<Reservoir>(m, "Reservoir")
+        .def("temperature", &Reservoir::getTemperature)
+        .def("initialize", &Reservoir::initialize);
 
     // `CylinderGeometry` is exported mainly for testing
     py::class_<CylinderGeometry>(m, "CylinderGeometry")
@@ -62,5 +74,16 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def_readwrite("y", &Index::y)
         .def_readwrite("a", &Index::a)
         .def("__repr__", &Index::pyRepr)
+        .def("__hash__", &Index::hash)
         .def("__eq__", &Index::pyEq);
+
+    py::class_<RandomNumberGenerator>(m, "RandomNumberGenerator")
+        .def(py::init<>())
+        .def(py::init<int>(), py::arg("seed"))
+        .def("uniform_int", py::overload_cast<size_t>(&RandomNumberGenerator::uniformInt), py::arg("max"))
+        .def("uniform_int", py::overload_cast<size_t, size_t>(&RandomNumberGenerator::uniformInt), py::arg("min"), py::arg("max"))
+        .def("uniform", py::overload_cast<>(&RandomNumberGenerator::uniform))
+        .def("uniform", py::overload_cast<double, double>(&RandomNumberGenerator::uniform), py::arg("min"), py::arg("max"))
+        .def("rand_shift", py::overload_cast<std::tuple<int, int, int>, std::tuple<int, int, int>>(&RandomNumberGenerator::randShift), py::arg("src"), py::arg("shape"));
+
 }

@@ -178,7 +178,7 @@ class Refinement(MagicTemplate):
     align_all_template_free = abstractapi()
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
-    align_all_viterbi_2d = abstractapi()
+    align_all_boltzmann = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -820,7 +820,7 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @Refinement.wraps
-    @set_design(text="Viterbi Alignment")
+    @set_design(text="1D Viterbi Alignment")
     @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
     def align_all_viterbi(
         self,
@@ -911,7 +911,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
         molecules_origin = molecules.translate_internal(
-            -(np.array(shape_nm) / 2 - scale)
+            -(np.array(max_shifts) - scale) / 2
         )
         mole_list = [
             molecules_origin.subset(sl) for sl in slices
@@ -979,18 +979,15 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @Refinement.wraps
-    @set_design(text="Viterbi Alignment (2D)")
+    @set_design(text="2D Boltzmann Alignment")
     @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
-    def align_all_viterbi_2d(
+    def align_all_boltzmann(
         self,
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
         tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         distance_range_long: Annotated[
@@ -1010,16 +1007,15 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
-        Subtomogram alignment using 2D Viterbi alignment.
+        Subtomogram alignment using 2D Boltzmann alignment.
 
-        2D Viterbi alignment is an alignment algorithm that considers the distance between
-        every adjacent monomers. Computationally, 2D Viterbi algorithm is so intensive
-        that it is unsolvable for the protein alignment. This algorithm is an approximation.
+        2D Boltzmann alignment is an alignment algorithm that considers the distance between
+        every adjacent monomers. Two-dimensionally connected optimization can be approximated
+        by the simulated annealing algorithm.
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}
+        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{cutoff}{interpolation}
         distance_range_long : tuple of float
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
@@ -1029,10 +1025,9 @@ class SubtomogramAveraging(MagicTemplate):
             large. Calculation will take much longer for larger ``upsample_factor``.
             Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
         """
-        from dask import array as da
-        from cylindra._cpp_ext import ViterbiGrid2D
+        from cylindra._cpp_ext import CylindricAnnealingModel
 
-        t0 = timer("align_all_viterbi_2d")
+        t0 = timer("align_all_boltzmann")
         parent = self._get_parent()
         molecules = layer.molecules
         shape_nm = self._get_shape_in_nm()
@@ -1045,67 +1040,64 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _Logger.print(f"Search size (px): {search_size}")
-        model = alignment.ZNCCAlignment(
-            template,
-            mask,
-            rotations=(z_rotation, y_rotation, x_rotation),
+        model = alignment.ZNCCAlignment.with_params(
             cutoff=cutoff,
             tilt_range=tilt_range,
         )
 
-        templates_ft = model._template_input  # 3D (no rotation) or 4D (has rotation)
-
-        def func(img0: np.ndarray, template_ft: ip.ImgArray, max_shifts, quat):
-            if mask is None:
-                img0 = ip.asarray(img0, axes="zyx").lowpass_filter(cutoff=cutoff)
-            else:
-                img0 = ip.asarray(img0 * mask, axes="zyx").lowpass_filter(cutoff=cutoff)
-            template_ft = template_ft * model._get_missing_wedge_mask(quat)
-            lds = utils.zncc_landscape(
-                img0,
-                template_ft.ifft(shift=False),
-                max_shifts=max_shifts,
-                upsample_factor=upsample_factor,
-            )
-            return np.asarray(lds)
-
-        has_rotation = templates_ft.ndim > 3
-        if has_rotation:
-            raise NotImplementedError(
-                "2D Viterbi alignment with rotation is not implemented yet."
-            )
-
-        tasks = loader.construct_mapping_tasks(
-            func,
-            ip.asarray(templates_ft, axes="zyx"),
-            max_shifts=max_shifts_px,
-            var_kwarg={"quat": molecules.quaternion()},
+        score_dsk = loader.construct_landscape(
+            template,
+            mask=mask,
+            max_shifts=max_shifts,
+            upsample=upsample_factor,
+            alignment_model=model,
         )
-        score = np.stack(da.compute(tasks)[0], axis=0)
 
+        score: np.ndarray = score_dsk.compute()
         scale = parent.tomogram.scale
-        m0 = molecules.translate_internal(-(np.array(shape_nm) / 2 - scale))
+        m0 = molecules.translate_internal(-(np.array(max_shifts) - scale) / 2)
 
         dist_lon = np.array(distance_range_long) / scale * upsample_factor
         dist_lat = np.array(distance_range_lat) / scale * upsample_factor
         spl: CylSpline = layer.source_component
         _cyl_model = spl.cylinder_model()
         _grid_shape = _cyl_model.shape
-        _vit_grid = ViterbiGrid2D(
-            score.reshape(*_grid_shape, *score.shape[1:]),
-            (m0.pos / scale * upsample_factor).reshape(*_grid_shape, 3),
-            m0.z.reshape(*_grid_shape, 3),
-            m0.y.reshape(*_grid_shape, 3),
-            m0.x.reshape(*_grid_shape, 3),
+        _vec_shape = _grid_shape + (3,)
+        energy = -score
+
+        annealing = CylindricAnnealingModel(seed=0)
+        tc = molecules.pos.size * np.product(search_size)
+        initial_temperature = np.ptp(energy) * 2
+        annealing.set_graph(
+            energy.reshape(_grid_shape + search_size),
+            (m0.pos / scale * upsample_factor).reshape(_vec_shape),
+            m0.z.reshape(_vec_shape),
+            m0.y.reshape(_vec_shape),
+            m0.x.reshape(_vec_shape),
             _cyl_model.nrise,
+        ).set_reservoir(
+            temperature=initial_temperature,
+            time_constant=tc,
+        ).set_box_potential(
+            *dist_lon,
+            *dist_lat,
         )
 
-        shift, total_score = _vit_grid.viterbi(*dist_lon, *dist_lat)
+        def _logging_distances(a: "NDArray[np.float32]", prefix: str):
+            _mean = a.mean() * scale / upsample_factor
+            _std = a.std() * scale / upsample_factor
+            _Logger.print_html(f"{prefix}: {_mean:.2f} &#177; {_std:.2f} nm")
+
+        _logging_distances(annealing.graph().longitudinal_distances(), "Longitudinal")
+        _logging_distances(annealing.graph().lateral_distances(), "Lateral")
+
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        _check_viterbi_2d_shift(shift, offset)
-        _Logger.print_html(f"total score = <b>{total_score:.2f}</b>")
-        all_shifts_px = ((shift - offset) / upsample_factor).reshape(-1, 3)
+        energies = []
+        while annealing.reservoir().temperature() > initial_temperature * 1e-3:
+            annealing.simulate(1000)
+            energies.append(annealing.energy())
+
+        all_shifts_px = ((annealing.shifts() - offset) / upsample_factor).reshape(-1, 3)
         all_shifts = all_shifts_px * scale
 
         molecules_opt = molecules.translate_internal(all_shifts)
@@ -1122,7 +1114,27 @@ class SubtomogramAveraging(MagicTemplate):
             order=interpolation,
             output_shape=template.shape,
         )
-        return self._align_all_on_return(aligned_loader, layer)
+
+        @thread_worker.to_callback
+        def _on_return():
+            parent = self._get_parent()
+            mole = aligned_loader.molecules
+            points = parent.add_molecules(
+                mole,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+            )
+            layer.visible = False
+            _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
+            with _Logger.set_plt(rc_context={"font.size": 15}):
+                import matplotlib.pyplot as plt
+
+                plt.plot(-np.array(energies))
+                plt.xlabel("Repeat (x1000)")
+                plt.ylabel("Score")
+                plt.show()
+
+        return _on_return
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
@@ -1441,24 +1453,5 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
         )
         for idx in invalid_indices:
             shift[idx, :] = offset
-
-    return shift
-
-
-def _check_viterbi_2d_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"):
-    invalid = shift[:, :, 0] < 0
-    if invalid.any():
-        invalid_indices = np.stack(np.where(invalid), axis=1)
-        msg_fmt = "Viterbi alignment could not determine the optimal positions for\n{}"
-        if invalid_indices.shape[0] < 10:
-            summary = ", ".join(map(lambda ar: "({}, {})".format(*ar), invalid_indices))
-            msg = msg_fmt.format("(y, pf) = " + summary)
-        else:
-            msg = msg_fmt.format(
-                f"{invalid_indices.shape[0]}/{shift.size // 3} points."
-            )
-        _Logger.print(msg)
-        for idx in invalid_indices:
-            shift[idx[0], idx[1], :] = offset
 
     return shift

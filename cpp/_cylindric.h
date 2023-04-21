@@ -27,11 +27,34 @@ struct Index {
         return "Index(y=" + std::to_string(y) + ", a=" + std::to_string(a) + ")";
     }
 
+    bool operator==(const Index& idx) {
+        return y == idx.y && a == idx.a;
+    }
+
+    size_t hash() const {
+        if (y >= a) {
+            return y * y + y + a;
+        } else {
+            return y + a * a;
+        }
+    }
+
     /// __eq__ for python
     bool pyEq(std::pair<ssize_t, ssize_t> other) {
         return y == other.first && a == other.second;
     }
 };
+
+// implement hash
+namespace std {
+    template<>
+    struct hash<Index> {
+    public:
+        size_t operator()(const Index& idx) const {
+            return idx.hash();
+        }
+    };
+}
 
 /// Struct of signed integers for an index on a cylinder.
 /// This struct is used for not-resolved-yet indices.
@@ -128,6 +151,7 @@ class CylinderGeometry {
             nA = _nA;
             nRise = _nRise;
         };
+        CylinderGeometry() : CylinderGeometry(0, 0, 0) {};
         CylinderGeometry(ssize_t nY, ssize_t nA) : CylinderGeometry(nY, nA, 0) {};
         std::vector<Index> getNeighbor(ssize_t, ssize_t);
         std::vector<Index> getNeighbors(std::vector<Index>);
