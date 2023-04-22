@@ -31,11 +31,13 @@ PYBIND11_MODULE(_cpp_ext, m) {
         .def("simulate", &CylindricAnnealingModel::simulate, py::arg("niter") = 10000)
         .def("optimization_state", &CylindricAnnealingModel::getOptimizationState, "Get the optimization state.")
         .def("energy", &CylindricAnnealingModel::totalEnergy, "Total energy of the curreny graph state.")
+        .def("iteration", &CylindricAnnealingModel::getIteration, "Get the current iteration number.")
         .def("reservoir", &CylindricAnnealingModel::getReservoir, "Get the reservoir object.")
         .def("set_reservoir", &CylindricAnnealingModel::setReservoir, py::arg("temperature"), py::arg("time_constant"), py::arg("min_temperature") = 0.0, "Set the reservoir object.")
         .def("graph", &CylindricAnnealingModel::getGraph)
         .def("set_graph", &CylindricAnnealingModel::setGraph, py::arg("score_array"), py::arg("origin"), py::arg("zvec"), py::arg("yvec"), py::arg("xvec"), py::arg("nrise"))
         .def("set_box_potential", &CylindricAnnealingModel::setBoxPotential, py::arg("lon_dist_min"), py::arg("lon_dist_max"), py::arg("lat_dist_min"), py::arg("lat_dist_max"))
+        .def("with_seed", &CylindricAnnealingModel::withSeed, py::arg("seed"), "Make a copy of the model with a different seed.")
         .def("shifts", &CylindricAnnealingModel::getShifts);
 
     py::class_<CylindricGraph>(m, "CylindricGraph")

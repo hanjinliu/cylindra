@@ -6,11 +6,11 @@ from numpy.typing import NDArray
 class ViterbiGrid:
     def __init__(
         self,
-        score_array: np.ndarray,
-        origin: np.ndarray,
-        zvec: np.ndarray,
-        yvec: np.ndarray,
-        xvec: np.ndarray,
+        score_array: NDArray[np.float32],
+        origin: NDArray[np.float32],
+        zvec: NDArray[np.float32],
+        yvec: NDArray[np.float32],
+        xvec: NDArray[np.float32],
     ) -> None: ...
     @overload
     def viterbi(
@@ -52,6 +52,8 @@ class CylinderGeometry:
 class CylindricAnnealingModel:
     def __init__(self, seed: int = 0) -> None: ...
     def simulate(self, niter: int = 10000) -> None: ...
+    def iteration(self) -> int: ...
+    def with_seed(self, seed: int) -> CylindricAnnealingModel: ...
     def optimization_state(self) -> str: ...
     def energy(self) -> float: ...
     def reservoir(self) -> Reservoir: ...
@@ -92,8 +94,8 @@ class Reservoir:
     def initialize(self) -> None: ...
 
 def alleviate(
-    arr: np.ndarray,
-    label: np.ndarray,
+    arr: NDArray[np.float64],
+    label: NDArray[np.int32],
     nrise: int,
     iterations: int,
     /,

@@ -35,6 +35,7 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
     protected:
         CylindricGraph graph;
         Reservoir reservoir;
+        size_t iteration = 0;
         size_t REJECT_LIMIT = 200;
     public:
         CylindricAnnealingModel(int seed) {
@@ -86,8 +87,11 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
         void initialize() {
             graph.initialize();
             reservoir.initialize();
+            iteration = 0;
             optimization_state = OptimizationState::NOT_CONVERGED;
         };
+
+        size_t getIteration() { return iteration; }
 
         std::string getOptimizationState() {
             switch (optimization_state) {
@@ -100,6 +104,13 @@ class CylindricAnnealingModel : public AbstractAnnealingModel {
                 default:
                     throw py::value_error("Unknown optimization state.");
             }
+        }
+
+        CylindricAnnealingModel withSeed(int seed) {
+            auto rv = *this;
+            rv.setRandomState(seed);
+            rv.initialize();
+            return rv;
         }
 };
 
@@ -139,7 +150,8 @@ void CylindricAnnealingModel::simulate(ssize_t nsteps) {
             }
             break;
         }
-        reservoir.cool();
+        iteration++;
+        reservoir.cool(iteration);
     }
 }
 

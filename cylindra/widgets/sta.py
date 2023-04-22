@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING, Annotated
+from typing import Iterable, Union, TYPE_CHECKING, Annotated, NamedTuple
 import re
 from scipy.spatial.transform import Rotation
 from magicclass import (
@@ -29,11 +29,12 @@ from cylindra import utils
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm
 
 from .widget_utils import FileFilter, timer
-from . import widget_utils, _shared_doc
+from . import widget_utils, _shared_doc, _progress_desc as _pdesc
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    from napari.layers import Image, Layer
+    from napari.layers import Image
+    from cylindra._cpp_ext import CylindricAnnealingModel
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
@@ -52,6 +53,20 @@ _SubVolumeSize = Annotated[
         "label": "size (nm)",
     },
 ]
+_DistRangeLon = Annotated[
+    tuple[nm, nm],
+    {
+        "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
+        "label": "Longitudinal range (nm)",
+    },
+]
+_DistRangeLat = Annotated[
+    tuple[nm, nm],
+    {
+        "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
+        "label": "Lateral range (nm)",
+    },
+]
 
 # choices
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
@@ -62,47 +77,6 @@ METHOD_CHOICES = (
 _Logger = getLogger("cylindra")
 
 
-# functions
-def _fmt_layer_name(fmt: str):
-    """Define a formatter for progressbar description."""
-
-    def _formatter(layer: "Layer"):
-        return fmt.format(layer.name)
-
-    return _formatter
-
-
-def _align_averaged_fmt(layer: "Layer"):
-    yield f"(0/3) Preparing template images for {layer.name!r}"
-    yield f"(1/3) Subtomogram averaging of {layer.name!r}"
-    yield f"(2/3) Aligning template to the average image of {layer.name!r}"
-    yield "(3/3) Finishing"
-
-
-def _align_template_free_fmt(layer: "Layer"):
-    yield f"(0/4) Caching subtomograms of {layer.name!r}"
-    yield f"(1/4) Preparing template images for {layer.name!r}"
-    yield f"(2/4) Averaging subtomograms of {layer.name!r}"
-    yield f"(3/4) Aligning subtomograms of {layer.name!r}"
-    yield "(4/4) Finishing"
-
-
-def _align_viterbi_fmt(layer: "Layer"):
-    yield f"(0/3) Preparing template images for {layer.name!r}"
-    yield f"(1/3) Calculating cross-correlation landscape of {layer.name!r}"
-    yield f"(2/3) Running Viterbi alignment of {layer.name!r}"
-    yield "(3/3) Finishing"
-
-
-def _classify_pca_fmt(layer: "Layer"):
-    yield f"(0/5) Caching subtomograms of {layer.name!r}"
-    yield "(1/5) Creating template image for PCA clustering"
-    yield "(2/5) Fitting PCA model"
-    yield "(3/5) Transforming all the images"
-    yield "(4/5) Creating average images for each cluster"
-    yield "(5/5) Finishing"
-
-
 def _get_alignment(method: str):
     if method == "zncc":
         return alignment.ZNCCAlignment
@@ -111,8 +85,6 @@ def _get_alignment(method: str):
     else:
         raise ValueError(f"Method {method!r} is unknown.")
 
-
-# widgets
 
 MASK_CHOICES = ("No mask", "Blur template", "From file")
 
@@ -445,7 +417,7 @@ class SubtomogramAveraging(MagicTemplate):
     @Subtomogram_analysis.wraps
     @set_design(text="Average all molecules")
     @dask_thread_worker.with_progress(
-        desc=_fmt_layer_name("Subtomogram averaging of {!r}")
+        desc=_pdesc.fmt_layer_name("Subtomogram averaging of {!r}")
     )
     def average_all(
         self,
@@ -479,7 +451,7 @@ class SubtomogramAveraging(MagicTemplate):
     @Subtomogram_analysis.wraps
     @set_design(text="Average subset of molecules")
     @dask_thread_worker.with_progress(
-        desc=_fmt_layer_name("Subtomogram averaging (subset) of {!r}")
+        desc=_pdesc.fmt_layer_name("Subtomogram averaging (subset) of {!r}")
     )
     def average_subset(
         self,
@@ -540,7 +512,7 @@ class SubtomogramAveraging(MagicTemplate):
     @Subtomogram_analysis.wraps
     @set_design(text="Split molecules and average")
     @dask_thread_worker.with_progress(
-        desc=_fmt_layer_name("Split-and-averaging of {!r}")
+        desc=_pdesc.fmt_layer_name("Split-and-averaging of {!r}")
     )
     def split_and_average(
         self,
@@ -577,7 +549,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align average to template")
-    @dask_thread_worker.with_progress(descs=_align_averaged_fmt)
+    @dask_thread_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
         layer: MoleculesLayer,
@@ -664,7 +636,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align all molecules")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Alignment of {!r}"))
+    @dask_thread_worker.with_progress(desc=_pdesc.fmt_layer_name("Alignment of {!r}"))
     def align_all(
         self,
         layer: MoleculesLayer,
@@ -712,7 +684,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align all (template-free)")
-    @dask_thread_worker.with_progress(descs=_align_template_free_fmt)
+    @dask_thread_worker.with_progress(descs=_pdesc.align_template_free_fmt)
     def align_all_template_free(
         self,
         layer: MoleculesLayer,
@@ -765,7 +737,7 @@ class SubtomogramAveraging(MagicTemplate):
     @Refinement.wraps
     @set_design(text="Align all (multi-template)")
     @dask_thread_worker.with_progress(
-        desc=_fmt_layer_name("Multi-template alignment of {!r}")
+        desc=_pdesc.fmt_layer_name("Multi-template alignment of {!r}")
     )
     def align_all_multi_template(
         self,
@@ -821,7 +793,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="1D Viterbi Alignment")
-    @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
+    @dask_thread_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi(
         self,
         layer: MoleculesLayer,
@@ -834,13 +806,7 @@ class SubtomogramAveraging(MagicTemplate):
         x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        distance_range: Annotated[
-            tuple[nm, nm],
-            {
-                "options": {"min": 0.0, "max": 10.0, "step": 0.1},
-                "label": "distance range (nm)",
-            },
-        ] = (3.9, 4.4),
+        distance_range: _DistRangeLon = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
@@ -980,7 +946,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="2D Boltzmann Alignment")
-    @dask_thread_worker.with_progress(descs=_align_viterbi_fmt)
+    @dask_thread_worker.with_progress(descs=_pdesc.align_boltzmann_fmt)
     def align_all_boltzmann(
         self,
         layer: MoleculesLayer,
@@ -990,21 +956,10 @@ class SubtomogramAveraging(MagicTemplate):
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        distance_range_long: Annotated[
-            tuple[nm, nm],
-            {
-                "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
-                "label": "Longitudinal range (nm)",
-            },
-        ] = (3.9, 4.4),
-        distance_range_lat: Annotated[
-            tuple[nm, nm],
-            {
-                "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
-                "label": "Lateral range (nm)",
-            },
-        ] = (4.7, 5.3),
+        distance_range_long: _DistRangeLon = (3.9, 4.4),
+        distance_range_lat: _DistRangeLat = (4.7, 5.3),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        ntrial: int = 6,
     ):
         """
         Subtomogram alignment using 2D Boltzmann alignment.
@@ -1063,52 +1018,39 @@ class SubtomogramAveraging(MagicTemplate):
         _vec_shape = _grid_shape + (3,)
         energy = -score
 
-        annealing = CylindricAnnealingModel(seed=0)
-        tc = molecules.pos.size * np.product(search_size)
+        time_const = molecules.pos.size * np.product(search_size)
         initial_temperature = np.std(energy) * 4
-        annealing.set_graph(
-            energy.reshape(_grid_shape + search_size),
-            (m0.pos / scale * upsample_factor).reshape(_vec_shape),
-            m0.z.reshape(_vec_shape),
-            m0.y.reshape(_vec_shape),
-            m0.x.reshape(_vec_shape),
-            _cyl_model.nrise,
-        ).set_reservoir(
-            temperature=initial_temperature,
-            time_constant=tc,
-        ).set_box_potential(
-            *dist_lon,
-            *dist_lat,
+
+        # construct the annealing model
+        annealing = (
+            CylindricAnnealingModel()
+            .set_graph(
+                energy.reshape(_grid_shape + search_size),
+                (m0.pos / scale * upsample_factor).reshape(_vec_shape),
+                m0.z.reshape(_vec_shape),
+                m0.y.reshape(_vec_shape),
+                m0.x.reshape(_vec_shape),
+                _cyl_model.nrise,
+            )
+            .set_reservoir(
+                temperature=initial_temperature,
+                time_constant=time_const,
+            )
+            .set_box_potential(
+                *dist_lon,
+                *dist_lat,
+            )
         )
 
-        def _logging_distances(a: "NDArray[np.float32]", prefix: str):
-            _mean = a.mean() * scale / upsample_factor
-            _std = a.std() * scale / upsample_factor
-            _Logger.print_html(f"{prefix}: {_mean:.2f} &#177; {_std:.2f} nm")
-
-        _logging_distances(annealing.graph().longitudinal_distances(), "Longitudinal")
-        _logging_distances(annealing.graph().lateral_distances(), "Lateral")
+        results = _get_annealing_results(
+            annealing, scale / upsample_factor, initial_temperature, range(ntrial)
+        )
+        best_model = sorted(results, key=lambda r: r.energy)[0].model
 
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        energies = []
-        while (
-            annealing.reservoir().temperature() > initial_temperature * 1e-3
-            and annealing.optimization_state() == "not_converged"
-        ):
-            annealing.simulate(1000)
-            energies.append(annealing.energy())
-        energies = np.array(energies)
-
-        if annealing.optimization_state() == "failed":
-            raise RuntimeError(
-                "Failed to optimize the alignment. You may check the distance range."
-            )
-        elif annealing.optimization_state() == "not_converged":
-            _Logger.print("Optimization did not converge.")
-        elif annealing.optimization_state() == "converged":
-            _Logger.print(f"Optimization converged in ~{energies.size}K iterations.")
-
-        all_shifts_px = ((annealing.shifts() - offset) / upsample_factor).reshape(-1, 3)
+        all_shifts_px = ((best_model.shifts() - offset) / upsample_factor).reshape(
+            -1, 3
+        )
         all_shifts = all_shifts_px * scale
 
         molecules_opt = molecules.translate_internal(all_shifts)
@@ -1139,16 +1081,21 @@ class SubtomogramAveraging(MagicTemplate):
             with _Logger.set_plt(rc_context={"font.size": 15}):
                 import matplotlib.pyplot as plt
 
-                plt.plot(-energies)
-                plt.xlabel("Repeat (x1000)")
+                for i, r in enumerate(results):
+                    _x = np.arange(r.energies.size) / 1000
+                    plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
+                plt.xlabel("Repeat (x10^6)")
                 plt.ylabel("Score")
+                plt.legend()
                 plt.show()
 
         return _on_return
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Calculating FSC of {!r}"))
+    @dask_thread_worker.with_progress(
+        desc=_pdesc.fmt_layer_name("Calculating FSC of {!r}")
+    )
     def calculate_fsc(
         self,
         layer: MoleculesLayer,
@@ -1241,7 +1188,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="PCA/K-means classification")
-    @dask_thread_worker.with_progress(descs=_classify_pca_fmt)
+    @dask_thread_worker.with_progress(descs=_pdesc.classify_pca_fmt)
     def classify_pca(
         self,
         layer: MoleculesLayer,
@@ -1317,7 +1264,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Seam search")
-    @dask_thread_worker.with_progress(desc=_fmt_layer_name("Seam search of {!r}"))
+    @dask_thread_worker.with_progress(desc=_pdesc.fmt_layer_name("Seam search of {!r}"))
     def seam_search(
         self,
         layer: MoleculesLayer,
@@ -1457,3 +1404,58 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
             shift[idx, :] = offset
 
     return shift
+
+
+class _AnnealingResult(NamedTuple):
+    model: "CylindricAnnealingModel"
+    energies: "NDArray[np.float32]"
+    energy: float
+
+
+def _get_annealing_results(
+    annealing: "CylindricAnnealingModel",
+    factor: float,
+    initial_temperature: float,
+    seeds: Iterable[int],
+) -> list[_AnnealingResult]:
+    from dask import array as da, delayed
+
+    def _logging_distances(a: "NDArray[np.float32]", prefix: str):
+        _mean = a.mean() * factor
+        _std = a.std() * factor
+        _Logger.print_html(f"{prefix}: {_mean:.2f} &#177; {_std:.2f} nm")
+
+    _logging_distances(annealing.graph().longitudinal_distances(), "Longitudinal")
+    _logging_distances(annealing.graph().lateral_distances(), "Lateral")
+
+    @delayed
+    def _run(seed: int) -> _AnnealingResult:
+        _model = annealing.with_seed(seed)
+        energies = [_model.energy()]
+        while (
+            _model.reservoir().temperature() > initial_temperature * 1e-4
+            and _model.optimization_state() == "not_converged"
+        ):
+            _model.simulate(1000)
+            energies.append(_model.energy())
+        return _AnnealingResult(_model, np.array(energies), energies[-1])
+
+    tasks = [_run(s) for s in seeds]
+    results: list[_AnnealingResult] = da.compute(tasks)[0]
+    if all(result.model.optimization_state() == "failed" for result in results):
+        raise RuntimeError(
+            "Failed to optimize for all trials. You may check the distance range."
+        )
+    elif not any(
+        result.model.optimization_state() == "converged" for result in results
+    ):
+        _Logger.print("Optimization did not converge for any trial.")
+
+    _Logger.print_table(
+        {
+            "Iteration": [r.model.iteration() for r in results],
+            "Score": [-r.energy for r in results],
+            "State": [r.model.optimization_state() for r in results],
+        }
+    )
+    return results

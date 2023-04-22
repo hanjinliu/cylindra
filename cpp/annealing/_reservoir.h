@@ -29,7 +29,6 @@ class Reservoir : public AbstractReservoir {
         double temperature;
         double time_constant;
         double min_temperature;
-        size_t cool_count;
     public:
         /// Default constructor.
         Reservoir() {
@@ -58,9 +57,8 @@ class Reservoir : public AbstractReservoir {
         }
 
         /// Cool the reservoir by one step.
-        void cool() {
-            cool_count++;
-            temperature = temperature0 * exp(-static_cast<double>(cool_count) / time_constant) + min_temperature;
+        void cool(size_t n) {
+            temperature = temperature0 * exp(-static_cast<double>(n) / time_constant) + min_temperature;
         }
 
         /// Calculate the transition probability for the energy change dE.
@@ -73,7 +71,6 @@ class Reservoir : public AbstractReservoir {
         /// Initialize the reservoir.
         void initialize() {
             temperature = initial_temperature;
-            cool_count = 0;
         }
 };
 
