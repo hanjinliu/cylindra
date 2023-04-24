@@ -61,12 +61,12 @@ setup(
         "pyarrow>=11.0.0",
         "mrcfile>=1.3.0",
         "napari>=0.4.17",
-        "qt-command-palette>=0.0.6",
+        "qt-command-palette>=0.0.7",
     ],
     python_requires=">=3.9",
     ext_modules=[Extension("", [], language="c++")],
     extras_require={
-        "tests": ["pytest"],
+        "tests": ["pytest", "pytest-qt"],
     },
     entry_points={
         "console_scripts": [f"{CYLINDRA}={CYLINDRA}.__main__:main"],
