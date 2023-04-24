@@ -22,11 +22,11 @@ import numpy as np
 import impy as ip
 import polars as pl
 import napari
-from cylindra.components.cyl_spline import CylSpline
 
-from cylindra.types import MoleculesLayer
 from cylindra import utils
+from cylindra.types import MoleculesLayer
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm
+from cylindra.components import CylSpline
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc
@@ -1012,14 +1012,16 @@ class SubtomogramAveraging(MagicTemplate):
 
         dist_lon = np.array(distance_range_long) / scale * upsample_factor
         dist_lat = np.array(distance_range_lat) / scale * upsample_factor
-        spl: CylSpline = layer.source_component
+        spl = layer.source_component
+        if not isinstance(spl, CylSpline):
+            raise TypeError("CylSpline is required for 2D Boltzmann alignment.")
         _cyl_model = spl.cylinder_model()
         _grid_shape = _cyl_model.shape
         _vec_shape = _grid_shape + (3,)
         energy = -score
 
         time_const = molecules.pos.size * np.product(search_size)
-        initial_temperature = np.std(energy) * 4
+        initial_temperature = np.std(energy) * 2
 
         # construct the annealing model
         annealing = (
