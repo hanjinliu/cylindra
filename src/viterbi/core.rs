@@ -1,6 +1,6 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray2, PyReadonlyArrayDyn,
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArrayDyn,
     ndarray::{Array, Array2, ArrayD, s}
 };
 use super::super::coordinates::{Vector3D, CoordinateSystem};
@@ -19,6 +19,7 @@ pub struct ViterbiGrid {
 #[pymethods]
 impl ViterbiGrid {
     #[new]
+    #[pyo3(signature = (score_array, origin, zvec, yvec, xvec))]
     pub fn new(
         score_array: PyReadonlyArrayDyn<f32>,
         origin: PyReadonlyArrayDyn<f32>,
@@ -78,7 +79,15 @@ impl ViterbiGrid {
         format!("ViterbiGrid(nmole={}, nz={}, ny={}, nx={})", self.nmole, self.nz, self.ny, self.nx)
     }
 
-    pub fn world_pos(&self, n: usize, z: usize, y: usize, x: usize) -> PyResult<Vec<f32>> {
+    #[pyo3(signature = (n, z, y, x))]
+    pub fn world_pos<'py>(
+        &self,
+        py: Python<'py>,
+        n: usize,
+        z: usize,
+        y: usize,
+        x: usize,
+    ) -> PyResult<Py<PyArray1<f32>>> {
         if n >= self.nmole {
             return Err(pyo3::exceptions::PyIndexError::new_err(
                 format!("Index out of range: n={}, nmole={}", n, self.nmole)
@@ -98,9 +107,14 @@ impl ViterbiGrid {
         }
 
         let pos = self.coords[n].at(z as f32, y as f32, x as f32);
-        Ok(vec![pos.x, pos.y, pos.z])
+        let mut out = Array::zeros((3,));
+        out[0] = pos.z;
+        out[1] = pos.y;
+        out[2] = pos.x;
+        Ok(out.into_pyarray(py).into())
     }
 
+    #[pyo3(signature = (dist_min, dist_max, skew_max = None))]
     pub fn viterbi<'py>(
         &self,
         py: Python<'py>,

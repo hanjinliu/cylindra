@@ -47,7 +47,7 @@ pub fn alleviate<'py>(
     let geometry = CylinderGeometry::new(ny, na, nrise);
 
     for _ in 0..iterations {
-        let neighbors = geometry.get_neighbors_(&indices)?;
+        let neighbors = geometry._get_neighbors(&indices)?;
         for neighbor in neighbors {
             let cur_neighbor = geometry.get_neighbor(neighbor.y, neighbor.a)?;
             let n_cur_neighbor = cur_neighbor.len() as f32;
