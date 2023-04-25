@@ -1,0 +1,15 @@
+use pyo3::{pymodule, types::PyModule, PyResult, Python};
+pub mod viterbi;
+pub mod coordinates;
+pub mod cylindric;
+pub mod alleviate;
+
+/// A Python module implemented in Rust.
+#[pymodule]
+fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<viterbi::ViterbiGrid>()?;
+    m.add_class::<cylindric::CylinderGeometry>()?;
+    m.add_class::<cylindric::Index>()?;
+    m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;
+    Ok(())
+}
