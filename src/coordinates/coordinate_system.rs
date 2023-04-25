@@ -1,6 +1,7 @@
 use num::traits::real::Real;
 use super::vector::Vector3D;
 
+#[derive(Clone)]
 pub struct CoordinateSystem<T> {
     pub origin: Vector3D<T>,
     pub ez: Vector3D<T>,
@@ -10,12 +11,7 @@ pub struct CoordinateSystem<T> {
 
 impl<T> CoordinateSystem<T> {
     pub fn new(origin: Vector3D<T>, ez: Vector3D<T>, ey: Vector3D<T>, ex: Vector3D<T>) -> Self {
-        Self {
-            origin,
-            ez,
-            ey,
-            ex,
-        }
+        Self { origin, ez, ey, ex }
     }
     pub fn update(&mut self, origin: Vector3D<T>, ez: Vector3D<T>, ey: Vector3D<T>, ex: Vector3D<T>) {
         self.origin = origin;
@@ -31,5 +27,13 @@ impl<T: Real> CoordinateSystem<T> {
     }
     pub fn at_vec(&self, vec: Vector3D<T>) -> Vector3D<T> {
         self.origin + self.ez * vec.z + self.ey * vec.y + self.ex * vec.x
+    }
+    pub fn zeros() -> CoordinateSystem<T> {
+        CoordinateSystem::new(
+            Vector3D::new(T::from(0).unwrap(), T::from(0).unwrap(), T::from(0).unwrap()),
+            Vector3D::new(T::from(0).unwrap(), T::from(0).unwrap(), T::from(0).unwrap()),
+            Vector3D::new(T::from(0).unwrap(), T::from(0).unwrap(), T::from(0).unwrap()),
+            Vector3D::new(T::from(0).unwrap(), T::from(0).unwrap(), T::from(0).unwrap()),
+        )
     }
 }

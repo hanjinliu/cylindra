@@ -1,4 +1,5 @@
 use num::traits::real::Real;
+use numpy::ndarray::{Array1, ArrayView1};
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Vector3D<T> {
@@ -13,6 +14,26 @@ impl<T> Vector3D<T> {
     }
 }
 
+impl From<Vector3D<isize>> for Vector3D<f32>{
+    fn from(other: Vector3D<isize>) -> Vector3D<f32> {
+        Vector3D {
+            z: other.z as f32,
+            y: other.y as f32,
+            x: other.x as f32,
+        }
+    }
+}
+
+impl From<Vector3D<usize>> for Vector3D<isize>{
+    fn from(other: Vector3D<usize>) -> Vector3D<isize> {
+        Vector3D {
+            z: other.z as isize,
+            y: other.y as isize,
+            x: other.x as isize,
+        }
+    }
+}
+
 impl From<Vector3D<usize>> for Vector3D<f32>{
     fn from(other: Vector3D<usize>) -> Vector3D<f32> {
         Vector3D {
@@ -20,6 +41,43 @@ impl From<Vector3D<usize>> for Vector3D<f32>{
             y: other.y as f32,
             x: other.x as f32,
         }
+    }
+}
+
+impl<T: Clone> From<Array1<T>> for Vector3D<T> {
+    fn from(other: Array1<T>) -> Vector3D<T> {
+        // let other = other.into_raw_vec();
+        Vector3D {
+            z: other[0].clone(),
+            y: other[1].clone(),
+            x: other[2].clone(),
+        }
+    }
+}
+
+impl<T: Clone> From<ArrayView1<'_, T>> for Vector3D<T> {
+    fn from(other: ArrayView1<T>) -> Vector3D<T> {
+        Vector3D {
+            z: other[0].clone(),
+            y: other[1].clone(),
+            x: other[2].clone(),
+        }
+    }
+}
+
+impl<T> From<(T, T, T)> for Vector3D<T> {
+    fn from(other: (T, T, T)) -> Vector3D<T> {
+        Vector3D {
+            z: other.0,
+            y: other.1,
+            x: other.2,
+        }
+    }
+}
+
+impl<T> Into<(T, T, T)> for Vector3D<T> {
+    fn into(self) -> (T, T, T) {
+        (self.z, self.y, self.x)
     }
 }
 

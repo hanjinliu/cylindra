@@ -3,6 +3,7 @@ pub mod viterbi;
 pub mod coordinates;
 pub mod cylindric;
 pub mod alleviate;
+pub mod annealing;
 
 /// A Python module implemented in Rust.
 #[pymodule]

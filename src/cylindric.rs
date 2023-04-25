@@ -31,9 +31,9 @@ impl Index {
 
 #[pyclass]
 pub struct CylinderGeometry {
-    ny: isize,
-    na: isize,
-    nrise: isize,
+    pub ny: isize,
+    pub na: isize,
+    pub nrise: isize,
 }
 
 #[pymethods]
