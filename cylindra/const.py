@@ -192,7 +192,7 @@ def get_versions() -> dict[str, str]:
     import numpy as np
     import impy as ip
     import magicgui
-    from cylindra.__about__ import __version__
+    from cylindra import __version__
     import magicclass as mcls
     import dask
 

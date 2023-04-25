@@ -7,6 +7,11 @@ pub mod alleviate;
 /// A Python module implemented in Rust.
 #[pymodule]
 fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
+    // Add __version__
+    let mut version = env!("CARGO_PKG_VERSION").to_string();
+    version = version.replace("-alpha", "a").replace("-beta", "b");
+    m.add("__version__", version)?;
+
     m.add_class::<viterbi::ViterbiGrid>()?;
     m.add_class::<cylindric::CylinderGeometry>()?;
     m.add_class::<cylindric::Index>()?;
