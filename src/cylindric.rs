@@ -127,7 +127,7 @@ impl CylinderGeometry {
     }
 
     /// Return all the pairs of indices that are connected longitudinally.
-    pub fn all_longitudinal_pairs(&self) -> PyResult<Vec<(Index, Index)>> {
+    pub fn all_longitudinal_pairs(&self) -> Vec<(Index, Index)> {
         let mut pairs: Vec<(Index, Index)> = Vec::new();
         for y in 0..self.ny {
             for a in 0..self.na {
@@ -139,11 +139,11 @@ impl CylinderGeometry {
                 }
             }
         }
-        Ok(pairs)
+        pairs
     }
 
     /// Return all the pairs of indices that are connected laterally.
-    pub fn all_lateral_pairs(&self) -> PyResult<Vec<(Index, Index)>> {
+    pub fn all_lateral_pairs(&self) -> Vec<(Index, Index)> {
         let mut pairs: Vec<(Index, Index)> = Vec::new();
         for y in 0..self.ny {
             for a in 0..self.na {
@@ -155,7 +155,7 @@ impl CylinderGeometry {
                 }
             }
         }
-        Ok(pairs)
+        pairs
     }
 
 

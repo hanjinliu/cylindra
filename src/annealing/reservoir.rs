@@ -1,7 +1,3 @@
-use pyo3::prelude::{pyclass, pymethods};
-use pyo3::AsPyPointer;
-
-#[pyclass]
 #[derive(Clone)]
 pub struct Reservoir {
     temperature_diff: f32,
@@ -43,24 +39,11 @@ impl Reservoir {
         }
     }
 
-}
-
-#[pymethods]
-impl Reservoir {
-    #[getter]
     pub fn temperature(&self) -> f32 {
         self.temperature
     }
 
     pub fn initialize(&mut self) {
         self.temperature = self.temperature_diff + self.min_temperature;
-    }
-}
-
-impl AsPyPointer for Reservoir {
-    fn as_ptr(&self) -> *mut pyo3::ffi::PyObject {
-        let ptr = self as *const Reservoir as *mut Reservoir as *mut std::ffi::c_void;
-        let pyobj = unsafe { pyo3::ffi::PyCapsule_New(ptr, std::ptr::null_mut(), None) };
-        pyobj
     }
 }

@@ -1,8 +1,6 @@
 use std::sync::Arc;
-use numpy::{IntoPyArray, PyArray1};
-use numpy::ndarray::{Array1, Array3, Array5, Axis, s};
-use pyo3::{Python, Py, AsPyPointer};
-use pyo3::prelude::{pyclass, pymethods};
+use numpy::ndarray::{Array1, Array3, Array5, s};
+use pyo3::PyResult;
 
 use crate::coordinates::{Vector3D, CoordinateSystem};
 use crate::cylindric::{Index, CylinderGeometry};
@@ -117,7 +115,6 @@ pub struct NodeState {
     shift: Vector3D<isize>,
 }
 
-#[pyclass]
 #[derive(Clone)]
 pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
@@ -148,9 +145,21 @@ impl CylindricGraph {
         yvec: Array3<f32>,
         xvec: Array3<f32>,
         nrise: isize,
-    ) -> &mut Self {
-        let (ny, na) = (score.len_of(Axis(0)), score.len_of(Axis(1)));
-        let (_nz, _ny, _nx) = (score.len_of(Axis(2)), score.len_of(Axis(3)), score.len_of(Axis(4)));
+    ) -> PyResult<&Self> {
+        let score_dim = score.raw_dim();
+        let (ny, na) = (score_dim[0], score_dim[1]);
+        let (_nz, _ny, _nx) = (score_dim[2], score_dim[3], score_dim[4]);
+
+        if origin.shape() != &[ny, na, 3] {
+            return Err(pyo3::exceptions::PyValueError::new_err("origin shape mismatch"));
+        } else if zvec.shape() != &[ny, na, 3] {
+            return Err(pyo3::exceptions::PyValueError::new_err("zvec shape mismatch"));
+        } else if yvec.shape() != &[ny, na, 3] {
+            return Err(pyo3::exceptions::PyValueError::new_err("yvec shape mismatch"));
+        } else if xvec.shape() != &[ny, na, 3] {
+            return Err(pyo3::exceptions::PyValueError::new_err("xvec shape mismatch"));
+        }
+
         let mut coords: Grid2D<CoordinateSystem<f32>> = Grid2D::init(ny, na);
         for y in 0..coords.ny {
             for a in 0..coords.na {
@@ -165,7 +174,27 @@ impl CylindricGraph {
         self.coords = Arc::new(coords);
         self.score = Arc::new(score);
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
-        self
+
+        self.components.clear();
+
+        let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
+        for y in 0..self.geometry.ny {
+            for a in 0..self.geometry.na {
+                let idx = Index::new(y, a);
+                self.components.add_node(NodeState { index: idx, shift: center.clone() });
+            }
+        }
+        for pair in self.geometry.all_longitudinal_pairs().iter() {
+            let idx0 = self.geometry.na * pair.0.y + pair.0.a;
+            let idx1 = self.geometry.na * pair.1.y + pair.1.a;
+            self.components.add_edge(idx0 as usize, idx1 as usize, EdgeType::Longitudinal);
+        }
+        for pair in self.geometry.all_lateral_pairs().iter() {
+            let idx0 = self.geometry.na * pair.0.y + pair.0.a;
+            let idx1 = self.geometry.na * pair.1.y + pair.1.a;
+            self.components.add_edge(idx0 as usize, idx1 as usize, EdgeType::Lateral);
+        }
+        Ok(self)
     }
 
     pub fn graph(&self) -> &GraphComponents<NodeState, EdgeType> {
@@ -185,7 +214,7 @@ impl CylindricGraph {
         let vec2 = node_state1.shift;
         let coord1 = self.coords.at(node_state0.index.y as usize, node_state0.index.a as usize);
         let coord2 = self.coords.at(node_state1.index.y as usize, node_state1.index.a as usize);
-        let dr = coord1.at(vec1.z as f32, vec1.y as f32, vec1.x as f32) - coord2.at(vec2.z as f32, vec2.y as f32, vec2.x as f32);
+        let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
         self.binding_potential.calculate(dr.length2(), typ)
     }
 
@@ -213,22 +242,25 @@ impl CylindricGraph {
 
     fn get_distances(&self, typ: &EdgeType) -> Array1<f32> {
         let graph = self.graph();
-        let mut distances = Array1::<f32>::zeros(graph.edge_count());
+        let mut distances = Vec::new();
         for i in 0..graph.edge_count() {
+            if graph.edge_state(i) != typ {
+                continue;
+            }
             let edge = graph.edge_end(i);
-            let node_state0 = graph.node_state(edge.0);
-            let node_state1 = graph.node_state(edge.1);
-            distances[i] = self.binding(&node_state0, &node_state1, typ);
+            let pos0 = graph.node_state(edge.0);
+            let pos1 = graph.node_state(edge.1);
+            let coord0 = self.coords.at(pos0.index.y as usize, pos0.index.a as usize);
+            let coord1 = self.coords.at(pos1.index.y as usize, pos1.index.a as usize);
+            let dr = coord0.at_vec(pos0.shift.into()) - coord1.at_vec(pos1.shift.into());
+            distances.push(dr.length())
         }
-        distances
+        Array1::from(distances)
     }
 
-    pub fn potential_model(&self) -> &BoxPotential2D {
-        &self.binding_potential
-    }
-
-    pub fn set_potential_model(&mut self, model: BoxPotential2D) {
+    pub fn set_potential_model(&mut self, model: BoxPotential2D) -> &Self {
         self.binding_potential = model;
+        self
     }
 
     pub fn energy(&self) -> f32 {
@@ -250,12 +282,10 @@ impl CylindricGraph {
         let graph = self.graph();
         let idx = rng.uniform_int(graph.node_count());
         let state_old = graph.node_state(idx);
-        let e_old = self.internal(&state_old);
+        let mut e_old = self.internal(&state_old);
         let state_new = self.random_local_neighbor_state(&state_old, rng);
-        let e_new = self.internal(&state_new);
+        let mut e_new = self.internal(&state_new);
         let connected_edges = graph.edge(idx);
-        let mut e_old = e_old;
-        let mut e_new = e_new;
         for edge_id in connected_edges {
             let edge_id = *edge_id;
             let ends = graph.edge_end(edge_id);
@@ -273,7 +303,7 @@ impl CylindricGraph {
     }
 
 
-    pub fn initialize(&mut self) {
+    pub fn initialize(&mut self) -> &Self {
         let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);
         let (ny, na) = (self.geometry.ny, self.geometry.na);
         for y in 0..ny {
@@ -281,30 +311,28 @@ impl CylindricGraph {
                 let idx = Index::new(y, a);
                 let i = na * y + a;
                 self.components.set_node_state(
-                    i.try_into().unwrap(),
+                    i as usize,
                     NodeState { index: idx, shift: center }
                 );
             }
         }
-    }
-}
-
-#[pymethods]
-impl CylindricGraph {
-    pub fn get_longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.get_distances(&EdgeType::Longitudinal).into_pyarray(py).into()
+        self
     }
 
-    pub fn get_lateral_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.get_distances(&EdgeType::Lateral).into_pyarray(py).into()
+    pub fn get_longitudinal_distances(&self) -> Array1<f32> {
+        self.get_distances(&EdgeType::Longitudinal)
     }
 
-}
+    pub fn get_lateral_distances(&self) -> Array1<f32> {
+        self.get_distances(&EdgeType::Lateral)
+    }
 
-impl AsPyPointer for CylindricGraph {
-    fn as_ptr(&self) -> *mut pyo3::ffi::PyObject {
-        let ptr = self as *const CylindricGraph as *mut CylindricGraph as *mut std::ffi::c_void;
-        let pyobj = unsafe { pyo3::ffi::PyCapsule_New(ptr, std::ptr::null_mut(), None) };
-        pyobj
+    pub fn check_graph(&self) -> PyResult<()> {
+        if self.graph().node_count() < 2 {
+            return Err(
+                pyo3::exceptions::PyValueError::new_err("Graph has less than 2 nodes")
+            );
+        }
+        Ok(())
     }
 }

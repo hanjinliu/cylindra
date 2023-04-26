@@ -1,9 +1,9 @@
 use pyo3::{
     prelude::{PyResult, pyclass, pymethods},
-    Python, Py, AsPyPointer
+    Python, Py, PyRefMut
 };
 use numpy::{
-    IntoPyArray, PyReadonlyArray3, PyReadonlyArray5, PyArray3,
+    IntoPyArray, PyReadonlyArray3, PyReadonlyArray5, PyArray1, PyArray3,
 };
 
 use super::{
@@ -34,6 +34,7 @@ pub struct CylindricAnnealingModel {
 #[pymethods]
 impl CylindricAnnealingModel {
     #[new]
+    #[pyo3(signature = (seed=0))]
     pub fn new(seed: u64) -> Self {
         let rng = RandomNumberGenerator::new(seed);
         let optimization_state = OptimizationState::NotConverged;
@@ -47,7 +48,7 @@ impl CylindricAnnealingModel {
         }
     }
 
-    pub fn with_seed(&self, seed: u64) -> Self {
+    pub fn with_seed<'py>(&self, py: Python<'py>, seed: u64) -> Py<Self> {
         let rng = RandomNumberGenerator::new(seed);
         let mut out = Self {
             rng,
@@ -58,10 +59,10 @@ impl CylindricAnnealingModel {
             reject_limit: self.reject_limit,
         };
         out.reservoir.initialize();
-        return out
+        Py::new(py, out).unwrap()
     }
 
-    pub fn with_reject_limit(&self, reject_limit: usize) -> Self {
+    pub fn with_reject_limit<'py>(&self, py: Python<'py>, reject_limit: usize) -> Py<Self> {
         let mut out = Self {
             rng: self.rng.clone(),
             optimization_state: self.optimization_state.clone(),
@@ -71,53 +72,66 @@ impl CylindricAnnealingModel {
             reject_limit,
         };
         out.reservoir.initialize();
-        return out
+        Py::new(py, out).unwrap()
     }
 
-    pub fn get_reservoir(&self) -> &Reservoir {
-        &self.reservoir
+    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    pub fn set_reservoir(
+        mut slf: PyRefMut<Self>,
+        temperature: f32,
+        time_constant: f32,
+        min_temperature: f32,
+    ) -> PyRefMut<Self> {
+        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf
     }
 
-    pub fn set_reservoir(&mut self, temperature: f32, time_constant: f32, min_temperature: f32) {
-        self.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+    pub fn temperature(&self) -> f32 {
+        self.reservoir.temperature()
     }
 
-    pub fn get_graph(&self) -> &CylindricGraph {
-        &self.graph
+    pub fn longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.graph.get_longitudinal_distances().into_pyarray(py).into()
     }
 
-    pub fn set_graph(
-        &mut self,
+    pub fn lateral_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.graph.get_lateral_distances().into_pyarray(py).into()
+    }
+
+    #[pyo3(signature = (score, origin, zvec, yvec, xvec, nrise))]
+    pub fn set_graph<'py>(
+        mut slf: PyRefMut<'py, Self>,
         score: PyReadonlyArray5<f32>,
         origin: PyReadonlyArray3<f32>,
         zvec: PyReadonlyArray3<f32>,
         yvec: PyReadonlyArray3<f32>,
         xvec: PyReadonlyArray3<f32>,
         nrise: isize,
-    ) -> PyResult<()> {
+    ) -> PyResult<PyRefMut<'py, Self>> {
         let score = score.as_array().to_owned();
         let origin = origin.as_array().to_owned();
         let zvec = zvec.as_array().to_owned();
         let yvec = yvec.as_array().to_owned();
         let xvec = xvec.as_array().to_owned();
-        self.graph.update(score, origin, zvec, yvec, xvec, nrise);
-        Ok(())
+        slf.graph.update(score, origin, zvec, yvec, xvec, nrise)?;
+        Ok(slf)
     }
 
+    #[pyo3(signature = (lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max))]
     pub fn set_box_potential(
-        &mut self,
+        mut slf: PyRefMut<Self>,
         lon_dist_min: f32,
         lon_dist_max: f32,
         lat_dist_min: f32,
         lat_dist_max: f32,
-    ) -> PyResult<()>{
-        self.graph.set_potential_model(
+    ) -> PyResult<PyRefMut<Self>>{
+        slf.graph.set_potential_model(
             BoxPotential2D::new(lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max)?
         );
-        Ok(())
+        Ok(slf)
     }
 
-    pub fn get_shifts<'py>(&self, py: Python<'py>) -> Py<PyArray3<isize>> {
+    pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray3<isize>> {
         self.graph.get_shifts().into_pyarray(py).into()
     }
 
@@ -125,8 +139,19 @@ impl CylindricAnnealingModel {
         self.graph.energy()
     }
 
-    pub fn simulate(&mut self, nsteps: usize) {
-        // TODO:: check graph
+    #[pyo3(signature = (nsteps=10000))]
+    pub fn simulate(&mut self, nsteps: usize) -> PyResult<()>{
+        self.graph.check_graph()?;
+        if nsteps <= 0 {
+            return Err(
+                pyo3::exceptions::PyValueError::new_err("nsteps must be positive")
+            );
+        }
+        if self.temperature() <= 0.0 {
+            return Err(
+                pyo3::exceptions::PyValueError::new_err("temperature must be positive")
+            );
+        }
         let mut reject_count = 0;
         for _ in 0..nsteps {
             if self.proceed() {
@@ -150,6 +175,7 @@ impl CylindricAnnealingModel {
                 break;
             }
         }
+        Ok(())
     }
 
 }
@@ -157,7 +183,11 @@ impl CylindricAnnealingModel {
 impl CylindricAnnealingModel {
     fn proceed(&mut self) -> bool {
         let result = self.graph.try_random_shift(&mut self.rng);
+        if result.energy_diff.is_nan() {
+            return false;
+        }
         let prob = self.reservoir.prob(result.energy_diff);
+
         if self.rng.bernoulli(prob) {
             // accept shift
             self.graph.apply_shift(&result);
@@ -165,14 +195,5 @@ impl CylindricAnnealingModel {
         } else {
             false
         }
-    }
-}
-
-
-impl AsPyPointer for CylindricAnnealingModel {
-    fn as_ptr(&self) -> *mut pyo3::ffi::PyObject {
-        let ptr = self as *const CylindricAnnealingModel as *mut CylindricAnnealingModel as *mut std::ffi::c_void;
-        let pyobj = unsafe { pyo3::ffi::PyCapsule_New(ptr, std::ptr::null_mut(), None) };
-        pyobj
     }
 }
