@@ -30,6 +30,7 @@ impl Index {
 }
 
 #[pyclass]
+#[derive(Clone, PartialEq, Eq)]
 pub struct CylinderGeometry {
     pub ny: isize,
     pub na: isize,

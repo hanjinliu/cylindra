@@ -75,6 +75,7 @@ use rand::rngs::StdRng;
 
 use crate::coordinates::Vector3D;
 
+#[derive(Clone)]
 pub struct RandomNumberGenerator {
     rng: StdRng
 }
@@ -85,8 +86,8 @@ impl RandomNumberGenerator {
         Self { rng }
     }
 
-    pub fn bernoulli(&mut self, ptrue: f64) -> bool {
-        let dist = rand::distributions::Bernoulli::new(ptrue).unwrap();
+    pub fn bernoulli(&mut self, ptrue: f32) -> bool {
+        let dist = rand::distributions::Bernoulli::new(ptrue as f64).unwrap();
         dist.sample(&mut self.rng)
     }
 

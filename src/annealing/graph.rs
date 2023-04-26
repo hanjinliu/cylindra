@@ -1,20 +1,27 @@
+use std::sync::Arc;
+use numpy::{IntoPyArray, PyArray1};
 use numpy::ndarray::{Array1, Array3, Array5, Axis, s};
+use pyo3::{Python, Py, AsPyPointer};
+use pyo3::prelude::{pyclass, pymethods};
 
 use crate::coordinates::{Vector3D, CoordinateSystem};
 use crate::cylindric::{Index, CylinderGeometry};
 use crate::annealing::{
-    potential::{EmptyPotential2D, BindingPotential2D, EdgeType},
+    potential::{BindingPotential2D, EdgeType},
     random::RandomNumberGenerator,
 };
 
+use super::potential::BoxPotential2D;
+
 pub struct ShiftResult<S> {
-    index: usize,
-    state: S,
-    dE: f32,
+    pub index: usize,
+    pub state: S,
+    pub energy_diff: f32,
 }
 
 
-struct GraphComponents<Sn, Se> {
+#[derive(Clone)]
+pub struct GraphComponents<Sn, Se> {
     edges: Vec<Vec<usize>>,
     edge_ends: Vec<(usize, usize)>,
     node_states: Vec<Sn>,
@@ -81,96 +88,26 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
 }
 
 
-// /// @brief Abstract class for an undirected graph with scores.
-// template <typename Sn, typename Se, typename T>
-// class AbstractGraph {
-//     protected:
-//         std::vector<std::vector<size_t>> edges;  // id of connected edges of the i-th node
-//         std::vector<std::pair<size_t, size_t>> edgeEnds;  // end nodes of the i-th edge
-//         std::vector<Sn> nodeState;
-//         std::vector<Se> edgeState;
-
-//     public:
-//         AbstractGraph() {};
-
-//         size_t nodeCount() { return nodeState.size(); };
-//         size_t edgeCount() { return edgeState.size(); };
-
-//         /// Add a node of given state to the graph.
-//         void addNode(const Sn &nodestate) {
-//             nodeState.push_back(nodestate);
-//             edges.push_back(std::vector<size_t>());
-//         }
-
-//         /// add an edge between i-th and j-th nodes.
-//         void addEdge(size_t i, size_t j, const Se &edgestate) {
-//             if (i >= nodeCount() || j >= nodeCount()) {
-//                 throw py::index_error(
-//                     "There are " + std::to_string(nodeCount()) +
-//                     " nodes, but trying to add an edge between " + std::to_string(i) +
-//                     " and " + std::to_string(j) + "."
-//                 );
-//             }
-//             edges[i].push_back(edgeEnds.size());
-//             edges[j].push_back(edgeEnds.size());
-//             edgeEnds.push_back(std::make_pair(i, j));
-//             edgeState.push_back(edgestate);
-//         }
-
-//         Sn &nodeStateAt(size_t i) & { return nodeState[i]; };
-//         Se &edgeStateAt(size_t i) & { return edgeState[i]; };
-//         std::pair<size_t, size_t> edgeEndsAt(size_t i) & { return edgeEnds[i]; };
-
-//         virtual Sn randomLocalNeighBorState(const Sn &nodestate, RandomNumberGenerator &rng) { throw py::attribute_error("randomLocalNeighBorState() is not implemented.");};
-
-//         /// Returns the internal potential energy of molecule at `pos` of given `state`.
-//         virtual T internal(const Sn &nodestate) { return 0; };
-
-//         /// Returns the binding potential energy between adjacent molecules.
-//         virtual T binding(const Sn &nodestate0, const Sn &nodestate1, const Se &edgestate) { return 0; };
-
-//         // Check if the current state of this graph is ready.
-//         virtual void checkGraph() { throw py::attribute_error("checkGraph() is not implemented.");};
-
-//         void applyShift(ShiftResult<Sn> &result) {
-//             nodeState[result.index] = result.state;
-//         }
-
-//         std::vector<std::pair<size_t, size_t>> getEdgeEnds() { return edgeEnds; };
-
-//         /// Clear all the nodes and edges of the graph.
-//         void clearGraph() {
-//             nodeState.clear();
-//             edgeState.clear();
-//             edges.clear();
-//             edgeEnds.clear();
-//         }
-// };
-
 struct Grid2D<T> {
     coords: Vec<T>,
-    naxial: usize,
-    nang: usize,
+    ny: usize,
+    na: usize,
 }
 
 impl<T> Grid2D<T> {
     pub fn at(&self, y: usize, a: usize) -> &T {
-        &self.coords[y * self.nang + a]
+        &self.coords[y * self.na + a]
     }
 
     pub fn at_mut(&mut self, y: usize, a: usize) -> &mut T {
-        &mut self.coords[y * self.nang + a]
-    }
-
-    pub fn size(&self) -> usize {
-        self.naxial * self.nang
+        &mut self.coords[y * self.na + a]
     }
 }
 
 impl Grid2D<CoordinateSystem<f32>> {
     pub fn init(naxial: usize, nang: usize) -> Self {
         let coords = vec![CoordinateSystem::zeros(); naxial * nang];
-        Self { coords, naxial, nang }
+        Self { coords, ny: naxial, na: nang }
     }
 }
 
@@ -180,51 +117,59 @@ pub struct NodeState {
     shift: Vector3D<isize>,
 }
 
+#[pyclass]
+#[derive(Clone)]
 pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
     geometry: CylinderGeometry,
-    coords: Grid2D<CoordinateSystem<f32>>,
-    score: Array5<f32>,
-    binding_potential: Box<dyn BindingPotential2D>,
+    coords: Arc<Grid2D<CoordinateSystem<f32>>>,
+    score: Arc<Array5<f32>>,
+    binding_potential: BoxPotential2D,
     local_shape: Vector3D<isize>,
 }
 
 impl CylindricGraph {
-    pub fn new(
+    pub fn empty() -> Self {
+        Self {
+            components: GraphComponents::empty(),
+            geometry: CylinderGeometry::new(0, 0, 0),
+            coords: Arc::new(Grid2D::init(0, 0)),
+            score: Arc::new(Array5::zeros((0, 0, 0, 0, 0))),
+            binding_potential: BoxPotential2D::unbounded(),
+            local_shape: Vector3D::new(0, 0, 0),
+        }
+    }
+
+    pub fn update(
+        &mut self,
         score: Array5<f32>,
         origin: Array3<f32>,
         zvec: Array3<f32>,
         yvec: Array3<f32>,
         xvec: Array3<f32>,
         nrise: isize,
-    ) -> Self {
+    ) -> &mut Self {
         let (ny, na) = (score.len_of(Axis(0)), score.len_of(Axis(1)));
         let (_nz, _ny, _nx) = (score.len_of(Axis(2)), score.len_of(Axis(3)), score.len_of(Axis(4)));
         let mut coords: Grid2D<CoordinateSystem<f32>> = Grid2D::init(ny, na);
-        for y in 0..ny {
-            for a in 0..na {
+        for y in 0..coords.ny {
+            for a in 0..coords.na {
                 coords.at_mut(y, a).origin = origin.slice(s![y, a, ..]).into();
                 coords.at_mut(y, a).ez = zvec.slice(s![y, a, ..]).into();
                 coords.at_mut(y, a).ey = yvec.slice(s![y, a, ..]).into();
                 coords.at_mut(y, a).ex = xvec.slice(s![y, a, ..]).into();
             }
         }
-        Self {
-            components: GraphComponents::empty(),
-            geometry: CylinderGeometry::new(ny as isize, na as isize, nrise),
-            coords,
-            score,
-            binding_potential: Box::new(EmptyPotential2D{}),
-            local_shape: Vector3D::new(_nz, _ny, _nx).into(),
-        }
+
+        self.geometry = CylinderGeometry::new(ny as isize, na as isize, nrise);
+        self.coords = Arc::new(coords);
+        self.score = Arc::new(score);
+        self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
+        self
     }
 
-    fn graph(&self) -> &GraphComponents<NodeState, EdgeType> {
+    pub fn graph(&self) -> &GraphComponents<NodeState, EdgeType> {
         &self.components
-    }
-
-    fn graph_mut(&mut self) -> &mut GraphComponents<NodeState, EdgeType> {
-        &mut self.components
     }
 
     /// Calculate the internal energy of a node state.
@@ -278,19 +223,11 @@ impl CylindricGraph {
         distances
     }
 
-    pub fn get_longitudinal_distances(&self) -> Array1<f32> {
-        self.get_distances(&EdgeType::Longitudinal)
+    pub fn potential_model(&self) -> &BoxPotential2D {
+        &self.binding_potential
     }
 
-    pub fn get_lateral_distances(&self) -> Array1<f32> {
-        self.get_distances(&EdgeType::Lateral)
-    }
-
-    pub fn potential_model(&self) -> &dyn BindingPotential2D {
-        &*self.binding_potential
-    }
-
-    pub fn set_potential_model(&mut self, model: Box<dyn BindingPotential2D>) {
+    pub fn set_potential_model(&mut self, model: BoxPotential2D) {
         self.binding_potential = model;
     }
 
@@ -328,24 +265,46 @@ impl CylindricGraph {
             e_new += self.binding(&state_new, &other_state, &graph.edge_state(edge_id));
         }
         let de = e_new - e_old;
-        ShiftResult { index: idx, state: state_new, dE: de }
+        ShiftResult { index: idx, state: state_new, energy_diff: de }
     }
+
+    pub fn apply_shift(&mut self, result: &ShiftResult<NodeState>) {
+        self.components.set_node_state(result.index, result.state.clone());
+    }
+
 
     pub fn initialize(&mut self) {
         let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);
         let (ny, na) = (self.geometry.ny, self.geometry.na);
-        let graph = self.graph_mut();
         for y in 0..ny {
             for a in 0..na {
                 let idx = Index::new(y, a);
                 let i = na * y + a;
-                graph.set_node_state(
+                self.components.set_node_state(
                     i.try_into().unwrap(),
                     NodeState { index: idx, shift: center }
                 );
             }
         }
     }
+}
 
+#[pymethods]
+impl CylindricGraph {
+    pub fn get_longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.get_distances(&EdgeType::Longitudinal).into_pyarray(py).into()
+    }
 
+    pub fn get_lateral_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.get_distances(&EdgeType::Lateral).into_pyarray(py).into()
+    }
+
+}
+
+impl AsPyPointer for CylindricGraph {
+    fn as_ptr(&self) -> *mut pyo3::ffi::PyObject {
+        let ptr = self as *const CylindricGraph as *mut CylindricGraph as *mut std::ffi::c_void;
+        let pyobj = unsafe { pyo3::ffi::PyCapsule_New(ptr, std::ptr::null_mut(), None) };
+        pyobj
+    }
 }
