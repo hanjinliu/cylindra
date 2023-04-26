@@ -4,7 +4,7 @@ from scipy import ndimage as ndi
 import impy as ip
 
 try:
-    from .._cpp_ext import ViterbiGrid, ViterbiGrid2D
+    from .._cylindra_ext import ViterbiGrid
 except ImportError:
     # In case build failed
     pass
@@ -53,31 +53,3 @@ def viterbi(
     else:
         out = grid.viterbi(dist_min, dist_max, skew_max)
     return out
-
-
-def zncc_landscape(
-    img0: np.ndarray,
-    img1: np.ndarray,
-    max_shifts: tuple[float, float, float],
-    upsample_factor: int = 10,
-):
-    lds = ip.zncc_landscape(
-        ip.asarray(img0, axes="zyx"),
-        ip.asarray(img1, axes="zyx"),
-        max_shifts=max_shifts,
-    )
-
-    upsampled_max_shifts = (np.asarray(max_shifts) * upsample_factor).astype(np.int32)
-    center = np.array(lds.shape) / 2 - 0.5
-    mesh = np.meshgrid(
-        *[
-            np.arange(-width, width + 1) / upsample_factor + c
-            for c, width in zip(center, upsampled_max_shifts)
-        ],
-        indexing="ij",
-    )
-    coords = np.stack(mesh, axis=0)
-
-    return ndi.map_coordinates(
-        lds, coords, order=3, mode="constant", cval=0.0, prefilter=True
-    )

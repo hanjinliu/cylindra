@@ -34,7 +34,7 @@ from . import widget_utils, _shared_doc, _progress_desc as _pdesc
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from napari.layers import Image
-    from cylindra._cpp_ext import CylindricAnnealingModel
+    from cylindra._cylindra_ext import CylindricAnnealingModel
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
@@ -832,6 +832,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         from dask import array as da
         from dask import delayed
+        from cylindra._cylindra_ext import ViterbiGrid
 
         t0 = timer("align_all_viterbi")
         parent = self._get_parent()
@@ -978,7 +979,7 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape.
         """
-        from cylindra._cpp_ext import CylindricAnnealingModel
+        from cylindra._cylindra_ext import CylindricAnnealingModel
 
         t0 = timer("align_all_boltzmann")
         parent = self._get_parent()

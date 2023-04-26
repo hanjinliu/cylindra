@@ -27,7 +27,7 @@ def boltzmann_demo(
     distance_range_lat: tuple[float, float] = (4.7, 5.3),
     upsample_factor: int = 3,
 ):
-    from cylindra._cpp_ext import CylindricAnnealingModel
+    from cylindra._cylindra_ext import CylindricAnnealingModel
 
     parent = self._get_parent()
     molecules = layer.molecules
@@ -104,7 +104,7 @@ def boltzmann_demo(
         all_shifts = all_shifts_px * scale
 
         all_molecules.append(molecules.translate_internal(all_shifts))
-        temps.append(_model.reservoir().temperature())
+        temps.append(_model.temperature())
 
     result = DemoResult(all_molecules, np.array(energies), np.array(temps))
 
