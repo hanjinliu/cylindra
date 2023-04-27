@@ -1426,15 +1426,15 @@ def _get_annealing_results(
         _std = a.std() * factor
         _Logger.print_html(f"{prefix}: {_mean:.2f} &#177; {_std:.2f} nm")
 
-    _logging_distances(annealing.graph().longitudinal_distances(), "Longitudinal")
-    _logging_distances(annealing.graph().lateral_distances(), "Lateral")
+    _logging_distances(annealing.longitudinal_distances(), "Longitudinal")
+    _logging_distances(annealing.lateral_distances(), "Lateral")
 
     @delayed
     def _run(seed: int) -> _AnnealingResult:
         _model = annealing.with_seed(seed)
         energies = [_model.energy()]
         while (
-            _model.reservoir().temperature() > initial_temperature * 1e-4
+            _model.temperature() > initial_temperature * 1e-4
             and _model.optimization_state() == "not_converged"
         ):
             _model.simulate(1000)

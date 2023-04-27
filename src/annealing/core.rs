@@ -140,6 +140,18 @@ impl CylindricAnnealingModel {
         self.graph.energy()
     }
 
+    pub fn optimization_state(&self) -> String {
+        match self.optimization_state {
+            OptimizationState::NotConverged => "not_converged".to_string(),
+            OptimizationState::Converged => "converged".to_string(),
+            OptimizationState::Failed => "failed".to_string(),
+        }
+    }
+
+    pub fn iteration(&self) -> usize {
+        self.iteration
+    }
+
     #[pyo3(signature = (nsteps=10000))]
     pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize) -> PyResult<()> {
         self.graph.check_graph()?;
