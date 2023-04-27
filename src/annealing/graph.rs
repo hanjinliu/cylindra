@@ -1,5 +1,8 @@
 use std::sync::Arc;
-use numpy::ndarray::{Array1, Array3, Array5, s};
+use numpy::{
+    ndarray::{Array1, Array3, s, ArcArray},
+    Ix3, Ix5
+};
 use pyo3::PyResult;
 
 use crate::{
@@ -122,7 +125,7 @@ pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
     geometry: CylinderGeometry,
     coords: Arc<Grid2D<CoordinateSystem<f32>>>,
-    score: Arc<Array5<f32>>,
+    score: ArcArray<f32, Ix5>,
     binding_potential: BoxPotential2D,
     local_shape: Vector3D<isize>,
 }
@@ -133,7 +136,7 @@ impl CylindricGraph {
             components: GraphComponents::empty(),
             geometry: CylinderGeometry::new(0, 0, 0),
             coords: Arc::new(Grid2D::init(0, 0)),
-            score: Arc::new(Array5::zeros((0, 0, 0, 0, 0))),
+            score: ArcArray::zeros((0, 0, 0, 0, 0)),
             binding_potential: BoxPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
@@ -141,11 +144,11 @@ impl CylindricGraph {
 
     pub fn update(
         &mut self,
-        score: Array5<f32>,
-        origin: Array3<f32>,
-        zvec: Array3<f32>,
-        yvec: Array3<f32>,
-        xvec: Array3<f32>,
+        score: ArcArray<f32, Ix5>,
+        origin: ArcArray<f32, Ix3>,
+        zvec: ArcArray<f32, Ix3>,
+        yvec: ArcArray<f32, Ix3>,
+        xvec: ArcArray<f32, Ix3>,
         nrise: isize,
     ) -> PyResult<&Self> {
         let score_dim = score.raw_dim();
@@ -174,7 +177,7 @@ impl CylindricGraph {
 
         self.geometry = CylinderGeometry::new(ny as isize, na as isize, nrise);
         self.coords = Arc::new(coords);
-        self.score = Arc::new(score);
+        self.score = score;
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
 
         self.components.clear();

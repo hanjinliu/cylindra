@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
     IntoPyArray, PyArray3, PyReadonlyArray2, PyReadonlyArray3,
-    ndarray::Array2
+    ndarray::ArcArray2,
 };
 use super::cylindric::{Index, CylinderGeometry};
 use crate::value_error;
@@ -9,7 +9,7 @@ use crate::value_error;
 /// Convert (N, 2) pyarray in to a vector of Index objects
 /// As a pseudo-code example, arrayToIndices(np.array([[2, 3], [5, 4]])) will return
 /// {Index(2, 3), Index(5, 4)}.
-pub fn array_to_indices(array: &Array2<isize>) -> Vec<Index> {
+pub fn array_to_indices(array: &ArcArray2<isize>) -> Vec<Index> {
     let ndix = array.shape()[0];
     let mut indices: Vec<Index> = Vec::new();
     for i in 0..ndix {
@@ -34,7 +34,7 @@ pub fn alleviate<'py>(
 ) -> PyResult<Py<PyArray3<f32>>> {
     let arr = arr.as_array();
     let label = label.as_array();
-    let mut indices = array_to_indices(&label.to_owned());
+    let mut indices = array_to_indices(&label.to_shared());
     let ny = arr.shape()[0] as isize;
     let na = arr.shape()[1] as isize;
     let ndim = arr.shape()[2] as isize;

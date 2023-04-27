@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray1, PyArray2, PyReadonlyArrayDyn,
-    ndarray::{Array, Array2, ArrayD, s}
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2, PyReadonlyArray4,
+    ndarray::{Array, Array2, ArcArray, Ix4, s}
 };
 use crate::{
     coordinates::{Vector3D, CoordinateSystem},
@@ -12,7 +12,7 @@ use super::constraint::{Constraint, AngleConstraint, CheckResult};
 
 #[pyclass]
 pub struct ViterbiGrid {
-    pub score: ArrayD<f32>,
+    pub score: ArcArray<f32, Ix4>,
     pub coords: Vec<CoordinateSystem<f32>>,
     pub nmole: usize,
     pub nz: usize,
@@ -25,11 +25,11 @@ impl ViterbiGrid {
     #[new]
     #[pyo3(signature = (score_array, origin, zvec, yvec, xvec))]
     pub fn new(
-        score_array: PyReadonlyArrayDyn<f32>,
-        origin: PyReadonlyArrayDyn<f32>,
-        zvec: PyReadonlyArrayDyn<f32>,
-        yvec: PyReadonlyArrayDyn<f32>,
-        xvec: PyReadonlyArrayDyn<f32>,
+        score_array: PyReadonlyArray4<f32>,
+        origin: PyReadonlyArray2<f32>,
+        zvec: PyReadonlyArray2<f32>,
+        yvec: PyReadonlyArray2<f32>,
+        xvec: PyReadonlyArray2<f32>,
     ) -> PyResult<Self> {
         let score = score_array.as_array();
         let origin = origin.as_array();
@@ -38,9 +38,6 @@ impl ViterbiGrid {
         let xvec = xvec.as_array();
 
         let score_shape = score.shape();
-        if score_shape.len() != 4 {
-            return value_error!("Shape of 'score' must be (N, Z, Y, X).");
-        }
         let nmole = score_shape[0];
         let nz = score_shape[1];
         let ny = score_shape[2];
@@ -74,7 +71,7 @@ impl ViterbiGrid {
             coords.push(CoordinateSystem::new(_ori, _ez, _ey, _ex));
         }
 
-        Ok(ViterbiGrid { score: score.to_owned(), coords, nmole, nz, ny, nx })
+        Ok(ViterbiGrid { score: score.to_shared(), coords, nmole, nz, ny, nx })
     }
 
     pub fn __repr__(&self) -> String {

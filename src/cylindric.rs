@@ -128,6 +128,7 @@ impl CylinderGeometry {
     }
 
     #[pyo3(signature = (indices))]
+    /// Return the neighbors of the given indices.
     pub fn get_neighbors(&self, indices: Vec<(isize, isize)>) -> PyResult<Vec<Index>> {
         let mut inds = Vec::new();
         for (y, a) in indices {

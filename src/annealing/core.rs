@@ -109,11 +109,11 @@ impl CylindricAnnealingModel {
         xvec: PyReadonlyArray3<f32>,
         nrise: isize,
     ) -> PyResult<PyRefMut<'py, Self>> {
-        let score = score.as_array().to_owned();
-        let origin = origin.as_array().to_owned();
-        let zvec = zvec.as_array().to_owned();
-        let yvec = yvec.as_array().to_owned();
-        let xvec = xvec.as_array().to_owned();
+        let score = score.as_array().to_shared();
+        let origin = origin.as_array().to_shared();
+        let zvec = zvec.as_array().to_shared();
+        let yvec = yvec.as_array().to_shared();
+        let xvec = xvec.as_array().to_shared();
         slf.graph.update(score, origin, zvec, yvec, xvec, nrise)?;
         Ok(slf)
     }
