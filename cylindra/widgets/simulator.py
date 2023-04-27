@@ -25,7 +25,7 @@ from magicclass.ext.vispy import Vispy3DCanvas
 import numpy as np
 import impy as ip
 
-from acryo import TomogramSimulator
+from acryo import Molecules, TomogramSimulator
 
 from cylindra.components import (
     CylTomogram,
@@ -250,7 +250,11 @@ class CylinderSimulator(MagicTemplate):
     )
     def create_empty_image(
         self,
-        size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (100.0, 200.0, 100.0),  # noqa: E501
+        size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (
+            100.0,
+            200.0,
+            100.0,
+        ),  # noqa: E501
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
         bin_size: Annotated[list[int], {"options": {"min": 1, "max": 8}}] = [4],
     ):
@@ -371,12 +375,31 @@ class CylinderSimulator(MagicTemplate):
     def update_model(
         self,
         idx: Bound[_get_current_index],
-        interval: Annotated[nm, {"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"}, ] = CylinderParameters.interval,  # noqa: E501
-        skew: Annotated[float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}] = CylinderParameters.skew,  # noqa: E501
-        rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = CylinderParameters.rise,  # noqa: E501
-        npf: Annotated[int, {"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"}] = CylinderParameters.npf,  # noqa: E501
-        radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = CylinderParameters.radius,  # noqa: E501
-        offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = CylinderParameters.offsets,  # noqa: E501
+        interval: Annotated[
+            nm,
+            {
+                "min": 0.2,
+                "max": GVar.yPitchMax * 2,
+                "step": 0.01,
+                "label": "interval (nm)",
+            },
+        ] = CylinderParameters.interval,  # noqa: E501
+        skew: Annotated[
+            float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}
+        ] = CylinderParameters.skew,  # noqa: E501
+        rise: Annotated[
+            float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}
+        ] = CylinderParameters.rise,  # noqa: E501
+        npf: Annotated[
+            int, {"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"}
+        ] = CylinderParameters.npf,  # noqa: E501
+        radius: Annotated[
+            nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}
+        ] = CylinderParameters.radius,  # noqa: E501
+        offsets: Annotated[
+            tuple[float, float],
+            {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"},
+        ] = CylinderParameters.offsets,  # noqa: E501
     ):
         """
         Update cylinder model with new parameters.
@@ -437,7 +460,7 @@ class CylinderSimulator(MagicTemplate):
         tilt_range: tuple[float, float] = (-60.0, 60.0),
         n_tilt: int = 61,
         order: int = 3,
-    ) -> tuple[RadonModel, ip.ImgArray]:
+    ) -> tuple[RadonModel, ip.ImgArray, Molecules]:
         parent = self.parent_widget
         tomo = parent.tomogram
         template = ip.imread(path)
@@ -465,7 +488,7 @@ class CylinderSimulator(MagicTemplate):
             order=order,
         )
 
-        return radon_model, radon_model.transform(simulated_image)
+        return radon_model, radon_model.transform(simulated_image), mole
 
     @Simulate.wraps
     @dask_thread_worker.with_progress(
@@ -478,8 +501,12 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Simulate a tomogram")
     def simulate_tomogram(
         self,
-        template_path: Annotated[Path.Read[FileFilter.IMAGE], {"label": "Template image"}],  # noqa: E501
-        nsr: Annotated[float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}] = 2.0,  # noqa: E501
+        template_path: Annotated[
+            Path.Read[FileFilter.IMAGE], {"label": "Template image"}
+        ],  # noqa: E501
+        nsr: Annotated[
+            float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}
+        ] = 2.0,  # noqa: E501
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -517,7 +544,7 @@ class CylinderSimulator(MagicTemplate):
         scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
 
-        radon_model, sino = self._prep_radon(
+        radon_model, sino, _ = self._prep_radon(
             template_path, tilt_range, n_tilt, interpolation
         )
 
@@ -549,7 +576,12 @@ class CylinderSimulator(MagicTemplate):
         self,
         template_path: Path.Read[FileFilter.IMAGE],
         save_path: Annotated[Path.Dir, {"label": "Save directory"}],
-        nsr: Annotated[list[float], {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},] = [2.0],  # noqa: E501
+        nsr: Annotated[
+            list[float],
+            {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
+        ] = [
+            2.0
+        ],  # noqa: E501
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -585,7 +617,7 @@ class CylinderSimulator(MagicTemplate):
         scale_ratio = template.scale.x / parent.tomogram.scale
         template = template.rescale(scale_ratio)
 
-        radon_model, sino = self._prep_radon(
+        radon_model, sino, mole = self._prep_radon(
             template_path, tilt_range, n_tilt, interpolation
         )
 
@@ -643,6 +675,7 @@ class CylinderSimulator(MagicTemplate):
         js = {"settings": radon_model.dict(), "nsr": nsr_info}
         with open(save_path / "simulation_info.json", "w") as f:
             json.dump(js, f, indent=4, separators=(", ", ": "))
+        mole.to_csv(save_path / "molecules.csv")
         return None
 
     @Operator.wraps
@@ -650,7 +683,9 @@ class CylinderSimulator(MagicTemplate):
     @impl_preview(auto_call=True)
     def expand(
         self,
-        shift: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"}],  # noqa: E501
+        shift: Annotated[
+            nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"}
+        ],  # noqa: E501
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
@@ -668,7 +703,9 @@ class CylinderSimulator(MagicTemplate):
     @impl_preview(auto_call=True)
     def screw(
         self,
-        skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],  # noqa: E501
+        skew: Annotated[
+            float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}
+        ],  # noqa: E501
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,
@@ -686,7 +723,9 @@ class CylinderSimulator(MagicTemplate):
     @impl_preview(auto_call=True)
     def dilate(
         self,
-        radius: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}],  # noqa: E501
+        radius: Annotated[
+            nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}
+        ],  # noqa: E501
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
         n_allev: Bound[Operator.n_allev] = 1,

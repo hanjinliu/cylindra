@@ -379,3 +379,9 @@ def test_auto_align(ui: CylindraMainWidget):
     ui.auto_align_to_polarity(clockwise_is="MinusToPlus", align_to="MinusToPlus")
     assert ui.tomogram.splines[0].orientation == "MinusToPlus"
     assert ui.tomogram.splines[1].orientation == "MinusToPlus"
+
+
+def test_molecules_to_spline(ui: CylindraMainWidget):
+    ui.load_project(TEST_PATH / "test-project.json")
+    ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]], interval=20)
+    assert len(ui.tomogram.splines) == 1

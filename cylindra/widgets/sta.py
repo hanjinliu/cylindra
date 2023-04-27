@@ -992,6 +992,12 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
+
+        spl = layer.source_component
+        if not isinstance(spl, CylSpline):
+            raise TypeError("CylSpline is required for 2D Boltzmann alignment.")
+        _cyl_model = spl.cylinder_model()
+
         model = alignment.ZNCCAlignment.with_params(
             cutoff=cutoff,
             tilt_range=tilt_range,
@@ -1011,11 +1017,10 @@ class SubtomogramAveraging(MagicTemplate):
 
         dist_lon = np.array(distance_range_long) / scale * upsample_factor
         dist_lat = np.array(distance_range_lat) / scale * upsample_factor
-        spl = layer.source_component
-        if not isinstance(spl, CylSpline):
-            raise TypeError("CylSpline is required for 2D Boltzmann alignment.")
-        _cyl_model = spl.cylinder_model()
-        _grid_shape = _cyl_model.shape
+
+        _npf = molecules.features[Mole.pf].max() + 1
+        _ny = molecules.pos.shape[0] // _npf
+        _grid_shape = (_ny, _npf)
         _vec_shape = _grid_shape + (3,)
         energy = -score
 

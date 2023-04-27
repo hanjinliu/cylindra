@@ -113,10 +113,7 @@ class CylSpline(Spline):
 
     def cylinder_model(
         self,
-        offsets: tuple[float, float] = (
-            0.0,
-            0.0,
-        ),
+        offsets: tuple[float, float] = (0.0, 0.0),
         **kwargs,
     ) -> CylinderModel:
         """

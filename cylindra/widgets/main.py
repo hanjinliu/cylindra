@@ -1138,8 +1138,13 @@ class CylindraMainWidget(MagicTemplate):
         {layers}{interval}
         """
         splines: list[CylSpline] = []
+        if len(layers) == 0:
+            raise ValueError("No layers are selected.")
         for layer in layers:
-            spl = utils.molecules_to_spline(layer)
+            layer: MoleculesLayer
+            mole = layer.molecules
+            spl = utils.molecules_to_spline(mole)
+            layer.source_component = spl
             splines.append(spl)
 
         self.tomogram.splines.clear()
