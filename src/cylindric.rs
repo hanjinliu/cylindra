@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use pyo3::prelude::*;
-use crate::value_error;
+use crate::index_error;
 
 #[pyclass]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -68,7 +68,7 @@ impl CylinderGeometry {
         }
 
         if y < 0 || self.ny <= y {
-            return value_error!(
+            return index_error!(
                 format!(
                     "Index(y={}, a={}) out of bounds for {}.",
                     y, a, self.__repr__()
@@ -82,17 +82,26 @@ impl CylinderGeometry {
     pub fn get_neighbor(&self, y: isize, a: isize) -> PyResult<Vec<Index>> {
         let mut neighbors: Vec<Index> = Vec::new();
 
+        if y < 0 || self.ny <= y || a < 0 || self.na <= a {
+            return index_error!(
+                format!(
+                    "Index(y={}, a={}) out of bounds for {}.",
+                    y, a, self.__repr__()
+                )
+            );
+        }
+
         if y > 0 {
-            let index = self.get_index(y - 1, a)?;
-            if index.is_valid(self.ny, self.na) {
-                neighbors.push(index);
+            match self.get_index(y - 1, a) {
+                Ok(index) => neighbors.push(index),
+                Err(_) => (),
             }
         }
 
         if y < self.ny - 1 {
-            let index = self.get_index(y + 1, a)?;
-            if index.is_valid(self.ny, self.na) {
-                neighbors.push(index);
+            match self.get_index(y + 1, a) {
+                Ok(index) => neighbors.push(index),
+                Err(_) => (),
             }
         }
 
@@ -100,20 +109,20 @@ impl CylinderGeometry {
             self.get_index(y, a - 1)
         } else {
             self.get_index(y - self.nrise, self.na - 1)
-        }?;
-
-        if index_l.is_valid(self.ny, self.na) {
-            neighbors.push(index_l);
+        };
+        match index_l {
+            Ok(index) => neighbors.push(index),
+            Err(_) => (),
         }
 
         let index_r = if a < self.na - 1 {
             self.get_index(y, a + 1)
         } else {
             self.get_index(y + self.nrise, 0)
-        }?;
-
-        if index_r.is_valid(self.ny, self.na) {
-            neighbors.push(index_r);
+        };
+        match index_r {
+            Ok(index) => neighbors.push(index),
+            Err(_) => (),
         }
         Ok(neighbors)
     }
