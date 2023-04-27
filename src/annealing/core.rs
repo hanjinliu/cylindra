@@ -141,8 +141,7 @@ impl CylindricAnnealingModel {
     }
 
     #[pyo3(signature = (nsteps=10000))]
-    pub fn simulate(&mut self, nsteps: usize) -> PyResult<()> {
-
+    pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize) -> PyResult<()> {
         self.graph.check_graph()?;
         if nsteps <= 0 {
             return value_error!("nsteps must be positive");
@@ -151,29 +150,33 @@ impl CylindricAnnealingModel {
             return value_error!("temperature must be positive");
         }
         let mut reject_count = 0;
-        for _ in 0..nsteps {
-            if self.proceed() {
-                reject_count = 0;
-            } else {
-                reject_count += 1;
-            }
-            if reject_count > self.reject_limit {
-                if self.graph.energy() == std::f32::INFINITY {
-                    self.optimization_state = OptimizationState::Failed;
-                } else {
-                    self.optimization_state = OptimizationState::Converged;
+        py.allow_threads(
+            move || {
+                for _ in 0..nsteps {
+                    if self.proceed() {
+                        reject_count = 0;
+                    } else {
+                        reject_count += 1;
+                    }
+                    if reject_count > self.reject_limit {
+                        if self.graph.energy() == std::f32::INFINITY {
+                            self.optimization_state = OptimizationState::Failed;
+                        } else {
+                            self.optimization_state = OptimizationState::Converged;
+                        }
+                        break;
+                    }
+                    self.iteration += 1;
+                    self.reservoir.cool(self.iteration);
                 }
-                break;
+                for _ in 0..nsteps {
+                    if !self.proceed() {
+                        break;
+                    }
+                }
+                Ok(())
             }
-            self.iteration += 1;
-            self.reservoir.cool(self.iteration);
-        }
-        for _ in 0..nsteps {
-            if !self.proceed() {
-                break;
-            }
-        }
-        Ok(())
+        )
     }
 
 }
