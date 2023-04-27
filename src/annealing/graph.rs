@@ -2,14 +2,16 @@ use std::sync::Arc;
 use numpy::ndarray::{Array1, Array3, Array5, s};
 use pyo3::PyResult;
 
-use crate::coordinates::{Vector3D, CoordinateSystem};
-use crate::cylindric::{Index, CylinderGeometry};
-use crate::annealing::{
-    potential::{BindingPotential2D, EdgeType},
-    random::RandomNumberGenerator,
+use crate::{
+    value_error,
+    coordinates::{Vector3D, CoordinateSystem},
+    cylindric::{Index, CylinderGeometry},
+    annealing::{
+        potential::{BoxPotential2D, BindingPotential2D, EdgeType},
+        random::RandomNumberGenerator,
+    }
 };
 
-use super::potential::BoxPotential2D;
 
 pub struct ShiftResult<S> {
     pub index: usize,
@@ -151,13 +153,13 @@ impl CylindricGraph {
         let (_nz, _ny, _nx) = (score_dim[2], score_dim[3], score_dim[4]);
 
         if origin.shape() != &[ny, na, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err("origin shape mismatch"));
+            return value_error!("origin shape mismatch");
         } else if zvec.shape() != &[ny, na, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err("zvec shape mismatch"));
+            return value_error!("zvec shape mismatch");
         } else if yvec.shape() != &[ny, na, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err("yvec shape mismatch"));
+            return value_error!("yvec shape mismatch");
         } else if xvec.shape() != &[ny, na, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err("xvec shape mismatch"));
+            return value_error!("xvec shape mismatch");
         }
 
         let mut coords: Grid2D<CoordinateSystem<f32>> = Grid2D::init(ny, na);
@@ -329,9 +331,7 @@ impl CylindricGraph {
 
     pub fn check_graph(&self) -> PyResult<()> {
         if self.graph().node_count() < 2 {
-            return Err(
-                pyo3::exceptions::PyValueError::new_err("Graph has less than 2 nodes")
-            );
+            return value_error!("Graph has less than 2 nodes");
         }
         Ok(())
     }

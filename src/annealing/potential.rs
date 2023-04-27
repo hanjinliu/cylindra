@@ -1,4 +1,5 @@
 use pyo3::prelude::PyResult;
+use crate::value_error;
 
 pub trait BindingPotential<Se, T> {
     fn calculate(&self, dist2: T, typ: Se) -> T;
@@ -44,13 +45,9 @@ impl BoxPotential2D {
         lat_dist_max: f32,
     ) -> PyResult<Self> {
         if lon_dist_min < 0.0 || lon_dist_max < 0.0 || lat_dist_min < 0.0 || lat_dist_max < 0.0 {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "All distances must be positive",
-            ));
+            return value_error!("All distances must be positive");
         } else if lon_dist_min >= lon_dist_max || lat_dist_min >= lat_dist_max {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "Minimum distance must be smaller than maximum distance",
-            ));
+            return value_error!("Minimum distance must be smaller than maximum distance");
         }
         Ok(
             Self {
@@ -105,9 +102,7 @@ impl HarmonicPotential2D {
         r1: f32,
     ) -> PyResult<Self> {
         if halfk0 < 0.0 || halfk1 < 0.0 || r0 < 0.0 || r1 < 0.0 {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "All parameters must be positive",
-            ));
+            return value_error!("All parameters must be positive");
         }
         Ok(Self { halfk0, halfk1, r0, r1 })
     }

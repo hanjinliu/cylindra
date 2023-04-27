@@ -12,6 +12,7 @@ use super::{
     reservoir::Reservoir,
     potential::BoxPotential2D,
 };
+use crate::value_error;
 
 /// Current state of the annealing model
 #[derive(Clone, PartialEq, Eq)]
@@ -143,14 +144,10 @@ impl CylindricAnnealingModel {
     pub fn simulate(&mut self, nsteps: usize) -> PyResult<()>{
         self.graph.check_graph()?;
         if nsteps <= 0 {
-            return Err(
-                pyo3::exceptions::PyValueError::new_err("nsteps must be positive")
-            );
+            return value_error!("nsteps must be positive");
         }
         if self.temperature() <= 0.0 {
-            return Err(
-                pyo3::exceptions::PyValueError::new_err("temperature must be positive")
-            );
+            return value_error!("temperature must be positive");
         }
         let mut reject_count = 0;
         for _ in 0..nsteps {

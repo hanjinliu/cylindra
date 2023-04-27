@@ -4,6 +4,7 @@ pub mod coordinates;
 pub mod cylindric;
 pub mod alleviate;
 pub mod annealing;
+pub mod exceptions;
 
 /// A Python module implemented in Rust.
 #[pymodule]

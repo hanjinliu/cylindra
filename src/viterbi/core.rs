@@ -3,7 +3,11 @@ use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArrayDyn,
     ndarray::{Array, Array2, ArrayD, s}
 };
-use super::super::coordinates::{Vector3D, CoordinateSystem};
+use crate::{
+    coordinates::{Vector3D, CoordinateSystem},
+    value_error,
+    index_error
+};
 use super::constraint::{Constraint, AngleConstraint, CheckResult};
 
 #[pyclass]
@@ -35,9 +39,7 @@ impl ViterbiGrid {
 
         let score_shape = score.shape();
         if score_shape.len() != 4 {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "Shape of 'score' must be (N, Z, Y, X)."
-            ));
+            return value_error!("Shape of 'score' must be (N, Z, Y, X).");
         }
         let nmole = score_shape[0];
         let nz = score_shape[1];
@@ -45,21 +47,21 @@ impl ViterbiGrid {
         let nx = score_shape[3];
 
         if origin.shape() != [nmole, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!("Shape of 'origin' must be (N, 3) but got {:?}.", origin.shape())
-            ));
+            );
         } else if zvec.shape() != [nmole, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!("Shape of 'zvec' must be (N, 3). but got {:?}", zvec.shape())
-            ));
+            );
         } else if yvec.shape() != [nmole, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!("Shape of 'yvec' must be (N, 3). but got {:?}", yvec.shape())
-            ));
+            );
         } else if xvec.shape() != [nmole, 3] {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!("Shape of 'xvec' must be (N, 3). but got {:?}", xvec.shape())
-            ));
+            );
         }
 
         let mut coords: Vec<CoordinateSystem<f32>> = Vec::new();
@@ -89,21 +91,21 @@ impl ViterbiGrid {
         x: usize,
     ) -> PyResult<Py<PyArray1<f32>>> {
         if n >= self.nmole {
-            return Err(pyo3::exceptions::PyIndexError::new_err(
+            return index_error!(
                 format!("Index out of range: n={}, nmole={}", n, self.nmole)
-            ));
+            );
         } else if z >= self.nz {
-            return Err(pyo3::exceptions::PyIndexError::new_err(
+            return index_error!(
                 format!("Index out of range: z={}, nz={}", z, self.nz)
-            ));
+            );
         } else if y >= self.ny {
-            return Err(pyo3::exceptions::PyIndexError::new_err(
+            return index_error!(
                 format!("Index out of range: y={}, ny={}", y, self.ny)
-            ));
+            );
         } else if x >= self.nx {
-            return Err(pyo3::exceptions::PyIndexError::new_err(
+            return index_error!(
                 format!("Index out of range: x={}, nx={}", x, self.nx)
-            ));
+            );
         }
 
         let pos = self.coords[n].at(z as f32, y as f32, x as f32);
@@ -133,13 +135,12 @@ impl ViterbiGrid {
 impl ViterbiGrid {
     pub fn viterbi_simple(&self, dist_min: f32, dist_max: f32) -> PyResult<(Array2<isize>, f32)> {
         if dist_min >= dist_max {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!(
                     "dist_min must be smaller than dist_max, but got dist_min={}, dist_max={}",
-                    dist_min,
-                    dist_max,
+                    dist_min, dist_max,
                 )
-            ));
+            );
         }
         let dist_min2 = dist_min.powi(2);
         let dist_max2 = dist_max.powi(2);
@@ -229,19 +230,19 @@ impl ViterbiGrid {
 
     fn viterbi_with_angle(&self, dist_min: f32, dist_max: f32, skew_max: f32) -> PyResult<(Array2<isize>, f32)> {
         if dist_min >= dist_max {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!(
                     "dist_min must be smaller than dist_max, but got dist_min={}, dist_max={}",
                     dist_min, dist_max,
                 )
-            ));
+            );
         } else if skew_max <= 0.0 || std::f32::consts::FRAC_PI_2 < skew_max {
-            return Err(pyo3::exceptions::PyValueError::new_err(
+            return value_error!(
                 format!(
                     "skew_max must be between 0 and pi/2, but got skew_max={}",
                     skew_max,
                 )
-            ))
+            );
         }
         let dist_min2 = dist_min.powi(2);
         let dist_max2 = dist_max.powi(2);

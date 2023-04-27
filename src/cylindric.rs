@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use pyo3::prelude::*;
+use crate::value_error;
 
 #[pyclass]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -66,14 +67,15 @@ impl CylinderGeometry {
             y -= self.nrise;
         }
 
-        if y < 0 || y >= self.ny {
-            return Err(
-                pyo3::exceptions::PyValueError::new_err(
-                    format!("Index ({}, {}) out of bounds.", y, a)
+        if y < 0 || self.ny <= y {
+            return value_error!(
+                format!(
+                    "Index(y={}, a={}) out of bounds for {}.",
+                    y, a, self.__repr__()
                 )
             );
         }
-        Ok(Index{ y, a })
+        Ok(Index::new(y, a))
     }
 
     #[pyo3(signature = (y, a))]

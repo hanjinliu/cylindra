@@ -4,6 +4,7 @@ use numpy::{
     ndarray::Array2
 };
 use super::cylindric::{Index, CylinderGeometry};
+use crate::value_error;
 
 /// Convert (N, 2) pyarray in to a vector of Index objects
 /// As a pseudo-code example, arrayToIndices(np.array([[2, 3], [5, 4]])) will return
@@ -33,14 +34,12 @@ pub fn alleviate<'py>(
 ) -> PyResult<Py<PyArray3<f32>>> {
     let arr = arr.as_array();
     let label = label.as_array();
-    let indices = array_to_indices(&label.to_owned());
+    let mut indices = array_to_indices(&label.to_owned());
     let ny = arr.shape()[0] as isize;
     let na = arr.shape()[1] as isize;
     let ndim = arr.shape()[2] as isize;
     if ndim != 3 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "The last dimension of `arr` must be 3."
-        ));
+        return value_error!("The last dimension of `arr` must be 3.");
     }
 
     let mut arr = arr.to_owned();
@@ -48,7 +47,7 @@ pub fn alleviate<'py>(
 
     for _ in 0..iterations {
         let neighbors = geometry._get_neighbors(&indices)?;
-        for neighbor in neighbors {
+        for neighbor in neighbors.iter() {
             let cur_neighbor = geometry.get_neighbor(neighbor.y, neighbor.a)?;
             let n_cur_neighbor = cur_neighbor.len() as f32;
 
@@ -71,6 +70,7 @@ pub fn alleviate<'py>(
             arr[[y, a, 1]] = sum_y / n_cur_neighbor;
             arr[[y, a, 2]] = if theta < 0.0 { theta + 2.0 * std::f32::consts::PI } else { theta };
         }
+        indices = [indices, neighbors].concat();
     }
     Ok(arr.into_pyarray(py).to_owned())
 }
