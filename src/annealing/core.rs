@@ -141,7 +141,8 @@ impl CylindricAnnealingModel {
     }
 
     #[pyo3(signature = (nsteps=10000))]
-    pub fn simulate(&mut self, nsteps: usize) -> PyResult<()>{
+    pub fn simulate(&mut self, nsteps: usize) -> PyResult<()> {
+
         self.graph.check_graph()?;
         if nsteps <= 0 {
             return value_error!("nsteps must be positive");

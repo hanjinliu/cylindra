@@ -121,10 +121,14 @@ impl ViterbiGrid {
         dist_max: f32,
         skew_max: Option<f32>,
     ) -> PyResult<(Py<PyArray2<isize>>, f32)> {
-        let (states, score) = match skew_max {
-            Some(s) => self.viterbi_with_angle(dist_min, dist_max, s)?,
-            None => self.viterbi_simple(dist_min, dist_max)?
-        };
+        let (states, score) = py.allow_threads(
+            move || {
+                match skew_max {
+                    Some(s) => self.viterbi_with_angle(dist_min, dist_max, s),
+                    None => self.viterbi_simple(dist_min, dist_max)
+                }
+            }
+        )?;
         Ok((states.into_pyarray(py).into(), score))
     }
 }
@@ -192,6 +196,10 @@ impl ViterbiGrid {
                 }
             }
         }
+
+        state_sequence[[self.nmole - 1, 0]] = prev.z;
+        state_sequence[[self.nmole - 1, 1]] = prev.y;
+        state_sequence[[self.nmole - 1, 2]] = prev.x;
 
         // backward tracking
 
@@ -302,6 +310,10 @@ impl ViterbiGrid {
                 }
             }
         }
+
+        state_sequence[[self.nmole - 1, 0]] = prev.z;
+        state_sequence[[self.nmole - 1, 1]] = prev.y;
+        state_sequence[[self.nmole - 1, 2]] = prev.x;
 
         // backward tracking
 
