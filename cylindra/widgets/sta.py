@@ -34,7 +34,7 @@ from . import widget_utils, _shared_doc, _progress_desc as _pdesc
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from napari.layers import Image
-    from cylindra._cpp_ext import CylindricAnnealingModel
+    from cylindra._cylindra_ext import CylindricAnnealingModel
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
@@ -832,6 +832,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         from dask import array as da
         from dask import delayed
+        from cylindra._cylindra_ext import ViterbiGrid
 
         t0 = timer("align_all_viterbi")
         parent = self._get_parent()
@@ -879,25 +880,23 @@ class SubtomogramAveraging(MagicTemplate):
         molecules_origin = molecules.translate_internal(
             -(np.array(max_shifts) - scale) / 2
         )
-        mole_list = [
-            molecules_origin.subset(sl) for sl in slices
-        ]  # split each protofilament
+        # split each protofilament
+        mole_list = [molecules_origin.subset(sl) for sl in slices]
 
         dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
         scores = [score[sl] for sl in slices]
 
-        delayed_viterbi = delayed(utils.viterbi)
+        @delayed
+        def _run_viterbi(s: np.ndarray, m: Molecules, dist_min, dist_max, max_angle):
+            origin = (m.pos / scale * upsample_factor).astype(np.float32)
+            zvec = m.z.astype(np.float32)
+            yvec = m.y.astype(np.float32)
+            xvec = m.x.astype(np.float32)
+            grid = ViterbiGrid(s, origin, zvec, yvec, xvec)
+            return grid.viterbi(dist_min, dist_max, max_angle)
+
         viterbi_tasks = [
-            delayed_viterbi(
-                s,
-                m.pos / scale * upsample_factor,
-                m.z,
-                m.y,
-                m.x,
-                dist_min,
-                dist_max,
-                max_angle,
-            )
+            _run_viterbi(s, m, dist_min, dist_max, max_angle)
             for s, m in zip(scores, mole_list)
         ]
         vit_out: list[tuple[np.ndarray, float]] = da.compute(viterbi_tasks)[0]
@@ -978,7 +977,7 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape.
         """
-        from cylindra._cpp_ext import CylindricAnnealingModel
+        from cylindra._cylindra_ext import CylindricAnnealingModel
 
         t0 = timer("align_all_boltzmann")
         parent = self._get_parent()
@@ -1029,9 +1028,9 @@ class SubtomogramAveraging(MagicTemplate):
             .set_graph(
                 energy.reshape(_grid_shape + search_size),
                 (m0.pos / scale * upsample_factor).reshape(_vec_shape),
-                m0.z.reshape(_vec_shape),
-                m0.y.reshape(_vec_shape),
-                m0.x.reshape(_vec_shape),
+                m0.z.reshape(_vec_shape).astype(np.float32),
+                m0.y.reshape(_vec_shape).astype(np.float32),
+                m0.x.reshape(_vec_shape).astype(np.float32),
                 _cyl_model.nrise,
             )
             .set_reservoir(
