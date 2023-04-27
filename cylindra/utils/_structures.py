@@ -12,7 +12,6 @@ from cylindra.const import (
     Mode,
     MoleculesHeader as Mole,
     GlobalVariables as GVar,
-    PropertyNames as H,
 )
 
 from ._correlation import mirror_zncc
@@ -256,3 +255,22 @@ def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:
         score = abs(np.sum(bin_label * sl))
         scores.append(score)
     return np.argmax(scores)
+
+
+def infer_geometry_from_molecules(mole: Molecules) -> tuple[int, int, int]:
+    """Infer cylinder geometry (ny, npf, nrise) from molecules."""
+    columns = mole.features.columns
+    if not (Mole.pf in columns and Mole.position in columns):
+        raise ValueError(
+            f"Molecules must have columns {Mole.pf!r} and {Mole.position!r}."
+        )
+    npf = mole.features[Mole.pf].max() + 1
+    nmole = mole.pos.shape[0]
+    ny, res = divmod(nmole, npf)
+    if res != 0:
+        raise ValueError("Molecules are not correctly labeled.")
+    spl_pos = mole.features[Mole.position].to_numpy().reshape(ny, npf)
+    dy = np.abs(np.mean(np.diff(spl_pos, axis=0)))
+    drise = np.mean(np.diff(spl_pos, axis=1))
+    nrise = int(np.round(drise * npf / dy))
+    return ny, npf, nrise

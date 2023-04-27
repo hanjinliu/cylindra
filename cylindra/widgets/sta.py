@@ -67,6 +67,14 @@ _DistRangeLat = Annotated[
         "label": "Lateral range (nm)",
     },
 ]
+_FSCFreq = Annotated[
+    Optional[float],
+    {
+        "label": "Frequency precision",
+        "text": "Choose proper value",
+        "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02},
+    },
+]
 
 # choices
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
@@ -992,11 +1000,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-
-        spl = layer.source_component
-        if not isinstance(spl, CylSpline):
-            raise TypeError("CylSpline is required for 2D Boltzmann alignment.")
-        _cyl_model = spl.cylinder_model()
+        _ny, _npf, _nrise = utils.infer_geometry_from_molecules(molecules)
 
         model = alignment.ZNCCAlignment.with_params(
             cutoff=cutoff,
@@ -1018,10 +1022,6 @@ class SubtomogramAveraging(MagicTemplate):
         dist_lon = np.array(distance_range_long) / scale * upsample_factor
         dist_lat = np.array(distance_range_lat) / scale * upsample_factor
 
-        _npf = molecules.features[Mole.pf].max() + 1
-        _ny = molecules.pos.shape[0] // _npf
-        _grid_shape = (_ny, _npf)
-        _vec_shape = _grid_shape + (3,)
         energy = -score
 
         time_const = molecules.pos.size * np.product(search_size)
@@ -1031,12 +1031,12 @@ class SubtomogramAveraging(MagicTemplate):
         annealing = (
             CylindricAnnealingModel()
             .set_graph(
-                energy.reshape(_grid_shape + search_size),
-                (m0.pos / scale * upsample_factor).reshape(_vec_shape),
-                m0.z.reshape(_vec_shape).astype(np.float32),
-                m0.y.reshape(_vec_shape).astype(np.float32),
-                m0.x.reshape(_vec_shape).astype(np.float32),
-                _cyl_model.nrise,
+                energy.reshape((_ny, _npf) + search_size),
+                (m0.pos / scale * upsample_factor).reshape(_ny, _npf, 3),
+                m0.z.reshape(_ny, _npf, 3).astype(np.float32),
+                m0.y.reshape(_ny, _npf, 3).astype(np.float32),
+                m0.x.reshape(_ny, _npf, 3).astype(np.float32),
+                _nrise,
             )
             .set_reservoir(
                 temperature=initial_temperature,
@@ -1111,14 +1111,7 @@ class SubtomogramAveraging(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
-        dfreq: Annotated[
-            Optional[float],
-            {
-                "label": "Frequency precision",
-                "text": "Choose proper value",
-                "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02},
-            },
-        ] = None,
+        dfreq: _FSCFreq = None,
     ):
         """
         Calculate Fourier Shell Correlation using the selected monomer layer.

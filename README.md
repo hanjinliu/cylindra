@@ -31,9 +31,10 @@ python setup.py build_ext --inplace
 - Coordinate transformation along splines. Straightening and opening are included.
 - Automatic/manual determination of polarity.
 - Monomer mapping along splines.
-- Subtomogram averaging and template-based alignment.
+- Classical subtomogram averaging and alignment.
 - Microtubule seam search without any binding proteins.
-- Viterbi alignment.
+- Subtomogram alignment with 1D constraint using Viterbi algorithm.
+- Subtomogram alignment with 2D constraint using simulated annealing optimization.
 - Tomogram simulation of cylindric structure.
 
 ## Prerequisite and Recommendations
