@@ -1028,9 +1028,9 @@ class SubtomogramAveraging(MagicTemplate):
             .set_graph(
                 energy.reshape(_grid_shape + search_size),
                 (m0.pos / scale * upsample_factor).reshape(_vec_shape),
-                m0.z.reshape(_vec_shape),
-                m0.y.reshape(_vec_shape),
-                m0.x.reshape(_vec_shape),
+                m0.z.reshape(_vec_shape).astype(np.float32),
+                m0.y.reshape(_vec_shape).astype(np.float32),
+                m0.x.reshape(_vec_shape).astype(np.float32),
                 _cyl_model.nrise,
             )
             .set_reservoir(
