@@ -104,8 +104,7 @@ class MoleculesHeader(SimpleNamespace):
 
     pf = "pf-id"
     isotype = "isotype-id"
-    zncc = "zncc"
-    pcc = "pcc"
+    score = "score"
     interval = "interval-nm"  # interval between two molecules
     skew = "skew-deg"
     position = "position-nm"  # position of the molecule along the spline

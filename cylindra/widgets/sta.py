@@ -331,6 +331,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @property
     def sub_viewer(self):
+        """The napari viewer for subtomogram averaging."""
         return self.params._viewer
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
@@ -894,22 +895,22 @@ class SubtomogramAveraging(MagicTemplate):
         vit_out: list[tuple[np.ndarray, float]] = da.compute(viterbi_tasks)[0]
 
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        all_shifts_px = np.empty((len(molecules), 3), dtype=np.float32)
+        inds = np.empty((len(molecules), 3), dtype=np.int32)
         for i, (shift, _) in enumerate(vit_out):
             _check_viterbi_shift(shift, max_shifts_px, i)
-            all_shifts_px[slices[i], :] = (shift - offset) / upsample_factor
-        all_shifts = all_shifts_px * scale
-
+            inds[slices[i], :] = shift
+        all_shifts = (inds - offset) / upsample_factor
+        opt_score = np.fromiter(
+            (score[i, *ind] for i, ind in enumerate(inds)), dtype=np.float32
+        )
         molecules_opt = molecules.translate_internal(all_shifts)
         if model.has_rotation:
             quats = np.zeros((len(molecules), 4), dtype=np.float32)
             for i, (shift, _) in enumerate(vit_out):
-                _sl = slices[i]
-                sub_quats = quats[_sl, :]
-                for j, each_shift in enumerate(shift):
-                    idx = argmax[_sl, :][j, each_shift[0], each_shift[1], each_shift[2]]
-                    sub_quats[j] = model.quaternions[idx]
-                quats[_sl, :] = sub_quats
+                quats = np.stack(
+                    [model.quaternions[argmax[i, *ind]] for i, ind in enumerate(inds)],
+                    axis=0,
+                )
 
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
 
@@ -924,6 +925,7 @@ class SubtomogramAveraging(MagicTemplate):
             pl.Series("align-dz", all_shifts[:, 0]),
             pl.Series("align-dy", all_shifts[:, 1]),
             pl.Series("align-dx", all_shifts[:, 2]),
+            pl.Series(Mole.score, opt_score),
         )
         t0.toc()
         parent._need_save = True
@@ -1038,9 +1040,12 @@ class SubtomogramAveraging(MagicTemplate):
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        all_shifts_px = ((best_model.shifts() - offset) / upsample_factor).reshape(
-            -1, 3
+        inds = best_model.shifts().reshape(-1, 3)
+        opt_score = np.fromiter(
+            (score[i, *ind] for i, ind in enumerate(inds)), dtype=np.float32
         )
+
+        all_shifts_px = ((inds - offset) / upsample_factor).reshape(-1, 3)
         all_shifts = all_shifts_px * scale
 
         molecules_opt = molecules.translate_internal(all_shifts)
@@ -1048,6 +1053,7 @@ class SubtomogramAveraging(MagicTemplate):
             pl.Series("align-dz", all_shifts[:, 0]),
             pl.Series("align-dy", all_shifts[:, 1]),
             pl.Series("align-dx", all_shifts[:, 2]),
+            pl.Series(Mole.score, opt_score),
         )
         t0.toc()
         parent._need_save = True

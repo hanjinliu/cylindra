@@ -231,7 +231,9 @@ impl CylindricGraph {
     }
 
     pub fn get_shifts(&self) -> Array3<isize> {
-        let mut shifts = Array3::<isize>::zeros((self.geometry.ny as usize, self.geometry.na as usize, 3));
+        let mut shifts = Array3::<isize>::zeros(
+            (self.geometry.ny as usize, self.geometry.na as usize, 3)
+        );
         let graph = self.graph();
         for i in 0..graph.node_count() {
             let state = graph.node_state(i);
