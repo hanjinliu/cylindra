@@ -6,7 +6,7 @@ from typing import Callable, Any, TypeVar, overload, Protocol, TYPE_CHECKING, Na
 from collections.abc import Iterable
 from functools import partial, wraps
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 import polars as pl
 from scipy import ndimage as ndi
 from scipy.spatial.transform import Rotation
@@ -144,7 +144,7 @@ def batch_process(
 
 
 class FitResult(NamedTuple):
-    residual: np.ndarray
+    residual: NDArray[np.float64]
     rmsd: float
 
     @classmethod
@@ -233,8 +233,6 @@ class CylTomogram(Tomogram):
             Maximum interval between anchors.
 
         """
-        if interval is None and n is None:
-            interval = 24.0
         self._splines[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
         return None
 
@@ -340,7 +338,7 @@ class CylTomogram(Tomogram):
                 xr = xx - xc
                 for i, ds in enumerate(spl(der=1)):
                     _, vy, vx = ds
-                    distance: np.ndarray = (
+                    distance: NDArray[np.float64] = (
                         np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
                     )
                     distance_cutoff = GVar.fitWidth / 2
@@ -1068,12 +1066,9 @@ class CylTomogram(Tomogram):
     def get_cylinder_model(
         self,
         i: int,
-        offsets: tuple[float, float] = (
-            0.0,
-            0.0,
-        ),
+        offsets: tuple[float, float] = (0.0, 0.0),
         **kwargs,
-    ) -> CylinderModel:
+    ) -> CylinderModel:  # fmt: skip
         """
         Return the cylinder model at the given spline ID.
 
@@ -1089,48 +1084,7 @@ class CylTomogram(Tomogram):
         CylinderModel
             The cylinder model.
         """
-        spl = self._splines[i]
-        length = spl.length()
-
-        if all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
-            props = kwargs
-        else:
-            # Get structural parameters
-            props = self.splines[i].globalprops
-            if props is None:
-                props = self.global_ft_params(i)
-            props = {
-                k: props[k][0] for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]
-            }
-
-        pitch = props[H.yPitch]
-        skew = props[H.skewAngle]
-        rise = props[H.riseAngle]
-        npf = roundint(props[H.nPF])
-        radius = kwargs.get("radius", spl.radius)
-
-        ny = roundint(length / pitch)  # number of monomers in y-direction
-        tan_rise = tandg(rise)
-
-        # Construct meshgrid
-        # a-coordinate must be radian.
-        # If starting number is non-integer, we must determine the seam position to correctly
-        # map monomers. Use integer here.
-        tilts = (
-            np.deg2rad(skew) / (4 * np.pi) * npf,
-            roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf,
-        )
-
-        if offsets is None:
-            offsets = (0.0, 0.0)
-
-        return CylinderModel(
-            shape=(ny, npf),
-            tilts=tilts,
-            interval=pitch,
-            radius=radius,
-            offsets=offsets,
-        )
+        return self._splines[i].cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process
     def map_monomers(
@@ -1213,7 +1167,7 @@ class CylTomogram(Tomogram):
     #   Utility functions
     #####################################################################################
 
-    def collect_anchor_coords(self, i: int | Iterable[int] = None) -> np.ndarray:
+    def collect_anchor_coords(self, i: int | Iterable[int] = None) -> NDArray:
         """
         Collect all the anchor coordinates into a single np.ndarray.
 

@@ -769,7 +769,7 @@ class CylindraMainWidget(MagicTemplate):
 
         self.parent_viewer.add_shapes(
             paths,
-            shape_type="path",
+            shape_type="Spline Curves",
             edge_color="lime",
             edge_width=1,
         )
@@ -781,10 +781,12 @@ class CylindraMainWidget(MagicTemplate):
         """Show 3D spline cylinder as a surface layer."""
         nodes = []
         vertices = []
-        for spl in self.tomogram.splines:
+        n_nodes = 0
+        for i, spl in enumerate(self.tomogram.splines):
             n, v = spl.cylinder_model().to_mesh(spl)
             nodes.append(n)
-            vertices.append(v)
+            vertices.append(v + i * n_nodes)
+            n_nodes += n.shape[0]
         nodes = np.concatenate(nodes, axis=0)
         vertices = np.concatenate(vertices, axis=0)
         self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
@@ -1124,10 +1126,6 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Molecules to spline")
-    @confirm(
-        text="The existing splines will be removed.\nDo you want to run?",
-        condition="len(self.SplineControl._get_splines()) > 0",
-    )
     def molecules_to_spline(
         self,
         layers: SomeOf[get_monomer_layers],
@@ -1137,26 +1135,31 @@ class CylindraMainWidget(MagicTemplate):
         Create splines from molecules.
 
         This function is useful to refine splines using results of subtomogram
-        alignment. Note that this function only works with molecules that is
-        correctly assembled by such as :func:`map_monomers`.
+        alignment. If the molecules layer alreadly has a source spline, replace
+        it with the new one.
+        Note that this function only works with molecules that is correctly
+        assembled by such as :func:`map_monomers`.
 
         Parameters
         ----------
         {layers}{interval}
         """
-        splines: list[CylSpline] = []
+        tomo = self.tomogram
         if len(layers) == 0:
             raise ValueError("No layers are selected.")
         for layer in layers:
             layer: MoleculesLayer
             mole = layer.molecules
             spl = utils.molecules_to_spline(mole)
+            if layer.source_component is not None:
+                idx = tomo.splines.index(layer.source_component)
+                tomo.splines[idx] = spl
+            else:
+                tomo.splines.append(spl)
             layer.source_component = spl
-            splines.append(spl)
+            spl.make_anchors(interval=interval)
 
-        self.tomogram.splines.clear()
-        self.tomogram.splines.extend(splines)
-        self.tomogram.make_anchors(interval=interval)
+        self.reset_choices()
         self.sample_subtomograms()
         self._update_splines_in_images()
         return None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Callable, Sequence, TypedDict, TYPE_CHECKING
+from typing import Callable, Sequence, TypedDict, TYPE_CHECKING, overload
 import warnings
 import logging
 
@@ -525,11 +525,17 @@ class Spline(BaseComponent):
         length = self.length()
         return length * np.asarray(positions)
 
+    @overload
+    def __call__(self, positions: float, der: int = 0) -> float:
+        ...
+
+    @overload
     def __call__(
-        self,
-        positions: NDArray[np.number] | float | None = None,
-        der: int = 0,
+        self, positions: NDArray[np.number] | None, der: int = 0
     ) -> NDArray[np.float32]:
+        ...
+
+    def __call__(self, positions=None, der: int = 0) -> NDArray[np.float32]:
         """
         Calculate coordinates (or n-th derivative) at points on the spline.
 

@@ -148,7 +148,7 @@ class CylSpline(Spline):
         npf = roundint(props[H.nPF])
         radius = kwargs.get("radius", self.radius)
 
-        ny = roundint(length / pitch)  # number of monomers in y-direction
+        ny = roundint(length / pitch) + 1  # number of monomers in y-direction
         tan_rise = np.tan(np.deg2rad(rise))
 
         # Construct meshgrid
