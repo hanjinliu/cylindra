@@ -1922,28 +1922,16 @@ class CylindraMainWidget(MagicTemplate):
         _str = "structure"
         columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _str]
         df = (
-            all_df.select(
-                [
-                    IDName.spline,
-                    IDName.pos,
-                    H.riseAngle,
-                    H.yPitch,
-                    H.skewAngle,
-                    H.nPF,
-                    H.start,
-                ]
-            )  # fmt: skip  # noqa E501
+            all_df.select([IDName.spline, IDName.pos, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start])
             .with_columns(
-                pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(
-                    _id
-                ),  # fmt: skip  # noqa E501
+                pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.riseAngle),
                 pl.col(H.yPitch),
                 pl.col(H.skewAngle),
             )
             .to_pandas()
-        )
+        )  # fmt: skip
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df[columns]], ignore_index=True)
 
