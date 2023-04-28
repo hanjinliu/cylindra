@@ -490,28 +490,12 @@ class SubtomogramAveraging(MagicTemplate):
         molecules = layer.molecules
         nmole = len(molecules)
         shape = self._get_shape_in_nm(size)
-        if nmole < number:
-            raise ValueError(f"There are only {nmole} subtomograms.")
-        if method == "steps":
-            step = nmole // number
-            sl = slice(0, step * number, step)
-        elif method == "first":
-            sl = slice(0, number)
-        elif method == "last":
-            sl = slice(-number, -1)
-        elif method == "random":
-            sl_all = np.arange(nmole, dtype=np.uint32)
-            np.random.shuffle(sl_all)
-            sl = sl_all[:number]
-        else:
-            raise NotImplementedError(method)
+        sl = _get_slice_for_average_subset(method, nmole, number)
         mole = molecules.subset(sl)
         loader = parent.tomogram.get_subtomogram_loader(
             mole, shape, binsize=bin_size, order=1
         )
-
-        img = ip.asarray(loader.average(), axes="zyx")
-        img.set_scale(zyx=loader.scale)
+        img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
         t0.toc()
         return thread_worker.to_callback(
             self._show_reconstruction, img, f"[AVG(n={number})]{layer.name}"
@@ -1390,6 +1374,25 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+
+def _get_slice_for_average_subset(method: str, nmole: int, number: int):
+    if nmole < number:
+        raise ValueError(f"There are only {nmole} subtomograms.")
+    if method == "steps":
+        step = nmole // number
+        sl = slice(0, step * number, step)
+    elif method == "first":
+        sl = slice(0, number)
+    elif method == "last":
+        sl = slice(-number, -1)
+    elif method == "random":
+        sl_all = np.arange(nmole, dtype=np.uint32)
+        np.random.shuffle(sl_all)
+        sl = sl_all[:number]
+    else:
+        raise ValueError(f"method {method!r} not supported.")
+    return sl
 
 
 def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]", i):

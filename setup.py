@@ -15,7 +15,6 @@ sys.exit(1)
 
 from setuptools import setup, find_packages
 
-INFO = {}
 CYLINDRA = "cylindra"
 
 setup(
