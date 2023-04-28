@@ -46,16 +46,18 @@ pub fn alleviate<'py>(
     let geometry = CylinderGeometry::new(ny, na, nrise);
 
     for _ in 0..iterations {
-        let mut arr_updated = arr.clone();
         let neighbors = geometry._get_neighbors(&indices)?;
+        let mut arr_updated = arr.clone();
         for neighbor in neighbors.iter() {
             let cur_neighbor = geometry.get_neighbor(neighbor.y, neighbor.a)?;
-            let n_cur_neighbor = cur_neighbor.len() as f32;
+            let n_cur_neighbor = cur_neighbor.len() as f32 + 1.0;
 
-            let mut sum_r = 0.0;
-            let mut sum_y = 0.0;
-            let mut sum_a_cos = 0.0;
-            let mut sum_a_sin = 0.0;
+            let (y, a) = (neighbor.y as usize, neighbor.a as usize);
+            let mut sum_r = arr[[y, a, 0]];
+            let mut sum_y = arr[[y, a, 1]];
+            let a = arr[[y, a, 2]];
+            let mut sum_a_cos = a.cos();
+            let mut sum_a_sin = a.sin();
             for nbr in cur_neighbor {
                 let (y, a) = (nbr.y as usize, nbr.a as usize);
                 sum_r += arr[[y, a, 0]];

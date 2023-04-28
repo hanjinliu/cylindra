@@ -207,25 +207,13 @@ pub struct Sources {
 
 impl Sources {
     fn new(lon: Index, lat: Index) -> Self {
-        let lon = if lon.y < 0 {
-            None
-        } else {
-            Some(lon)
-        };
-        let lat = if lat.y < 0 {
-            None
-        } else {
-            Some(lat)
-        };
+        let lon = if lon.y < 0 { None } else { Some(lon) };
+        let lat = if lat.y < 0 { None } else { Some(lat) };
         Self { lon, lat }
     }
 
     fn from_lon(lon: Index) -> Self {
-        let lon = if lon.y < 0 {
-            None
-        } else {
-            Some(lon)
-        };
+        let lon = if lon.y < 0 { None } else { Some(lon) };
         Self { lon, lat: None }
     }
 }

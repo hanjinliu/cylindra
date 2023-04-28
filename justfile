@@ -7,5 +7,5 @@ doc:
 run:
 	python ./cylindra/__main__.py
 
-develop:
+dev:
 	maturin develop --release
