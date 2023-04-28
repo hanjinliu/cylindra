@@ -1932,11 +1932,11 @@ class CylindraMainWidget(MagicTemplate):
                     H.nPF,
                     H.start,
                 ]
-            )  # noqa E501
+            )  # fmt: skip  # noqa E501
             .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(
                     _id
-                ),  # noqa E501
+                ),  # fmt: skip  # noqa E501
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.riseAngle),
                 pl.col(H.yPitch),

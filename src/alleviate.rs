@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
     IntoPyArray, PyArray3, PyReadonlyArray2, PyReadonlyArray3,
-    ndarray::ArcArray2,
+    ndarray::{ArcArray2, s},
 };
 use super::cylindric::{Index, CylinderGeometry};
 use crate::value_error;
@@ -46,6 +46,7 @@ pub fn alleviate<'py>(
     let geometry = CylinderGeometry::new(ny, na, nrise);
 
     for _ in 0..iterations {
+        let mut arr_updated = arr.clone();
         let neighbors = geometry._get_neighbors(&indices)?;
         for neighbor in neighbors.iter() {
             let cur_neighbor = geometry.get_neighbor(neighbor.y, neighbor.a)?;
@@ -66,11 +67,14 @@ pub fn alleviate<'py>(
 
             let (y, a) = (neighbor.y as usize, neighbor.a as usize);
             let theta = sum_a_sin.atan2(sum_a_cos);
-            arr[[y, a, 0]] = sum_r / n_cur_neighbor;
-            arr[[y, a, 1]] = sum_y / n_cur_neighbor;
-            arr[[y, a, 2]] = if theta < 0.0 { theta + 2.0 * std::f32::consts::PI } else { theta };
+            arr_updated[[y, a, 0]] = sum_r / n_cur_neighbor;
+            arr_updated[[y, a, 1]] = sum_y / n_cur_neighbor;
+            arr_updated[[y, a, 2]] = if theta < 0.0 { theta + 2.0 * std::f32::consts::PI } else { theta };
         }
+        // update target indices since affected molecules propagates during iteration.
         indices = [indices, neighbors].concat();
+        // update array for next iteration
+        arr.slice_mut(s![.., .., ..]).assign(&arr_updated);
     }
     Ok(arr.into_pyarray(py).to_owned())
 }
