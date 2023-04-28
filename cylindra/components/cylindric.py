@@ -132,17 +132,6 @@ class CylinderModel:
         """
         return int(np.round(self.tilts[1] * self.shape[1]))
 
-    # @property
-    # def distance_longitudinal(self) -> float:
-    #     ...
-
-    # @property
-    # def distance_lateral(self) -> float:
-    #     dy, da = self.intervals
-    #     tan0, tan1 = self.tilts
-
-    #     v1 = np.array([tan1, 1], dtype=np.float32)
-
     def __repr__(self) -> str:
         _cls = type(self).__name__
         strs: list[str] = []
@@ -187,6 +176,29 @@ class CylinderModel:
         pf = pl.Series(np.arange(len(mole), dtype=np.uint32)) % self._shape[1]
         mole.features = {Mole.pf: pf, Mole.position: pos}
         return mole
+
+    def to_mesh(self, spl: Spline):
+        nodes = spl.cylindrical_to_world(
+            self.replace(tilts=(0, 0))._get_mesh().reshape(-1, 3)
+        )
+        vertices: list[tuple[int, int, int]] = []
+        ny, npf = self.shape
+        for y in range(ny):
+            for a in range(npf):
+                idx = y * npf + a
+                if y > 0:
+                    (idx, idx - npf, idx + 1)
+                    if a > 0:
+                        vertices.append((idx, idx - 1, idx - npf))
+                    else:
+                        vertices.append((idx, idx + npf - 1, idx - npf))
+                if y < ny - 1:
+                    (idx, idx + npf, idx - 1)
+                    if a < npf - 1:
+                        vertices.append((idx, idx + 1, idx + npf))
+                    else:
+                        vertices.append((idx, idx - npf + 1, idx + npf))
+        return nodes, np.array(vertices)
 
     def add_offsets(self, offsets: tuple[float, float]) -> Self:
         """Increment offsets attribute of the model."""

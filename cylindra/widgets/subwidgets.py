@@ -46,7 +46,7 @@ class File(MagicTemplate):
     PEET = PEET
 
 
-@magicmenu
+@magicmenu(name="Image")
 class Image(MagicTemplate):
     """Image processing and visualization"""
 
@@ -59,6 +59,7 @@ class Image(MagicTemplate):
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
+    backpaint_molecules = abstractapi()
     set_colormap = abstractapi()
     show_colorbar = abstractapi()
 
@@ -68,6 +69,7 @@ class Splines(MagicTemplate):
     """Operations on splines"""
 
     show_splines = abstractapi()
+    show_splines_as_meshes = abstractapi()
     add_anchors = abstractapi()
     sep0 = field(Separator)
 
