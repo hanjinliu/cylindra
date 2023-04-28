@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 import weakref
-from functools import wraps
 import polars as pl
 from acryo import Molecules
 from napari.layers import Points
@@ -14,9 +13,14 @@ if TYPE_CHECKING:
 
 
 class MoleculesLayer(Points):
+    """
+    An extended version of napari Points layers.
+
+    This layer contains a Molecules object as its data source.
+    """
+
     _type_string = "points"
 
-    @wraps(Points.__init__)
     def __init__(self, data, **kwargs):
         if not isinstance(data, Molecules):
             raise TypeError("data must be a Molecules object")

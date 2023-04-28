@@ -1084,7 +1084,11 @@ class CylTomogram(Tomogram):
         CylinderModel
             The cylinder model.
         """
-        return self._splines[i].cylinder_model(offsets=offsets, **kwargs)
+        spl = self.splines[i]
+        if not all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
+            if spl.globalprops is None:
+                self.global_ft_params(i)
+        return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process
     def map_monomers(

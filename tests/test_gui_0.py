@@ -383,5 +383,6 @@ def test_auto_align(ui: CylindraMainWidget):
 
 def test_molecules_to_spline(ui: CylindraMainWidget):
     ui.load_project(TEST_PATH / "test-project.json")
+    assert len(ui.tomogram.splines) == 2
     ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]], interval=20)
-    assert len(ui.tomogram.splines) == 1
+    assert len(ui.tomogram.splines) == 2

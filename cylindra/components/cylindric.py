@@ -173,8 +173,10 @@ class CylinderModel:
             pos = pl.Series(shifted_2d[::-1, 1])
         else:
             pos = pl.Series(shifted_2d[:, 1])
-        pf = pl.Series(np.arange(len(mole), dtype=np.uint32)) % self._shape[1]
-        mole.features = {Mole.pf: pf, Mole.position: pos}
+        arange = pl.Series(np.arange(len(mole), dtype=np.uint32))
+        serial_num = arange // self._shape[1]
+        pf = arange % self._shape[1]
+        mole.features = {Mole.snum: serial_num, Mole.pf: pf, Mole.position: pos}
         return mole
 
     def to_mesh(self, spl: Spline):
@@ -323,7 +325,7 @@ def oblique_meshgrid(
     tilts: tuple[float, float] = (0.0, 0.0),
     intervals: tuple[float, float] = (1.0, 1.0),
     offsets: tuple[float, float] = (0.0, 0.0),
-) -> NDArray[np.floating]:
+) -> NDArray[np.float32]:
     """
     Construct 2-D meshgrid in oblique coordinate system.
 

@@ -102,11 +102,12 @@ class Mode(SimpleNamespace):
 class MoleculesHeader(SimpleNamespace):
     """Feature header names for Molecules."""
 
-    pf = "pf-id"
+    snum = "serial-number"  # serial number for each protofilament
+    pf = "pf-id"  # protofilament ID
     isotype = "isotype-id"
-    score = "score"
+    score = "score"  # alignment score
     interval = "interval-nm"  # interval between two molecules
-    skew = "skew-deg"
+    skew = "skew-deg"  # skew angle between two molecules
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
     image = "image-id"
