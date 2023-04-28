@@ -141,7 +141,7 @@ class CylindraMainWidget(MagicTemplate):
 
     # Menu bar
     File = subwidgets.File
-    Image = subwidgets.Image
+    ImageMenu = subwidgets.Image
     Splines = subwidgets.Splines
     Molecules_ = subwidgets.Molecules_
     Analysis = subwidgets.Analysis
@@ -651,7 +651,7 @@ class CylindraMainWidget(MagicTemplate):
         pviewer.native.setParent(self.native, pviewer.native.windowFlags())
         return pviewer.show()
 
-    @Image.wraps
+    @ImageMenu.wraps
     @set_design(text="Filter reference image")
     @dask_thread_worker.with_progress(desc="Low-pass filtering")
     @do_not_record
@@ -677,7 +677,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return _filter_reference_image_on_return
 
-    @Image.wraps
+    @ImageMenu.wraps
     @set_design(text="Add multi-scale")
     @dask_thread_worker.with_progress(
         desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})"
@@ -696,7 +696,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return thread_worker.to_callback(self.set_multiscale, bin_size)
 
-    @Image.wraps
+    @ImageMenu.wraps
     @set_design(text="Set multi-scale")
     def set_multiscale(self, bin_size: OneOf[_get_available_binsize]):
         """
@@ -730,7 +730,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         return None
 
-    @Image.wraps
+    @ImageMenu.wraps
     @do_not_record
     @set_design(text="Open spline sweeper")
     def open_sweeper(self):
@@ -738,7 +738,7 @@ class CylindraMainWidget(MagicTemplate):
         self.spline_sweeper.show()
         return self.spline_sweeper.refresh_widget_state()
 
-    @Image.wraps
+    @ImageMenu.wraps
     @set_design(text="Sample subtomograms")
     def sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
@@ -762,7 +762,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Splines.wraps
-    @set_design(text="Show splines")
+    @set_design(text="Show splines as curves")
     def show_splines(self):
         """Show 3D spline paths of cylinder central axes as a layer."""
         paths = [r.partition(100) for r in self.tomogram.splines]
@@ -773,6 +773,21 @@ class CylindraMainWidget(MagicTemplate):
             edge_color="lime",
             edge_width=1,
         )
+        return None
+
+    @Splines.wraps
+    @set_design(text="Show splines as meshes")
+    def show_splines_as_meshes(self):
+        """Show 3D spline cylinder as a surface layer."""
+        nodes = []
+        vertices = []
+        for spl in self.tomogram.splines:
+            n, v = spl.cylinder_model().to_mesh(spl)
+            nodes.append(n)
+            vertices.append(v)
+        nodes = np.concatenate(nodes, axis=0)
+        vertices = np.concatenate(vertices, axis=0)
+        self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
         return None
 
     @Splines.Orientation.wraps
@@ -1875,7 +1890,7 @@ class CylindraMainWidget(MagicTemplate):
             change_viewer_focus(self.parent_viewer, points[last_i], imgb.scale.x)
         return None
 
-    @Image.wraps
+    @ImageMenu.wraps
     @thread_worker.with_progress(desc="Paint cylinders ...")
     @set_design(text="Paint cylinders")
     def paint_cylinders(self):
@@ -1890,86 +1905,17 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(
                 "Local structural parameters have not been determined yet."
             )
-        lbl = np.zeros(self.layer_image.data.shape, dtype=np.uint8)
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
+
         tomo = self.tomogram
         all_df = tomo.collect_localprops()
-        if all_df is None:
-            raise ValueError("No local property found.")
-        bin_scale = self.layer_image.scale[0]  # scale of binned reference image
-        binsize = utils.roundint(bin_scale / tomo.scale)
-        ft_size = self._current_ft_size
 
-        lz, ly, lx = (
-            utils.roundint(r / bin_scale * 1.73) * 2 + 1 for r in [15, ft_size / 2, 15]
+        paint_device = widget_utils.PaintDevice(
+            self.layer_image.data.shape, self.layer_image.scale[-1]
         )
-        center = np.array([lz, ly, lx]) / 2 + 0.5
-        z, y, x = np.indices((lz, ly, lx))
-
-        cylinders = []
-        matrices = []
-        for i, spl in enumerate(tomo.splines):
-            # Prepare template hollow image
-            r0 = spl.radius / tomo.scale * 0.9 / binsize
-            r1 = spl.radius / tomo.scale * 1.1 / binsize
-            _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
-            domains = []
-            dist = [-np.inf] + list(spl.distances()) + [np.inf]
-            for j in range(spl.anchors.size):
-                domain = (r0**2 < _sq) & (_sq < r1**2)
-                ry = (
-                    min(
-                        (dist[j + 1] - dist[j]) / 2,
-                        (dist[j + 2] - dist[j + 1]) / 2,
-                        ft_size / 2,
-                    )
-                    / bin_scale
-                    + 0.5
-                )
-
-                ry = max(utils.ceilint(ry), 1)
-                domain[:, : ly // 2 - ry] = 0
-                domain[:, ly // 2 + ry + 1 :] = 0
-                domain = domain.astype(np.float32)
-                domains.append(domain)
-
-            cylinders.append(domains)
-            matrices.append(spl.affine_matrix(center=center, inverse=True))
-            yield
-
-        cylinders = np.concatenate(cylinders, axis=0)
-        matrices = np.concatenate(matrices, axis=0)
-
-        out = np.empty_like(cylinders)
-        for i, (img, matrix) in enumerate(zip(cylinders, matrices)):
-            out[i] = ndi.affine_transform(img, matrix, order=1, cval=0, prefilter=False)
-        out = out > 0.3
-
-        # paint roughly
-        for i, crd in enumerate(tomo.collect_anchor_coords()):
-            center = tomo.nm2pixel(crd, binsize=binsize)
-            sl: list[slice] = []
-            outsl: list[slice] = []
-            # We should deal with the borders of image.
-            for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
-                _sl, _pad = utils.make_slice_and_pad(c - l // 2, c + l // 2 + 1, size)
-                sl.append(_sl)
-                outsl.append(
-                    slice(
-                        _pad[0] if _pad[0] > 0 else None,
-                        -_pad[1] if _pad[1] > 0 else None,
-                    )
-                )
-
-            sl = tuple(sl)
-            outsl = tuple(outsl)
-            lbl[sl][out[i][outsl]] = i + 1
-            yield
-
-        # paint finely
-        ref = self.layer_image.data
-        thr = np.percentile(ref[lbl > 0], 5)
-        lbl[ref < thr] = 0
+        lbl = yield from paint_device.paint_cylinders(
+            self._current_ft_size, self.tomogram
+        )
 
         # Labels layer properties
         _id = "ID"
@@ -1986,16 +1932,18 @@ class CylindraMainWidget(MagicTemplate):
                     H.nPF,
                     H.start,
                 ]
-            ).with_columns(
+            )  # noqa E501
+            .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(
                     _id
-                ),
+                ),  # noqa E501
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.riseAngle),
                 pl.col(H.yPitch),
                 pl.col(H.skewAngle),
             )
-        ).to_pandas()
+            .to_pandas()
+        )
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df[columns]], ignore_index=True)
 
@@ -2019,7 +1967,54 @@ class CylindraMainWidget(MagicTemplate):
 
         return _on_return
 
-    @Image.wraps
+    @ImageMenu.wraps
+    @set_design(text="Back-paint molecules")
+    @thread_worker
+    def backpaint_molecules(
+        self,
+        layers: SomeOf[get_monomer_layers],
+        template_path: Path.Read[FileFilter.IMAGE],
+        target_layer: Annotated[Optional[Image], {"text": "Create a new layer"}] = None,
+    ):
+        """
+        Simulate an image using selected molecules.
+
+        Parameters
+        ----------
+        {layers}
+        template_path : path-like
+            Path to the template image.
+        target_layer : Image, optional
+            If given, this layer will be over-painted by the simulated image.
+        """
+        from acryo.pipe import from_file
+
+        molecules = []
+        for layer in layers:
+            layer: MoleculesLayer
+            molecules.append(layer.molecules)
+        mole = Molecules.concat(molecules)
+        device = widget_utils.PaintDevice(
+            self.layer_image.data.shape, self.layer_image.scale[-1]
+        )
+        template = from_file(template_path)(device.scale)
+        sim = device.paint_molecules(template, mole)
+
+        @thread_worker.to_callback
+        def _on_return():
+            if target_layer is None:
+                self.parent_viewer.add_image(
+                    sim,
+                    scale=self.layer_image.scale,
+                    translate=self.layer_image.translate,
+                    name="Simulated",
+                )
+            else:
+                target_layer.data = target_layer.data + sim
+
+        return _on_return
+
+    @ImageMenu.wraps
     @set_options(auto_call=True)
     @set_design(text="Set colormap")
     def set_colormap(
@@ -2051,7 +2046,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_colormap(prop=color_by)
         return None
 
-    @Image.wraps
+    @ImageMenu.wraps
     @set_design(text="Show colorbar")
     @do_not_record
     def show_colorbar(self):
@@ -2065,7 +2060,7 @@ class CylindraMainWidget(MagicTemplate):
             plt.show()
         return None
 
-    @Image.wraps
+    @ImageMenu.wraps
     @set_design(text="Simulate cylindric structure")
     @do_not_record
     def open_simulator(self):

@@ -1,21 +1,26 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from typing import Sequence
+from typing import Sequence, TYPE_CHECKING
 from dataclasses import dataclass
 from timeit import default_timer
 import inspect
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import polars as pl
 
 from magicclass.logging import getLogger
 import napari
 
-from acryo import Molecules
+from acryo import Molecules, TomogramSimulator
+from cylindra import utils
 from cylindra.const import MoleculesHeader as Mole, nm
 from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
+
+if TYPE_CHECKING:
+    from cylindra.components import CylTomogram
 
 
 class FileFilter(SimpleNamespace):
@@ -291,3 +296,105 @@ def extend_protofilament(
         if df_append.shape[0] > 0:
             to_append.append(Molecules.from_dataframe(df_append))
     return Molecules.concat(to_prepend + [mole] + to_append)
+
+
+class PaintDevice:
+    """
+    Device used for painting 3D images.
+
+    Parameters
+    ----------
+    shape : tuple[int, int, int]
+        Shape of the target image.
+    scale : nm
+        Scale of the target image.
+    """
+
+    def __init__(self, shape: tuple[int, int, int], scale: nm):
+        self._shape = shape
+        self._scale = scale
+
+    @property
+    def scale(self) -> nm:
+        return self._scale
+
+    def paint_molecules(self, template: NDArray[np.float32], molecules: Molecules):
+        simulator = TomogramSimulator(order=1, scale=self._scale)
+        simulator.add_molecules(molecules, template)
+        img = simulator.simulate(self._shape)
+        return img
+
+    def paint_cylinders(self, ft_size: nm, tomo: CylTomogram):
+        lbl = np.zeros(self._shape, dtype=np.uint8)
+        all_df = tomo.collect_localprops()
+        if all_df is None:
+            raise ValueError("No local property found.")
+        bin_scale = self._scale  # scale of binned reference image
+        binsize = utils.roundint(bin_scale / tomo.scale)
+
+        lz, ly, lx = (
+            utils.roundint(r / bin_scale * 1.73) * 2 + 1 for r in [15, ft_size / 2, 15]
+        )
+        center = np.array([lz, ly, lx]) / 2 + 0.5
+        z, y, x = np.indices((lz, ly, lx))
+        cylinders = []
+        matrices = []
+        for i, spl in enumerate(tomo.splines):
+            # Prepare template hollow image
+            r0 = spl.radius / tomo.scale * 0.9 / binsize
+            r1 = spl.radius / tomo.scale * 1.1 / binsize
+            _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
+            domains = []
+            dist = [-np.inf] + list(spl.distances()) + [np.inf]
+            for j in range(spl.anchors.size):
+                domain = (r0**2 < _sq) & (_sq < r1**2)
+                ry = (
+                    min(
+                        (dist[j + 1] - dist[j]) / 2,
+                        (dist[j + 2] - dist[j + 1]) / 2,
+                        ft_size / 2,
+                    )
+                    / bin_scale
+                    + 0.5
+                )
+
+                ry = max(utils.ceilint(ry), 1)
+                domain[:, : ly // 2 - ry] = 0
+                domain[:, ly // 2 + ry + 1 :] = 0
+                domain = domain.astype(np.float32)
+                domains.append(domain)
+
+            cylinders.append(domains)
+            matrices.append(spl.affine_matrix(center=center, inverse=True))
+            yield
+
+        cylinders = np.concatenate(cylinders, axis=0)
+        matrices = np.concatenate(matrices, axis=0)
+
+        out = np.empty_like(cylinders)
+        for i, (img, matrix) in enumerate(zip(cylinders, matrices)):
+            out[i] = ndi.affine_transform(img, matrix, order=1, cval=0, prefilter=False)
+        out = out > 0.3
+
+        # paint roughly
+        for i, crd in enumerate(tomo.collect_anchor_coords()):
+            center = tomo.nm2pixel(crd, binsize=binsize)
+            sl: list[slice] = []
+            outsl: list[slice] = []
+            # We should deal with the borders of image.
+            for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
+                _sl, _pad = utils.make_slice_and_pad(c - l // 2, c + l // 2 + 1, size)
+                sl.append(_sl)
+                outsl.append(
+                    slice(
+                        _pad[0] if _pad[0] > 0 else None,
+                        -_pad[1] if _pad[1] > 0 else None,
+                    )
+                )
+
+            sl = tuple(sl)
+            outsl = tuple(outsl)
+            lbl[sl][out[i][outsl]] = i + 1
+            yield
+
+        return lbl
