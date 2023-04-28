@@ -158,9 +158,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for summary of glocal properties
     GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
     # Widget for 2D overview of splines
-    overview = field(QtImageCanvas, name="Overview").with_options(
-        tooltip="Overview of splines"
-    )
+    overview = field(QtImageCanvas, name="Overview").with_options(tooltip="Overview of splines")  # fmt: skip
 
     ### methods ###
 
@@ -923,20 +921,12 @@ class CylindraMainWidget(MagicTemplate):
             return _on_return
 
     @Splines.wraps
-    @set_options(
-        clip_lengths={
-            "options": {
-                "min": 0.0,
-                "max": 1000.0,
-                "step": 0.1,
-                "label": "clip length (nm)",
-            }
-        }
-    )
     @set_design(text="Clip splines")
     def clip_spline(
-        self, spline: OneOf[_get_splines], clip_lengths: tuple[nm, nm] = (0.0, 0.0)
-    ):
+        self,
+        spline: OneOf[_get_splines],
+        clip_lengths: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
+    ):  # fmt: skip
         """
         Clip selected spline at its edges by given lengths.
 
@@ -2012,12 +2002,9 @@ class CylindraMainWidget(MagicTemplate):
         self,
         start: Color = (0, 0, 1, 1),
         end: Color = (1, 0, 0, 1),
-        limit: Annotated[
-            tuple[float, float],
-            {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"},
-        ] = (4.00, 4.24),
+        limit: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"}] = (4.00, 4.24),
         color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
-    ):
+    ):  # fmt: skip
         """
         Set the color-map for painting cylinders.
 
