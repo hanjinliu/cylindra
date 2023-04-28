@@ -64,4 +64,5 @@ python setup.py build_ext --inplace
 ## Issues
 
 If you encountered any bugs or have any requests, feel free to [report an issue](https://github.com/hanjinliu/cylindra/issues).
-For better reproducibility, please copy your environments from `Others > cylindra info` and the recorded macro from `Others > Show full macro`.
+For better reproducibility, please copy your environments from `Others > cylindra info` and the recorded macro from
+`Others > Macro > Show macro`.

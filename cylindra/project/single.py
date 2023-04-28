@@ -260,14 +260,6 @@ class CylindraProject(BaseProject):
                 with gui.macro.blocked():
                     gui.sample_subtomograms()
 
-            # load molecules
-            for idx, path in enumerate(self.molecules):
-                mole = Molecules.from_csv(path)
-                _src = None
-                if self.molecule_sources is not None:
-                    _src = splines[self.molecule_sources[idx]]
-                gui.add_molecules(mole, name=Path(path).stem, source=_src)
-
             # load global variables
             if self.global_variables:
                 with gui.macro.blocked():
@@ -289,6 +281,14 @@ class CylindraProject(BaseProject):
             # paint if needed
             if self.localprops:
                 gui.paint_cylinders()
+
+            # load molecules
+            for idx, path in enumerate(self.molecules):
+                mole = Molecules.from_csv(path)
+                _src = None
+                if self.molecule_sources is not None:
+                    _src = splines[self.molecule_sources[idx]]
+                gui.add_molecules(mole, name=Path(path).stem, source=_src)
 
         return _load_project_on_return
 

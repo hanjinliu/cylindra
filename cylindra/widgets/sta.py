@@ -56,14 +56,14 @@ _SubVolumeSize = Annotated[
 _DistRangeLon = Annotated[
     tuple[nm, nm],
     {
-        "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
+        "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
         "label": "Longitudinal range (nm)",
     },
 ]
 _DistRangeLat = Annotated[
     tuple[nm, nm],
     {
-        "options": {"min": 0.1, "max": 1000.0, "step": 0.1},
+        "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
         "label": "Lateral range (nm)",
     },
 ]
