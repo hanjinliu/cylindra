@@ -110,27 +110,20 @@ QCommandList {
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
 
-    spline_fitter = field(
-        SplineFitter, name="_Spline fitter"
-    )  # Widget for manual spline fitting
-    spline_clipper = field(
-        SplineClipper, name="_Spline clipper"
-    )  # Widget for manual spline clipping
-    spline_sweeper = field(
-        SplineSweeper, name="_Spline sweeper"
-    )  # Widget for sweeping along splines
-    image_processor = field(
-        ImageProcessor, name="_Image Processor"
-    )  # Widget for pre-filtering/pre-processing
-    cylinder_simulator = field(
-        CylinderSimulator, name="_Cylinder Simulator"
-    )  # Widget for tomogram simulator
-    spectra_measurer = field(
-        SpectraMeasurer, name="_FFT Measurer"
-    )  # Widget for measuring FFT parameters from a 2D power spectra
-    sta = field(
-        SubtomogramAveraging, name="_Subtomogram averaging"
-    )  # Widget for subtomogram analysis
+    # Widget for manual spline fitting
+    spline_fitter = field(SplineFitter, name="_Spline fitter")
+    # Widget for manual spline clipping
+    spline_clipper = field(SplineClipper, name="_Spline clipper")
+    # Widget for sweeping along splines
+    spline_sweeper = field(SplineSweeper, name="_Spline sweeper")
+    # Widget for pre-filtering/pre-processing
+    image_processor = field(ImageProcessor, name="_Image Processor")
+    # Widget for tomogram simulator
+    cylinder_simulator = field(CylinderSimulator, name="_Cylinder Simulator")
+    # Widget for measuring FFT parameters from a 2D power spectra
+    spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")
+    # Widget for subtomogram analysis
+    sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
 
     @property
     def batch(self) -> "CylindraBatchWidget":
@@ -160,15 +153,14 @@ class CylindraMainWidget(MagicTemplate):
     # Child widgets
     ImageInfo = subwidgets.ImageInfo
     SplineControl = SplineControl  # Widget for controling splines
-    LocalProperties = field(
-        LocalPropertiesWidget, name="Local Properties"
-    )  # Widget for summary of local properties
-    GlobalProperties = field(
-        GlobalPropertiesWidget, name="Global Properties"
-    )  # Widget for summary of glocal properties
+    # Widget for summary of local properties
+    LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
+    # Widget for summary of glocal properties
+    GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
+    # Widget for 2D overview of splines
     overview = field(QtImageCanvas, name="Overview").with_options(
         tooltip="Overview of splines"
-    )  # Widget for 2D overview of splines
+    )
 
     ### methods ###
 
@@ -223,7 +215,7 @@ class CylindraMainWidget(MagicTemplate):
             _coords = np.asarray(coords)
 
         if _coords.size == 0:
-            warnings.warn("No points are in viewer.", UserWarning)
+            warnings.warn("No points are in the viewer.", UserWarning)
             return None
 
         tomo = self.tomogram
@@ -1913,6 +1905,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         center = np.array([lz, ly, lx]) / 2 + 0.5
         z, y, x = np.indices((lz, ly, lx))
+
         cylinders = []
         matrices = []
         for i, spl in enumerate(tomo.splines):

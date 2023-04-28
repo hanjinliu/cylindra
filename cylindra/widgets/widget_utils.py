@@ -1,8 +1,9 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from typing import Sequence, TYPE_CHECKING
+from typing import Sequence
 from dataclasses import dataclass
 from timeit import default_timer
+import inspect
 
 import numpy as np
 from scipy import ndimage as ndi
@@ -28,7 +29,9 @@ class FileFilter(SimpleNamespace):
 
 
 class timer:
-    def __init__(self, name: str):
+    def __init__(self, name: str | None = None):
+        if name is None:
+            name = inspect.stack()[0].function
         self.name = name
         self.start = default_timer()
 
@@ -74,13 +77,6 @@ def change_viewer_focus(
     viewer.camera.zoom = zoom
     viewer.dims.set_current_step(axis=0, value=center[0] / v_scale[0] * scale)
     return None
-
-
-def y_coords_to_start_number(u: np.ndarray, npf: int):
-    """infer start number using the y coordinates in spline coordinate system."""
-    a0 = (u[-npf] - u[0]) / (u.size - npf)
-    a1 = np.mean((u[::npf] - u[(npf - 1) :: npf]) / (npf - 1))
-    return int(round(a1 / a0))
 
 
 def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
