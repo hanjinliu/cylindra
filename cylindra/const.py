@@ -102,7 +102,7 @@ class Mode(SimpleNamespace):
 class MoleculesHeader(SimpleNamespace):
     """Feature header names for Molecules."""
 
-    snum = "serial-number"  # serial number for each protofilament
+    nth = "nth"  # n-th molecule of a protofilament
     pf = "pf-id"  # protofilament ID
     isotype = "isotype-id"
     score = "score"  # alignment score

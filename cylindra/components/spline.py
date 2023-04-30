@@ -795,12 +795,7 @@ class Spline(BaseComponent):
         """
 
         mole = self.anchors_to_molecules(u)
-        coords = mole.cartesian_at(
-            slice(None), shape=(shape[0], n_pixels, shape[1]), scale=scale
-        )
-        if np.isscalar(u):
-            coords = coords[0]
-        return coords
+        return mole.local_coordinates(shape=(shape[0], n_pixels, shape[1]), scale=scale)
 
     def local_cylindrical(
         self,

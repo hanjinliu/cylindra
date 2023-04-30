@@ -121,8 +121,8 @@ class SplineClipper(MagicTemplate):
 
         # sample subtomogram at the edge
         mole = spl.anchors_to_molecules([0.0, 1.0])
-        coords = mole.cartesian_at(
-            index=0 if self._clip_at_start else -1,
+        index = 0 if self._clip_at_start else -1
+        coords = mole.subset(index).local_coordinates(
             shape=(width_px, length_px, width_px),
             scale=tomo.scale * binsize,
         )

@@ -383,7 +383,7 @@ class ImageLoader(MagicTemplate):
         )
         read_header = abstractapi()
 
-    bin_size = vfield([1]).with_options(options={"min": 1, "max": 8})
+    bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
     filter_reference_image = vfield(True)
 
     @scale.wraps

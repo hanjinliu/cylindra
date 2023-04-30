@@ -163,7 +163,7 @@ class CylinderSimulator(MagicTemplate):
         self._molecules = mole
         return None
 
-    @magicclass(properties={"min_width": 210})
+    @magicclass(properties={"min_width": 210}, record=False)
     class Operator(MagicTemplate):
         """
         Apply local structural changes to the molecules.
@@ -180,14 +180,12 @@ class CylinderSimulator(MagicTemplate):
             Check to show all the selected molecules
         """
 
-        yrange = vfield(
-            tuple[int, int], label="axial", widget_type=RangeSlider, record=False
-        )
+        yrange = vfield(tuple[int, int], label="axial", widget_type=RangeSlider)
         arange = vfield(
-            tuple[int, int], label="angular", widget_type=RangeSlider, record=False
+            tuple[int, int], label="angular", widget_type=RangeSlider
         ).with_options(value=(0, 100))
-        n_allev = vfield(1, label="alleviate", record=False).with_options(min=0, max=20)
-        show_selection = vfield(True, label="show selected molecules", record=False)
+        n_allev = vfield(1, label="alleviate").with_options(min=0, max=20)
+        show_selection = vfield(True, label="show selected molecules")
 
         def _update_slider_lims(self, ny: int, na: int):
             amax_old = self["arange"].max
@@ -252,7 +250,7 @@ class CylinderSimulator(MagicTemplate):
         self,
         size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (100.0, 200.0, 100.0),
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
-        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 8}}] = [4],
+        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 32}}] = [4],
     ):  # fmt: skip
         """
         Create an empty image with the given size and scale, and send it to the viewer.

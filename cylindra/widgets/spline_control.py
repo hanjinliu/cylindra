@@ -180,8 +180,7 @@ class SplineControl(MagicTemplate):
         mole = spl.anchors_to_molecules()
         if binsize > 1:
             mole = mole.translate(-parent.tomogram.multiscale_translation(binsize))
-        coords = mole.cartesian_at(
-            index=slice(None),
+        coords = mole.local_coordinates(
             shape=(width_px, length_px, width_px),
             scale=tomo.scale * binsize,
         )

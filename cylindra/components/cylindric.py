@@ -174,9 +174,9 @@ class CylinderModel:
         else:
             pos = pl.Series(shifted_2d[:, 1])
         arange = pl.Series(np.arange(len(mole), dtype=np.uint32))
-        serial_num = arange // self._shape[1]
+        nth = arange // self._shape[1]
         pf = arange % self._shape[1]
-        mole.features = {Mole.snum: serial_num, Mole.pf: pf, Mole.position: pos}
+        mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
         return mole
 
     def to_mesh(self, spl: Spline):
