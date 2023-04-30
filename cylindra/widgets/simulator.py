@@ -265,7 +265,13 @@ class CylinderSimulator(MagicTemplate):
         # visual detection of the image edges.
         img = ip.zeros(shape, axes="zyx", name="simulated image")
         img.scale_unit = "nm"
-        img[:, :: 10 * binsize, :: 10 * binsize] += 100 * binsize**3
+        val = 100 * binsize**3
+        px10nm = roundint(10 / scale)
+        img[:, ::px10nm, ::px10nm] = val
+        img[:, 0, :] = val / 2
+        img[:, -1, :] = val / 2
+        img[:, :, 0] = val / 2
+        img[:, :, -1] = val / 2
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         parent._macro_offset = len(parent.macro)
         parent.tomogram = tomo
@@ -510,7 +516,7 @@ class CylinderSimulator(MagicTemplate):
                 central_axis="y",
                 height=tomo.image.shape[0],
                 order=interpolation,
-            ).set_scale(zyx=tomo.scale)
+            ).set_scale(zyx=tomo.scale, unit="nm")
             yield _on_iradon_finished(rec, f"N/S = {nsr_val:.1f}")
 
             file_name = save_dir / f"image-{i}.mrc"
@@ -521,7 +527,7 @@ class CylinderSimulator(MagicTemplate):
 
     @Simulate.wraps
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
-    @set_design(text="Simulation Tilt Series")
+    @set_design(text="Simulation tilt series")
     def simulate_tilt_series(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
@@ -589,7 +595,9 @@ class CylinderSimulator(MagicTemplate):
                 scale=imax * nsr_val, size=sino.shape, axes=sino.axes
             )
             file_name = save_dir / f"tilt_series-{i}.mrc"
-            sino_noise.set_scale(zyx=tomo.scale).imsave(file_name)
+            sino_noise.set_axes("zyx").set_scale(zyx=tomo.scale, unit="nm").imsave(
+                file_name
+            )
             _Logger.print(f"Tilt series saved at {file_name}.")
 
         return None

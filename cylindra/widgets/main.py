@@ -589,6 +589,7 @@ class CylindraMainWidget(MagicTemplate):
             paths = [paths]
         splines = [CylSpline.from_json(path) for path in paths]
         self.tomogram.splines.extend(splines)
+        self._update_splines_in_images()
         self.reset_choices()
         return None
 
