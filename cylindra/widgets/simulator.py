@@ -26,6 +26,7 @@ import numpy as np
 import impy as ip
 
 from acryo import Molecules, TomogramSimulator, pipe
+from scipy.spatial.transform import Rotation
 
 from cylindra.components import (
     CylTomogram,
@@ -56,10 +57,12 @@ _TiltRange = Annotated[
     },
 ]
 
-_NSRATIO = Annotated[
+_NSRatio = Annotated[
     list[float],
     {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
 ]
+
+_ImageSize = Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}]
 
 _Logger = getLogger("cylindra")
 
@@ -101,24 +104,34 @@ class CylinderParameters:
 
 
 # Main widget class
-@magicclass(widget_type="split", labels=False, layout="horizontal")
+@magicclass(widget_type="scrollable", labels=False)
 class CylinderSimulator(MagicTemplate):
-    @magicmenu(name="Between viewer")
-    class FromViewer(MagicTemplate):
+    @magicmenu(name="Viewer")
+    class ViewerMenu(MagicTemplate):
         """Receive image or spline data from the viewer"""
 
         create_empty_image = abstractapi()
         set_current_spline = abstractapi()
         load_spline_parameters = abstractapi()
+        create_straight_line = abstractapi()
         sep0 = field(Separator)
         send_moleclues_to_viewer = abstractapi()
 
-    @magicmenu
-    class Simulate(MagicTemplate):
+    @magicmenu(name="Simulate")
+    class SimulateMenu(MagicTemplate):
         """Simulate using current model."""
 
         simulate_tomogram = abstractapi()
         simulate_tilt_series = abstractapi()
+
+    @magicmenu(name="Transform")
+    class TransformMenu(MagicTemplate):
+        """Transform the cylinder lattice."""
+
+        update_model = abstractapi()
+        expand = abstractapi()
+        screw = abstractapi()
+        dilate = abstractapi()
 
     def __post_init__(self) -> None:
         self._model: CylinderModel = None
@@ -128,8 +141,8 @@ class CylinderSimulator(MagicTemplate):
         self._points: layers.Points3D = None
         self._selections: layers.Points3D = None
         self._layer_control = None
-        self.canvas.max_width = 240
-        self.canvas.max_height = 500
+        self._simulate_shape = None
+        self._simulate_scale = None
 
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model
@@ -157,13 +170,27 @@ class CylinderSimulator(MagicTemplate):
         else:
             self._points.data = mole.pos
             self._select_molecules(self.Operator.yrange, self.Operator.arange)
+
+        # nz, ny, nx = self._simulate_shape
+        # for z in [0, nz]:
+        #     arr = (
+        #         np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]])
+        #         * self._simulate_scale
+        #     )
+        #     self.canvas.add_curve(arr, color="gray")
+        # for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
+        #     arr = np.array([[0, y, x], [nz, y, x]]) * self._simulate_scale
+        #     self.canvas.add_curve(arr, color="gray")
         self._molecules = mole
         return None
 
-    @magicclass(properties={"min_width": 210}, record=False)
+    # the 3D viewer of the cylinder model
+    canvas = field(Vispy3DCanvas).with_options(min_height=300)
+
+    @magicclass(record=False)
     class Operator(MagicTemplate):
         """
-        Apply local structural changes to the molecules.
+        Select/adjust molecules in the model.
 
         Attributes
         ----------
@@ -204,11 +231,7 @@ class CylinderSimulator(MagicTemplate):
             parent._selections.visible = show
             return None
 
-        update_model = abstractapi()
         show_layer_control = abstractapi()
-        expand = abstractapi()
-        screw = abstractapi()
-        dilate = abstractapi()
 
         def _fill_shift(self, yrange, arange, val: float):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
@@ -217,8 +240,6 @@ class CylinderSimulator(MagicTemplate):
             asl = slice(*arange)
             shift[ysl, asl] = val
             return shift, Idx[ysl, asl]
-
-    canvas = field(Vispy3DCanvas)  # the 3D viewer
 
     @property
     def parent_widget(self):
@@ -236,7 +257,7 @@ class CylinderSimulator(MagicTemplate):
         """Set new model and simulate molecules with the same spline."""
         return self._set_model(model, self._spline)
 
-    @FromViewer.wraps
+    @ViewerMenu.wraps
     @thread_worker.with_progress(desc="Creating an image")
     @set_design(text="Create an empty image")
     @confirm(
@@ -245,7 +266,7 @@ class CylinderSimulator(MagicTemplate):
     )
     def create_empty_image(
         self,
-        size: Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}] = (100.0, 200.0, 100.0),
+        size: _ImageSize = (60.0, 200.0, 60.0),
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
     ):  # fmt: skip
         """
@@ -260,6 +281,11 @@ class CylinderSimulator(MagicTemplate):
         """
         parent = self.parent_widget
         shape = tuple(roundint(s / scale) for s in size)
+
+        # update simulation parameters
+        self._simulate_shape = shape
+        self._simulate_scale = scale
+
         binsize = ceilint(0.96 / scale)
         # NOTE: zero-filled image breaks contrast limit calculation, and bad for
         # visual detection of the image edges.
@@ -291,18 +317,21 @@ class CylinderSimulator(MagicTemplate):
             pass
         self._selections.visible = True
 
-    @FromViewer.wraps
-    @set_design(text="Set current spline")
-    def set_current_spline(self, idx: Bound[_get_current_index]):
-        """Use the current parameters and the spline to construct a model and molecules."""
-        self._spline = self.parent_widget.tomogram.splines[idx]
+    def _set_spline(self, spl: CylSpline) -> None:
+        self._spline = spl
         self.canvas.layers.clear()
         self._points = None
         self._spline_arrow = None
-        self.update_model(idx, **self._parameters.asdict())
+        self._update_model_from_spline(spl, **self._parameters.asdict())
         return None
 
-    @FromViewer.wraps
+    @ViewerMenu.wraps
+    @set_design(text="Set current spline")
+    def set_current_spline(self, idx: Bound[_get_current_index]):
+        """Use the current parameters and the spline to construct a model and molecules."""
+        return self._set_spline(self.parent_widget.tomogram.splines[idx])
+
+    @ViewerMenu.wraps
     @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Bound[_get_current_index]):
         """Copy the spline parameters in the viewer."""
@@ -320,7 +349,26 @@ class CylinderSimulator(MagicTemplate):
         )
         return None
 
-    @FromViewer.wraps
+    @ViewerMenu.wraps
+    @set_design(text="Create a straight line")
+    def create_straight_line(
+        self,
+        length: nm = 150.0,
+        size: _ImageSize = (60.0, 200.0, 60.0),
+        scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
+        yxrotation: float = 0.0,
+        zxrotation: float = 0.0,
+    ):
+        yxrot = Rotation.from_rotvec([np.deg2rad(yxrotation), 0.0, 0.0])
+        zxrot = Rotation.from_rotvec([0.0, 0.0, np.deg2rad(zxrotation)])
+        start_shift = zxrot.apply(yxrot.apply(np.array([0.0, -length / 2, 0.0])))
+        end_shift = zxrot.apply(yxrot.apply(np.array([0.0, length / 2, 0.0])))
+        center = np.array(size) / 2
+        shape = tuple(roundint(s / scale) for s in size)
+        spl = CylSpline.line(start_shift + center, end_shift + center)
+        return self._set_spline(spl)
+
+    @ViewerMenu.wraps
     @set_design(text="Send molecules to viewer")
     def send_moleclues_to_viewer(self):
         """Send the current molecules to the viewer."""
@@ -344,12 +392,11 @@ class CylinderSimulator(MagicTemplate):
         self._layer_control.show()
         return None
 
-    @Operator.wraps
+    @TransformMenu.wraps
     @impl_preview(auto_call=True)
-    @set_design(text="Update model parameters", font_color="lime")
+    @set_design(text="Update model parameters")
     def update_model(
         self,
-        idx: Bound[_get_current_index],
         interval: Annotated[nm, {"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"}] = CylinderParameters.interval,
         skew: Annotated[float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}] = CylinderParameters.skew,
         rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = CylinderParameters.rise,
@@ -380,24 +427,8 @@ class CylinderSimulator(MagicTemplate):
         offsets : tuple of float
             Offset of the starting molecule.
         """
-        tomo = self.parent_widget.tomogram
-        spl = tomo.splines[idx]
-        self._parameters.update(
-            interval=interval,
-            skew=skew,
-            rise=rise,
-            npf=npf,
-            radius=radius,
-            offsets=offsets,
-        )
-        kwargs = {H.yPitch: interval, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
-        model = tomo.get_cylinder_model(idx, offsets=offsets, radius=radius, **kwargs)
-        self.model = model
-        spl.radius = radius
-
-        op = self.Operator
-        op._update_slider_lims(*self.model.shape)
-        self._select_molecules(op.yrange, op.arange)  # update selection coordinates
+        spl = self._spline
+        self._update_model_from_spline(spl, interval, skew, rise, npf, radius, offsets)
         return None
 
     @update_model.during_preview
@@ -408,6 +439,33 @@ class CylinderSimulator(MagicTemplate):
         yield
         self.model = old_model
         op["yrange"].max, op["arange"].max = old_max
+        return None
+
+    def _update_model_from_spline(
+        self,
+        spl: CylSpline,
+        interval,
+        skew,
+        rise,
+        npf,
+        radius,
+        offsets,
+    ):
+        self._parameters.update(
+            interval=interval,
+            skew=skew,
+            rise=rise,
+            npf=npf,
+            radius=radius,
+            offsets=offsets,
+        )
+        kwargs = {H.yPitch: interval, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
+        model = spl.cylinder_model(offsets=offsets, radius=radius, **kwargs)
+        self.model = model
+
+        op = self.Operator
+        op._update_slider_lims(*self.model.shape)
+        self._select_molecules(op.yrange, op.arange)  # update selection coordinates
         return None
 
     def _prep_radon(
@@ -434,14 +492,14 @@ class CylinderSimulator(MagicTemplate):
         )
         return tilt_series, mole
 
-    @Simulate.wraps
+    @SimulateMenu.wraps
     @dask_thread_worker.with_progress(descs=_simulate_tomogram_iter)
     @set_design(text="Simulate tomogram")
     def simulate_tomogram(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
         save_dir: Annotated[Path.Dir, {"label": "Save at"}],
-        nsr: _NSRATIO = [2.0],
+        nsr: _NSRatio = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -522,14 +580,14 @@ class CylinderSimulator(MagicTemplate):
 
         return None
 
-    @Simulate.wraps
+    @SimulateMenu.wraps
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
     @set_design(text="Simulation tilt series")
     def simulate_tilt_series(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
         save_dir: Annotated[Path.Dir, {"label": "Save at"}],
-        nsr: _NSRATIO = [2.0],
+        nsr: _NSRatio = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -599,8 +657,8 @@ class CylinderSimulator(MagicTemplate):
 
         return None
 
-    @Operator.wraps
-    @set_design(text="Expansion/Compaction", font_color="lime")
+    @TransformMenu.wraps
+    @set_design(text="Expansion/Compaction")
     @impl_preview(auto_call=True)
     def expand(
         self,
@@ -617,8 +675,8 @@ class CylinderSimulator(MagicTemplate):
         self.model = new_model
         return None
 
-    @Operator.wraps
-    @set_design(text="Screw", font_color="lime")
+    @TransformMenu.wraps
+    @set_design(text="Screw")
     @impl_preview(auto_call=True)
     def screw(
         self,
@@ -635,8 +693,8 @@ class CylinderSimulator(MagicTemplate):
         self.model = new_model
         return None
 
-    @Operator.wraps
-    @set_design(text="Dilation/Erosion", font_color="lime")
+    @TransformMenu.wraps
+    @set_design(text="Dilation/Erosion")
     @impl_preview(auto_call=True)
     def dilate(
         self,
