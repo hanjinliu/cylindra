@@ -268,10 +268,7 @@ class CylinderSimulator(MagicTemplate):
         val = 100 * binsize**3
         px10nm = roundint(10 / scale)
         img[:, ::px10nm, ::px10nm] = val
-        img[:, 0, :] = val / 2
-        img[:, -1, :] = val / 2
-        img[:, :, 0] = val / 2
-        img[:, :, -1] = val / 2
+        img[:, 0, :] = img[:, -1, :] = img[:, :, 0] = img[:, :, -1] = val / 2
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         parent._macro_offset = len(parent.macro)
         parent.tomogram = tomo
