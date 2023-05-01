@@ -45,3 +45,12 @@ module-name = "cylindra._cylindra_ext"
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:qtpy",
+    "ignore:distutils Version classes are deprecated",
+    "ignore:path is deprecated:DeprecationWarning",
+    "ignore:Jupyter is migrating its paths to use standard platformdirs:DeprecationWarning",
+]

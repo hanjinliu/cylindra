@@ -901,14 +901,18 @@ class SubtomogramAveraging(MagicTemplate):
             inds[slices[i], :] = shift
         all_shifts = (inds - offset) / upsample_factor
         opt_score = np.fromiter(
-            (score[i, *ind] for i, ind in enumerate(inds)), dtype=np.float32
+            (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
+            dtype=np.float32,
         )
         molecules_opt = molecules.translate_internal(all_shifts)
         if model.has_rotation:
             quats = np.zeros((len(molecules), 4), dtype=np.float32)
             for i, (shift, _) in enumerate(vit_out):
                 quats = np.stack(
-                    [model.quaternions[argmax[i, *ind]] for i, ind in enumerate(inds)],
+                    [
+                        model.quaternions[argmax[i, iz, iy, ix]]
+                        for i, (iz, iy, ix) in enumerate(inds)
+                    ],
                     axis=0,
                 )
 
@@ -1042,7 +1046,8 @@ class SubtomogramAveraging(MagicTemplate):
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
         inds = best_model.shifts().reshape(-1, 3)
         opt_score = np.fromiter(
-            (score[i, *ind] for i, ind in enumerate(inds)), dtype=np.float32
+            (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
+            dtype=np.float32,
         )
 
         all_shifts_px = ((inds - offset) / upsample_factor).reshape(-1, 3)
@@ -1125,11 +1130,12 @@ class SubtomogramAveraging(MagicTemplate):
         mole = layer.molecules
 
         loader = parent.tomogram.get_subtomogram_loader(mole, order=interpolation)
-        _, mask = loader.normalize_input(
+        template, mask = loader.normalize_input(
             template=self.params._get_template(allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         fsc, avg = loader.reshape(
+            template=template,
             mask=mask,
             shape=None if size is None else (parent.tomogram.nm2pixel(size),) * 3,
         ).fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
