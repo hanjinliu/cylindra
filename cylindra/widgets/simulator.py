@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from magicgui.widgets import RangeSlider
 from magicclass import (
     abstractapi,
-    do_not_record,
     magicclass,
     magicmenu,
     MagicTemplate,
@@ -141,8 +140,9 @@ class CylinderSimulator(MagicTemplate):
         self._points: layers.Points3D = None
         self._selections: layers.Points3D = None
         self._layer_control = None
-        self._simulate_shape = None
-        self._simulate_scale = None
+        self._simulate_shape = (0, 0, 0)
+        self._simulate_scale = 0.0
+        self.canvas.min_height = 300
 
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model
@@ -150,6 +150,7 @@ class CylinderSimulator(MagicTemplate):
         mole = model.to_molecules(spl)
 
         if self._points is None:
+            self.canvas.layers.clear()
             self._points = self.canvas.add_points(
                 mole.pos, size=2.0, face_color="lime", edge_color="lime"
             )
@@ -167,25 +168,32 @@ class CylinderSimulator(MagicTemplate):
                 arrow_data, arrow_size=15, width=2.0
             )
             self._points.signals.size.connect_setattr(self._selections, "size")
+            nz, ny, nx = self._simulate_shape
+            for z in [0, nz]:
+                arr = (
+                    np.array(
+                        [[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]]
+                    )
+                    * self._simulate_scale
+                )
+                self.canvas.add_curve(arr, color="gray")
+            for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
+                arr = np.array([[0, y, x], [nz, y, x]]) * self._simulate_scale
+                self.canvas.add_curve(arr, color="gray")
         else:
             self._points.data = mole.pos
             self._select_molecules(self.Operator.yrange, self.Operator.arange)
 
-        # nz, ny, nx = self._simulate_shape
-        # for z in [0, nz]:
-        #     arr = (
-        #         np.array([[z, 0, 0], [z, 0, nx], [z, ny, nx], [z, ny, 0], [z, 0, 0]])
-        #         * self._simulate_scale
-        #     )
-        #     self.canvas.add_curve(arr, color="gray")
-        # for y, x in [(0, 0), (0, nx), (ny, nx), (ny, 0)]:
-        #     arr = np.array([[0, y, x], [nz, y, x]]) * self._simulate_scale
-        #     self.canvas.add_curve(arr, color="gray")
         self._molecules = mole
         return None
 
+    def _set_shape_and_scale(self, shape: tuple[int, int, int], scale: nm):
+        self._simulate_shape = shape
+        self._simulate_scale = scale
+        return None
+
     # the 3D viewer of the cylinder model
-    canvas = field(Vispy3DCanvas).with_options(min_height=300)
+    canvas = field(Vispy3DCanvas)
 
     @magicclass(record=False)
     class Operator(MagicTemplate):
@@ -208,8 +216,16 @@ class CylinderSimulator(MagicTemplate):
         arange = vfield(
             tuple[int, int], label="angular", widget_type=RangeSlider
         ).with_options(value=(0, 100))
-        n_allev = vfield(1, label="alleviate").with_options(min=0, max=20)
-        show_selection = vfield(True, label="show selected molecules")
+
+        @magicclass(
+            properties={"margin": (0, 0, 0, 0)}, layout="horizontal", record=False
+        )
+        class Col(MagicTemplate):
+            n_allev = abstractapi()
+            show_selection = abstractapi()
+
+        n_allev = Col.vfield(1, label="alleviate").with_options(min=0, max=20)
+        show_selection = Col.vfield(True, label="show selected molecules")
 
         def _update_slider_lims(self, ny: int, na: int):
             amax_old = self["arange"].max
@@ -230,8 +246,6 @@ class CylinderSimulator(MagicTemplate):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
             parent._selections.visible = show
             return None
-
-        show_layer_control = abstractapi()
 
         def _fill_shift(self, yrange, arange, val: float):
             parent = self.find_ancestor(CylinderSimulator, cache=True)
@@ -283,8 +297,7 @@ class CylinderSimulator(MagicTemplate):
         shape = tuple(roundint(s / scale) for s in size)
 
         # update simulation parameters
-        self._simulate_shape = shape
-        self._simulate_scale = scale
+        self._set_shape_and_scale(shape, scale)
 
         binsize = ceilint(0.96 / scale)
         # NOTE: zero-filled image breaks contrast limit calculation, and bad for
@@ -303,6 +316,12 @@ class CylinderSimulator(MagicTemplate):
     def _get_current_index(self, *_) -> int:
         parent = self.parent_widget
         return parent.SplineControl.num
+
+    def _get_shape(self, *_) -> tuple[int, int, int]:
+        return self._simulate_shape
+
+    def _get_scale(self, *_) -> float:
+        return self._simulate_scale
 
     def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
         points = self._points.data
@@ -356,9 +375,25 @@ class CylinderSimulator(MagicTemplate):
         length: nm = 150.0,
         size: _ImageSize = (60.0, 200.0, 60.0),
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
-        yxrotation: float = 0.0,
-        zxrotation: float = 0.0,
+        yxrotation: Annotated[float, {"max": 90, "step": 1}] = 0.0,
+        zxrotation: Annotated[float, {"max": 90, "step": 1}] = 0.0,
     ):
+        """
+        Create a straight line as a cylinder spline.
+
+        Parameters
+        ----------
+        length : nm, default is 150.0
+            Length if the straight line in nm.
+        size : (nm, nm, nm), (60.0, 200.0, 60.0)
+            Size of the tomogram in which the spline will reside.
+        scale : nm, default is 0.25
+            Scale of pixel in nm/pixel.
+        yxrotation : float, optional
+            Rotation in YX plane. This rotation will be applied before ZX rotation.
+        zxrotation : float, optional
+            Rotation in ZX plane. This rotation will be applied before YX rotation.
+        """
         yxrot = Rotation.from_rotvec([np.deg2rad(yxrotation), 0.0, 0.0])
         zxrot = Rotation.from_rotvec([0.0, 0.0, np.deg2rad(zxrotation)])
         start_shift = zxrot.apply(yxrot.apply(np.array([0.0, -length / 2, 0.0])))
@@ -366,6 +401,7 @@ class CylinderSimulator(MagicTemplate):
         center = np.array(size) / 2
         shape = tuple(roundint(s / scale) for s in size)
         spl = CylSpline.line(start_shift + center, end_shift + center)
+        self._set_shape_and_scale(shape, scale)
         return self._set_spline(spl)
 
     @ViewerMenu.wraps
@@ -376,20 +412,6 @@ class CylinderSimulator(MagicTemplate):
         if mole is None:
             raise ValueError("Molecules are not generated yet.")
         self.parent_widget.add_molecules(mole, name="Simulated", source=self._spline)
-        return None
-
-    @Operator.wraps
-    @set_design(text="Show layer control", font_color="lime")
-    @do_not_record
-    def show_layer_control(self):
-        """Open layer control widget."""
-        if self._points is None:
-            raise ValueError("No layer found in this viewer.")
-        if self._layer_control is None:
-            cnt = self._points.widgets.as_container()
-            cnt.native.setParent(self.native, cnt.native.windowFlags())
-            self._layer_control = cnt
-        self._layer_control.show()
         return None
 
     @TransformMenu.wraps
@@ -472,21 +494,18 @@ class CylinderSimulator(MagicTemplate):
         self,
         path: Path,
         degrees: np.ndarray,
+        scale: float,
+        shape: tuple[int, int, int],
         order: int = 3,
     ) -> tuple[ip.ImgArray, Molecules]:
-        parent = self.parent_widget
-        tomo = parent.tomogram
         template = pipe.from_file(path)
 
         # noise-free tomogram generation from the current cylinder model
         model = self.model
         mole = model.to_molecules(self._spline)
-        scale = tomo.scale
         simulator = TomogramSimulator(order=order, scale=scale)
         simulator.add_molecules(molecules=mole, image=template)
-        tilt_series = simulator.simulate_tilt_series(
-            degrees=degrees, shape=tomo.image.shape
-        )
+        tilt_series = simulator.simulate_tilt_series(degrees=degrees, shape=shape)
         tilt_series = ip.asarray(tilt_series, axes=["degree", "y", "x"]).set_scale(
             y=scale, x=scale
         )
@@ -502,6 +521,8 @@ class CylinderSimulator(MagicTemplate):
         nsr: _NSRatio = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
+        shape: Bound[_get_shape] = None,
+        scale: Bound[_get_scale] = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
@@ -528,11 +549,16 @@ class CylinderSimulator(MagicTemplate):
         seed : int, optional
             Random seed used for the Gaussian noise.
         """
+        if scale is None:
+            scale = self._get_scale()
+        if shape is None:
+            shape = self._get_shape()
         save_dir = Path(save_dir)
         parent = self.parent_widget
-        tomo = parent.tomogram
         degrees = np.linspace(*tilt_range, n_tilt)
-        sino, mole = self._prep_radon(template_path, degrees, interpolation)
+        sino, mole = self._prep_radon(
+            template_path, degrees, scale, shape, interpolation
+        )
 
         yield _on_radon_finished(sino, degrees)
 
@@ -548,7 +574,7 @@ class CylinderSimulator(MagicTemplate):
             "n_tilt": len(degrees),
             "interpolation": interpolation,
             "random_seed": seed,
-            "tomogram_shape": tomo.image.shape,
+            "tomogram_shape": shape,
             "central_axis": "y",  # NOTE: may change in the future
             "ns_ratio": nsr_info,
         }
@@ -569,9 +595,9 @@ class CylinderSimulator(MagicTemplate):
             rec = sino_noise.iradon(
                 degrees,
                 central_axis="y",
-                height=tomo.image.shape[0],
+                height=shape[0],
                 order=interpolation,
-            ).set_scale(zyx=tomo.scale, unit="nm")
+            ).set_scale(zyx=scale, unit="nm")
             yield _on_iradon_finished(rec, f"N/S = {nsr_val:.1f}")
 
             file_name = save_dir / f"image-{i}.mrc"
@@ -590,6 +616,8 @@ class CylinderSimulator(MagicTemplate):
         nsr: _NSRatio = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: int = 61,
+        shape: Bound[_get_shape] = None,
+        scale: Bound[_get_scale] = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
@@ -614,11 +642,15 @@ class CylinderSimulator(MagicTemplate):
         seed : int, optional
             Random seed used for the Gaussian noise.
         """
+        if scale is None:
+            scale = self._get_scale()
+        if shape is None:
+            shape = self._get_shape()
         parent = self.parent_widget
-        tomo = parent.tomogram
         degrees = np.linspace(*tilt_range, n_tilt)
-        sino, mole = self._prep_radon(template_path, degrees, interpolation)
-
+        sino, mole = self._prep_radon(
+            template_path, degrees, scale, shape, interpolation
+        )
         # add noise and save image
         if not save_dir.exists():
             save_dir.mkdir()
@@ -631,7 +663,7 @@ class CylinderSimulator(MagicTemplate):
             "n_tilt": len(degrees),
             "interpolation": interpolation,
             "random_seed": seed,
-            "tomogram_shape": tomo.image.shape,
+            "tomogram_shape": shape,
             "central_axis": "y",  # NOTE: may change in the future
             "ns_ratio": nsr_info,
         }
@@ -650,9 +682,7 @@ class CylinderSimulator(MagicTemplate):
                 scale=imax * nsr_val, size=sino.shape, axes=sino.axes
             )
             file_name = save_dir / f"tilt_series-{i}.mrc"
-            sino_noise.set_axes("zyx").set_scale(zyx=tomo.scale, unit="nm").imsave(
-                file_name
-            )
+            sino_noise.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(file_name)
             _Logger.print(f"Tilt series saved at {file_name}.")
 
         return None

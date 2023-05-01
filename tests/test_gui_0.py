@@ -260,7 +260,6 @@ def test_simulator(ui: CylindraMainWidget):
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(
-        idx=0,
         interval=4.1,
         skew=-0.30,
         rise=11.0,
@@ -282,7 +281,6 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(
-        idx=0,
         interval=4.1,
         skew=-0.31,
         rise=10.5,
