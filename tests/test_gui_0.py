@@ -10,7 +10,8 @@ import pytest
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
-TEST_PATH = Path(__file__).parent
+TEST_DIR = Path(__file__).parent
+PROJECT_DIR = TEST_DIR / "test_project"
 
 
 def assert_canvas(ui: CylindraMainWidget, isnone):
@@ -41,7 +42,7 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 
 
 def test_io(ui: CylindraMainWidget):
-    path = TEST_PATH / "13pf_MT.tif"
+    path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=[1, 2])
     ui.set_multiscale(1)
     ui.register_path(coords=coords_13pf)
@@ -52,8 +53,8 @@ def test_io(ui: CylindraMainWidget):
     # Save project
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
-    ui.save_project(TEST_PATH / "test-project.json")
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.save_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR)
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     assert old_splines[0] == new_splines[0]
@@ -63,7 +64,7 @@ def test_io(ui: CylindraMainWidget):
 
 
 def test_spline_deletion(ui: CylindraMainWidget):
-    path = TEST_PATH / "13pf_MT.tif"
+    path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
@@ -81,7 +82,7 @@ def test_spline_deletion(ui: CylindraMainWidget):
 
 
 def test_spline_switch(ui: CylindraMainWidget):
-    path = TEST_PATH / "13pf_MT.tif"
+    path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.filter_reference_image()
     ui.register_path(coords=coords_13pf)
@@ -176,7 +177,7 @@ def test_spline_switch(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.load_project(PROJECT_DIR)
     ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
@@ -192,7 +193,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         seed=0,
         interpolation=1,
     )
-    template_path = TEST_PATH / "beta-tubulin.mrc"
+    template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.align_averaged(
         layer=ui.parent_viewer.layers["Mono-0"],
         template_path=template_path,
@@ -215,11 +216,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         mask_params=(1, 1),
     )
     ui.save_molecules(
-        layer=ui.parent_viewer.layers["Mono-0"], save_path=TEST_PATH / "monomers.txt"
+        layer=ui.parent_viewer.layers["Mono-0"], save_path=TEST_DIR / "monomers.txt"
     )
     mole = ui.get_molecules("Mono-0")
 
-    ui.load_molecules(TEST_PATH / "monomers.txt")
+    ui.load_molecules(TEST_DIR / "monomers.txt")
     mole_read = ui.get_molecules("monomers")
     assert_molecule_equal(mole, mole_read)
 
@@ -229,7 +230,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.load_project(PROJECT_DIR)
     ui.sta.classify_pca(
         ui.parent_viewer.layers["Mono-0"],
         mask_params=None,
@@ -240,7 +241,7 @@ def test_classify_pca(ui: CylindraMainWidget, binsize: int):
 
 
 def test_clip_spline(ui: CylindraMainWidget):
-    path = TEST_PATH / "13pf_MT.tif"
+    path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.register_path(coords=coords_13pf)
     spl = ui.tomogram.splines[0]
@@ -293,7 +294,7 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
         ui.cylinder_simulator.simulate_tomogram(
-            template_path=TEST_PATH / "beta-tubulin.mrc",
+            template_path=TEST_DIR / "beta-tubulin.mrc",
             save_dir=dirpath,
             nsr=[0.5, 2.0],
             tilt_range=(-60.0, 60.0),
@@ -313,7 +314,7 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
         ui.cylinder_simulator.simulate_tilt_series(
-            template_path=TEST_PATH / "beta-tubulin.mrc",
+            template_path=TEST_DIR / "beta-tubulin.mrc",
             save_dir=dirpath,
             nsr=[0.5, 2.0],
             tilt_range=(-60.0, 60.0),
@@ -326,16 +327,16 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
 
 
 def test_project_viewer():
-    view_project(TEST_PATH / "test-project.json").close()
+    view_project(PROJECT_DIR).close()
 
 
 def test_show_orientation(ui: CylindraMainWidget):
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.load_project(PROJECT_DIR)
     ui.show_orientation(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_merge_molecules(ui: CylindraMainWidget):
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.load_project(PROJECT_DIR)
     ui.merge_molecule_info(
         pos=ui.parent_viewer.layers["Mono-0"],
         rotation=ui.parent_viewer.layers["Mono-1"],
@@ -346,7 +347,7 @@ def test_merge_molecules(ui: CylindraMainWidget):
 
 
 def test_molecule_features(ui: CylindraMainWidget):
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.load_project(PROJECT_DIR)
     ui.show_molecule_features()
     ui.filter_molecules(
         layer=ui.parent_viewer.layers["Mono-0"], predicate='pl.col("position-nm") < 9.2'
@@ -360,7 +361,7 @@ def test_molecule_features(ui: CylindraMainWidget):
 
 
 def test_auto_align(ui: CylindraMainWidget):
-    path = TEST_PATH / "13pf_MT.tif"
+    path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=2)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
@@ -372,7 +373,7 @@ def test_auto_align(ui: CylindraMainWidget):
 
 
 def test_molecules_to_spline(ui: CylindraMainWidget):
-    ui.load_project(TEST_PATH / "test-project.json")
+    ui.load_project(PROJECT_DIR)
     assert len(ui.tomogram.splines) == 2
     ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]], interval=20)
     assert len(ui.tomogram.splines) == 2

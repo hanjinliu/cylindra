@@ -153,8 +153,6 @@ class CylindraProject(BaseProject):
         from cylindra.types import MoleculesLayer
 
         self = cls.from_gui(gui, json_path, results_dir)
-        # save objects
-        self.to_json(json_path)
         macro_str = str(gui._format_macro(gui.macro[gui._macro_offset :]))
 
         tomo = gui.tomogram
@@ -185,18 +183,17 @@ class CylindraProject(BaseProject):
             globalprops.write_csv(globalprops_path)
         if self.splines:
             for spl, path in zip(gui.tomogram.splines, self.splines):
-                spl.to_json(results_dir.parent / path)
+                spl.to_json(results_dir / path)
         if self.molecules:
             for df, path in zip(molecule_dataframes, self.molecules):
-                df.write_csv(results_dir.parent / path)
+                df.write_csv(results_dir / path)
 
-        gui.Others.Global_variables.save_variables(
-            results_dir.parent / self.global_variables
-        )
+        gui.global_variables.save_variables(results_dir / self.global_variables)
 
         if macro_str:
-            fp = results_dir.parent / str(self.macro)
+            fp = results_dir / str(self.macro)
             fp.write_text(macro_str)
+        self.to_json(json_path)
         return None
 
     def to_gui(self, gui: "CylindraMainWidget", filter: bool = True):
@@ -263,7 +260,7 @@ class CylindraProject(BaseProject):
             # load global variables
             if self.global_variables:
                 with gui.macro.blocked():
-                    gui.Others.Global_variables.load_variables(self.global_variables)
+                    gui.Others.GlobalVariables.load_variables(self.global_variables)
 
             # append macro
             with open(self.macro) as f:
@@ -287,7 +284,9 @@ class CylindraProject(BaseProject):
                 mole = Molecules.from_csv(path)
                 _src = None
                 if self.molecule_sources is not None:
-                    _src = splines[self.molecule_sources[idx]]
+                    _spl_idx = self.molecule_sources[idx]
+                    if _spl_idx is not None:
+                        _src = splines[_spl_idx]
                 gui.add_molecules(mole, name=Path(path).stem, source=_src)
 
         return _load_project_on_return

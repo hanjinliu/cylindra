@@ -3,17 +3,17 @@ import tempfile
 from pathlib import Path
 import pytest
 
-TEST_PATH = Path(__file__).parent
+TEST_DIR = Path(__file__).parent
 
 
 def _load(ui: CylindraMainWidget):
     ui.batch.construct_loader(
         paths=[
             (
-                TEST_PATH / "13pf_MT.tif",
+                TEST_DIR / "13pf_MT.tif",
                 [
-                    TEST_PATH / "test-project_results" / "Mono-0.csv",
-                    TEST_PATH / "test-project_results" / "Mono-1.csv",
+                    TEST_DIR / "test_project" / "Mono-0.csv",
+                    TEST_DIR / "test_project" / "Mono-1.csv",
                 ],
             )
         ],
@@ -26,7 +26,7 @@ def test_project_io(ui: CylindraMainWidget):
     _load(ui)
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        path = root / "test-batch.json"
+        path = root / "test"
         ui.batch.save_batch_project(path)
         assert len(ui.batch._loaders) == 1
         ui.batch.load_batch_project(path)
@@ -44,7 +44,7 @@ def test_align(ui: CylindraMainWidget, binsize: int):
     _load(ui)
     ui.batch.sta.align_all(
         "Loader",
-        template_path=TEST_PATH / "beta-tubulin.mrc",
+        template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(2.0, 2.0),
         bin_size=binsize,
     )

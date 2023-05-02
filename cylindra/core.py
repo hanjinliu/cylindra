@@ -79,7 +79,7 @@ def start(
     if project_file is not None:
         ui.load_project(project_file)
     if globals_file is not None:
-        ui.Others.Global_variables.load_variables(globals_file)
+        ui.Others.GlobalVariables.load_variables(globals_file)
     _CURRENT_INSTANCE = ui
 
     with suppress(Exception):
@@ -97,18 +97,20 @@ def instance() -> CylindraMainWidget | None:
 
 def view_project(project_file: PathLike, run: bool = False):
     """View the Cylindra project file."""
-    from cylindra.project import CylindraProject
+    from cylindra.project import CylindraProject, get_project_json
 
-    widget = CylindraProject.from_json(project_file).make_project_viewer()
+    widget = CylindraProject.from_json(
+        get_project_json(project_file)
+    ).make_project_viewer()
     widget.show(run=run)
     return widget
 
 
 def read_project(file: PathLike) -> CylindraProject:
     """Read the Cylindra project file."""
-    from cylindra.project import CylindraProject
+    from cylindra.project import CylindraProject, get_project_json
 
-    return CylindraProject.from_json(file)
+    return CylindraProject.from_json(get_project_json(file))
 
 
 def read_molecules(

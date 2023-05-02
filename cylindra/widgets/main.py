@@ -54,7 +54,7 @@ from cylindra.const import (
     get_versions,
 )
 from cylindra.types import MoleculesLayer, get_monomer_layers
-from cylindra.project import CylindraProject
+from cylindra.project import CylindraProject, get_project_json
 
 # widgets
 from cylindra.widgets import _previews, _shared_doc, subwidgets
@@ -146,6 +146,11 @@ class CylindraMainWidget(MagicTemplate):
     Molecules_ = subwidgets.Molecules_
     Analysis = subwidgets.Analysis
     Others = subwidgets.Others
+
+    # Menu for global variables
+    @property
+    def global_variables(self):
+        return self.Others.GlobalVariables
 
     # Toolbar
     toolbar = subwidgets.toolbar
@@ -540,22 +545,24 @@ class CylindraMainWidget(MagicTemplate):
         condition="self._need_save",
     )
     @do_not_record
-    def load_project(self, path: Path.Read[FileFilter.JSON], filter: bool = True):
+    def load_project(self, path: Path.Read[FileFilter.PROJECT], filter: bool = True):
         """Load a project json file."""
+        path = Path(path)
+        if path.is_dir():
+            path = path / "project.json"
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"Directory {path} seems not a cylindra project directory. A "
+                    "project directory should contain a 'project.json' file."
+                )
         project = CylindraProject.from_json(path)
         return thread_worker.to_callback(project.to_gui(self, filter=filter))
 
     @File.wraps
     @set_design(text="Save project")
-    def save_project(
-        self,
-        json_path: Path.Save[FileFilter.JSON],
-        results_dir: Annotated[
-            Optional[Path.Dir], {"text": "Save at the same directory"}
-        ] = None,
-    ):
+    def save_project(self, save_dir: Path.Save):
         """
-        Save current project state as a json file and the results in a directory.
+        Save current project state and the results in a directory.
 
         The json file contains paths of images and results, parameters of splines,
         scales and version. Local and global properties, molecule coordinates and
@@ -565,12 +572,11 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        json_path : Path
+        save_dir : Path
             Path of json file.
-        results_dir : Path, optional
-            Optionally you can specify the directory to save csv files.
         """
-        CylindraProject.save_gui(self, Path(json_path), results_dir)
+        save_dir = Path(save_dir)
+        CylindraProject.save_gui(self, save_dir / "project.json", save_dir)
         self._need_save = False
         return
 
@@ -2444,7 +2450,9 @@ class CylindraMainWidget(MagicTemplate):
 
     @impl_preview(load_project)
     def _preview_text(self, path: str):
-        pviewer = CylindraProject.from_json(path).make_project_viewer()
+        pviewer = CylindraProject.from_json(
+            get_project_json(path)
+        ).make_project_viewer()
         pviewer.native.setParent(self.native, pviewer.native.windowFlags())
         return pviewer.show()
 

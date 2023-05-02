@@ -21,7 +21,7 @@ from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
 from cylindra.components import CylTomogram
 from cylindra.const import GlobalVariables as GVar
-from cylindra.widgets.global_variables import GlobalVariables
+from cylindra.widgets.global_variables import GlobalVariablesMenu
 
 ICON_DIR = Path(__file__).parent / "icons"
 
@@ -160,7 +160,7 @@ class Others(MagicTemplate):
         run_file = abstractapi()
 
     open_command_palette = abstractapi()
-    Global_variables = GlobalVariables
+    GlobalVariables = GlobalVariablesMenu
     open_logger = abstractapi()
     clear_cache = abstractapi()
 
