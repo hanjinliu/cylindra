@@ -18,7 +18,7 @@ INITIAL_PATH = Path(user_config_dir("variables", "cylindra"))
 
 
 @magicmenu(name="Global variables ...")
-class GlobalVariables(MagicTemplate):
+class GlobalVariablesMenu(MagicTemplate):
     @set_options(
         yPitchMin={"step": 0.1},
         yPitchMax={"step": 0.1},

@@ -133,9 +133,6 @@ class CylindraBatchProject(BaseProject):
 
         self = cls.from_gui(gui, json_path, results_dir)
 
-        # save objects
-        self.to_json(json_path)
-
         macro_str = str(gui.macro)
 
         if not os.path.exists(results_dir):
@@ -146,8 +143,11 @@ class CylindraBatchProject(BaseProject):
             info.loader.molecules.to_csv(lmodel.molecule)
 
         if macro_str:
-            fp = results_dir.parent / str(self.macro)
+            fp = results_dir / str(self.macro)
             fp.write_text(macro_str)
+
+        # save objects
+        self.to_json(json_path)
 
     def to_gui(self, gui: "CylindraBatchWidget"):
         import impy as ip

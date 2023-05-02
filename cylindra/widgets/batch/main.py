@@ -14,11 +14,11 @@ from magicclass import (
     MagicTemplate,
     field,
 )
-from magicclass.types import Bound, Path, Optional
+from magicclass.types import Bound, Path
 
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
 from cylindra.widgets.widget_utils import FileFilter
-from cylindra.project import CylindraBatchProject
+from cylindra.project import CylindraBatchProject, get_project_json
 
 from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit
@@ -96,7 +96,7 @@ class CylindraBatchWidget(MagicTemplate):
     @confirm(
         text="Are you sure to clear all loaders?", condition="len(self._loaders) > 0"
     )
-    def load_batch_project(self, path: Path.Read[FileFilter.JSON]):
+    def load_batch_project(self, path: Path.Read[FileFilter.PROJECT]):
         """
         Load a batch project from a JSON file.
 
@@ -106,25 +106,19 @@ class CylindraBatchWidget(MagicTemplate):
             Path to the JSON file.
         """
         self._loaders.clear()
-        return CylindraBatchProject.from_json(path).to_gui(self)
+        return CylindraBatchProject.from_json(get_project_json(path)).to_gui(self)
 
     @constructor.File.wraps
     @set_design(text="Save as batch analysis project")
-    def save_batch_project(
-        self,
-        json_path: Path.Save[FileFilter.JSON],
-        results_dir: Annotated[
-            Optional[Path.Dir], {"text": "Save at the same directory"}
-        ] = None,
-    ):
+    def save_batch_project(self, save_path: Path.Save):
         """
         Save the GUI state to a JSON file.
 
         Parameters
         ----------
-        json_path : path-like
+        save_path : path-like
             Path to the JSON file.
-        results_dir : path-like, optional
-            If given, results will be saved to this directory.
         """
-        return CylindraBatchProject.save_gui(self, Path(json_path), results_dir)
+        save_path = Path(save_path)
+        json_path = save_path / "project.json"
+        return CylindraBatchProject.save_gui(self, json_path, save_path)
