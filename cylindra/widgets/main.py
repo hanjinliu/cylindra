@@ -77,6 +77,7 @@ if TYPE_CHECKING:
 
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
+SELF = mk.Mock("self")
 _Logger = getLogger("cylindra")
 
 # stylesheet
@@ -221,6 +222,7 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_work.data = []
         self.layer_prof.selected_data = set()
         self.reset_choices()
+        self.SplineControl.num = tomo.n_splines - 1
         return None
 
     _runner = subwidgets.Runner
@@ -315,13 +317,17 @@ class CylindraMainWidget(MagicTemplate):
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "clear_last.png")
+    @confirm(
+        text="Spline has properties. Are you sure to delete it?",
+        condition="not (self.tomogram.splines[self.SplineControl.num].localprops is None and self.tomogram.splines[self.SplineControl.num].globalprops is None)",
+    )
     @do_not_record
     def clear_current(self):
         """Clear current selection."""
         if self.layer_work.data.size > 0:
             self.layer_work.data = []
         else:
-            self.delete_spline(-1)
+            self.delete_spline(self.SplineControl.num)
 
         return None
 
@@ -479,7 +485,7 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Reading image")
     @confirm(
         text="You may have unsaved data. Open a new tomogram?",
-        condition="self._need_save",
+        condition=SELF._need_save,
     )
     def open_image(
         self,
@@ -533,7 +539,7 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Reading project")
     @confirm(
         text="You may have unsaved data. Open a new project?",
-        condition="self._need_save",
+        condition=SELF._need_save,
     )
     @do_not_record
     def load_project(self, path: Path.Read[FileFilter.PROJECT], filter: bool = True):
@@ -945,6 +951,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Delete spline")
+    @confirm(
+        text="Spline has properties. Are you sure to delete it?",
+        condition="not (self.tomogram.splines[self.SplineControl.num].localprops is None and self.tomogram.splines[self.SplineControl.num].globalprops is None)",
+    )
     def delete_spline(self, i: Bound[SplineControl.num]):
         """Delete currently selected spline."""
         if i < 0:
@@ -2439,6 +2449,7 @@ class CylindraMainWidget(MagicTemplate):
                 size=10,
                 name=f"spline-{i}-anc",
             )
+        self._highlight_spline()
         return None
 
 
