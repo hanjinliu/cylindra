@@ -24,6 +24,8 @@ pub struct ShiftResult<S> {
 
 
 #[derive(Clone)]
+/// GraphComponents represents a concrete graph structure and the assigned
+/// states of nodes and edges.
 pub struct GraphComponents<Sn, Se> {
     edges: Vec<Vec<usize>>,
     edge_ends: Vec<(usize, usize)>,
@@ -125,35 +127,38 @@ pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
     geometry: CylinderGeometry,
     coords: Arc<Grid2D<CoordinateSystem<f32>>>,
-    score: ArcArray<f32, Ix5>,
+    energy: ArcArray<f32, Ix5>,
     binding_potential: BoxPotential2D,
     local_shape: Vector3D<isize>,
 }
 
 impl CylindricGraph {
+    /// Create a graph with no nodes or edges.
     pub fn empty() -> Self {
         Self {
             components: GraphComponents::empty(),
             geometry: CylinderGeometry::new(0, 0, 0),
             coords: Arc::new(Grid2D::init(0, 0)),
-            score: ArcArray::zeros((0, 0, 0, 0, 0)),
+            energy: ArcArray::zeros((0, 0, 0, 0, 0)),
             binding_potential: BoxPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
     }
 
+    /// Update energy landscape and local coordinates, and construct the graph
+    /// using input data.
     pub fn update(
         &mut self,
-        score: ArcArray<f32, Ix5>,
+        energy: ArcArray<f32, Ix5>,
         origin: ArcArray<f32, Ix3>,
         zvec: ArcArray<f32, Ix3>,
         yvec: ArcArray<f32, Ix3>,
         xvec: ArcArray<f32, Ix3>,
         nrise: isize,
     ) -> PyResult<&Self> {
-        let score_dim = score.raw_dim();
-        let (ny, na) = (score_dim[0], score_dim[1]);
-        let (_nz, _ny, _nx) = (score_dim[2], score_dim[3], score_dim[4]);
+        let e_dim = energy.raw_dim();
+        let (ny, na) = (e_dim[0], e_dim[1]);
+        let (_nz, _ny, _nx) = (e_dim[2], e_dim[3], e_dim[4]);
 
         if origin.shape() != &[ny, na, 3] {
             return value_error!("origin shape mismatch");
@@ -177,7 +182,7 @@ impl CylindricGraph {
 
         self.geometry = CylinderGeometry::new(ny as isize, na as isize, nrise);
         self.coords = Arc::new(coords);
-        self.score = score;
+        self.energy = energy;
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
 
         self.components.clear();
@@ -202,7 +207,8 @@ impl CylindricGraph {
         Ok(self)
     }
 
-    pub fn graph(&self) -> &GraphComponents<NodeState, EdgeType> {
+    /// Get the graph components.
+    pub fn components(&self) -> &GraphComponents<NodeState, EdgeType> {
         &self.components
     }
 
@@ -210,7 +216,7 @@ impl CylindricGraph {
     pub fn internal(&self, node_state: &NodeState) -> f32 {
         let idx = &node_state.index;
         let vec = node_state.shift;
-        self.score[[idx.y as usize, idx.a as usize, vec.z as usize, vec.y as usize, vec.x as usize]]
+        self.energy[[idx.y as usize, idx.a as usize, vec.z as usize, vec.y as usize, vec.x as usize]]
     }
 
     /// Calculate the binding energy between two nodes.
@@ -223,6 +229,7 @@ impl CylindricGraph {
         self.binding_potential.calculate(dr.length2(), typ)
     }
 
+    /// Return a random neighbor state of a given node state.
     pub fn random_local_neighbor_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
         let idx = node_state.index.clone();
         let shift = node_state.shift;
@@ -234,7 +241,7 @@ impl CylindricGraph {
         let mut shifts = Array3::<isize>::zeros(
             (self.geometry.ny as usize, self.geometry.na as usize, 3)
         );
-        let graph = self.graph();
+        let graph = self.components();
         for i in 0..graph.node_count() {
             let state = graph.node_state(i);
             let y = state.index.y;
@@ -248,7 +255,7 @@ impl CylindricGraph {
     }
 
     fn get_distances(&self, typ: &EdgeType) -> Array1<f32> {
-        let graph = self.graph();
+        let graph = self.components();
         let mut distances = Vec::new();
         for i in 0..graph.edge_count() {
             if graph.edge_state(i) != typ {
@@ -270,9 +277,10 @@ impl CylindricGraph {
         self
     }
 
+    /// Calculate the total energy of the graph.
     pub fn energy(&self) -> f32 {
         let mut energy = 0.0;
-        let graph = self.graph();
+        let graph = self.components();
         for i in 0..graph.node_count() {
             energy += self.internal(&graph.node_state(i));
         }
@@ -285,8 +293,10 @@ impl CylindricGraph {
         energy
     }
 
+    /// Randomly choose one node and return a possible shift. This method does not actually
+    /// update the graph.
     pub fn try_random_shift(&self, rng: &mut RandomNumberGenerator) -> ShiftResult<NodeState> {
-        let graph = self.graph();
+        let graph = self.components();
         let idx = rng.uniform_int(graph.node_count());
         let state_old = graph.node_state(idx);
         let mut e_old = self.internal(&state_old);
@@ -305,11 +315,12 @@ impl CylindricGraph {
         ShiftResult { index: idx, state: state_new, energy_diff: de }
     }
 
+    /// Apply the shift result to the graph.
     pub fn apply_shift(&mut self, result: &ShiftResult<NodeState>) {
         self.components.set_node_state(result.index, result.state.clone());
     }
 
-
+    /// Initialize the node states to the center of each local coordinates.
     pub fn initialize(&mut self) -> &Self {
         let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);
         let (ny, na) = (self.geometry.ny, self.geometry.na);
@@ -335,7 +346,7 @@ impl CylindricGraph {
     }
 
     pub fn check_graph(&self) -> PyResult<()> {
-        if self.graph().node_count() < 2 {
+        if self.components().node_count() < 2 {
             return value_error!("Graph has less than 2 nodes");
         }
         Ok(())
