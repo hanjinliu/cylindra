@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 import os
-from magicclass.widgets import Slider, SpreadSheet, ConsoleTextEdit
+from magicclass.widgets import Slider, TabbedContainer, ConsoleTextEdit
 from magicclass import (
     magicclass,
     MagicTemplate,
@@ -9,10 +10,11 @@ from magicclass import (
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.vispy import Vispy3DCanvas
+from magicclass.ext.polars import DataFrameView
 
 import numpy as np
 import impy as ip
-import pandas as pd
+import polars as pl
 
 
 @magicclass(record=False)
@@ -80,16 +82,16 @@ class ImagePreview(MagicTemplate):
 
 def view_tables(
     paths: list[str], parent: MagicTemplate = None, **kwargs
-) -> SpreadSheet:
+) -> TabbedContainer:
     """Preview a list of tables."""
-    xl = SpreadSheet()
+    container = TabbedContainer(labels=False)
     for i, path in enumerate(paths):
-        df = pd.read_csv(path, **kwargs)
-        xl.append(df)
-        xl.rename(i, os.path.basename(path))
-    xl.native.setParent(parent.native, xl.native.windowFlags())
-    xl.show()
-    return xl
+        df = pl.read_csv(path, **kwargs)
+        view = DataFrameView(value=df, name=os.path.basename(path))
+        container.append(view)
+    container.native.setParent(parent.native, container.native.windowFlags())
+    container.show()
+    return container
 
 
 def view_text(path: str, parent: MagicTemplate = None, **kwargs) -> ConsoleTextEdit:

@@ -7,7 +7,6 @@ from magicclass import (
     confirm,
     set_design,
 )
-from magicclass.utils import thread_worker
 from magicclass.types import Optional, OneOf, SomeOf
 from magicclass.ext.dask import dask_thread_worker
 import impy as ip

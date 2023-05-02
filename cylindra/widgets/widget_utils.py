@@ -23,13 +23,24 @@ if TYPE_CHECKING:
     from cylindra.components import CylTomogram
 
 
+# namespace used in predicate
+POLARS_NAMESPACE = {
+    "pl": pl,
+    "int": int,
+    "float": float,
+    "str": str,
+    "np": np,
+    "__builtins__": {},
+}
+
+
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
 
     IMAGE = "Tomograms (*.mrc;*.rec;*.tif;*.tiff;*.map);;All files (*)"
     JSON = "JSON(*.json;*.txt);;All files (*)"
     PROJECT = "Project file(project.json);;JSON(*.json;*.txt);;All files (*)"
-    CSV = "CSV(*.csv;*.txt);*.dat;;All files (*)"
+    CSV = "CSV(*.csv;*.txt;*.dat);;All files (*)"
     PY = "Python (*.py);;All files (*)"
     MOD = "Model files (*.mod);;All files (*.txt;*.csv)"
 
