@@ -973,6 +973,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Spline Fitting")
     def fit_splines(
         self,
+        splines: SomeOf[_get_splines] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: OneOf[_get_available_binsize] = 1,
         degree_precision: float = 0.5,
@@ -993,7 +994,12 @@ class CylindraMainWidget(MagicTemplate):
         max_shift : nm, default is 5.0
             Maximum shift to be applied to each point of splines.
         """
-        self.tomogram.fit(
+        tomo = self.tomogram
+        if len(splines) == 0:
+            splines = list(range(tomo.n_splines))
+
+        tomo.fit(
+            splines,
             max_interval=max_interval,
             binsize=bin_size,
             degree_precision=degree_precision,
@@ -1070,12 +1076,11 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Refining splines")
     def refine_splines(
         self,
+        splines: SomeOf[_get_splines] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
-        corr_allowed: Annotated[
-            float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}
-        ] = 0.9,
+        corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: OneOf[_get_available_binsize] = 1,
-    ):
+    ):  # fmt: skip
         """
         Refine splines using the global cylindric structural parameters.
 
@@ -1088,8 +1093,11 @@ class CylindraMainWidget(MagicTemplate):
         {bin_size}
         """
         tomo = self.tomogram
+        if len(splines) == 0:
+            splines = list(range(tomo.n_splines))
 
         tomo.refine(
+            splines,
             max_interval=max_interval,
             corr_allowed=corr_allowed,
             binsize=bin_size,
