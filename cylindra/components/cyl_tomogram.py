@@ -357,8 +357,7 @@ class CylTomogram(Tomogram):
             nrots = roundint(degree_max / degree_precision) + 1
 
             # Angular correlation
-            with set_gpu():
-                out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
+            out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
             refined_tilt_deg = np.array(out)
             refined_tilt_rad = np.deg2rad(refined_tilt_deg)
 
