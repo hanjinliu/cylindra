@@ -2,6 +2,7 @@ use num::traits::real::Real;
 use numpy::ndarray::{Array1, ArrayView1};
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
+/// A simple 3D vector.
 pub struct Vector3D<T> {
     pub z: T,
     pub y: T,
@@ -13,6 +14,10 @@ impl<T> Vector3D<T> {
         Vector3D { z, y, x }
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+///////////   Casting   /////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
 
 impl From<Vector3D<isize>> for Vector3D<f32>{
     fn from(other: Vector3D<isize>) -> Vector3D<f32> {
@@ -81,6 +86,10 @@ impl<T> Into<(T, T, T)> for Vector3D<T> {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
+///////////   Vector metrics   //////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+
 impl<T: Real> Vector3D<T> {
     pub fn dot(&self, other: &Vector3D<T>) -> T {
         self.z * other.z + self.y * other.y + self.x * other.x
@@ -94,6 +103,7 @@ impl<T: Real> Vector3D<T> {
         self.z * self.z + self.y * self.y + self.x * self.x
     }
 
+    /// Angle between two vectors.
     pub fn angle(&self, other: Vector3D<T>) -> T {
         let dot_prd = self.dot(&other);
         let a2 = self.length2();
@@ -102,16 +112,27 @@ impl<T: Real> Vector3D<T> {
         return dot_prd / (a2 + b2 - ab - ab);
     }
 
+    /// Return the unit vector of `self`.
     pub fn normed(&self) -> Vector3D<T> {
         let len = self.length();
         Vector3D::new(self.z / len, self.y / len, self.x / len)
     }
 
-    pub fn point_to_plane_distance2(&self, norm: &Vector3D<T>, other: &Vector3D<T>) -> T where T: std::ops::Sub<T>{
+    /// Get the squared distance between point `self` and the plane defined by a normal
+    /// vector `norm` and the in-plane point `other`.
+    pub fn point_to_plane_distance2(
+        &self,
+        norm: &Vector3D<T>,
+        other: &Vector3D<T>,
+    ) -> T where T: std::ops::Sub<T>{
         let dr = Vector3D::new(self.z - other.z, self.y - other.y, self.x - other.x);
         dr.dot(&norm).abs()
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+///////////   Operators   ///////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
 
 impl<T: Real> std::ops::Add<T> for Vector3D<T> {
     type Output = Vector3D<T>;

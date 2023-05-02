@@ -5,6 +5,7 @@ use crate::index_error;
 
 #[pyclass]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+/// Indices of a molecule on a cylinder lattice.
 pub struct Index {
     pub y: isize,
     pub a: isize,
@@ -17,14 +18,17 @@ impl Index {
         Self { y, a }
     }
 
+    /// Check if the index is valid for the given geometry.
     pub fn is_valid(&self, ny: isize, na: isize) -> bool {
         self.y >= 0 && self.y < ny && self.a >= 0 && self.a < na
     }
 
+    /// Python __eq__ operator (not implemented in PyO3 yet).
     pub fn __eq__(&self, other: (isize, isize)) -> bool {
         self.y == other.0 && self.a == other.1
     }
 
+    /// Python __repr__ method.
     pub fn __repr__(&self) -> String {
         format!("Index(y={}, a={})", self.y, self.a)
     }
@@ -32,6 +36,8 @@ impl Index {
 
 #[pyclass]
 #[derive(Clone, PartialEq, Eq)]
+/// A struct represents cylinder geometry with rise.
+/// nrise is the number of increase in `y` when `a` increases by `na`.
 pub struct CylinderGeometry {
     pub ny: isize,
     pub na: isize,
@@ -55,6 +61,9 @@ impl CylinderGeometry {
     }
 
     #[pyo3(signature = (y, a))]
+    /// Get an Index struct at the given position.
+    /// `a` can be negative or greater than `na`. In this case, `y` is adjusted
+    /// accordingly to keep the index valid.
     pub fn get_index(&self, y: isize, a: isize) -> PyResult<Index> {
         let mut y = y;
         let mut a = a;
@@ -79,6 +88,7 @@ impl CylinderGeometry {
     }
 
     #[pyo3(signature = (y, a))]
+    /// Get the index of the neighbor at the given position.
     pub fn get_neighbor(&self, y: isize, a: isize) -> PyResult<Vec<Index>> {
         let mut neighbors: Vec<Index> = Vec::new();
 
@@ -128,7 +138,7 @@ impl CylinderGeometry {
     }
 
     #[pyo3(signature = (indices))]
-    /// Return the neighbors of the given indices.
+    /// Return all the neighbors of all the given indices.
     pub fn get_neighbors(&self, indices: Vec<(isize, isize)>) -> PyResult<Vec<Index>> {
         let mut inds = Vec::new();
         for (y, a) in indices {
@@ -170,7 +180,7 @@ impl CylinderGeometry {
         pairs
     }
 
-
+    /// Source indices for the given index in the forward direction.
     fn source_forward(&self, y: isize, a: isize) -> Sources {
         if self.nrise >= 0 {
             if a > 0 {

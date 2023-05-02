@@ -14,8 +14,8 @@ use super::{
 };
 use crate::value_error;
 
-/// Current state of the annealing model
 #[derive(Clone, PartialEq, Eq)]
+/// Current state of the annealing model
 enum OptimizationState {
     NotConverged,  // Optimization is not converged yet
     Converged,  // Optimization converged
@@ -23,6 +23,7 @@ enum OptimizationState {
 }
 
 #[pyclass]
+/// A class to perform simulated annealing on a cylindric lattice.
 pub struct CylindricAnnealingModel {
     rng: RandomNumberGenerator,
     optimization_state: OptimizationState,
@@ -49,6 +50,8 @@ impl CylindricAnnealingModel {
         }
     }
 
+    #[pyo3(signature = (seed))]
+    /// Return a new instance with different random seed.
     pub fn with_seed<'py>(&self, py: Python<'py>, seed: u64) -> Py<Self> {
         let rng = RandomNumberGenerator::new(seed);
         let mut out = Self {
@@ -63,6 +66,8 @@ impl CylindricAnnealingModel {
         Py::new(py, out).unwrap()
     }
 
+    #[pyo3(signature = (reject_limit))]
+    /// Return a new instance with different reject limit.
     pub fn with_reject_limit<'py>(&self, py: Python<'py>, reject_limit: usize) -> Py<Self> {
         let mut out = Self {
             rng: self.rng.clone(),
@@ -77,6 +82,7 @@ impl CylindricAnnealingModel {
     }
 
     #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    /// Set a standard reservoir.
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,
@@ -87,19 +93,23 @@ impl CylindricAnnealingModel {
         slf
     }
 
+    /// Get the temperature of the reservoir.
     pub fn temperature(&self) -> f32 {
         self.reservoir.temperature()
     }
 
+    /// Get all the existing distances of longitudinal connections as a numpy array.
     pub fn longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
         self.graph.get_longitudinal_distances().into_pyarray(py).into()
     }
 
+    /// Get all the existing distances of lateral connections as a numpy array.
     pub fn lateral_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
         self.graph.get_lateral_distances().into_pyarray(py).into()
     }
 
     #[pyo3(signature = (score, origin, zvec, yvec, xvec, nrise))]
+    /// Set graph and create local coordinates.
     pub fn set_graph<'py>(
         mut slf: PyRefMut<'py, Self>,
         score: PyReadonlyArray5<f32>,
@@ -119,6 +129,7 @@ impl CylindricAnnealingModel {
     }
 
     #[pyo3(signature = (lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max))]
+    /// Set a box potential with given borders.
     pub fn set_box_potential(
         mut slf: PyRefMut<Self>,
         lon_dist_min: f32,
@@ -132,14 +143,17 @@ impl CylindricAnnealingModel {
         Ok(slf)
     }
 
+    /// Get integer shift in each local coordinates as a numpy array.
     pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray3<isize>> {
         self.graph.get_shifts().into_pyarray(py).into()
     }
 
+    /// Calculate the current energy of the graph.
     pub fn energy(&self) -> f32 {
         self.graph.energy()
     }
 
+    /// Get current optimization state as a string.
     pub fn optimization_state(&self) -> String {
         match self.optimization_state {
             OptimizationState::NotConverged => "not_converged".to_string(),
@@ -148,12 +162,15 @@ impl CylindricAnnealingModel {
         }
     }
 
+    /// Get the current iteration count.
     pub fn iteration(&self) -> usize {
         self.iteration
     }
 
-    #[pyo3(signature = (nsteps=10000))]
-    pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize) -> PyResult<()> {
+    #[pyo3(signature = (nsteps=10000, nsettle=1000))]
+    /// Run simulation for given number of steps.
+    /// If simulation failed or converged, it will stop.
+    pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize, nsettle: usize) -> PyResult<()> {
         self.graph.check_graph()?;
         if nsteps <= 0 {
             return value_error!("nsteps must be positive");
@@ -164,6 +181,7 @@ impl CylindricAnnealingModel {
         let mut reject_count = 0;
         py.allow_threads(
             move || {
+                // Simulate while cooling.
                 for _ in 0..nsteps {
                     if self.proceed() {
                         reject_count = 0;
@@ -181,7 +199,8 @@ impl CylindricAnnealingModel {
                     self.iteration += 1;
                     self.reservoir.cool(self.iteration);
                 }
-                for _ in 0..nsteps {
+                // Keep proceeding until the energy settles.
+                for _ in 0..nsettle {
                     if !self.proceed() {
                         break;
                     }
@@ -194,13 +213,18 @@ impl CylindricAnnealingModel {
 }
 
 impl CylindricAnnealingModel {
+    /// Proceed one step of simulation. Return true if the shift is accepted.
     fn proceed(&mut self) -> bool {
+        // Randomly shift a node.
         let result = self.graph.try_random_shift(&mut self.rng);
+
+        // If the shift causes energy change from Inf to Inf, energy difference is NaN.
         if result.energy_diff.is_nan() {
             return false;
         }
-        let prob = self.reservoir.prob(result.energy_diff);
 
+        // Decide whether to accept the shift.
+        let prob = self.reservoir.prob(result.energy_diff);
         if self.rng.bernoulli(prob) {
             // accept shift
             self.graph.apply_shift(&result);

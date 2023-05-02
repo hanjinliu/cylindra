@@ -1,5 +1,6 @@
 use super::super::coordinates::{CoordinateSystem, Vector3D};
 
+/// Struct that represents longitudinal constraints.
 pub struct Constraint {
     nz: usize,
     ny: usize,
