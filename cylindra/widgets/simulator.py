@@ -192,9 +192,6 @@ class CylinderSimulator(MagicTemplate):
         self._simulate_scale = scale
         return None
 
-    # the 3D viewer of the cylinder model
-    canvas = field(Vispy3DCanvas)
-
     @magicclass(record=False)
     class Operator(MagicTemplate):
         """
@@ -254,6 +251,9 @@ class CylinderSimulator(MagicTemplate):
             asl = slice(*arange)
             shift[ysl, asl] = val
             return shift, Idx[ysl, asl]
+
+    # the 3D viewer of the cylinder model
+    canvas = field(Vispy3DCanvas)
 
     @property
     def parent_widget(self):

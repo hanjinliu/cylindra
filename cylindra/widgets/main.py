@@ -757,7 +757,8 @@ class CylindraMainWidget(MagicTemplate):
 
         self.parent_viewer.add_shapes(
             paths,
-            shape_type="Spline Curves",
+            shape_type="path",
+            name="Spline Curves",
             edge_color="lime",
             edge_width=1,
         )
