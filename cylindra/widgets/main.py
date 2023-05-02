@@ -2125,8 +2125,12 @@ class CylindraMainWidget(MagicTemplate):
         """Change camera focus to the position of current spline fragment."""
         if self.layer_paint is None:
             return None
+
+        # NOTE: the setter of "show_selected_label" calls layer.refresh() so that
+        # it is very slow. Check if "show_selected_label" is True before setting it.
         if not self.SplineControl.footer.focus:
-            self.layer_paint.show_selected_label = False
+            if self.layer_paint.show_selected_label:
+                self.layer_paint.show_selected_label = False
             return None
 
         viewer = self.parent_viewer
@@ -2139,7 +2143,8 @@ class CylindraMainWidget(MagicTemplate):
         next_center = spl(pos) / tomo.scale
         change_viewer_focus(viewer, next_center, tomo.scale)
 
-        self.layer_paint.show_selected_label = True
+        if not self.layer_paint.show_selected_label:
+            self.layer_paint.show_selected_label = True
 
         j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
         self.layer_paint.selected_label = j_offset + j + 1

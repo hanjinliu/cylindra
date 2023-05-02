@@ -63,7 +63,7 @@ class ImageProcessor(MagicTemplate):
         return None
 
     @dask_thread_worker.with_progress(desc="Inverting image.")
-    @set_design(text="Invert")
+    @set_design(text="Invert intensity")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def invert(self):
         """Invert intensity of the input image."""
