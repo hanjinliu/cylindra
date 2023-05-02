@@ -12,12 +12,16 @@ classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.2.1",
-    "acryo>=0.3.0",
+    "acryo>=0.3.1",
     "magic-class>=0.6.15",
     "pyqtgraph>=0.12.4",
     "pyarrow>=11.0.0",
@@ -50,6 +54,10 @@ include-package-data = true
 testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
+    "ignore::DeprecationWarning:ipykernel",
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore:Deprecated call to `pkg_resources.declare_namespace:DeprecationWarning",
+    "ignore::DeprecationWarning:qtconsole",
     "ignore:distutils Version classes are deprecated",
     "ignore:path is deprecated:DeprecationWarning",
     "ignore:Jupyter is migrating its paths to use standard platformdirs:DeprecationWarning",
