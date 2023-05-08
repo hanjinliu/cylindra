@@ -899,7 +899,8 @@ class SubtomogramAveraging(MagicTemplate):
         for i, (shift, _) in enumerate(vit_out):
             _check_viterbi_shift(shift, max_shifts_px, i)
             inds[slices[i], :] = shift
-        all_shifts = (inds - offset) / upsample_factor
+        all_shifts = ((inds - offset) / upsample_factor * scale).astype(np.float32)
+
         opt_score = np.fromiter(
             (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
             dtype=np.float32,
@@ -918,7 +919,7 @@ class SubtomogramAveraging(MagicTemplate):
 
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
 
-            rotvec = Rotation.from_quat(quats).as_rotvec()
+            rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
             molecules_opt.features = molecules_opt.features.with_columns(
                 pl.Series("align-dzrot", rotvec[:, 0]),
                 pl.Series("align-dyrot", rotvec[:, 1]),
@@ -1050,8 +1051,7 @@ class SubtomogramAveraging(MagicTemplate):
             dtype=np.float32,
         )
 
-        all_shifts_px = ((inds - offset) / upsample_factor).reshape(-1, 3)
-        all_shifts = all_shifts_px * scale
+        all_shifts = ((inds - offset) / upsample_factor * scale).reshape(-1, 3)
 
         molecules_opt = molecules.translate_internal(all_shifts)
         molecules_opt.features = molecules_opt.features.with_columns(
