@@ -29,9 +29,11 @@ from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
-from magicclass.utils import thread_worker
+from magicclass.utils import thread_worker, show_messagebox
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
+from magicclass.undo import undo_callback
+
 from napari.layers import Image, Labels, Layer, Points
 from napari.utils.colormaps import Colormap
 
@@ -223,7 +225,8 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_prof.selected_data = set()
         self.reset_choices()
         self.SplineControl.num = tomo.n_splines - 1
-        return None
+
+        return undo_callback(self.delete_spline).with_args(-1)
 
     _runner = subwidgets.Runner
     _image_loader = subwidgets.ImageLoader
@@ -382,7 +385,7 @@ class CylindraMainWidget(MagicTemplate):
     def run_file(self, path: Path.Read[FileFilter.PY]):
         """Run a Python script file."""
         macro = self._load_macro_file(path)
-        _ui = str(str(mk.symbol(self)))
+        _ui = str(mk.symbol(self))
         with self.macro.blocked():
             macro.eval({}, {_ui: self})
         self.macro.extend(macro.args)
@@ -676,7 +679,7 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(
         desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})"
     )
-    def add_multiscale(self, bin_size: OneOf[2:9] = 4):
+    def add_multiscale(self, bin_size: OneOf[2:17] = 4):
         """
         Add a new multi-scale image of current tomogram.
 
@@ -702,6 +705,7 @@ class CylindraMainWidget(MagicTemplate):
             Bin size of multiscaled image.
         """
         tomo = self.tomogram
+        _old_bin_size = self.layer_image.metadata["current_binsize"]
         imgb = tomo.get_multiscale(bin_size)
         factor = self.layer_image.scale[0] / imgb.scale.x
         current_z = self.parent_viewer.dims.current_step[0]
@@ -722,7 +726,7 @@ class CylindraMainWidget(MagicTemplate):
         self.overview.ylim = [y * factor for y in self.overview.ylim]
         self.layer_image.metadata["current_binsize"] = bin_size
         self.reset_choices()
-        return None
+        return undo_callback(self.set_multiscale).with_args(_old_bin_size)
 
     @ImageMenu.wraps
     @do_not_record
@@ -761,14 +765,14 @@ class CylindraMainWidget(MagicTemplate):
         """Show 3D spline paths of cylinder central axes as a layer."""
         paths = [r.partition(100) for r in self.tomogram.splines]
 
-        self.parent_viewer.add_shapes(
+        layer = self.parent_viewer.add_shapes(
             paths,
             shape_type="path",
             name="Spline Curves",
             edge_color="lime",
             edge_width=1,
         )
-        return None
+        return undo_callback(self._try_removing_layer).with_args(layer)
 
     @Splines.wraps
     @set_design(text="Show splines as meshes")
@@ -784,8 +788,8 @@ class CylindraMainWidget(MagicTemplate):
             n_nodes += n.shape[0]
         nodes = np.concatenate(nodes, axis=0)
         vertices = np.concatenate(vertices, axis=0)
-        self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
-        return None
+        layer = self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
+        return undo_callback(self._try_removing_layer).with_args(layer)
 
     @Splines.Orientation.wraps
     @set_design(text="Invert spline")
@@ -811,7 +815,7 @@ class CylindraMainWidget(MagicTemplate):
             self.sample_subtomograms()
         self._set_orientation_marker(spline)
         self._need_save = True
-        return None
+        return undo_callback(self.invert_spline).with_args(spline)
 
     @Splines.Orientation.wraps
     @set_design(text="Align to polarity")
@@ -827,6 +831,7 @@ class CylindraMainWidget(MagicTemplate):
             To which direction splines will be aligned.
         """
         need_resample = self.SplineControl.need_resample
+        _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         self.tomogram.align_to_polarity(orientation=orientation)
         self._update_splines_in_images()
         self._init_widget_state()
@@ -835,8 +840,18 @@ class CylindraMainWidget(MagicTemplate):
             self.sample_subtomograms()
         for i in range(len(self.tomogram.splines)):
             self._set_orientation_marker(i)
+        _new_orientations = [spl.orientation for spl in self.tomogram.splines]
         self._need_save = True
-        return None
+
+        @undo_callback
+        def out():
+            self._set_orientations(_old_orientations, need_resample)
+
+        @out.with_redo
+        def out():
+            self._set_orientations(_new_orientations)
+
+        return out
 
     @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
@@ -870,6 +885,7 @@ class CylindraMainWidget(MagicTemplate):
             Depth (Y-length) of the subtomogram to be sampled.
         """
         binsize = self.layer_image.metadata["current_binsize"]
+        _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         tomo = self.tomogram
         current_scale = tomo.scale * binsize
         imgb = tomo.get_multiscale(binsize)
@@ -905,6 +921,7 @@ class CylindraMainWidget(MagicTemplate):
                 _Logger.print, f"Spline {i} was {spl.orientation.name}."
             )
 
+        _new_orientations = [spl.orientation for spl in self.tomogram.splines]
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
         else:
@@ -913,9 +930,30 @@ class CylindraMainWidget(MagicTemplate):
             def _on_return():
                 for i in range(len(tomo.splines)):
                     self._set_orientation_marker(i)
-                return
+
+                @undo_callback
+                def out():
+                    self._set_orientations(_old_orientations)
+
+                @out.with_redo
+                def out():
+                    self._set_orientations(_new_orientations)
+
+                return out
 
             return _on_return
+
+    def _set_orientations(self, orientations: list[Ori], resample: bool = True):
+        for spl, ori in zip(self.tomogram.splines, orientations):
+            spl.orientation = ori
+        self._update_splines_in_images()
+        self._init_widget_state()
+        self.reset_choices()
+        for i in range(len(self.tomogram.splines)):
+            self._set_orientation_marker(i)
+        if resample:
+            self.sample_subtomograms()
+        return None
 
     @Splines.wraps
     @set_design(text="Clip splines")
@@ -936,7 +974,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         if spline is None:
             return
-        spl = self.tomogram.splines[spline]
+        spl: CylSpline = self.tomogram.splines[spline]
+        _old_lims = spl.lims
         length = spl.length()
         start, stop = np.array(clip_lengths) / length
         self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
@@ -947,7 +986,13 @@ class CylindraMainWidget(MagicTemplate):
         # initialize clipping values
         fgui = get_function_gui(self, "clip_spline")
         fgui.clip_lengths.value = (0.0, 0.0)
-        return None
+
+        @undo_callback
+        def out():
+            self.tomogram.splines[spline] = spl.restore().clip(*_old_lims)
+            self._update_splines_in_images()
+
+        return out
 
     @Splines.wraps
     @set_design(text="Delete spline")
@@ -959,14 +1004,15 @@ class CylindraMainWidget(MagicTemplate):
         """Delete currently selected spline."""
         if i < 0:
             i = len(self.tomogram.splines) - 1
-        self.tomogram.splines.pop(i)
+        spl = self.tomogram.splines.pop(i)
         self.reset_choices()
 
         # update layer
         features = self.layer_prof.features
         spline_id = features[SPLINE_ID]
         spec = spline_id != i
-        self.layer_prof.data = self.layer_prof.data[spec]
+        old_data = self.layer_prof.data
+        self.layer_prof.data = old_data[spec]
         new_features = features[spec].copy()
         spline_id = np.asarray(new_features[SPLINE_ID])
         spline_id[spline_id >= i] -= 1
@@ -977,7 +1023,17 @@ class CylindraMainWidget(MagicTemplate):
         if self.SplineControl.need_resample:
             self.sample_subtomograms()
         self._need_save = True
-        return None
+
+        @undo_callback
+        def out():
+            self.tomogram.splines.insert(i, spl)
+            self.layer_prof.data = old_data
+            self.layer_prof.features = features
+            self._add_spline_to_images(spl, i)
+            self._update_splines_in_images()
+            self.reset_choices()
+
+        return out
 
     @Splines.wraps
     @set_design(text="Fit splines")
@@ -1041,10 +1097,8 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Add anchors")
     def add_anchors(
         self,
-        interval: Annotated[
-            nm, {"label": "Interval between anchors (nm)", "min": 1.0}
-        ] = 25.0,
-    ):
+        interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
+    ):  # fmt: skip
         """
         Add anchors to splines.
 
@@ -1066,12 +1120,10 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring Radius")
     def set_radius(
         self,
-        radius: Annotated[
-            Optional[nm], {"text": "Measure radii by radial profile."}
-        ] = None,
+        radius: Annotated[Optional[nm], {"text": "Measure radii by radial profile."}] = None,
         bin_size: OneOf[_get_available_binsize] = 1,
-    ):
-        """Measure cylinder radius for each spline path."""
+    ):  # fmt: skip
+        """Measure cylinder radius for each spline curve."""
         self.tomogram.set_radius(radius=radius, binsize=bin_size)
         self._need_save = True
 
@@ -1336,8 +1388,6 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         splines : iterable of int
             Select splines to map monomers.
-        invert : bool
-            Whether to map monomers in the inverted direction.
         {orientation}
         """
         tomo = self.tomogram
@@ -1346,13 +1396,15 @@ class CylindraMainWidget(MagicTemplate):
         molecules = tomo.map_monomers(i=splines, orientation=orientation)
 
         _Logger.print_html("<code>map_monomers</code>")
+        _added_layers = []
         for i, mol in enumerate(molecules):
             _name = f"Mono-{i}"
-            self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
 
         self._need_save = True
-        return molecules
+        return undo_callback(self._try_removing_layers).with_args(_added_layers)
 
     @Molecules_.Mapping.wraps
     @set_design(text="Map centers")
@@ -1377,12 +1429,14 @@ class CylindraMainWidget(MagicTemplate):
             splines = tuple(range(len(tomo.splines)))
         mols = tomo.map_centers(i=splines, interval=interval, orientation=orientation)
         _Logger.print_html("<code>map_centers</code>")
+        _added_layers = []
         for i, mol in enumerate(mols):
             _name = f"Center-{i}"
-            self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
-        return None
+        return undo_callback(self._try_removing_layers).with_args(_added_layers)
 
     @Molecules_.Mapping.wraps
     @set_design(text="Map alogn PF")
@@ -1411,12 +1465,14 @@ class CylindraMainWidget(MagicTemplate):
             orientation=orientation,
         )
         _Logger.print_html("<code>map_along_PF</code>")
+        _added_layers = []
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
-            self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
-        return None
+        return undo_callback(self._try_removing_layers).with_args(_added_layers)
 
     @Molecules_.wraps
     @set_design(text="Show orientation")
@@ -1443,14 +1499,14 @@ class CylindraMainWidget(MagicTemplate):
 
         vector_data = np.stack([mol.pos, getattr(mol, orientation)], axis=1)
 
-        self.parent_viewer.add_vectors(
+        layer = self.parent_viewer.add_vectors(
             vector_data,
             edge_width=0.3,
             edge_color=[color] * len(mol),
             length=2.4,
             name=name,
         )
-        return None
+        return undo_callback(self._try_removing_layer).with_args(layer)
 
     @Molecules_.wraps
     @set_design(text="Extend molecules")
@@ -1683,7 +1739,11 @@ class CylindraMainWidget(MagicTemplate):
         """
         rng = (low[0], high[0])
         arr = np.array([low[1], high[1]])
+        info = layer.colormap_info
         layer.set_colormap(feature_name, rng, arr)
+        return undo_callback(layer.set_colormap).with_args(
+            name=info.name, clim=info.clim, cmap_input=info.cmap
+        )
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
@@ -1959,7 +2019,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @ImageMenu.wraps
     @set_design(text="Back-paint molecules")
-    @thread_worker
+    @dask_thread_worker.with_progress(desc="Back-painting molecules ...")
     def backpaint_molecules(
         self,
         layers: SomeOf[get_monomer_layers],
@@ -2060,7 +2120,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_molecules(self, name: str = None) -> Molecules:
+    def get_molecules(self, name: "str | None" = None) -> Molecules:
         """
         Retrieve Molecules object from layer list.
 
@@ -2091,9 +2151,9 @@ class CylindraMainWidget(MagicTemplate):
     def add_molecules(
         self,
         molecules: Molecules,
-        name: str = None,
+        name: "str | None" = None,
         source: "BaseComponent | None" = None,
-    ):
+    ) -> MoleculesLayer:
         """Add molecules as a points layer to the viewer."""
         return add_molecules(self.parent_viewer, molecules, name, source=source)
 
@@ -2101,7 +2161,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def get_loader(
         self,
-        name: str = None,
+        name: "str | None" = None,
         order: int = 1,
     ) -> SubtomogramLoader:
         """
@@ -2121,12 +2181,20 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_spline(self, i: int = None) -> CylSpline:
+    def get_spline(self, i: "int | None" = None) -> CylSpline:
         """Get the i-th spline object. Return current one by default."""
         tomo = self.tomogram
         if i is None:
             i = self.SplineControl.num
         return tomo.splines[i]
+
+    @bind_key("Ctrl-Z")
+    def _undo(self):
+        return self.macro.undo()
+
+    @bind_key("Ctrl-Y")
+    def _redo(self):
+        return self.macro.redo()
 
     @SplineControl.num.connect
     @SplineControl.pos.connect
@@ -2187,6 +2255,17 @@ class CylindraMainWidget(MagicTemplate):
         for i in range(2):
             self.LocalProperties.plot[i].layers.clear()
         return None
+
+    def _try_removing_layer(self, layer: Layer):
+        try:
+            self.parent_viewer.layers.remove(layer)
+        except ValueError:
+            pass
+        return None
+
+    def _try_removing_layers(self, layers: list[Layer]):
+        for layer in layers:
+            self._try_removing_layer(layer)
 
     def _send_tomogram_to_viewer(self, filt: bool):
         viewer = self.parent_viewer
@@ -2263,7 +2342,7 @@ class CylindraMainWidget(MagicTemplate):
         # NOTE: To make recorded macro completely reproducible, removing molecules
         # from the viewer layer list must always be monitored.
         layer: Layer = self.parent_viewer.layers[event.index]
-        if isinstance(layer, MoleculesLayer):
+        if isinstance(layer, MoleculesLayer) and self.macro.active:
             expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
             self.macro.append(mk.Expr("del", [expr]))
         return
@@ -2282,10 +2361,15 @@ class CylindraMainWidget(MagicTemplate):
             self.parent_viewer.layers.insert(idx, layer)
             warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
 
+    def _on_layer_inserted(self, event):
+        layer: Layer = event.value
+        layer.events.name.connect
+
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer
         viewer.layers.events.removing.disconnect(self._on_layer_removing)
         viewer.layers.events.removed.disconnect(self._on_layer_removed)
+        viewer.layers.events.inserted.disconnect(self._on_layer_inserted)
 
         # remove all the molecules layers
         _layers_to_remove: list[str] = []
@@ -2333,6 +2417,7 @@ class CylindraMainWidget(MagicTemplate):
         # Connect layer events.
         viewer.layers.events.removing.connect(self._on_layer_removing)
         viewer.layers.events.removed.connect(self._on_layer_removed)
+        viewer.layers.events.inserted.connect(self._on_layer_inserted)
         return None
 
     @SplineControl.num.connect

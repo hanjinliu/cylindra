@@ -16,6 +16,8 @@ from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.logging import getLogger
+from magicclass.undo import undo_callback
+
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
 
 import numpy as np
@@ -624,6 +626,11 @@ class SubtomogramAveraging(MagicTemplate):
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
                 widget_utils.plot_projections(merge)
+            return (
+                undo_callback(parent._try_removing_layer)
+                .with_args(points)
+                .with_redo(lambda: parent.parent_viewer.add_layer(points))
+            )
 
         return _align_averaged_on_return
 
@@ -1090,6 +1097,17 @@ class SubtomogramAveraging(MagicTemplate):
                 plt.legend()
                 plt.show()
 
+            @undo_callback
+            def out():
+                parent._try_removing_layer(points)
+                layer.visible = True
+
+            @out.with_redo
+            def out():
+                parent.parent_viewer.add_layer(points)
+
+            return out
+
         return _on_return
 
     @Subtomogram_analysis.wraps
@@ -1149,14 +1167,13 @@ class SubtomogramAveraging(MagicTemplate):
         fsc_all = fsc.select(pl.col("^FSC.*$")).to_numpy()
         fsc_mean = np.mean(fsc_all, axis=1)
         fsc_std = np.std(fsc_all, axis=1)
-        crit_0143 = 0.143
-        crit_0500 = 0.500
+        crit_0143, crit_0500 = 0.143, 0.500
         res0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
         res0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
+        t0.toc()
 
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
-            t0.toc()
             _Logger.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
             with _Logger.set_plt(rc_context={"font.size": 15}):
                 widget_utils.plot_fsc(
@@ -1369,7 +1386,17 @@ class SubtomogramAveraging(MagicTemplate):
         )
         layer.visible = False
         _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
-        return None
+
+        @undo_callback
+        def out():
+            parent._try_removing_layer(points)
+            layer.visible = True
+
+        @out.with_redo
+        def out():
+            parent.parent_viewer.add_layer(points)
+
+        return out
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):

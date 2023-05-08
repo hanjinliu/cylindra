@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, NamedTuple
 import weakref
 import polars as pl
 from acryo import Molecules
@@ -10,6 +10,13 @@ from cylindra.const import MoleculesHeader as Mole
 if TYPE_CHECKING:
     import impy as ip
     from cylindra.components._base import BaseComponent
+    from napari.utils import Colormap
+
+
+class ColormapInfo(NamedTuple):
+    cmap: Colormap
+    clim: tuple[float, float]
+    name: str
 
 
 class MoleculesLayer(Points):
@@ -21,10 +28,11 @@ class MoleculesLayer(Points):
 
     _type_string = "points"
 
-    def __init__(self, data, **kwargs):
+    def __init__(self, data: Molecules, **kwargs):
         if not isinstance(data, Molecules):
             raise TypeError("data must be a Molecules object")
         self._molecules = data
+        self._colormap_info: ColormapInfo | None = None
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
         super().__init__(data.pos, **kwargs)
         if data.features is not None:
@@ -71,13 +79,29 @@ class MoleculesLayer(Points):
             raise TypeError("Must be a CylSpline object")
         self._source_component = weakref.ref(obj)
 
+    @property
+    def colormap_info(self) -> ColormapInfo | None:
+        """Colormap information."""
+        return self._colormap_info
+
     def set_colormap(
         self,
         name: str,
         clim: tuple[float, float],
-        cmap_input,
+        cmap_input: Any,
     ):
-        """Set colormap to a molecules layer."""
+        """
+        Set colormap to a molecules layer.
+
+        Parameters
+        ----------
+        name : str
+            Feature name from which colormap will be generated.
+        clim : (float, float)
+            Colormap contrast limits.
+        cmap_input : Any
+            Any object that can be converted to a Colormap object.
+        """
         from napari.utils import Colormap
 
         column = self.molecules.features[name]
@@ -98,6 +122,7 @@ class MoleculesLayer(Points):
             raise ValueError(
                 f"Cannot paint by feature {column.name} of type {column.dtype}."
             )
+        self._colormap_info = ColormapInfo(cmap, clim, name)
         self.refresh()
         return None
 
