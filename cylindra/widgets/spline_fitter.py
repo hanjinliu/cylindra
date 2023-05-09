@@ -10,6 +10,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.types import Bound
+from magicclass.undo import undo_callback
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 from cylindra.utils import roundint, centroid, map_coordinates
@@ -75,6 +76,7 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         _scale = parent.tomogram.scale
         spl = self._get_spline(i)
+        old_spl = spl.copy()
 
         min_cr = GVar.minCurvatureRadius
         spl.make_anchors(max_interval=max_interval)
@@ -84,16 +86,28 @@ class SplineFitter(MagicTemplate):
             weight_ramp=(min_cr / 10, 0.5),
         )
         spl.make_anchors(max_interval=max_interval)
-        self.fit_done = True
+        new_spl = spl.copy()
         self._cylinder_changed()
         parent._update_splines_in_images()
         parent._need_save = True
-        return None
+
+        @undo_callback
+        def out():
+            spl.copy_from(old_spl)
+            self._cylinder_changed()
+            self._get_parent()._update_splines_in_images()
+
+        @out.with_redo
+        def out():
+            spl.copy_from(new_spl)
+            self._cylinder_changed()
+            self._get_parent()._update_splines_in_images()
+
+        return out
 
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
         self.canvas.min_height = 160
-        self.fit_done = True
         self.canvas.add_infline(pos=[0, 0], degree=90, color="lime", lw=2)
         self.canvas.add_infline(pos=[0, 0], degree=0, color="lime", lw=2)
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
@@ -108,7 +122,6 @@ class SplineFitter(MagicTemplate):
         def _(e: mouse_event.MouseClickEvent):
             if "left" not in e.buttons():
                 return
-            self.fit_done = False
             x, z = e.pos()
             self._update_cross(x, z)
 

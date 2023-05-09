@@ -105,6 +105,7 @@ class MoleculesLayer(Points):
         from napari.utils import Colormap
 
         column = self.molecules.features[name]
+        clim = tuple(clim)
         if isinstance(cmap_input, Colormap):
             cmap = cmap_input
         else:

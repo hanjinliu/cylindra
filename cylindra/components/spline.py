@@ -107,6 +107,16 @@ class Spline(BaseComponent):
 
     __copy__ = copy
 
+    def copy_from(self, other: Spline) -> Self:
+        """Update spline parameters from another spline."""
+        self._tck = other._tck
+        self._u = other._u
+        self._anchors = other._anchors
+        self._lims = other._lims
+        for name in self._global_cache + self._local_cache:
+            setattr(self, name, getattr(other, name, None))
+        return self
+
     @property
     def knots(self) -> np.ndarray:
         """Spline knots."""

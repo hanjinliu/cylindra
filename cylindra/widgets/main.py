@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING
+from typing import Annotated, TYPE_CHECKING, Literal
 import warnings
 
 import impy as ip
@@ -826,7 +826,7 @@ class CylindraMainWidget(MagicTemplate):
     @Splines.Orientation.wraps
     @set_design(text="Align to polarity")
     def align_to_polarity(
-        self, orientation: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus"
+        self, orientation: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus"
     ):
         """
         Align all the splines in the direction parallel to the cylinder polarity.
@@ -866,9 +866,9 @@ class CylindraMainWidget(MagicTemplate):
     )
     def auto_align_to_polarity(
         self,
-        clockwise_is: OneOf["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
+        clockwise_is: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[
-            Optional[OneOf["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}
+            Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}
         ] = "MinusToPlus",
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
     ):
@@ -1070,7 +1070,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         if len(splines) == 0:
             splines = list(range(tomo.n_splines))
-
+        old_splines = {i: tomo.splines[i].copy() for i in splines}
         tomo.fit(
             splines,
             max_interval=max_interval,
@@ -1079,8 +1079,29 @@ class CylindraMainWidget(MagicTemplate):
             edge_sigma=edge_sigma,
             max_shift=max_shift,
         )
+        new_splines = {i: tomo.splines[i].copy() for i in splines}
         self._need_save = True
-        return thread_worker.to_callback(self._update_splines_in_images)
+
+        @undo_callback
+        def undo():
+            for i, spl in old_splines.items():
+                tomo.splines[i].copy_from(spl)
+            self._update_splines_in_images()
+
+        @undo.with_redo
+        def undo():
+            for i, spl in new_splines.items():
+                tomo.splines[i].copy_from(spl)
+            self._init_widget_state()
+            self._update_splines_in_images()
+
+        @thread_worker.to_callback
+        def out():
+            self._init_widget_state()
+            self._update_splines_in_images()
+            return undo
+
+        return out
 
     @Splines.wraps
     @set_design(text="Fit splines manually")
@@ -1165,21 +1186,40 @@ class CylindraMainWidget(MagicTemplate):
         if len(splines) == 0:
             splines = list(range(tomo.n_splines))
 
+        old_splines = {i: tomo.splines[i].copy() for i in splines}
         tomo.refine(
             splines,
             max_interval=max_interval,
             corr_allowed=corr_allowed,
             binsize=bin_size,
         )
+        new_splines = {i: tomo.splines[i].copy() for i in splines}
 
         self._need_save = True
 
-        @thread_worker.to_callback
-        def _refine_splines_on_return():
+        @undo_callback
+        def undo():
+            for i, spl in old_splines.items():
+                tomo.splines[i].copy_from(spl)
+            self._update_splines_in_images()
+            self._update_local_properties_in_widget()
+
+        @undo.with_redo
+        def undo():
+            for i, spl in new_splines.items():
+                tomo.splines[i].copy_from(spl)
             self._init_widget_state()
             self._update_splines_in_images()
+            self._update_local_properties_in_widget()
 
-        return _refine_splines_on_return
+        @thread_worker.to_callback
+        def out():
+            self._init_widget_state()
+            self._update_splines_in_images()
+            self._update_local_properties_in_widget()
+            return undo
+
+        return out
 
     @Splines.wraps
     @set_design(text="Molecules to spline")
@@ -1385,7 +1425,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_monomers(
         self,
         splines: SomeOf[_get_splines] = (),
-        orientation: OneOf[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
         Map points to tubulin molecules using the results of global Fourier transformation.
@@ -1422,7 +1462,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SomeOf[_get_splines] = (),
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
-        orientation: OneOf[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
@@ -1459,7 +1499,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SomeOf[_get_splines],
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         angle_offset: Annotated[float, {"max": 360}] = 0.0,
-        orientation: OneOf[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
@@ -1497,7 +1537,7 @@ class CylindraMainWidget(MagicTemplate):
     def show_orientation(
         self,
         layer: MoleculesLayer,
-        orientation: OneOf["x", "y", "z"] = "z",
+        orientation: Literal["x", "y", "z"] = "z",
         color: Color = "crimson",
     ):
         """
@@ -1761,11 +1801,48 @@ class CylindraMainWidget(MagicTemplate):
         """
         rng = (low[0], high[0])
         arr = np.array([low[1], high[1]])
-        info = layer.colormap_info
         layer.set_colormap(feature_name, rng, arr)
+        info = layer.colormap_info
         return undo_callback(layer.set_colormap).with_args(
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )
+
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Show colorbar")
+    @do_not_record
+    def show_molecules_colorbar(
+        self,
+        layer: MoleculesLayer,
+        length: Annotated[int, {"min": 16}] = 256,
+        orientation: Literal["vertical", "horizontal"] = "horizontal",
+    ):
+        """
+        Show the colorbar of the molecules layer in the logger.
+
+        Parameters
+        ----------
+        {layer}
+        length : int, default is 256
+            Length of the colorbar.
+        orientation : 'vertical' or 'horizontal', default is 'horizontal'
+            Orientation of the colorbar.
+        """
+        info = layer.colormap_info
+        colors = info.cmap.map(np.linspace(0, 1, length))
+        cmap_arr = np.stack([colors] * (length // 12), axis=0)
+        xmin, xmax = info.clim
+        with _Logger.set_plt(rc_context={"font.size": 15}):
+            if orientation == "vertical":
+                plt.imshow(np.swapaxis(cmap_arr, 0, 1))
+                plt.xticks([], [])
+                plt.yticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
+            else:
+                plt.imshow(cmap_arr)
+                plt.xticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
+                plt.yticks([], [])
+
+            plt.show()
+        return None
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
@@ -2010,9 +2087,9 @@ class CylindraMainWidget(MagicTemplate):
             .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
-                pl.col(H.riseAngle),
-                pl.col(H.yPitch),
-                pl.col(H.skewAngle),
+                pl.col(H.riseAngle).round(3),
+                pl.col(H.yPitch).round(3),
+                pl.col(H.skewAngle).round(3),
             )
             .to_pandas()
         )  # fmt: skip
@@ -2066,23 +2143,39 @@ class CylindraMainWidget(MagicTemplate):
             layer: MoleculesLayer
             molecules.append(layer.molecules)
         mole = Molecules.concat(molecules)
-        device = widget_utils.PaintDevice(
-            self.layer_image.data.shape, self.layer_image.scale[-1]
-        )
+        data = self.layer_image.data if target_layer is None else target_layer.data
+
+        device = widget_utils.PaintDevice(data.shape, self.layer_image.scale[-1])
         template = from_file(template_path)(device.scale)
         sim = device.paint_molecules(template, mole)
 
         @thread_worker.to_callback
         def _on_return():
             if target_layer is None:
-                self.parent_viewer.add_image(
+                layer = self.parent_viewer.add_image(
                     sim,
                     scale=self.layer_image.scale,
                     translate=self.layer_image.translate,
                     name="Simulated",
                 )
+                return (
+                    undo_callback(self._try_removing_layer)
+                    .with_args(layer)
+                    .with_redo(self._add_layers_future(layer))
+                )
+
             else:
-                target_layer.data = target_layer.data + sim
+                target_layer.data = new_data = data + sim
+
+                @undo_callback
+                def out():
+                    target_layer.data = data
+
+                @out.with_redo
+                def out():
+                    target_layer.data = new_data
+
+                return out
 
         return _on_return
 

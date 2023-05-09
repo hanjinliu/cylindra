@@ -48,6 +48,7 @@ def start(
     ui = CylindraMainWidget()
 
     defaults["macro-highlight"] = True
+    defaults["undo-max-history"] = 16
     del defaults
 
     if viewer is None:

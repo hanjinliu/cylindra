@@ -124,6 +124,7 @@ class Molecules_(MagicTemplate):
         filter_molecules = abstractapi()
         split_molecules = abstractapi()
         paint_molecules = abstractapi()
+        show_molecules_colorbar = abstractapi()
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
         calculate_intervals = abstractapi()
