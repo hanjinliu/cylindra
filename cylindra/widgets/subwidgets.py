@@ -1,5 +1,6 @@
 import os
 from magicclass import (
+    do_not_record,
     magicclass,
     magicmenu,
     magictoolbar,
@@ -7,6 +8,7 @@ from magicclass import (
     vfield,
     MagicTemplate,
     set_design,
+    bind_key,
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit
@@ -184,7 +186,7 @@ class toolbar(MagicTemplate):
     pick_next = abstractapi()
     auto_center = abstractapi()
 
-    @magicmenu(icon=ICON_DIR / "adjust_intervals.png")
+    @magicmenu(icon=ICON_DIR / "adjust_intervals.svg", record=False)
     class Adjust(MagicTemplate):
         """
         Adjust auto picker parameters.
@@ -201,22 +203,31 @@ class toolbar(MagicTemplate):
             Maximum shift (nm) in auto centering.
         """
 
-        stride = vfield(50.0, widget_type="FloatSlider", record=False).with_options(
-            min=10, max=100
-        )
-        angle_deviation = vfield(
-            12.0, widget_type="FloatSlider", record=False
-        ).with_options(min=1.0, max=40.0, step=0.5)
-        angle_precision = vfield(
-            1.0, widget_type="FloatSlider", record=False
-        ).with_options(min=0.5, max=5.0, step=0.1)
-        max_shifts = vfield(20.0, record=False).with_options(
-            min=1.0, max=50.0, step=0.5
-        )
+        stride = vfield(50.0, widget_type="FloatSlider").with_options(min=10, max=100)  # fmt: skip
+        angle_deviation = vfield(12.0, widget_type="FloatSlider").with_options(min=1.0, max=40.0, step=0.5)  # fmt: skip
+        angle_precision = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip
+        max_shifts = vfield(20.0).with_options(min=1.0, max=50.0, step=0.5)
 
     sep1 = field(Separator)
+
     clear_current = abstractapi()
     clear_all = abstractapi()
+
+    sep2 = field(Separator)
+
+    @do_not_record
+    @set_design(icon=ICON_DIR / "undo.svg")
+    @bind_key("Ctrl+Z")
+    def undo(self):
+        """Undo last action."""
+        return self.macro.undo()
+
+    @do_not_record
+    @set_design(icon=ICON_DIR / "redo.svg")
+    @bind_key("Ctrl+Y")
+    def redo(self):
+        """Redo last undo action."""
+        return self.macro.redo()
 
 
 # Runner

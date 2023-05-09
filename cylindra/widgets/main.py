@@ -29,7 +29,7 @@ from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
 from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
-from magicclass.utils import thread_worker, show_messagebox
+from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
 from magicclass.undo import undo_callback
@@ -202,7 +202,7 @@ class CylindraMainWidget(MagicTemplate):
         return out
 
     @toolbar.wraps
-    @set_design(icon=ICON_DIR / "add_spline.png")
+    @set_design(icon=ICON_DIR / "add_spline.svg")
     @bind_key("F1")
     def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a spline path."""
@@ -232,7 +232,7 @@ class CylindraMainWidget(MagicTemplate):
     _image_loader = subwidgets.ImageLoader
 
     @toolbar.wraps
-    @set_design(icon=ICON_DIR / "run_all.png")
+    @set_design(icon=ICON_DIR / "run_all.svg")
     @bind_key("F2")
     @do_not_record
     def open_runner(self):
@@ -319,7 +319,7 @@ class CylindraMainWidget(MagicTemplate):
         return self._runner.close()
 
     @toolbar.wraps
-    @set_design(icon=ICON_DIR / "clear_last.png")
+    @set_design(icon=ICON_DIR / "clear_last.svg")
     @confirm(
         text="Spline has properties. Are you sure to delete it?",
         condition="not (self.tomogram.splines[self.SplineControl.num].localprops is None and self.tomogram.splines[self.SplineControl.num].globalprops is None)",
@@ -335,7 +335,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @toolbar.wraps
-    @set_design(icon=ICON_DIR / "clear_all.png")
+    @set_design(icon=ICON_DIR / "clear_all.svg")
     @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
     def clear_all(self):
         """Clear all the splines and results."""
@@ -772,7 +772,11 @@ class CylindraMainWidget(MagicTemplate):
             edge_color="lime",
             edge_width=1,
         )
-        return undo_callback(self._try_removing_layer).with_args(layer)
+        return (
+            undo_callback(self._try_removing_layer)
+            .with_args(layer)
+            .with_redo(self._add_layers_future(layer))
+        )
 
     @Splines.wraps
     @set_design(text="Show splines as meshes")
@@ -789,7 +793,9 @@ class CylindraMainWidget(MagicTemplate):
         nodes = np.concatenate(nodes, axis=0)
         vertices = np.concatenate(vertices, axis=0)
         layer = self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
-        return undo_callback(self._try_removing_layer).with_args(layer)
+        # NOTE: re-adding surface layer is not redoable, since viewer.add_layer seems
+        # broken for the surface layer.
+        return undo_callback(self._try_removing_layer, redo=False).with_args(layer)
 
     @Splines.Orientation.wraps
     @set_design(text="Invert spline")
@@ -1404,7 +1410,11 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"{_name!r}: n = {len(mol)}")
 
         self._need_save = True
-        return undo_callback(self._try_removing_layers).with_args(_added_layers)
+        return (
+            undo_callback(self._try_removing_layers)
+            .with_args(_added_layers)
+            .with_redo(self._add_layers_future(_added_layers))
+        )
 
     @Molecules_.Mapping.wraps
     @set_design(text="Map centers")
@@ -1436,7 +1446,11 @@ class CylindraMainWidget(MagicTemplate):
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
-        return undo_callback(self._try_removing_layers).with_args(_added_layers)
+        return (
+            undo_callback(self._try_removing_layers)
+            .with_args(_added_layers)
+            .with_redo(self._add_layers_future(_added_layers))
+        )
 
     @Molecules_.Mapping.wraps
     @set_design(text="Map alogn PF")
@@ -1472,7 +1486,11 @@ class CylindraMainWidget(MagicTemplate):
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
-        return undo_callback(self._try_removing_layers).with_args(_added_layers)
+        return (
+            undo_callback(self._try_removing_layers)
+            .with_args(_added_layers)
+            .with_redo(self._add_layers_future(_added_layers))
+        )
 
     @Molecules_.wraps
     @set_design(text="Show orientation")
@@ -1506,7 +1524,11 @@ class CylindraMainWidget(MagicTemplate):
             length=2.4,
             name=name,
         )
-        return undo_callback(self._try_removing_layer).with_args(layer)
+        return (
+            undo_callback(self._try_removing_layer)
+            .with_args(layer)
+            .with_redo(self._add_layers_future(layer))
+        )
 
     @Molecules_.wraps
     @set_design(text="Extend molecules")
@@ -1858,7 +1880,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @toolbar.wraps
-    @set_design(icon=ICON_DIR / "pick_next.png")
+    @set_design(icon=ICON_DIR / "pick_next.svg")
     @bind_key("F3")
     @do_not_record
     def pick_next(self):
@@ -1920,7 +1942,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @toolbar.wraps
-    @set_design(icon=ICON_DIR / "auto_center.png")
+    @set_design(icon=ICON_DIR / "auto_center.svg")
     @bind_key("F4")
     @do_not_record
     def auto_center(self):
@@ -2188,14 +2210,6 @@ class CylindraMainWidget(MagicTemplate):
             i = self.SplineControl.num
         return tomo.splines[i]
 
-    @bind_key("Ctrl-Z")
-    def _undo(self):
-        return self.macro.undo()
-
-    @bind_key("Ctrl-Y")
-    def _redo(self):
-        return self.macro.redo()
-
     @SplineControl.num.connect
     @SplineControl.pos.connect
     @SplineControl.footer.focus.connect
@@ -2259,13 +2273,23 @@ class CylindraMainWidget(MagicTemplate):
     def _try_removing_layer(self, layer: Layer):
         try:
             self.parent_viewer.layers.remove(layer)
-        except ValueError:
-            pass
+        except ValueError as e:
+            _Logger.print(f"ValueError: {e}")
         return None
 
     def _try_removing_layers(self, layers: list[Layer]):
         for layer in layers:
             self._try_removing_layer(layer)
+
+    def _add_layers_future(self, layers: "Layer | list[Layer]"):
+        def future_func():
+            nonlocal layers
+            if isinstance(layers, Layer):
+                layers = [layers]
+            for layer in layers:
+                self.parent_viewer.add_layer(layer)
+
+        return future_func
 
     def _send_tomogram_to_viewer(self, filt: bool):
         viewer = self.parent_viewer
@@ -2344,7 +2368,8 @@ class CylindraMainWidget(MagicTemplate):
         layer: Layer = self.parent_viewer.layers[event.index]
         if isinstance(layer, MoleculesLayer) and self.macro.active:
             expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
-            self.macro.append(mk.Expr("del", [expr]))
+            undo = self._add_layers_future(layer)
+            self.macro.append_with_undo(mk.Expr("del", [expr]), undo)
         return
 
     def _on_layer_removed(self, event):
@@ -2356,14 +2381,12 @@ class CylindraMainWidget(MagicTemplate):
             self.layer_work,
             self.layer_paint,
         ):
-            import warnings
-
             self.parent_viewer.layers.insert(idx, layer)
             warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
 
     def _on_layer_inserted(self, event):
         layer: Layer = event.value
-        layer.events.name.connect
+        layer.events.name.connect(self.reset_choices)
 
     def _init_layers(self):
         viewer: napari.Viewer = self.parent_viewer

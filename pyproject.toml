@@ -43,7 +43,7 @@ testing = [
 cylindra = "cylindra.__main__:main"
 
 [tool.maturin]
-include = ["**/*.pyi", "*.pyi", "**/*.png", "**/*.yaml"]
+include = ["**/*.pyi", "*.pyi", "**/*.svg", "**/*.yaml"]
 features = ["pyo3/extension-module"]
 module-name = "cylindra._cylindra_ext"
 
