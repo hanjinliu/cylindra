@@ -402,7 +402,9 @@ class CylinderSimulator(MagicTemplate):
         shape = tuple(roundint(s / scale) for s in size)
         spl = CylSpline.line(start_shift + center, end_shift + center)
         self._set_shape_and_scale(shape, scale)
-        return self._set_spline(spl)
+        self._set_spline(spl)
+        self.show()
+        return None
 
     @ViewerMenu.wraps
     @set_design(text="Send molecules to viewer")
