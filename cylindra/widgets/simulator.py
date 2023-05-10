@@ -583,7 +583,7 @@ class CylinderSimulator(MagicTemplate):
         self._spline.to_json(save_dir / "spline.json")
         mole.to_csv(save_dir / "molecules.csv")
         macro_str = str(parent._format_macro(parent.macro[parent._macro_offset :]))
-        fp = save_dir.parent / "script.py"
+        fp = save_dir / "script.py"
         fp.write_text(macro_str)
 
         rng = ip.random.default_rng(seed)
@@ -672,7 +672,7 @@ class CylinderSimulator(MagicTemplate):
         self._spline.to_json(save_dir / "spline.json")
         mole.to_csv(save_dir / "molecules.csv")
         macro_str = str(parent._format_macro(parent.macro[parent._macro_offset :]))
-        fp = save_dir.parent / "script.py"
+        fp = save_dir / "script.py"
         fp.write_text(macro_str)
 
         rng = ip.random.default_rng(seed)
