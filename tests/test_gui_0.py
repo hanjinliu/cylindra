@@ -268,10 +268,10 @@ def test_simulator(ui: CylindraMainWidget):
         radius=9.14,
         offsets=(0.0, 0.18),
     )
-    ui.cylinder_simulator.expand(shift=0.1, yrange=(11, 15), arange=(0, 14), n_allev=1)
-    ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 15), arange=(0, 14), n_allev=1)
+    ui.cylinder_simulator.expand(exp=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
+    ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.cylinder_simulator.dilate(
-        radius=-0.5, yrange=(11, 15), arange=(0, 14), n_allev=1
+        radius=-0.5, yrange=(11, 15), arange=(0, 14), allev=True
     )
     ui.cylinder_simulator.send_moleclues_to_viewer()
     ui.cylinder_simulator.close()
