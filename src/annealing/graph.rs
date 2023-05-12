@@ -1,14 +1,13 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 use numpy::{
-    ndarray::{Array1, Array3, s, ArcArray},
-    Ix3, Ix5
+    ndarray::{Array1, Array2, Array, s, ArcArray, ArcArray2}, Ix3, Ix4
 };
 use pyo3::PyResult;
 
 use crate::{
     value_error,
     coordinates::{Vector3D, CoordinateSystem},
-    cylindric::{Index, CylinderGeometry},
+    cylindric::Index,
     annealing::{
         potential::{BoxPotential2D, BindingPotential2D, EdgeType},
         random::RandomNumberGenerator,
@@ -92,42 +91,18 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
     }
 }
 
-
-struct Grid2D<T> {
-    coords: Vec<T>,
-    ny: usize,
-    na: usize,
-}
-
-impl<T> Grid2D<T> {
-    pub fn at(&self, y: usize, a: usize) -> &T {
-        &self.coords[y * self.na + a]
-    }
-
-    pub fn at_mut(&mut self, y: usize, a: usize) -> &mut T {
-        &mut self.coords[y * self.na + a]
-    }
-}
-
-impl Grid2D<CoordinateSystem<f32>> {
-    pub fn init(naxial: usize, nang: usize) -> Self {
-        let coords = vec![CoordinateSystem::zeros(); naxial * nang];
-        Self { coords, ny: naxial, na: nang }
-    }
-}
-
 #[derive(Clone)]
 pub struct NodeState {
     index: Index,
     shift: Vector3D<isize>,
 }
 
+
 #[derive(Clone)]
 pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
-    geometry: CylinderGeometry,
-    coords: Arc<Grid2D<CoordinateSystem<f32>>>,
-    energy: ArcArray<f32, Ix5>,
+    coords: Arc<HashMap<Index, CoordinateSystem<f32>>>,
+    energy: Arc<HashMap<Index, Array<f32, Ix3>>>,
     binding_potential: BoxPotential2D,
     local_shape: Vector3D<isize>,
 }
@@ -137,9 +112,8 @@ impl CylindricGraph {
     pub fn empty() -> Self {
         Self {
             components: GraphComponents::empty(),
-            geometry: CylinderGeometry::new(0, 0, 0),
-            coords: Arc::new(Grid2D::init(0, 0)),
-            energy: ArcArray::zeros((0, 0, 0, 0, 0)),
+            coords: Arc::new(HashMap::new()),
+            energy: Arc::new(HashMap::new()),
             binding_potential: BoxPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
@@ -147,63 +121,97 @@ impl CylindricGraph {
 
     /// Update energy landscape and local coordinates, and construct the graph
     /// using input data.
-    pub fn update(
+    pub fn construct(
         &mut self,
-        energy: ArcArray<f32, Ix5>,
-        origin: ArcArray<f32, Ix3>,
-        zvec: ArcArray<f32, Ix3>,
-        yvec: ArcArray<f32, Ix3>,
-        xvec: ArcArray<f32, Ix3>,
+        indices: Vec<Index>,
+        na: isize,
         nrise: isize,
     ) -> PyResult<&Self> {
-        let e_dim = energy.raw_dim();
-        let (ny, na) = (e_dim[0], e_dim[1]);
-        let (_nz, _ny, _nx) = (e_dim[2], e_dim[3], e_dim[4]);
-
-        if origin.shape() != &[ny, na, 3] {
-            return value_error!("origin shape mismatch");
-        } else if zvec.shape() != &[ny, na, 3] {
-            return value_error!("zvec shape mismatch");
-        } else if yvec.shape() != &[ny, na, 3] {
-            return value_error!("yvec shape mismatch");
-        } else if xvec.shape() != &[ny, na, 3] {
-            return value_error!("xvec shape mismatch");
-        }
-
-        let mut coords: Grid2D<CoordinateSystem<f32>> = Grid2D::init(ny, na);
-        for y in 0..coords.ny {
-            for a in 0..coords.na {
-                coords.at_mut(y, a).origin = origin.slice(s![y, a, ..]).into();
-                coords.at_mut(y, a).ez = zvec.slice(s![y, a, ..]).into();
-                coords.at_mut(y, a).ey = yvec.slice(s![y, a, ..]).into();
-                coords.at_mut(y, a).ex = xvec.slice(s![y, a, ..]).into();
-            }
-        }
-
-        self.geometry = CylinderGeometry::new(ny as isize, na as isize, nrise);
-        self.coords = Arc::new(coords);
-        self.energy = energy;
-        self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
-
         self.components.clear();
 
-        let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
-        for y in 0..self.geometry.ny {
-            for a in 0..self.geometry.na {
-                let idx = Index::new(y, a);
-                self.components.add_node(NodeState { index: idx, shift: center.clone() });
+        let mut index_to_id: HashMap<Index, usize> = HashMap::new();
+        for i in 0..indices.len() {
+            let idx = indices[i].clone();
+            index_to_id.insert(idx.clone(), i);
+            self.components.add_node(NodeState { index: idx, shift: Vector3D::new(0, 0, 0) });
+        }
+
+        for (idx, i) in index_to_id.iter() {
+            let neighbors = idx.get_neighbor(na, nrise);
+            for neighbor in neighbors.y_iter() {
+                match index_to_id.get(&neighbor) {
+                    Some(j) => {
+                        self.components.add_edge(*i, *j, EdgeType::Longitudinal);
+                    }
+                    None => {}
+                }
+            }
+            for neighbor in neighbors.a_iter() {
+                match index_to_id.get(&neighbor) {
+                    Some(j) => {
+                        self.components.add_edge(*i, *j, EdgeType::Lateral);
+                    }
+                    None => {}
+                }
             }
         }
-        for pair in self.geometry.all_longitudinal_pairs().iter() {
-            let idx0 = self.geometry.na * pair.0.y + pair.0.a;
-            let idx1 = self.geometry.na * pair.1.y + pair.1.a;
-            self.components.add_edge(idx0 as usize, idx1 as usize, EdgeType::Longitudinal);
+        Ok(self)
+    }
+
+    pub fn set_coordinates(
+        &mut self,
+        origin: ArcArray2<f32>,
+        zvec: ArcArray2<f32>,
+        yvec: ArcArray2<f32>,
+        xvec: ArcArray2<f32>,
+    ) -> PyResult<&Self> {
+        let n_nodes = self.components.node_count();
+        if origin.shape() != [n_nodes, 3] {
+            return value_error!("origin has wrong shape");
+        } else if zvec.shape() != [n_nodes, 3] {
+            return value_error!("zvec has wrong shape");
+        } else if yvec.shape() != [n_nodes, 3] {
+            return value_error!("yvec has wrong shape");
+        } else if xvec.shape() != [n_nodes, 3] {
+            return value_error!("xvec has wrong shape");
         }
-        for pair in self.geometry.all_lateral_pairs().iter() {
-            let idx0 = self.geometry.na * pair.0.y + pair.0.a;
-            let idx1 = self.geometry.na * pair.1.y + pair.1.a;
-            self.components.add_edge(idx0 as usize, idx1 as usize, EdgeType::Lateral);
+        let mut _coords: HashMap<Index, CoordinateSystem<f32>> = HashMap::new();
+        for i in 0..n_nodes {
+            let node = self.components.node_state(i);
+            let idx = node.index.clone();
+            self.components.add_node(
+                NodeState { index: idx.clone(), shift: Vector3D::new(0, 0, 0) }
+            );
+
+            _coords.insert(
+                idx,
+                CoordinateSystem::new(
+                    origin.slice(s![i, ..]).into(),
+                    zvec.slice(s![i, ..]).into(),
+                    yvec.slice(s![i, ..]).into(),
+                    xvec.slice(s![i, ..]).into(),
+                )
+            );
         }
+        self.coords = Arc::new(_coords);
+        Ok(self)
+    }
+
+    pub fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self> {
+        let n_nodes = self.components.node_count();
+        let shape = energy.shape();
+        if shape[0] != n_nodes {
+            return value_error!("energy has wrong shape");
+        }
+        let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
+        self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
+        let mut _energy: HashMap<Index, Array<f32, Ix3>> = HashMap::new();
+        for i in 0..n_nodes {
+            let node_state = self.components.node_state(i);
+            let idx = &node_state.index;
+            _energy.insert(idx.clone(), energy.slice(s![i, .., .., ..]).to_owned());
+        }
+        self.energy = Arc::new(_energy);
         Ok(self)
     }
 
@@ -212,19 +220,21 @@ impl CylindricGraph {
         &self.components
     }
 
+    // fn energy_at(&self, )
+
     /// Calculate the internal energy of a node state.
     pub fn internal(&self, node_state: &NodeState) -> f32 {
         let idx = &node_state.index;
         let vec = node_state.shift;
-        self.energy[[idx.y as usize, idx.a as usize, vec.z as usize, vec.y as usize, vec.x as usize]]
+        self.energy[&idx][[vec.z as usize, vec.y as usize, vec.x as usize]]
     }
 
     /// Calculate the binding energy between two nodes.
     pub fn binding(&self, node_state0: &NodeState, node_state1: &NodeState, typ: &EdgeType) -> f32 {
         let vec1 = node_state0.shift;
         let vec2 = node_state1.shift;
-        let coord1 = self.coords.at(node_state0.index.y as usize, node_state0.index.a as usize);
-        let coord2 = self.coords.at(node_state1.index.y as usize, node_state1.index.a as usize);
+        let coord1 = &self.coords[&node_state0.index];
+        let coord2 = &self.coords[&node_state1.index];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
         self.binding_potential.calculate(dr.length2(), typ)
     }
@@ -237,19 +247,16 @@ impl CylindricGraph {
         NodeState { index: idx, shift: shift_new }
     }
 
-    pub fn get_shifts(&self) -> Array3<isize> {
-        let mut shifts = Array3::<isize>::zeros(
-            (self.geometry.ny as usize, self.geometry.na as usize, 3)
-        );
+    pub fn get_shifts(&self) -> Array2<isize> {
         let graph = self.components();
-        for i in 0..graph.node_count() {
+        let n_nodes = graph.node_count();
+        let mut shifts = Array2::<isize>::zeros((n_nodes as usize, 3));
+        for i in 0..n_nodes {
             let state = graph.node_state(i);
-            let y = state.index.y;
-            let a = state.index.a;
             let shift = state.shift;
-            shifts[[y as usize, a as usize, 0]] = shift.z;
-            shifts[[y as usize, a as usize, 1]] = shift.y;
-            shifts[[y as usize, a as usize, 2]] = shift.x;
+            shifts[[i, 0]] = shift.z;
+            shifts[[i, 1]] = shift.y;
+            shifts[[i, 2]] = shift.x;
         }
         shifts
     }
@@ -264,8 +271,8 @@ impl CylindricGraph {
             let edge = graph.edge_end(i);
             let pos0 = graph.node_state(edge.0);
             let pos1 = graph.node_state(edge.1);
-            let coord0 = self.coords.at(pos0.index.y as usize, pos0.index.a as usize);
-            let coord1 = self.coords.at(pos1.index.y as usize, pos1.index.a as usize);
+            let coord0 = &self.coords[&pos0.index];
+            let coord1 = &self.coords[&pos1.index];
             let dr = coord0.at_vec(pos0.shift.into()) - coord1.at_vec(pos1.shift.into());
             distances.push(dr.length())
         }
@@ -323,16 +330,10 @@ impl CylindricGraph {
     /// Initialize the node states to the center of each local coordinates.
     pub fn initialize(&mut self) -> &Self {
         let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);
-        let (ny, na) = (self.geometry.ny, self.geometry.na);
-        for y in 0..ny {
-            for a in 0..na {
-                let idx = Index::new(y, a);
-                let i = na * y + a;
-                self.components.set_node_state(
-                    i as usize,
-                    NodeState { index: idx, shift: center }
-                );
-            }
+        for i in 0..self.components.node_count() {
+            let node = self.components.node_state(i);
+            let idx = node.index.clone();
+            self.components.set_node_state(i, NodeState { index: idx, shift: center.clone() });
         }
         self
     }
@@ -351,4 +352,9 @@ impl CylindricGraph {
         }
         Ok(())
     }
+
+    // fn local_shape(&self) -> Vector3D<isize> {
+    //     let shape = self.energy.iter().next().unwrap().1.shape();
+    //     Vector3D::new(shape[0] as isize, shape[1] as isize, shape[2] as isize)
+    // }
 }

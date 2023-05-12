@@ -3,7 +3,7 @@ use pyo3::{
     Python, Py, PyRefMut
 };
 use numpy::{
-    IntoPyArray, PyReadonlyArray3, PyReadonlyArray5, PyArray1, PyArray3,
+    IntoPyArray, PyReadonlyArray2, PyReadonlyArray4, PyArray1, PyArray2,
 };
 
 use super::{
@@ -12,7 +12,7 @@ use super::{
     reservoir::Reservoir,
     potential::BoxPotential2D,
 };
-use crate::value_error;
+use crate::{value_error, cylindric::Index};
 
 #[derive(Clone, PartialEq, Eq)]
 /// Current state of the annealing model
@@ -108,23 +108,45 @@ impl CylindricAnnealingModel {
         self.graph.get_lateral_distances().into_pyarray(py).into()
     }
 
-    #[pyo3(signature = (score, origin, zvec, yvec, xvec, nrise))]
-    /// Set graph and create local coordinates.
-    pub fn set_graph<'py>(
+    #[pyo3(signature = (indices, npf, nrise))]
+    pub fn construct_graph<'py>(
         mut slf: PyRefMut<'py, Self>,
-        score: PyReadonlyArray5<f32>,
-        origin: PyReadonlyArray3<f32>,
-        zvec: PyReadonlyArray3<f32>,
-        yvec: PyReadonlyArray3<f32>,
-        xvec: PyReadonlyArray3<f32>,
+        indices: PyReadonlyArray2<i32>,
+        npf: isize,
         nrise: isize,
     ) -> PyResult<PyRefMut<'py, Self>> {
-        let score = score.as_array().to_shared();
+        // indices into Vec<Index>
+        let indices = indices.as_array().to_shared();
+        let indices = (0..indices.shape()[0])
+            .map(|i| Index::new(indices[[i, 0]] as isize, indices[[i, 1]] as isize))
+            .collect::<Vec<_>>();
+        slf.graph.construct(indices, npf, nrise)?;
+        Ok(slf)
+    }
+
+    #[pyo3(signature = (origin, zvec, yvec, xvec))]
+    pub fn set_graph_coordinates<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        origin: PyReadonlyArray2<f32>,
+        zvec: PyReadonlyArray2<f32>,
+        yvec: PyReadonlyArray2<f32>,
+        xvec: PyReadonlyArray2<f32>,
+    ) -> PyResult<PyRefMut<'py, Self>> {
         let origin = origin.as_array().to_shared();
         let zvec = zvec.as_array().to_shared();
         let yvec = yvec.as_array().to_shared();
         let xvec = xvec.as_array().to_shared();
-        slf.graph.update(score, origin, zvec, yvec, xvec, nrise)?;
+        slf.graph.set_coordinates(origin, zvec, yvec, xvec)?;
+        Ok(slf)
+    }
+
+    #[pyo3(signature = (energy))]
+    pub fn set_energy_landscape<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        energy: PyReadonlyArray4<f32>,
+    ) -> PyResult<PyRefMut<'py, Self>> {
+        let energy = energy.as_array().to_shared();
+        slf.graph.set_energy_landscape(energy)?;
         Ok(slf)
     }
 
@@ -144,7 +166,7 @@ impl CylindricAnnealingModel {
     }
 
     /// Get integer shift in each local coordinates as a numpy array.
-    pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray3<isize>> {
+    pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray2<isize>> {
         self.graph.get_shifts().into_pyarray(py).into()
     }
 

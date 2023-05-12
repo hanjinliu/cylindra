@@ -47,14 +47,18 @@ class CylindricAnnealingModel:
     def set_reservoir(
         self, temperature: float, time_constant: float, min_temperature: float = 0.0
     ) -> CylindricAnnealingModel: ...
-    def set_graph(
+    def construct_graph(
+        self, indices: NDArray[np.int32], npf: int, nrise: int
+    ) -> CylindricAnnealingModel: ...
+    def set_graph_coordinates(
         self,
-        score_array: NDArray[np.float32],
         origin: NDArray[np.float32],
         zvec: NDArray[np.float32],
         yvec: NDArray[np.float32],
         xvec: NDArray[np.float32],
-        nrise: int,
+    ) -> CylindricAnnealingModel: ...
+    def set_energy_landscape(
+        self, energy: NDArray[np.float32]
     ) -> CylindricAnnealingModel: ...
     def set_box_potential(
         self,

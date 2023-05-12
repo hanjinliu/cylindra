@@ -34,6 +34,24 @@ impl Index {
     }
 }
 
+impl Index {
+    pub fn get_neighbor(&self, na: isize, nrise: isize) -> Neighbors {
+        let y_fw = Index::new(self.y + 1, self.a);
+        let y_bw = Index::new(self.y - 1, self.a);
+        let a_fw = if self.a < na - 1 {
+            Index::new(self.y, self.a + 1)
+        } else {
+            Index::new(self.y + nrise, 0)
+        };
+        let a_bw = if self.a > 0 {
+            Index::new(self.y, self.a - 1)
+        } else {
+            Index::new(self.y - nrise, na - 1)
+        };
+        Neighbors::new(y_fw, y_bw, a_fw, a_bw)
+    }
+}
+
 pub struct Neighbors {
     pub y_fw: Option<Index>,
     pub y_bw: Option<Index>,
@@ -58,6 +76,28 @@ impl Neighbors {
             a_fw: None,
             a_bw: None,
         }
+    }
+
+    pub fn y_iter(&self) -> impl Iterator<Item=Index> {
+        let mut vec = Vec::new();
+        if self.y_fw.is_some() {
+            vec.push(self.y_fw.clone().unwrap());
+        }
+        if self.y_bw.is_some() {
+            vec.push(self.y_bw.clone().unwrap());
+        }
+        vec.into_iter()
+    }
+
+    pub fn a_iter(&self) -> impl Iterator<Item=Index> {
+        let mut vec = Vec::new();
+        if self.a_fw.is_some() {
+            vec.push(self.a_fw.clone().unwrap());
+        }
+        if self.a_bw.is_some() {
+            vec.push(self.a_bw.clone().unwrap());
+        }
+        vec.into_iter()
     }
 
     pub fn iter(&self) -> impl Iterator<Item=Index> {

@@ -998,12 +998,22 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _ny, _npf, _nrise = utils.infer_geometry_from_molecules(molecules)
+        _, _npf, _nrise = utils.infer_geometry_from_molecules(
+            molecules
+        )  # TODO: don't use this function!
 
         model = alignment.ZNCCAlignment.with_params(
             cutoff=cutoff,
             tilt_range=tilt_range,
         )
+
+        annealing = CylindricAnnealingModel().construct_graph(
+            indices=molecules.features.select([Mole.nth, Mole.pf]).to_numpy(),
+            npf=_npf,
+            nrise=_nrise,
+        )
+
+        # TODO: check distances
 
         score_dsk = loader.construct_landscape(
             template,
@@ -1026,26 +1036,18 @@ class SubtomogramAveraging(MagicTemplate):
         initial_temperature = np.std(energy) * 2
 
         # construct the annealing model
-        annealing = (
-            CylindricAnnealingModel()
-            .set_graph(
-                energy.reshape((_ny, _npf) + search_size),
-                (m0.pos / scale * upsample_factor).reshape(_ny, _npf, 3),
-                m0.z.reshape(_ny, _npf, 3).astype(np.float32),
-                m0.y.reshape(_ny, _npf, 3).astype(np.float32),
-                m0.x.reshape(_ny, _npf, 3).astype(np.float32),
-                _nrise,
-            )
-            .set_reservoir(
-                temperature=initial_temperature,
-                time_constant=time_const,
-            )
-            .set_box_potential(
-                *dist_lon,
-                *dist_lat,
-            )
+        annealing.set_graph_coordinates(
+            origin=(m0.pos / scale * upsample_factor),
+            zvec=m0.z.astype(np.float32),
+            yvec=m0.y.astype(np.float32),
+            xvec=m0.x.astype(np.float32),
+        ).set_energy_landscape(energy).set_reservoir(
+            temperature=initial_temperature,
+            time_constant=time_const,
+        ).set_box_potential(
+            *dist_lon,
+            *dist_lat,
         )
-
         results = _get_annealing_results(
             annealing, scale / upsample_factor, initial_temperature, range(ntrial)
         )
