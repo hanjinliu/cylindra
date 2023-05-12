@@ -203,7 +203,7 @@ class CylinderSimulator(MagicTemplate):
             Selected range in axial direction.
         arange : tuple of int
             Selected range in angular direction (selected protofilaments).
-        n_allev : int
+        allev : int
             Number of iteration of alleviation.
         show_selection : bool
             Check to show all the selected molecules
@@ -218,10 +218,10 @@ class CylinderSimulator(MagicTemplate):
             properties={"margin": (0, 0, 0, 0)}, layout="horizontal", record=False
         )
         class Col(MagicTemplate):
-            n_allev = abstractapi()
+            allev = abstractapi()
             show_selection = abstractapi()
 
-        n_allev = Col.vfield(1, label="alleviate").with_options(min=0, max=20)
+        allev = Col.vfield(True, label="alleviate")
         show_selection = Col.vfield(True, label="show selected molecules")
 
         def _update_slider_lims(self, ny: int, na: int):
@@ -694,16 +694,16 @@ class CylinderSimulator(MagicTemplate):
     @impl_preview(auto_call=True)
     def expand(
         self,
-        shift: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "shift (nm)"}],
+        exp: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "expansion (nm)"}],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
-        n_allev: Bound[Operator.n_allev] = 1,
+        allev: Bound[Operator.allev] = True,
     ):  # fmt: skip
         """Expand the selected molecules."""
-        shift_arr, sl = self.Operator._fill_shift(yrange, arange, shift)
-        new_model = self.model.expand(shift, sl)
-        if n_allev > 0:
-            new_model = new_model.alleviate(shift_arr != 0, niter=n_allev)
+        shift, sl = self.Operator._fill_shift(yrange, arange, exp)
+        new_model = self.model.expand(exp, sl)
+        if allev > 0:
+            new_model = new_model.alleviate(shift != 0)
         self.model = new_model
         return None
 
@@ -715,13 +715,13 @@ class CylinderSimulator(MagicTemplate):
         skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
-        n_allev: Bound[Operator.n_allev] = 1,
+        allev: Bound[Operator.allev] = True,
     ):  # fmt: skip
         """Screw (change the skew angles of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, skew)
         new_model = self.model.screw(np.deg2rad(skew), sl)
-        if n_allev > 0:
-            new_model = new_model.alleviate(shift != 0, niter=n_allev)
+        if allev > 0:
+            new_model = new_model.alleviate(shift != 0)
         self.model = new_model
         return None
 
@@ -733,13 +733,13 @@ class CylinderSimulator(MagicTemplate):
         radius: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}],
         yrange: Bound[Operator.yrange],
         arange: Bound[Operator.arange],
-        n_allev: Bound[Operator.n_allev] = 1,
+        allev: Bound[Operator.allev] = True,
     ):  # fmt: skip
         """Dilate (increase the local radius of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, radius)
         new_model = self.model.dilate(radius, sl)
-        if n_allev > 0:
-            new_model = new_model.alleviate(shift != 0, niter=n_allev)
+        if allev > 0:
+            new_model = new_model.alleviate(shift != 0)
         self.model = new_model
         return None
 

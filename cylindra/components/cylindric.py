@@ -263,7 +263,7 @@ class CylinderModel:
                 displace[start:, _a, axis] += angle_shift
         return self.replace(displace=displace)
 
-    def alleviate(self, label: ArrayLike, niter: int = 1) -> Self:
+    def alleviate(self, label: ArrayLike) -> Self:
         """
         Alleviate displacements by iterative local-averaging algorithm.
 
@@ -278,8 +278,6 @@ class CylinderModel:
             eigher (N, 2) or same as the shape of the model. In the former case, it is
             interpreted as N indices. In the latter case, True indices will be considered
             as the indices.
-        niter : int, default is 1
-            Number of iteration.
 
         Returns
         -------
@@ -296,7 +294,7 @@ class CylinderModel:
                 raise ValueError("Label shape mismatch")
         mesh = self._get_mesh()
         shifted = mesh + self._displace
-        shifted = alleviate(shifted, label, self.nrise, niter)
+        shifted = alleviate(shifted, label, self.nrise)
         displace = shifted - mesh
         return self.replace(displace=displace)
 

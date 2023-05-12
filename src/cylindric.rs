@@ -34,6 +34,64 @@ impl Index {
     }
 }
 
+pub struct Neighbors {
+    pub y_fw: Option<Index>,
+    pub y_bw: Option<Index>,
+    pub a_fw: Option<Index>,
+    pub a_bw: Option<Index>,
+}
+
+impl Neighbors {
+    pub fn new(y_fw: Index, y_bw: Index, a_fw: Index, a_bw: Index) -> Self {
+        Self {
+            y_fw: Some(y_fw),
+            y_bw: Some(y_bw),
+            a_fw: Some(a_fw),
+            a_bw: Some(a_bw),
+        }
+    }
+
+    pub fn new_none() -> Self {
+        Self {
+            y_fw: None,
+            y_bw: None,
+            a_fw: None,
+            a_bw: None,
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=Index> {
+        let mut vec = Vec::new();
+        if self.y_fw.is_some() {
+            vec.push(self.y_fw.clone().unwrap());
+        }
+        if self.y_bw.is_some() {
+            vec.push(self.y_bw.clone().unwrap());
+        }
+        if self.a_fw.is_some() {
+            vec.push(self.a_fw.clone().unwrap());
+        }
+        if self.a_bw.is_some() {
+            vec.push(self.a_bw.clone().unwrap());
+        }
+        vec.into_iter()
+    }
+
+    pub fn y_pair(&self) -> Vec<Index> {
+        match (&self.y_fw, &self.y_bw) {
+            (Some(y_fw), Some(y_bw)) => vec![y_fw.clone(), y_bw.clone()],
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn a_pair(&self) -> Vec<Index> {
+        match (&self.a_fw, &self.a_bw) {
+            (Some(a_fw), Some(a_bw)) => vec![a_fw.clone(), a_bw.clone()],
+            _ => Vec::new(),
+        }
+    }
+}
+
 #[pyclass]
 #[derive(Clone, PartialEq, Eq)]
 /// A struct represents cylinder geometry with rise.
@@ -85,67 +143,6 @@ impl CylinderGeometry {
             );
         }
         Ok(Index::new(y, a))
-    }
-
-    #[pyo3(signature = (y, a))]
-    /// Get the index of the neighbor at the given position.
-    pub fn get_neighbor(&self, y: isize, a: isize) -> PyResult<Vec<Index>> {
-        let mut neighbors: Vec<Index> = Vec::new();
-
-        if y < 0 || self.ny <= y || a < 0 || self.na <= a {
-            return index_error!(
-                format!(
-                    "Index(y={}, a={}) out of bounds for {}.",
-                    y, a, self.__repr__()
-                )
-            );
-        }
-
-        if y > 0 {
-            match self.get_index(y - 1, a) {
-                Ok(index) => neighbors.push(index),
-                Err(_) => (),
-            }
-        }
-
-        if y < self.ny - 1 {
-            match self.get_index(y + 1, a) {
-                Ok(index) => neighbors.push(index),
-                Err(_) => (),
-            }
-        }
-
-        let index_l = if a > 0 {
-            self.get_index(y, a - 1)
-        } else {
-            self.get_index(y - self.nrise, self.na - 1)
-        };
-        match index_l {
-            Ok(index) => neighbors.push(index),
-            Err(_) => (),
-        }
-
-        let index_r = if a < self.na - 1 {
-            self.get_index(y, a + 1)
-        } else {
-            self.get_index(y + self.nrise, 0)
-        };
-        match index_r {
-            Ok(index) => neighbors.push(index),
-            Err(_) => (),
-        }
-        Ok(neighbors)
-    }
-
-    #[pyo3(signature = (indices))]
-    /// Return all the neighbors of all the given indices.
-    pub fn get_neighbors(&self, indices: Vec<(isize, isize)>) -> PyResult<Vec<Index>> {
-        let mut inds = Vec::new();
-        for (y, a) in indices {
-            let index = self.get_index(y, a)?;
-            inds.push(index);
-        }
-        self._get_neighbors(&inds)
     }
 
     /// Return all the pairs of indices that are connected longitudinally.
@@ -208,6 +205,88 @@ impl CylinderGeometry {
     }
 }
 
+impl CylinderGeometry {
+    /// Get the index of the neighbor at the given position.
+    pub fn get_neighbor(&self, y: isize, a: isize) -> PyResult<Neighbors> {
+        let mut neighbors = Neighbors::new_none();
+
+        if y < 0 || self.ny <= y || a < 0 || self.na <= a {
+            return index_error!(
+                format!(
+                    "Index(y={}, a={}) out of bounds for {}.",
+                    y, a, self.__repr__()
+                )
+            );
+        }
+
+        if y > 0 {
+            match self.get_index(y - 1, a) {
+                Ok(index) => {
+                    neighbors.y_bw = Some(index);
+                }
+                Err(_) => (),
+            }
+        }
+
+        if y < self.ny - 1 {
+            match self.get_index(y + 1, a) {
+                Ok(index) => {
+                    neighbors.y_fw = Some(index);
+                }
+                Err(_) => (),
+            }
+        }
+
+        let index_l = if a > 0 {
+            self.get_index(y, a - 1)
+        } else {
+            self.get_index(y - self.nrise, self.na - 1)
+        };
+        match index_l {
+            Ok(index) => {
+                neighbors.a_bw = Some(index);
+            }
+            Err(_) => (),
+        }
+
+        let index_r = if a < self.na - 1 {
+            self.get_index(y, a + 1)
+        } else {
+            self.get_index(y + self.nrise, 0)
+        };
+        match index_r {
+            Ok(index) => {
+                neighbors.a_fw = Some(index);
+            }
+            Err(_) => (),
+        }
+        Ok(neighbors)
+    }
+
+    pub fn get_neighbors(&self, indices: &Vec<Index>) -> PyResult<Vec<Index>> {
+        let mut unique_neighbors: HashSet<Index> = HashSet::new();
+        // add all the neighbor candidates
+        for index in indices.iter() {
+            let new_neighbors = self.get_neighbor(index.y, index.a)?;
+            for neighbor in new_neighbors.iter() {
+                unique_neighbors.insert(neighbor.clone());
+            }
+        }
+
+        // remove inputs
+        for index in indices.iter() {
+            unique_neighbors.remove(index);
+        }
+
+        // convert to a vector
+        let mut neighbors: Vec<Index> = Vec::new();
+        for neighbor in unique_neighbors {
+            neighbors.push(neighbor);
+        }
+        Ok(neighbors)
+    }
+}
+
 #[pyclass]
 #[derive(PartialEq, Eq)]
 pub struct Sources {
@@ -250,30 +329,5 @@ impl Sources {
         };
         let other = Self::new(_lon, _lat);
         self == &other
-    }
-}
-
-impl CylinderGeometry {
-    pub fn _get_neighbors(&self, indices: &Vec<Index>) -> PyResult<Vec<Index>> {
-        let mut unique_neighbors: HashSet<Index> = HashSet::new();
-        // add all the neighbor candidates
-        for index in indices.iter() {
-            let new_neighbors = self.get_neighbor(index.y, index.a)?;
-            for neighbor in new_neighbors {
-                unique_neighbors.insert(neighbor);
-            }
-        }
-
-        // remove inputs
-        for index in indices.iter() {
-            unique_neighbors.remove(index);
-        }
-
-        // convert to a vector
-        let mut neighbors: Vec<Index> = Vec::new();
-        for neighbor in unique_neighbors {
-            neighbors.push(neighbor);
-        }
-        Ok(neighbors)
     }
 }

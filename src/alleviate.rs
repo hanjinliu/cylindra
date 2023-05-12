@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use pyo3::{prelude::*, Python};
 use numpy::{
     IntoPyArray, PyArray3, PyReadonlyArray2, PyReadonlyArray3,
@@ -30,27 +32,38 @@ pub fn alleviate<'py>(
     arr: PyReadonlyArray3<f32>,
     label: PyReadonlyArray2<isize>,
     nrise: isize,
-    iterations: isize,
 ) -> PyResult<Py<PyArray3<f32>>> {
     let arr = arr.as_array();
     let label = label.as_array();
-    let mut indices = array_to_indices(&label.to_shared());
     let ny = arr.shape()[0] as isize;
     let na = arr.shape()[1] as isize;
     let ndim = arr.shape()[2] as isize;
     if ndim != 3 {
         return value_error!("The last dimension of `arr` must be 3.");
     }
+    let nsize = (ny * na) as usize;
 
+    let mut indices = array_to_indices(&label.to_shared());
     let mut arr = arr.to_owned();
     let geometry = CylinderGeometry::new(ny, na, nrise);
+    let mut processed = HashSet::new();
+    for index in indices.iter() {
+        processed.insert(index.clone());
+    }
 
-    for _ in 0..iterations {
-        let neighbors = geometry._get_neighbors(&indices)?;
+    // propagate the average-and-update step.
+    let mut nrepeat = 0;  // just in case of infinite recursion.
+    while processed.len() < nsize {
+        let neighbors = geometry.get_neighbors(&indices)?;
         let mut arr_updated = arr.clone();
         for neighbor in neighbors.iter() {
+            if processed.contains(&neighbor) {
+                continue;
+            }
+            processed.insert(neighbor.clone());
+
             let cur_neighbor = geometry.get_neighbor(neighbor.y, neighbor.a)?;
-            let n_cur_neighbor = cur_neighbor.len() as f32 + 1.0;
+            let mut n_cur_neighbor = 1.0;
 
             let (y, a) = (neighbor.y as usize, neighbor.a as usize);
             let mut sum_r = arr[[y, a, 0]];
@@ -58,13 +71,15 @@ pub fn alleviate<'py>(
             let a = arr[[y, a, 2]];
             let mut sum_a_cos = a.cos();
             let mut sum_a_sin = a.sin();
-            for nbr in cur_neighbor {
+
+            for nbr in cur_neighbor.y_pair().iter().chain(cur_neighbor.a_pair().iter()) {
                 let (y, a) = (nbr.y as usize, nbr.a as usize);
                 sum_r += arr[[y, a, 0]];
                 sum_y += arr[[y, a, 1]];
                 let a = arr[[y, a, 2]];
                 sum_a_cos += a.cos();
                 sum_a_sin += a.sin();
+                n_cur_neighbor += 1.0;
             }
 
             let (y, a) = (neighbor.y as usize, neighbor.a as usize);
@@ -74,9 +89,13 @@ pub fn alleviate<'py>(
             arr_updated[[y, a, 2]] = if theta < 0.0 { theta + 2.0 * std::f32::consts::PI } else { theta };
         }
         // update target indices since affected molecules propagates during iteration.
-        indices = [indices, neighbors].concat();
+        indices = neighbors;
         // update array for next iteration
         arr.slice_mut(s![.., .., ..]).assign(&arr_updated);
+        nrepeat += 1;
+        if nrepeat > nsize {
+            return value_error!("Infinite recursion occurred.");
+        }
     }
     Ok(arr.into_pyarray(py).to_owned())
 }

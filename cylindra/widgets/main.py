@@ -2087,9 +2087,9 @@ class CylindraMainWidget(MagicTemplate):
             .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
-                pl.col(H.riseAngle).round(3),
-                pl.col(H.yPitch).round(3),
-                pl.col(H.skewAngle).round(3),
+                pl.col(H.riseAngle),
+                pl.col(H.yPitch),
+                pl.col(H.skewAngle),
             )
             .to_pandas()
         )  # fmt: skip
@@ -2107,11 +2107,11 @@ class CylindraMainWidget(MagicTemplate):
                     translate=self.layer_image.translate,
                     opacity=0.33,
                     name="Label",
-                    properties=props,
+                    features=props,
                 )
             else:
                 self.layer_paint.data = lbl
-                self.layer_paint.properties = props
+                self.layer_paint.features = props
             self._update_colormap()
 
         return _on_return

@@ -92,8 +92,7 @@ def test_alleviate_works(idx):
     shifted = np.zeros((10, 8), dtype=bool)
     shifted[idx] = True
 
-    model.alleviate(shifted, 1)
-    model.alleviate(shifted, 2)
+    model.alleviate(shifted)
 
 
 @pytest.mark.parametrize(

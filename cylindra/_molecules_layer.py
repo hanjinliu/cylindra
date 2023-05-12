@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, NamedTuple
 import weakref
 import polars as pl
+import numpy as np
 from acryo import Molecules
 from napari.layers import Points
 from cylindra.const import MoleculesHeader as Mole
@@ -138,3 +139,38 @@ class MoleculesLayer(Points):
         data = ip.asarray(data, name=self.name, axes=["L", "PF", "dim"])
         data.axes["dim"].labels = ("z", "y", "x")
         return data
+
+    def _get_properties(
+        self,
+        position,
+        *,
+        view_direction: np.ndarray | None = None,
+        dims_displayed: list[int] | None = None,
+        world: bool = False,
+    ) -> list:
+        if self.features.shape[1] == 0:
+            return []
+
+        value = self.get_value(
+            position,
+            view_direction=view_direction,
+            dims_displayed=dims_displayed,
+            world=world,
+        )
+        # if the cursor is not outside the image or on the background
+        if value is None or value > self.data.shape[0]:
+            return []
+
+        out = []
+        for k, col in self.features.items():
+            if k == "index" or len(col) <= value:
+                continue
+            val = col[value]
+            if isinstance(val, float) and not np.isnan(val):
+                if abs(val) > 1e4:
+                    out.append(f"{k}: {val:.3e}")
+                out.append(f"{k}: {val:.3f}")
+            else:
+                out.append(f"{k}: {val}")
+
+        return out
