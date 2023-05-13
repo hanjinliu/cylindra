@@ -989,8 +989,6 @@ class SubtomogramAveraging(MagicTemplate):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
-        search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
 
         # Calculating landscape is time consuming. We can check the distance limits
         # beforehand.
@@ -999,9 +997,8 @@ class SubtomogramAveraging(MagicTemplate):
             distance_range_long,
             distance_range_lat,
         )
-        annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
 
-        score: NDArray[np.float32] = loader.construct_landscape(
+        energy_dsk = -loader.construct_landscape(
             template,
             mask=mask,
             max_shifts=max_shifts,
@@ -1010,11 +1007,13 @@ class SubtomogramAveraging(MagicTemplate):
                 cutoff=cutoff,
                 tilt_range=tilt_range,
             ),
-        ).compute()
+        )
 
-        energy = -score
+        annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+        energy: NDArray[np.float32] = energy_dsk.compute()
+        local_shape = energy.shape[1:]
 
-        time_const = molecules.pos.size * np.product(search_size)
+        time_const = molecules.pos.size * np.product(local_shape)
         initial_temperature = np.std(energy) * 2
 
         # construct the annealing model
@@ -1029,14 +1028,14 @@ class SubtomogramAveraging(MagicTemplate):
         results = _get_annealing_results(annealing, initial_temperature, range(ntrial))
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 
-        offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
         inds = best_model.shifts()
-        opt_score = np.fromiter(
-            (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
+        opt_score = -np.fromiter(
+            (energy[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
             dtype=np.float32,
         )
 
-        all_shifts = (inds - offset) / upsample_factor * scale
+        int_offset = np.array(local_shape) // 2
+        all_shifts = (inds - int_offset) / upsample_factor * scale
 
         molecules_opt = molecules.translate_internal(all_shifts)
         molecules_opt.features = molecules_opt.features.with_columns(
@@ -1047,18 +1046,11 @@ class SubtomogramAveraging(MagicTemplate):
         )
         t0.toc()
         parent._need_save = True
-        aligned_loader = SubtomogramLoader(
-            parent.tomogram.image.value,
-            molecules_opt,
-            order=interpolation,
-            output_shape=template.shape,
-        )
 
         @thread_worker.to_callback
         def _on_return():
-            mole = aligned_loader.molecules
             points = parent.add_molecules(
-                mole,
+                molecules_opt,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
                 source=layer.source_component,
             )
@@ -1460,13 +1452,16 @@ def _get_annealing_model(
     from cylindra._cylindra_ext import CylindricAnnealingModel
 
     molecules = layer.molecules
+    scale_factor = scale / upsample_factor
     if isinstance(spl := layer.source_component, CylSpline):
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
     else:
         raise ValueError(f"{layer!r} does not have a valid source spline.")
 
-    m0 = molecules.translate_internal(-np.array(max_shifts))
+    _max_shifts = np.asarray(max_shifts, dtype=np.float32)
+    max_shifts_px = (_max_shifts / scale_factor).astype(np.int32) * scale_factor
+    m0 = molecules.translate_internal(-max_shifts_px)
 
     return (
         CylindricAnnealingModel()
@@ -1479,9 +1474,9 @@ def _get_annealing_model(
         )
         .set_graph_coordinates(
             origin=m0.pos,
-            zvec=m0.z.astype(np.float32) * scale / upsample_factor,
-            yvec=m0.y.astype(np.float32) * scale / upsample_factor,
-            xvec=m0.x.astype(np.float32) * scale / upsample_factor,
+            zvec=m0.z.astype(np.float32) * scale_factor,
+            yvec=m0.y.astype(np.float32) * scale_factor,
+            xvec=m0.x.astype(np.float32) * scale_factor,
         )
     )
 
@@ -1517,6 +1512,7 @@ def _(
     canvas[1].title = "Lateral distances"
     canvas.native.setParent(parent.native, canvas.native.windowFlags())
     canvas.show()
+    return None
 
 
 def _get_annealing_results(
