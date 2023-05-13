@@ -9,14 +9,17 @@ from magicclass import (
     vfield,
     MagicTemplate,
     set_design,
+    impl_preview,
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
 from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
-from magicclass.ext.dask import dask_thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
+from magicclass.ext.dask import dask_thread_worker
+from magicclass.ext.vispy import Vispy3DCanvas
+from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
 
@@ -160,7 +163,7 @@ class Refinement(MagicTemplate):
     align_all_template_free = abstractapi()
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
-    align_all_boltzmann = abstractapi()
+    align_all_annealing = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -792,7 +795,7 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return(aligned_loader, layer)
 
     @Refinement.wraps
-    @set_design(text="1D Viterbi Alignment")
+    @set_design(text="Viterbi Alignment")
     @dask_thread_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi(
         self,
@@ -949,10 +952,20 @@ class SubtomogramAveraging(MagicTemplate):
         )
         return self._align_all_on_return(aligned_loader, layer)
 
+    def _annealing_test(
+        self,
+        layer: MoleculesLayer,
+        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        upsample_factor: int = 5,
+    ):
+        parent = self._get_parent()
+        scale = parent.tomogram.scale
+        return _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+
     @Refinement.wraps
-    @set_design(text="2D Boltzmann Alignment")
-    @dask_thread_worker.with_progress(descs=_pdesc.align_boltzmann_fmt)
-    def align_all_boltzmann(
+    @set_design(text="Alignment by simulated annealing")
+    @dask_thread_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    def align_all_annealing(
         self,
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
@@ -967,11 +980,11 @@ class SubtomogramAveraging(MagicTemplate):
         ntrial: int = 6,
     ):
         """
-        Subtomogram alignment using 2D Boltzmann alignment.
+        2D-constrained subtomogram alignment using simulated annealing.
 
-        2D Boltzmann alignment is an alignment algorithm that considers the distance between
-        every adjacent monomers. Two-dimensionally connected optimization can be approximated
-        by the simulated annealing algorithm.
+        This alignment method considers the distance between every adjacent monomers.
+        Two-dimensionally connected optimization can be approximated by the simulated
+        annealing algorithm.
 
         Parameters
         ----------
@@ -983,10 +996,9 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape.
         """
-        from cylindra._cylindra_ext import CylindricAnnealingModel
-
-        t0 = timer("align_all_boltzmann")
+        t0 = timer("align_all_annealing")
         parent = self._get_parent()
+        scale = parent.tomogram.scale
         molecules = layer.molecules
         shape_nm = self._get_shape_in_nm()
         loader = parent.tomogram.get_subtomogram_loader(
@@ -998,69 +1010,50 @@ class SubtomogramAveraging(MagicTemplate):
         )
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _, _npf, _nrise = utils.infer_geometry_from_molecules(
-            molecules
-        )  # TODO: don't use this function!
 
-        model = alignment.ZNCCAlignment.with_params(
-            cutoff=cutoff,
-            tilt_range=tilt_range,
-        )
+        annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+        scale_factor = 1 / scale * upsample_factor
+        dist_lon = np.array(distance_range_long) * scale_factor
+        dist_lat = np.array(distance_range_lat) * scale_factor
 
-        annealing = CylindricAnnealingModel().construct_graph(
-            indices=molecules.features.select([Mole.nth, Mole.pf]).to_numpy(),
-            npf=_npf,
-            nrise=_nrise,
-        )
-
-        # TODO: check distances
+        _check_annealing_graph_distaces(annealing, dist_lon, dist_lat, scale_factor)
 
         score_dsk = loader.construct_landscape(
             template,
             mask=mask,
             max_shifts=max_shifts,
             upsample=upsample_factor,
-            alignment_model=model,
+            alignment_model=alignment.ZNCCAlignment.with_params(
+                cutoff=cutoff,
+                tilt_range=tilt_range,
+            ),
         )
 
         score: np.ndarray = score_dsk.compute()
-        scale = parent.tomogram.scale
-        m0 = molecules.translate_internal(-(np.array(max_shifts) - scale) / 2)
-
-        dist_lon = np.array(distance_range_long) / scale * upsample_factor
-        dist_lat = np.array(distance_range_lat) / scale * upsample_factor
-
         energy = -score
 
         time_const = molecules.pos.size * np.product(search_size)
         initial_temperature = np.std(energy) * 2
 
         # construct the annealing model
-        annealing.set_graph_coordinates(
-            origin=(m0.pos / scale * upsample_factor),
-            zvec=m0.z.astype(np.float32),
-            yvec=m0.y.astype(np.float32),
-            xvec=m0.x.astype(np.float32),
-        ).set_energy_landscape(energy).set_reservoir(
+        annealing.set_energy_landscape(energy).set_reservoir(
             temperature=initial_temperature,
             time_constant=time_const,
         ).set_box_potential(
             *dist_lon,
             *dist_lat,
         )
-        results = _get_annealing_results(
-            annealing, scale / upsample_factor, initial_temperature, range(ntrial)
-        )
+        results = _get_annealing_results(annealing, initial_temperature, range(ntrial))
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 
         offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
-        inds = best_model.shifts().reshape(-1, 3)
+        inds = best_model.shifts()
         opt_score = np.fromiter(
             (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
             dtype=np.float32,
         )
 
-        all_shifts = ((inds - offset) / upsample_factor * scale).reshape(-1, 3)
+        all_shifts = (inds - offset) / upsample_factor * scale
 
         molecules_opt = molecules.translate_internal(all_shifts)
         molecules_opt.features = molecules_opt.features.with_columns(
@@ -1455,21 +1448,100 @@ class _AnnealingResult(NamedTuple):
     energy: float
 
 
+def _check_annealing_graph_distaces(
+    annealing: "CylindricAnnealingModel",
+    dist_lon,
+    dist_lat,
+    scale_factor,
+):
+    lon_min, lon_max = dist_lon
+    lat_min, lat_max = dist_lat
+    lon = annealing.longitudinal_distances()
+    lat = annealing.lateral_distances()
+    _temp = "Some of the {typ} distances are smaller than the minimum {min}."
+    if lon.min() < lon_min:
+        raise ValueError(_temp.format(typ="longitudinal", min=lon_min / scale_factor))
+    elif lon.max() > lon_max:
+        raise ValueError(_temp.format(typ="longitudinal", min=lon_max / scale_factor))
+    if lat.min() < lat_min:
+        raise ValueError(_temp.format(typ="lateral", min=lat_min / scale_factor))
+    elif lat.max() > lat_max:
+        raise ValueError(_temp.format(typ="lateral", min=lat_max / scale_factor))
+
+
+def _get_annealing_model(
+    layer: MoleculesLayer,
+    max_shifts: _MaxShifts,
+    scale: nm,
+    upsample_factor: int = 5,
+) -> "CylindricAnnealingModel":
+    from cylindra._cylindra_ext import CylindricAnnealingModel
+
+    molecules = layer.molecules
+    if isinstance(spl := layer.source_component, CylSpline):
+        cyl = spl.cylinder_model()
+        _nrise, _npf = cyl.nrise, cyl.shape[1]
+    else:
+        raise ValueError(f"{layer!r} does not have a valid source spline.")
+
+    m0 = molecules.translate_internal(-(np.array(max_shifts) - scale) / 2)
+
+    return (
+        CylindricAnnealingModel()
+        .construct_graph(
+            indices=molecules.features.select([Mole.nth, Mole.pf])
+            .to_numpy()
+            .astype(np.int32),
+            npf=_npf,
+            nrise=_nrise,
+        )
+        .set_graph_coordinates(
+            origin=(m0.pos / scale * upsample_factor),
+            zvec=m0.z.astype(np.float32),
+            yvec=m0.y.astype(np.float32),
+            xvec=m0.x.astype(np.float32),
+        )
+    )
+
+
+@impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")
+def _(
+    self: SubtomogramAveraging,
+    layer: MoleculesLayer,
+    max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+    distance_range_long: _DistRangeLon = (3.9, 4.4),
+    distance_range_lat: _DistRangeLat = (4.7, 5.3),
+    upsample_factor: int = 5,
+):
+    parent = self._get_parent()
+    scale = parent.tomogram.scale
+    annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+
+    data_lon = annealing.longitudinal_distances() * scale / upsample_factor
+    data_lat = annealing.lateral_distances() * scale / upsample_factor
+
+    # TODO: show network using this.
+    # edge0, edge1, typ = annealing.get_edge_info()
+
+    canvas = QtMultiPlotCanvas(ncols=2)
+    canvas[0].add_hist(data_lon, bins=24, density=True, name="Longitudinal")
+    canvas[0].add_infline((distance_range_long[0], 0), 90, color="yellow", ls=":")
+    canvas[0].add_infline((distance_range_long[1], 0), 90, color="yellow", ls=":")
+    canvas[0].title = "Longitudinal distances"
+    canvas[1].add_hist(data_lat, bins=24, density=True, name="Lateral")
+    canvas[1].add_infline((distance_range_lat[0], 0), 90, color="yellow", ls=":")
+    canvas[1].add_infline((distance_range_lat[1], 0), 90, color="yellow", ls=":")
+    canvas[1].title = "Lateral distances"
+    canvas.native.setParent(parent.native, canvas.native.windowFlags())
+    canvas.show()
+
+
 def _get_annealing_results(
     annealing: "CylindricAnnealingModel",
-    factor: float,
     initial_temperature: float,
     seeds: Iterable[int],
 ) -> list[_AnnealingResult]:
     from dask import array as da, delayed
-
-    def _logging_distances(a: "NDArray[np.float32]", prefix: str):
-        _mean = a.mean() * factor
-        _std = a.std() * factor
-        _Logger.print_html(f"{prefix}: {_mean:.2f} &#177; {_std:.2f} nm")
-
-    _logging_distances(annealing.longitudinal_distances(), "Longitudinal")
-    _logging_distances(annealing.lateral_distances(), "Lateral")
 
     @delayed
     def _run(seed: int) -> _AnnealingResult:

@@ -93,31 +93,3 @@ def test_alleviate_works(idx):
     shifted[idx] = True
 
     model.alleviate(shifted)
-
-
-@pytest.mark.parametrize(
-    ["nrise", "index", "source"],
-    [
-        (3, (0, 0), [None, None]),
-        (3, (0, 3), [None, (0, 2)]),
-        (3, (1, 0), [(0, 0), None]),
-        (3, (2, 0), [(1, 0), None]),
-        (3, (3, 0), [(2, 0), (0, 4)]),
-        (3, (5, 2), [(4, 2), (5, 1)]),
-        (3, (9, 4), [(8, 4), (9, 3)]),
-        (-3, (0, 0), [None, (0, 1)]),
-        (-3, (0, 4), [None, None]),
-        (-3, (1, 4), [(0, 4), None]),
-        (-3, (2, 4), [(1, 4), None]),
-        (-3, (3, 4), [(2, 4), (0, 0)]),
-        (-3, (5, 2), [(4, 2), (5, 3)]),
-        (-3, (9, 0), [(8, 0), (9, 1)]),
-    ],
-)
-def test_cylinder_source_forward(
-    nrise: int,
-    index: tuple[int, int],
-    source: list[tuple[int, int]],
-):
-    geometry = CylinderGeometry(10, 5, nrise)
-    assert geometry.source_forward(*index).equals(*source)

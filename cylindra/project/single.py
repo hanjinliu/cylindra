@@ -111,7 +111,7 @@ class CylindraProject(BaseProject):
 
         self = cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-            version=next(iter(_versions.values())),
+            version=_versions.pop("cylindra", "unknown"),
             dependency_versions=_versions,
             image=as_relative(tomo.source),
             scale=tomo.scale,

@@ -137,7 +137,7 @@ impl CylindricGraph {
         }
 
         for (idx, i) in index_to_id.iter() {
-            let neighbors = idx.get_neighbor(na, nrise);
+            let neighbors = idx.get_neighbors(na, nrise);
             for neighbor in neighbors.y_iter() {
                 match index_to_id.get(&neighbor) {
                     Some(j) => {
@@ -179,9 +179,6 @@ impl CylindricGraph {
         for i in 0..n_nodes {
             let node = self.components.node_state(i);
             let idx = node.index.clone();
-            self.components.add_node(
-                NodeState { index: idx.clone(), shift: Vector3D::new(0, 0, 0) }
-            );
 
             _coords.insert(
                 idx,
@@ -201,15 +198,19 @@ impl CylindricGraph {
         let n_nodes = self.components.node_count();
         let shape = energy.shape();
         if shape[0] != n_nodes {
-            return value_error!("energy has wrong shape");
+            return value_error!(
+                format!("`energy` has wrong shape, Expected ({n_nodes}, ...) but got {shape:?}.")
+            );
         }
         let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
+        let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
         let mut _energy: HashMap<Index, Array<f32, Ix3>> = HashMap::new();
         for i in 0..n_nodes {
             let node_state = self.components.node_state(i);
             let idx = &node_state.index;
             _energy.insert(idx.clone(), energy.slice(s![i, .., .., ..]).to_owned());
+            self.components.set_node_state(i, NodeState { index: idx.clone(), shift: center.clone() })
         }
         self.energy = Arc::new(_energy);
         Ok(self)
@@ -219,8 +220,6 @@ impl CylindricGraph {
     pub fn components(&self) -> &GraphComponents<NodeState, EdgeType> {
         &self.components
     }
-
-    // fn energy_at(&self, )
 
     /// Calculate the internal energy of a node state.
     pub fn internal(&self, node_state: &NodeState) -> f32 {
@@ -262,6 +261,9 @@ impl CylindricGraph {
     }
 
     fn get_distances(&self, typ: &EdgeType) -> Array1<f32> {
+        if self.coords.len() == 0 {
+            panic!("Coordinates not set.")
+        }
         let graph = self.components();
         let mut distances = Vec::new();
         for i in 0..graph.edge_count() {
@@ -271,6 +273,7 @@ impl CylindricGraph {
             let edge = graph.edge_end(i);
             let pos0 = graph.node_state(edge.0);
             let pos1 = graph.node_state(edge.1);
+
             let coord0 = &self.coords[&pos0.index];
             let coord1 = &self.coords[&pos1.index];
             let dr = coord0.at_vec(pos0.shift.into()) - coord1.at_vec(pos1.shift.into());
@@ -344,6 +347,32 @@ impl CylindricGraph {
 
     pub fn get_lateral_distances(&self) -> Array1<f32> {
         self.get_distances(&EdgeType::Lateral)
+    }
+
+    pub fn get_edge_states(&self) -> (Array2<f32>, Array2<f32>, Array1<i32>) {
+        let mut out0 = Array2::<f32>::zeros((self.components.edge_count(), 3));
+        let mut out1 = Array2::<f32>::zeros((self.components.edge_count(), 3));
+        let mut out2 = Array1::<i32>::zeros(self.components.edge_count());
+        for i in 0..self.components.edge_count() {
+            let edge_type = self.components.edge_state(i);
+            let ends = self.components.edge_end(i);
+            let node0 = self.components.node_state(ends.0);
+            let node1 = self.components.node_state(ends.1);
+            let coord0 = self.coords[&node0.index].at_vec(node0.shift.into());
+            let coord1 = self.coords[&node1.index].at_vec(node1.shift.into());
+            out0[[i, 0]] = coord0.z;
+            out0[[i, 1]] = coord0.y;
+            out0[[i, 2]] = coord0.x;
+            out1[[i, 0]] = coord1.z;
+            out1[[i, 1]] = coord1.y;
+            out1[[i, 2]] = coord1.x;
+            out2[i] = match edge_type {
+                EdgeType::Longitudinal => 0,
+                EdgeType::Lateral => 1,
+            }
+        }
+
+        (out0, out1, out2)
     }
 
     pub fn check_graph(&self) -> PyResult<()> {

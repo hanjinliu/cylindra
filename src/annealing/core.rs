@@ -108,6 +108,11 @@ impl CylindricAnnealingModel {
         self.graph.get_lateral_distances().into_pyarray(py).into()
     }
 
+    pub fn get_edge_info<'py>(&self, py: Python<'py>) -> (Py<PyArray2<f32>>, Py<PyArray2<f32>>, Py<PyArray1<i32>>) {
+        let (out0, out1, out2) = self.graph.get_edge_states();
+        (out0.into_pyarray(py).into(), out1.into_pyarray(py).into(), out2.into_pyarray(py).into())
+    }
+
     #[pyo3(signature = (indices, npf, nrise))]
     pub fn construct_graph<'py>(
         mut slf: PyRefMut<'py, Self>,
@@ -117,6 +122,9 @@ impl CylindricAnnealingModel {
     ) -> PyResult<PyRefMut<'py, Self>> {
         // indices into Vec<Index>
         let indices = indices.as_array().to_shared();
+        if indices.shape()[1] != 2 {
+            return value_error!("indices must be a Nx2 array");
+        }
         let indices = (0..indices.shape()[0])
             .map(|i| Index::new(indices[[i, 0]] as isize, indices[[i, 1]] as isize))
             .collect::<Vec<_>>();
