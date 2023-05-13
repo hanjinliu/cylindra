@@ -119,8 +119,7 @@ impl CylindricGraph {
         }
     }
 
-    /// Update energy landscape and local coordinates, and construct the graph
-    /// using input data.
+    /// Construct a graph from a cylindric parameters.
     pub fn construct(
         &mut self,
         indices: Vec<Index>,
@@ -141,7 +140,9 @@ impl CylindricGraph {
             for neighbor in neighbors.y_iter() {
                 match index_to_id.get(&neighbor) {
                     Some(j) => {
-                        self.components.add_edge(*i, *j, EdgeType::Longitudinal);
+                        if i < j {
+                            self.components.add_edge(*i, *j, EdgeType::Longitudinal);
+                        }
                     }
                     None => {}
                 }
@@ -149,7 +150,9 @@ impl CylindricGraph {
             for neighbor in neighbors.a_iter() {
                 match index_to_id.get(&neighbor) {
                     Some(j) => {
-                        self.components.add_edge(*i, *j, EdgeType::Lateral);
+                        if i < j {
+                            self.components.add_edge(*i, *j, EdgeType::Lateral);
+                        }
                     }
                     None => {}
                 }
@@ -202,6 +205,7 @@ impl CylindricGraph {
                 format!("`energy` has wrong shape, Expected ({n_nodes}, ...) but got {shape:?}.")
             );
         }
+
         let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
         let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
@@ -381,9 +385,4 @@ impl CylindricGraph {
         }
         Ok(())
     }
-
-    // fn local_shape(&self) -> Vector3D<isize> {
-    //     let shape = self.energy.iter().next().unwrap().1.shape();
-    //     Vector3D::new(shape[0] as isize, shape[1] as isize, shape[2] as isize)
-    // }
 }

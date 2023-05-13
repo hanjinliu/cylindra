@@ -140,6 +140,7 @@ class MoleculesLayer(Points):
         data.axes["dim"].labels = ("z", "y", "x")
         return data
 
+    # override Points._get_properties to avoid status tip being too long.
     def _get_properties(
         self,
         position,
@@ -166,7 +167,7 @@ class MoleculesLayer(Points):
             if k == "index" or len(col) <= value:
                 continue
             val = col[value]
-            if isinstance(val, float) and not np.isnan(val):
+            if isinstance(val, np.floating) and not np.isnan(val):
                 if abs(val) > 1e4:
                     out.append(f"{k}: {val:.3e}")
                 out.append(f"{k}: {val:.3f}")

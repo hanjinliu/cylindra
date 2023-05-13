@@ -1,4 +1,5 @@
 .vscode/
+test_script.py
 
 # Project files and results
 tests/**/*.txt

@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 
 # functions
-def fmt_layer_name(fmt: str):
+def fmt_layer(fmt: str):
     """Define a formatter for progressbar description."""
 
     def _formatter(layer: "Layer"):

@@ -17,8 +17,7 @@ from magicclass.types import OneOf, Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
-from magicclass.ext.dask import dask_thread_worker
-from magicclass.ext.vispy import Vispy3DCanvas
+from magicclass.ext.dask import dask_thread_worker as dask_worker
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
@@ -430,9 +429,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average all molecules")
-    @dask_thread_worker.with_progress(
-        desc=_pdesc.fmt_layer_name("Subtomogram averaging of {!r}")
-    )
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Subtomogram averaging of {!r}"))
     def average_all(
         self,
         layer: MoleculesLayer,
@@ -464,9 +461,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average subset of molecules")
-    @dask_thread_worker.with_progress(
-        desc=_pdesc.fmt_layer_name("Subtomogram averaging (subset) of {!r}")
-    )
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Subtomogram averaging (subset) of {!r}"))  # fmt: skip
     def average_subset(
         self,
         layer: MoleculesLayer,
@@ -509,9 +504,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Split molecules and average")
-    @dask_thread_worker.with_progress(
-        desc=_pdesc.fmt_layer_name("Split-and-averaging of {!r}")
-    )
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Split-and-averaging of {!r}"))  # fmt: skip
     def split_and_average(
         self,
         layer: MoleculesLayer,
@@ -547,7 +540,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align average to template")
-    @dask_thread_worker.with_progress(descs=_pdesc.align_averaged_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
         layer: MoleculesLayer,
@@ -639,7 +632,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align all molecules")
-    @dask_thread_worker.with_progress(desc=_pdesc.fmt_layer_name("Alignment of {!r}"))
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Alignment of {!r}"))
     def align_all(
         self,
         layer: MoleculesLayer,
@@ -687,7 +680,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align all (template-free)")
-    @dask_thread_worker.with_progress(descs=_pdesc.align_template_free_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_template_free_fmt)
     def align_all_template_free(
         self,
         layer: MoleculesLayer,
@@ -708,8 +701,8 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{mask_params}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}{x_rotation}
-        {cutoff}{interpolation}{method}{bin_size}
+        {layer}{mask_params}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}
+        {x_rotation}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_template_free")
         parent = self._get_parent()
@@ -739,9 +732,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Align all (multi-template)")
-    @dask_thread_worker.with_progress(
-        desc=_pdesc.fmt_layer_name("Multi-template alignment of {!r}")
-    )
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Multi-template alignment of {!r}"))  # fmt: skip
     def align_all_multi_template(
         self,
         layer: MoleculesLayer,
@@ -796,7 +787,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Refinement.wraps
     @set_design(text="Viterbi Alignment")
-    @dask_thread_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi(
         self,
         layer: MoleculesLayer,
@@ -952,19 +943,9 @@ class SubtomogramAveraging(MagicTemplate):
         )
         return self._align_all_on_return(aligned_loader, layer)
 
-    def _annealing_test(
-        self,
-        layer: MoleculesLayer,
-        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
-        upsample_factor: int = 5,
-    ):
-        parent = self._get_parent()
-        scale = parent.tomogram.scale
-        return _get_annealing_model(layer, max_shifts, scale, upsample_factor)
-
     @Refinement.wraps
     @set_design(text="Alignment by simulated annealing")
-    @dask_thread_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing(
         self,
         layer: MoleculesLayer,
@@ -977,7 +958,7 @@ class SubtomogramAveraging(MagicTemplate):
         distance_range_long: _DistRangeLon = (3.9, 4.4),
         distance_range_lat: _DistRangeLat = (4.7, 5.3),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        ntrial: int = 6,
+        ntrial: Annotated[int, {"min": 1}] = 6,
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1011,14 +992,16 @@ class SubtomogramAveraging(MagicTemplate):
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
 
+        # Calculating landscape is time consuming. We can check the distance limits
+        # beforehand.
+        _check_annealing_graph_distaces(
+            _get_annealing_model(layer, (0, 0, 0), scale, upsample_factor),
+            distance_range_long,
+            distance_range_lat,
+        )
         annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
-        scale_factor = 1 / scale * upsample_factor
-        dist_lon = np.array(distance_range_long) * scale_factor
-        dist_lat = np.array(distance_range_lat) * scale_factor
 
-        _check_annealing_graph_distaces(annealing, dist_lon, dist_lat, scale_factor)
-
-        score_dsk = loader.construct_landscape(
+        score: NDArray[np.float32] = loader.construct_landscape(
             template,
             mask=mask,
             max_shifts=max_shifts,
@@ -1027,9 +1010,8 @@ class SubtomogramAveraging(MagicTemplate):
                 cutoff=cutoff,
                 tilt_range=tilt_range,
             ),
-        )
+        ).compute()
 
-        score: np.ndarray = score_dsk.compute()
         energy = -score
 
         time_const = molecules.pos.size * np.product(search_size)
@@ -1040,9 +1022,10 @@ class SubtomogramAveraging(MagicTemplate):
             temperature=initial_temperature,
             time_constant=time_const,
         ).set_box_potential(
-            *dist_lon,
-            *dist_lat,
+            *distance_range_long,
+            *distance_range_lat,
         )
+
         results = _get_annealing_results(annealing, initial_temperature, range(ntrial))
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 
@@ -1107,9 +1090,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
-    @dask_thread_worker.with_progress(
-        desc=_pdesc.fmt_layer_name("Calculating FSC of {!r}")
-    )
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
         layer: MoleculesLayer,
@@ -1195,7 +1176,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="PCA/K-means classification")
-    @dask_thread_worker.with_progress(descs=_pdesc.classify_pca_fmt)
+    @dask_worker.with_progress(descs=_pdesc.classify_pca_fmt)
     def classify_pca(
         self,
         layer: MoleculesLayer,
@@ -1271,7 +1252,7 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Seam search")
-    @dask_thread_worker.with_progress(desc=_pdesc.fmt_layer_name("Seam search of {!r}"))
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
         self,
         layer: MoleculesLayer,
@@ -1452,21 +1433,22 @@ def _check_annealing_graph_distaces(
     annealing: "CylindricAnnealingModel",
     dist_lon,
     dist_lat,
-    scale_factor,
 ):
     lon_min, lon_max = dist_lon
     lat_min, lat_max = dist_lat
     lon = annealing.longitudinal_distances()
     lat = annealing.lateral_distances()
-    _temp = "Some of the {typ} distances are smaller than the minimum {min}."
+    _tmin = "Some of the {typ} distances are smaller than the minimum {min:3f}."
+    _tmax = "Some of the {typ} distances are larger than the maximum {max:3f}."
+
     if lon.min() < lon_min:
-        raise ValueError(_temp.format(typ="longitudinal", min=lon_min / scale_factor))
+        raise ValueError(_tmin.format(typ="longitudinal", min=lon_min))
     elif lon.max() > lon_max:
-        raise ValueError(_temp.format(typ="longitudinal", min=lon_max / scale_factor))
+        raise ValueError(_tmax.format(typ="longitudinal", max=lon_max))
     if lat.min() < lat_min:
-        raise ValueError(_temp.format(typ="lateral", min=lat_min / scale_factor))
+        raise ValueError(_tmin.format(typ="lateral", min=lat_min))
     elif lat.max() > lat_max:
-        raise ValueError(_temp.format(typ="lateral", min=lat_max / scale_factor))
+        raise ValueError(_tmax.format(typ="lateral", max=lat_max))
 
 
 def _get_annealing_model(
@@ -1484,7 +1466,7 @@ def _get_annealing_model(
     else:
         raise ValueError(f"{layer!r} does not have a valid source spline.")
 
-    m0 = molecules.translate_internal(-(np.array(max_shifts) - scale) / 2)
+    m0 = molecules.translate_internal(-np.array(max_shifts))
 
     return (
         CylindricAnnealingModel()
@@ -1496,10 +1478,10 @@ def _get_annealing_model(
             nrise=_nrise,
         )
         .set_graph_coordinates(
-            origin=(m0.pos / scale * upsample_factor),
-            zvec=m0.z.astype(np.float32),
-            yvec=m0.y.astype(np.float32),
-            xvec=m0.x.astype(np.float32),
+            origin=m0.pos,
+            zvec=m0.z.astype(np.float32) * scale / upsample_factor,
+            yvec=m0.y.astype(np.float32) * scale / upsample_factor,
+            xvec=m0.x.astype(np.float32) * scale / upsample_factor,
         )
     )
 
@@ -1508,29 +1490,30 @@ def _get_annealing_model(
 def _(
     self: SubtomogramAveraging,
     layer: MoleculesLayer,
-    max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
     distance_range_long: _DistRangeLon = (3.9, 4.4),
     distance_range_lat: _DistRangeLat = (4.7, 5.3),
     upsample_factor: int = 5,
 ):
     parent = self._get_parent()
     scale = parent.tomogram.scale
-    annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+    annealing = _get_annealing_model(layer, (0, 0, 0), scale, upsample_factor)
 
-    data_lon = annealing.longitudinal_distances() * scale / upsample_factor
-    data_lat = annealing.lateral_distances() * scale / upsample_factor
+    data_lon = annealing.longitudinal_distances()
+    data_lat = annealing.lateral_distances()
 
     # TODO: show network using this.
     # edge0, edge1, typ = annealing.get_edge_info()
 
     canvas = QtMultiPlotCanvas(ncols=2)
-    canvas[0].add_hist(data_lon, bins=24, density=True, name="Longitudinal")
+    canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
     canvas[0].add_infline((distance_range_long[0], 0), 90, color="yellow", ls=":")
     canvas[0].add_infline((distance_range_long[1], 0), 90, color="yellow", ls=":")
+    canvas[0].add_infline((0, 0), 0, color="gray")
     canvas[0].title = "Longitudinal distances"
-    canvas[1].add_hist(data_lat, bins=24, density=True, name="Lateral")
+    canvas[1].add_hist(data_lat, bins=24, density=False, name="Lateral")
     canvas[1].add_infline((distance_range_lat[0], 0), 90, color="yellow", ls=":")
     canvas[1].add_infline((distance_range_lat[1], 0), 90, color="yellow", ls=":")
+    canvas[1].add_infline((0, 0), 0, color="gray")
     canvas[1].title = "Lateral distances"
     canvas.native.setParent(parent.native, canvas.native.windowFlags())
     canvas.show()
