@@ -2,7 +2,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 import pytest
 from cylindra.components import CylinderModel, Spline, indexer as Idx
-from cylindra._cylindra_ext import CylinderGeometry, Sources
 
 
 def test_cylindric_model_construction():
