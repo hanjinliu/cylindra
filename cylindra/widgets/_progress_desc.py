@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 
 # functions
-def fmt_layer_name(fmt: str):
+def fmt_layer(fmt: str):
     """Define a formatter for progressbar description."""
 
     def _formatter(layer: "Layer"):
@@ -36,10 +36,10 @@ def align_viterbi_fmt(layer: "Layer"):
     yield "(3/3) Finishing"
 
 
-def align_boltzmann_fmt(layer: "Layer"):
+def align_annealing_fmt(layer: "Layer"):
     yield f"(0/3) Preparing template images for {layer.name!r}"
     yield f"(1/3) Calculating the correlation landscape of {layer.name!r}"
-    yield f"(2/3) Running Boltzmann alignment of {layer.name!r}"
+    yield f"(2/3) Running Annealing of {layer.name!r}"
     yield "(3/3) Finishing"
 
 

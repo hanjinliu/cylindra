@@ -260,17 +260,21 @@ def extend_protofilament(
         Mole.yvec,
         Mole.xvec,
         Mole.position,
+        Mole.nth,
         Mole.pf,
     ]
     schema = {c: df[c].dtype for c in predictables}
     to_prepend: list[Molecules] = []
     to_append: list[Molecules] = []
     for _pf_id, (_n_prepend, _n_append) in counts.items():
+        # get the data frame of the protofilament
         df_filt = df.filter(pl.col(Mole.pf) == _pf_id).sort(pl.col(Mole.position))
         prepend_start = df_filt[0]
         prepend_vec = prepend_start.select(zyxp) - df_filt[1].select(zyxp)
         append_start = df_filt[-1]
         append_vec = append_start.select(zyxp) - df_filt[-2].select(zyxp)
+        nth_start = prepend_start[Mole.nth][0]
+        nth_stop = append_start[Mole.nth][0]
 
         rng = np.arange(_n_prepend, 0, -1)
         df_prepend = pl.DataFrame(
@@ -282,7 +286,8 @@ def extend_protofilament(
                 Mole.yvec: np.full(_n_prepend, prepend_start[Mole.yvec][0]),
                 Mole.xvec: np.full(_n_prepend, prepend_start[Mole.xvec][0]),
                 Mole.position: prepend_start[Mole.position][0]
-                + prepend_vec[Mole.position][0] * rng,
+                + prepend_vec[Mole.position][0] * rng,  # fmt: skip
+                Mole.nth: np.arange(nth_start - _n_prepend, nth_start),
                 Mole.pf: np.full(_n_prepend, _pf_id),
             },
             schema=schema,
@@ -298,7 +303,8 @@ def extend_protofilament(
                 Mole.yvec: np.full(_n_append, append_start[Mole.yvec][0]),
                 Mole.xvec: np.full(_n_append, append_start[Mole.xvec][0]),
                 Mole.position: append_start[Mole.position][0]
-                + append_vec[Mole.position][0] * rng,
+                + append_vec[Mole.position][0] * rng,  # fmt: skip
+                Mole.nth: np.arange(nth_stop + 1, nth_stop + _n_append + 1),
                 Mole.pf: np.full(_n_append, _pf_id),
             },
             schema=schema,

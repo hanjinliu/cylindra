@@ -16,7 +16,6 @@ fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<viterbi::ViterbiGrid>()?;
     m.add_class::<cylindric::CylinderGeometry>()?;
-    m.add_class::<cylindric::Sources>()?;
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;

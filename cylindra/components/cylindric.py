@@ -173,7 +173,7 @@ class CylinderModel:
             pos = pl.Series(shifted_2d[::-1, 1])
         else:
             pos = pl.Series(shifted_2d[:, 1])
-        arange = pl.Series(np.arange(len(mole), dtype=np.uint32))
+        arange = pl.Series(np.arange(len(mole), dtype=np.int32))
         nth = arange // self._shape[1]
         pf = arange % self._shape[1]
         mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
