@@ -444,15 +444,6 @@ class CylindraMainWidget(MagicTemplate):
         else:
             self.parent_viewer.window.add_dock_widget(wdt, name=name)
 
-    @Others.wraps
-    @set_design(text="Clear cache")
-    @confirm(text="Are you sure to clear cache?\nYou cannot undo this.")
-    def clear_cache(self):
-        """Clear cache stored on the current tomogram."""
-        if self.tomogram is not None:
-            self.tomogram.clear_cache()
-        return None
-
     @Others.Help.wraps
     @set_design(text="Info")
     @do_not_record

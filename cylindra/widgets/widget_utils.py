@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from typing import Any, Sequence, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 from dataclasses import dataclass
 from timeit import default_timer
 import inspect
@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import polars as pl
 
-from magicgui.widgets import Label, SpinBox, Container
+from magicgui.widgets import SpinBox, Container
 from magicgui.types import Undefined
 from magicclass.widgets import ScrollableContainer
 from magicclass.logging import getLogger
@@ -18,7 +18,7 @@ import napari
 
 from acryo import Molecules, TomogramSimulator
 from cylindra import utils
-from cylindra.const import MoleculesHeader as Mole, nm
+from cylindra.const import MoleculesHeader as Mole, nm, GlobalVariables as GVar
 from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
 
@@ -70,7 +70,7 @@ def add_molecules(
     """Add Molecules object as a point layer."""
     layer = MoleculesLayer(
         mol,
-        size=3,
+        size=GVar.pointSize,
         face_color="lime",
         edge_color="lime",
         out_of_slice_display=True,

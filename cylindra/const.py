@@ -164,6 +164,7 @@ class GlobalVariables:
     fitLength: nm = 48.0
     fitWidth: nm = 44.0
     daskChunk: int = (256, 256, 256)
+    pointSize: float = 4.2
     GPU: bool = True
 
     @classmethod

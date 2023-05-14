@@ -165,7 +165,6 @@ class Others(MagicTemplate):
     open_command_palette = abstractapi()
     GlobalVariables = GlobalVariablesMenu
     open_logger = abstractapi()
-    clear_cache = abstractapi()
 
     @magicmenu
     class Help(MagicTemplate):

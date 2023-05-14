@@ -152,11 +152,11 @@ class CylinderSimulator(MagicTemplate):
         if self._points is None:
             self.canvas.layers.clear()
             self._points = self.canvas.add_points(
-                mole.pos, size=2.0, face_color="lime", edge_color="lime"
+                mole.pos, size=GVar.pointSize, face_color="lime", edge_color="lime"
             )
             self._selections = self.canvas.add_points(
                 [[0, 0, 0]],
-                size=2.0,
+                size=GVar.pointSize,
                 face_color=[0, 0, 0, 0],
                 edge_color="cyan",
                 edge_width=1.5,

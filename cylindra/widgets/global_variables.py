@@ -47,6 +47,7 @@ class GlobalVariablesMenu(MagicTemplate):
         outer: float = GVar.outer,
         fitLength: nm = GVar.fitLength,
         fitWidth: nm = GVar.fitWidth,
+        pointSize: float = GVar.pointSize,
         daskChunk: tuple[int, int, int] = GVar.daskChunk,
         GPU: bool = GVar.GPU,
     ):
