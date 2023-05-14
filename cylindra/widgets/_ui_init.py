@@ -11,6 +11,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.project import CylindraProject, get_project_json
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
@@ -201,6 +202,20 @@ def _(self, gui):
 @setup_function_gui(CylindraMainWidget.seam_search_by_feature)
 def _(self, gui):
     gui[0].changed.connect(gui[1].reset_choices)
+
+
+@setup_function_gui(CylindraMainWidget.extend_molecules)
+def _(self, gui):
+    @gui.layer.changed.connect
+    def _on_layer_change(layer: MoleculesLayer):
+        try:
+            npf = layer.features[Mole.pf].max() + 1
+        except KeyError:
+            value = {}
+        else:
+            value = {i: (0, 0) for i in range(npf)}
+        if gui.counts.value.keys() != value.keys():
+            gui.counts.value = value
 
 
 @contextmanager

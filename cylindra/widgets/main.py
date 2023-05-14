@@ -1576,9 +1576,9 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         counts: Annotated[
-            list[tuple[int, tuple[int, int]]],
-            {"label": "prepend/append", "layout": "vertical"},
-        ] = (),
+            dict[int, tuple[int, int]],
+            {"label": "prepend/append", "widget_type": widget_utils.ProtofilamentEdit},
+        ] = {},
     ):
         """
         Extend the existing molecules by linear outerpolation.
