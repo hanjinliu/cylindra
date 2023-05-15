@@ -2,6 +2,7 @@ import os
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
 import macrokit as mk
+from pydantic import BaseModel
 
 from cylindra.const import PropertyNames as H, get_versions
 from ._base import BaseProject, PathLike, resolve_path
@@ -11,8 +12,19 @@ if TYPE_CHECKING:
     import polars as pl
 
 
+class MoleculesInfo(BaseModel):
+    """Info of molecules layer."""
+
+    source: Union[int, None] = None
+    visible: bool = True
+
+
 class CylindraProject(BaseProject):
     """A project of cylindra."""
+
+    class Config:
+        # this allows extra fields in the json file, for backward compatibility
+        extra = "allow"
 
     datetime: str
     version: str
@@ -25,13 +37,18 @@ class CylindraProject(BaseProject):
     localprops: Union[PathLike, None]
     globalprops: Union[PathLike, None]
     molecules: list[PathLike]
-    molecule_sources: Union[list[Union[int, None]], None] = None
+    molecules_info: Union[list[MoleculesInfo], None] = None
     global_variables: PathLike
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, tuple[float, float], PathLike]
     tilt_range: Union[tuple[float, float], None]
     macro: PathLike
     project_path: Union[Path, None] = None
+
+    def _post_init(self):
+        if (attr := getattr(self, "molecule_sources", None)) is not None:
+            self.molecules_info = [MoleculesInfo(source=s, visible=True) for s in attr]
+            delattr(self, "molecule_sources")
 
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
@@ -83,7 +100,7 @@ class CylindraProject(BaseProject):
 
         # Save path of molecules
         molecules_paths: list[Path] = []
-        molecule_sources: list[Union[int, None]] = []
+        molecules_info: list[MoleculesInfo] = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
@@ -92,7 +109,7 @@ class CylindraProject(BaseProject):
                 _src = gui.tomogram.splines.index(layer.source_component)
             except ValueError:
                 _src = None
-            molecule_sources.append(_src)
+            molecules_info.append(MoleculesInfo(source=_src, visible=layer.visible))
 
         # Save path of  global variables
         gvar_path = results_dir / "global_variables.json"
@@ -121,7 +138,7 @@ class CylindraProject(BaseProject):
             localprops=as_relative(localprops_path),
             globalprops=as_relative(globalprops_path),
             molecules=[as_relative(p) for p in molecules_paths],
-            molecule_sources=molecule_sources,
+            molecules_info=molecules_info,
             global_variables=as_relative(gvar_path),
             template_image=as_relative(gui.sta.params.template_path),
             mask_parameters=gui.sta.params._get_mask_params(),
@@ -283,11 +300,16 @@ class CylindraProject(BaseProject):
             for idx, path in enumerate(self.molecules):
                 mole = Molecules.from_csv(path)
                 _src = None
-                if self.molecule_sources is not None:
-                    _spl_idx = self.molecule_sources[idx]
-                    if _spl_idx is not None:
-                        _src = splines[_spl_idx]
-                gui.add_molecules(mole, name=Path(path).stem, source=_src)
+                if self.molecules_info is not None:
+                    _info = self.molecules_info[idx]
+                    if _info.source is not None:
+                        _src = splines[_info.source]
+                    visible = _info.visible
+                else:
+                    visible = True
+                layer = gui.add_molecules(mole, name=Path(path).stem, source=_src)
+                if not visible:
+                    layer.visible = False
 
         return _load_project_on_return
 

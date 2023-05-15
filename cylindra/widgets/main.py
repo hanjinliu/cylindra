@@ -538,7 +538,9 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def load_project(self, path: Path.Read[FileFilter.PROJECT], filter: bool = True):
         """Load a project json file."""
-        project = CylindraProject.from_json(get_project_json(path))
+        project_path = get_project_json(path)
+        project = CylindraProject.from_json(project_path)
+        _Logger.print(f"Project loaded: {project_path.as_posix()}")
         return thread_worker.to_callback(project.to_gui(self, filter=filter))
 
     @File.wraps
@@ -560,6 +562,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         save_dir = Path(save_dir)
         CylindraProject.save_gui(self, save_dir / "project.json", save_dir)
+        _Logger.print(f"Project saved: {save_dir.as_posix()}")
         self._need_save = False
         return
 
@@ -2437,7 +2440,10 @@ class CylindraMainWidget(MagicTemplate):
 
         try:
             parts = tomo.source.parts
-            _name = os.path.join(*parts[-2:])
+            if len(parts) > 2:
+                _name = ".../" + Path(os.path.join(*parts[-2:])).as_posix()
+            else:
+                _name = tomo.source.as_posix()
         except Exception:
             _name = f"Tomogram<{hex(id(tomo))}>"
         _Logger.print_html(f"<h2>{_name}</h2>")

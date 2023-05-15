@@ -43,6 +43,9 @@ class BaseProject(BaseModel):
     macro: PathLike
     project_path: Union[Path, None] = None
 
+    def _post_init(self):
+        pass
+
     def dict(self, **kwargs) -> dict[str, Any]:
         """Return a dict."""
         d = super().dict(**kwargs)
@@ -68,6 +71,7 @@ class BaseProject(BaseModel):
         with open(path) as f:
             js: dict = json.load(f)
         self = cls(**js, project_path=Path(path))
+        self._post_init()
         file_dir = Path(path).parent
         self.resolve_path(file_dir)
         return self
