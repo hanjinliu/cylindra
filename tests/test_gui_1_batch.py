@@ -2,7 +2,8 @@ from cylindra.widgets import CylindraMainWidget
 import tempfile
 from pathlib import Path
 import pytest
-from ._const import TEST_DIR
+from .utils import pytest_group
+from ._const import TEST_DIR, PROJECT_DIR_13PF
 
 
 def _load(ui: CylindraMainWidget):
@@ -11,8 +12,8 @@ def _load(ui: CylindraMainWidget):
             (
                 TEST_DIR / "13pf_MT.tif",
                 [
-                    TEST_DIR / "test_project" / "Mono-0.csv",
-                    TEST_DIR / "test_project" / "Mono-1.csv",
+                    PROJECT_DIR_13PF / "Mono-0.csv",
+                    PROJECT_DIR_13PF / "Mono-1.csv",
                 ],
             )
         ],
@@ -32,12 +33,14 @@ def test_project_io(ui: CylindraMainWidget):
         assert len(ui.batch._loaders) == 1
 
 
+@pytest_group("batch.average")
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_average(ui: CylindraMainWidget, binsize: int):
     _load(ui)
     ui.batch.sta.average_all("Loader", size=6.0, bin_size=binsize)
 
 
+@pytest_group("batch.align")
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_align(ui: CylindraMainWidget, binsize: int):
     _load(ui)
@@ -54,6 +57,7 @@ def test_calculate_fsc(ui: CylindraMainWidget):
     ui.batch.sta.calculate_fsc("Loader", mask_params=None, size=6.0)
 
 
+@pytest_group("batch.classify")
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
     _load(ui)

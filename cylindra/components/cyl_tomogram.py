@@ -1061,7 +1061,7 @@ class CylTomogram(Tomogram):
         skew_angles = np.arange(npoints) * interval / lp * skew
         u = np.arange(npoints) * interval / length
         mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
-        if _need_rotation(orientation):
+        if _need_rotation(spl, orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 

@@ -434,5 +434,4 @@ def test_calc_skews(
     ui.calculate_skews(layer=layer)
     each_skew = layer.features["skew-deg"][:-npf]
     # individial skews must be almost equal to the global skew angle
-    print(each_skew.mean(), skew_angle)
     assert abs(each_skew.mean() - skew_angle) < 4e-3
