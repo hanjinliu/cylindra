@@ -37,6 +37,7 @@ def start(
         Give a viewer object and this viewer will be used as the parent.
     """
     from cylindra.widgets import CylindraMainWidget
+    from cylindra._ipython import install_ipython_magic
     import numpy as np
     import impy as ip
     import polars as pl
@@ -86,8 +87,18 @@ def start(
     with suppress(Exception):
         # update console namespace
         viewer.window._qt_viewer.console.push(
-            {"ui": ui, "np": np, "ip": ip, "pl": pl, "plt": plt, "Path": Path}
+            {
+                ".ui": ui,  # only available from namespace dict
+                "ui": ui,
+                "np": np,
+                "ip": ip,
+                "pl": pl,
+                "plt": plt,
+                "Path": Path,
+            }
         )
+
+    install_ipython_magic()
     return ui
 
 

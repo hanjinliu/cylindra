@@ -35,6 +35,7 @@ _RustUtf8 = re.compile("\\(Utf8\\((.*)\\)\\)")
 
 @register_type(pl.Expr)
 def format_pl_expr(expr: pl.Expr) -> str:
+    """Format polars.Expr input as a evaluable string."""
     expr_str = str(expr)
     expr_str = _RustNumber.sub(r"\1", expr_str)
     expr_str = _RustUtf8.sub(r"'\1'", expr_str)

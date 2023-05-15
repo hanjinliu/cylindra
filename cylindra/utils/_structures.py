@@ -12,6 +12,7 @@ from cylindra.const import (
     Mode,
     MoleculesHeader as Mole,
     GlobalVariables as GVar,
+    PropertyNames as H,
 )
 
 from ._correlation import mirror_zncc
@@ -171,24 +172,23 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
 
 
 def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
-    _index_column_key = "__index_column"
+    """Add a column that indicates the interval of each molecule to the next one."""
+    _index_column_key = "._index_column"
     mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
-    _subsets: list[Molecules] = []
+    subsets: list[Molecules] = []
     for _, sub in mole0.groupby(Mole.pf):
         _pos = sub.pos
         _interv_vec = np.diff(_pos, axis=0, append=0)
         _u = sub.features[Mole.position] / _spl_len
-        _spl_vec = spl(_u, der=1)
-        _spl_vec_len = np.linalg.norm(_spl_vec, axis=1)  # lengths of spline vectors
-        _spl_vec_norm = _spl_vec / _spl_vec_len[:, np.newaxis]
+        _spl_vec_norm = _norm(spl(_u, der=1))
         _y_interv = np.sum(
             _interv_vec * _spl_vec_norm, axis=1
         )  # projection by inner product
         _y_interv[-1] = -1.0  # fill invalid values with -1
-        _subsets.append(sub.with_features(pl.Series(Mole.interval, _y_interv)))
+        subsets.append(sub.with_features(pl.Series(Mole.interval, _y_interv)))
     return (
-        Molecules.concat(_subsets)
+        Molecules.concat(subsets)
         .sort(_index_column_key)
         .drop_features(_index_column_key)
         .features
@@ -196,15 +196,15 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
 
 
 def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
-    _index_column_key = "__index_column"
+    """Add a column that indicates the skew of each molecule to the next one."""
+    _index_column_key = "._index_column"
     mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
-    _subsets: list[Molecules] = []
+    subsets: list[Molecules] = []
+    spacing = spl.globalprops[H.yPitch][0]
     for _, sub in mole0.groupby(Mole.pf):
         _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-        _interv_vec_len = np.linalg.norm(_interv_vec, axis=1)
-        _interv_vec_norm = _interv_vec / _interv_vec_len[:, np.newaxis]
+        _interv_vec_norm = _norm(np.diff(_pos, axis=0, append=0))
 
         _u = sub.features[Mole.position] / _spl_len
         _spl_pos = spl(_u, der=0)
@@ -213,22 +213,26 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _mole_to_spl_vec = _spl_pos - _pos
         _radius = np.linalg.norm(_mole_to_spl_vec, axis=1)
 
-        _spl_vec_len = np.linalg.norm(_spl_vec, axis=1)  # lengths of spline vectors
-        _spl_vec_norm = _spl_vec / _spl_vec_len[:, np.newaxis]
+        _spl_vec_norm = _norm(_spl_vec)
 
         _skew_cross = np.cross(_interv_vec_norm, _spl_vec_norm, axis=1)  # cross product
         _inner = np.sum(_skew_cross * _mole_to_spl_vec, axis=1)
         _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
 
-        _skew = np.rad2deg(2 * _interv_vec_len * _skew_sin / _radius)
-        _skew = 0
-        _subsets.append(sub.with_features(pl.Series(Mole.skew, _skew)))
+        _skew = np.rad2deg(2 * spacing * _skew_sin / _radius)
+        _skew[-1] = 0
+        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew)))
     return (
-        Molecules.concat(_subsets)
+        Molecules.concat(subsets)
         .sort(_index_column_key)
         .drop_features(_index_column_key)
         .features
     )
+
+
+def _norm(vec):
+    vec_len = np.linalg.norm(vec, axis=1)
+    return vec / vec_len[:, np.newaxis]
 
 
 def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:

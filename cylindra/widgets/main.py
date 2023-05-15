@@ -1049,7 +1049,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {max_interval}{bin_size}
+        {splines}{max_interval}{bin_size}
         degree_precision : float, default is 0.5
             Precision of xy-tilt degree in angular correlation.
         edge_sigma : bool, default is False
@@ -1167,7 +1167,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {max_interval}
+        {splines}{max_interval}
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
@@ -1268,6 +1268,7 @@ class CylindraMainWidget(MagicTemplate):
     )
     def local_ft_analysis(
         self,
+        splines: SomeOf[_get_splines] = (),
         interval: Annotated[nm, {"min": 1.0, "step": 0.5}] = 24.5,
         ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 24.5,
         bin_size: OneOf[_get_available_binsize] = 1,
@@ -1277,16 +1278,15 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {interval}
+        {splines}{interval}
         ft_size : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for
             structural analysis.
         {bin_size}
         """
         tomo = self.tomogram
-        if tomo.splines[0].radius is None:
-            self.tomogram.set_radius()
-        tomo.make_anchors(interval=interval)
+        if len(splines) == 0:
+            splines = list(range(tomo.n_splines))
 
         @thread_worker.to_callback
         def _local_ft_analysis_on_yield(i: int):
@@ -1295,7 +1295,8 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        for i in range(self.tomogram.n_splines):
+        for i in splines:
+            tomo.make_anchors(i=i, interval=interval)
             tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
             yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size
@@ -1307,17 +1308,21 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(
         desc="Global Fourier transform", total="self.tomogram.n_splines"
     )
-    def global_ft_analysis(self, bin_size: OneOf[_get_available_binsize] = 1):
+    def global_ft_analysis(
+        self,
+        splines: SomeOf[_get_splines] = (),
+        bin_size: OneOf[_get_available_binsize] = 1,
+    ):
         """
         Determine cylindrical global structural parameters by Fourier transformation.
 
         Parameters
         ----------
-        {bin_size}
+        {splines}{bin_size}
         """
         tomo = self.tomogram
-        if self.tomogram.splines[0].radius is None:
-            self.tomogram.set_radius()
+        if len(splines) == 0:
+            splines = list(range(tomo.n_splines))
 
         @thread_worker.to_callback
         def _global_ft_analysis_on_yield(i: int):
@@ -1333,7 +1338,9 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
 
-        for i in range(self.tomogram.n_splines):
+        for i in splines:
+            if tomo.splines[i].radius is None:
+                tomo.set_radius(i=i)
             tomo.global_ft_params(i=i, binsize=bin_size)
             yield _global_ft_analysis_on_yield(i)
         self._need_save = True
@@ -1879,7 +1886,12 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Calculate intervals")
     def calculate_intervals(self, layer: MoleculesLayer):
         """
-        Calculate intervals between adjucent molecules.
+        Calculate projective intervals (in nm) between adjacent molecules.
+
+        The "projective interval" is defined by the component of the vector of
+        adjacent molecules parallel to the vector of the spline curve corresponding
+        to the position of the molecule. Please note that this quantity does not
+        consider the orientation of each molecule.
 
         Parameters
         ----------
@@ -1900,7 +1912,13 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Calculate skews")
     def calculate_skews(self, layer: MoleculesLayer):
         """
-        Calculate skews between adjucent molecules.
+        Calculate projective skew angles (in degree) between adjacent molecules.
+
+        The "projective angle" is defined by the component of the vector of
+        adjacent molecules perpendicular to the vector from the spline curve to
+        the molecule, and also perpendicular to the vector of the spline curve
+        corresponding to the position of the molecule. Please note that this
+        quantity does not consider the orientation of each molecule.
 
         Parameters
         ----------
@@ -1914,7 +1932,7 @@ class CylindraMainWidget(MagicTemplate):
 
         # Set colormap
         _clim = [-extreme, extreme]
-        cmap = Colormap(["blue", "white", "red"])
+        cmap = Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
         layer.set_colormap(Mole.skew, _clim, cmap)
         self._need_save = True
         return None

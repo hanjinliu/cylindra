@@ -416,8 +416,8 @@ class PaintDevice:
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 ry = (
                     min(
-                        (dist[j + 1] - dist[j]) / 2,
-                        (dist[j + 2] - dist[j + 1]) / 2,
+                        abs(dist[j + 1] - dist[j]) / 2,
+                        abs(dist[j + 2] - dist[j + 1]) / 2,
                         ft_size / 2,
                     )
                     / bin_scale
