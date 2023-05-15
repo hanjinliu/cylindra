@@ -169,10 +169,7 @@ class CylinderModel:
         shifted = self._get_shifted()
         shifted_2d = shifted.reshape(-1, 3)
         mole = spl.cylindrical_to_molecules(shifted_2d)
-        if spl.inverted:
-            pos = pl.Series(shifted_2d[::-1, 1])
-        else:
-            pos = pl.Series(shifted_2d[:, 1])
+        pos = pl.Series(shifted_2d[:, 1])
         arange = pl.Series(np.arange(len(mole), dtype=np.int32))
         nth = arange // self._shape[1]
         pf = arange % self._shape[1]

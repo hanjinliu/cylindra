@@ -46,8 +46,6 @@ def start(
 
     global _CURRENT_INSTANCE
 
-    ui = CylindraMainWidget()
-
     defaults["macro-highlight"] = True
     defaults["undo-max-history"] = 16
     del defaults
@@ -56,6 +54,8 @@ def start(
         import napari
 
         viewer = napari.Viewer()
+
+    ui = CylindraMainWidget()
 
     # set logger
     logger = logging.getLogger("cylindra")
@@ -99,6 +99,7 @@ def start(
         )
 
     install_ipython_magic()
+    ui.show()
     return ui
 
 

@@ -843,15 +843,11 @@ class CylindraMainWidget(MagicTemplate):
         _new_orientations = [spl.orientation for spl in self.tomogram.splines]
         self._need_save = True
 
-        @undo_callback
-        def out():
-            self._set_orientations(_old_orientations, need_resample)
-
-        @out.with_redo
-        def out():
-            self._set_orientations(_new_orientations)
-
-        return out
+        return (
+            undo_callback(self._set_orientations)
+            .with_args(_old_orientations, need_resample)
+            .with_redo(lambda: self._set_orientations(_new_orientations))
+        )
 
     @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
@@ -863,7 +859,7 @@ class CylindraMainWidget(MagicTemplate):
         clockwise_is: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[
             Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}
-        ] = "MinusToPlus",
+        ] = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
     ):
         """
@@ -879,8 +875,9 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         clockwise_is : Ori, default is Ori.MinusToPlus
             Polarity corresponding to clockwise rotation of the projection image.
-        align_to : Ori, default is Ori.MinusToPlus
-            To which direction splines will be aligned.
+        align_to : Ori, optional
+            To which direction splines will be aligned. If not given, splines will
+            not be inverted even if the orientation is not aligned.
         depth : nm, default is 40 nm
             Depth (Y-length) of the subtomogram to be sampled.
         """
@@ -931,15 +928,11 @@ class CylindraMainWidget(MagicTemplate):
                 for i in range(len(tomo.splines)):
                     self._set_orientation_marker(i)
 
-                @undo_callback
-                def out():
-                    self._set_orientations(_old_orientations)
-
-                @out.with_redo
-                def out():
-                    self._set_orientations(_new_orientations)
-
-                return out
+                return (
+                    undo_callback(self._set_orientations)
+                    .with_args(_old_orientations)
+                    .with_redo(lambda: self._set_orientations(_new_orientations))
+                )
 
             return _on_return
 
@@ -2496,11 +2489,15 @@ class CylindraMainWidget(MagicTemplate):
         layer: Layer = event.value
         layer.events.name.connect(self.reset_choices)
 
-    def _init_layers(self):
-        viewer: napari.Viewer = self.parent_viewer
+    def _disconnect_layerlist_events(self):
+        viewer = self.parent_viewer
         viewer.layers.events.removing.disconnect(self._on_layer_removing)
         viewer.layers.events.removed.disconnect(self._on_layer_removed)
         viewer.layers.events.inserted.disconnect(self._on_layer_inserted)
+
+    def _init_layers(self):
+        viewer = self.parent_viewer
+        self._disconnect_layerlist_events()
 
         # remove all the molecules layers
         _layers_to_remove: list[str] = []

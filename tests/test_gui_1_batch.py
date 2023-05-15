@@ -2,8 +2,7 @@ from cylindra.widgets import CylindraMainWidget
 import tempfile
 from pathlib import Path
 import pytest
-
-TEST_DIR = Path(__file__).parent
+from ._const import TEST_DIR
 
 
 def _load(ui: CylindraMainWidget):

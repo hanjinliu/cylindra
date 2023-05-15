@@ -182,9 +182,7 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _interv_vec = np.diff(_pos, axis=0, append=0)
         _u = sub.features[Mole.position] / _spl_len
         _spl_vec_norm = _norm(spl(_u, der=1))
-        _y_interv = np.sum(
-            _interv_vec * _spl_vec_norm, axis=1
-        )  # projection by inner product
+        _y_interv = np.abs(np.sum(_interv_vec * _spl_vec_norm, axis=1))
         _y_interv[-1] = -1.0  # fill invalid values with -1
         subsets.append(sub.with_features(pl.Series(Mole.interval, _y_interv)))
     return (

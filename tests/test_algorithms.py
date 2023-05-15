@@ -1,8 +1,8 @@
 from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
-from pathlib import Path
 import numpy as np
 import pytest
+from ._const import TEST_DIR
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
@@ -12,7 +12,7 @@ params = [(coords_13pf, 13, 8.3, (-0.1, 0.1)), (coords_14pf, 14, 7.5, (-0.5, -0.
 
 @pytest.mark.parametrize(["coords", "npf", "rise", "skew_range"], params)
 def test_run_all(coords, npf, rise, skew_range):
-    path = Path(__file__).parent / f"{npf}pf_MT.tif"
+    path = TEST_DIR / f"{npf}pf_MT.tif"
     tomo = CylTomogram.imread(path)
 
     assert abs(tomo.scale - 1.052) < 1e-6
@@ -46,7 +46,7 @@ def test_run_all(coords, npf, rise, skew_range):
 
 
 def test_chunked_straightening():
-    path = Path(__file__).parent / "14pf_MT.tif"
+    path = TEST_DIR / "14pf_MT.tif"
     tomo = CylTomogram.imread(path)
 
     # the length of spline is ~80 nm
@@ -73,7 +73,7 @@ def test_chunked_straightening():
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])
 def test_mapping(orientation):
-    path = Path(__file__).parent / "13pf_MT.tif"
+    path = TEST_DIR / "13pf_MT.tif"
     tomo = CylTomogram.imread(path)
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
     tomo.fit()

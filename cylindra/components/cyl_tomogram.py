@@ -1041,7 +1041,7 @@ class CylTomogram(Tomogram):
         Molecules
             Molecules object with mapped coordinates and angles.
         """
-        spl = _invert_if_needed(self.splines[i], orientation)
+        spl = self.splines[i]
         props = self.splines[i].globalprops
         if props is None:
             props = self.global_ft_params(i)
@@ -1060,7 +1060,10 @@ class CylTomogram(Tomogram):
         npoints = length / interval + 1
         skew_angles = np.arange(npoints) * interval / lp * skew
         u = np.arange(npoints) * interval / length
-        return spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
+        mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
+        if _need_rotation(orientation):
+            mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
+        return mole
 
     def get_cylinder_model(
         self,
@@ -1104,11 +1107,10 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that mapping will be calculated.
-        length : nm, optional
-            If given, only map monomer coordinates in this length of range from the starting
-            point of spline. Cannot use this if ``ranges`` is set.
         offsets : tuple of float, optional
             The offset of origin of oblique coordinate system to map monomers.
+        orientation : Ori or str, optional
+            Orientation of the y-axis of each molecule.
 
         Returns
         -------
@@ -1116,8 +1118,10 @@ class CylTomogram(Tomogram):
             Object that represents monomer positions and angles.
         """
         model = self.get_cylinder_model(i, offsets=offsets)
-        spl = _invert_if_needed(self.splines[i], orientation)
+        spl = self.splines[i]
         mole = model.to_molecules(spl)
+        if _need_rotation(spl, orientation):
+            mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
     @batch_process
@@ -1148,12 +1152,12 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents protofilament positions and angles.
         """
-        props = self.splines[i].globalprops
+        spl = self.splines[i]
+        props = spl.globalprops
         if props is None:
             props = self.global_ft_params(i)
         lp = props[H.yPitch][0] * 2
         skew = props[H.skewAngle][0]
-        spl = _invert_if_needed(self.splines[i], orientation)
 
         if interval is None:
             interval = lp
@@ -1164,7 +1168,10 @@ class CylTomogram(Tomogram):
         ycoords = np.arange(ny) * interval
         acoords = np.arange(ny) * skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
-        return spl.cylindrical_to_molecules(coords)
+        mole = spl.cylindrical_to_molecules(coords)
+        if _need_rotation(spl, orientation):
+            mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
+        return mole
 
     #####################################################################################
     #   Utility functions
@@ -1425,7 +1432,23 @@ def _invert_if_needed(spl: CylSpline, orientation: Ori | str | None) -> CylSplin
     if orientation is not None:
         orientation = Ori(orientation)
         if orientation is Ori.none or spl.orientation is Ori.none:
-            raise ValueError("Either orientation should not be none.")
+            raise ValueError(
+                "Either molecules' orientation or the input orientation should "
+                "not be none."
+            )
         if orientation is not spl.orientation:
             spl = spl.invert()
     return spl
+
+
+def _need_rotation(spl: CylSpline, orientation: Ori | str | None) -> bool:
+    if orientation is not None:
+        orientation = Ori(orientation)
+        if orientation is Ori.none or spl.orientation is Ori.none:
+            raise ValueError(
+                "Either molecules' orientation or the input orientation should "
+                "not be none."
+            )
+        if orientation is not spl.orientation:
+            return True
+    return False

@@ -7,11 +7,12 @@ from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
 import pytest
+from .utils import pytest_group
+from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
-TEST_DIR = Path(__file__).parent
-PROJECT_DIR = TEST_DIR / "test_project"
+coords = {13: coords_13pf, 14: coords_14pf}
 
 
 def assert_canvas(ui: CylindraMainWidget, isnone):
@@ -41,20 +42,24 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
         assert (arr[0], arr[-1]) == ("+", "-")
 
 
-def test_io(ui: CylindraMainWidget):
-    path = TEST_DIR / "13pf_MT.tif"
+@pytest.mark.parametrize(
+    "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]
+)
+def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
+    path = TEST_DIR / f"{npf}pf_MT.tif"
     ui.open_image(path=path, scale=1.052, bin_size=[1, 2])
     ui.set_multiscale(1)
-    ui.register_path(coords=coords_13pf)
-    ui.register_path(coords=coords_13pf[::-1])
+    ui.register_path(coords=coords[npf])
+    ui.register_path(coords=coords[npf][::-1])
     ui.cylindrical_fit(interval=24.0)
+    ui.auto_align_to_polarity(align_to="MinusToPlus")
     ui.map_monomers(splines=[0, 1])
 
     # Save project
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
-    ui.save_project(PROJECT_DIR)
-    ui.load_project(PROJECT_DIR)
+    ui.save_project(save_path)
+    ui.load_project(save_path)
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     assert old_splines[0] == new_splines[0]
@@ -177,7 +182,7 @@ def test_spline_switch(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
-    ui.load_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR_13PF)
     ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
@@ -228,9 +233,10 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         ui.sta.save_last_average(dirpath)
 
 
+@pytest_group("classify", maxfail=1)
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
-    ui.load_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR_13PF)
     ui.sta.classify_pca(
         ui.parent_viewer.layers["Mono-0"],
         mask_params=None,
@@ -277,6 +283,7 @@ def test_simulator(ui: CylindraMainWidget):
     ui.cylinder_simulator.close()
 
 
+@pytest_group("simulate", maxfail=1)
 def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
@@ -306,6 +313,7 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.cylinder_simulator.close()
 
 
+@pytest_group("simulate", maxfail=1)
 def test_simulate_tilt_series(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
@@ -327,16 +335,16 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
 
 
 def test_project_viewer():
-    view_project(PROJECT_DIR).close()
+    view_project(PROJECT_DIR_13PF).close()
 
 
 def test_show_orientation(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR_13PF)
     ui.show_orientation(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_merge_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR_13PF)
     ui.merge_molecule_info(
         pos=ui.parent_viewer.layers["Mono-0"],
         rotation=ui.parent_viewer.layers["Mono-1"],
@@ -347,7 +355,7 @@ def test_merge_molecules(ui: CylindraMainWidget):
 
 
 def test_molecule_features(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR_13PF)
     ui.show_molecule_features()
     ui.filter_molecules(
         layer=ui.parent_viewer.layers["Mono-0"], predicate='pl.col("position-nm") < 9.2'
@@ -373,7 +381,58 @@ def test_auto_align(ui: CylindraMainWidget):
 
 
 def test_molecules_to_spline(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR)
+    ui.load_project(PROJECT_DIR_13PF)
     assert len(ui.tomogram.splines) == 2
     ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]], interval=20)
     assert len(ui.tomogram.splines) == 2
+
+
+# NOTE: calc_intervals and calc_skews are very likely to contain bugs with different
+# orientation, monomer mapping cases. Check all of the possible inputs just in case.
+
+
+@pytest_group("calc_intervals", maxfail=4)
+@pytest.mark.parametrize("orientation", ["PlusToMinus", "MinusToPlus"])
+@pytest.mark.parametrize("path", [PROJECT_DIR_13PF, PROJECT_DIR_14PF])
+@pytest.mark.parametrize("invert", [True, False])
+def test_calc_intervals(
+    ui: CylindraMainWidget,
+    path: Path,
+    invert: bool,
+    orientation: str,
+):
+    ui.load_project(path)
+    spacing = ui.tomogram.splines[0].globalprops[H.yPitch][0]
+    npf = ui.tomogram.splines[0].globalprops[H.nPF][0]
+    if invert:
+        ui.invert_spline(spline=0)
+    ui.map_monomers(splines=[0], orientation=orientation)
+    layer = ui.parent_viewer.layers[-1]
+    ui.calculate_intervals(layer=layer)
+    interval = layer.features["interval-nm"][:-npf]
+    # individial intervals must be almost equal to the global spacing
+    assert abs(interval.mean() - spacing) < 1e-3
+
+
+@pytest_group("calc_skews", maxfail=4)
+@pytest.mark.parametrize("orientation", ["PlusToMinus", "MinusToPlus"])
+@pytest.mark.parametrize("path", [PROJECT_DIR_13PF, PROJECT_DIR_14PF])
+@pytest.mark.parametrize("invert", [False, True])
+def test_calc_skews(
+    ui: CylindraMainWidget,
+    path: Path,
+    invert: bool,
+    orientation: str,
+):
+    ui.load_project(path)
+    skew_angle = ui.tomogram.splines[0].globalprops[H.skewAngle][0]
+    npf = ui.tomogram.splines[0].globalprops[H.nPF][0]
+    if invert:
+        ui.invert_spline(spline=0)
+    ui.map_monomers(splines=[0], orientation=orientation)
+    layer = ui.parent_viewer.layers[-1]
+    ui.calculate_skews(layer=layer)
+    each_skew = layer.features["skew-deg"][:-npf]
+    # individial skews must be almost equal to the global skew angle
+    print(each_skew.mean(), skew_angle)
+    assert abs(each_skew.mean() - skew_angle) < 4e-3

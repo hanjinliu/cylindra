@@ -42,7 +42,7 @@ _PARAMETERS = [
     Parameter(name="bin_size", type="int", desc="Bin size of multiscale image to be used. Set to >1 to boost performance."),
     Parameter(name="interval", type="nm", desc="Interval (nm) of spline anchors."),
     Parameter(name="max_interval", type="nm", desc="Maximum interval (nm) between spline anchors."),
-    Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Mapping orientation. If none, use the current spline orientation as is.")
+    Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the current spline orientation as is.")
 ]
 # fmt: on
 
