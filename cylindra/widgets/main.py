@@ -925,6 +925,8 @@ class CylindraMainWidget(MagicTemplate):
 
             @thread_worker.to_callback
             def _on_return():
+                self._update_splines_in_images()
+                self.SplineControl._update_canvas()
                 for i in range(len(tomo.splines)):
                     self._set_orientation_marker(i)
 

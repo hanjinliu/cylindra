@@ -13,6 +13,7 @@ from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
 from acryo import Molecules, SubtomogramLoader
+from acryo.alignment import ZNCCAlignment
 import impy as ip
 
 from .cyl_spline import CylSpline
@@ -423,6 +424,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
+        # tilt_range: tuple[float, float] | None = None,
         n_rotation: int = 7,
     ) -> FitResult:
         """
@@ -547,10 +549,13 @@ class CylTomogram(Tomogram):
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
+            # zncc = ZNCCAlignment(template.value, tilt_range=tilt_range)
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
+            # quat = loader.molecules.quaternion()
             for i in range(npoints):
                 img = inputs[i]
+                # img = ip.asarray(zncc.mask_missing_wedge(img.value, quat[i]), like=img)
                 shift = -ip.zncc_maximum(template, img, max_shifts=max_shift_px)
 
                 rad = np.deg2rad(skew_angles[i])

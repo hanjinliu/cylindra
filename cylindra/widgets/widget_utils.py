@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import polars as pl
 
-from magicgui.widgets import SpinBox, Container
+from magicgui.widgets import SpinBox, Container, Label
 from magicgui.types import Undefined
 from magicclass.widgets import ScrollableContainer
 from magicclass.logging import getLogger
@@ -343,8 +343,11 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
 
     @property
     def value(self) -> dict[int, tuple[int, int]]:
+        """Dict value of prepend/append numbers."""
         out: dict[int, tuple[int, int]] = {}
         for row in self:
+            if not isinstance(row, Container):
+                continue
             pf_id = int(row.label)
             vals = row[0].value, row[1].value
             out[pf_id] = vals
@@ -359,6 +362,8 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
             for k, v in val.items():
                 self._add_row(k, v)
         self.changed.emit(val)
+        if len(val) == 0:
+            self.append(Label(value="No protofilament info found."))
 
     def _on_changed(self):
         self.changed.emit(self.value)
