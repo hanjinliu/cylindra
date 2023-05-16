@@ -188,13 +188,11 @@ class CylinderModel:
             for a in range(npf):
                 idx = y * npf + a
                 if y > 0:
-                    (idx, idx - npf, idx + 1)
                     if a > 0:
                         vertices.append((idx, idx - 1, idx - npf))
                     else:
                         vertices.append((idx, idx + npf - 1, idx - npf))
                 if y < ny - 1:
-                    (idx, idx + npf, idx - 1)
                     if a < npf - 1:
                         vertices.append((idx, idx + 1, idx + npf))
                     else:
