@@ -1777,8 +1777,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         feature_name: OneOf[_get_paint_molecules_choice],
-        low: tuple[float, Color] = (0.0, "blue"),
-        high: tuple[float, Color] = (1.0, "red"),
+        low: tuple[float, Color] = (0.0, "0000FF"),
+        high: tuple[float, Color] = (1.0, "00FF7F"),
     ):
         """
         Paint molecules by a feature.
@@ -1788,9 +1788,9 @@ class CylindraMainWidget(MagicTemplate):
         {layer}
         feature_name : str
             Name of the feature to paint by.
-        low : (float, Color), default is (0., "blue")
+        low : (float, Color), default is (0., "0000FF")
             The lower bound of the feature value and the corresponding color.
-        high : (float, Color), default is (1., "red")
+        high : (float, Color), default is (1., "00FF7F")
             The upper bound of the feature value and the corresponding color.
         """
         rng = (low[0], high[0])
@@ -2189,8 +2189,8 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Set colormap")
     def set_colormap(
         self,
-        start: Color = (0, 0, 1, 1),
-        end: Color = (1, 0, 0, 1),
+        start: Color = "#0000FF",
+        end: Color = "#00FF7F",
         limit: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"}] = (4.00, 4.24),
         color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
     ):  # fmt: skip
@@ -2199,9 +2199,9 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        start : tuple, default is "blue"
+        start : tuple, default is "#0000FF"
             RGB color of the lower bound of the colormap.
-        end : tuple, default is "red"
+        end : tuple, default is "#00FF7F"
             RGB color of the higher bound of the colormap.
         limit : tuple, default is (4.00, 4.24)
             Color limit (nm).

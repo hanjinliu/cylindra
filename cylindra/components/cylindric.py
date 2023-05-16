@@ -22,8 +22,8 @@ class CylinderModel:
         Shape of the molecule grid in (axial, angular) shape.
     tilts : (float, float)
         Relative tilt tangent in (axial, angular) direction.
-    interval : float
-        Axial interval.
+    intervals : (float, float)
+        Interval in (nm, radian).
     radius : float
         Radius of the cylindrical structure.
     offsets : (float, float)
@@ -36,14 +36,16 @@ class CylinderModel:
         self,
         shape: tuple[int, int],
         tilts: tuple[float, float] = (0.0, 0.0),
-        interval: float = 1.0,
+        intervals: tuple[float, float] = (1.0, 1.0),
         radius: float = 1.0,
         offsets: tuple[float, float] = (0.0, 0.0),
         displace: NDArray[np.floating] | None = None,
     ):
         self._shape = shape
         self._tilts = tilts
-        self._intervals = (interval, 2 * np.pi / shape[1])
+        if intervals[0] <= 0 or intervals[1] <= 0:
+            raise ValueError("Intervals must be positive")
+        self._intervals = intervals
         self._offsets = offsets
         self._radius = radius
         if displace is None:
@@ -61,7 +63,7 @@ class CylinderModel:
     def replace(
         self,
         tilts: tuple[float, float] | None = None,
-        interval: float | None = None,
+        intervals: tuple[float, float] | None = None,
         radius: float | None = None,
         offsets: tuple[float, float] | None = None,
         displace: NDArray[np.floating] | None = None,
@@ -70,8 +72,8 @@ class CylinderModel:
 
         if tilts is None:
             tilts = self._tilts
-        if interval is None:
-            interval = self._intervals[0]
+        if intervals is None:
+            intervals = self._intervals
         if radius is None:
             radius = self._radius
         if offsets is None:
@@ -81,7 +83,7 @@ class CylinderModel:
         return self.__class__(
             shape=self._shape,
             tilts=tilts,
-            interval=interval,
+            intervals=intervals,
             radius=radius,
             offsets=offsets,
             displace=displace,

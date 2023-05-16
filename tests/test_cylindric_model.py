@@ -9,7 +9,7 @@ def test_cylindric_model_construction():
     model = CylinderModel(
         shape=(10, 10),
         tilts=(0.1, 0.1),
-        interval=2.0,
+        intervals=(2.0, 2 * np.pi / 10),
         radius=1.2,
         offsets=(3.0, 5.0),
     )
@@ -22,7 +22,7 @@ def test_cylindric_model_construction():
 
     # Test the replace method
     assert model.replace(tilts=(0.2, 0.2)).tilts == (0.2, 0.2)
-    assert model.replace(interval=4.0).intervals == (4.0, np.pi / 5)
+    assert model.replace(intervals=(4.0, np.pi / 5)).intervals == (4.0, np.pi / 5)
     assert model.replace(radius=2.0).radius == 2.0
     assert model.replace(offsets=(1.0, 1.0)).offsets == (1.0, 1.0)
 
@@ -31,7 +31,7 @@ def test_monomer_creation():
     model = CylinderModel(
         shape=(10, 8),
         tilts=(0.1, 0.1),
-        interval=2.0,
+        intervals=(2.0, 2 * np.pi / 8),
         radius=1.2,
     )
 
@@ -64,7 +64,7 @@ def test_expand():
     model = CylinderModel(
         shape=(10, 8),
         tilts=(0.1, 0.1),
-        interval=2.0,
+        intervals=(2.0, 1.0),
         radius=1.2,
     ).expand(0.5, Idx[4:7, :])
 
@@ -84,7 +84,7 @@ def test_alleviate_works(idx):
     model = CylinderModel(
         shape=(10, 8),
         tilts=(0.1, 0.1),
-        interval=2.0,
+        intervals=(2.0, 1.0),
         radius=1.2,
     ).expand(0.5, idx)
 

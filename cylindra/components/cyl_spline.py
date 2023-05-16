@@ -144,29 +144,40 @@ class CylSpline(Spline):
 
         pitch = props[H.yPitch]
         skew = props[H.skewAngle]
-        rise = props[H.riseAngle]
+        rise = -props[H.riseAngle]
         npf = roundint(props[H.nPF])
         radius = kwargs.get("radius", self.radius)
+        perimeter = 2 * np.pi * radius
+        rise_rad = np.deg2rad(rise)
+        skew_rad = np.deg2rad(skew)
+
+        nrise = roundint(
+            perimeter
+            * np.tan(rise_rad)
+            / (pitch - radius * skew_rad * np.tan(rise_rad) / 2)
+        )
+        if nrise == 0:
+            tan_rise = 0
+            tan_skew = radius * skew_rad / pitch / 2
+            skew_incr = 0
+        else:
+            pitch_incr = nrise * pitch
+            skew_incr = radius * skew_rad * nrise / 2
+
+            tan_rise = pitch_incr / (perimeter + skew_incr)
+            tan_skew = skew_incr / pitch_incr
+
+        factor = pitch / (perimeter / npf)
 
         ny = roundint(length / pitch) + 1  # number of monomers in y-direction
-        tan_rise = np.tan(np.deg2rad(rise))
-
-        # Construct meshgrid
-        # a-coordinate must be radian.
-        # If starting number is non-integer, we must determine the seam position to correctly
-        # map monomers. Use integer here.
-        tilts = (
-            np.deg2rad(skew) / (4 * np.pi) * npf,
-            roundint(-tan_rise * 2 * np.pi * radius / pitch) / npf,
-        )
 
         if offsets is None:
             offsets = (0.0, 0.0)
 
         return CylinderModel(
             shape=(ny, npf),
-            tilts=tilts,
-            interval=pitch,
+            tilts=(tan_skew * factor, tan_rise / factor),
+            intervals=(pitch, (perimeter + skew_incr) / perimeter * np.pi * 2 / npf),
             radius=radius,
             offsets=offsets,
         )

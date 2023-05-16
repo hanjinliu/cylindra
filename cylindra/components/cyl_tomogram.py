@@ -17,7 +17,6 @@ import impy as ip
 
 from .cyl_spline import CylSpline
 from .tomogram import Tomogram
-from .cylindric import CylinderModel
 from cylindra.const import (
     nm,
     PropertyNames as H,
@@ -40,6 +39,7 @@ from cylindra.utils import (
 
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
+    from .cylindric import CylinderModel
 
     Degenerative = Callable[[ArrayLike], Any]
 
