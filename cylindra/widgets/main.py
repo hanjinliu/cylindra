@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal
+from typing import Annotated, TYPE_CHECKING, Any, Literal
 import warnings
 
 import impy as ip
@@ -1779,8 +1779,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         feature_name: OneOf[_get_paint_molecules_choice],
-        low: tuple[float, Color] = (0.0, "0000FF"),
-        high: tuple[float, Color] = (1.0, "00FF7F"),
+        low: tuple[float, Color] = (0.0, "#0000FF"),
+        high: tuple[float, Color] = (1.0, "#00FF7F"),
     ):
         """
         Paint molecules by a feature.
@@ -1802,6 +1802,27 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.set_colormap).with_args(
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )
+
+    @Molecules_.MoleculeFeatures.wraps
+    @set_design(text="Plot molecule feature in 2D")
+    def plot_molecule_feature(
+        self,
+        layer: MoleculesLayer,
+    ):
+        mole = layer.molecules
+        nth = mole.features[Mole.nth].to_numpy()
+        pf = mole.features[Mole.pf].to_numpy()
+        npf = int(pf.max() + 1)
+        if isinstance(spl := layer.source_component, CylSpline):
+            rise = np.deg2rad(spl.globalprops[H.riseAngle][0])
+            tan = np.tan(rise)
+        else:
+            _, _, nrise = utils.infer_geometry_from_molecules(mole)
+            tan = nrise / npf
+        y = nth + tan * pf
+
+        plt.scatter(pf, y, c=layer.face_color, s=1000, ec="black")
+        plt.show()
 
     @Molecules_.MoleculeFeatures.wraps
     @set_design(text="Show colorbar")

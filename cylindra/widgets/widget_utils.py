@@ -209,7 +209,7 @@ def plot_forward_and_reverse(
     template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv
 ):
     import matplotlib.pyplot as plt
-    from .. import utils
+    from cylindra import utils
 
     fig, axes = plt.subplots(nrows=2, ncols=3)
     template_proj_fw = np.max(template_fw, axis=1)

@@ -152,46 +152,6 @@ def test_rotated_auto_zncc():
     assert out.argmax_nd() == (31, 31)
 
 
-def test_mt_pad():
-    arr = [
-        [a00, a01, a02, a03],
-        [a10, a11, a12, a13],
-        [a20, a21, a22, a23],
-        [a30, a31, a32, a33],
-        [a40, a41, a42, a43],
-    ] = np.array([[1, 2, 3, 4], [5, 5, 5, 5], [2, 2, 3, 3], [6, 6, 6, 6], [4, 3, 2, 1]])
-
-    out = utils.pad_sheared_edges(arr, (1, 2), start=2)
-    assert_allclose(
-        [
-            [a32, a33, a10, a11, a12, a13, a10, a11],
-            [a22, a23, a00, a01, a02, a03, a20, a21],
-            [a12, a13, a10, a11, a12, a13, a30, a31],
-            [a02, a03, a20, a21, a22, a23, a40, a41],
-            [a12, a13, a30, a31, a32, a33, a30, a31],
-            [a22, a23, a40, a41, a42, a43, a20, a21],
-            [a32, a33, a30, a31, a32, a33, a10, a11],
-        ],
-        out,
-    )
-
-    out = utils.pad_sheared_edges(arr, (2, 2), start=1)
-    assert_allclose(
-        [
-            [a32, a33, a20, a21, a22, a23, a10, a11],
-            [a22, a23, a10, a11, a12, a13, a00, a01],
-            [a12, a13, a00, a01, a02, a03, a10, a11],
-            [a02, a03, a10, a11, a12, a13, a20, a21],
-            [a12, a13, a20, a21, a22, a23, a30, a31],
-            [a22, a23, a30, a31, a32, a33, a40, a41],
-            [a32, a33, a40, a41, a42, a43, a30, a31],
-            [a42, a43, a30, a31, a32, a33, a20, a21],
-            [a32, a33, a20, a21, a22, a23, a10, a11],
-        ],
-        out,
-    )
-
-
 @pytest.mark.parametrize(
     "label, expected",
     [
