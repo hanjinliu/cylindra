@@ -99,6 +99,18 @@ def start(
         )
 
     install_ipython_magic()
+
+    try:
+
+        @viewer.window._qt_window.destroyed.connect
+        def _on_destroy():
+            viewer.layers.events.removing.disconnect()
+            viewer.layers.events.removed.disconnect()
+
+    except Exception:
+        # since it uses private API, it may break in the future
+        pass
+
     ui.show()
     return ui
 
