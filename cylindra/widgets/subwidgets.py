@@ -93,8 +93,8 @@ class Splines(MagicTemplate):
     molecules_to_spline = abstractapi()
 
 
-@magicmenu
-class Molecules_(MagicTemplate):
+@magicmenu(name="Molecules")
+class MoleculesMenu(MagicTemplate):
     """Operations on molecules"""
 
     @magicmenu

@@ -252,9 +252,11 @@ class CylTomogram(Tomogram):
             Same object with updated splines.
         """
         orientation = Ori(orientation)
-        if orientation == Ori.none:
+        if orientation is Ori.none:
             raise ValueError("Must be PlusToMinus or MinusToPlus.")
         for i, spl in enumerate(self.splines):
+            if spl.orientation is Ori.none:
+                raise ValueError(f"Spline-{i} has no orientation.")
             if spl.orientation != orientation:
                 try:
                     self.splines[i] = spl.invert()

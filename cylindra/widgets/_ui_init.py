@@ -217,6 +217,8 @@ def _(self, gui):
         if gui.counts.value.keys() != value.keys():
             gui.counts.value = value
 
+    gui.layer.changed.emit(gui.layer.value)  # initialize
+
 
 @contextmanager
 def _temp_layer_colors(layer: MoleculesLayer):

@@ -137,7 +137,7 @@ class CylindraMainWidget(MagicTemplate):
     File = subwidgets.File
     ImageMenu = subwidgets.Image
     Splines = subwidgets.Splines
-    Molecules_ = subwidgets.Molecules_
+    MoleculesMenu = subwidgets.MoleculesMenu
     Analysis = subwidgets.Analysis
     Others = subwidgets.Others
 
@@ -1415,7 +1415,7 @@ class CylindraMainWidget(MagicTemplate):
     #   Monomer mapping methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    @Molecules_.Mapping.wraps
+    @MoleculesMenu.Mapping.wraps
     @set_design(text="Map monomers")
     @bind_key("M")
     def map_monomers(
@@ -1452,7 +1452,7 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(self._add_layers_future(_added_layers))
         )
 
-    @Molecules_.Mapping.wraps
+    @MoleculesMenu.Mapping.wraps
     @set_design(text="Map centers")
     def map_centers(
         self,
@@ -1488,7 +1488,7 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(self._add_layers_future(_added_layers))
         )
 
-    @Molecules_.Mapping.wraps
+    @MoleculesMenu.Mapping.wraps
     @set_design(text="Map alogn PF")
     def map_along_pf(
         self,
@@ -1528,7 +1528,7 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(self._add_layers_future(_added_layers))
         )
 
-    @Molecules_.wraps
+    @MoleculesMenu.wraps
     @set_design(text="Show orientation")
     def show_orientation(
         self,
@@ -1566,7 +1566,7 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(self._add_layers_future(layer))
         )
 
-    @Molecules_.wraps
+    @MoleculesMenu.wraps
     @set_design(text="Extend molecules")
     def extend_molecules(
         self,
@@ -1591,7 +1591,7 @@ class CylindraMainWidget(MagicTemplate):
         name = layer.name + "-extended"
         return self.add_molecules(out, name, source=layer.source_component)
 
-    @Molecules_.Combine.wraps
+    @MoleculesMenu.Combine.wraps
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(
         self, layers: SomeOf[get_monomer_layers], delete_old: bool = True
@@ -1624,7 +1624,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print(f"{points.name!r}: n = {len(all_molecules)}")
         return None
 
-    @Molecules_.Combine.wraps
+    @MoleculesMenu.Combine.wraps
     @set_design(text="Merge molecule info")
     def merge_molecule_info(
         self, pos: MoleculesLayer, rotation: MoleculesLayer, features: MoleculesLayer
@@ -1660,7 +1660,7 @@ class CylindraMainWidget(MagicTemplate):
         except Exception as e:
             return []
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Split molecules by feature")
     def split_molecules(
         self,
@@ -1682,7 +1682,7 @@ class CylindraMainWidget(MagicTemplate):
             self.parent_viewer.layers.remove(layer)
         return None
 
-    @Molecules_.wraps
+    @MoleculesMenu.wraps
     @set_design(text="Translate molecules")
     def translate_molecules(
         self,
@@ -1724,7 +1724,7 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(out, name=name, source=layer.source_component)
         return mole
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Show molecule features")
     @do_not_record
     def show_molecule_features(self):
@@ -1745,7 +1745,7 @@ class CylindraMainWidget(MagicTemplate):
         ).setFloating(True)
         cbox.changed.emit(cbox.value)
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Filter molecules")
     def filter_molecules(
         self, layer: MoleculesLayer, predicate: ExprStr.In[POLARS_NAMESPACE]
@@ -1773,7 +1773,7 @@ class CylindraMainWidget(MagicTemplate):
             return []
         return gui.layer.value.features.columns
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Paint molecules by features")
     def paint_molecules(
         self,
@@ -1803,28 +1803,66 @@ class CylindraMainWidget(MagicTemplate):
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Plot molecule feature in 2D")
     def plot_molecule_feature(
         self,
         layer: MoleculesLayer,
+        backend: Literal["inline", "qt"] = "inline",
     ):
+        """
+        Plot current molecule feature coloring in 2D figure.
+
+        For data visualization, plotting in 2D is better than in 3D. Current
+        colormap in the 3D canvas is directly used for 2D plotting.
+
+        Parameters
+        ----------
+        {layer}
+        backend : "inline" or "qt", optional
+            Plotting backend. "inline" means the plot is shown in the console.
+        """
+        from matplotlib.patches import Circle
+        from matplotlib.axes import Axes
+
         mole = layer.molecules
         nth = mole.features[Mole.nth].to_numpy()
         pf = mole.features[Mole.pf].to_numpy()
         npf = int(pf.max() + 1)
         if isinstance(spl := layer.source_component, CylSpline):
-            rise = np.deg2rad(spl.globalprops[H.riseAngle][0])
-            tan = np.tan(rise)
+            props = spl.globalprops
+            spacing = props[H.yPitch][0]
+            rise = np.deg2rad(props[H.riseAngle][0])
+            tan = np.tan(rise) / spacing * (2 * np.pi * spl.radius / npf)
         else:
             _, _, nrise = utils.infer_geometry_from_molecules(mole)
             tan = nrise / npf
         y = nth + tan * pf
 
-        plt.scatter(pf, y, c=layer.face_color, s=1000, ec="black")
-        plt.show()
+        face_color = layer.face_color
+        if backend == "inline":
+            plt.figure()
+            ax: Axes = plt.gca()
+        elif backend == "qt":
+            from magicclass.widgets import Figure
 
-    @Molecules_.MoleculeFeatures.wraps
+            fig = Figure()
+            ax = fig.ax
+            fig.show()
+        else:
+            raise ValueError(f"Unknown backend: {backend!r}")
+
+        for i in range(mole.count()):
+            circ = Circle(
+                (pf[i], y[i]), radius=0.5, fc=face_color[i], ec="black", lw=0.1
+            )
+            ax.add_patch(circ)
+        ax.set_xlim(pf.min() - 0.6, pf.max() + 0.6)
+        ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
+        ax.set_aspect("equal")
+        return None
+
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Show colorbar")
     @do_not_record
     def show_molecules_colorbar(
@@ -1861,7 +1899,7 @@ class CylindraMainWidget(MagicTemplate):
             plt.show()
         return None
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
         self,
@@ -1901,7 +1939,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding of features need update
         return None
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
     def calculate_intervals(self, layer: MoleculesLayer):
         """
@@ -1927,7 +1965,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate skews")
     def calculate_skews(self, layer: MoleculesLayer):
         """
@@ -1956,7 +1994,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return None
 
-    @Molecules_.MoleculeFeatures.wraps
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Seam search by feature")
     def seam_search_by_feature(
         self,
