@@ -298,6 +298,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.to_callback
         def _cylindrical_fit_on_return():
+            self.auto_align_to_polarity()
             if local_props or global_props:
                 self.sample_subtomograms()
                 if global_props:
@@ -860,7 +861,6 @@ class CylindraMainWidget(MagicTemplate):
     )
     def auto_align_to_polarity(
         self,
-        clockwise_is: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[
             Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}
         ] = None,
@@ -877,8 +877,6 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        clockwise_is : Ori, default is Ori.MinusToPlus
-            Polarity corresponding to clockwise rotation of the projection image.
         align_to : Ori, optional
             To which direction splines will be aligned. If not given, splines will
             not be inverted even if the orientation is not aligned.
@@ -894,7 +892,7 @@ class CylindraMainWidget(MagicTemplate):
         length_px = tomo.nm2pixel(depth, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
 
-        ori_clockwise = Ori(clockwise_is)
+        ori_clockwise = Ori(GVar.clockwise)
         ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
         for i, spl in enumerate(self.tomogram.splines):
             if spl.radius is None:

@@ -166,6 +166,7 @@ class GlobalVariables:
     minSkew: float = -1.0
     maxSkew: float = 1.0
     minCurvatureRadius: nm = 400.0
+    clockwise: str = "MinusToPlus"
     inner: float = 0.8
     outer: float = 1.3
     fitLength: nm = 48.0
