@@ -5,7 +5,6 @@ import warnings
 import impy as ip
 import macrokit as mk
 import matplotlib.pyplot as plt
-import napari
 import numpy as np
 import polars as pl
 import pandas as pd
@@ -66,6 +65,7 @@ from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
 from cylindra.widgets.measure import SpectraMeasurer
+
 from cylindra.widgets.widget_utils import (
     FileFilter,
     add_molecules,
@@ -144,6 +144,7 @@ class CylindraMainWidget(MagicTemplate):
     # Menu for global variables
     @property
     def global_variables(self):
+        """Return the global variable widget."""
         return self.Others.GlobalVariables
 
     # Toolbar
@@ -164,6 +165,7 @@ class CylindraMainWidget(MagicTemplate):
     def __init__(self):
         self.tomogram: CylTomogram = None
         self._current_ft_size: nm = 50.0
+        self._tilt_range: tuple[float, float] | None = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -296,6 +298,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.to_callback
         def _cylindrical_fit_on_return():
+            self.auto_align_to_polarity()
             if local_props or global_props:
                 self.sample_subtomograms()
                 if global_props:
@@ -485,6 +488,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Bound[_image_loader.path],
         scale: Bound[_image_loader.scale.scale_value] = 1.0,
+        tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
         filter: Bound[_image_loader.filter_reference_image] = True,
     ):
@@ -517,6 +521,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = CylTomogram.imread(
             path=path,
             scale=scale,
+            tilt_range=tilt_range,
             binsize=bin_size,
         )
 
@@ -856,7 +861,6 @@ class CylindraMainWidget(MagicTemplate):
     )
     def auto_align_to_polarity(
         self,
-        clockwise_is: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         align_to: Annotated[
             Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}
         ] = None,
@@ -873,8 +877,6 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        clockwise_is : Ori, default is Ori.MinusToPlus
-            Polarity corresponding to clockwise rotation of the projection image.
         align_to : Ori, optional
             To which direction splines will be aligned. If not given, splines will
             not be inverted even if the orientation is not aligned.
@@ -890,7 +892,7 @@ class CylindraMainWidget(MagicTemplate):
         length_px = tomo.nm2pixel(depth, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
 
-        ori_clockwise = Ori(clockwise_is)
+        ori_clockwise = Ori(GVar.clockwise)
         ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
         for i, spl in enumerate(self.tomogram.splines):
             if spl.radius is None:
@@ -2028,9 +2030,9 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def pick_next(self):
         """Automatically pick cylinder center using previous two points."""
-        stride_nm = self.toolbar.Adjust.stride
-        angle_pre = self.toolbar.Adjust.angle_precision
-        angle_dev = self.toolbar.Adjust.angle_deviation
+        stride_nm = self.toolbar.Adjust.interval
+        angle_pre = self.toolbar.Adjust.angle_step
+        angle_dev = self.toolbar.Adjust.max_angle
         max_shifts = self.toolbar.Adjust.max_shifts
         imgb: ip.ImgArray = self.layer_image.data
         binned_scale = imgb.scale.x
@@ -2082,39 +2084,6 @@ class CylindraMainWidget(MagicTemplate):
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
         change_viewer_focus(self.parent_viewer, point2, binned_scale)
-        return None
-
-    @toolbar.wraps
-    @set_design(icon=ICON_DIR / "auto_center.svg")
-    @bind_key("F4")
-    @do_not_record
-    def auto_center(self):
-        """Auto centering of selected points."""
-        imgb: ip.ImgArray = self.layer_image.data
-        tomo = self.tomogram
-        binsize = utils.roundint(
-            self.layer_image.scale[0] / tomo.scale
-        )  # scale of binned reference image
-        selected = self.layer_work.selected_data
-
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
-
-        shape = (width_px,) + (utils.roundint((width_px + length_px) / 1.41),) * 2
-
-        points = self.layer_work.data / imgb.scale.x
-        last_i = -1
-        for i, point in enumerate(points):
-            if i not in selected:
-                continue
-            img_input = utils.crop_tomogram(imgb, point, shape)
-            angle_deg = utils.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
-            utils.centering(img_input, point, angle_deg, drot=3, nrots=7)
-            last_i = i
-
-        self.layer_work.data = points * imgb.scale.x
-        if len(selected) == 1:
-            change_viewer_focus(self.parent_viewer, points[last_i], imgb.scale.x)
         return None
 
     @ImageMenu.wraps

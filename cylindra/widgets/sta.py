@@ -176,8 +176,6 @@ class StaParameters(MagicTemplate):
         Path to the template (reference) image file, or layer name of reconstruction.
     mask_path : str
         Select how to create a mask.
-    tilt_range : tuple of float, options
-        Tilt range (degree) of the tomogram.
     """
 
     template_path = vfield(
@@ -189,13 +187,6 @@ class StaParameters(MagicTemplate):
     mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
     params = field(MaskParameters, name="Mask parameters")
     mask_path = field(mask_path)
-    tilt_range = vfield(
-        Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False
-    ).with_options(
-        value=(-60.0, 60.0),
-        text="No missing-wedge",
-        options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}},
-    )
 
     _last_average: ip.ImgArray = None  # the global average result
 
@@ -316,18 +307,7 @@ class StaParameters(MagicTemplate):
 @magicclass(widget_type="scrollable")
 @_shared_doc.update_cls
 class SubtomogramAveraging(MagicTemplate):
-    """
-    Widget for subtomogram averaging.
-
-    Attributes
-    ----------
-    template_path : Path
-        Path to the template (reference) image file, or layer name of reconstruction.
-    mask_path : str
-        Select how to create a mask.
-    tilt_range : tuple of float, options
-        Tilt range (degree) of the tomogram.
-    """
+    """Widget for subtomogram averaging."""
 
     Subtomogram_analysis = field(SubtomogramAnalysis)
     Refinement = field(Refinement)
@@ -638,7 +618,6 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
-        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         z_rotation: _ZRotation = (0.0, 0.0),
         y_rotation: _YRotation = (0.0, 0.0),
@@ -653,7 +632,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
+        {layer}{template_path}{mask_params}{max_shifts}{z_rotation}{y_rotation}
         {x_rotation}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all")
@@ -671,7 +650,7 @@ class SubtomogramAveraging(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt_range=tilt_range,
+            tilt_range=parent.tomogram.tilt_range,
         )
 
         t0.toc()
@@ -685,7 +664,6 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         mask_params: Bound[params._get_mask_params],
-        tilt_range: Bound[params.tilt_range] = None,
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         z_rotation: _ZRotation = (0.0, 0.0),
@@ -701,7 +679,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{mask_params}{tilt_range}{size}{max_shifts}{z_rotation}{y_rotation}
+        {layer}{mask_params}{size}{max_shifts}{z_rotation}{y_rotation}
         {x_rotation}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_template_free")
@@ -723,7 +701,7 @@ class SubtomogramAveraging(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt_range=tilt_range,
+            tilt_range=parent.tomogram.tilt_range,
         )
 
         t0.toc()
@@ -739,7 +717,6 @@ class SubtomogramAveraging(MagicTemplate):
         template_path: Bound[params.template_path],
         other_templates: Path.Multiple[FileFilter.IMAGE],
         mask_params: Bound[params._get_mask_params],
-        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         z_rotation: _ZRotation = (0.0, 0.0),
         y_rotation: _YRotation = (0.0, 0.0),
@@ -757,7 +734,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layer}{template_path}
         other_templates : list of Path or str
             Path to other template images.
-        {mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
+        {mask_params}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
         {interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_multi_template")
@@ -779,7 +756,7 @@ class SubtomogramAveraging(MagicTemplate):
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt_range=tilt_range,
+            tilt_range=parent.tomogram.tilt_range,
         )
         t0.toc()
         parent._need_save = True
@@ -793,7 +770,6 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
-        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
         z_rotation: _ZRotation = (0.0, 0.0),
         y_rotation: _YRotation = (0.0, 0.0),
@@ -815,7 +791,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{z_rotation}{y_rotation}
+        {layer}{template_path}{mask_params}{max_shifts}{z_rotation}{y_rotation}
         {x_rotation}{cutoff}{interpolation}
         distance_range : tuple of float, default is (3.9, 4.4)
             Range of allowed distance between monomers.
@@ -848,7 +824,7 @@ class SubtomogramAveraging(MagicTemplate):
         model = alignment.ZNCCAlignment.with_params(
             rotations=(z_rotation, y_rotation, x_rotation),
             cutoff=cutoff,
-            tilt_range=tilt_range,
+            tilt_range=parent.tomogram.tilt_range,
         )
 
         score_dsk = loader.construct_landscape(
@@ -951,7 +927,6 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
-        tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -969,7 +944,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{tilt_range}{max_shifts}{cutoff}{interpolation}
+        {layer}{template_path}{mask_params}{max_shifts}{cutoff}{interpolation}
         distance_range_long : tuple of float
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
@@ -1005,7 +980,7 @@ class SubtomogramAveraging(MagicTemplate):
             upsample=upsample_factor,
             alignment_model=alignment.ZNCCAlignment.with_params(
                 cutoff=cutoff,
-                tilt_range=tilt_range,
+                tilt_range=parent.tomogram.tilt_range,
             ),
         )
 

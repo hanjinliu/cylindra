@@ -9,6 +9,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
 from scipy import ndimage as ndi
+from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
@@ -318,9 +319,9 @@ class CylTomogram(Tomogram):
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # (length + width) / sqrt(2)
         if binsize > 1:
-            centers = spl() - self.multiscale_translation(binsize)
+            centers = spl.map() - self.multiscale_translation(binsize)
         else:
-            centers = spl()
+            centers = spl.map()
         center_px = self.nm2pixel(centers, binsize=binsize)
         size_px = (width_px,) + (roundint((width_px + length_px) / 1.41),) * 2
         input_img = self._get_multiscale_or_original(binsize)
@@ -354,7 +355,7 @@ class CylTomogram(Tomogram):
                     mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
                     subtomograms[i] *= mask
 
-            ds = spl(der=1)
+            ds = spl.map(der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
             degree_max = 14.0
             nrots = roundint(degree_max / degree_precision) + 1
@@ -426,7 +427,6 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
-        # tilt_range: tuple[float, float] | None = None,
         n_rotation: int = 7,
     ) -> FitResult:
         """
@@ -551,14 +551,14 @@ class CylTomogram(Tomogram):
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
-            # zncc = ZNCCAlignment(template.value, tilt_range=tilt_range)
+            zncc = ZNCCAlignment(subtomograms[0].value, tilt_range=self.tilt_range)
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
-            # quat = loader.molecules.quaternion()
+            quat = mole.quaternion()
             for i in range(npoints):
                 img = inputs[i]
-                # img = ip.asarray(zncc.mask_missing_wedge(img.value, quat[i]), like=img)
-                shift = -ip.zncc_maximum(template, img, max_shifts=max_shift_px)
+                tmp = _mask_missing_wedge(template, zncc, quat[i])
+                shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
 
                 rad = np.deg2rad(skew_angles[i])
                 cos, sin = np.cos(rad), np.sin(rad)
@@ -768,9 +768,8 @@ class CylTomogram(Tomogram):
                 polar = map_coordinates(
                     input_img, coords, order=3, mode=Mode.constant, cval=np.mean
                 )
-                polar = ip.asarray(
-                    polar, axes="rya", dtype=np.float32
-                )  # radius, y, angle
+                # "rya" = radius, y, angle
+                polar = ip.asarray(polar, axes="rya", dtype=np.float32)
                 polar.set_scale(r=_scale, y=_scale, a=_scale)
                 polar.scale_unit = self.image.scale_unit
                 polar[:] -= np.mean(polar)
@@ -1435,17 +1434,17 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     return np.angle(out)
 
 
-def _invert_if_needed(spl: CylSpline, orientation: Ori | str | None) -> CylSpline:
-    if orientation is not None:
-        orientation = Ori(orientation)
-        if orientation is Ori.none or spl.orientation is Ori.none:
-            raise ValueError(
-                "Either molecules' orientation or the input orientation should "
-                "not be none."
-            )
-        if orientation is not spl.orientation:
-            spl = spl.invert()
-    return spl
+def _mask_missing_wedge(
+    img: ip.ImgArray,
+    zncc: ZNCCAlignment,
+    quat: NDArray[np.float32],
+) -> ip.ImgArray:
+    """Mask the missing wedge of the image and return the real image."""
+    if zncc._tilt_range is None:
+        return img
+    mask3d = zncc._get_missing_wedge_mask(quat)
+    mask = mask3d[:, 0, :]
+    return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
 
 
 def _need_rotation(spl: CylSpline, orientation: Ori | str | None) -> bool:

@@ -142,7 +142,7 @@ class CylindraProject(BaseProject):
             global_variables=as_relative(gvar_path),
             template_image=as_relative(gui.sta.params.template_path),
             mask_parameters=gui.sta.params._get_mask_params(),
-            tilt_range=gui.sta.params.tilt_range,
+            tilt_range=tomo.tilt_range,
             macro=as_relative(macro_path),
             project_path=json_path,
         )
@@ -222,6 +222,7 @@ class CylindraProject(BaseProject):
         gui.tomogram = CylTomogram.imread(
             path=self.image,
             scale=self.scale,
+            tilt_range=self.tilt_range,
             binsize=self.multiscales,
         )
 
