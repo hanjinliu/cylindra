@@ -61,6 +61,13 @@ class Ori(strEnum):
         return out
 
 
+class ExtrapolationMode(strEnum):
+    """Extrapolation mode for splines."""
+
+    default = "default"
+    linear = "linear"
+
+
 class PropertyNames(SimpleNamespace):
     """Header names for result table of local properties."""
 

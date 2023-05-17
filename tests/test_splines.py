@@ -6,8 +6,9 @@ from numpy.testing import assert_allclose
 import impy as ip
 
 
-def test_inverse_mapping():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_inverse_mapping(mode):
+    spl = CylSpline(extrapolate=mode)
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
     spl.fit_voa(coords)
     coords = np.array([[1, 1.5, 0], [0, 1.5, 1], [-1, 1.5, 0], [2, 1.5, 3]])
@@ -43,8 +44,9 @@ def test_inverse_mapping():
     assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
 
 
-def test_coordinate_transformation():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_coordinate_transformation(mode):
+    spl = CylSpline(extrapolate=mode)
     coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
     spl.fit_voa(coords)
 
@@ -91,8 +93,9 @@ def test_coordinate_transformation():
     assert amin < img_tr.shape[-1] / 2
 
 
-def test_invert():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_invert(mode):
+    spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
     spl.fit_voa(coords)
@@ -118,8 +121,9 @@ def test_invert():
     assert_allclose(spl(der=3), spl_inv_inv(der=3))
 
 
-def test_clip():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_clip(mode):
+    spl = CylSpline(extrapolate=mode)
     spl.orientation = "PlusToMinus"
 
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
@@ -139,8 +143,9 @@ def test_clip():
     assert_allclose(spl([0.4, 0.45, 0.5]), spl_c1([1.0, 0.5, 0.0]))
 
 
-def test_shift_fit():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_shift_fit(mode):
+    spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
     spl.fit_voa(coords)
@@ -150,8 +155,9 @@ def test_shift_fit():
     assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
 
 
-def test_dict():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_dict(mode):
+    spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
     spl.fit_voa(coords)
@@ -164,8 +170,9 @@ def test_dict():
 
 
 @pytest.mark.parametrize("radius", [0.5, 2.0, 4.0, 10.0])
-def test_curvature(radius):
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_curvature(radius, mode):
+    spl = CylSpline(extrapolate=mode)
     u = np.linspace(0, 2 * np.pi, 100)
     coords = np.stack([np.zeros(100), radius * np.sin(u), radius * np.cos(u)], axis=1)
     spl = spl.fit_voa(coords, variance=0)
@@ -176,8 +183,9 @@ def test_curvature(radius):
     assert np.std(cr) / cr_mean < 1e-3
 
 
-def test_translate():
-    spl = CylSpline()
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_translate(mode):
+    spl = CylSpline(extrapolate=mode)
     spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     ds = np.array([3, 1, -2])
     spl_trans = spl.translate(ds)
@@ -187,3 +195,14 @@ def test_translate():
         rtol=1e-6,
         atol=1e-6,
     )
+
+
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_extrapolate_map(mode):
+    spl = CylSpline(extrapolate=mode)
+    spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    sl0 = [-0.5, 0, 0.5, 1, 1.5]
+    sl1 = [0, 0.5, 1]
+
+    for der in [0, 1, 2]:
+        assert_allclose(spl.map(sl0, der=der)[1:4], spl.map(sl1, der=der))

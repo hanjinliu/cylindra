@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Callable, Sequence, TypedDict, TYPE_CHECKING, overload
+from typing import Callable, Sequence, TypeVar, TypedDict, TYPE_CHECKING, overload
 import warnings
 import logging
 
@@ -15,7 +15,7 @@ from acryo import Molecules
 from acryo.molecules import axes_to_rotator
 
 from cylindra.utils import ceilint, interval_divmod, roundint
-from cylindra.const import Mode, nm
+from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class Coords3D(TypedDict):
     x: list[float]
 
 
-class SplineInfo(TypedDict):
+class SplineInfo(TypedDict, total=False):
     """Spline parameters used in json."""
 
     t: list[float]
@@ -41,6 +41,7 @@ class SplineInfo(TypedDict):
     k: int
     u: list[float]
     lims: tuple[float, float]
+    extrapolate: str
 
 
 class Spline(BaseComponent):
@@ -63,7 +64,13 @@ class Spline(BaseComponent):
     # is changed.
     _local_cache: tuple[str, ...] = ()
 
-    def __init__(self, degree: int = 3, *, lims: tuple[float, float] = (0.0, 1.0)):
+    def __init__(
+        self,
+        degree: int = 3,
+        *,
+        lims: tuple[float, float] = (0.0, 1.0),
+        extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
+    ):
         self._tck: tuple[np.ndarray | None, list[np.ndarray] | None, int] = (
             None,
             None,
@@ -71,6 +78,7 @@ class Spline(BaseComponent):
         )
         self._u: np.ndarray | None = None
         self._anchors = None
+        self._extrapolate = ExtrapolationMode(extrapolate)
 
         # check lims
         _min, _max = lims
@@ -107,6 +115,12 @@ class Spline(BaseComponent):
 
     __copy__ = copy
 
+    def with_extrapolation(self, extrapolate: ExtrapolationMode | str) -> Self:
+        """Return a copy of the spline with a new extrapolation mode."""
+        new = self.copy()
+        new._extrapolate = ExtrapolationMode(extrapolate)
+        return new
+
     def copy_from(self, other: Spline) -> Self:
         """Update spline parameters from another spline."""
         self._tck = other._tck
@@ -131,6 +145,11 @@ class Spline(BaseComponent):
     def degree(self) -> int:
         """Spline degree."""
         return self._tck[2]
+
+    @property
+    def extrapolate(self) -> ExtrapolationMode:
+        """Extrapolation mode of the spline."""
+        return self._extrapolate
 
     @property
     def params(self) -> np.ndarray:
@@ -273,7 +292,7 @@ class Spline(BaseComponent):
 
     def __repr__(self) -> str:
         """Use start/end points to describe a spline."""
-        start, end = self(self._lims)
+        start, end = self.map(self._lims)
         start = "({:.1f}, {:.1f}, {:.1f})".format(*start)
         end = "({:.1f}, {:.1f}, {:.1f})".format(*end)
         return f"Spline[{start}:{end}]"
@@ -459,14 +478,43 @@ class Spline(BaseComponent):
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
         *,
-        n: int = 256,
         weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
+        n: int = 256,
         min_radius: nm = 1.0,
-        tol=1e-2,
+        tol: float = 1e-2,
         max_iter: int = 100,
     ):
-        coords = self(positions)
+        """
+        Shift spline model by "Curvature-Oriented Approximation".
+
+        Parameters
+        ----------
+        positions : sequence of float, optional
+            Positions. Between 0 and 1. If not given, anchors are used instead.
+        shifts : np.ndarray
+            Shift from center in nm. Must be (N, 2).
+        weight : np.ndarray, optional
+            Weight of each coordinate.
+        weight_ramp : tuple[float, float], optional
+            Weight ramp parameters, length (nm) and edge weight.
+        n : int, default is 256
+            Number of partition for curvature sampling.
+        min_radius : nm, default is 1.0
+            Minimum allowed curvature radius. Fitting iteration continues until curvature
+            radii are larger at any sampled points.
+        tol : float, default is 1e-2
+            Tolerance of fitting. Fitting iteration continues until ratio of maximum
+            curvature to curvature upper limit is larger than 1 - tol.
+        max_iter : int, default is 100
+            Maximum number of iteration. Fitting stops when exceeded.
+
+        Returns
+        -------
+        Spline
+            Updated spline instance.
+        """
+        coords = self.map(positions)
         rot = self.get_rotator(positions)
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
@@ -489,7 +537,7 @@ class Spline(BaseComponent):
         *,
         weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
-        variance: float = None,
+        variance: float | None = None,
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -508,7 +556,7 @@ class Spline(BaseComponent):
         Spline
             Spline shifted by fitting to given coordinates.
         """
-        coords = self(positions)
+        coords = self.map(positions)
         rot = self.get_rotator(positions)
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
@@ -516,7 +564,7 @@ class Spline(BaseComponent):
         self.fit_voa(coords, variance=variance, weight=weight, weight_ramp=weight_ramp)
         return self
 
-    def distances(self, positions: Sequence[float] = None) -> np.ndarray:
+    def distances(self, positions: Sequence[float] | None = None) -> np.ndarray:
         """
         Get the distances from u=0.
 
@@ -535,17 +583,11 @@ class Spline(BaseComponent):
         length = self.length()
         return length * np.asarray(positions)
 
-    @overload
-    def __call__(self, positions: float, der: int = 0) -> float:
-        ...
-
-    @overload
-    def __call__(
-        self, positions: NDArray[np.number] | None, der: int = 0
+    def map(
+        self,
+        positions: float | NDArray[np.number] | None = None,
+        der: int = 0,
     ) -> NDArray[np.float32]:
-        ...
-
-    def __call__(self, positions=None, der: int = 0) -> NDArray[np.float32]:
         """
         Calculate coordinates (or n-th derivative) at points on the spline.
 
@@ -559,28 +601,91 @@ class Spline(BaseComponent):
         Returns
         -------
         np.ndarray
-            Positions or vectors in (N, 3) shape.
+            Positions or vectors in (3,) or (N, 3) shape.
         """
+        if self._tck[0] is None:
+            raise ValueError("Spline is not fitted yet.")
         if positions is None:
             positions = self.anchors
         u0, u1 = self._lims
         if np.isscalar(positions):
-            u_tr = _linear_conversion(np.array([positions]), u0, u1)
-            coord = splev(u_tr, self._tck, der=der)
+            u_tr = _linear_conversion(float(positions), u0, u1)
+            if 0 <= u_tr <= 1 or self.extrapolate is ExtrapolationMode.default:
+                coord = splev([u_tr], self._tck, der=der)
+            elif self.extrapolate is ExtrapolationMode.linear:
+                if der == 0:
+                    if u_tr < 0:
+                        der0 = splev(0, self._tck, der=0)
+                        der1 = splev(0, self._tck, der=1)
+                        dr = u_tr
+                    else:
+                        der0 = splev(1, self._tck, der=0)
+                        der1 = splev(1, self._tck, der=1)
+                        dr = u_tr - 1
+                    coord = [a0 + a1 * dr for a0, a1 in zip(der0, der1)]
+                elif der == 1:
+                    if u_tr < 0:
+                        coord = splev([0], self._tck, der=1)
+                    else:
+                        coord = splev([1], self._tck, der=1)
+                else:
+                    coord = [0, 0, 0]
+            else:
+                raise ValueError(f"Invalid extrapolation mode: {self.extrapolate!r}.")
             out = np.concatenate(coord).astype(np.float32)
+
         else:
-            u_tr = _linear_conversion(np.asarray(positions), u0, u1)
-            coords: list[np.ndarray] = splev(u_tr, self._tck, der=der)
-            out = np.stack(coords, axis=1).astype(np.float32)
+            u_tr = _linear_conversion(np.asarray(positions, dtype=np.float32), u0, u1)
+            if self.extrapolate is ExtrapolationMode.default:
+                out = np.stack(splev(u_tr, self._tck, der=der), axis=1).astype(
+                    np.float32
+                )
+            elif self.extrapolate is ExtrapolationMode.linear:
+                sl_small = u_tr < 0
+                sl_large = u_tr > 1
+                n_small = np.count_nonzero(sl_small)
+                n_large = np.count_nonzero(sl_large)
+                out = np.stack(splev(u_tr, self._tck, der=der), axis=1).astype(
+                    np.float32
+                )
+                if der == 0:
+                    if n_small > 0:
+                        der0 = np.array(splev(0, self._tck, der=0), dtype=np.float32)
+                        der1 = np.array(splev(0, self._tck, der=1), dtype=np.float32)
+                        dr = u_tr[sl_small]
+                        coords_new = der0 + der1 * dr[:, np.newaxis]
+                        out[sl_small] = coords_new
+
+                    if n_large > 0:
+                        der0 = splev(1, self._tck, der=0)
+                        der1 = splev(1, self._tck, der=1)
+                        dr = u_tr[sl_large] - 1
+                        coords_new = der0 + der1 * dr[:, np.newaxis]
+                        out[sl_large] = coords_new
+
+                elif der == 1:
+                    if n_small > 0:
+                        out[sl_small] = splev(0, self._tck, der=1)
+                    if n_large > 0:
+                        out[sl_large] = splev(1, self._tck, der=1)
+                else:
+                    if n_small > 0:
+                        out[sl_small] = 0
+                    if n_large > 0:
+                        out[sl_large] = 0
+            else:
+                raise ValueError(f"Invalid extrapolation mode: {self.extrapolate!r}.")
 
         if u0 > u1 and der % 2 == 1:
             out = -out
         return out
 
-    def partition(self, n: int, der: int = 0) -> np.ndarray:
+    __call__ = map  # scipy-style alias
+
+    def partition(self, n: int, der: int = 0) -> NDArray[np.float32]:
         """Return the n-partitioning coordinates of the spline."""
         u = np.linspace(0, 1, n)
-        return self(u, der)
+        return self.map(u, der)
 
     def length(self, start: float = 0, stop: float = 1, nknots: int = 256) -> nm:
         """
@@ -607,7 +712,10 @@ class Spline(BaseComponent):
             inverted.anchors = 1 - anchors[::-1]
         return inverted
 
-    def curvature(self, positions: Sequence[float] = None) -> np.ndarray:
+    def curvature(
+        self,
+        positions: Sequence[float] | None = None,
+    ) -> NDArray[np.float32]:
         """
         Calculate curvature of spline curve.
 
@@ -629,8 +737,8 @@ class Spline(BaseComponent):
         if positions is None:
             positions = self.anchors
 
-        dz, dy, dx = self(positions, 1).T
-        ddz, ddy, ddx = self(positions, 2).T
+        dz, dy, dx = self.map(positions, der=1).T
+        ddz, ddy, ddx = self.map(positions, der=2).T
         a = (
             (ddz * dy - ddy * dz) ** 2
             + (ddx * dz - ddz * dx) ** 2
@@ -638,7 +746,7 @@ class Spline(BaseComponent):
         )
         return np.sqrt(a) / (dx**2 + dy**2 + dz**2) ** 1.5
 
-    def curvature_radii(self, positions: Sequence[float] = None) -> np.ndarray:
+    def curvature_radii(self, positions: Sequence[float] = None) -> NDArray[np.float32]:
         """Inverse of curvature."""
         return 1.0 / self.curvature(positions)
 
@@ -652,6 +760,7 @@ class Spline(BaseComponent):
             "k": k,
             "u": u.tolist(),
             "lims": self._lims,
+            "extrapolate": self._extrapolate.name,
         }
 
     @classmethod
@@ -669,7 +778,11 @@ class Spline(BaseComponent):
         Spline
             Spline object constructed from the dictionary.
         """
-        self = cls(degree=d.get("k", 3), lims=d.get("lims", (0, 1)))
+        self = cls(
+            degree=d.get("k", 3),
+            lims=d.get("lims", (0, 1)),
+            extrapolate=d.get("extrapolate", "linear"),
+        )
         t = np.asarray(d["t"])
         c = [np.asarray(d["c"][k]) for k in "zyx"]
         k = roundint(d["k"])
@@ -681,8 +794,9 @@ class Spline(BaseComponent):
         self,
         positions: Sequence[float] = None,
         center: Sequence[float] = None,
+        *,
         inverse: bool = False,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """
         Calculate list of Affine transformation matrix along spline, which correspond to
         the orientation of spline curve.
@@ -705,7 +819,7 @@ class Spline(BaseComponent):
         """
         if positions is None:
             positions = self.anchors
-        ds = self(positions, 1)
+        ds = self.map(positions, der=1)
 
         if ds.ndim == 1:
             ds = ds[np.newaxis]
@@ -767,7 +881,7 @@ class Spline(BaseComponent):
         """
         if positions is None:
             positions = self.anchors
-        ds = self(positions, 1)
+        ds = self.map(positions, der=1)
         out = axes_to_rotator(None, -ds)
 
         if inverse:
@@ -837,14 +951,14 @@ class Spline(BaseComponent):
         """
         if u is None:
             u = self.anchors
-        ds = self(u, 1).astype(np.float32)
+        ds = self.map(u, 1)
         len_ds = np.sqrt(sum(ds**2))
         dy = (
             ds.reshape(-1, 1)
             / len_ds
             * np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
         )
-        y_ax_coords = (self(u) / scale).reshape(1, -1) + dy.T
+        y_ax_coords = (self.map(u) / scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds] * n_pixels, axis=0)
         map_ = _polar_coords_2d(*r_range)
         map_slice = _stack_coords(map_)
@@ -927,7 +1041,7 @@ class Spline(BaseComponent):
         """
         ncoords = coords.shape[0]
         positions = coords[:, 1] / self.length()
-        s = self(positions)
+        s = self.map(positions)
         coords_ext = np.stack(
             [
                 coords[:, 0],
@@ -995,7 +1109,7 @@ class Spline(BaseComponent):
             coords = coords[np.newaxis]
         length = self.length()
         u = np.linspace(0, 1, ceilint(length / precision))
-        sample_points = self(u)  # (N, 3)
+        sample_points = self.map(u)  # (N, 3)
         vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(
             1, -1, 3
         )  # (S, N, 3)
@@ -1027,8 +1141,8 @@ class Spline(BaseComponent):
         """
         if positions is None:
             positions = self.anchors
-        pos = self(positions)
-        yvec = self(positions, der=1)
+        pos = self.map(positions)
+        yvec = self.map(positions, der=1)
         rot = axes_to_rotator(None, yvec)
         if rotation is not None:
             rotvec = np.zeros((len(rot), 3), dtype=np.float32)
@@ -1036,7 +1150,10 @@ class Spline(BaseComponent):
             rot = rot * Rotation.from_rotvec(rotvec)
         return Molecules(pos=pos, rot=rot)
 
-    def cylindrical_to_molecules(self, coords: np.ndarray) -> Molecules:
+    def cylindrical_to_molecules(
+        self,
+        coords: np.ndarray,
+    ) -> Molecules:
         """
         Convert coordinates of points near the spline to ``Molecules`` instance.
 
@@ -1056,9 +1173,9 @@ class Spline(BaseComponent):
 
         # world coordinates of the projection point of coords onto the spline
         u = coords[:, 1] / self.length()
-        ycoords = self(u)
+        ycoords = self.map(u)
         zvec = world_coords - ycoords
-        yvec = self(u, der=1)
+        yvec = self.map(u, der=1)
         return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
 
     def slice_along(
@@ -1093,7 +1210,7 @@ class Spline(BaseComponent):
         in the direction of the spline, in the range of ``s_range``.
         """
         u, y_ax_coords = self._get_y_ax_coords(s_range, scale)
-        dslist = self(u, 1).astype(np.float32)
+        dslist = self.map(u, 1).astype(np.float32)
         map_ = map_func(*map_params)
         map_slice = _stack_coords(map_)
         out = _rot_with_vector(map_slice, y_ax_coords, dslist)
@@ -1108,11 +1225,24 @@ class Spline(BaseComponent):
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
         u = np.linspace(s0, s2, n_pixels)
-        y = self(u) / scale  # world coordinates of y-axis in spline coords system
+        y = self.map(u) / scale  # world coordinates of y-axis in spline coords system
         return u, y
 
 
-def _linear_conversion(u: np.ndarray, start: float, stop: float) -> np.ndarray:
+@overload
+def _linear_conversion(u: float, start: float, stop: float) -> float:
+    ...
+
+
+_T = TypeVar("_T", bound=np.generic)
+
+
+@overload
+def _linear_conversion(u: NDArray[_T], start: float, stop: float) -> NDArray[_T]:
+    ...
+
+
+def _linear_conversion(u, start, stop):
     return (1 - u) * start + u * stop
 
 

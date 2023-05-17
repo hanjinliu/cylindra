@@ -6,7 +6,13 @@ from numpy.typing import ArrayLike
 import polars as pl
 
 from .spline import Spline
-from cylindra.const import nm, SplineAttributes as K, Ori, PropertyNames as H
+from cylindra.const import (
+    nm,
+    SplineAttributes as K,
+    Ori,
+    PropertyNames as H,
+    ExtrapolationMode,
+)
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
 
@@ -20,7 +26,13 @@ class CylSpline(Spline):
     _local_cache = (K.localprops,)
     _global_cache = (K.globalprops, K.radius, K.orientation)
 
-    def __init__(self, degree: int = 3, *, lims: tuple[float, float] = (0.0, 1.0)):
+    def __init__(
+        self,
+        degree: int = 3,
+        *,
+        lims: tuple[float, float] = (0.0, 1.0),
+        extrapolate: ExtrapolationMode = ExtrapolationMode.linear,
+    ):
         """
         Spline object for a cylinder.
 
@@ -29,7 +41,7 @@ class CylSpline(Spline):
         k : int, default is 3
             Spline order.
         """
-        super().__init__(degree=degree, lims=lims)
+        super().__init__(degree=degree, lims=lims, extrapolate=extrapolate)
         self.orientation = Ori.none
         self.radius: nm | None = None
         self.localprops: pl.DataFrame | None = None
