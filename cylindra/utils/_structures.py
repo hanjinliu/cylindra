@@ -213,7 +213,7 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
 
         _spl_vec_norm = _norm(_spl_vec)
 
-        _skew_cross = np.cross(_spl_vec_norm, _interv_vec_norm, axis=1)  # cross product
+        _skew_cross = np.cross(_interv_vec_norm, _spl_vec_norm, axis=1)  # cross product
         _inner = np.sum(_skew_cross * _mole_to_spl_vec, axis=1)
         _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
 

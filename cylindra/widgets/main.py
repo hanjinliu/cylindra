@@ -1701,7 +1701,7 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(out, name=name, source=layer.source_component)
         return mole
 
-    @MoleculesMenu.MoleculeFeatures.wraps
+    @MoleculesMenu.Visualize.wraps
     @set_design(text="Show molecule features")
     @do_not_record
     def show_molecule_features(self):
@@ -1750,7 +1750,7 @@ class CylindraMainWidget(MagicTemplate):
             return []
         return gui.layer.value.features.columns
 
-    @MoleculesMenu.MoleculeFeatures.wraps
+    @MoleculesMenu.Visualize.wraps
     @set_design(text="Paint molecules by features")
     def paint_molecules(
         self,
@@ -1780,7 +1780,7 @@ class CylindraMainWidget(MagicTemplate):
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )
 
-    @MoleculesMenu.MoleculeFeatures.wraps
+    @MoleculesMenu.Visualize.wraps
     @set_design(text="Plot molecule feature in 2D")
     def plot_molecule_feature(
         self,
@@ -1826,6 +1826,7 @@ class CylindraMainWidget(MagicTemplate):
             fig = Figure()
             ax = fig.ax
             fig.show()
+            self._active_widgets.add(fig)
         else:
             raise ValueError(f"Unknown backend: {backend!r}")
 
@@ -1839,7 +1840,7 @@ class CylindraMainWidget(MagicTemplate):
         ax.set_aspect("equal")
         return None
 
-    @MoleculesMenu.MoleculeFeatures.wraps
+    @MoleculesMenu.Visualize.wraps
     @set_design(text="Show colorbar")
     @do_not_record
     def show_molecules_colorbar(

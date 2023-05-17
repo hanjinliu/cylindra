@@ -155,7 +155,7 @@ class CylSpline(Spline):
             }
 
         pitch = props[H.yPitch]
-        skew = -props[H.skewAngle]
+        skew = props[H.skewAngle]
         rise = -props[H.riseAngle]
         npf = roundint(props[H.nPF])
         radius = kwargs.get("radius", self.radius)

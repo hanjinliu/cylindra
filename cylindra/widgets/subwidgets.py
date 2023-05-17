@@ -13,7 +13,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit
-from magicclass.types import OneOf, SomeOf, Optional
+from magicclass.types import SomeOf, Optional
 from pathlib import Path
 import impy as ip
 
@@ -121,18 +121,23 @@ class MoleculesMenu(MagicTemplate):
     class MoleculeFeatures(MagicTemplate):
         """Analysis based on molecule features."""
 
-        show_molecule_features = abstractapi()
         filter_molecules = abstractapi()
         split_molecules = abstractapi()
-        paint_molecules = abstractapi()
-        plot_molecule_feature = abstractapi()
-        show_molecules_colorbar = abstractapi()
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
         calculate_intervals = abstractapi()
         calculate_skews = abstractapi()
         sep1 = field(Separator)
         seam_search_by_feature = abstractapi()
+
+    @magicmenu(name="Visualize")
+    class Visualize(MagicTemplate):
+        """Visualize molecules analysis results."""
+
+        show_molecule_features = abstractapi()
+        paint_molecules = abstractapi()
+        plot_molecule_feature = abstractapi()
+        show_molecules_colorbar = abstractapi()
 
 
 @magicmenu
@@ -328,7 +333,7 @@ class Runner(MagicTemplate):
 
     all_splines = vfield(True).with_options(text="Run for all the splines.")
     splines = vfield(SomeOf[_get_splines]).with_options(visible=False)
-    bin_size = vfield(OneOf[_get_available_binsize])
+    bin_size = vfield(int).with_choices(choices=_get_available_binsize)
 
     fit = vfield(True, label="Fit splines")
     params1 = runner_params1
@@ -360,7 +365,7 @@ class Runner(MagicTemplate):
     def _get_max_shift(self, w=None):
         return self.params1.max_shift
 
-    cylindrical_fit = abstractapi()
+    run_workflow = abstractapi()
 
 
 @magicclass(name="_Open image", record=False)
