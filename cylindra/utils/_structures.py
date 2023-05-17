@@ -205,8 +205,8 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _interv_vec_norm = _norm(np.diff(_pos, axis=0, append=0))
 
         _u = sub.features[Mole.position] / _spl_len
-        _spl_pos = spl(_u, der=0)
-        _spl_vec = spl(_u, der=1)
+        _spl_pos = spl.map(_u, der=0)
+        _spl_vec = spl.map(_u, der=1)
 
         _mole_to_spl_vec = _spl_pos - _pos
         _radius = np.linalg.norm(_mole_to_spl_vec, axis=1)
