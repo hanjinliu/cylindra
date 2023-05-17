@@ -478,13 +478,42 @@ class Spline(BaseComponent):
         positions: Sequence[float] | None = None,
         shifts: np.ndarray | None = None,
         *,
-        n: int = 256,
         weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
+        n: int = 256,
         min_radius: nm = 1.0,
-        tol=1e-2,
+        tol: float = 1e-2,
         max_iter: int = 100,
     ):
+        """
+        Shift spline model by "Curvature-Oriented Approximation".
+
+        Parameters
+        ----------
+        positions : sequence of float, optional
+            Positions. Between 0 and 1. If not given, anchors are used instead.
+        shifts : np.ndarray
+            Shift from center in nm. Must be (N, 2).
+        weight : np.ndarray, optional
+            Weight of each coordinate.
+        weight_ramp : tuple[float, float], optional
+            Weight ramp parameters, length (nm) and edge weight.
+        n : int, default is 256
+            Number of partition for curvature sampling.
+        min_radius : nm, default is 1.0
+            Minimum allowed curvature radius. Fitting iteration continues until curvature
+            radii are larger at any sampled points.
+        tol : float, default is 1e-2
+            Tolerance of fitting. Fitting iteration continues until ratio of maximum
+            curvature to curvature upper limit is larger than 1 - tol.
+        max_iter : int, default is 100
+            Maximum number of iteration. Fitting stops when exceeded.
+
+        Returns
+        -------
+        Spline
+            Updated spline instance.
+        """
         coords = self.map(positions)
         rot = self.get_rotator(positions)
         # insert 0 in y coordinates.
@@ -508,7 +537,7 @@ class Spline(BaseComponent):
         *,
         weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
-        variance: float = None,
+        variance: float | None = None,
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.

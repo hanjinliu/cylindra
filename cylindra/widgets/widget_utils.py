@@ -289,7 +289,7 @@ def extend_protofilament(
                 Mole.yvec: np.full(_n_prepend, prepend_start[Mole.yvec][0]),
                 Mole.xvec: np.full(_n_prepend, prepend_start[Mole.xvec][0]),
                 Mole.position: prepend_start[Mole.position][0]
-                + prepend_vec[Mole.position][0] * rng,  # fmt: skip
+                + prepend_vec[Mole.position][0] * rng,  # fmt: skip # noqa E501
                 Mole.nth: np.arange(nth_start - _n_prepend, nth_start),
                 Mole.pf: np.full(_n_prepend, _pf_id),
             },
@@ -306,7 +306,7 @@ def extend_protofilament(
                 Mole.yvec: np.full(_n_append, append_start[Mole.yvec][0]),
                 Mole.xvec: np.full(_n_append, append_start[Mole.xvec][0]),
                 Mole.position: append_start[Mole.position][0]
-                + append_vec[Mole.position][0] * rng,  # fmt: skip
+                + append_vec[Mole.position][0] * rng,  # fmt: skip # noqa E501
                 Mole.nth: np.arange(nth_stop + 1, nth_stop + _n_append + 1),
                 Mole.pf: np.full(_n_append, _pf_id),
             },
