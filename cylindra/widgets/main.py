@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal
+from typing import Annotated, TYPE_CHECKING, Literal, Sequence
 import warnings
 from weakref import WeakSet
 
@@ -28,7 +28,7 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import Bound, Color, OneOf, Optional, SomeOf, Path, ExprStr
+from magicclass.types import Bound, Color, OneOf, Optional, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
@@ -247,22 +247,20 @@ class CylindraMainWidget(MagicTemplate):
 
     @_runner.wraps
     @set_design(text="Run")
-    @thread_worker.with_progress(
-        desc="Running cylindrical fitting",
-        total="(1 + n_refine + int(local_props) + int(global_props)) * len(splines)",
-    )
-    def cylindrical_fit(
+    @do_not_record(recursive=False)
+    def run_workflow(
         self,
-        splines: Bound[_runner._get_splines_to_run] = (),
-        bin_size: Bound[_runner.bin_size] = 1,
-        max_shift: Bound[_runner._get_max_shift] = 5.0,
-        edge_sigma: Bound[_runner.params1.edge_sigma] = 2.0,
-        n_refine: Bound[_runner.n_refine] = 1,
-        local_props: Bound[_runner.local_props] = True,
-        interval: Bound[_runner.params2.interval] = 32.0,
-        ft_size: Bound[_runner.params2.ft_size] = 32.0,
-        global_props: Bound[_runner.global_props] = True,
-        paint: Bound[_runner.params2.paint] = True,
+        splines: Annotated[Sequence[int], {"bind": _runner._get_splines_to_run}] = (),
+        bin_size: Annotated[int, {"bind": _runner.bin_size}] = 1,
+        max_shift: Annotated[nm, {"bind": _runner._get_max_shift}] = 5.0,
+        edge_sigma: Annotated[nm, {"bind": _runner.params1.edge_sigma}] = 2.0,
+        n_refine: Annotated[int, {"bind": _runner.n_refine}] = 1,
+        local_props: Annotated[bool, {"bind": _runner.local_props}] = True,
+        interval: Annotated[nm, {"bind": _runner.params2.interval}] = 32.0,
+        ft_size: Annotated[nm, {"bind": _runner.params2.ft_size}] = 32.0,
+        global_props: Annotated[bool, {"bind": _runner.global_props}] = True,
+        paint: Annotated[bool, {"bind": _runner.params2.paint}] = True,
+        infer_polarity: Annotated[bool, {"bind": _runner.infer_polarity}] = True,
     ):
         """Run cylindrical fitting."""
         if self.layer_work.data.size > 0:
@@ -271,59 +269,33 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("No spline found.")
         elif len(splines) == 0:
             splines = range(self.tomogram.n_splines)
+        self._runner.close()
 
-        tomo = self.tomogram
-        _on_yield = thread_worker.to_callback(self._update_splines_in_images)
-        for i_spl in splines:
-            if max_shift > 0:
-                tomo.fit(
-                    i=i_spl,
-                    edge_sigma=edge_sigma,
-                    max_shift=max_shift,
-                    binsize=bin_size,
-                )
-
-            for _ in range(n_refine):
-                yield _on_yield
-                tomo.refine(i=i_spl, max_interval=max(interval, 30), binsize=bin_size)
-            tomo.set_radius(i=i_spl, binsize=bin_size)
-
-            tomo.make_anchors(i=i_spl, interval=interval)
-            if local_props:
-                yield _on_yield
-                tomo.local_ft_params(i=i_spl, ft_size=ft_size, binsize=bin_size)
-            if global_props:
-                yield _on_yield
-                tomo.global_ft_params(i=i_spl, binsize=bin_size)
-            yield _on_yield
-
+        self.fit_splines(
+            splines=splines,
+            bin_size=bin_size,
+            edge_sigma=edge_sigma,
+            max_shift=max_shift,
+        )
+        for _ in range(n_refine):
+            self.refine_splines(
+                splines=splines,
+                max_interval=interval,
+                bin_size=bin_size,
+            )
+        self.set_radius(splines=splines, bin_size=bin_size)
+        self.add_anchors(splines=splines, interval=interval)
+        if local_props:
+            self.local_ft_analysis(splines=splines, ft_size=ft_size, bin_size=bin_size)
+        if global_props:
+            self.global_ft_analysis(splines=splines, bin_size=bin_size)
+        if local_props and paint:
+            self.paint_cylinders()
+        if infer_polarity:
+            self.auto_align_to_polarity()
         self._current_ft_size = ft_size
         self._need_save = True
-
-        @thread_worker.to_callback
-        def _cylindrical_fit_on_return():
-            if local_props or global_props:
-                self.sample_subtomograms()
-                if global_props:
-                    df = (
-                        self.tomogram.collect_globalprops(i=splines)
-                        .to_pandas()
-                        .transpose()
-                    )
-                    df.columns = [f"Spline-{i}" for i in splines]
-                    _Logger.print_table(df, precision=3)
-                self.auto_align_to_polarity()
-            if local_props and paint:
-                self.paint_cylinders()
-            if global_props:
-                self._update_global_properties_in_widget()
-            self._update_splines_in_images()
-
-        return _cylindrical_fit_on_return
-
-    @cylindrical_fit.started.connect
-    def _cylindrical_fit_on_start(self):
-        return self._runner.close()
+        return None
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "clear_last.svg")
@@ -609,7 +581,9 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_design(text="Save spline")
     def save_spline(
-        self, spline: OneOf[_get_splines], save_path: Path.Save[FileFilter.JSON]
+        self,
+        spline: Annotated[int, {"choices": _get_splines}],
+        save_path: Path.Save[FileFilter.JSON],
     ):
         """Save splines as a json file."""
         spl = self.tomogram.splines[spline]
@@ -682,7 +656,10 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(
         desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})"
     )
-    def add_multiscale(self, bin_size: OneOf[2:17] = 4):
+    def add_multiscale(
+        self,
+        bin_size: Annotated[int, {"bind": list(range(2, 17))}] = 4,
+    ):
         """
         Add a new multi-scale image of current tomogram.
 
@@ -698,7 +675,9 @@ class CylindraMainWidget(MagicTemplate):
 
     @ImageMenu.wraps
     @set_design(text="Set multi-scale")
-    def set_multiscale(self, bin_size: OneOf[_get_available_binsize]):
+    def set_multiscale(
+        self, bin_size: Annotated[int, {"bind": _get_available_binsize}]
+    ):
         """
         Set multiscale used for image display.
 
@@ -887,44 +866,17 @@ class CylindraMainWidget(MagicTemplate):
         depth : nm, default is 40 nm
             Depth (Y-length) of the subtomogram to be sampled.
         """
-        binsize = self.layer_image.metadata["current_binsize"]
-        _old_orientations = [spl.orientation for spl in self.tomogram.splines]
+        binsize: int = self.layer_image.metadata["current_binsize"]
         tomo = self.tomogram
-        current_scale = tomo.scale * binsize
-        imgb = tomo.get_multiscale(binsize)
-
-        length_px = tomo.nm2pixel(depth, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
-
-        ori_clockwise = Ori(GVar.clockwise)
-        ori_anticlockwise = Ori.invert(ori_clockwise, allow_none=False)
-        for i, spl in enumerate(self.tomogram.splines):
-            if spl.radius is None:
-                r_range = 0.5, width_px / 2
-            else:
-                r_px = tomo.nm2pixel(spl.radius, binsize=binsize)
-                r_range = (GVar.inner * r_px, GVar.outer * r_px)
-            point = 0.5
-            coords = spl.local_cylindrical(
-                r_range, length_px, point, scale=current_scale
-            )
-            mapped = utils.map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
-            img_flat = ip.asarray(mapped, axes="rya").proj("y")
-            npf = utils.roundint(spl.globalprops[H.nPF][0])
-            pw_peak = img_flat.local_power_spectra(
-                key=ip.slicer.a[npf - 1 : npf + 2],
-                upsample_factor=20,
-                dims="ra",
-            ).proj("a", method=np.max)
-            r_argmax = np.argmax(pw_peak)
-            clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
-            spl.orientation = ori_clockwise if clkwise else ori_anticlockwise
-
+        _old_orientations = [spl.orientation for spl in self.tomogram.splines]
+        _new_orientations = tomo.infer_polarity(binsize=binsize, depth=depth)
+        for i in range(len(tomo.splines)):
+            spl = tomo.splines[i]
+            spl.orientation = _new_orientations[i]
             yield thread_worker.to_callback(
                 _Logger.print, f"Spline {i} was {spl.orientation.name}."
             )
 
-        _new_orientations = [spl.orientation for spl in self.tomogram.splines]
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
         else:
@@ -960,7 +912,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Clip splines")
     def clip_spline(
         self,
-        spline: OneOf[_get_splines],
+        spline: Annotated[int, {"choices": _get_splines}],
         clip_lengths: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """
@@ -975,7 +927,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if spline is None:
             return
-        spl: CylSpline = self.tomogram.splines[spline]
+        spl = self.tomogram.splines[spline]
         _old_lims = spl.lims
         length = spl.length()
         start, stop = np.array(clip_lengths) / length
@@ -1001,7 +953,7 @@ class CylindraMainWidget(MagicTemplate):
         text="Spline has properties. Are you sure to delete it?",
         condition="not (self.tomogram.splines[self.SplineControl.num].localprops is None and self.tomogram.splines[self.SplineControl.num].globalprops is None)",
     )
-    def delete_spline(self, i: Bound[SplineControl.num]):
+    def delete_spline(self, i: Annotated[int, {"bind": SplineControl.num}]):
         """Delete currently selected spline."""
         if i < 0:
             i = len(self.tomogram.splines) - 1
@@ -1038,12 +990,14 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Fit splines")
-    @thread_worker.with_progress(desc="Spline Fitting")
+    @thread_worker.with_progress(desc="Spline Fitting", total="len(splines)")
     def fit_splines(
         self,
-        splines: SomeOf[_get_splines] = (),
+        splines: Annotated[
+            list[int], {"choices": _get_splines, "widget_type": "Select"}
+        ] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
         max_shift: nm = 5.0,
@@ -1119,6 +1073,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Add anchors")
     def add_anchors(
         self,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
     ):  # fmt: skip
         """
@@ -1126,45 +1081,50 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {interval}
+        {splines}{interval}
         """
         tomo = self.tomogram
-        if tomo.n_splines == 0:
+        if len(splines) == 0:
+            splines = list(range(tomo.n_splines))
+        if len(splines) == 0:
             raise ValueError("Cannot add anchors before adding splines.")
-        for i in range(tomo.n_splines):
-            tomo.make_anchors(i, interval=interval)
+        tomo.make_anchors(splines, interval=interval)
         self._update_splines_in_images()
         self._need_save = True
         return None
 
     @Analysis.wraps
     @set_design(text="Set radius")
-    @thread_worker.with_progress(desc="Measuring Radius")
+    @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
     def set_radius(
         self,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         radius: Annotated[Optional[nm], {"text": "Measure radii by radial profile."}] = None,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """Measure cylinder radius for each spline curve."""
-        self.tomogram.set_radius(radius=radius, binsize=bin_size)
+        if len(splines) == 0:
+            splines = list(range(self.tomogram.n_splines))
+        self.tomogram.set_radius(i=splines, radius=radius, binsize=bin_size)
         self._need_save = True
 
         @thread_worker.to_callback
         def _on_return():
-            for i, spl in enumerate(self.tomogram.splines):
+            for i in splines:
+                spl = self.tomogram.splines[i]
                 _Logger.print_html(f"Spline-{i} ... {spl.radius:.2f} nm")
 
         return _on_return
 
     @Splines.wraps
     @set_design(text="Refine splines")
-    @thread_worker.with_progress(desc="Refining splines")
+    @thread_worker.with_progress(desc="Refining splines", total="len(splines)")
     def refine_splines(
         self,
-        splines: SomeOf[_get_splines] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Refine splines using the global cylindric structural parameters.
@@ -1220,7 +1180,10 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Molecules to spline")
     def molecules_to_spline(
         self,
-        layers: SomeOf[get_monomer_layers],
+        layers: Annotated[
+            list[MoleculesLayer],
+            {"choices": get_monomer_layers, "widget_type": "Select"},
+        ],
         interval: Annotated[nm, {"label": "Interval (nm)", "min": 1.0}] = 24.5,
     ):
         """
@@ -1267,16 +1230,14 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Local FT analysis")
-    @thread_worker.with_progress(
-        desc="Local Fourier transform", total="self.tomogram.n_splines"
-    )
+    @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
     def local_ft_analysis(
         self,
-        splines: SomeOf[_get_splines] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         interval: Annotated[nm, {"min": 1.0, "step": 0.5}] = 24.5,
         ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 24.5,
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
+        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+    ):  # fmt: skip
         """
         Determine cylindrical structural parameters by local Fourier transformation.
 
@@ -1309,14 +1270,12 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
-    @thread_worker.with_progress(
-        desc="Global Fourier transform", total="self.tomogram.n_splines"
-    )
+    @thread_worker.with_progress(desc="Global Fourier transform", total="len(splines)")
     def global_ft_analysis(
         self,
-        splines: SomeOf[_get_splines] = (),
-        bin_size: OneOf[_get_available_binsize] = 1,
-    ):
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+    ):  # fmt: skip
         """
         Determine cylindrical global structural parameters by Fourier transformation.
 
@@ -1426,7 +1385,9 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("M")
     def map_monomers(
         self,
-        splines: SomeOf[_get_splines] = (),
+        splines: Annotated[
+            list[int], {"choices": _get_splines, "widget_type": "Select"}
+        ] = (),
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """
@@ -1462,7 +1423,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map centers")
     def map_centers(
         self,
-        splines: SomeOf[_get_splines] = (),
+        splines: Annotated[
+            list[int], {"choices": _get_splines, "widget_type": "Select"}
+        ] = (),
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
@@ -1498,7 +1461,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map alogn PF")
     def map_along_pf(
         self,
-        splines: SomeOf[_get_splines],
+        splines: Annotated[
+            list[int], {"choices": _get_splines, "widget_type": "Select"}
+        ],
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         angle_offset: Annotated[float, {"max": 360}] = 0.0,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
@@ -1600,7 +1565,12 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.Combine.wraps
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(
-        self, layers: SomeOf[get_monomer_layers], delete_old: bool = True
+        self,
+        layers: Annotated[
+            list[MoleculesLayer],
+            {"choices": get_monomer_layers, "widget_type": "Select"},
+        ],
+        delete_old: bool = True,
     ):
         """
         Concatenate selected molecules and create a new ones.
@@ -1655,6 +1625,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     def _get_selected_layer_choice(self, w: Widget) -> list[str]:
+        """When the selected layer is changed, update the list of features."""
         try:
             parent = w.parent.parent()
             if parent is None:
@@ -1671,7 +1642,7 @@ class CylindraMainWidget(MagicTemplate):
     def split_molecules(
         self,
         layer: MoleculesLayer,
-        by: OneOf[_get_selected_layer_choice],
+        by: Annotated[str, {"bind": _get_selected_layer_choice}],
         delete_old: bool = False,
     ):
         """Split molecules by a feature column."""
@@ -1784,7 +1755,7 @@ class CylindraMainWidget(MagicTemplate):
     def paint_molecules(
         self,
         layer: MoleculesLayer,
-        feature_name: OneOf[_get_paint_molecules_choice],
+        feature_name: Annotated[str, {"bind": _get_paint_molecules_choice}],
         low: tuple[float, Color] = (0.0, "#00FFFF"),
         high: tuple[float, Color] = (1.0, "#FF00FF"),
     ):
@@ -2005,7 +1976,7 @@ class CylindraMainWidget(MagicTemplate):
     def seam_search_by_feature(
         self,
         layer: MoleculesLayer,
-        feature_name: OneOf[_get_selected_layer_choice],
+        feature_name: Annotated[str, {"bind": _get_selected_layer_choice}],
     ):
         """
         Search for seams by a feature.
@@ -2160,7 +2131,10 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Back-painting molecules ...")
     def backpaint_molecules(
         self,
-        layers: SomeOf[get_monomer_layers],
+        layers: Annotated[
+            list[MoleculesLayer],
+            {"choices": get_monomer_layers, "widget_type": "Select"},
+        ],
         template_path: Path.Read[FileFilter.IMAGE],
         target_layer: Annotated[Optional[Image], {"text": "Create a new layer"}] = None,
     ):

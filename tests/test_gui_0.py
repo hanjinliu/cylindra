@@ -51,7 +51,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.set_multiscale(1)
     ui.register_path(coords=coords[npf])
     ui.register_path(coords=coords[npf][::-1])
-    ui.cylindrical_fit(interval=24.0)
+    ui.run_workflow(interval=24.0)
     ui.auto_align_to_polarity(align_to="MinusToPlus")
     ui.map_monomers(splines=[0, 1])
 
@@ -108,7 +108,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.pos = 0
     assert_canvas(ui, [False, False, True])
 
-    ui.cylindrical_fit(interval=16.0)
+    ui.run_workflow(interval=16.0)
 
     # check results
     spl = ui.tomogram.splines[0]
@@ -374,7 +374,7 @@ def test_auto_align(ui: CylindraMainWidget):
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
 
-    ui.cylindrical_fit(interval=32.0)
+    ui.run_workflow(interval=32.0)
     ui.auto_align_to_polarity(align_to="MinusToPlus")
     assert ui.tomogram.splines[0].orientation == "MinusToPlus"
     assert ui.tomogram.splines[1].orientation == "MinusToPlus"

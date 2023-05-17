@@ -296,6 +296,8 @@ class Runner(MagicTemplate):
         Check if calculate local properties.
     global_props : bool
         Check if calculate global properties.
+    infer_polarity : bool
+        Check if infer spline polarity after run.
     """
 
     def _get_splines(self, _=None) -> list[tuple[str, int]]:
@@ -334,6 +336,7 @@ class Runner(MagicTemplate):
     local_props = vfield(True, label="Calculate local properties")
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties")
+    infer_polarity = vfield(True, label="Infer polarity")
 
     @all_splines.connect
     def _toggle_spline_list(self, val: bool):

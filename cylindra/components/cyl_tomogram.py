@@ -863,6 +863,53 @@ class CylTomogram(Tomogram):
         return img_st.fft(dims="rya")
 
     @batch_process
+    def infer_polarity(self, i: int = None, binsize: int = 1, depth: nm = 40) -> Ori:
+        """
+        Infer spline polarities using polar 2D image.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
+        depth : nm, default is 40.0
+            Depth of images used to infer polarities.
+
+        Returns
+        -------
+        Ori
+            Orientation of corresponding splines.
+        """
+        current_scale = self.scale * binsize
+        imgb = self.get_multiscale(binsize)
+
+        length_px = self.nm2pixel(depth, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
+
+        spl = self.splines[i]
+        ori_clockwise = Ori(GVar.clockwise)
+        ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
+        if spl.radius is None:
+            r_range = 0.5, width_px / 2
+        else:
+            r_px = self.nm2pixel(spl.radius, binsize=binsize)
+            r_range = (GVar.inner * r_px, GVar.outer * r_px)
+        point = 0.5
+        coords = spl.local_cylindrical(r_range, length_px, point, scale=current_scale)
+        mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
+        img_flat = ip.asarray(mapped, axes="rya").proj("y")
+        npf = roundint(spl.globalprops[H.nPF][0])
+        pw_peak = img_flat.local_power_spectra(
+            key=ip.slicer.a[npf - 1 : npf + 2],
+            upsample_factor=20,
+            dims="ra",
+        ).proj("a", method=np.max)
+        r_argmax = np.argmax(pw_peak)
+        clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
+        return ori_clockwise if clkwise else ori_counterclockwise
+
+    @batch_process
     def straighten(
         self,
         i: int = None,
