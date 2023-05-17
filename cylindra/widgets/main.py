@@ -165,7 +165,7 @@ class CylindraMainWidget(MagicTemplate):
     def __init__(self):
         self.tomogram: CylTomogram = None
         self._current_ft_size: nm = 50.0
-        self._tilt_range: tuple[float, float] | None = None
+        self._tilt_range: "tuple[float, float] | None" = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -298,7 +298,6 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.to_callback
         def _cylindrical_fit_on_return():
-            self.auto_align_to_polarity()
             if local_props or global_props:
                 self.sample_subtomograms()
                 if global_props:
@@ -309,6 +308,7 @@ class CylindraMainWidget(MagicTemplate):
                     )
                     df.columns = [f"Spline-{i}" for i in splines]
                     _Logger.print_table(df, precision=3)
+                self.auto_align_to_polarity()
             if local_props and paint:
                 self.paint_cylinders()
             if global_props:

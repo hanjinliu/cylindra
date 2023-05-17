@@ -451,7 +451,7 @@ class ImageInfo(MagicTemplate):
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
         if tomo.tilt_range is not None:
             deg0, deg1 = tomo.tilt_range
-            tilt_range = f"{deg0:.1f}° —— {deg1:.1f}°"
+            tilt_range = f"{deg0:.1f}° — {deg1:.1f}°"
         else:
             tilt_range = "No missing wedge"
         value = (

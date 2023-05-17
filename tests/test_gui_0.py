@@ -375,7 +375,7 @@ def test_auto_align(ui: CylindraMainWidget):
     ui.register_path(coords=coords_13pf[::-1])
 
     ui.cylindrical_fit(interval=32.0)
-    ui.auto_align_to_polarity(clockwise_is="MinusToPlus", align_to="MinusToPlus")
+    ui.auto_align_to_polarity(align_to="MinusToPlus")
     assert ui.tomogram.splines[0].orientation == "MinusToPlus"
     assert ui.tomogram.splines[1].orientation == "MinusToPlus"
 
