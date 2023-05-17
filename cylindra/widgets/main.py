@@ -144,6 +144,7 @@ class CylindraMainWidget(MagicTemplate):
     # Menu for global variables
     @property
     def global_variables(self):
+        """Return the global variable widget."""
         return self.Others.GlobalVariables
 
     # Toolbar
@@ -164,6 +165,7 @@ class CylindraMainWidget(MagicTemplate):
     def __init__(self):
         self.tomogram: CylTomogram = None
         self._current_ft_size: nm = 50.0
+        self._tilt_range: tuple[float, float] | None = None
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
@@ -485,6 +487,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Bound[_image_loader.path],
         scale: Bound[_image_loader.scale.scale_value] = 1.0,
+        tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
         filter: Bound[_image_loader.filter_reference_image] = True,
     ):
@@ -517,6 +520,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = CylTomogram.imread(
             path=path,
             scale=scale,
+            tilt_range=tilt_range,
             binsize=bin_size,
         )
 

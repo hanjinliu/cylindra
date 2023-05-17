@@ -1,4 +1,5 @@
 import os
+from typing import Annotated
 from magicclass import (
     do_not_record,
     magicclass,
@@ -390,10 +391,19 @@ class ImageLoader(MagicTemplate):
         """
 
         scale_label = vfield("scale (nm)", widget_type="Label")
-        scale_value = vfield(1.0, label="scale (nm)").with_options(
-            min=0.001, step=0.0001, max=10.0
-        )
+        scale_value = vfield(1.0).with_options(min=1e-3, step=1e-4, max=10.0)
         read_header = abstractapi()
+
+    @magicclass(layout="horizontal", labels=False)
+    class tilt_range(MagicTemplate):
+        """Tilt range of the tomogram."""
+
+        tilt_range_label = vfield("tilt range (deg)", widget_type="Label")
+        range = vfield(Optional[tuple[float, float]]).with_options(
+            text="No missing wedge",
+            options=dict(options=dict(min=-90, max=90, step=1)),
+            value=(-60, 60),
+        )
 
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
     filter_reference_image = vfield(True)
@@ -410,12 +420,12 @@ class ImageLoader(MagicTemplate):
         if len(self.bin_size) < 2:
             self.bin_size = [ceilint(0.96 / scale)]
 
-    open_image = abstractapi()
-
     @set_design(text="Preview")
     def preview_image(self):
         """Preview image at the path."""
         return view_image(self.path, parent=self)
+
+    open_image = abstractapi()
 
 
 @magicclass(name="Image info", record=False, widget_type="collapsible", labels=False)
@@ -440,10 +450,16 @@ class ImageInfo(MagicTemplate):
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
+        if tomo.tilt_range is not None:
+            deg0, deg1 = tomo.tilt_range
+            tilt_range = f"{deg0:.1f}° —— {deg1:.1f}°"
+        else:
+            tilt_range = "No missing wedge"
         value = (
             f"File: {source}\n"
             f"Scale: {scale:.4f} nm/pixel\n"
-            f"ZYX-Shape: ({shape_px}), ({shape_nm})"
+            f"ZYX-Shape: ({shape_px}), ({shape_nm})\n"
+            f"Tilt range: {tilt_range}"
         )
         self.text_edit.value = value
 

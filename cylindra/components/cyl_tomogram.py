@@ -9,6 +9,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
 from scipy import ndimage as ndi
+from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
@@ -426,7 +427,6 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
-        # tilt_range: tuple[float, float] | None = None,
         n_rotation: int = 7,
     ) -> FitResult:
         """
@@ -551,14 +551,14 @@ class CylTomogram(Tomogram):
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
-            # zncc = ZNCCAlignment(template.value, tilt_range=tilt_range)
+            zncc = ZNCCAlignment(subtomograms[0].value, tilt_range=self.tilt_range)
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
-            # quat = loader.molecules.quaternion()
+            quat = mole.quaternion()
             for i in range(npoints):
                 img = inputs[i]
-                # img = ip.asarray(zncc.mask_missing_wedge(img.value, quat[i]), like=img)
-                shift = -ip.zncc_maximum(template, img, max_shifts=max_shift_px)
+                tmp = _mask_missing_wedge(template, zncc, quat[i])
+                shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
 
                 rad = np.deg2rad(skew_angles[i])
                 cos, sin = np.cos(rad), np.sin(rad)
@@ -1435,17 +1435,15 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     return np.angle(out)
 
 
-def _invert_if_needed(spl: CylSpline, orientation: Ori | str | None) -> CylSpline:
-    if orientation is not None:
-        orientation = Ori(orientation)
-        if orientation is Ori.none or spl.orientation is Ori.none:
-            raise ValueError(
-                "Either molecules' orientation or the input orientation should "
-                "not be none."
-            )
-        if orientation is not spl.orientation:
-            spl = spl.invert()
-    return spl
+def _mask_missing_wedge(
+    img: ip.ImgArray,
+    zncc: ZNCCAlignment,
+    quat: NDArray[np.float32],
+) -> ip.ImgArray:
+    """Mask the missing wedge of the image and return the real image."""
+    mask3d = zncc._get_missing_wedge_mask(quat)
+    mask = mask3d[:, 0, :]
+    return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
 
 
 def _need_rotation(spl: CylSpline, orientation: Ori | str | None) -> bool:

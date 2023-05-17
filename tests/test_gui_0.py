@@ -47,7 +47,7 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 )
 def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     path = TEST_DIR / f"{npf}pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=[1, 2])
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
     ui.set_multiscale(1)
     ui.register_path(coords=coords[npf])
     ui.register_path(coords=coords[npf][::-1])
@@ -66,11 +66,12 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert old_splines[1] == new_splines[1]
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
+    assert ui.tomogram.tilt_range == (-60, 60)
 
 
 def test_spline_deletion(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
     assert ui.layer_prof.features["spline-id"].values[0] == 0.0
@@ -88,7 +89,7 @@ def test_spline_deletion(ui: CylindraMainWidget):
 
 def test_spline_switch(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.filter_reference_image()
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
@@ -209,7 +210,6 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         layer=ui.parent_viewer.layers["Mono-0"],
         template_path=template_path,
         mask_params=(1, 1),
-        tilt_range=(-60.0, 60.0),
         max_shifts=(1.0, 1.1, 1.0),
         y_rotation=(1.0, 1.0),
         interpolation=1,
@@ -248,7 +248,7 @@ def test_classify_pca(ui: CylindraMainWidget, binsize: int):
 
 def test_clip_spline(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.register_path(coords=coords_13pf)
     spl = ui.tomogram.splines[0]
     length_old = spl.length()
@@ -370,7 +370,7 @@ def test_molecule_features(ui: CylindraMainWidget):
 
 def test_auto_align(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, bin_size=2)
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
 

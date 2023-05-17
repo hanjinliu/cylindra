@@ -30,6 +30,7 @@ class Tomogram:
         self._metadata: dict[str, Any] = {}
         self._image = None
         self._multiscaled = []
+        self._tilt_range = None
 
     def __hash__(self) -> int:
         """Use unsafe hash."""
@@ -61,12 +62,18 @@ class Tomogram:
             raise ValueError("Source file is unknown.")
         return Path(source)
 
+    @property
+    def tilt_range(self) -> tuple[float, float] | None:
+        """Tilt range in degree."""
+        return self._tilt_range
+
     @classmethod
     def from_image(
         cls,
         img: ip.ImgArray | ip.LazyImgArray,
         *,
         scale: float | None = None,
+        tilt_range: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
     ):
         """
@@ -78,6 +85,8 @@ class Tomogram:
             Input image.
         scale : float, optional
             Pixel size in nm. If not given, will try to read from image header.
+        tilt_range : tuple of float, optional
+            Tilt range in degree.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
 
@@ -103,6 +112,7 @@ class Tomogram:
         if source := img.source:
             self._metadata["source"] = source.resolve()
         self._metadata["scale"] = scale
+        self._tilt_range = tilt_range
 
         if isinstance(binsize, int):
             binsize = [binsize]
@@ -116,6 +126,7 @@ class Tomogram:
         path: str | Path,
         *,
         scale: float = None,
+        tilt_range: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
     ) -> Self:
         """
@@ -127,6 +138,8 @@ class Tomogram:
             Path to the image file.
         scale : float, optional
             Pixel size in nm. If not given, will try to read from image header.
+        tilt_range : tuple of float, optional
+            Tilt range in degree.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
 
@@ -136,7 +149,7 @@ class Tomogram:
             Tomogram object with the image that has just been read and multi-scales.
         """
         img = ip.lazy_imread(path, chunks=GVar.daskChunk, name="tomogram").as_float()
-        return cls.from_image(img, scale=scale, binsize=binsize)
+        return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
 
     @property
     def image(self) -> ip.LazyImgArray:
