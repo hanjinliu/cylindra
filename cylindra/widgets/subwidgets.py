@@ -186,7 +186,6 @@ class toolbar(MagicTemplate):
     open_runner = abstractapi()
     sep0 = field(Separator)
     pick_next = abstractapi()
-    auto_center = abstractapi()
 
     @magicmenu(icon=ICON_DIR / "adjust_intervals.svg", record=False)
     class Adjust(MagicTemplate):
@@ -195,19 +194,19 @@ class toolbar(MagicTemplate):
 
         Attributes
         ----------
-        stride : nm
-            Stride length (nm) of auto picker.
-        angle_deviation : float
-            Angle deviation (degree) of auto picker.
-        angle_precision : float
-            Angle precision (degree) of auto picker.
+        interval : nm
+            Interval (nm) of auto picking.
+        max_angle : float
+            Maximum angle (degree) to search in auto picking.
+        angle_step : float
+            Step of angle (degree) to search in auto picking.
         max_shifts : nm
-            Maximum shift (nm) in auto centering.
+            Maximum shift (nm) to search in auto picking.
         """
 
-        stride = vfield(50.0, widget_type="FloatSlider").with_options(min=10, max=100)  # fmt: skip
-        angle_deviation = vfield(12.0, widget_type="FloatSlider").with_options(min=1.0, max=40.0, step=0.5)  # fmt: skip
-        angle_precision = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip
+        interval = vfield(50.0, widget_type="FloatSlider").with_options(min=10, max=100)  # fmt: skip
+        max_angle = vfield(12.0, widget_type="FloatSlider").with_options(min=1.0, max=40.0, step=0.5)  # fmt: skip
+        angle_step = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip
         max_shifts = vfield(20.0).with_options(min=1.0, max=50.0, step=0.5)
 
     sep1 = field(Separator)

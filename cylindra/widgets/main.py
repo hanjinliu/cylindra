@@ -5,7 +5,6 @@ import warnings
 import impy as ip
 import macrokit as mk
 import matplotlib.pyplot as plt
-import napari
 import numpy as np
 import polars as pl
 import pandas as pd
@@ -66,6 +65,7 @@ from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets.sweeper import SplineSweeper
 from cylindra.widgets.simulator import CylinderSimulator
 from cylindra.widgets.measure import SpectraMeasurer
+
 from cylindra.widgets.widget_utils import (
     FileFilter,
     add_molecules,
@@ -2030,9 +2030,9 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def pick_next(self):
         """Automatically pick cylinder center using previous two points."""
-        stride_nm = self.toolbar.Adjust.stride
-        angle_pre = self.toolbar.Adjust.angle_precision
-        angle_dev = self.toolbar.Adjust.angle_deviation
+        stride_nm = self.toolbar.Adjust.interval
+        angle_pre = self.toolbar.Adjust.angle_step
+        angle_dev = self.toolbar.Adjust.max_angle
         max_shifts = self.toolbar.Adjust.max_shifts
         imgb: ip.ImgArray = self.layer_image.data
         binned_scale = imgb.scale.x
@@ -2084,39 +2084,6 @@ class CylindraMainWidget(MagicTemplate):
             self.layer_work.data = self.layer_work.data[:-1]
             raise ValueError(msg)
         change_viewer_focus(self.parent_viewer, point2, binned_scale)
-        return None
-
-    @toolbar.wraps
-    @set_design(icon=ICON_DIR / "auto_center.svg")
-    @bind_key("F4")
-    @do_not_record
-    def auto_center(self):
-        """Auto centering of selected points."""
-        imgb: ip.ImgArray = self.layer_image.data
-        tomo = self.tomogram
-        binsize = utils.roundint(
-            self.layer_image.scale[0] / tomo.scale
-        )  # scale of binned reference image
-        selected = self.layer_work.selected_data
-
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
-
-        shape = (width_px,) + (utils.roundint((width_px + length_px) / 1.41),) * 2
-
-        points = self.layer_work.data / imgb.scale.x
-        last_i = -1
-        for i, point in enumerate(points):
-            if i not in selected:
-                continue
-            img_input = utils.crop_tomogram(imgb, point, shape)
-            angle_deg = utils.angle_corr(img_input, ang_center=0, drot=89.5, nrots=31)
-            utils.centering(img_input, point, angle_deg, drot=3, nrots=7)
-            last_i = i
-
-        self.layer_work.data = points * imgb.scale.x
-        if len(selected) == 1:
-            change_viewer_focus(self.parent_viewer, points[last_i], imgb.scale.x)
         return None
 
     @ImageMenu.wraps

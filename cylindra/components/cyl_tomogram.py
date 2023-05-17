@@ -319,9 +319,9 @@ class CylTomogram(Tomogram):
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # (length + width) / sqrt(2)
         if binsize > 1:
-            centers = spl() - self.multiscale_translation(binsize)
+            centers = spl.map() - self.multiscale_translation(binsize)
         else:
-            centers = spl()
+            centers = spl.map()
         center_px = self.nm2pixel(centers, binsize=binsize)
         size_px = (width_px,) + (roundint((width_px + length_px) / 1.41),) * 2
         input_img = self._get_multiscale_or_original(binsize)
@@ -355,7 +355,7 @@ class CylTomogram(Tomogram):
                     mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
                     subtomograms[i] *= mask
 
-            ds = spl(der=1)
+            ds = spl.map(der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
             degree_max = 14.0
             nrots = roundint(degree_max / degree_precision) + 1
@@ -768,9 +768,8 @@ class CylTomogram(Tomogram):
                 polar = map_coordinates(
                     input_img, coords, order=3, mode=Mode.constant, cval=np.mean
                 )
-                polar = ip.asarray(
-                    polar, axes="rya", dtype=np.float32
-                )  # radius, y, angle
+                # "rya" = radius, y, angle
+                polar = ip.asarray(polar, axes="rya", dtype=np.float32)
                 polar.set_scale(r=_scale, y=_scale, a=_scale)
                 polar.scale_unit = self.image.scale_unit
                 polar[:] -= np.mean(polar)
