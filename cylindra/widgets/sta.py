@@ -1214,6 +1214,7 @@ class SubtomogramAveraging(MagicTemplate):
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
             self._show_reconstruction(avgs, name=f"[PCA]{layer.name}", store=False)
+            parent._active_widgets.add(pca_viewer)
 
         return _on_return
 

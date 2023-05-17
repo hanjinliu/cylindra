@@ -1,6 +1,7 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Any, Literal
+from typing import Annotated, TYPE_CHECKING, Literal
 import warnings
+from weakref import WeakSet
 
 import impy as ip
 import macrokit as mk
@@ -103,6 +104,9 @@ QCommandList {
 @_shared_doc.update_cls
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
+
+    # Weak references of active widgets. Useful for test session teardown.
+    _active_widgets = WeakSet[Widget]()
 
     # Widget for manual spline fitting
     spline_fitter = field(SplineFitter, name="_Spline fitter")

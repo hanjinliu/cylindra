@@ -29,8 +29,7 @@ import napari
 
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
-
-from .. import widget_utils
+from cylindra.widgets.main import CylindraMainWidget, widget_utils
 from ..widget_utils import FileFilter, timer
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
@@ -630,6 +629,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
             self.params._show_reconstruction(
                 avgs, name=f"[PCA]{loader_name}", store=False
             )
+
+            self.find_ancestor(CylindraMainWidget)._active_widgets.add(pca_viewer)
 
         return _on_return
 

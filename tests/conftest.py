@@ -12,6 +12,8 @@ def ui(make_napari_viewer):
     yield _ui
 
     _ui._disconnect_layerlist_events()
+    for _w in _ui._active_widgets:
+        _w.close()
     _ui.close()
     if sv := _ui.sta.sub_viewer:
         sv.close()
