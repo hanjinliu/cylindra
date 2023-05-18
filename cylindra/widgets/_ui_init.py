@@ -208,6 +208,8 @@ def _(self, gui):
 def _(self, gui):
     @gui.layer.changed.connect
     def _on_layer_change(layer: MoleculesLayer):
+        if layer is None:
+            return None
         try:
             npf = layer.features[Mole.pf].max() + 1
         except KeyError:

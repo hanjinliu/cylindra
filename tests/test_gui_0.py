@@ -42,6 +42,12 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
         assert (arr[0], arr[-1]) == ("+", "-")
 
 
+def test_click_buttons(ui: CylindraMainWidget):
+    from magicclass.testing import assert_function_gui_buildable
+
+    assert_function_gui_buildable(ui)
+
+
 @pytest.mark.parametrize(
     "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]
 )
@@ -201,13 +207,13 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.align_averaged(
-        layer=ui.parent_viewer.layers["Mono-0"],
+        layers=[ui.parent_viewer.layers["Mono-0"]],
         template_path=template_path,
         mask_params=(1, 1),
         bin_size=bin_size,
     )
     ui.sta.align_all(
-        layer=ui.parent_viewer.layers["Mono-0"],
+        layers=[ui.parent_viewer.layers["Mono-0"]],
         template_path=template_path,
         mask_params=(1, 1),
         max_shifts=(1.0, 1.1, 1.0),
@@ -220,16 +226,15 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         template_path=template_path,
         mask_params=(1, 1),
     )
-    ui.save_molecules(
-        layer=ui.parent_viewer.layers["Mono-0"], save_path=TEST_DIR / "monomers.txt"
-    )
-    mole = ui.get_molecules("Mono-0")
-
-    ui.load_molecules(TEST_DIR / "monomers.txt")
-    mole_read = ui.get_molecules("monomers")
-    assert_molecule_equal(mole, mole_read)
 
     with tempfile.TemporaryDirectory() as dirpath:
+        molepath = Path(dirpath) / "monomers.txt"
+        ui.save_molecules(layer=ui.parent_viewer.layers["Mono-0"], save_path=molepath)
+        mole = ui.get_molecules("Mono-0")
+        ui.load_molecules(molepath)
+        mole_read = ui.get_molecules("monomers")
+        assert_molecule_equal(mole, mole_read)
+
         ui.sta.save_last_average(dirpath)
 
 

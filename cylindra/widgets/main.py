@@ -1684,7 +1684,7 @@ class CylindraMainWidget(MagicTemplate):
     def split_molecules(
         self,
         layer: MoleculesLayer,
-        by: Annotated[str, {"bind": _get_selected_layer_choice}],
+        by: Annotated[str, {"choices": _get_selected_layer_choice}],
         delete_old: bool = False,
     ):
         """Split molecules by a feature column."""
@@ -1802,7 +1802,7 @@ class CylindraMainWidget(MagicTemplate):
     def paint_molecules(
         self,
         layer: MoleculesLayer,
-        feature_name: Annotated[str, {"bind": _get_paint_molecules_choice}],
+        feature_name: Annotated[str, {"choices": _get_paint_molecules_choice}],
         low: tuple[float, Color] = (0.0, "#00FFFF"),
         high: tuple[float, Color] = (1.0, "#FF00FF"),
     ):
@@ -2025,7 +2025,7 @@ class CylindraMainWidget(MagicTemplate):
     def seam_search_by_feature(
         self,
         layer: MoleculesLayer,
-        feature_name: Annotated[str, {"bind": _get_selected_layer_choice}],
+        feature_name: Annotated[str, {"choices": _get_selected_layer_choice}],
     ):
         """
         Search for seams by a feature.
