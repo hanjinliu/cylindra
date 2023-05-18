@@ -1,0 +1,9 @@
+QCommandLineEdit {
+    font-family: "Arial";
+    font-size: 15px;
+}
+
+QCommandList {
+    font-family: "Arial";
+    font-size: 15px;
+}

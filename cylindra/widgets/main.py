@@ -28,7 +28,7 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import Color, OneOf, Optional, Path, ExprStr
+from magicclass.types import Color, Optional, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
@@ -84,16 +84,7 @@ SELF = mk.Mock("self")
 _Logger = getLogger("cylindra")
 
 # stylesheet
-_STYLE = """
-QCommandLineEdit {
-    font-family: "Arial";
-    font-size: 15px;
-}
-QCommandList {
-    font-family: "Arial";
-    font-size: 15px;
-}
-"""
+_STYLE = (Path(__file__).parent / "style.qss").read_text()
 
 ############################################################################################
 #   The Main Widget of cylindra
