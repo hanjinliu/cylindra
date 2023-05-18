@@ -127,7 +127,7 @@ class MaskParameters(MagicTemplate):
     """
 
     dilate_radius = vfield(0.3, record=False).with_options(max=20, step=0.1)
-    sigma = vfield(0.3, record=False).with_options(max=20, step=0.1)
+    sigma = vfield(0.8, record=False).with_options(max=20, step=0.1)
 
 
 @magicclass(layout="horizontal", widget_type="frame", visible=False, record=False)

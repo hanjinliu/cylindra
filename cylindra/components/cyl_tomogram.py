@@ -899,7 +899,17 @@ class CylTomogram(Tomogram):
         coords = spl.local_cylindrical(r_range, length_px, point, scale=current_scale)
         mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
         img_flat = ip.asarray(mapped, axes="rya").proj("y")
-        npf = roundint(spl.globalprops[H.nPF][0])
+
+        if spl.globalprops is not None:
+            # if the global properties are already calculated, use it
+            npf = roundint(spl.globalprops[H.nPF][0])
+        else:
+            # otherwise, calculate the number of PFs from the power spectrum
+            ft = img_flat.fft(shift=False, dims="ra")
+            pw = ft.real**2 + ft.imag**2
+            img_pw = np.mean(pw, axis=0)
+            npf = np.argmax(img_pw[GVar.nPFmin : GVar.nPFmax + 1]) + GVar.nPFmin
+
         pw_peak = img_flat.local_power_spectra(
             key=ip.slicer.a[npf - 1 : npf + 2],
             upsample_factor=20,

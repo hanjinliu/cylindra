@@ -44,7 +44,6 @@ from cylindra.const import (
     WORKING_LAYER_NAME,
     GlobalVariables as GVar,
     IDName,
-    Mode,
     PropertyNames as H,
     MoleculesHeader as Mole,
     Ori,
@@ -261,7 +260,7 @@ class CylindraMainWidget(MagicTemplate):
         if self.tomogram.n_splines == 0:
             raise ValueError("No spline found.")
         elif len(splines) == 0:
-            splines = range(self.tomogram.n_splines)
+            splines = list(range(self.tomogram.n_splines))
         self._runner.close()
 
         self.fit_splines(
@@ -280,12 +279,12 @@ class CylindraMainWidget(MagicTemplate):
         self.add_anchors(splines=splines, interval=interval)
         if local_props:
             self.local_ft_analysis(splines=splines, ft_size=ft_size, bin_size=bin_size)
+        if infer_polarity:
+            self.auto_align_to_polarity()
         if global_props:
             self.global_ft_analysis(splines=splines, bin_size=bin_size)
         if local_props and paint:
             self.paint_cylinders()
-        if infer_polarity:
-            self.auto_align_to_polarity()
         self._current_ft_size = ft_size
         self._need_save = True
         return None
@@ -653,7 +652,7 @@ class CylindraMainWidget(MagicTemplate):
     )
     def add_multiscale(
         self,
-        bin_size: Annotated[int, {"bind": list(range(2, 17))}] = 4,
+        bin_size: Annotated[int, {"choices": list(range(2, 17))}] = 4,
     ):
         """
         Add a new multi-scale image of current tomogram.
@@ -671,7 +670,7 @@ class CylindraMainWidget(MagicTemplate):
     @ImageMenu.wraps
     @set_design(text="Set multi-scale")
     def set_multiscale(
-        self, bin_size: Annotated[int, {"bind": _get_available_binsize}]
+        self, bin_size: Annotated[int, {"choices": _get_available_binsize}]
     ):
         """
         Set multiscale used for image display.
@@ -992,7 +991,7 @@ class CylindraMainWidget(MagicTemplate):
             list[int], {"choices": _get_splines, "widget_type": "Select"}
         ] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
         max_shift: nm = 5.0,
@@ -1095,7 +1094,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         radius: Annotated[Optional[nm], {"text": "Measure radii by radial profile."}] = None,
-        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """Measure cylinder radius for each spline curve."""
         if len(splines) == 0:
@@ -1119,7 +1118,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
-        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Refine splines using the global cylindric structural parameters.
@@ -1231,7 +1230,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         interval: Annotated[nm, {"min": 1.0, "step": 0.5}] = 24.5,
         ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 24.5,
-        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Determine cylindrical structural parameters by local Fourier transformation.
@@ -1269,7 +1268,7 @@ class CylindraMainWidget(MagicTemplate):
     def global_ft_analysis(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
-        bin_size: Annotated[int, {"bind": _get_available_binsize}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Determine cylindrical global structural parameters by Fourier transformation.
@@ -1291,7 +1290,12 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
-            df = self.tomogram.collect_globalprops().to_pandas().transpose()
+            df = (
+                self.tomogram.collect_globalprops()
+                .drop(IDName.spline)
+                .to_pandas()
+                .transpose()
+            )
             df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
