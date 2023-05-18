@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal, Sequence
+from typing import Annotated, TYPE_CHECKING, Any, Literal, Sequence
 import warnings
 from weakref import WeakSet
 
@@ -28,7 +28,7 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import Bound, Color, OneOf, Optional, Path, ExprStr
+from magicclass.types import Color, OneOf, Optional, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
@@ -210,7 +210,9 @@ class CylindraMainWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
     @bind_key("F1")
-    def register_path(self, coords: Bound[_get_spline_coordinates] = None):
+    def register_path(
+        self, coords: Annotated[Any, {"bind": _get_spline_coordinates}] = None
+    ):
         """Register current selected points as a spline path."""
         if coords is None:
             _coords = self.layer_work.data
@@ -462,12 +464,12 @@ class CylindraMainWidget(MagicTemplate):
     )
     def open_image(
         self,
-        path: Bound[_image_loader.path],
-        scale: Bound[_image_loader.scale.scale_value] = 1.0,
-        tilt_range: Bound[_image_loader.tilt_range.range] = None,
-        bin_size: Bound[_image_loader.bin_size] = [1],
-        filter: Bound[_image_loader.filter_reference_image] = True,
-    ):
+        path: Annotated[Path, {"bind": _image_loader.path}],
+        scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = 1.0,
+        tilt_range: Annotated[tuple[float, float] | None, {"bind": _image_loader.tilt_range.range}] = None,
+        bin_size: Annotated[list[int], {"bind": _image_loader.bin_size}] = [1],
+        filter: Annotated[bool, {"bind": _image_loader.filter_reference_image}] = True,
+    ):  # fmt: skip
         """
         Load an image file and process it before sending it to the viewer.
 
@@ -493,6 +495,8 @@ class CylindraMainWidget(MagicTemplate):
             bin_size = [bin_size]
         elif len(bin_size) == 0:
             raise ValueError("You must specify at least one bin size.")
+        else:
+            bin_size = list(bin_size)
         bin_size = list(set(bin_size))  # delete duplication
         tomo = CylTomogram.imread(
             path=path,
@@ -781,7 +785,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.Orientation.wraps
     @set_design(text="Invert spline")
-    def invert_spline(self, spline: Bound[SplineControl.num] = None):
+    def invert_spline(self, spline: Annotated[int, {"bind": SplineControl.num}] = None):
         """
         Invert current displayed spline **in place**.
 
@@ -1740,8 +1744,13 @@ class CylindraMainWidget(MagicTemplate):
         expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
         out = mole.filter(expr)
         name = f"{layer.name}-Filt"
-        self.add_molecules(out, name=name, source=layer.source_component)
-        return mole
+        layer = self.add_molecules(out, name=name, source=layer.source_component)
+
+        return (
+            undo_callback(self._try_removing_layer)
+            .with_args(layer)
+            .with_redo(self._add_layers_future(layer))
+        )
 
     def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
@@ -1831,14 +1840,13 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(f"Unknown backend: {backend!r}")
 
         for i in range(mole.count()):
-            circ = Circle(
-                (pf[i], y[i]), radius=0.5, fc=face_color[i], ec="black", lw=0.1
-            )
+            center = (pf[i], y[i])
+            circ = Circle(center, 0.5, fc=face_color[i], ec="black", lw=0.1)
             ax.add_patch(circ)
         ax.set_xlim(pf.min() - 0.6, pf.max() + 0.6)
         ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
         ax.set_aspect("equal")
-        return None
+        return undo_callback(lambda: _Logger.print("Undoing plotting does nothing"))
 
     @MoleculesMenu.Visualize.wraps
     @set_design(text="Show colorbar")
@@ -1875,7 +1883,9 @@ class CylindraMainWidget(MagicTemplate):
                 plt.yticks([], [])
 
             plt.show()
-        return None
+        return undo_callback(
+            lambda: _Logger.print("Undoing `show_molecules_colorbar` does nothing")
+        )
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
@@ -1915,7 +1925,7 @@ class CylindraMainWidget(MagicTemplate):
             new_feat = feat.with_columns(pl.Series(column_name, pl_expr))
         layer.features = new_feat
         self.reset_choices()  # choices regarding of features need update
-        return None
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
@@ -1998,7 +2008,7 @@ class CylindraMainWidget(MagicTemplate):
         layer.features = layer.molecules.features.with_columns(
             pl.Series(Mole.isotype, res % 2)
         )
-        return None
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "pick_next.svg")
@@ -2117,13 +2127,14 @@ class CylindraMainWidget(MagicTemplate):
                     scale=self.layer_image.scale,
                     translate=self.layer_image.translate,
                     opacity=0.33,
-                    name="Label",
+                    name="Cylinder properties",
                     features=props,
                 )
             else:
                 self.layer_paint.data = lbl
                 self.layer_paint.features = props
             self._update_colormap()
+            return
 
         return _on_return
 
@@ -2201,7 +2212,7 @@ class CylindraMainWidget(MagicTemplate):
         start: Color = "#00FFFF",
         end: Color = "#FF00FF",
         limit: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"}] = (4.00, 4.24),
-        color_by: OneOf[H.yPitch, H.skewAngle, H.nPF, H.riseAngle] = H.yPitch,
+        color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]}] = H.yPitch,
     ):  # fmt: skip
         """
         Set the color-map for painting cylinders.
@@ -2715,3 +2726,10 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
         )
 
     return mk.Expr(mk.Head.block, exprs)
+
+
+def _set_layer_feature_future(layer: MoleculesLayer, features):
+    def _wrapper():
+        layer.features = features
+
+    return _wrapper
