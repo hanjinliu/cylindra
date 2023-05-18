@@ -630,7 +630,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 avgs, name=f"[PCA]{loader_name}", store=False
             )
 
-            self.find_ancestor(CylindraMainWidget)._active_widgets.add(pca_viewer)
+            CylindraMainWidget._active_widgets.add(pca_viewer)
 
         return _on_return
 
