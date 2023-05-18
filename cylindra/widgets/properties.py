@@ -108,8 +108,10 @@ class LocalPropertiesWidget(MagicTemplate):
         return None
 
     def _plot_spline_position(self, x: float):
-        self.plot[0].layers[-1].pos = [x, 0]
-        self.plot[1].layers[-1].pos = [x, 0]
+        if len(self.plot[0].layers) > 0:
+            self.plot[0].layers[-1].pos = [x, 0]
+        if len(self.plot[1].layers) > 0:
+            self.plot[1].layers[-1].pos = [x, 0]
         xmin, xmax = self.plot[0].xlim
         if x < xmin or xmax < x:
             dx = xmax - xmin

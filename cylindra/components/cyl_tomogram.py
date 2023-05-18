@@ -1,10 +1,20 @@
 from __future__ import annotations
 import logging
-from typing_extensions import ParamSpec, Concatenate
-
-from typing import Callable, Any, TypeVar, overload, Protocol, TYPE_CHECKING, NamedTuple
+from typing import (
+    Callable,
+    Any,
+    Iterator,
+    TypeVar,
+    overload,
+    Protocol,
+    TYPE_CHECKING,
+    NamedTuple,
+    MutableSequence,
+)
 from collections.abc import Iterable
 from functools import partial, wraps
+
+from typing_extensions import ParamSpec, Concatenate
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
@@ -154,15 +164,69 @@ class FitResult(NamedTuple):
         return cls(residual=residual, rmsd=rmsd(residual))
 
 
+class SplineList(MutableSequence[CylSpline]):
+    def __init__(self, iterable=()) -> None:
+        self._list: list[CylSpline] = list(iterable)
+
+    @overload
+    def __getitem__(self, i: int) -> CylSpline:
+        ...
+
+    @overload
+    def __getitem__(self, i: int) -> list[CylSpline]:
+        ...
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            return list(self._list[i])
+        return self._list[i]
+
+    def __setitem__(self, i: int, spl: CylSpline) -> None:
+        if not isinstance(spl, CylSpline):
+            raise TypeError(f"Cannot add {type(spl)} to SplineList")
+        self._list[i] = spl
+
+    def __delitem__(self, i: int) -> None:
+        del self._list[i]
+
+    def __len__(self) -> int:
+        return len(self._list)
+
+    def insert(self, i: int, spl: CylSpline) -> None:
+        if not isinstance(spl, CylSpline):
+            raise TypeError(f"Cannot add {type(spl)} to SplineList")
+        self._list.insert(i, spl)
+
+    def __iter__(self) -> Iterator[CylSpline]:
+        return iter(self._list)
+
+    def index(self, value: CylSpline, start: int = 0, stop: int = 9999999) -> int:
+        for i, spl in enumerate(self._list):
+            if i < start:
+                continue
+            if spl is value:
+                return i
+            if i >= stop:
+                break
+        raise ValueError(f"{value} is not in list")
+
+    def remove(self, value: CylSpline) -> None:
+        i = self.index(value)
+        del self[i]
+
+    def copy(self) -> SplineList:
+        return SplineList(self._list)
+
+
 class CylTomogram(Tomogram):
     """Tomogram with cylindrical splines."""
 
     def __init__(self):
         super().__init__()
-        self._splines: list[CylSpline] = []
+        self._splines = SplineList()
 
     @property
-    def splines(self) -> list[CylSpline]:
+    def splines(self) -> SplineList:
         """List of splines."""
         return self._splines
 
