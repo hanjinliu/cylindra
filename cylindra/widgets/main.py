@@ -941,11 +941,18 @@ class CylindraMainWidget(MagicTemplate):
 
         return out
 
+    def _confirm_delete(self):
+        i = self.SplineControl.num
+        return not (
+            self.tomogram.splines[i].localprops is None
+            and self.tomogram.splines[i].globalprops is None
+        )
+
     @Splines.wraps
     @set_design(text="Delete spline")
     @confirm(
         text="Spline has properties. Are you sure to delete it?",
-        condition="not (self.tomogram.splines[self.SplineControl.num].localprops is None and self.tomogram.splines[self.SplineControl.num].globalprops is None)",
+        condition=_confirm_delete,
     )
     def delete_spline(self, i: Annotated[int, {"bind": SplineControl.num}]):
         """Delete currently selected spline."""
@@ -967,7 +974,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         self.layer_prof.features = new_features
         self.layer_prof.feature_defaults[SPLINE_ID] = len(self.tomogram.splines)
-        if self.SplineControl.need_resample:
+        if self.SplineControl.need_resample and len(self.tomogram.splines) > 0:
             self.sample_subtomograms()
         self._need_save = True
 
