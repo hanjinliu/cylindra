@@ -14,18 +14,34 @@ def fmt_layer(fmt: str):
     return _formatter
 
 
-def align_averaged_fmt(layer: "Layer"):
-    yield f"(0/3) Preparing template images for {layer.name!r}"
-    yield f"(1/3) Subtomogram averaging of {layer.name!r}"
-    yield f"(2/3) Aligning template to the average image of {layer.name!r}"
-    yield "(3/3) Finishing"
+def fmt_layers(fmt: str):
+    """Define a formatter for progressbar description."""
+
+    def _formatter(layers: "list[Layer]"):
+        if len(layers) == 1:
+            return fmt.format(repr(layers[0].name))
+        return fmt.format(f"{len(layers)} layers")
+
+    return _formatter
 
 
-def align_template_free_fmt(layer: "Layer"):
-    yield f"(0/4) Caching subtomograms of {layer.name!r}"
-    yield f"(1/4) Preparing template images for {layer.name!r}"
-    yield f"(2/4) Averaging subtomograms of {layer.name!r}"
-    yield f"(3/4) Aligning subtomograms of {layer.name!r}"
+def align_averaged_fmt(layers: "list[Layer]"):
+    n = len(layers)
+    total = 3 * n + 1
+    yield f"(0/{total}) Preparing template images for alignment"
+    for i in range(n):
+        name = layers[i].name
+        yield f"({i * 3 + 1}/{total}) Subtomogram averaging of {name!r}"
+        yield f"({i * 3 + 2}/{total}) Aligning template to the average image of {name!r}"
+        yield f""  # The actual yield statement is in the function
+    yield f"({total}/{total}) Finishing"
+
+
+def align_template_free_fmt():
+    yield "(0/4) Caching subtomograms of"
+    yield "(1/4) Preparing template images for"
+    yield "(2/4) Averaging subtomograms of"
+    yield "(3/4) Aligning subtomograms of"
     yield "(4/4) Finishing"
 
 

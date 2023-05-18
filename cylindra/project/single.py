@@ -270,7 +270,8 @@ class CylindraProject(BaseProject):
             gui._send_tomogram_to_viewer(filt=filter)
 
             if splines:
-                gui.tomogram._splines = splines
+                gui.tomogram.splines.clear()
+                gui.tomogram.splines.extend(splines)
                 gui._update_splines_in_images()
                 with gui.macro.blocked():
                     gui.sample_subtomograms()

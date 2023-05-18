@@ -661,6 +661,7 @@ class CylTomogram(Tomogram):
         float (nm)
             Cylinder radius.
         """
+        LOGGER.info(f"Running: {self.__class__.__name__}.set_radius, i={i}")
         spl = self.splines[i]
 
         if radius is not None:
@@ -709,6 +710,7 @@ class CylTomogram(Tomogram):
         # prof[0] is radial profile at r=0.5 (not r=0.0)
         r_peak_sub = (imax_sub + 0.5) / nbin * r_max
         spl.radius = r_peak_sub
+        LOGGER.info(f" >> Radius = {r_peak_sub:.3f} nm")
         return r_peak_sub
 
     @batch_process

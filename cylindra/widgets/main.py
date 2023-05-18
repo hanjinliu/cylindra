@@ -1021,14 +1021,16 @@ class CylindraMainWidget(MagicTemplate):
         if len(splines) == 0:
             splines = list(range(tomo.n_splines))
         old_splines = {i: tomo.splines[i].copy() for i in splines}
-        tomo.fit(
-            splines,
-            max_interval=max_interval,
-            binsize=bin_size,
-            degree_precision=degree_precision,
-            edge_sigma=edge_sigma,
-            max_shift=max_shift,
-        )
+        for i in splines:
+            tomo.fit(
+                i,
+                max_interval=max_interval,
+                binsize=bin_size,
+                degree_precision=degree_precision,
+                edge_sigma=edge_sigma,
+                max_shift=max_shift,
+            )
+            yield thread_worker.to_callback(self._update_splines_in_images)
         new_splines = {i: tomo.splines[i].copy() for i in splines}
         self._need_save = True
 
@@ -1106,16 +1108,22 @@ class CylindraMainWidget(MagicTemplate):
         """Measure cylinder radius for each spline curve."""
         if len(splines) == 0:
             splines = list(range(self.tomogram.n_splines))
-        self.tomogram.set_radius(i=splines, radius=radius, binsize=bin_size)
+        old_radius = {i: self.tomogram.splines[i].radius for i in splines}
+        new_radius = {}
+        for i in splines:
+            radius = self.tomogram.set_radius(i, radius=radius, binsize=bin_size)
+            yield
+            new_radius[i] = radius
         self._need_save = True
 
-        @thread_worker.to_callback
-        def _on_return():
-            for i in splines:
-                spl = self.tomogram.splines[i]
-                _Logger.print_html(f"Spline-{i} ... {spl.radius:.2f} nm")
+        def _set_radius(radius_dict: dict[int, nm]):
+            def wrapper():
+                for i, radius in radius_dict.items():
+                    self.tomogram.splines[i].radius = radius
 
-        return _on_return
+            return wrapper
+
+        return undo_callback(_set_radius(new_radius)).with_redo(_set_radius(old_radius))
 
     @Splines.wraps
     @set_design(text="Refine splines")
@@ -1143,12 +1151,15 @@ class CylindraMainWidget(MagicTemplate):
             splines = list(range(tomo.n_splines))
 
         old_splines = {i: tomo.splines[i].copy() for i in splines}
-        tomo.refine(
-            splines,
-            max_interval=max_interval,
-            corr_allowed=corr_allowed,
-            binsize=bin_size,
-        )
+        for i in splines:
+            tomo.refine(
+                i,
+                max_interval=max_interval,
+                corr_allowed=corr_allowed,
+                binsize=bin_size,
+            )
+            yield thread_worker.to_callback(self._update_splines_in_images)
+
         new_splines = {i: tomo.splines[i].copy() for i in splines}
 
         self._need_save = True
@@ -2136,7 +2147,7 @@ class CylindraMainWidget(MagicTemplate):
                 self.layer_paint.data = lbl
                 self.layer_paint.features = props
             self._update_colormap()
-            return
+            return undo_callback(lambda: None)  # TODO: undo paint
 
         return _on_return
 
