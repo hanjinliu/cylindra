@@ -28,7 +28,7 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import Color, Optional, Path, ExprStr
+from magicclass.types import Color, Optional, Path, ExprStr, Bound
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
@@ -455,11 +455,11 @@ class CylindraMainWidget(MagicTemplate):
     )
     def open_image(
         self,
-        path: Annotated[Path, {"bind": _image_loader.path}],
-        scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = 1.0,
-        tilt_range: Annotated[tuple[float, float] | None, {"bind": _image_loader.tilt_range.range}] = None,
-        bin_size: Annotated[list[int], {"bind": _image_loader.bin_size}] = [1],
-        filter: Annotated[bool, {"bind": _image_loader.filter_reference_image}] = True,
+        path: Bound[_image_loader.path],
+        scale: Bound[_image_loader.scale.scale_value] = 1.0,
+        tilt_range: Bound[_image_loader.tilt_range.range] = None,
+        bin_size: Bound[_image_loader.bin_size] = [1],
+        filter: Bound[_image_loader.filter_reference_image] = True,
     ):  # fmt: skip
         """
         Load an image file and process it before sending it to the viewer.
