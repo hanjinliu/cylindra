@@ -947,6 +947,7 @@ class CylTomogram(Tomogram):
         Ori
             Orientation of corresponding splines.
         """
+        LOGGER.info(f"Running: {self.__class__.__name__}.infer_polarity, i={i}")
         current_scale = self.scale * binsize
         imgb = self.get_multiscale(binsize)
 
@@ -983,7 +984,16 @@ class CylTomogram(Tomogram):
         ).proj("a", method=np.max)
         r_argmax = np.argmax(pw_peak)
         clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
-        return ori_clockwise if clkwise else ori_counterclockwise
+        ori = ori_clockwise if clkwise else ori_counterclockwise
+
+        # logging
+        _val = pw_peak[r_argmax]
+        pw_non_peak = np.delete(pw_peak, r_argmax)
+        _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
+        LOGGER.info(
+            f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})"
+        )
+        return ori
 
     @batch_process
     def straighten(

@@ -867,9 +867,7 @@ class CylindraMainWidget(MagicTemplate):
         for i in range(len(tomo.splines)):
             spl = tomo.splines[i]
             spl.orientation = _new_orientations[i]
-            yield thread_worker.to_callback(
-                _Logger.print, f"Spline {i} was {spl.orientation.name}."
-            )
+            yield
 
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
@@ -1272,13 +1270,25 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
+        def _set_props(props: dict[int, pl.DataFrame]):
+            def wrapper():
+                for i, df in props.items():
+                    tomo.splines[i].localprops = df
+                return None
+
+            return wrapper
+
+        old_props: dict[int, pl.DataFrame] = {}
+        new_props: dict[int, pl.DataFrame] = {}
         for i in splines:
+            spl = tomo.splines[i]
+            old_props[i] = spl.localprops
             tomo.make_anchors(i=i, interval=interval)
-            tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
+            new_props[i] = tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
             yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size
         self._need_save = True
-        return None
+        return undo_callback(_set_props(new_props)).with_redo(_set_props(old_props))
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
@@ -1306,8 +1316,17 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
+        def _set_props(props: dict[int, pl.DataFrame]):
+            def wrapper():
+                for i, df in props.items():
+                    tomo.splines[i].globalprops = df
+                return None
+
+            return wrapper
+
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
+            # show all in a table
             df = (
                 self.tomogram.collect_globalprops()
                 .drop(IDName.spline)
@@ -1318,10 +1337,16 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
 
+            return undo_callback(_set_props(old_props)).with_redo(_set_props(new_props))
+
+        old_props: dict[int, pl.DataFrame] = {}
+        new_props: dict[int, pl.DataFrame] = {}
         for i in splines:
-            if tomo.splines[i].radius is None:
+            spl = tomo.splines[i]
+            old_props[i] = spl.globalprops
+            if spl.radius is None:
                 tomo.set_radius(i=i)
-            tomo.global_ft_params(i=i, binsize=bin_size)
+            new_props[i] = tomo.global_ft_params(i=i, binsize=bin_size)
             yield _global_ft_analysis_on_yield(i)
         self._need_save = True
         return _global_ft_analysis_on_return
