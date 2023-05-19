@@ -203,12 +203,12 @@ class CylinderLabels(Labels):
 
 
 def _normalize_colormap(cmap) -> Colormap:
-    from napari.utils import Colormap
+    from napari.utils.colormaps import Colormap, ensure_colormap
 
     if isinstance(cmap, Colormap):
         return cmap
     if isinstance(cmap, str):
-        return Colormap(cmap)
+        return ensure_colormap(cmap)
 
     cmap = dict(cmap)
     if 0.0 not in cmap:

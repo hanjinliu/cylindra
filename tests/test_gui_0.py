@@ -3,6 +3,8 @@ import tempfile
 
 from numpy.testing import assert_allclose
 from acryo import Molecules
+from magicclass import testing as mcls_testing
+
 from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
@@ -43,15 +45,11 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 
 
 def test_click_buttons(ui: CylindraMainWidget):
-    from magicclass.testing import check_function_gui_buildable
-
-    check_function_gui_buildable(ui)
+    mcls_testing.check_function_gui_buildable(ui)
 
 
 def test_tooltip(ui: CylindraMainWidget):
-    from magicclass.testing import check_tooltip
-
-    check_tooltip(ui)
+    mcls_testing.check_tooltip(ui)
 
 
 @pytest.mark.parametrize(
@@ -71,7 +69,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     ui.save_project(save_path)
-    ui.load_project(save_path)
+    ui.load_project(save_path, filter=True)
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     assert old_splines[0] == new_splines[0]
@@ -193,14 +191,41 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
 
 
-def test_set_colormaps(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF)
+def test_set_label_colormaps(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     ui.set_colormap(color_by="skewAngle", cmap="viridis", limits=(-1, 1))
+
+
+def test_set_molecule_colormap(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.paint_molecules(
+        ui.parent_viewer.layers["Mono-0"],
+        "nth",
+        {0: "blue", 1: "yellow"},
+        (0, 10),
+    )
+
+
+def test_preview(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer + 1
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
+    tester = mcls_testing.FunctionGuiTester(ui.extend_molecules)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer + 1
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
-    ui.load_project(PROJECT_DIR_13PF)
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
@@ -252,7 +277,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 @pytest_group("classify", maxfail=1)
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
-    ui.load_project(PROJECT_DIR_13PF)
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     ui.sta.classify_pca(
         ui.parent_viewer.layers["Mono-0"],
         mask_params=None,
@@ -301,11 +326,9 @@ def test_simulator(ui: CylindraMainWidget):
 
 @pytest_group("simulate", maxfail=1)
 def test_simulate_tomogram(ui: CylindraMainWidget):
-    ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
-    ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
-    ui.cylinder_simulator.set_current_spline(idx=0)
+    ui.cylinder_simulator.create_straight_line(25, (40, 42, 42), scale=0.5)
     ui.cylinder_simulator.update_model(
-        interval=4.1,
+        interval=4.06,
         skew=-0.31,
         rise=10.5,
         npf=14,
@@ -331,9 +354,9 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
 
 @pytest_group("simulate", maxfail=1)
 def test_simulate_tilt_series(ui: CylindraMainWidget):
-    ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
-    ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
-    ui.cylinder_simulator.set_current_spline(idx=0)
+    ui.cylinder_simulator.create_straight_line(
+        25, (40, 42, 42), scale=0.5, yxrotation=10
+    )
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
@@ -355,12 +378,12 @@ def test_project_viewer():
 
 
 def test_show_orientation(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF)
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     ui.show_orientation(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_merge_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF)
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     ui.merge_molecule_info(
         pos=ui.parent_viewer.layers["Mono-0"],
         rotation=ui.parent_viewer.layers["Mono-1"],
@@ -371,7 +394,7 @@ def test_merge_molecules(ui: CylindraMainWidget):
 
 
 def test_molecule_features(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF)
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     ui.show_molecule_features()
     ui.filter_molecules(
         layer=ui.parent_viewer.layers["Mono-0"], predicate='pl.col("position-nm") < 9.2'
@@ -397,7 +420,7 @@ def test_auto_align(ui: CylindraMainWidget):
 
 
 def test_molecules_to_spline(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF)
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
     assert len(ui.tomogram.splines) == 2
     ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]], interval=20)
     assert len(ui.tomogram.splines) == 2
@@ -417,7 +440,7 @@ def test_calc_intervals(
     invert: bool,
     orientation: str,
 ):
-    ui.load_project(path)
+    ui.load_project(path, filter=False)
     spacing = ui.tomogram.splines[0].globalprops[H.yPitch][0]
     npf = ui.tomogram.splines[0].globalprops[H.nPF][0]
     if invert:
@@ -440,7 +463,7 @@ def test_calc_skews(
     invert: bool,
     orientation: str,
 ):
-    ui.load_project(path)
+    ui.load_project(path, filter=False)
     skew_angle = ui.tomogram.splines[0].globalprops[H.skewAngle][0]
     npf = ui.tomogram.splines[0].globalprops[H.nPF][0]
     if invert:

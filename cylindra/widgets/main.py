@@ -2076,12 +2076,10 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Paint cylinders")
     def paint_cylinders(
         self,
-        color_by: Annotated[
-            str, {"choices": [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}
-        ] = H.yPitch,
+        color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}] = H.yPitch,
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Optional[tuple[float, float]] = (GVar.yPitchMin, GVar.yPitchMax),
-    ):
+    ):  # fmt: skip
         """
         Paint cylinder fragments by its local properties.
 
@@ -2154,13 +2152,10 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Back-painting molecules ...")
     def backpaint_molecule_density(
         self,
-        layers: Annotated[
-            list[MoleculesLayer],
-            {"choices": get_monomer_layers, "widget_type": "Select"},
-        ],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
         template_path: Path.Read[FileFilter.IMAGE],
         target_layer: Annotated[Optional[Image], {"text": "Create a new layer"}] = None,
-    ):
+    ):  # fmt: skip
         """
         Simulate an image using selected molecules.
 
