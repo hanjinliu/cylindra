@@ -22,7 +22,7 @@ from ._previews import view_image
 
 from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
-from cylindra.components import CylTomogram
+from cylindra.components import CylTomogram, AutoCorrelationPicker
 from cylindra.const import GlobalVariables as GVar
 from cylindra.widgets.global_variables import GlobalVariablesMenu
 
@@ -214,6 +214,10 @@ class toolbar(MagicTemplate):
         angle_step = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip
         max_shifts = vfield(20.0).with_options(min=1.0, max=50.0, step=0.5)
 
+        def _get_picker(self) -> AutoCorrelationPicker:
+            """Make a picker with current parameters."""
+            return AutoCorrelationPicker(self.interval, self.max_angle, self.angle_step, self.max_shifts)  # fmt: skip
+
     sep1 = field(Separator)
 
     clear_current = abstractapi()
@@ -226,7 +230,9 @@ class toolbar(MagicTemplate):
     @bind_key("Ctrl+Z")
     def undo(self):
         """Undo last action."""
-        return self.macro.undo()
+        if len(self.macro.undo_stack["undo"]) == 0:
+            raise RuntimeError("Undo stack is empty.")
+        self.macro.undo()
 
     @do_not_record
     @set_design(icon=ICON_DIR / "redo.svg")

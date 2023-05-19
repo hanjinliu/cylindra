@@ -1036,13 +1036,13 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
 
         @undo_callback
-        def undo():
+        def _undo():
             for i, spl in old_splines.items():
                 tomo.splines[i].copy_from(spl)
             self._update_splines_in_images()
 
-        @undo.with_redo
-        def undo():
+        @_undo.with_redo
+        def _undo():
             for i, spl in new_splines.items():
                 tomo.splines[i].copy_from(spl)
             self._init_widget_state()
@@ -1052,7 +1052,7 @@ class CylindraMainWidget(MagicTemplate):
         def out():
             self._init_widget_state()
             self._update_splines_in_images()
-            return undo
+            return _undo
 
         return out
 
@@ -2059,60 +2059,16 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def pick_next(self):
         """Automatically pick cylinder center using previous two points."""
-        stride_nm = self.toolbar.Adjust.interval
-        angle_pre = self.toolbar.Adjust.angle_step
-        angle_dev = self.toolbar.Adjust.max_angle
-        max_shifts = self.toolbar.Adjust.max_shifts
+        picker = self.toolbar.Adjust._get_picker()
+        points = self.layer_work.data
+        if len(points) < 2:
+            raise IndexError("Auto picking needs at least two points.")
         imgb: ip.ImgArray = self.layer_image.data
-        binned_scale = imgb.scale.x
-        try:
-            # orientation is point0 -> point1
-            point0: np.ndarray = self.layer_work.data[-2] / binned_scale  # unit: pixel
-            point1: np.ndarray = self.layer_work.data[-1] / binned_scale
-        except IndexError:
-            raise IndexError(
-                "Auto pick needs at least two points in the working layer."
-            )
+        scale = imgb.scale.x
+        next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
+        self.layer_work.add(next_point)
 
-        tomo = self.tomogram
-        binsize = utils.roundint(
-            self.layer_image.scale[0] / tomo.scale
-        )  # scale of binned reference image
-
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
-
-        shape = (width_px,) + (utils.roundint((width_px + length_px) / 1.41),) * 2
-
-        orientation = point1[1:] - point0[1:]
-        img = utils.crop_tomogram(imgb, point1, shape)
-        center = np.rad2deg(np.arctan2(*orientation)) % 180 - 90
-        angle_deg = utils.angle_corr(
-            img,
-            ang_center=center,
-            drot=angle_dev,
-            nrots=utils.ceilint(angle_dev / angle_pre),
-        )
-        angle_rad = np.deg2rad(angle_deg)
-        dr = np.array(
-            [0.0, stride_nm * np.cos(angle_rad), -stride_nm * np.sin(angle_rad)]
-        )
-        if np.dot(orientation, dr[1:]) > np.dot(orientation, -dr[1:]):
-            point2 = point1 + dr / binned_scale
-        else:
-            point2 = point1 - dr / binned_scale
-        img_next = utils.crop_tomogram(imgb, point2, shape)
-
-        utils.centering(
-            img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts / binned_scale
-        )
-
-        next_data = point2 * binned_scale
-        self.layer_work.add(next_data)
-        if msg := self._check_path():
-            self.layer_work.data = self.layer_work.data[:-1]
-            raise ValueError(msg)
-        change_viewer_focus(self.parent_viewer, point2, binned_scale)
+        change_viewer_focus(self.parent_viewer, next_point / scale, scale)
         return None
 
     @ImageMenu.wraps
@@ -2499,25 +2455,6 @@ class CylindraMainWidget(MagicTemplate):
         self.clear_all()
         if filt:
             self.filter_reference_image()
-
-    def _check_path(self) -> str:
-        tomo = self.tomogram
-        imgshape_nm = np.array(tomo.image.shape) * tomo.image.scale.x
-        if self.layer_work.data.shape[0] == 0:
-            return ""
-        else:
-            point0 = self.layer_work.data[-1]
-            box_size = (GVar.fitWidth,) + ((GVar.fitWidth + GVar.fitLength) / 1.41,) * 2
-
-            if not np.all(
-                [
-                    r / 4 <= p < s - r / 4
-                    for p, s, r in zip(point0, imgshape_nm, box_size)
-                ]
-            ):
-                # outside image
-                return "Outside boundary."
-        return ""
 
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules
