@@ -2015,8 +2015,9 @@ class CylindraMainWidget(MagicTemplate):
 
         # Set colormap
         _clim = [-extreme, extreme]
-        cmap = Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
-        layer.set_colormap(Mole.skew, _clim, cmap)
+        layer.set_colormap(
+            Mole.skew, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
+        )
         self._need_save = True
         return None
 
@@ -2247,8 +2248,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Set colormap")
     def set_colormap(
         self,
-        start: Color = "#00FFFF",
-        end: Color = "#FF00FF",
+        cmap: list[tuple[float, Color]] = {0: "#00FFFF", 1: "#FF00FF"},
         limit: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"}] = (4.00, 4.24),
         color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]}] = H.yPitch,
     ):  # fmt: skip
@@ -2257,16 +2257,14 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        start : color type
-            RGB color of the lower bound of the colormap.
-        end : color type
-            RGB color of the higher bound of the colormap.
+        cmap : colormap type
+            Linear colormap input.
         limit : tuple, default is (4.00, 4.24)
             Color limit (nm).
         color_by : str, default is "yPitch"
             Select what property image will be colored by.
         """
-        self.label_colormap = Colormap([start, end], display_name="LocalProperties")
+        self.label_colormap = Colormap(cmap)
         self.label_colorlimit = limit
         self._update_colormap(prop=color_by)
         return None
