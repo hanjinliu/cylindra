@@ -28,7 +28,14 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import Color, Optional, Path, ExprStr, Bound
+from magicclass.types import (
+    Color,
+    Colormap as ColormapType,
+    Optional,
+    Path,
+    ExprStr,
+    Bound,
+)
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
@@ -80,6 +87,7 @@ if TYPE_CHECKING:
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 SELF = mk.Mock("self")
+DEFAULT_COLORMAP = {0.0: "#0B0000", 0.365: "#FF0000", 0.746: "#FFFF00", 1.0: "#FFFFFF"}
 _Logger = getLogger("cylindra")
 
 # stylesheet
@@ -1802,9 +1810,12 @@ class CylindraMainWidget(MagicTemplate):
     def paint_molecules(
         self,
         layer: MoleculesLayer,
-        feature_name: Annotated[str, {"choices": _get_paint_molecules_choice}],
-        low: tuple[float, Color] = (0.0, "#00FFFF"),
-        high: tuple[float, Color] = (1.0, "#FF00FF"),
+        color_by: Annotated[str, {"choices": _get_paint_molecules_choice}],
+        cmap: ColormapType = DEFAULT_COLORMAP,
+        limits: Annotated[
+            tuple[float, float],
+            {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"},
+        ] = (4.00, 4.24),
     ):
         """
         Paint molecules by a feature.
@@ -1812,16 +1823,14 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
-        feature_name : str
+        color_by : str
             Name of the feature to paint by.
-        low : (float, Color), default is (0., "0000FF")
-            The lower bound of the feature value and the corresponding color.
-        high : (float, Color), default is (1., "00FF7F")
-            The upper bound of the feature value and the corresponding color.
+        cmap : ColormapType, default is "hot" colormap
+            Colormap to use for painting.
+        limits : tuple of float
+            Limits for the colormap.
         """
-        rng = (low[0], high[0])
-        arr = np.array([low[1], high[1]])
-        layer.set_colormap(feature_name, rng, arr)
+        layer.set_colormap(color_by, limits, cmap_input=_normalize_colormap(cmap))
         info = layer.colormap_info
         return undo_callback(layer.set_colormap).with_args(
             name=info.name, clim=info.clim, cmap_input=info.cmap
@@ -1987,7 +1996,7 @@ class CylindraMainWidget(MagicTemplate):
 
         # Set colormap
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
-        layer.set_colormap(Mole.interval, _clim, self.label_colormap)
+        layer.set_colormap(Mole.interval, _clim, _normalize_colormap(DEFAULT_COLORMAP))
         self._need_save = True
         return None
 
@@ -2114,7 +2123,14 @@ class CylindraMainWidget(MagicTemplate):
     @ImageMenu.wraps
     @thread_worker.with_progress(desc="Paint cylinders ...")
     @set_design(text="Paint cylinders")
-    def paint_cylinders(self):
+    def paint_cylinders(
+        self,
+        color_by: Annotated[
+            str, {"choices": [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}
+        ] = H.yPitch,
+        cmap: ColormapType = DEFAULT_COLORMAP,
+        limits: Optional[tuple[float, float]] = (GVar.yPitchMin, GVar.yPitchMax),
+    ):
         """
         Paint cylinder fragments by its local properties.
 
@@ -2126,10 +2142,13 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(
                 "Local structural parameters have not been determined yet."
             )
-        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
+        cmap = _normalize_colormap(cmap)
 
+        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
         all_df = tomo.collect_localprops()
+        if color_by not in all_df.columns:
+            raise ValueError(f"Column {color_by} does not exist.")
 
         paint_device = widget_utils.PaintDevice(
             self.layer_image.data.shape, self.layer_image.scale[-1]
@@ -2155,6 +2174,8 @@ class CylindraMainWidget(MagicTemplate):
         )  # fmt: skip
         back = pd.DataFrame({c: [np.nan] for c in columns})
         props = pd.concat([back, df[columns]], ignore_index=True)
+        if limits is None:
+            limits = float(all_df[color_by].min()), float(all_df[color_by].max())
 
         @thread_worker.to_callback
         def _on_return():
@@ -2172,7 +2193,7 @@ class CylindraMainWidget(MagicTemplate):
             else:
                 self.layer_paint.data = lbl
                 self.layer_paint.features = props
-            self._update_colormap()
+            self._update_colormap(prop=color_by, cmap=cmap, limits=limits)
             return undo_callback(lambda: None)  # TODO: undo paint
 
         return _on_return
@@ -2244,29 +2265,27 @@ class CylindraMainWidget(MagicTemplate):
         return _on_return
 
     @ImageMenu.wraps
-    @set_options(auto_call=True)
     @set_design(text="Set colormap")
     def set_colormap(
         self,
-        cmap: list[tuple[float, Color]] = {0: "#00FFFF", 1: "#FF00FF"},
-        limit: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limit (nm)"}] = (4.00, 4.24),
         color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]}] = H.yPitch,
+        cmap: ColormapType = DEFAULT_COLORMAP,
+        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
     ):  # fmt: skip
         """
         Set the color-map for painting cylinders.
 
         Parameters
         ----------
-        cmap : colormap type
+        cmap : colormap type, default is "hot" colormap
             Linear colormap input.
-        limit : tuple, default is (4.00, 4.24)
-            Color limit (nm).
+        limits : tuple, default is (4.00, 4.24)
+            Color limits (nm).
         color_by : str, default is "yPitch"
             Select what property image will be colored by.
         """
-        self.label_colormap = Colormap(cmap)
-        self.label_colorlimit = limit
-        self._update_colormap(prop=color_by)
+        cmap = _normalize_colormap(cmap)
+        self._update_colormap(prop=color_by, cmap=cmap, limits=limits)
         return None
 
     @ImageMenu.wraps
@@ -2274,7 +2293,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def show_colorbar(self):
         """Create a colorbar from the current colormap."""
-        arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)
+        arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)  # TODO: update
         xmin, xmax = self.label_colorlimit
         with _Logger.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
@@ -2396,17 +2415,17 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_paint.selected_label = j_offset + j + 1
         return None
 
-    def _update_colormap(self, prop: str = H.yPitch):
+    def _update_colormap(self, prop, cmap: Colormap, limits: tuple[float, float]):
         if self.layer_paint is None:
             return None
         color = {
             0: np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32),
             None: np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
         }
-        lim0, lim1 = self.label_colorlimit
+        lim0, lim1 = limits
         df = self.tomogram.collect_localprops()[prop]
         for i, value in enumerate(df):
-            color[i + 1] = self.label_colormap.map((value - lim0) / (lim1 - lim0))
+            color[i + 1] = cmap.map((value - lim0) / (lim1 - lim0))
         self.layer_paint.color = color
         return None
 
@@ -2769,3 +2788,8 @@ def _set_layer_feature_future(layer: MoleculesLayer, features):
         layer.features = features
 
     return _wrapper
+
+
+def _normalize_colormap(cmap) -> Colormap:
+    cmap = dict(cmap)
+    return Colormap(list(cmap.values()), controls=list(cmap.keys()))

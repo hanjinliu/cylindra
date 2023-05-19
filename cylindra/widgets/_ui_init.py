@@ -164,10 +164,26 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
 
 
 @impl_preview(CylindraMainWidget.paint_molecules, auto_call=True)
-def _(self: CylindraMainWidget, layer: MoleculesLayer, feature_name: str, low, high):
+def _(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    cmap,
+    color_by: str,
+    limits: tuple[float, float],
+):
     with _temp_layer_colors(layer):
-        self.paint_molecules(layer, feature_name, low, high)
+        self.paint_molecules(layer, cmap, color_by, limits)
         yield
+
+
+@impl_preview(CylindraMainWidget.set_colormap, auto_call=True)
+def _(self: CylindraMainWidget, color_by: str, cmap, limits: tuple[float, float]):
+    # TODO: udpate
+    cmap = dict(cmap)
+    old_cmap = self.label_colormap
+    self.label_colormap = Colormap(list(cmap.values()), controls=list(cmap.keys()))
+    self.label_colorlimit = limits
+    yield
 
 
 # setup FunctionGUIs
@@ -175,25 +191,25 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, feature_name: str, low, h
 
 @setup_function_gui(CylindraMainWidget.paint_molecules)
 def _(self, gui):
-    gui.layer.changed.connect(gui.feature_name.reset_choices)
+    gui.layer.changed.connect(gui.color_by.reset_choices)
 
     @gui.layer.changed.connect
-    @gui.feature_name.changed.connect
+    @gui.color_by.changed.connect
     def _on_feature_change():
-        feature_name: str = gui.feature_name.value
-        if feature_name is None:
+        color_by: str = gui.color_by.value
+        if color_by is None:
             return
         layer: MoleculesLayer = gui.layer.value
-        series = layer.molecules.features[feature_name]
+        series = layer.molecules.features[color_by]
         if series.dtype.__name__[0] in "IUF":
-            gui.low[0].min = gui.high[0].min = series.min()
-            gui.low[0].max = gui.high[0].max = series.max()
-            gui.low[0].value = gui.low[0].min
-            gui.high[0].value = gui.high[0].max
+            gui.limits[0].min = gui.limits[1].min = series.min()
+            gui.limits[0].max = gui.limits[1].max = series.max()
+            gui.limits[0].value = gui.limits[0].min
+            gui.limits[1].value = gui.limits[1].max
             if series.dtype.__name__[0] in "IU":
-                gui.low[0].step = gui.high[0].step = 1
+                gui.limits[0].step = gui.limits[1].step = 1
             else:
-                gui.low[0].step = gui.high[0].step = None
+                gui.limits[0].step = gui.limits[1].step = None
 
     return None
 

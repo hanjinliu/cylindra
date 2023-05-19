@@ -110,7 +110,7 @@ class MoleculesLayer(Points):
         if isinstance(cmap_input, Colormap):
             cmap = cmap_input
         else:
-            cmap = Colormap(cmap_input, name="MoleculeFeatures")
+            cmap = Colormap(cmap_input)
         if column.dtype.__name__[0] in "IU":
             cmin, cmax = clim
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
