@@ -194,6 +194,8 @@ class SpectraMeasurer(MagicTemplate):
 
     def _get_binsize_choices(self, *_) -> list[int]:
         parent = self._get_parent()
+        if parent.tomogram is None:
+            return []
         return [k for k, _ in parent.tomogram.multiscaled]
 
     @SidePanel.wraps

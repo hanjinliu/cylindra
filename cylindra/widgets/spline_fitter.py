@@ -49,6 +49,8 @@ class SplineFitter(MagicTemplate):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
 
     def _get_shifts(self, _=None):
+        if self.shifts is None:
+            return np.zeros(3)
         i = self.controller.num.value
         return np.round(self.shifts[i], 3)
 

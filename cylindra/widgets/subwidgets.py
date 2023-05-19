@@ -62,7 +62,7 @@ class Image(MagicTemplate):
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
-    backpaint_molecules = abstractapi()
+    backpaint_molecule_density = abstractapi()
     set_colormap = abstractapi()
     show_colorbar = abstractapi()
 
@@ -437,17 +437,6 @@ class ImageLoader(MagicTemplate):
 
 @magicclass(name="Image info", record=False, widget_type="collapsible", labels=False)
 class ImageInfo(MagicTemplate):
-    """
-    Attributes
-    ----------
-    source : str
-        Source file of the image.
-    shape : tuple of int
-        Shape of the image.
-    scale : float
-        Scale of the image.
-    """
-
     def __post_init__(self):
         self.text_edit.read_only = True
 

@@ -5,7 +5,7 @@ import weakref
 import polars as pl
 import numpy as np
 from acryo import Molecules
-from napari.layers import Points
+from napari.layers import Points, Labels
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class ColormapInfo(NamedTuple):
+    """Information about a colormap."""
+
     cmap: Colormap
     clim: tuple[float, float]
     name: str
@@ -103,14 +105,9 @@ class MoleculesLayer(Points):
         cmap_input : Any
             Any object that can be converted to a Colormap object.
         """
-        from napari.utils import Colormap
-
         column = self.molecules.features[name]
         clim = tuple(clim)
-        if isinstance(cmap_input, Colormap):
-            cmap = cmap_input
-        else:
-            cmap = Colormap(cmap_input)
+        cmap = _normalize_colormap(cmap_input)
         if column.dtype.__name__[0] in "IU":
             cmin, cmax = clim
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
@@ -175,3 +172,47 @@ class MoleculesLayer(Points):
                 out.append(f"{k}: {val}")
 
         return out
+
+
+class CylinderLabels(Labels):
+    _type_string = "labels"
+
+    def __init__(self, data, **kwargs):
+        self._colormap_info: ColormapInfo | None = None
+        super().__init__(data, **kwargs)
+
+    def set_colormap(self, name: str, clim: tuple[float, float], cmap_input: Any):
+        color = {
+            0: np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32),
+            None: np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
+        }
+        clim = tuple(clim)
+        lim0, lim1 = clim
+        seq = self.features[name][1:]  # skip background
+        cmap = _normalize_colormap(cmap_input)
+        for i, value in enumerate(seq):
+            color[i + 1] = cmap.map((value - lim0) / (lim1 - lim0))
+        self.color = color
+        self._colormap_info = ColormapInfo(cmap, clim, name)
+        return None
+
+    @property
+    def colormap_info(self) -> ColormapInfo | None:
+        """Colormap information."""
+        return self._colormap_info
+
+
+def _normalize_colormap(cmap) -> Colormap:
+    from napari.utils import Colormap
+
+    if isinstance(cmap, Colormap):
+        return cmap
+    if isinstance(cmap, str):
+        return Colormap(cmap)
+
+    cmap = dict(cmap)
+    if 0.0 not in cmap:
+        cmap[0.0] = cmap[min(cmap.keys())]
+    if 1.0 not in cmap:
+        cmap[1.0] = cmap[max(cmap.keys())]
+    return Colormap(list(cmap.values()), controls=list(cmap.keys()))

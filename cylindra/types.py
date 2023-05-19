@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NewType, Union
 import re
 import numpy as np
 import impy as ip
 import polars as pl
 import magicgui
 from napari.utils._magicgui import find_viewer_ancestor
-from cylindra._molecules_layer import MoleculesLayer
+from napari.layers import Layer
+from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 
 if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget
@@ -19,7 +20,22 @@ def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
     return [x for x in viewer.layers if isinstance(x, MoleculesLayer)]
 
 
+def get_colored_layers(
+    gui: "CategoricalWidget",
+) -> "list[MoleculesLayer | CylinderLabels]":
+    viewer = find_viewer_ancestor(gui.native)
+    if not viewer:
+        return []
+    return [x for x in viewer.layers if isinstance(x, (MoleculesLayer, CylinderLabels))]
+
+
+if TYPE_CHECKING:
+    ColoredLayer = Union[MoleculesLayer, CylinderLabels]
+else:
+    ColoredLayer = NewType("ColoredLayer", Layer)
+
 magicgui.register_type(MoleculesLayer, choices=get_monomer_layers)
+magicgui.register_type(ColoredLayer, choices=get_colored_layers)
 
 # Record 1D numpy array as a list of floats.
 from macrokit import register_type, parse

@@ -7,7 +7,7 @@ from cylindra.const import MoleculesHeader as Mole
 if TYPE_CHECKING:
     import napari
     from acryo import Molecules
-    from cylindra._molecules_layer import MoleculesLayer
+    from cylindra._custom_layers import MoleculesLayer
     from cylindra.project.sequence import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline

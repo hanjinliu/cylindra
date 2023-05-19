@@ -1,7 +1,7 @@
 from typing import NamedTuple
 import numpy as np
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra._molecules_layer import MoleculesLayer
+from cylindra._custom_layers import MoleculesLayer
 from acryo import alignment, Molecules
 
 from magicgui import magicgui

@@ -43,9 +43,15 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 
 
 def test_click_buttons(ui: CylindraMainWidget):
-    from magicclass.testing import assert_function_gui_buildable
+    from magicclass.testing import check_function_gui_buildable
 
-    assert_function_gui_buildable(ui)
+    check_function_gui_buildable(ui)
+
+
+def test_tooltip(ui: CylindraMainWidget):
+    from magicclass.testing import check_tooltip
+
+    check_tooltip(ui)
 
 
 @pytest.mark.parametrize(
@@ -185,6 +191,11 @@ def test_spline_switch(ui: CylindraMainWidget):
 
     assert ui.LocalProperties.params.spacing.txt == " -- nm"
     assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
+
+
+def test_set_colormaps(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF)
+    ui.set_colormap(color_by="skewAngle", cmap="viridis", limits=(-1, 1))
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])

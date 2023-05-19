@@ -436,8 +436,6 @@ class CylinderSimulator(MagicTemplate):
 
         Parameters
         ----------
-        idx : int
-            Index of spline used in the viewer.
         interval : nm
             Axial interval between molecules.
         skew : float

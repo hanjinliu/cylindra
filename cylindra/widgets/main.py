@@ -23,7 +23,6 @@ from magicclass import (
     magicclass,
     nogui,
     set_design,
-    set_options,
 )
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -41,7 +40,7 @@ from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
 from magicclass.undo import undo_callback
 
-from napari.layers import Image, Labels, Layer, Points
+from napari.layers import Image, Layer, Points
 from napari.utils.colormaps import Colormap
 
 from cylindra import utils
@@ -57,7 +56,8 @@ from cylindra.const import (
     nm,
     get_versions,
 )
-from cylindra.types import MoleculesLayer, get_monomer_layers
+from cylindra._custom_layers import MoleculesLayer, CylinderLabels
+from cylindra.types import ColoredLayer, get_monomer_layers
 from cylindra.project import CylindraProject, get_project_json
 
 # widgets
@@ -87,7 +87,7 @@ if TYPE_CHECKING:
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 SELF = mk.Mock("self")
-DEFAULT_COLORMAP = {0.0: "#0B0000", 0.365: "#FF0000", 0.746: "#FFFF00", 1.0: "#FFFFFF"}
+DEFAULT_COLORMAP = {0.0: "#0B0000", 0.58: "#FF0000", 1.0: "#FFFF00"}
 _Logger = getLogger("cylindra")
 
 # stylesheet
@@ -171,14 +171,13 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_image: Image = None
         self.layer_prof: Points = None
         self.layer_work: Points = None
-        self.layer_paint: Labels = None
+        self.layer_paint: CylinderLabels = None
         self._macro_offset: int = 1
         self._need_save: bool = False
         self._batch = None
         self.objectName()  # load napari types
 
     def __post_init__(self):
-        self.set_colormap()
         self.min_width = 400
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
@@ -208,9 +207,7 @@ class CylindraMainWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
     @bind_key("F1")
-    def register_path(
-        self, coords: Annotated[Any, {"bind": _get_spline_coordinates}] = None
-    ):
+    def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a spline path."""
         if coords is None:
             _coords = self.layer_work.data
@@ -605,8 +602,6 @@ class CylindraMainWidget(MagicTemplate):
         {layer}
         save_path : Path
             Where to save the molecules.
-        save_features : bool, default is True
-            Check if save molecule features.
         """
         mole = layer.molecules
         mole.to_csv(save_path)
@@ -884,10 +879,10 @@ class CylindraMainWidget(MagicTemplate):
             @thread_worker.to_callback
             def _on_return():
                 self._update_splines_in_images()
-                self.SplineControl._update_canvas()
                 for i in range(len(tomo.splines)):
                     self._set_orientation_marker(i)
 
+                self.SplineControl._update_canvas()
                 return (
                     undo_callback(self._set_orientations)
                     .with_args(_old_orientations)
@@ -1825,12 +1820,12 @@ class CylindraMainWidget(MagicTemplate):
         {layer}
         color_by : str
             Name of the feature to paint by.
-        cmap : ColormapType, default is "hot" colormap
+        cmap : ColormapType, default is "hot"-like colormap
             Colormap to use for painting.
         limits : tuple of float
             Limits for the colormap.
         """
-        layer.set_colormap(color_by, limits, cmap_input=_normalize_colormap(cmap))
+        layer.set_colormap(color_by, limits, cmap)
         info = layer.colormap_info
         return undo_callback(layer.set_colormap).with_args(
             name=info.name, clim=info.clim, cmap_input=info.cmap
@@ -1996,7 +1991,7 @@ class CylindraMainWidget(MagicTemplate):
 
         # Set colormap
         _clim = [GVar.yPitchMin, GVar.yPitchMax]
-        layer.set_colormap(Mole.interval, _clim, _normalize_colormap(DEFAULT_COLORMAP))
+        layer.set_colormap(Mole.interval, _clim, DEFAULT_COLORMAP)
         self._need_save = True
         return None
 
@@ -2142,7 +2137,6 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(
                 "Local structural parameters have not been determined yet."
             )
-        cmap = _normalize_colormap(cmap)
 
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
@@ -2181,7 +2175,7 @@ class CylindraMainWidget(MagicTemplate):
         def _on_return():
             # Add labels layer
             if self.layer_paint is None:
-                self.layer_paint = self.parent_viewer.add_labels(
+                layer_paint = CylinderLabels(
                     lbl,
                     color=color,
                     scale=self.layer_image.scale,
@@ -2190,10 +2184,11 @@ class CylindraMainWidget(MagicTemplate):
                     name="Cylinder properties",
                     features=props,
                 )
+                self.layer_paint = self.parent_viewer.add_layer(layer_paint)
             else:
                 self.layer_paint.data = lbl
                 self.layer_paint.features = props
-            self._update_colormap(prop=color_by, cmap=cmap, limits=limits)
+            self.layer_paint.set_colormap(color_by, limits, cmap)
             return undo_callback(lambda: None)  # TODO: undo paint
 
         return _on_return
@@ -2201,7 +2196,7 @@ class CylindraMainWidget(MagicTemplate):
     @ImageMenu.wraps
     @set_design(text="Back-paint molecules")
     @dask_thread_worker.with_progress(desc="Back-painting molecules ...")
-    def backpaint_molecules(
+    def backpaint_molecule_density(
         self,
         layers: Annotated[
             list[MoleculesLayer],
@@ -2277,27 +2272,27 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        cmap : colormap type, default is "hot" colormap
+        color_by : str, default is "yPitch"
+            Select what property image will be colored by.
+        cmap : colormap type, default is "hot"-like colormap
             Linear colormap input.
         limits : tuple, default is (4.00, 4.24)
             Color limits (nm).
-        color_by : str, default is "yPitch"
-            Select what property image will be colored by.
         """
-        cmap = _normalize_colormap(cmap)
-        self._update_colormap(prop=color_by, cmap=cmap, limits=limits)
+        self.layer_paint.set_colormap(color_by, limits, cmap)
         return None
 
     @ImageMenu.wraps
     @set_design(text="Show colorbar")
     @do_not_record
-    def show_colorbar(self):
+    def show_colorbar(self, layer: ColoredLayer):
         """Create a colorbar from the current colormap."""
-        arr = self.label_colormap.colorbar[:5]  # shape == (5, 28, 4)  # TODO: update
-        xmin, xmax = self.label_colorlimit
+        info = layer.colormap_info
+        arr = np.stack([info.cmap.map(np.linspace(0, 1, 256))] * 36, axis=0)
+        xmin, xmax = info.clim
         with _Logger.set_plt(rc_context={"font.size": 15}):
             plt.imshow(arr)
-            plt.xticks([0, 27], [f"{xmin:.2f}", f"{xmax:.2f}"])
+            plt.xticks([0, arr.shape[1] - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])
             plt.show()
         return None
@@ -2413,20 +2408,6 @@ class CylindraMainWidget(MagicTemplate):
 
         j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
         self.layer_paint.selected_label = j_offset + j + 1
-        return None
-
-    def _update_colormap(self, prop, cmap: Colormap, limits: tuple[float, float]):
-        if self.layer_paint is None:
-            return None
-        color = {
-            0: np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            None: np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
-        }
-        lim0, lim1 = limits
-        df = self.tomogram.collect_localprops()[prop]
-        for i, value in enumerate(df):
-            color[i + 1] = cmap.map((value - lim0) / (lim1 - lim0))
-        self.layer_paint.color = color
         return None
 
     def _init_widget_state(self, _=None):
@@ -2788,8 +2769,3 @@ def _set_layer_feature_future(layer: MoleculesLayer, features):
         layer.features = features
 
     return _wrapper
-
-
-def _normalize_colormap(cmap) -> Colormap:
-    cmap = dict(cmap)
-    return Colormap(list(cmap.values()), controls=list(cmap.keys()))

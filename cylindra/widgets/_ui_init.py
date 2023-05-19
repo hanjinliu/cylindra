@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
@@ -8,18 +7,16 @@ from magicclass.widgets import ConsoleTextEdit
 from magicclass import setup_function_gui, impl_preview
 
 import numpy as np
-import impy as ip
-import polars as pl
 
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.project import CylindraProject, get_project_json
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets._previews import view_tables
-from napari.utils.colormaps import label_colormap
+from napari.utils.colormaps import label_colormap, Colormap
 
 if TYPE_CHECKING:
-    from cylindra._molecules_layer import MoleculesLayer
+    from cylindra._custom_layers import MoleculesLayer
     from napari.layers import Layer
 
 
@@ -178,12 +175,13 @@ def _(
 
 @impl_preview(CylindraMainWidget.set_colormap, auto_call=True)
 def _(self: CylindraMainWidget, color_by: str, cmap, limits: tuple[float, float]):
-    # TODO: udpate
+    if self.layer_paint is None:
+        return
+    old_info = self.layer_paint.colormap_info
     cmap = dict(cmap)
-    old_cmap = self.label_colormap
-    self.label_colormap = Colormap(list(cmap.values()), controls=list(cmap.keys()))
-    self.label_colorlimit = limits
+    self.layer_paint.set_colormap(color_by, limits, cmap)
     yield
+    self.layer_paint.set_colormap(color_by, old_info.clim, old_info.cmap)
 
 
 # setup FunctionGUIs
