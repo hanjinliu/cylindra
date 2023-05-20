@@ -16,7 +16,7 @@ def ceilint(a: float):
 
 def set_gpu() -> ContextManager:
     """Use GPU within this context."""
-    if GVar.GPU:
+    if GVar.use_gpu:
         return ip.use("cupy")
     else:
         return ip.use("numpy")

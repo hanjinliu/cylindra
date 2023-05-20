@@ -55,7 +55,7 @@ class CylindraBatchWidget(MagicTemplate):
         loader = BatchLoader()
         image_paths: dict[int, Path] = {}
         for img_id, (img_path, mole_paths) in enumerate(paths):
-            img = ip.lazy_imread(img_path, chunks=GVar.daskChunk)
+            img = ip.lazy_imread(img_path, chunks=GVar.dask_chunk)
             image_paths[img_id] = Path(img_path)
             for mole_path in mole_paths:
                 mole_path = Path(mole_path)

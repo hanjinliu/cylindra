@@ -148,10 +148,10 @@ def molecules_to_spline(mole: Molecules):
     """Convert well aligned molecule positions into a spline."""
     from cylindra.components import CylSpline
 
-    spl = CylSpline(degree=GVar.splOrder)
+    spl = CylSpline(degree=GVar.spline_degree)
     all_coords = _reshaped_positions(mole)
     mean_coords = np.mean(all_coords, axis=1)
-    spl.fit_coa(mean_coords, min_radius=GVar.minCurvatureRadius)
+    spl.fit_coa(mean_coords, min_radius=GVar.min_curvature_radius)
     return spl
 
 

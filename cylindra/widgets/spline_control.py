@@ -163,8 +163,8 @@ class SplineControl(MagicTemplate):
         binsize = parent.layer_image.metadata["current_binsize"]
         imgb = parent.tomogram.get_multiscale(binsize)
 
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
+        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules()
         if binsize > 1:
@@ -233,7 +233,7 @@ class SplineControl(MagicTemplate):
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
         r_px = spl.radius / tomo.scale / binsize
-        r = r_px * GVar.outer
+        r = r_px * GVar.thickness_outer
         xmin, xmax = -r + lx / 2 - 0.5, r + lx / 2 + 0.5
         self.canvas[0].add_curve(
             [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime"
@@ -241,10 +241,10 @@ class SplineControl(MagicTemplate):
 
         # draw two circles in ZX-view
         self.canvas[1].add_curve(
-            *_circle(r_px * GVar.inner, center=(lx / 2, lz / 2)), color="lime"
+            *_circle(r_px * GVar.thickness_inner, center=(lx / 2, lz / 2)), color="lime"
         )
         self.canvas[1].add_curve(
-            *_circle(r_px * GVar.outer, center=(lx / 2, lz / 2)), color="lime"
+            *_circle(r_px * GVar.thickness_outer, center=(lx / 2, lz / 2)), color="lime"
         )
 
         # draw polarity

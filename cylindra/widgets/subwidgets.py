@@ -429,7 +429,7 @@ class ImageLoader(MagicTemplate):
         path = self.path
         if not os.path.exists(path) or not os.path.isfile(path):
             return
-        img = ip.lazy_imread(path, chunks=GVar.daskChunk)
+        img = ip.lazy_imread(path, chunks=GVar.dask_chunk)
         scale = img.scale.x
         self.scale.scale_value = f"{scale:.4f}"
         if len(self.bin_size) < 2:

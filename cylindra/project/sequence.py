@@ -167,7 +167,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """Construct a STA loader from all the projects."""
         col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
-            tomo = ip.lazy_imread(prj.image, chunks=GlobalVariables.daskChunk)
+            tomo = ip.lazy_imread(prj.image, chunks=GlobalVariables.dask_chunk)
             for fp in prj.molecules:
                 fp = Path(fp)
                 mole = Molecules.from_csv(fp)

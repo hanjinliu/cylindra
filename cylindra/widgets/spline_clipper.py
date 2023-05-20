@@ -116,8 +116,8 @@ class SplineClipper(MagicTemplate):
         binsize: int = parent.layer_image.metadata["current_binsize"]
         imgb = parent.layer_image.data
 
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
+        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
 
         # sample subtomogram at the edge
         mole = spl.anchors_to_molecules([0.0, 1.0])

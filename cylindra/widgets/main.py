@@ -483,7 +483,7 @@ class CylindraMainWidget(MagicTemplate):
         filter : bool, default is True
             Apply low-pass filter on the reference image (does not affect image data itself).
         """
-        img = ip.lazy_imread(path, chunks=GVar.daskChunk)
+        img = ip.lazy_imread(path, chunks=GVar.dask_chunk)
         if scale is not None:
             scale = float(scale)
             img.scale.x = img.scale.y = img.scale.z = scale
@@ -1217,11 +1217,13 @@ class CylindraMainWidget(MagicTemplate):
             orientation=orientation,
         )
         self.sample_subtomograms()
+        self._update_splines_in_images()
 
         @undo_callback
         def out():
             spl.copy_from(old_spl)
             self.sample_subtomograms()
+            self._update_splines_in_images()
 
         return out
 
@@ -2023,7 +2025,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding of features need update
 
         # Set colormap
-        _clim = [GVar.yPitchMin, GVar.yPitchMax]
+        _clim = [GVar.spacing_min, GVar.spacing_max]
         layer.set_colormap(Mole.interval, _clim, DEFAULT_COLORMAP)
         self._need_save = True
         return None
@@ -2111,7 +2113,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}] = H.yPitch,
         cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Optional[tuple[float, float]] = (GVar.yPitchMin, GVar.yPitchMax),
+        limits: Optional[tuple[float, float]] = (GVar.spacing_min, GVar.spacing_max),
     ):  # fmt: skip
         """
         Paint cylinder fragments by its local properties.
@@ -2603,6 +2605,7 @@ class CylindraMainWidget(MagicTemplate):
             lw=2,
             name=f"spline-{i}",
         )
+        self._set_orientation_marker(i)
         return None
 
     def _set_orientation_marker(self, idx: int):
@@ -2632,6 +2635,7 @@ class CylindraMainWidget(MagicTemplate):
         return self.layer_prof.refresh()
 
     def _update_splines_in_images(self, _=None):
+        """Refresh splines in overview canvas and napari canvas."""
         self.overview.layers.clear()
         self.layer_prof.data = []
         scale = self.layer_image.scale[0]
@@ -2656,27 +2660,30 @@ class CylindraMainWidget(MagicTemplate):
         get_function_gui(self.global_variables.set_variables).update(GVar.dict())
 
         fgui = get_function_gui(self.set_spline_props)
-        fgui.spacing.min, fgui.spacing.max = GVar.yPitchMin, GVar.yPitchMax
-        fgui.spacing.value = (GVar.yPitchMin + GVar.yPitchMax) / 2
-        fgui.skew.min, fgui.skew.max = GVar.minSkew, GVar.maxSkew
-        fgui.skew.value = (GVar.minSkew + GVar.maxSkew) / 2
-        fgui.npf.min, fgui.npf.max = GVar.nPFmin, GVar.nPFmax
-        fgui.npf.value = (GVar.nPFmin + GVar.nPFmax) // 2
+        fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
+        fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
+        fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
+        fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
+        fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
+        fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
 
         fgui = get_function_gui(self.cylinder_simulator.update_model)
-        fgui.spacing.min, fgui.spacing.max = GVar.yPitchMin, GVar.yPitchMax
-        fgui.spacing.value = (GVar.yPitchMin + GVar.yPitchMax) / 2
-        fgui.skew.min, fgui.skew.max = GVar.minSkew, GVar.maxSkew
-        fgui.skew.value = (GVar.minSkew + GVar.maxSkew) / 2
-        fgui.npf.min, fgui.npf.max = GVar.nPFmin, GVar.nPFmax
-        fgui.npf.value = (GVar.nPFmin + GVar.nPFmax) // 2
+        fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
+        fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
+        fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
+        fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
+        fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
+        fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
 
         self.cylinder_simulator.parameters.update(
             spacing=fgui.spacing.value,
             skew=fgui.skew.value,
             npf=fgui.npf.value,
         )
-        # TODO: other updates
+
+        get_function_gui(self.map_monomers)["orientation"].value = GVar.clockwise
+        get_function_gui(self.map_along_pf)["orientation"].value = GVar.clockwise
+        get_function_gui(self.map_centers)["orientation"].value = GVar.clockwise
 
 
 ############################################################################################

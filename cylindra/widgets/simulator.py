@@ -76,7 +76,7 @@ class CylinderParameters:
     skew: float = 0.0
     rise: float = 0.0
     npf: int = 1
-    radius: nm = 1.0
+    radius: nm = 10.0
     offsets: "tuple[nm, float]" = (0.0, 0.0)
 
     def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
@@ -153,11 +153,11 @@ class CylinderSimulator(MagicTemplate):
         if self._points is None:
             self.canvas.layers.clear()
             self._points = self.canvas.add_points(
-                mole.pos, size=GVar.pointSize, face_color="lime", edge_color="lime"
+                mole.pos, size=GVar.point_size, face_color="lime", edge_color="lime"
             )
             self._selections = self.canvas.add_points(
                 [[0, 0, 0]],
-                size=GVar.pointSize,
+                size=GVar.point_size,
                 face_color=[0, 0, 0, 0],
                 edge_color="cyan",
                 edge_width=1.5,
@@ -326,7 +326,7 @@ class CylinderSimulator(MagicTemplate):
 
     def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
         points = self._points.data
-        npf = self._parameters.npf
+        npf = self.parameters.npf
         ysl = slice(*yrange)
         asl = slice(*arange)
         try:
@@ -343,7 +343,7 @@ class CylinderSimulator(MagicTemplate):
         self._points = None
         self._spline_arrow = None
         with self.macro.blocked():
-            self.update_model(**self._parameters.asdict())
+            self.update_model(**self.parameters.asdict())
         return None
 
     @ViewerMenu.wraps
@@ -362,7 +362,7 @@ class CylinderSimulator(MagicTemplate):
         if spl.has_globalprops([H.yPitch, H.skewAngle, H.riseAngle, H.nPF, H.radius]):
             raise ValueError("Global property is not calculated yet.")
 
-        self._parameters.update(
+        self.parameters.update(
             interval=spl.get_globalprops(H.yPitch),
             skew=spl.get_globalprops(H.skewAngle),
             rise=spl.get_globalprops(H.riseAngle),
@@ -452,7 +452,7 @@ class CylinderSimulator(MagicTemplate):
         offsets : tuple of float
             Offset of the starting molecule.
         """
-        self._parameters.update(
+        self.parameters.update(
             spacing=spacing,
             skew=skew,
             rise=rise,

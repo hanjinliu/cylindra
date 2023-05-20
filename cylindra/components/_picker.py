@@ -55,7 +55,7 @@ class Picker(ABC):
         self, img: ip.ImgArray, point: NDArray[np.float32]
     ) -> Exception | None:
         imgshape_nm = np.array(img.shape) * img.scale.x
-        box_size = (GVar.fitWidth,) + ((GVar.fitWidth + GVar.fitLength) / 1.41,) * 2
+        box_size = (GVar.fit_width,) + ((GVar.fit_width + GVar.fit_depth) / 1.41,) * 2
 
         if not all(
             r / 4 <= p < s - r / 4 for p, s, r in zip(point, imgshape_nm, box_size)
@@ -102,8 +102,8 @@ class AutoCorrelationPicker(Picker):
         point0: np.ndarray = prevprev / scale  # unit: pixel
         point1: np.ndarray = prev / scale
 
-        length_px = utils.roundint(GVar.fitLength / scale)
-        width_px = utils.roundint(GVar.fitWidth / scale)
+        length_px = utils.roundint(GVar.fit_depth / scale)
+        width_px = utils.roundint(GVar.fit_width / scale)
 
         shape = (width_px,) + (utils.roundint((width_px + length_px) / 1.41),) * 2
 

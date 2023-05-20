@@ -194,10 +194,10 @@ class SplineSweeper(MagicTemplate):
         spl = tomo.splines[idx]
         length_px = tomo.nm2pixel(depth, binsize=binsize)
         if radius := self.radius:
-            width_px = tomo.nm2pixel(2 * radius * GVar.outer, binsize=binsize)
+            width_px = tomo.nm2pixel(2 * radius * GVar.thickness_outer, binsize=binsize)
         else:
             if r := spl.radius:
-                width_px = tomo.nm2pixel(2 * r * GVar.outer, binsize=binsize)
+                width_px = tomo.nm2pixel(2 * r * GVar.thickness_outer, binsize=binsize)
             else:
                 return ip.zeros((1, 1, 1), axes="zyx")  # dummy image
 
@@ -224,12 +224,12 @@ class SplineSweeper(MagicTemplate):
         spl = tomo.splines[idx]
 
         if radius := self.radius:
-            rmin = tomo.nm2pixel(radius * GVar.inner, binsize=binsize)
-            rmax = tomo.nm2pixel(radius * GVar.outer, binsize=binsize)
+            rmin = tomo.nm2pixel(radius * GVar.thickness_inner, binsize=binsize)
+            rmax = tomo.nm2pixel(radius * GVar.thickness_outer, binsize=binsize)
         else:
             if r := spl.radius:
-                rmin = tomo.nm2pixel(r * GVar.inner, binsize=binsize)
-                rmax = tomo.nm2pixel(r * GVar.outer, binsize=binsize)
+                rmin = tomo.nm2pixel(r * GVar.thickness_inner, binsize=binsize)
+                rmax = tomo.nm2pixel(r * GVar.thickness_outer, binsize=binsize)
             else:
                 return ip.zeros((1, 1, 1), axes="rya")
 

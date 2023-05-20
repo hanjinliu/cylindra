@@ -263,15 +263,15 @@ class CylTomogram(Tomogram):
         coords : array-like
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """
-        spl = CylSpline(degree=GVar.splOrder)
+        spl = CylSpline(degree=GVar.spline_degree)
         coords = np.asarray(coords)
-        spl.fit_coa(coords, min_radius=GVar.minCurvatureRadius)
+        spl.fit_coa(coords, min_radius=GVar.min_curvature_radius)
         interval: nm = 30.0
         length = spl.length()
 
         n = int(length / interval) + 1
         fit = spl(np.linspace(0, 1, n))
-        if coords.shape[0] <= GVar.splOrder and coords.shape[0] < fit.shape[0]:
+        if coords.shape[0] <= GVar.spline_degree and coords.shape[0] < fit.shape[0]:
             return self.add_spline(fit)
 
         self._splines.append(spl)
@@ -377,8 +377,8 @@ class CylTomogram(Tomogram):
         npoints = spl.anchors.size
         interval = spl.length() / (npoints - 1)
         spl = self._splines[i]
-        length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
+        length_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # (length + width) / sqrt(2)
@@ -409,7 +409,7 @@ class CylTomogram(Tomogram):
                     distance: NDArray[np.float64] = (
                         np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
                     )
-                    distance_cutoff = GVar.fitWidth / 2
+                    distance_cutoff = GVar.fit_width / 2
                     if edge_sigma == 0:
                         mask_yx = (distance > distance_cutoff).astype(np.float32)
                     else:
@@ -451,7 +451,7 @@ class CylTomogram(Tomogram):
             if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
                 xc = int(subtomo_proj.shape.x / 2)
-                w = int(GVar.fitWidth / scale / 2)
+                w = int(GVar.fit_width / scale / 2)
                 subtomo_proj = subtomo_proj[ip.slicer.x[xc - w : xc + w + 1]]
 
             shifts = np.zeros((npoints, 2))  # zx-shift
@@ -476,7 +476,7 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
-        min_cr = GVar.minCurvatureRadius
+        min_cr = GVar.min_curvature_radius
         spl.fit_coa(coords, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5))
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
@@ -559,8 +559,8 @@ class CylTomogram(Tomogram):
 
         input_img = self._get_multiscale_or_original(binsize)
 
-        length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
+        length_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         if binsize > 1:
@@ -630,7 +630,7 @@ class CylTomogram(Tomogram):
                 shifts[i] = shift @ zxrot
 
         # Update spline parameters
-        min_cr = GVar.minCurvatureRadius
+        min_cr = GVar.min_curvature_radius
         spl.shift_coa(
             shifts=shifts * scale, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5)
         )
@@ -679,8 +679,8 @@ class CylTomogram(Tomogram):
             except ValueError:
                 input_img = self.image
 
-        length_px = self.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
+        length_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
         scale = self.scale * binsize
 
         mole = spl.anchors_to_molecules()
@@ -700,7 +700,7 @@ class CylTomogram(Tomogram):
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(input_img)
 
-        r_max = GVar.fitWidth / 2
+        r_max = GVar.fit_width / 2
         nbin = roundint(r_max / scale / 2)
         img2d = subtomograms.proj("py")
         prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
@@ -750,8 +750,8 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = spl.radius * GVar.inner / _scale
-        rmax = spl.radius * GVar.outer / _scale
+        rmin = spl.radius * GVar.thickness_inner / _scale
+        rmax = spl.radius * GVar.thickness_outer / _scale
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
@@ -818,8 +818,8 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size, binsize=binsize)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = spl.radius * GVar.inner / _scale
-        rmax = spl.radius * GVar.outer / _scale
+        rmin = spl.radius * GVar.thickness_inner / _scale
+        rmax = spl.radius * GVar.thickness_outer / _scale
         out: list[ip.ImgArray] = []
         if pos is None:
             anchors = spl.anchors
@@ -960,7 +960,7 @@ class CylTomogram(Tomogram):
                 imgb = self.image
 
         length_px = self.nm2pixel(depth, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
         spl = self.splines[i]
         ori_clockwise = Ori(GVar.clockwise)
@@ -969,7 +969,7 @@ class CylTomogram(Tomogram):
             r_range = 0.5, width_px / 2
         else:
             r_px = self.nm2pixel(spl.radius, binsize=binsize)
-            r_range = (GVar.inner * r_px, GVar.outer * r_px)
+            r_range = (GVar.thickness_inner * r_px, GVar.thickness_outer * r_px)
         point = 0.5
         coords = spl.local_cylindrical(r_range, length_px, point, scale=current_scale)
         mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
@@ -981,7 +981,7 @@ class CylTomogram(Tomogram):
             ft = img_flat.fft(shift=False, dims="ra")
             pw = ft.real**2 + ft.imag**2
             img_pw = np.mean(pw, axis=0)
-            npf = np.argmax(img_pw[GVar.nPFmin : GVar.nPFmax + 1]) + GVar.nPFmin
+            npf = np.argmax(img_pw[GVar.npf_min : GVar.npf_max + 1]) + GVar.npf_min
 
         pw_peak = img_flat.local_power_spectra(
             key=ip.slicer.a[npf - 1 : npf + 2],
@@ -1057,7 +1057,7 @@ class CylTomogram(Tomogram):
         else:
             if size is None:
                 rz = rx = 1 + 2 * self.nm2pixel(
-                    self._splines[i].radius * GVar.outer, binsize=binsize
+                    self._splines[i].radius * GVar.thickness_outer, binsize=binsize
                 )
 
             else:
@@ -1137,8 +1137,8 @@ class CylTomogram(Tomogram):
             input_img = self._get_multiscale_or_original(binsize)
             _scale = input_img.scale.x
             if radii is None:
-                inner_radius = spl.radius * GVar.inner / _scale
-                outer_radius = spl.radius * GVar.outer / _scale
+                inner_radius = spl.radius * GVar.thickness_inner / _scale
+                outer_radius = spl.radius * GVar.thickness_outer / _scale
 
             else:
                 inner_radius, outer_radius = radii / _scale
@@ -1468,13 +1468,13 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
 def _local_dft_params(img: ip.ImgArray, radius: nm):
     img = img - img.mean()
     l_circ: nm = 2 * np.pi * radius
-    npfmin = GVar.nPFmin
-    npfmax = GVar.nPFmax
+    npfmin = GVar.npf_min
+    npfmax = GVar.npf_max
 
     # First transform around the expected length of y-pitch.
     ylength_nm = img.shape.y * img.scale.y
-    y0 = ceilint(ylength_nm / GVar.yPitchMax) - 1
-    y1 = max(ceilint(ylength_nm / GVar.yPitchMin), y0 + 1)
+    y0 = ceilint(ylength_nm / GVar.spacing_max) - 1
+    y1 = max(ceilint(ylength_nm / GVar.spacing_min), y0 + 1)
     up_a = 20
     up_y = max(int(6000 / img.shape.y), 1)
     npfrange = ceilint(
@@ -1502,8 +1502,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
-    dy_min = ceilint(tandg(GVar.minSkew) * y_factor * npfmin) - 1
-    dy_max = max(ceilint(tandg(GVar.maxSkew) * y_factor * npfmax), dy_min + 1)
+    dy_min = ceilint(tandg(GVar.skew_min) * y_factor * npfmin) - 1
+    dy_max = max(ceilint(tandg(GVar.skew_max) * y_factor * npfmax), dy_min + 1)
     up_a = 20
     up_y = max(int(21600 / (img.shape.y)), 1)
 

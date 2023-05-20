@@ -116,5 +116,5 @@ class ImageProcessor(MagicTemplate):
         view_image(self.input_image, self)
         return None
 
-    def _imread(self, path, chunks=GVar.daskChunk):
+    def _imread(self, path, chunks=GVar.dask_chunk):
         return ip.lazy_imread(path, chunks=chunks)

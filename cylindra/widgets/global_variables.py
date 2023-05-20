@@ -1,11 +1,10 @@
 import json
 from appdirs import user_config_dir
-from typing import Annotated
+from typing import Annotated, Literal
 import json
 
 from magicclass import (
     magicmenu,
-    set_options,
     set_design,
     MagicTemplate,
     nogui,
@@ -30,65 +29,65 @@ class GlobalVariablesMenu(MagicTemplate):
         except Exception:
             return []
 
-    @set_options(
-        yPitchMin={"step": 0.1},
-        yPitchMax={"step": 0.1},
-        minSkew={"min": -90, "max": 90},
-        maxSkew={"min": -90, "max": 90},
-        minCurvatureRadius={"max": 10000.0},
-        clockwise={"choices": ["MinusToPlus", "PlusToMinus"]},
-        inner={"step": 0.1},
-        outer={"step": 0.1},
-        fitLength={"min": 3.0, "max": 100.0},
-        fitWidth={"min": 3.0, "max": 100.0},
-        daskChunk={"options": {"min": 16, "max": 2048, "step": 16}},
-        GPU={"label": "Use GPU if available"},
-    )
     @set_design(text="Set variables")
     def set_variables(
         self,
-        nPFmin: int = GVar.nPFmin,
-        nPFmax: int = GVar.nPFmax,
-        splOrder: int = GVar.splOrder,
-        yPitchMin: nm = GVar.yPitchMin,
-        yPitchMax: nm = GVar.yPitchMax,
-        minSkew: float = GVar.minSkew,
-        maxSkew: float = GVar.maxSkew,
-        minCurvatureRadius: nm = GVar.minCurvatureRadius,
-        clockwise: str = GVar.clockwise,
-        inner: float = GVar.inner,
-        outer: float = GVar.outer,
-        fitLength: nm = GVar.fitLength,
-        fitWidth: nm = GVar.fitWidth,
-        pointSize: float = GVar.pointSize,
-        daskChunk: tuple[int, int, int] = GVar.daskChunk,
-        GPU: bool = GVar.GPU,
+        npf_min: Annotated[int, {"min": 1}] = 1,
+        npf_max: Annotated[int, {"min": 1}] = 1,
+        spline_degree: Annotated[int, {"min": 1, "max": 5}] = 3,
+        spacing_min: Annotated[nm, {"step": 0.1}] = 1,
+        spacing_max: Annotated[nm, {"step": 0.1}] = 2,
+        skew_min: Annotated[float, {"min": -90, "max": 90}] = -1,
+        skew_max: Annotated[float, {"min": -90, "max": 90}] = 1,
+        min_curvature_radius: Annotated[float, {"max": 1e4}] = 100,
+        clockwise: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
+        thickness_inner: Annotated[nm, {"step": 0.1}] = 1.0,
+        thickness_outer: Annotated[nm, {"step": 0.1}] = 1.0,
+        fit_depth: Annotated[nm, {"step": 0.1}] = 10.0,
+        fit_width: Annotated[nm, {"step": 0.1}] = 10.0,
+        point_size: Annotated[nm, {"step": 0.1}] = 1.0,
+        dask_chunk: Annotated[
+            tuple[int, int, int], {"options": {"min": 16, "max": 2048, "step": 16}}
+        ] = (32, 32, 32),
+        use_gpu: bool = True,
     ):
         """
         Set global variables.
 
         Parameters
         ----------
-        nPFmin : int
+        npf_min : int
             Minimum protofilament numbers.
-        nPFmax : int
+        npf_max : int
             Maximum protofilament numbers.
-        splOrder : int
+        spline_degree : int
             Maximum order of spline curve.
-        yPitchMin : nm
+        spacing_min : nm
             Minimum pitch length for estimation.
-        yPitchMax : nm
+        spacing_max : nm
             Maximum pitch length for estimation.
-        minSkew : float
+        skew_min : float
             Minimum skew angle for estimation.
-        maxSkew : float
+        skew_max : float
             Maximum skew angle for estimation.
-        minCurvatureRadius : nm
+        min_curvature_radius : nm
             Minimum curvature radius of spline.
-        inner : float
+        clockwise : str
+            Orientation to which clockwise rotation of the cylinder corresponds.
+        thickness_inner : float
             Radius x inner will be the inner surface of the cylinder.
-        outer : float
+        thickness_outer : float
             Radius x outer will be the outer surface of the cylinder.
+        fit_depth : nm
+            Depth in nm of image that will be used for spline fitting.
+        fit_width : nm
+            Width in nm of image that will be used for spline fitting.
+        point_size : float
+            Default size of points layer in nm.
+        dask_chunk : tuple[int, int, int]
+            Chunk size for dask array.
+        use_gpu : bool
+            Use GPU if available.
         """
         GVar.update(locals())
 
@@ -126,29 +125,7 @@ class GlobalVariablesMenu(MagicTemplate):
     ):
         """Load global variables from one of the saved Json files."""
         path = VAR_PATH / f"{name}.json"
-        with open(path) as f:
-            gvar: dict = json.load(f)
-
-        # for version compatibility
-        annots = GVar.__annotations__.keys()
-        _undef = set()
-        for k in gvar.keys():
-            if k not in annots:
-                _undef.add(k)
-        if _undef:
-            for k in _undef:
-                gvar.pop(k)
-            show_messagebox(
-                mode="warn",
-                title="Warning",
-                text=(
-                    "Could not load following variables, maybe due to version "
-                    f"incompatibility: {_undef!r}"
-                ),
-                parent=self.native,
-            )
-
-        GVar.update(gvar)
+        self.load_variables(path)
         return None
 
     @set_design(text="Save variables")

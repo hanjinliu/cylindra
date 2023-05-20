@@ -70,7 +70,7 @@ def add_molecules(
     """Add Molecules object as a point layer."""
     layer = MoleculesLayer(
         mol,
-        size=GVar.pointSize,
+        size=GVar.point_size,
         face_color="lime",
         edge_color="lime",
         out_of_slice_display=True,

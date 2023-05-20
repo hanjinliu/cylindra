@@ -1,22 +1,22 @@
 {
-    "nPFmin": 15,
-    "nPFmax": 17,
-    "splOrder": 3,
-    "yPitchMin": 2.1,
-    "yPitchMax": 2.5,
-    "minSkew": -20.0,
-    "maxSkew": -10.0,
-    "minCurvatureRadius": 10000.0,
+    "npf_min": 15,
+    "npf_max": 17,
+    "spline_degree": 3,
+    "spacing_min": 2.1,
+    "spacing_max": 2.5,
+    "skew_min": -20.0,
+    "skew_max": -10.0,
+    "min_curvature_radius": 10000.0,
     "clockwise": "MinusToPlus",
-    "inner": 0.3,
-    "outer": 1.5,
-    "fitLength": 48.0,
-    "fitWidth": 28.0,
-    "daskChunk": [
+    "thickness_inner": 0.3,
+    "thickness_outer": 1.5,
+    "fit_depth": 48.0,
+    "fit_width": 28.0,
+    "dask_chunk": [
         256,
         256,
         256
     ],
-    "pointSize": 4.2,
-    "GPU": true
+    "point_size": 4.2,
+    "use_gpu": true
 }

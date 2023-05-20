@@ -1,9 +1,10 @@
 from __future__ import annotations
 from enum import Enum
 from types import SimpleNamespace
-from typing import Any
+from typing import Union
 
 from psygnal import EventedModel
+from psygnal._evented_model import EventedModel
 
 nm = float  # type alias for nanometer
 pf = float  # type alias for protofilament numbering
@@ -151,40 +152,43 @@ class EulerAxes(strEnum):
 
 
 class GlobalVariableModel(EventedModel):
-    nPFmin: int = 11
-    nPFmax: int = 17
-    splOrder: int = 3
-    yPitchMin: nm = 3.9
-    yPitchMax: nm = 4.3
-    minSkew: float = -1.0
-    maxSkew: float = 1.0
-    minCurvatureRadius: nm = 400.0
+    """
+    Global variables used in this module.
+
+
+    """
+
+    npf_min: int = 11
+    npf_max: int = 17
+    spline_degree: int = 3
+    spacing_min: nm = 3.9
+    spacing_max: nm = 4.3
+    skew_min: float = -1.0
+    skew_max: float = 1.0
+    min_curvature_radius: nm = 400.0
     clockwise: str = "MinusToPlus"
-    inner: float = 0.8
-    outer: float = 1.3
-    fitLength: nm = 48.0
-    fitWidth: nm = 44.0
-    daskChunk: tuple[int, int, int] = (256, 256, 256)
-    pointSize: float = 4.2
-    GPU: bool = True
+    thickness_inner: float = 0.8
+    thickness_outer: float = 1.3
+    fit_depth: nm = 48.0
+    fit_width: nm = 44.0
+    dask_chunk: tuple[int, int, int] = (256, 256, 256)
+    point_size: float = 4.2
+    use_gpu: bool = True
+
+    def update(self, values: EventedModel | dict, recurse: bool = True) -> None:
+        # validate values
+        Inf = float("inf")
+        if isinstance(values, dict):
+            if values.get("npf_min", -Inf) >= values.get("npf_max", Inf):
+                raise ValueError(f"npf_min > npf_max must be satisfied.")
+            if values.get("spacing_min", -Inf) >= values.get("spacing_max", Inf):
+                raise ValueError(f"spacing_min > spacing_max must be satisfied.")
+            if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
+                raise ValueError(f"skew_min > skew_max must be satisfied.")
+        return super().update(values, recurse)
 
 
 GlobalVariables = GlobalVariableModel()
-# class GlobalVariables:
-#     """Global variables"""
-
-
-#     @classmethod
-#     def set_value(cls, **kwargs):
-#         inf = float("inf")
-#         if kwargs.get("yPitchMin", -inf) >= kwargs.get("yPitchMax", inf):
-#             raise ValueError("'yPitchMin' must be smaller than 'yPitchMax'.")
-#         if kwargs.get("minSkew", -inf) >= kwargs.get("maxSkew", inf):
-#             raise ValueError("'minSkew' must be smaller than 'maxSkew'.")
-#         for k, v in kwargs.items():
-#             if not hasattr(cls, k):
-#                 pass
-#             setattr(cls, k, v)
 
 
 def get_versions() -> dict[str, str]:

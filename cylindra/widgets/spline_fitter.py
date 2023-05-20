@@ -80,7 +80,7 @@ class SplineFitter(MagicTemplate):
         spl = self._get_spline(i)
         old_spl = spl.copy()
 
-        min_cr = GVar.minCurvatureRadius
+        min_cr = GVar.min_curvature_radius
         spl.make_anchors(max_interval=max_interval)
         spl.shift_coa(
             shifts=shifts * self._get_binsize() * _scale,
@@ -146,7 +146,7 @@ class SplineFitter(MagicTemplate):
         itemh.pos = [x, z]
 
         tomo = self._get_parent().tomogram
-        r_max: nm = GVar.fitWidth / 2
+        r_max: nm = GVar.fit_width / 2
         nbin = max(roundint(r_max / tomo.scale / binsize / 2), 8)
         prof = self.subtomograms[j].radial_profile(
             center=[z, x], nbin=nbin, r_max=r_max
@@ -156,10 +156,10 @@ class SplineFitter(MagicTemplate):
         r_peak = (imax_sub + 0.5) / nbin * r_max / tomo.scale / binsize
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
-        item_circ_inner.xdata = r_peak * GVar.inner * np.cos(theta) + x
-        item_circ_inner.ydata = r_peak * GVar.inner * np.sin(theta) + z
-        item_circ_outer.xdata = r_peak * GVar.outer * np.cos(theta) + x
-        item_circ_outer.ydata = r_peak * GVar.outer * np.sin(theta) + z
+        item_circ_inner.xdata = r_peak * GVar.thickness_inner * np.cos(theta) + x
+        item_circ_inner.ydata = r_peak * GVar.thickness_inner * np.sin(theta) + z
+        item_circ_outer.xdata = r_peak * GVar.thickness_outer * np.cos(theta) + x
+        item_circ_outer.ydata = r_peak * GVar.thickness_outer * np.sin(theta) + z
 
         lz, lx = self.subtomograms.sizesof("zx")
         self.shifts[i][j, :] = z - lz / 2 + 0.5, x - lx / 2 + 0.5
@@ -194,8 +194,8 @@ class SplineFitter(MagicTemplate):
         self.shifts[i] = np.zeros((npos, 2))
 
         binsize = self._get_binsize()
-        length_px = tomo.nm2pixel(GVar.fitLength, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fitWidth, binsize=binsize)
+        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules()
         coords = mole.local_coordinates(

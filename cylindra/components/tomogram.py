@@ -148,7 +148,7 @@ class Tomogram:
         Tomogram
             Tomogram object with the image that has just been read and multi-scales.
         """
-        img = ip.lazy_imread(path, chunks=GVar.daskChunk, name="tomogram").as_float()
+        img = ip.lazy_imread(path, chunks=GVar.dask_chunk, name="tomogram").as_float()
         return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
 
     @property
@@ -167,7 +167,7 @@ class Tomogram:
         elif isinstance(img, np.ndarray):
             if img.ndim != 3:
                 raise ValueError("Can only set 3-D image.")
-            _img = ip.aslazy(img, dtype=np.float32, axes="zyx", chunks=GVar.daskChunk)
+            _img = ip.aslazy(img, dtype=np.float32, axes="zyx", chunks=GVar.dask_chunk)
             if isinstance(img, ip.ImgArray):
                 _img.set_scale(img)
         else:

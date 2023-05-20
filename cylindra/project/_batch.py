@@ -158,7 +158,7 @@ class CylindraBatchProject(BaseProject):
             mole_dict = dict(Molecules.from_csv(lmodel.molecule).groupby(Mole.image))
             for imginfo in lmodel.images:
                 loader.add_tomogram(
-                    image=ip.lazy_imread(imginfo.image, chunks=GVar.daskChunk)
+                    image=ip.lazy_imread(imginfo.image, chunks=GVar.dask_chunk)
                     .set_scale(zyx=imginfo.scale)
                     .value,
                     molecules=mole_dict[imginfo.id],
