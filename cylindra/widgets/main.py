@@ -1199,92 +1199,39 @@ class CylindraMainWidget(MagicTemplate):
     def set_spline_props(
         self,
         spline: Annotated[int, {"bind": SplineControl.num}],
-        interval: Annotated[
-            nm,
-            {
-                "min": 0.2,
-                "max": GVar.yPitchMax * 2,
-                "step": 0.01,
-                "label": "interval (nm)",
-            },
-        ] = (GVar.yPitchMin + GVar.yPitchMax)
-        / 2,
-        skew: Annotated[
-            float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}
-        ] = (GVar.minSkew + GVar.maxSkew)
-        / 2,
-        rise: Annotated[nm, {"label": "Rise angle (deg)", "min": 1.0}] = 8.0,
-        npf: Annotated[int, {"label": "Number of PF", "min": 1}] = (
-            GVar.nPFmin + GVar.nPFmax
-        )
-        // 2,
-        radius: Annotated[nm, {"label": "Radius (nm)", "min": 1.0}] = 10.0,
-        orientation: Literal[None, "MinusToPlus", "PlusToMinus"] = None,
-    ):
+        spacing: Annotated[Optional[nm], {"label": "spacing (nm)", "text": "Do not update"}] = None,
+        skew: Annotated[Optional[float], {"label": "skew angle (°)", "text": "Do not update"}] = None,
+        rise: Annotated[Optional[nm], {"label": "rise angle (°)", "text": "Do not update"}] = None,
+        npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
+        radius: Annotated[Optional[nm], {"label": "radius (nm)", "text": "Do not update"}] = None,
+        orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
+    ):  # fmt: skip
         spl = self.tomogram.splines[spline]
         old_spl = spl.copy()
         spl.update_props(
-            interval=interval,
+            spacing=spacing,
             skew=skew,
             rise=rise,
             npf=npf,
             radius=radius,
             orientation=orientation,
         )
-        return undo_callback(lambda: spl.copy_from(old_spl))
+        self.sample_subtomograms()
 
-    # @footer.wraps
-    # @set_design(text="Set PF number")
-    # @set_options(labels=False)
-    # def set_pf_number(self, i: Bound[num], npf: int = 13):
-    #     """Manually update protofilament number."""
-    #     from .main import CylindraMainWidget
+        @undo_callback
+        def out():
+            spl.copy_from(old_spl)
+            self.sample_subtomograms()
 
-    #     parent = self.find_ancestor(CylindraMainWidget)
-    #     if parent.tomogram is None or i is None:
-    #         return None
-    #     spl = parent.tomogram.splines[i]
-    #     if spl.localprops is not None:
-    #         spl.localprops = spl.localprops.with_columns(
-    #             pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF)
-    #         )
-    #         parent._update_local_properties_in_widget()
-    #     if spl.globalprops is not None:
-    #         spl.globalprops = spl.globalprops.with_columns(
-    #             pl.Series(H.nPF, [npf]).cast(pl.UInt8)
-    #         )
-    #         parent._update_global_properties_in_widget()
-    #     if self.canvas[0].image is not None:
-    #         parent.sample_subtomograms()
-    #     return None
-
-    # @footer.wraps
-    # @set_design(text="Set orientation")
-    # @set_options(labels=False, orientation={"widget_type": "RadioButtons"})
-    # def set_orientation(self, i: Bound[num], orientation: Ori = Ori.none):
-    #     """Manually set polarity."""
-    #     from .main import CylindraMainWidget
-
-    #     parent = self.find_ancestor(CylindraMainWidget)
-    #     if parent.tomogram is None or i is None:
-    #         return None
-    #     spl = parent.tomogram.splines[i]
-    #     spl.orientation = orientation
-    #     parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
-    #     parent._set_orientation_marker(i)
-    #     self._update_canvas()
-    #     return None
+        return out
 
     @Splines.wraps
     @set_design(text="Molecules to spline")
     def molecules_to_spline(
         self,
-        layers: Annotated[
-            list[MoleculesLayer],
-            {"choices": get_monomer_layers, "widget_type": "Select"},
-        ],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
         interval: Annotated[nm, {"label": "Interval (nm)", "min": 1.0}] = 24.5,
-    ):
+    ):  # fmt: skip
         """
         Create splines from molecules.
 
@@ -2708,6 +2655,27 @@ class CylindraMainWidget(MagicTemplate):
     def _global_variable_updated(self):
         get_function_gui(self.global_variables.set_variables).update(GVar.dict())
 
+        fgui = get_function_gui(self.set_spline_props)
+        fgui.spacing.min, fgui.spacing.max = GVar.yPitchMin, GVar.yPitchMax
+        fgui.spacing.value = (GVar.yPitchMin + GVar.yPitchMax) / 2
+        fgui.skew.min, fgui.skew.max = GVar.minSkew, GVar.maxSkew
+        fgui.skew.value = (GVar.minSkew + GVar.maxSkew) / 2
+        fgui.npf.min, fgui.npf.max = GVar.nPFmin, GVar.nPFmax
+        fgui.npf.value = (GVar.nPFmin + GVar.nPFmax) // 2
+
+        fgui = get_function_gui(self.cylinder_simulator.update_model)
+        fgui.spacing.min, fgui.spacing.max = GVar.yPitchMin, GVar.yPitchMax
+        fgui.spacing.value = (GVar.yPitchMin + GVar.yPitchMax) / 2
+        fgui.skew.min, fgui.skew.max = GVar.minSkew, GVar.maxSkew
+        fgui.skew.value = (GVar.minSkew + GVar.maxSkew) / 2
+        fgui.npf.min, fgui.npf.max = GVar.nPFmin, GVar.nPFmax
+        fgui.npf.value = (GVar.nPFmin + GVar.nPFmax) // 2
+
+        self.cylinder_simulator.parameters.update(
+            spacing=fgui.spacing.value,
+            skew=fgui.skew.value,
+            npf=fgui.npf.value,
+        )
         # TODO: other updates
 
 

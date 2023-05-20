@@ -197,7 +197,7 @@ class CylSpline(Spline):
     def update_props(
         self,
         *,
-        interval: nm | None = None,
+        spacing: nm | None = None,
         skew: float | None = None,
         rise: float | None = None,
         npf: int | None = None,
@@ -206,9 +206,9 @@ class CylSpline(Spline):
     ):
         loc = []
         glob = []
-        if interval is not None:
-            loc.append(pl.repeat(interval, pl.count()).cast(pl.Float32).alias(H.yPitch))
-            glob.append(pl.Series([interval]).cast(pl.Float32).alias(H.yPitch))
+        if spacing is not None:
+            loc.append(pl.repeat(spacing, pl.count()).cast(pl.Float32).alias(H.yPitch))
+            glob.append(pl.Series([spacing]).cast(pl.Float32).alias(H.yPitch))
         if skew is not None:
             loc.append(pl.repeat(skew, pl.count()).cast(pl.Float32).alias(H.skewAngle))
             glob.append(pl.Series([skew]).cast(pl.Float32).alias(H.skewAngle))
@@ -218,13 +218,11 @@ class CylSpline(Spline):
         if npf is not None:
             loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.nPF))
-        # if radius is not None:
+        if radius is not None:
+            glob.append(pl.Series([radius]).cast(pl.Float32).alias(H.radius))
+        if orientation is not None:
+            glob.append(pl.Series([orientation]).cast(pl.Utf8).alias(H.orientation))
 
         self.localprops = self.localprops.with_columns(loc)
         self.globalprops = self.globalprops.with_columns(glob)
-
-        if orientation is not None:
-            self.orientation = orientation
-        if radius is not None:
-            self.radius = radius
         return self

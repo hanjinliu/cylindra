@@ -145,10 +145,10 @@ def test_spline_switch(ui: CylindraMainWidget):
     # check orientations
     # switch spline 0 and 1 and check if orientation is correctly set
     ui.SplineControl.num = 0
-    ui.SplineControl.set_orientation(i=0, orientation="PlusToMinus")
+    ui.set_spline_props(spline=0, orientation="PlusToMinus")
     assert_orientation(ui, "PlusToMinus")
     ui.SplineControl.num = 1
-    ui.SplineControl.set_orientation(i=1, orientation="MinusToPlus")
+    ui.set_spline_props(spline=1, orientation="MinusToPlus")
     assert_orientation(ui, "MinusToPlus")
     ui.SplineControl.num = 0
     assert_orientation(ui, "PlusToMinus")
@@ -308,7 +308,7 @@ def test_simulator(ui: CylindraMainWidget):
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(
-        interval=4.1,
+        spacing=4.1,
         skew=-0.30,
         rise=11.0,
         npf=14,
@@ -328,7 +328,7 @@ def test_simulator(ui: CylindraMainWidget):
 def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_straight_line(25, (40, 42, 42), scale=0.5)
     ui.cylinder_simulator.update_model(
-        interval=4.06,
+        spacing=4.06,
         skew=-0.31,
         rise=10.5,
         npf=14,

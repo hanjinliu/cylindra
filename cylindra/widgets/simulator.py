@@ -42,10 +42,6 @@ if TYPE_CHECKING:
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
 
-_INTERVAL = (GVar.yPitchMin + GVar.yPitchMax) / 2
-_NPF = (GVar.nPFmin + GVar.nPFmax) // 2
-_RADIUS = _INTERVAL * _NPF / 2 / np.pi
-
 _TiltRange = Annotated[
     tuple[float, float],
     {
@@ -76,11 +72,11 @@ def _simulate_tomogram_iter(nsr):
 class CylinderParameters:
     """Parameters for cylinder model."""
 
-    interval: nm = _INTERVAL
-    skew: float = (GVar.minSkew + GVar.maxSkew) / 2
+    spacing: nm = 1.0
+    skew: float = 0.0
     rise: float = 0.0
-    npf: int = _NPF
-    radius: nm = _RADIUS
+    npf: int = 1
+    radius: nm = 1.0
     offsets: "tuple[nm, float]" = (0.0, 0.0)
 
     def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
@@ -93,7 +89,7 @@ class CylinderParameters:
     def asdict(self) -> dict[str, Any]:
         """Return parameters as a dictionary."""
         return {
-            "interval": self.interval,
+            "spacing": self.spacing,
             "skew": self.skew,
             "rise": self.rise,
             "npf": self.npf,
@@ -143,6 +139,11 @@ class CylinderSimulator(MagicTemplate):
         self._simulate_shape = (0, 0, 0)
         self._simulate_scale = 0.0
         self.canvas.min_height = 300
+
+    @property
+    def parameters(self) -> CylinderParameters:
+        """Parameters for cylinder model."""
+        return self._parameters
 
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model
@@ -341,7 +342,8 @@ class CylinderSimulator(MagicTemplate):
         self.canvas.layers.clear()
         self._points = None
         self._spline_arrow = None
-        self._update_model_from_spline(spl, **self._parameters.asdict())
+        with self.macro.blocked():
+            self.update_model(**self._parameters.asdict())
         return None
 
     @ViewerMenu.wraps
@@ -422,11 +424,11 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Update model parameters")
     def update_model(
         self,
-        interval: Annotated[nm, {"min": 0.2, "max": GVar.yPitchMax * 2, "step": 0.01, "label": "interval (nm)"}] = CylinderParameters.interval,
-        skew: Annotated[float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}] = CylinderParameters.skew,
-        rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = CylinderParameters.rise,
-        npf: Annotated[int, {"min": GVar.nPFmin, "max": GVar.nPFmax, "label": "nPF"}] = CylinderParameters.npf,
-        radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = CylinderParameters.radius,
+        spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
+        skew: Annotated[float, {"min": -45.0, "max": 45.0, "label": "skew (deg)"}] = 0.0,
+        rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = 0.0,
+        npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 1,
+        radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
         offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = CylinderParameters.offsets,
     ):  # fmt: skip
         """
@@ -437,8 +439,8 @@ class CylinderSimulator(MagicTemplate):
 
         Parameters
         ----------
-        interval : nm
-            Axial interval between molecules.
+        spacing : nm
+            Axial spacing between molecules.
         skew : float
             Skew angle.
         rise : float
@@ -450,8 +452,21 @@ class CylinderSimulator(MagicTemplate):
         offsets : tuple of float
             Offset of the starting molecule.
         """
-        spl = self._spline
-        self._update_model_from_spline(spl, interval, skew, rise, npf, radius, offsets)
+        self._parameters.update(
+            spacing=spacing,
+            skew=skew,
+            rise=rise,
+            npf=npf,
+            radius=radius,
+            offsets=offsets,
+        )
+        kwargs = {H.yPitch: spacing, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
+        model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
+        self.model = model
+
+        op = self.Operator
+        op._update_slider_lims(*self.model.shape)
+        self._select_molecules(op.yrange, op.arange)  # update selection coordinates
         return None
 
     @update_model.during_preview
@@ -462,33 +477,6 @@ class CylinderSimulator(MagicTemplate):
         yield
         self.model = old_model
         op["yrange"].max, op["arange"].max = old_max
-        return None
-
-    def _update_model_from_spline(
-        self,
-        spl: CylSpline,
-        interval,
-        skew,
-        rise,
-        npf,
-        radius,
-        offsets,
-    ):
-        self._parameters.update(
-            interval=interval,
-            skew=skew,
-            rise=rise,
-            npf=npf,
-            radius=radius,
-            offsets=offsets,
-        )
-        kwargs = {H.yPitch: interval, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
-        model = spl.cylinder_model(offsets=offsets, radius=radius, **kwargs)
-        self.model = model
-
-        op = self.Operator
-        op._update_slider_lims(*self.model.shape)
-        self._select_molecules(op.yrange, op.arange)  # update selection coordinates
         return None
 
     def _prep_radon(

@@ -78,7 +78,7 @@ class SplineControl(MagicTemplate):
     @num.connect
     @pos.connect
     @footer.focus.connect
-    def _highlight(self, focus):
+    def _highlight(self):
         """Change camera focus to the position of current spline fragment."""
         parent = self._get_parent()
         layer = parent.layer_paint
@@ -87,7 +87,7 @@ class SplineControl(MagicTemplate):
 
         # NOTE: the setter of "show_selected_label" calls layer.refresh() so that
         # it is very slow. Check if "show_selected_label" is True before setting it.
-        if not focus:
+        if not self.footer.focus:
             if layer.show_selected_label:
                 layer.show_selected_label = False
             return None
