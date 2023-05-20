@@ -346,25 +346,26 @@ class CylinderSimulator(MagicTemplate):
 
     @ViewerMenu.wraps
     @set_design(text="Set current spline")
-    def set_current_spline(self, idx: Bound[_get_current_index]):
+    def set_current_spline(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Use the current parameters and the spline to construct a model and molecules."""
         return self._set_spline(self.parent_widget.tomogram.splines[idx])
 
     @ViewerMenu.wraps
     @set_design(text="Load spline parameters")
-    def load_spline_parameters(self, idx: Bound[_get_current_index]):
+    def load_spline_parameters(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Copy the spline parameters in the viewer."""
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
-        props = spl.globalprops
-        if props is None:
+
+        if spl.has_globalprops([H.yPitch, H.skewAngle, H.riseAngle, H.nPF, H.radius]):
             raise ValueError("Global property is not calculated yet.")
+
         self._parameters.update(
-            interval=props[H.yPitch][0],
-            skew=props[H.skewAngle][0],
-            rise=props[H.riseAngle][0],
-            npf=props[H.nPF][0],
-            radius=spl.radius,
+            interval=spl.get_globalprops(H.yPitch),
+            skew=spl.get_globalprops(H.skewAngle),
+            rise=spl.get_globalprops(H.riseAngle),
+            npf=spl.get_globalprops(H.nPF),
+            radius=spl.get_globalprops(H.radius),
         )
         return None
 

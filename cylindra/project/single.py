@@ -95,7 +95,7 @@ class CylindraProject(BaseProject):
 
         # Save path of splines
         spline_paths: list[Path] = []
-        for i, spl in enumerate(gui.tomogram.splines):
+        for i in range(len(gui.tomogram.splines)):
             spline_paths.append(results_dir / f"spline-{i}.json")
 
         # Save path of molecules
@@ -247,23 +247,13 @@ class CylindraProject(BaseProject):
 
         for i, spl in enumerate(splines):
             spl.localprops = all_localprops.get(i, None)
-            if spl.localprops is not None:
+            if spl.has_localprops(H.splPosition):
                 spl._anchors = np.asarray(spl.localprops[H.splPosition])
                 spl.localprops.drop(["SplineID", "PosID"])
             spl.globalprops = all_globalprops.get(i, None)
-            if spl.globalprops is not None:
-                if "radius" in spl.globalprops.columns:
-                    spl.radius = spl.globalprops["radius"][0]
-                if "orientation" in spl.globalprops.columns:
-                    spl.orientation = spl.globalprops["orientation"][0]
-                spl.globalprops = spl.globalprops.select(
-                    [
-                        H.riseAngle,
-                        H.yPitch,
-                        H.skewAngle,
-                        pl.col(H.nPF).cast(pl.UInt8),
-                        H.start,
-                    ]
+            if spl.has_globalprops(H.nPF):
+                spl.globalprops = spl.globalprops.with_columns(
+                    pl.col(H.nPF).cast(pl.UInt8)
                 )
 
         def _load_project_on_return():

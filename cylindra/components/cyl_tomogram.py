@@ -173,7 +173,7 @@ class SplineList(MutableSequence[CylSpline]):
         ...
 
     @overload
-    def __getitem__(self, i: int) -> list[CylSpline]:
+    def __getitem__(self, i: slice) -> list[CylSpline]:
         ...
 
     def __getitem__(self, i):
@@ -529,11 +529,11 @@ class CylTomogram(Tomogram):
             self.set_radius(i=i, binsize=binsize)
 
         level = LOGGER.level
-        LOGGER.setLevel(logging.WARNING)
+        # LOGGER.setLevel(logging.WARNING)
         try:
-            props = self.splines[i].globalprops
-            if props is None:
-                props = self.global_ft_params(i, binsize=binsize)
+            _required = [H.yPitch, H.skewAngle, H.nPF]
+            if not spl.has_globalprops(_required):
+                self.global_ft_params(i, binsize=binsize)
         finally:
             LOGGER.setLevel(level)
         spl.make_anchors(max_interval=max_interval)
@@ -543,16 +543,16 @@ class CylTomogram(Tomogram):
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        lp = props[H.yPitch][0] * 2
-        skew = props[H.skewAngle][0]
-        npf = roundint(props[H.nPF][0])
+        interv = spl.get_globalprops(H.yPitch) * 2
+        skew = spl.get_globalprops(H.skewAngle)
+        npf = roundint(spl.get_globalprops(H.nPF))
 
         LOGGER.info(
-            f" >> Parameters: spacing = {lp/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}"
+            f" >> Parameters: spacing = {interv/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}"
         )
 
         # complement skewing
-        skew_angles = np.arange(npoints) * interval / lp * skew
+        skew_angles = np.arange(npoints) * interval / interv * skew
         pf_ang = 360 / npf
         skew_angles %= pf_ang
         skew_angles[skew_angles > pf_ang / 2] -= pf_ang
@@ -769,19 +769,19 @@ class CylTomogram(Tomogram):
                 da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0
             )
 
-        spl.localprops = pl.DataFrame(
-            {
-                H.splPosition: spl.anchors,
-                H.splDistance: spl.distances(),
-                H.riseAngle: results[:, 0],
-                H.yPitch: results[:, 1],
-                H.skewAngle: results[:, 2],
-                H.nPF: np.round(results[:, 3]).astype(np.uint8),
-                H.start: results[:, 4],
-            }
-        )
+        lprops = [
+            pl.Series(H.splPosition, spl.anchors).cast(pl.Float32),
+            pl.Series(H.splDistance, spl.distances()).cast(pl.Float32),
+            pl.Series(H.riseAngle, results[:, 0]).cast(pl.Float32),
+            pl.Series(H.yPitch, results[:, 1]).cast(pl.Float32),
+            pl.Series(H.skewAngle, results[:, 2]).cast(pl.Float32),
+            pl.Series(H.nPF, np.round(results[:, 3])).cast(pl.UInt8),
+            pl.Series(H.start, results[:, 4]).cast(pl.Float32),
+        ]
+        out = pl.DataFrame(lprops)
+        spl.localprops = spl.localprops.with_columns(lprops)
 
-        return spl.localprops
+        return out
 
     @batch_process
     def local_cft(
@@ -903,9 +903,10 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self._splines[i]
         img_st = self.straighten_cylindric(i, binsize=binsize)
-        df = _local_dft_params_pl(img_st, spl.radius)
-        spl.globalprops = df
-        return df
+        cols = _local_dft_params_pl(img_st, spl.radius)
+        out = pl.DataFrame(cols)
+        spl.globalprops = spl.globalprops.with_columns(cols)
+        return out
 
     @batch_process
     def global_cft(self, i: int = None, binsize: int = 1) -> ip.ImgArray:
@@ -949,7 +950,14 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.infer_polarity, i={i}")
         current_scale = self.scale * binsize
-        imgb = self.get_multiscale(binsize)
+
+        if binsize > 1:
+            imgb = self.get_multiscale(binsize)
+        else:
+            try:
+                imgb = self.get_multiscale(1)
+            except ValueError:
+                imgb = self.image
 
         length_px = self.nm2pixel(depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fitWidth, binsize=binsize)
@@ -967,10 +975,8 @@ class CylTomogram(Tomogram):
         mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
         img_flat = ip.asarray(mapped, axes="rya").proj("y")
 
-        if spl.globalprops is not None:
+        if (npf := spl.get_globalprops(H.nPF, None)) is None:
             # if the global properties are already calculated, use it
-            npf = roundint(spl.globalprops[H.nPF][0])
-        else:
             # otherwise, calculate the number of PFs from the power spectrum
             ft = img_flat.fft(shift=False, dims="ra")
             pw = ft.real**2 + ft.imag**2
@@ -991,7 +997,8 @@ class CylTomogram(Tomogram):
         pw_non_peak = np.delete(pw_peak, r_argmax)
         _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
         LOGGER.info(
-            f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})"
+            f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to "
+            f"{_ave:.2g} ± {_std:.2g})"
         )
         return ori
 
@@ -1181,23 +1188,22 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        props = self.splines[i].globalprops
-        if props is None:
-            props = self.global_ft_params(i)
+        if spl.has_globalprops([H.yPitch, H.skewAngle]):
+            self.global_ft_params(i)
 
-        lp = props[H.yPitch][0] * 2
-        skew = props[H.skewAngle][0]
+        interv = spl.get_globalprops(H.yPitch) * 2
+        skew = spl.get_globalprops(H.skewAngle)
 
         # Set interval to the dimer length by default.
         if interval is None:
-            interval = lp
+            interval = interv
 
         # Check length.
         spl_length = spl.length()
         length = spl_length
 
         npoints = length / interval + 1
-        skew_angles = np.arange(npoints) * interval / lp * skew
+        skew_angles = np.arange(npoints) * interval / interv * skew
         u = np.arange(npoints) * interval / length
         mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
         if _need_rotation(spl, orientation):
@@ -1226,9 +1232,10 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
-        if not all(k in kwargs for k in [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]):
-            if spl.globalprops is None:
-                self.global_ft_params(i)
+        _required = [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]
+        _missing = [k for k in _required if k not in kwargs]
+        if not spl.has_globalprops(_missing):
+            self.global_ft_params(i)
         return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process
@@ -1292,16 +1299,15 @@ class CylTomogram(Tomogram):
             Object that represents protofilament positions and angles.
         """
         spl = self.splines[i]
-        props = spl.globalprops
-        if props is None:
-            props = self.global_ft_params(i)
-        lp = props[H.yPitch][0] * 2
-        skew = props[H.skewAngle][0]
+        if not spl.has_globalprops([H.yPitch, H.skewAngle]):
+            self.global_ft_params(i)
+        interv = spl.get_globalprops(H.yPitch) * 2
+        skew = spl.get_globalprops(H.skewAngle)
 
         if interval is None:
-            interval = lp
+            interval = interv
         ny = roundint(spl.length() / interval)
-        skew_rad = np.deg2rad(skew) * interval / lp
+        skew_rad = np.deg2rad(skew) * interval / interv
 
         rcoords = np.full(ny, spl.radius)
         ycoords = np.arange(ny) * interval
@@ -1359,7 +1365,7 @@ class CylTomogram(Tomogram):
         props: list[pl.DataFrame] = []
         for i_ in i:
             prop = self._splines[i_].localprops
-            if prop is None:
+            if len(prop) == 0:
                 if not allow_none:
                     raise ValueError(f"Local properties of spline {i_} is missing.")
                 continue
@@ -1367,7 +1373,6 @@ class CylTomogram(Tomogram):
                 prop.with_columns(
                     pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
                     pl.arange(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
-                    pl.col(H.nPF).cast(pl.UInt8),
                 )
             )
 
@@ -1399,16 +1404,13 @@ class CylTomogram(Tomogram):
         props: list[pl.DataFrame] = []
         for i_ in i:
             prop = self._splines[i_].globalprops
-            if prop is None:
+            if len(prop) == 0:
                 if not allow_none:
-                    raise ValueError(f"Local properties of spline {i_} is missing.")
+                    raise ValueError(f"Global properties of spline {i_} is missing.")
                 continue
             props.append(
                 prop.with_columns(
-                    pl.Series("radius", [self._splines[i_].radius]),
-                    pl.Series("orientation", [str(self._splines[i_].orientation)]),
                     pl.Series(IDName.spline, [i_]),
-                    pl.col(H.nPF).cast(pl.UInt8),
                 )
             )
 
@@ -1535,18 +1537,15 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     )
 
 
-def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> pl.DataFrame:
+def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> list[pl.Series]:
     rise, space, skew, npf, start = _local_dft_params(img, radius)
-    df = pl.DataFrame(
-        {
-            H.riseAngle: pl.Series([rise], dtype=pl.Float32),
-            H.yPitch: pl.Series([space], dtype=pl.Float32),
-            H.skewAngle: pl.Series([skew], dtype=pl.Float32),
-            H.nPF: pl.Series([int(round(npf))], dtype=pl.UInt8),
-            H.start: pl.Series([start], dtype=pl.Float32),
-        }
-    )
-    return df
+    return [
+        pl.Series(H.riseAngle, [rise], dtype=pl.Float32),
+        pl.Series(H.yPitch, [space], dtype=pl.Float32),
+        pl.Series(H.skewAngle, [skew], dtype=pl.Float32),
+        pl.Series(H.nPF, [int(round(npf))], dtype=pl.UInt8),
+        pl.Series(H.start, [start], dtype=pl.Float32),
+    ]
 
 
 def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):

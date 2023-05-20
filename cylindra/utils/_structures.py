@@ -199,7 +199,7 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
     subsets: list[Molecules] = []
-    spacing = spl.globalprops[H.yPitch][0]
+    spacing = spl.get_globalprops(H.yPitch)
     for _, sub in mole0.groupby(Mole.pf):
         _pos = sub.pos
         _interv_vec_norm = _norm(np.diff(_pos, axis=0, append=0))

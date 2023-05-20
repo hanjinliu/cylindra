@@ -91,6 +91,8 @@ class Splines(MagicTemplate):
     fit_splines = abstractapi()
     fit_splines_manually = abstractapi()
     refine_splines = abstractapi()
+    sep2 = field(Separator)
+    set_spline_props = abstractapi()
     molecules_to_spline = abstractapi()
 
 
@@ -144,7 +146,7 @@ class MoleculesMenu(MagicTemplate):
 class Analysis(MagicTemplate):
     """Analysis of tomograms."""
 
-    set_radius = abstractapi()
+    measure_radius = abstractapi()
     local_ft_analysis = abstractapi()
     global_ft_analysis = abstractapi()
     sep0 = field(Separator)

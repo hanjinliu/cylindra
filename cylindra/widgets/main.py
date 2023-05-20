@@ -177,11 +177,14 @@ class CylindraMainWidget(MagicTemplate):
         self._batch = None
         self.objectName()  # load napari types
 
+        GVar.events.connect(self._global_variable_updated)
+
     def __post_init__(self):
         self.min_width = 400
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.overview.min_height = 300
+        self.global_variables.load_default()
         return None
 
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
@@ -280,7 +283,7 @@ class CylindraMainWidget(MagicTemplate):
                 max_interval=interval,
                 bin_size=bin_size,
             )
-        self.set_radius(splines=splines, bin_size=bin_size)
+        self.measure_radius(splines=splines, bin_size=bin_size)
         self.add_anchors(splines=splines, interval=interval)
         if local_props:
             self.local_ft_analysis(splines=splines, ft_size=ft_size, bin_size=bin_size)
@@ -298,7 +301,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(icon=ICON_DIR / "clear_last.svg")
     @confirm(
         text="Spline has properties. Are you sure to delete it?",
-        condition="not (self.tomogram.splines[self.SplineControl.num].localprops is None and self.tomogram.splines[self.SplineControl.num].globalprops is None)",
+        condition="self.tomogram.splines[self.SplineControl.num].has_props()",
     )
     @do_not_record
     def clear_current(self):
@@ -944,10 +947,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _confirm_delete(self):
         i = self.SplineControl.num
-        return not (
-            self.tomogram.splines[i].localprops is None
-            and self.tomogram.splines[i].globalprops is None
-        )
+        return self.tomogram.splines[i].has_props()
 
     @Splines.wraps
     @set_design(text="Delete spline")
@@ -1100,31 +1100,36 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Set radius")
     @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
-    def set_radius(
+    def measure_radius(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
-        radius: Annotated[Optional[nm], {"text": "Measure radii by radial profile."}] = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
-        """Measure cylinder radius for each spline curve."""
+        """
+        Measure cylinder radius for each spline curve.
+
+        Parameters
+        ----------
+        {splines}{bin_size}
+        """
         if len(splines) == 0:
             splines = list(range(self.tomogram.n_splines))
         old_radius = {i: self.tomogram.splines[i].radius for i in splines}
         new_radius = {}
         for i in splines:
-            radius = self.tomogram.set_radius(i, radius=radius, binsize=bin_size)
+            radius = self.tomogram.set_radius(i, binsize=bin_size)
             yield
             new_radius[i] = radius
         self._need_save = True
 
-        def _set_radius(radius_dict: dict[int, nm]):
+        def out(radius_dict: dict[int, nm]):
             def wrapper():
                 for i, radius in radius_dict.items():
                     self.tomogram.splines[i].radius = radius
 
             return wrapper
 
-        return undo_callback(_set_radius(new_radius)).with_redo(_set_radius(old_radius))
+        return undo_callback(out(new_radius)).with_redo(out(old_radius))
 
     @Splines.wraps
     @set_design(text="Refine splines")
@@ -1188,6 +1193,87 @@ class CylindraMainWidget(MagicTemplate):
             return undo
 
         return out
+
+    @Splines.wraps
+    @set_design(text="Set spline parameters")
+    def set_spline_props(
+        self,
+        spline: Annotated[int, {"bind": SplineControl.num}],
+        interval: Annotated[
+            nm,
+            {
+                "min": 0.2,
+                "max": GVar.yPitchMax * 2,
+                "step": 0.01,
+                "label": "interval (nm)",
+            },
+        ] = (GVar.yPitchMin + GVar.yPitchMax)
+        / 2,
+        skew: Annotated[
+            float, {"min": GVar.minSkew, "max": GVar.maxSkew, "label": "skew (deg)"}
+        ] = (GVar.minSkew + GVar.maxSkew)
+        / 2,
+        rise: Annotated[nm, {"label": "Rise angle (deg)", "min": 1.0}] = 8.0,
+        npf: Annotated[int, {"label": "Number of PF", "min": 1}] = (
+            GVar.nPFmin + GVar.nPFmax
+        )
+        // 2,
+        radius: Annotated[nm, {"label": "Radius (nm)", "min": 1.0}] = 10.0,
+        orientation: Literal[None, "MinusToPlus", "PlusToMinus"] = None,
+    ):
+        spl = self.tomogram.splines[spline]
+        old_spl = spl.copy()
+        spl.update_props(
+            interval=interval,
+            skew=skew,
+            rise=rise,
+            npf=npf,
+            radius=radius,
+            orientation=orientation,
+        )
+        return undo_callback(lambda: spl.copy_from(old_spl))
+
+    # @footer.wraps
+    # @set_design(text="Set PF number")
+    # @set_options(labels=False)
+    # def set_pf_number(self, i: Bound[num], npf: int = 13):
+    #     """Manually update protofilament number."""
+    #     from .main import CylindraMainWidget
+
+    #     parent = self.find_ancestor(CylindraMainWidget)
+    #     if parent.tomogram is None or i is None:
+    #         return None
+    #     spl = parent.tomogram.splines[i]
+    #     if spl.localprops is not None:
+    #         spl.localprops = spl.localprops.with_columns(
+    #             pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF)
+    #         )
+    #         parent._update_local_properties_in_widget()
+    #     if spl.globalprops is not None:
+    #         spl.globalprops = spl.globalprops.with_columns(
+    #             pl.Series(H.nPF, [npf]).cast(pl.UInt8)
+    #         )
+    #         parent._update_global_properties_in_widget()
+    #     if self.canvas[0].image is not None:
+    #         parent.sample_subtomograms()
+    #     return None
+
+    # @footer.wraps
+    # @set_design(text="Set orientation")
+    # @set_options(labels=False, orientation={"widget_type": "RadioButtons"})
+    # def set_orientation(self, i: Bound[num], orientation: Ori = Ori.none):
+    #     """Manually set polarity."""
+    #     from .main import CylindraMainWidget
+
+    #     parent = self.find_ancestor(CylindraMainWidget)
+    #     if parent.tomogram is None or i is None:
+    #         return None
+    #     spl = parent.tomogram.splines[i]
+    #     spl.orientation = orientation
+    #     parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
+    #     parent._set_orientation_marker(i)
+    #     self._update_canvas()
+    #     return None
 
     @Splines.wraps
     @set_design(text="Molecules to spline")
@@ -2329,38 +2415,6 @@ class CylindraMainWidget(MagicTemplate):
             i = self.SplineControl.num
         return tomo.splines[i]
 
-    @SplineControl.num.connect
-    @SplineControl.pos.connect
-    @SplineControl.footer.focus.connect
-    def _focus_on(self):
-        """Change camera focus to the position of current spline fragment."""
-        if self.layer_paint is None:
-            return None
-
-        # NOTE: the setter of "show_selected_label" calls layer.refresh() so that
-        # it is very slow. Check if "show_selected_label" is True before setting it.
-        if not self.SplineControl.footer.focus:
-            if self.layer_paint.show_selected_label:
-                self.layer_paint.show_selected_label = False
-            return None
-
-        viewer = self.parent_viewer
-        i = self.SplineControl.num
-        j = self.SplineControl.pos
-
-        tomo = self.tomogram
-        spl = tomo.splines[i]
-        pos = spl.anchors[j]
-        next_center = spl(pos) / tomo.scale
-        change_viewer_focus(viewer, next_center, tomo.scale)
-
-        if not self.layer_paint.show_selected_label:
-            self.layer_paint.show_selected_label = True
-
-        j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
-        self.layer_paint.selected_label = j_offset + j + 1
-        return None
-
     def _init_widget_state(self, _=None):
         """Initialize widget state of spline control and local properties for new plot."""
         self.SplineControl.pos = 0
@@ -2560,12 +2614,10 @@ class CylindraMainWidget(MagicTemplate):
         if i is None:
             return
         spl = self.tomogram.splines[i]
-        if spl.globalprops is not None:
-            headers = [H.yPitch, H.skewAngle, H.nPF, H.start]
-            pitch, skew, npf, start = spl.globalprops.select(headers).row(0)
-            radius = spl.radius
-            ori = spl.orientation
-            self.GlobalProperties._set_text(pitch, skew, npf, start, radius, ori)
+        headers = [H.yPitch, H.skewAngle, H.nPF, H.start, H.radius, H.orientation]
+        if spl.has_globalprops(headers):
+            itv, skew, npf, start, rad, ori = spl.globalprops.select(headers).row(0)
+            self.GlobalProperties._set_text(itv, skew, npf, start, rad, ori)
         else:
             self.GlobalProperties._init_text()
 
@@ -2578,7 +2630,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.localprops is not None:
+        if spl.has_localprops([H.yPitch, H.skewAngle, H.nPF, H.start]):
             pitch, skew, npf, start = spl.localprops.select(
                 [H.yPitch, H.skewAngle, H.nPF, H.start]
             ).row(j)
@@ -2652,6 +2704,11 @@ class CylindraMainWidget(MagicTemplate):
             )
         self._highlight_spline()
         return None
+
+    def _global_variable_updated(self):
+        get_function_gui(self.global_variables.set_variables).update(GVar.dict())
+
+        # TODO: other updates
 
 
 ############################################################################################

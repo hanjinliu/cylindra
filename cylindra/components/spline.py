@@ -1,7 +1,16 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Callable, Sequence, TypeVar, TypedDict, TYPE_CHECKING, overload
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Sequence,
+    TypeVar,
+    TypedDict,
+    TYPE_CHECKING,
+    overload,
+)
 import warnings
 import logging
 
@@ -9,10 +18,11 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
-from skimage.transform._warps import _linear_polar_mapping
 
 from acryo import Molecules
 from acryo.molecules import axes_to_rotator
+
+import polars as pl
 
 from cylindra.utils import ceilint, interval_divmod, roundint
 from cylindra.const import Mode, nm, ExtrapolationMode
@@ -44,25 +54,22 @@ class SplineInfo(TypedDict, total=False):
     extrapolate: str
 
 
+_void = object()
+
+
 class Spline(BaseComponent):
     """
-    3D spline curve model with coordinate system. Anchor points can be set via ``anchor``
-    property. Every time spline parameters or anchors are updated, hash value of Spline
-    object will be changed, thus it is safe to map Spline object to some result along
-    the corresponding curve.
+    3D spline curve model with coordinate system.
+
+    Anchor points can be set via ``anchor`` property. Every time spline parameters or
+    anchors are updated, hash value of Spline object will be changed, thus it is safe
+    to map Spline object to some result along the corresponding curve.
 
     References
     ----------
     - Scipy document
       https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
     """
-
-    # global cache will be re-initialized every time spline curve is updated.
-    _global_cache: tuple[str, ...] = ()
-
-    # local cache will be re-initialized every time spline curve is updated or anchor
-    # is changed.
-    _local_cache: tuple[str, ...] = ()
 
     def __init__(
         self,
@@ -87,6 +94,80 @@ class Spline(BaseComponent):
                 f"'lims' must fit in range of [0, 1] but got {list(lims)!r}."
             )
         self._lims = lims
+        self._localprops: pl.DataFrame = pl.DataFrame([])
+        self._globalprops: pl.DataFrame = pl.DataFrame([])
+
+    @property
+    def localprops(self) -> pl.DataFrame:
+        """Local properties of the spline."""
+        return self._localprops
+
+    @localprops.setter
+    def localprops(self, df: pl.DataFrame):
+        if not isinstance(df, pl.DataFrame):
+            df = pl.DataFrame(df)
+        self._localprops = df
+
+    @property
+    def globalprops(self) -> pl.DataFrame:
+        """Global properties of the spline."""
+        return self._globalprops
+
+    @globalprops.setter
+    def globalprops(self, df: pl.DataFrame):
+        if not isinstance(df, pl.DataFrame):
+            df = pl.DataFrame(df)
+        self._globalprops = df
+
+    def get_localprops(self, key: str, default=_void) -> pl.Series:
+        """
+        Get a local property of the spline, similar to ``dict.get`` method.
+
+        Parameters
+        ----------
+        key : str
+            Local property key.
+        default : any, optional
+            Default value to return if key is not found, raise error by default.
+        """
+        if key in self._localprops.columns:
+            return self._localprops[key]
+        elif default is _void:
+            raise KeyError(f"Key {key!r} not found in localprops.")
+        return default
+
+    def has_localprops(self, keys: str | Iterable[str]) -> bool:
+        """Check if *all* the keys are in local properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        return all(key in self._localprops.columns for key in keys)
+
+    def get_globalprops(self, key: str, default=_void) -> Any:
+        """
+        Get a global property of the spline, similar to ``dict.get`` method.
+
+        Parameters
+        ----------
+        key : str
+            Global property key.
+        default : any, optional
+            Default value to return if key is not found, raise error by default.
+        """
+        if key in self._globalprops.columns:
+            return self._globalprops[key][0]
+        elif default is _void:
+            raise KeyError(f"Key {key!r} not found in globalprops.")
+        return default
+
+    def has_globalprops(self, keys: str | Iterable[str]) -> bool:
+        """Check if *all* the keys are in global properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        return all(key in self._globalprops.columns for key in keys)
+
+    def has_props(self) -> bool:
+        """True if there are any properties."""
+        return len(self._localprops) > 0 or len(self._globalprops) > 0
 
     def copy(self, copy_cache: bool = True) -> Self:
         """
@@ -108,8 +189,8 @@ class Spline(BaseComponent):
         new._anchors = self._anchors
 
         if copy_cache:
-            for name in self._global_cache + self._local_cache:
-                setattr(new, name, getattr(self, name, None))
+            new.localprops = self.localprops.clone()
+            new.globalprops = self.globalprops.clone()
 
         return new
 
@@ -127,8 +208,8 @@ class Spline(BaseComponent):
         self._u = other._u
         self._anchors = other._anchors
         self._lims = other._lims
-        for name in self._global_cache + self._local_cache:
-            setattr(self, name, getattr(other, name, None))
+        self.localprops = other.localprops.clone()
+        self.globalprops = other.globalprops.clone()
         return self
 
     @property
@@ -209,11 +290,9 @@ class Spline(BaseComponent):
             Clear global cache if true.
         """
         if loc:
-            for name in self._local_cache:
-                setattr(self, name, None)
+            self.localprops = None
         if glob:
-            for name in self._global_cache:
-                setattr(self, name, None)
+            self.globalprops = None
 
     @property
     def anchors(self) -> np.ndarray:
@@ -1348,3 +1427,11 @@ def _normalize_weight(weight, weight_ramp, coords: np.ndarray) -> np.ndarray | N
             _edge_length / length, _weight_min, coords.shape[0]
         )
     return weight
+
+
+def _linear_polar_mapping(output_coords, k_angle, k_radius, center):
+    angle = output_coords[:, 1] / k_angle
+    rr = ((output_coords[:, 0] / k_radius) * np.sin(angle)) + center[0]
+    cc = ((output_coords[:, 0] / k_radius) * np.cos(angle)) + center[1]
+    coords = np.column_stack((cc, rr))
+    return coords

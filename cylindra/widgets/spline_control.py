@@ -47,12 +47,15 @@ class SplineControl(MagicTemplate):
 
         self.canvas.enabled = False
 
-    def _get_splines(self, *_) -> list[int]:
-        """Get list of spline objects for categorical widgets."""
+    def _get_parent(self):
         from .main import CylindraMainWidget
 
+        return self.find_ancestor(CylindraMainWidget, cache=True)
+
+    def _get_splines(self, *_) -> list[int]:
+        """Get list of spline objects for categorical widgets."""
         try:
-            tomo = self.find_ancestor(CylindraMainWidget).tomogram
+            tomo = self._get_parent().tomogram
         except Exception:
             return []
         if tomo is None:
@@ -71,53 +74,39 @@ class SplineControl(MagicTemplate):
             text="focus on",
             tooltip="Keep focus of viewer camera on the current spline position",
         )
-        set_pf_number = abstractapi()
-        set_orientation = abstractapi()
 
-    @footer.wraps
-    @set_design(text="Set PF number")
-    @set_options(labels=False)
-    def set_pf_number(self, i: Bound[num], npf: int = 13):
-        """Manually update protofilament number."""
-        from .main import CylindraMainWidget
-
-        parent = self.find_ancestor(CylindraMainWidget)
-        if parent.tomogram is None or i is None:
+    @num.connect
+    @pos.connect
+    @footer.focus.connect
+    def _highlight(self, focus):
+        """Change camera focus to the position of current spline fragment."""
+        parent = self._get_parent()
+        layer = parent.layer_paint
+        if layer is None:
             return None
-        spl = parent.tomogram.splines[i]
-        if spl.localprops is not None:
-            spl.localprops = spl.localprops.with_columns(
-                pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF)
-            )
-            parent._update_local_properties_in_widget()
-        if spl.globalprops is not None:
-            spl.globalprops = spl.globalprops.with_columns(
-                pl.Series(H.nPF, [npf]).cast(pl.UInt8)
-            )
-            parent._update_global_properties_in_widget()
-        if self.canvas[0].image is not None:
-            parent.sample_subtomograms()
-        return None
 
-    @footer.wraps
-    @set_design(text="Set orientation")
-    @set_options(labels=False, orientation={"widget_type": "RadioButtons"})
-    def set_orientation(self, i: Bound[num], orientation: Ori = Ori.none):
-        """Manually set polarity."""
-        from .main import CylindraMainWidget
-
-        parent = self.find_ancestor(CylindraMainWidget)
-        if parent.tomogram is None or i is None:
+        # NOTE: the setter of "show_selected_label" calls layer.refresh() so that
+        # it is very slow. Check if "show_selected_label" is True before setting it.
+        if not focus:
+            if layer.show_selected_label:
+                layer.show_selected_label = False
             return None
-        spl = parent.tomogram.splines[i]
-        spl.orientation = orientation
-        parent.GlobalProperties.params.params2.polarity.txt = str(orientation)
-        parent._set_orientation_marker(i)
-        self._update_canvas()
+
+        i = self.num
+        j = self.pos
+
+        tomo = parent.tomogram
+
+        if not layer.show_selected_label:
+            layer.show_selected_label = True
+
+        j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
+        layer.selected_label = j_offset + j + 1
         return None
 
     @property
     def need_resample(self) -> bool:
+        """True if the canvas is showing the old data."""
         return self.canvas[0].image is not None
 
     @num.connect
@@ -133,7 +122,7 @@ class SplineControl(MagicTemplate):
             return
         spl = tomo.splines[i]
 
-        if spl.localprops is not None:
+        if len(spl.localprops) > 0:
             n_anc = len(spl.localprops)
         else:
             parent.LocalProperties._init_text()
@@ -161,13 +150,13 @@ class SplineControl(MagicTemplate):
         spl = tomo.splines[i]
 
         # update plots in pyqtgraph, if properties exist
-        parent.LocalProperties._plot_properties(spl.localprops)
+        parent.LocalProperties._plot_properties(spl)
 
         # calculate projection
-        if spl.localprops is not None:
-            npf_list = spl.localprops[H.nPF]
-        elif spl.globalprops is not None:
-            npf_list = [spl.globalprops[H.nPF][0]] * spl.anchors.size
+        if (npfs := spl.get_localprops(H.nPF, None)) is not None:
+            npf_list = npfs
+        elif (npf := spl.get_globalprops(H.nPF, None)) is not None:
+            npf_list = [npf] * spl.anchors.size
         else:
             npf_list = [0] * spl.anchors.size
 
@@ -269,9 +258,8 @@ class SplineControl(MagicTemplate):
             )
 
         # update pyqtgraph
-        if spl.localprops is not None:
-            x = spl.localprops[H.splDistance][j]
-            parent.LocalProperties._plot_spline_position(x)
+        if (xs := spl.get_localprops(H.splDistance, None)) is not None:
+            parent.LocalProperties._plot_spline_position(xs[j])
         else:
             parent.LocalProperties._init_plot()
 

@@ -1,6 +1,7 @@
 from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
 import numpy as np
+import polars as pl
 import pytest
 from ._const import TEST_DIR
 
@@ -22,27 +23,38 @@ def test_run_all(coords, npf, rise, skew_range):
     tomo.fit()
     tomo.refine()
     tomo.make_anchors(n=3)
-    tomo.set_radius()
-    tomo.make_anchors(interval=30)
     assert tomo.collect_localprops() is None
     assert tomo.collect_globalprops() is None
+    tomo.set_radius()
+    assert tomo.collect_localprops() is None
+    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
+
+    tomo.make_anchors(interval=30)
+    assert tomo.collect_localprops() is None
+    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
+    assert H.yPitch not in tomo.collect_globalprops(allow_none=False).columns
+
     tomo.local_ft_params(i=0)
     assert tomo.collect_localprops() is not None
-    assert tomo.collect_globalprops() is None
+    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
+    assert H.yPitch not in tomo.collect_globalprops(allow_none=False).columns
+
     tomo.global_ft_params(i=0)
     assert tomo.collect_localprops() is not None
-    assert tomo.collect_globalprops() is not None
+    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
+    assert H.yPitch in tomo.collect_globalprops(allow_none=False).columns
+
     spl = tomo.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
-    ypitch_glob = spl.globalprops[H.yPitch][0]
-    assert (
-        4.075 < ypitch_glob < 4.105
-    )  # GDP-bound microtubule has pitch length in this range
+    ypitch_glob = spl.get_globalprops(H.yPitch)
+
+    # GDP-bound microtubule has pitch length in this range
+    assert 4.075 < ypitch_glob < 4.105
     assert abs(ypitch_glob - ypitch_mean) < 0.013
     assert all(spl.localprops[H.nPF] == npf)
     assert all(spl.localprops[H.riseAngle] > rise)
     skew_min, skew_max = skew_range
-    assert skew_min < spl.globalprops[H.skewAngle][0] < skew_max
+    assert skew_min < spl.get_globalprops(H.skewAngle) < skew_max
 
 
 def test_chunked_straightening():
@@ -64,8 +76,8 @@ def test_chunked_straightening():
     from cylindra.components.cyl_tomogram import _local_dft_params_pl
 
     spl = tomo.splines[0]
-    prop0 = _local_dft_params_pl(st0, spl.radius)
-    prop1 = _local_dft_params_pl(st1, spl.radius)
+    prop0 = pl.DataFrame(_local_dft_params_pl(st0, spl.radius))
+    prop1 = pl.DataFrame(_local_dft_params_pl(st1, spl.radius))
 
     assert abs(prop0[H.yPitch][0] - prop1[H.yPitch][0]) < 1e-6
     assert abs(prop0[H.skewAngle][0] - prop1[H.skewAngle][0]) < 1e-6
@@ -78,6 +90,7 @@ def test_mapping(orientation):
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
     tomo.fit()
     tomo.set_radius(radius=9)
+    tomo.splines[0].radius == 9
     tomo.splines[0].orientation = "PlusToMinus"
 
     tomo.map_monomers(orientation=orientation)

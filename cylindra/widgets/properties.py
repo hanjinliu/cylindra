@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-import numpy as np
 from magicclass import (
     magicclass,
     field,
@@ -11,7 +10,7 @@ from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
-    import polars as pl
+    from cylindra.components import CylSpline
 
 
 class LabeledText(FieldGroup):
@@ -58,9 +57,6 @@ class LocalPropertiesWidget(MagicTemplate):
 
         self._init_text()
 
-        self._y_pitch = None
-        self._skew_angle = None
-
     def _init_text(self):
         self.params.spacing.txt = " -- nm"
         self.params.skew.txt = " -- °"
@@ -76,14 +72,11 @@ class LocalPropertiesWidget(MagicTemplate):
     def _init_plot(self):
         self.plot[0].layers.clear()
         self.plot[1].layers.clear()
-        self._y_pitch = None
-        self._skew_angle = None
         return None
 
-    def _plot_properties(self, props: "pl.DataFrame"):
-        if props is None:
+    def _plot_properties(self, spl: "CylSpline"):
+        if (x := spl.get_localprops(H.splDistance, None)) is None:
             return None
-        x = np.asarray(props[H.splDistance])
         if x[0] > x[-1]:
             x = x[::-1]
         pitch_color = "lime"
@@ -91,11 +84,10 @@ class LocalPropertiesWidget(MagicTemplate):
 
         self._init_plot()
 
-        self._y_pitch = np.asarray(props[H.yPitch])
-        self._skew_angle = np.asarray(props[H.skewAngle])
-
-        self.plot[0].add_curve(x, self._y_pitch, color=pitch_color)
-        self.plot[1].add_curve(x, self._skew_angle, color=skew_color)
+        if (_interv := spl.get_localprops(H.yPitch, None)) is not None:
+            self.plot[0].add_curve(x, _interv, color=pitch_color)
+        if (_skew := spl.get_localprops(H.skewAngle, None)) is not None:
+            self.plot[1].add_curve(x, _skew, color=skew_color)
 
         self.plot[0].xlim = (x[0] - 2, x[-1] + 2)
         self.plot[0].add_infline(

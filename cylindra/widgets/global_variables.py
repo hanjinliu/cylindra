@@ -1,12 +1,14 @@
 import json
 from appdirs import user_config_dir
+from typing import Annotated
+import json
 
 from magicclass import (
     magicmenu,
     set_options,
     set_design,
     MagicTemplate,
-    get_function_gui,
+    nogui,
 )
 from magicclass.utils import show_messagebox
 from magicclass.types import Path
@@ -14,11 +16,20 @@ from magicclass.types import Path
 from .widget_utils import FileFilter
 from cylindra.const import nm, GlobalVariables as GVar
 
-INITIAL_PATH = Path(user_config_dir("variables", "cylindra"))
+VAR_PATH = Path(user_config_dir("variables", "cylindra"))
+SETTINGS_PATH = Path(user_config_dir("settings", "cylindra"))
+USER_SETTINGS_NAME = "user-settings.json"
+DEFAULT_VARIABLES = "default_variables"
 
 
 @magicmenu(name="Global variables ...")
 class GlobalVariablesMenu(MagicTemplate):
+    def _get_file_names(self, *_) -> list[str]:
+        try:
+            return [fp.stem for fp in VAR_PATH.glob("*.json")]
+        except Exception:
+            return []
+
     @set_options(
         yPitchMin={"step": 0.1},
         yPitchMax={"step": 0.1},
@@ -79,10 +90,10 @@ class GlobalVariablesMenu(MagicTemplate):
         outer : float
             Radius x outer will be the outer surface of the cylinder.
         """
-        GVar.set_value(**locals())
+        GVar.update(locals())
 
-    @set_design(text="Load variables")
-    def load_variables(self, path: Path.Read[FileFilter.JSON] = INITIAL_PATH):
+    @nogui
+    def load_variables(self, path):
         """Load global variables from a Json file."""
         with open(path) as f:
             gvar: dict = json.load(f)
@@ -106,15 +117,56 @@ class GlobalVariablesMenu(MagicTemplate):
                 parent=self.native,
             )
 
-        get_function_gui(self, "set_variables")(**gvar, update_widget=True)
+        GVar.update(gvar)
+        return None
+
+    @set_design(text="Load variables")
+    def load_variables_by_name(
+        self, name: Annotated[str, {"choices": _get_file_names}]
+    ):
+        """Load global variables from one of the saved Json files."""
+        path = VAR_PATH / f"{name}.json"
+        with open(path) as f:
+            gvar: dict = json.load(f)
+
+        # for version compatibility
+        annots = GVar.__annotations__.keys()
+        _undef = set()
+        for k in gvar.keys():
+            if k not in annots:
+                _undef.add(k)
+        if _undef:
+            for k in _undef:
+                gvar.pop(k)
+            show_messagebox(
+                mode="warn",
+                title="Warning",
+                text=(
+                    "Could not load following variables, maybe due to version "
+                    f"incompatibility: {_undef!r}"
+                ),
+                parent=self.native,
+            )
+
+        GVar.update(gvar)
         return None
 
     @set_design(text="Save variables")
-    def save_variables(self, path: Path.Save[FileFilter.JSON] = INITIAL_PATH):
+    def save_variables(self, path: Path.Save[FileFilter.JSON] = VAR_PATH):
         """Save current global variables to a Json file."""
-        gvar = GVar.get_value()
+        gvar = GVar.dict()
         with open(path, mode="w") as f:
             json.dump(gvar, f, indent=4, separators=(", ", ": "))
+        return None
+
+    @nogui
+    def load_default(self):
+        """Load default global variables."""
+
+        with open(SETTINGS_PATH / USER_SETTINGS_NAME) as f:
+            js = json.load(f)
+
+        self.load_variables_by_name(js[DEFAULT_VARIABLES])
         return None
 
 
@@ -129,53 +181,35 @@ def _is_empty(path: Path) -> bool:
 
 
 # Initialize user config directory.
-if not INITIAL_PATH.exists() or _is_empty(INITIAL_PATH):
+if not VAR_PATH.exists() or _is_empty(VAR_PATH):
     try:
-        if not INITIAL_PATH.exists():
-            INITIAL_PATH.mkdir(parents=True)
+        if not VAR_PATH.exists():
+            VAR_PATH.mkdir(parents=True)
 
-        import json
+        _data_dir = Path(__file__).parent.parent / "_data"
+        for fp in _data_dir.glob("*.json"):
+            with open(fp) as f:
+                js = json.load(f)
 
-        eukaryotic_mt_gvar = {
-            "nPFmin": 11,
-            "nPFmax": 17,
-            "splOrder": 3,
-            "yPitchMin": 3.9,
-            "yPitchMax": 4.3,
-            "minSkew": -1.0,
-            "maxSkew": 1.0,
-            "minCurvatureRadius": 400.0,
-            "inner": 0.8,
-            "outer": 1.3,
-            "fitLength": 48.0,
-            "fitWidth": 44.0,
-            "daskChunk": [256, 256, 256],
-            "GPU": True,
-        }
+            with open(VAR_PATH / fp.name, mode="w") as f:
+                json.dump(js, f, indent=4, separators=(", ", ": "))
 
-        tmv_gvar = {
-            "nPFmin": 15,
-            "nPFmax": 17,
-            "splOrder": 3,
-            "yPitchMin": 2.1,
-            "yPitchMax": 2.5,
-            "minSkew": -20.0,
-            "maxSkew": -10.0,
-            "minCurvatureRadius": 10000.0,
-            "inner": 0.3,
-            "outer": 1.5,
-            "fitLength": 48.0,
-            "fitWidth": 28.0,
-            "daskChunk": [256, 256, 256],
-            "GPU": True,
-        }
-
-        with open(INITIAL_PATH / "eukaryotic_microtubule.json", mode="w") as f:
-            json.dump(eukaryotic_mt_gvar, f, indent=4, separators=(", ", ": "))
-        with open(INITIAL_PATH / "TMV.json", mode="w") as f:
-            json.dump(tmv_gvar, f, indent=4, separators=(", ", ": "))
     except Exception as e:
         print("Failed to initialize config directory.")
         print(e)
     else:
-        print(f"Config directory initialized at {INITIAL_PATH}.")
+        print(f"Config directory initialized at {VAR_PATH}.")
+
+if not SETTINGS_PATH.exists() or _is_empty(SETTINGS_PATH):
+    try:
+        if not SETTINGS_PATH.exists():
+            SETTINGS_PATH.mkdir(parents=True)
+
+        settings_js = {DEFAULT_VARIABLES: "eukaryotic_MT"}
+        with open(SETTINGS_PATH / USER_SETTINGS_NAME, mode="w") as f:
+            json.dump(settings_js, f, indent=4, separators=(", ", ": "))
+    except Exception as e:
+        print("Failed to initialize settings directory.")
+        print(e)
+    else:
+        print(f"Settings directory initialized at {SETTINGS_PATH}.")

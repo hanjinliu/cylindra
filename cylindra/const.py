@@ -3,6 +3,8 @@ from enum import Enum
 from types import SimpleNamespace
 from typing import Any
 
+from psygnal import EventedModel
+
 nm = float  # type alias for nanometer
 pf = float  # type alias for protofilament numbering
 
@@ -77,6 +79,8 @@ class PropertyNames(SimpleNamespace):
     yPitch = "yPitch"
     skewAngle = "skewAngle"
     nPF = "nPF"
+    radius = "radius"
+    orientation = "orientation"
     start = "start"
 
 
@@ -85,15 +89,6 @@ class IDName(SimpleNamespace):
 
     spline = "SplineID"
     pos = "PosID"
-
-
-class SplineAttributes(SimpleNamespace):
-    """Keys of spline attributes."""
-
-    radius = "radius"
-    orientation = "orientation"
-    localprops = "localprops"
-    globalprops = "globalprops"
 
 
 class Mode(SimpleNamespace):
@@ -155,9 +150,7 @@ class EulerAxes(strEnum):
     ZYZ = "ZYZ"
 
 
-class GlobalVariables:
-    """Global variables"""
-
+class GlobalVariableModel(EventedModel):
     nPFmin: int = 11
     nPFmax: int = 17
     splOrder: int = 3
@@ -171,28 +164,27 @@ class GlobalVariables:
     outer: float = 1.3
     fitLength: nm = 48.0
     fitWidth: nm = 44.0
-    daskChunk: int = (256, 256, 256)
+    daskChunk: tuple[int, int, int] = (256, 256, 256)
     pointSize: float = 4.2
     GPU: bool = True
 
-    @classmethod
-    def get_value(cls) -> dict[str, Any]:
-        out: dict[str, Any] = {}
-        for k in cls.__annotations__.keys():
-            out[k] = getattr(cls, k)
-        return out
 
-    @classmethod
-    def set_value(cls, **kwargs):
-        inf = float("inf")
-        if kwargs.get("yPitchMin", -inf) >= kwargs.get("yPitchMax", inf):
-            raise ValueError("'yPitchMin' must be smaller than 'yPitchMax'.")
-        if kwargs.get("minSkew", -inf) >= kwargs.get("maxSkew", inf):
-            raise ValueError("'minSkew' must be smaller than 'maxSkew'.")
-        for k, v in kwargs.items():
-            if not hasattr(cls, k):
-                pass
-            setattr(cls, k, v)
+GlobalVariables = GlobalVariableModel()
+# class GlobalVariables:
+#     """Global variables"""
+
+
+#     @classmethod
+#     def set_value(cls, **kwargs):
+#         inf = float("inf")
+#         if kwargs.get("yPitchMin", -inf) >= kwargs.get("yPitchMax", inf):
+#             raise ValueError("'yPitchMin' must be smaller than 'yPitchMax'.")
+#         if kwargs.get("minSkew", -inf) >= kwargs.get("maxSkew", inf):
+#             raise ValueError("'minSkew' must be smaller than 'maxSkew'.")
+#         for k, v in kwargs.items():
+#             if not hasattr(cls, k):
+#                 pass
+#             setattr(cls, k, v)
 
 
 def get_versions() -> dict[str, str]:

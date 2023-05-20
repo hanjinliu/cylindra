@@ -123,7 +123,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     # check results
     spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.yPitch].mean()
-    ypitch_glob = spl.globalprops[H.yPitch][0]
+    ypitch_glob = spl.get_globalprops(H.yPitch)
     assert (
         4.075 < ypitch_glob < 4.105
     )  # GDP-bound microtubule has lattice spacing in this range
@@ -168,7 +168,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
+        == f" {ui.get_spline().get_globalprops(H.yPitch):.2f} nm"
     )
 
     ui.SplineControl.num = 1
@@ -180,7 +180,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().globalprops[H.yPitch][0]:.2f} nm"
+        == f" {ui.get_spline().get_globalprops(H.yPitch):.2f} nm"
     )
 
     assert_canvas(ui, [False, False, False])
@@ -441,8 +441,8 @@ def test_calc_intervals(
     orientation: str,
 ):
     ui.load_project(path, filter=False)
-    spacing = ui.tomogram.splines[0].globalprops[H.yPitch][0]
-    npf = ui.tomogram.splines[0].globalprops[H.nPF][0]
+    spacing = ui.tomogram.splines[0].get_globalprops(H.yPitch)
+    npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
     if invert:
         ui.invert_spline(spline=0)
     ui.map_monomers(splines=[0], orientation=orientation)
@@ -464,8 +464,8 @@ def test_calc_skews(
     orientation: str,
 ):
     ui.load_project(path, filter=False)
-    skew_angle = ui.tomogram.splines[0].globalprops[H.skewAngle][0]
-    npf = ui.tomogram.splines[0].globalprops[H.nPF][0]
+    skew_angle = ui.tomogram.splines[0].get_globalprops(H.skewAngle)
+    npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
     if invert:
         ui.invert_spline(spline=0)
     ui.map_monomers(splines=[0], orientation=orientation)
