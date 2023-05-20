@@ -74,11 +74,11 @@ class ExtrapolationMode(strEnum):
 class PropertyNames(SimpleNamespace):
     """Header names for result table of local properties."""
 
-    splDistance = "splDistance"
-    splPosition = "splPosition"
-    riseAngle = "riseAngle"
-    yPitch = "yPitch"
-    skewAngle = "skewAngle"
+    splDist = "splDistance"
+    splPos = "splPosition"
+    rise = "riseAngle"
+    spacing = "spacing"
+    skew = "skewAngle"
     nPF = "nPF"
     radius = "radius"
     orientation = "orientation"
@@ -152,11 +152,7 @@ class EulerAxes(strEnum):
 
 
 class GlobalVariableModel(EventedModel):
-    """
-    Global variables used in this module.
-
-
-    """
+    """Global variables used in this module."""
 
     npf_min: int = 11
     npf_max: int = 17
@@ -167,8 +163,8 @@ class GlobalVariableModel(EventedModel):
     skew_max: float = 1.0
     min_curvature_radius: nm = 400.0
     clockwise: str = "MinusToPlus"
-    thickness_inner: float = 0.8
-    thickness_outer: float = 1.3
+    thickness_inner: float = 1.0
+    thickness_outer: float = 1.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
     dask_chunk: tuple[int, int, int] = (256, 256, 256)

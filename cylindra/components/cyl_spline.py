@@ -134,20 +134,12 @@ class CylSpline(Spline):
         """
         length = self.length()
         interv = (
-            self.get_globalprops(H.yPitch)
-            if H.yPitch not in kwargs
-            else kwargs[H.yPitch]
+            self.get_globalprops(H.spacing)
+            if H.spacing not in kwargs
+            else kwargs[H.spacing]
         )
-        skew = (
-            self.get_globalprops(H.skewAngle)
-            if H.skewAngle not in kwargs
-            else kwargs[H.skewAngle]
-        )
-        rise = (
-            -self.get_globalprops(H.riseAngle)
-            if H.riseAngle not in kwargs
-            else kwargs[H.riseAngle]
-        )
+        skew = self.get_globalprops(H.skew) if H.skew not in kwargs else kwargs[H.skew]
+        rise = -self.get_globalprops(H.rise) if H.rise not in kwargs else kwargs[H.rise]
         npf = (
             roundint(self.get_globalprops(H.nPF))
             if H.nPF not in kwargs
@@ -207,14 +199,14 @@ class CylSpline(Spline):
         loc = []
         glob = []
         if spacing is not None:
-            loc.append(pl.repeat(spacing, pl.count()).cast(pl.Float32).alias(H.yPitch))
-            glob.append(pl.Series([spacing]).cast(pl.Float32).alias(H.yPitch))
+            loc.append(pl.repeat(spacing, pl.count()).cast(pl.Float32).alias(H.spacing))
+            glob.append(pl.Series([spacing]).cast(pl.Float32).alias(H.spacing))
         if skew is not None:
-            loc.append(pl.repeat(skew, pl.count()).cast(pl.Float32).alias(H.skewAngle))
-            glob.append(pl.Series([skew]).cast(pl.Float32).alias(H.skewAngle))
+            loc.append(pl.repeat(skew, pl.count()).cast(pl.Float32).alias(H.skew))
+            glob.append(pl.Series([skew]).cast(pl.Float32).alias(H.skew))
         if rise is not None:
-            loc.append(pl.repeat(rise, pl.count()).cast(pl.Float32).alias(H.riseAngle))
-            glob.append(pl.Series([rise]).cast(pl.Float32).alias(H.riseAngle))
+            loc.append(pl.repeat(rise, pl.count()).cast(pl.Float32).alias(H.rise))
+            glob.append(pl.Series([rise]).cast(pl.Float32).alias(H.rise))
         if npf is not None:
             loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.nPF))

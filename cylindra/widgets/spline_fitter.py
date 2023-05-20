@@ -153,13 +153,15 @@ class SplineFitter(MagicTemplate):
         )
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax - 5, imax + 5)
-        r_peak = (imax_sub + 0.5) / nbin * r_max / tomo.scale / binsize
+        r_peak = (imax_sub + 0.5) / nbin * r_max
+        r_inner = (r_peak - GVar.thickness_inner) / tomo.scale / binsize
+        r_outer = (r_peak + GVar.thickness_outer) / tomo.scale / binsize
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
-        item_circ_inner.xdata = r_peak * GVar.thickness_inner * np.cos(theta) + x
-        item_circ_inner.ydata = r_peak * GVar.thickness_inner * np.sin(theta) + z
-        item_circ_outer.xdata = r_peak * GVar.thickness_outer * np.cos(theta) + x
-        item_circ_outer.ydata = r_peak * GVar.thickness_outer * np.sin(theta) + z
+        item_circ_inner.xdata = r_inner * np.cos(theta) + x
+        item_circ_inner.ydata = r_inner * np.sin(theta) + z
+        item_circ_outer.xdata = r_outer * np.cos(theta) + x
+        item_circ_outer.ydata = r_outer * np.sin(theta) + z
 
         lz, lx = self.subtomograms.sizesof("zx")
         self.shifts[i][j, :] = z - lz / 2 + 0.5, x - lx / 2 + 0.5

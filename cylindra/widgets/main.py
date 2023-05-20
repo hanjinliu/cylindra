@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Any, Literal, Sequence
+from typing import Annotated, TYPE_CHECKING, Literal, Sequence
 import warnings
 from weakref import WeakSet
 
@@ -1894,8 +1894,8 @@ class CylindraMainWidget(MagicTemplate):
         npf = int(pf.max() + 1)
         if isinstance(spl := layer.source_component, CylSpline):
             props = spl.globalprops
-            spacing = props[H.yPitch][0]
-            rise = np.deg2rad(props[H.riseAngle][0])
+            spacing = props[H.spacing][0]
+            rise = np.deg2rad(props[H.rise][0])
             tan = np.tan(rise) / spacing * (2 * np.pi * spl.radius / npf)
         else:
             _, _, nrise = utils.infer_geometry_from_molecules(mole)
@@ -2111,7 +2111,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Paint cylinders")
     def paint_cylinders(
         self,
-        color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]}] = H.yPitch,
+        color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.rise, H.nPF]}] = H.spacing,
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Optional[tuple[float, float]] = (GVar.spacing_min, GVar.spacing_max),
     ):  # fmt: skip
@@ -2143,15 +2143,15 @@ class CylindraMainWidget(MagicTemplate):
         # Labels layer properties
         _id = "ID"
         _str = "structure"
-        columns = [_id, H.riseAngle, H.yPitch, H.skewAngle, _str]
+        columns = [_id, H.rise, H.spacing, H.skew, _str]
         df = (
-            all_df.select([IDName.spline, IDName.pos, H.riseAngle, H.yPitch, H.skewAngle, H.nPF, H.start])
+            all_df.select([IDName.spline, IDName.pos, H.rise, H.spacing, H.skew, H.nPF, H.start])
             .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
                 pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
-                pl.col(H.riseAngle),
-                pl.col(H.yPitch),
-                pl.col(H.skewAngle),
+                pl.col(H.rise),
+                pl.col(H.spacing),
+                pl.col(H.skew),
             )
             .to_pandas()
         )  # fmt: skip
@@ -2249,7 +2249,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Set colormap")
     def set_colormap(
         self,
-        color_by: Annotated[str, {"choices": [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]}] = H.yPitch,
+        color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.nPF, H.rise]}] = H.spacing,
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
     ):  # fmt: skip
@@ -2563,7 +2563,7 @@ class CylindraMainWidget(MagicTemplate):
         if i is None:
             return
         spl = self.tomogram.splines[i]
-        headers = [H.yPitch, H.skewAngle, H.nPF, H.start, H.radius, H.orientation]
+        headers = [H.spacing, H.skew, H.nPF, H.start, H.radius, H.orientation]
         if spl.has_globalprops(headers):
             itv, skew, npf, start, rad, ori = spl.globalprops.select(headers).row(0)
             self.GlobalProperties._set_text(itv, skew, npf, start, rad, ori)
@@ -2579,9 +2579,9 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.has_localprops([H.yPitch, H.skewAngle, H.nPF, H.start]):
+        if spl.has_localprops([H.spacing, H.skew, H.nPF, H.start]):
             pitch, skew, npf, start = spl.localprops.select(
-                [H.yPitch, H.skewAngle, H.nPF, H.start]
+                [H.spacing, H.skew, H.nPF, H.start]
             ).row(j)
             self.LocalProperties._set_text(pitch, skew, npf, start)
         else:
@@ -2657,6 +2657,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     def _global_variable_updated(self):
+        """Update GUI states that are related to global variables."""
         get_function_gui(self.global_variables.set_variables).update(GVar.dict())
 
         fgui = get_function_gui(self.set_spline_props)

@@ -57,11 +57,11 @@ if TYPE_CHECKING:
 
 
 LOCALPROPS = [
-    H.splPosition,
-    H.splDistance,
-    H.riseAngle,
-    H.yPitch,
-    H.skewAngle,
+    H.splPos,
+    H.splDist,
+    H.rise,
+    H.spacing,
+    H.skew,
     H.nPF,
     H.start,
 ]
@@ -531,7 +531,7 @@ class CylTomogram(Tomogram):
         level = LOGGER.level
         # LOGGER.setLevel(logging.WARNING)
         try:
-            _required = [H.yPitch, H.skewAngle, H.nPF]
+            _required = [H.spacing, H.skew, H.nPF]
             if not spl.has_globalprops(_required):
                 self.global_ft_params(i, binsize=binsize)
         finally:
@@ -543,8 +543,8 @@ class CylTomogram(Tomogram):
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        interv = spl.get_globalprops(H.yPitch) * 2
-        skew = spl.get_globalprops(H.skewAngle)
+        interv = spl.get_globalprops(H.spacing) * 2
+        skew = spl.get_globalprops(H.skew)
         npf = roundint(spl.get_globalprops(H.nPF))
 
         LOGGER.info(
@@ -750,8 +750,8 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = spl.radius * GVar.thickness_inner / _scale
-        rmax = spl.radius * GVar.thickness_outer / _scale
+        rmin = (spl.radius - GVar.thickness_inner) / _scale
+        rmax = (spl.radius + GVar.thickness_outer) / _scale
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
@@ -764,17 +764,17 @@ class CylTomogram(Tomogram):
                     meta=np.array([], dtype=np.float32),
                 )
             )
-        with set_gpu():
-            results = np.stack(
-                da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0
-            )
+        # with set_gpu():
+        results = np.stack(
+            da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0
+        )
 
         lprops = [
-            pl.Series(H.splPosition, spl.anchors).cast(pl.Float32),
-            pl.Series(H.splDistance, spl.distances()).cast(pl.Float32),
-            pl.Series(H.riseAngle, results[:, 0]).cast(pl.Float32),
-            pl.Series(H.yPitch, results[:, 1]).cast(pl.Float32),
-            pl.Series(H.skewAngle, results[:, 2]).cast(pl.Float32),
+            pl.Series(H.splPos, spl.anchors).cast(pl.Float32),
+            pl.Series(H.splDist, spl.distances()).cast(pl.Float32),
+            pl.Series(H.rise, results[:, 0]).cast(pl.Float32),
+            pl.Series(H.spacing, results[:, 1]).cast(pl.Float32),
+            pl.Series(H.skew, results[:, 2]).cast(pl.Float32),
             pl.Series(H.nPF, np.round(results[:, 3])).cast(pl.UInt8),
             pl.Series(H.start, results[:, 4]).cast(pl.Float32),
         ]
@@ -818,8 +818,8 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size, binsize=binsize)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = spl.radius * GVar.thickness_inner / _scale
-        rmax = spl.radius * GVar.thickness_outer / _scale
+        rmin = (spl.radius - GVar.thickness_inner) / _scale
+        rmax = (spl.radius + GVar.thickness_outer) / _scale
         out: list[ip.ImgArray] = []
         if pos is None:
             anchors = spl.anchors
@@ -968,8 +968,10 @@ class CylTomogram(Tomogram):
         if spl.radius is None:
             r_range = 0.5, width_px / 2
         else:
-            r_px = self.nm2pixel(spl.radius, binsize=binsize)
-            r_range = (GVar.thickness_inner * r_px, GVar.thickness_outer * r_px)
+            r_range = (
+                self.nm2pixel(spl.radius - GVar.thickness_inner, binsize=binsize),
+                self.nm2pixel(spl.radius + GVar.thickness_outer, binsize=binsize),
+            )
         point = 0.5
         coords = spl.local_cylindrical(r_range, length_px, point, scale=current_scale)
         mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
@@ -1057,7 +1059,7 @@ class CylTomogram(Tomogram):
         else:
             if size is None:
                 rz = rx = 1 + 2 * self.nm2pixel(
-                    self._splines[i].radius * GVar.thickness_outer, binsize=binsize
+                    self._splines[i].radius + GVar.thickness_outer, binsize=binsize
                 )
 
             else:
@@ -1137,8 +1139,8 @@ class CylTomogram(Tomogram):
             input_img = self._get_multiscale_or_original(binsize)
             _scale = input_img.scale.x
             if radii is None:
-                inner_radius = spl.radius * GVar.thickness_inner / _scale
-                outer_radius = spl.radius * GVar.thickness_outer / _scale
+                inner_radius = (spl.radius - GVar.thickness_inner) / _scale
+                outer_radius = (spl.radius + GVar.thickness_outer) / _scale
 
             else:
                 inner_radius, outer_radius = radii / _scale
@@ -1188,11 +1190,11 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        if spl.has_globalprops([H.yPitch, H.skewAngle]):
+        if spl.has_globalprops([H.spacing, H.skew]):
             self.global_ft_params(i)
 
-        interv = spl.get_globalprops(H.yPitch) * 2
-        skew = spl.get_globalprops(H.skewAngle)
+        interv = spl.get_globalprops(H.spacing) * 2
+        skew = spl.get_globalprops(H.skew)
 
         # Set interval to the dimer length by default.
         if interval is None:
@@ -1232,7 +1234,7 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
-        _required = [H.yPitch, H.skewAngle, H.riseAngle, H.nPF]
+        _required = [H.spacing, H.skew, H.rise, H.nPF]
         _missing = [k for k in _required if k not in kwargs]
         if not spl.has_globalprops(_missing):
             self.global_ft_params(i)
@@ -1299,10 +1301,10 @@ class CylTomogram(Tomogram):
             Object that represents protofilament positions and angles.
         """
         spl = self.splines[i]
-        if not spl.has_globalprops([H.yPitch, H.skewAngle]):
+        if not spl.has_globalprops([H.spacing, H.skew]):
             self.global_ft_params(i)
-        interv = spl.get_globalprops(H.yPitch) * 2
-        skew = spl.get_globalprops(H.skewAngle)
+        interv = spl.get_globalprops(H.spacing) * 2
+        skew = spl.get_globalprops(H.skew)
 
         if interval is None:
             interval = interv
@@ -1540,9 +1542,9 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
 def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> list[pl.Series]:
     rise, space, skew, npf, start = _local_dft_params(img, radius)
     return [
-        pl.Series(H.riseAngle, [rise], dtype=pl.Float32),
-        pl.Series(H.yPitch, [space], dtype=pl.Float32),
-        pl.Series(H.skewAngle, [skew], dtype=pl.Float32),
+        pl.Series(H.rise, [rise], dtype=pl.Float32),
+        pl.Series(H.spacing, [space], dtype=pl.Float32),
+        pl.Series(H.skew, [skew], dtype=pl.Float32),
         pl.Series(H.nPF, [int(round(npf))], dtype=pl.UInt8),
         pl.Series(H.start, [start], dtype=pl.Float32),
     ]

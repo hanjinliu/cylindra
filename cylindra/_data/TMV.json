@@ -8,8 +8,8 @@
     "skew_max": -10.0,
     "min_curvature_radius": 10000.0,
     "clockwise": "MinusToPlus",
-    "thickness_inner": 0.3,
-    "thickness_outer": 1.5,
+    "thickness_inner": 2.8,
+    "thickness_outer": 2.0,
     "fit_depth": 48.0,
     "fit_width": 28.0,
     "dask_chunk": [

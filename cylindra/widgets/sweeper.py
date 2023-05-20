@@ -10,9 +10,8 @@ from cylindra.const import GlobalVariables as GVar, nm
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
     from magicclass.fields import MagicValueField
-    from magicgui.widgets import ComboBox
 
-    _FilterField = MagicValueField[ComboBox, Callable[[ip.ImgArray], ip.ImgArray]]
+    _FilterField = MagicValueField[Callable[[ip.ImgArray], ip.ImgArray]]
 
 YPROJ = "Y-projection"
 RPROJ = "R-projection"
@@ -151,7 +150,7 @@ class SplineSweeper(MagicTemplate):
         elif _type == CFT:
             polar = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
             pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-            pw /= pw.max()
+            pw[:] = pw / pw.max()
             img = pw.value
         else:
             raise RuntimeError
@@ -175,11 +174,11 @@ class SplineSweeper(MagicTemplate):
         )
         return None
 
-    def _show_global_ft(self, i):
+    def _show_global_ft(self, i: int):
         """View Fourier space along current spline."""
         polar = self.parent.tomogram.straighten_cylindric(i)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw /= pw.max()
+        pw[:] = pw / pw.max()
 
         self.canvas.image = pw.value
         self.canvas.text_overlay.update(
@@ -193,11 +192,13 @@ class SplineSweeper(MagicTemplate):
         binsize = self.params.binsize
         spl = tomo.splines[idx]
         length_px = tomo.nm2pixel(depth, binsize=binsize)
-        if radius := self.radius:
-            width_px = tomo.nm2pixel(2 * radius * GVar.thickness_outer, binsize=binsize)
+        if r := self.radius:
+            width_px = tomo.nm2pixel(2 * (r + GVar.thickness_outer), binsize=binsize)
         else:
             if r := spl.radius:
-                width_px = tomo.nm2pixel(2 * r * GVar.thickness_outer, binsize=binsize)
+                width_px = tomo.nm2pixel(
+                    2 * (r + GVar.thickness_outer), binsize=binsize
+                )
             else:
                 return ip.zeros((1, 1, 1), axes="zyx")  # dummy image
 
@@ -223,13 +224,13 @@ class SplineSweeper(MagicTemplate):
         ylen = tomo.nm2pixel(depth, binsize=binsize)
         spl = tomo.splines[idx]
 
-        if radius := self.radius:
-            rmin = tomo.nm2pixel(radius * GVar.thickness_inner, binsize=binsize)
-            rmax = tomo.nm2pixel(radius * GVar.thickness_outer, binsize=binsize)
+        if r := self.radius:
+            rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
+            rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
         else:
             if r := spl.radius:
-                rmin = tomo.nm2pixel(r * GVar.thickness_inner, binsize=binsize)
-                rmax = tomo.nm2pixel(r * GVar.thickness_outer, binsize=binsize)
+                rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
+                rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
             else:
                 return ip.zeros((1, 1, 1), axes="rya")
 

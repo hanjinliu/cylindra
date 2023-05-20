@@ -359,13 +359,13 @@ class CylinderSimulator(MagicTemplate):
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
 
-        if spl.has_globalprops([H.yPitch, H.skewAngle, H.riseAngle, H.nPF, H.radius]):
+        if spl.has_globalprops([H.spacing, H.skew, H.rise, H.nPF, H.radius]):
             raise ValueError("Global property is not calculated yet.")
 
         self.parameters.update(
-            interval=spl.get_globalprops(H.yPitch),
-            skew=spl.get_globalprops(H.skewAngle),
-            rise=spl.get_globalprops(H.riseAngle),
+            interval=spl.get_globalprops(H.spacing),
+            skew=spl.get_globalprops(H.skew),
+            rise=spl.get_globalprops(H.rise),
             npf=spl.get_globalprops(H.nPF),
             radius=spl.get_globalprops(H.radius),
         )
@@ -460,7 +460,7 @@ class CylinderSimulator(MagicTemplate):
             radius=radius,
             offsets=offsets,
         )
-        kwargs = {H.yPitch: spacing, H.skewAngle: skew, H.riseAngle: rise, H.nPF: npf}
+        kwargs = {H.spacing: spacing, H.skew: skew, H.rise: rise, H.nPF: npf}
         model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
         self.model = model
 

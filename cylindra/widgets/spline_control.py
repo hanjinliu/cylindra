@@ -232,19 +232,20 @@ class SplineControl(MagicTemplate):
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
-        r_px = spl.radius / tomo.scale / binsize
-        r = r_px * GVar.thickness_outer
-        xmin, xmax = -r + lx / 2 - 0.5, r + lx / 2 + 0.5
+        r_ave = spl.radius / tomo.scale / binsize
+        r_inner = (spl.radius - GVar.thickness_inner) / tomo.scale / binsize
+        r_outer = (spl.radius + GVar.thickness_outer) / tomo.scale / binsize
+        xmin, xmax = -r_outer + lx / 2 - 0.5, r_outer + lx / 2 + 0.5
         self.canvas[0].add_curve(
             [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime"
         )
 
         # draw two circles in ZX-view
         self.canvas[1].add_curve(
-            *_circle(r_px * GVar.thickness_inner, center=(lx / 2, lz / 2)), color="lime"
+            *_circle(r_inner, center=(lx / 2, lz / 2)), color="lime"
         )
         self.canvas[1].add_curve(
-            *_circle(r_px * GVar.thickness_outer, center=(lx / 2, lz / 2)), color="lime"
+            *_circle(r_outer, center=(lx / 2, lz / 2)), color="lime"
         )
 
         # draw polarity
@@ -258,7 +259,7 @@ class SplineControl(MagicTemplate):
             )
 
         # update pyqtgraph
-        if (xs := spl.get_localprops(H.splDistance, None)) is not None:
+        if (xs := spl.get_localprops(H.splDist, None)) is not None:
             parent.LocalProperties._plot_spline_position(xs[j])
         else:
             parent.LocalProperties._init_plot()

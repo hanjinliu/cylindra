@@ -14,7 +14,7 @@ class LocalPropsViewer(MagicTemplate):
         return [(f"image={k[0]}, spline={k[1]}", k) for k in self._groups.keys()]
 
     def _get_columns(self, w=None) -> list[str]:
-        return [H.yPitch, H.skewAngle, H.nPF, H.riseAngle]
+        return [H.spacing, H.skew, H.nPF, H.rise]
 
     data_index = field(str, label="Data").with_choices(_get_data_index)
     column = vfield(str, label="Column name").with_choices(_get_columns)
@@ -43,7 +43,7 @@ class LocalPropsViewer(MagicTemplate):
         if col := self.column:
             self.plt.layers.clear()
             self.plt.add_curve(
-                df[H.splDistance].to_numpy(),
+                df[H.splDist].to_numpy(),
                 df[col].to_numpy(),
                 color="blue",
                 lw=2,

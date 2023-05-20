@@ -122,14 +122,14 @@ def test_spline_switch(ui: CylindraMainWidget):
 
     # check results
     spl = ui.tomogram.splines[0]
-    ypitch_mean = spl.localprops[H.yPitch].mean()
-    ypitch_glob = spl.get_globalprops(H.yPitch)
+    ypitch_mean = spl.localprops[H.spacing].mean()
+    ypitch_glob = spl.get_globalprops(H.spacing)
     assert (
         4.075 < ypitch_glob < 4.105
     )  # GDP-bound microtubule has lattice spacing in this range
     assert abs(ypitch_glob - ypitch_mean) < 0.011
     assert all(spl.localprops[H.nPF] == 13)
-    assert all(spl.localprops[H.riseAngle] > 8.3)
+    assert all(spl.localprops[H.rise] > 8.3)
 
     # check canvas again
     assert_canvas(ui, [False, False, False])
@@ -164,11 +164,11 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert_orientation(ui, "MinusToPlus")
     assert (
         ui.LocalProperties.params.spacing.txt
-        == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
+        == f" {ui.get_spline().localprops[H.spacing][1]:.2f} nm"
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().get_globalprops(H.yPitch):.2f} nm"
+        == f" {ui.get_spline().get_globalprops(H.spacing):.2f} nm"
     )
 
     ui.SplineControl.num = 1
@@ -176,11 +176,11 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert_orientation(ui, "MinusToPlus")
     assert (
         ui.LocalProperties.params.spacing.txt
-        == f" {ui.get_spline().localprops[H.yPitch][1]:.2f} nm"
+        == f" {ui.get_spline().localprops[H.spacing][1]:.2f} nm"
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().get_globalprops(H.yPitch):.2f} nm"
+        == f" {ui.get_spline().get_globalprops(H.spacing):.2f} nm"
     )
 
     assert_canvas(ui, [False, False, False])
@@ -441,7 +441,7 @@ def test_calc_intervals(
     orientation: str,
 ):
     ui.load_project(path, filter=False)
-    spacing = ui.tomogram.splines[0].get_globalprops(H.yPitch)
+    spacing = ui.tomogram.splines[0].get_globalprops(H.spacing)
     npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
     if invert:
         ui.invert_spline(spline=0)
@@ -464,7 +464,7 @@ def test_calc_skews(
     orientation: str,
 ):
     ui.load_project(path, filter=False)
-    skew_angle = ui.tomogram.splines[0].get_globalprops(H.skewAngle)
+    skew_angle = ui.tomogram.splines[0].get_globalprops(H.skew)
     npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
     if invert:
         ui.invert_spline(spline=0)

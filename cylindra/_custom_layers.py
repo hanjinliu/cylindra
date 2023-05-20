@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, List, NamedTuple, Optional
 import weakref
 import polars as pl
 import numpy as np
@@ -200,6 +200,41 @@ class CylinderLabels(Labels):
     def colormap_info(self) -> ColormapInfo | None:
         """Colormap information."""
         return self._colormap_info
+
+    def _get_properties(
+        self,
+        position,
+        *,
+        view_direction: np.ndarray | None = None,
+        dims_displayed: list[int] | None = None,
+        world: bool = False,
+    ) -> list:
+        if self.features.shape[1] == 0:
+            return []
+
+        value = self.get_value(
+            position,
+            view_direction=view_direction,
+            dims_displayed=dims_displayed,
+            world=world,
+        )
+        # if the cursor is not outside the image or on the background
+        if value is None or value > self.data.shape[0]:
+            return []
+
+        out = []
+        for k, col in self.features.items():
+            if k == "index" or len(col) <= value:
+                continue
+            val = col[value]
+            if isinstance(val, np.floating) and not np.isnan(val):
+                if abs(val) > 1e4:
+                    out.append(f"{k}: {val:.3e}")
+                out.append(f"{k}: {val:.3f}")
+            else:
+                out.append(f"{k}: {val}")
+
+        return out
 
 
 def _normalize_colormap(cmap) -> Colormap:

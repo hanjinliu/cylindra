@@ -247,8 +247,8 @@ class CylindraProject(BaseProject):
 
         for i, spl in enumerate(splines):
             spl.localprops = all_localprops.get(i, None)
-            if spl.has_localprops(H.splPosition):
-                spl._anchors = np.asarray(spl.localprops[H.splPosition])
+            if spl.has_localprops(H.splPos):
+                spl._anchors = np.asarray(spl.localprops[H.splPos])
                 spl.localprops.drop(["SplineID", "PosID"])
             spl.globalprops = all_globalprops.get(i, None)
             if spl.has_globalprops(H.nPF):

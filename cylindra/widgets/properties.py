@@ -75,7 +75,7 @@ class LocalPropertiesWidget(MagicTemplate):
         return None
 
     def _plot_properties(self, spl: "CylSpline"):
-        if (x := spl.get_localprops(H.splDistance, None)) is None:
+        if (x := spl.get_localprops(H.splDist, None)) is None:
             return None
         if x[0] > x[-1]:
             x = x[::-1]
@@ -84,9 +84,9 @@ class LocalPropertiesWidget(MagicTemplate):
 
         self._init_plot()
 
-        if (_interv := spl.get_localprops(H.yPitch, None)) is not None:
+        if (_interv := spl.get_localprops(H.spacing, None)) is not None:
             self.plot[0].add_curve(x, _interv, color=pitch_color)
-        if (_skew := spl.get_localprops(H.skewAngle, None)) is not None:
+        if (_skew := spl.get_localprops(H.skew, None)) is not None:
             self.plot[1].add_curve(x, _skew, color=skew_color)
 
         self.plot[0].xlim = (x[0] - 2, x[-1] + 2)

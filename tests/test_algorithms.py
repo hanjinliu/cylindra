@@ -32,29 +32,29 @@ def test_run_all(coords, npf, rise, skew_range):
     tomo.make_anchors(interval=30)
     assert tomo.collect_localprops() is None
     assert H.radius in tomo.collect_globalprops(allow_none=False).columns
-    assert H.yPitch not in tomo.collect_globalprops(allow_none=False).columns
+    assert H.spacing not in tomo.collect_globalprops(allow_none=False).columns
 
     tomo.local_ft_params(i=0)
     assert tomo.collect_localprops() is not None
     assert H.radius in tomo.collect_globalprops(allow_none=False).columns
-    assert H.yPitch not in tomo.collect_globalprops(allow_none=False).columns
+    assert H.spacing not in tomo.collect_globalprops(allow_none=False).columns
 
     tomo.global_ft_params(i=0)
     assert tomo.collect_localprops() is not None
     assert H.radius in tomo.collect_globalprops(allow_none=False).columns
-    assert H.yPitch in tomo.collect_globalprops(allow_none=False).columns
+    assert H.spacing in tomo.collect_globalprops(allow_none=False).columns
 
     spl = tomo.splines[0]
-    ypitch_mean = spl.localprops[H.yPitch].mean()
-    ypitch_glob = spl.get_globalprops(H.yPitch)
+    ypitch_mean = spl.localprops[H.spacing].mean()
+    ypitch_glob = spl.get_globalprops(H.spacing)
 
     # GDP-bound microtubule has pitch length in this range
     assert 4.075 < ypitch_glob < 4.105
     assert abs(ypitch_glob - ypitch_mean) < 0.013
     assert all(spl.localprops[H.nPF] == npf)
-    assert all(spl.localprops[H.riseAngle] > rise)
+    assert all(spl.localprops[H.rise] > rise)
     skew_min, skew_max = skew_range
-    assert skew_min < spl.get_globalprops(H.skewAngle) < skew_max
+    assert skew_min < spl.get_globalprops(H.skew) < skew_max
 
 
 def test_chunked_straightening():
@@ -79,8 +79,8 @@ def test_chunked_straightening():
     prop0 = pl.DataFrame(_local_dft_params_pl(st0, spl.radius))
     prop1 = pl.DataFrame(_local_dft_params_pl(st1, spl.radius))
 
-    assert abs(prop0[H.yPitch][0] - prop1[H.yPitch][0]) < 1e-6
-    assert abs(prop0[H.skewAngle][0] - prop1[H.skewAngle][0]) < 1e-6
+    assert abs(prop0[H.spacing][0] - prop1[H.spacing][0]) < 1e-6
+    assert abs(prop0[H.skew][0] - prop1[H.skew][0]) < 1e-6
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])
