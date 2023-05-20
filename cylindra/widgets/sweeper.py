@@ -19,7 +19,8 @@ CFT = "CFT"
 
 POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
     ("None", lambda x: x),
-    ("Low-pass", lambda x: x.lowpass_filter(0.2)),
+    ("Low-pass (cutoff = 0.1)", lambda x: x.lowpass_filter(0.1)),
+    ("Low-pass (cutoff = 0.2)", lambda x: x.lowpass_filter(0.2)),
 ]
 
 
@@ -55,7 +56,7 @@ class SplineSweeper(MagicTemplate):
         binsize = vfield(record=False).with_choices(_get_available_binsize)
 
     radius = vfield(Optional[nm], label="Radius (nm)").with_options(
-        text="Use spline radius", options={"max": 100.0}
+        text="Use global variable 'fit_width'", options={"max": 200.0}
     )
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
@@ -137,25 +138,38 @@ class SplineSweeper(MagicTemplate):
     def _update_canvas(self):
         _type = self.show_what
         idx = self.controller.spline_id
+        if idx is None:
+            return self._show_overlay_text("No spline exists.")
         depth = self.params.depth
         pos = self.controller.pos.value
         if _type == RPROJ:
-            polar = self._current_cylindrical_img(idx, pos, depth).proj("r")
-            img = self.post_filter(polar).value
+            result = self._current_cylindrical_img(idx, pos, depth)
+            if isinstance(result, Exception):
+                return self._show_overlay_text(result)
+            img = self.post_filter(result.proj("r")).value
         elif _type == YPROJ:
-            block = self._current_cartesian_img(idx, pos, depth).proj("y")[
-                ip.slicer.x[::-1]
-            ]
-            img = self.post_filter(block).value
+            block = self._current_cartesian_img(idx, pos, depth).proj("y")
+            img = self.post_filter(block[ip.slicer.x[::-1]]).value
         elif _type == CFT:
-            polar = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
-            pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+            result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
+            if isinstance(result, Exception):
+                return self._show_overlay_text(result)
+            pw = result.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw[:] = pw / pw.max()
             img = pw.value
         else:
             raise RuntimeError
         self.canvas.image = img
+        self.canvas.text_overlay.visible = False
         return None
+
+    def _show_overlay_text(self, txt):
+        self.canvas.text_overlay.visible = True
+        self.canvas.text_overlay.text = str(txt)
+        self.canvas.text_overlay.anchor = (1, 1)
+        self.canvas.text_overlay.color = "yellow"
+        del self.canvas.image
+        return
 
     @show_what.connect
     def _update_clims(self):
@@ -191,22 +205,17 @@ class SplineSweeper(MagicTemplate):
         tomo = self.parent.tomogram
         binsize = self.params.binsize
         spl = tomo.splines[idx]
-        length_px = tomo.nm2pixel(depth, binsize=binsize)
+        depth_px = tomo.nm2pixel(depth, binsize=binsize)
         if r := self.radius:
-            width_px = tomo.nm2pixel(2 * (r + GVar.thickness_outer), binsize=binsize)
+            width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
         else:
-            if r := spl.radius:
-                width_px = tomo.nm2pixel(
-                    2 * (r + GVar.thickness_outer), binsize=binsize
-                )
-            else:
-                return ip.zeros((1, 1, 1), axes="zyx")  # dummy image
+            width_px = tomo.nm2pixel(GVar.fit_width)
 
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3
         ).local_cartesian(
             shape=(width_px, width_px),
-            n_pixels=length_px,
+            n_pixels=depth_px,
             u=pos / spl.length(),
             scale=tomo.scale * binsize,
         )
@@ -217,7 +226,9 @@ class SplineSweeper(MagicTemplate):
         out.scale_unit = img.scale_unit
         return out
 
-    def _current_cylindrical_img(self, idx: int, pos: int, depth: nm):
+    def _current_cylindrical_img(
+        self, idx: int, pos: int, depth: nm
+    ) -> ip.ImgArray | Exception:
         """Return cylindric-transformed image at the current position"""
         tomo = self.parent.tomogram
         binsize = self.params.binsize
@@ -232,7 +243,7 @@ class SplineSweeper(MagicTemplate):
                 rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
                 rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
             else:
-                return ip.zeros((1, 1, 1), axes="rya")
+                return ValueError("CFT requires radius input.")
 
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3
