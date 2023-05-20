@@ -168,6 +168,9 @@ class SplineList(MutableSequence[CylSpline]):
     def __init__(self, iterable=()) -> None:
         self._list: list[CylSpline] = list(iterable)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._list!r})"
+
     @overload
     def __getitem__(self, i: int) -> CylSpline:
         ...
@@ -270,8 +273,8 @@ class CylTomogram(Tomogram):
         length = spl.length()
 
         n = int(length / interval) + 1
-        fit = spl(np.linspace(0, 1, n))
-        if coords.shape[0] <= GVar.spline_degree and coords.shape[0] < fit.shape[0]:
+        fit = spl.map(np.linspace(0, 1, n))
+        if coords.shape[0] <= spl.degree and coords.shape[0] < fit.shape[0]:
             return self.add_spline(fit)
 
         self._splines.append(spl)
@@ -377,7 +380,7 @@ class CylTomogram(Tomogram):
         npoints = spl.anchors.size
         interval = spl.length() / (npoints - 1)
         spl = self._splines[i]
-        length_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
+        depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
         # If subtomogram region is rotated by 45 degree, its XY-width will be
@@ -387,7 +390,7 @@ class CylTomogram(Tomogram):
         else:
             centers = spl.map()
         center_px = self.nm2pixel(centers, binsize=binsize)
-        size_px = (width_px,) + (roundint((width_px + length_px) / 1.41),) * 2
+        size_px = (width_px,) + (roundint((width_px + depth_px) / 1.414),) * 2
         input_img = self._get_multiscale_or_original(binsize)
 
         subtomograms: ip.ImgArray = np.stack(
@@ -559,7 +562,7 @@ class CylTomogram(Tomogram):
 
         input_img = self._get_multiscale_or_original(binsize)
 
-        length_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
+        depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
@@ -574,7 +577,7 @@ class CylTomogram(Tomogram):
             mole,
             order=1,
             scale=scale,
-            output_shape=(width_px, length_px, width_px),
+            output_shape=(width_px, depth_px, width_px),
             corner_safe=True,
         )
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
@@ -679,7 +682,7 @@ class CylTomogram(Tomogram):
             except ValueError:
                 input_img = self.image
 
-        length_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
+        depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
         scale = self.scale * binsize
 
@@ -687,13 +690,12 @@ class CylTomogram(Tomogram):
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
 
-        arr = input_img.value
         loader = SubtomogramLoader(
-            arr,
+            input_img.value,
             mole,
             order=1,
             scale=scale,
-            output_shape=(width_px, length_px, width_px),
+            output_shape=(width_px, depth_px, width_px),
             corner_safe=True,
         )
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
@@ -959,7 +961,7 @@ class CylTomogram(Tomogram):
             except ValueError:
                 imgb = self.image
 
-        length_px = self.nm2pixel(depth, binsize=binsize)
+        depth_px = self.nm2pixel(depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
         spl = self.splines[i]
@@ -973,7 +975,7 @@ class CylTomogram(Tomogram):
                 self.nm2pixel(spl.radius + GVar.thickness_outer, binsize=binsize),
             )
         point = 0.5
-        coords = spl.local_cylindrical(r_range, length_px, point, scale=current_scale)
+        coords = spl.local_cylindrical(r_range, depth_px, point, scale=current_scale)
         mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
         img_flat = ip.asarray(mapped, axes="rya").proj("y")
 

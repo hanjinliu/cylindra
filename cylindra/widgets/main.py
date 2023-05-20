@@ -1098,7 +1098,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Analysis.wraps
-    @set_design(text="Set radius")
+    @set_design(text="Measure radius")
     @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
     def measure_radius(
         self,
