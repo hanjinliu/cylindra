@@ -27,12 +27,12 @@ def fmt_layers(fmt: str):
 
 def align_averaged_fmt(layers: "list[Layer]"):
     n = len(layers)
-    total = 3 * n + 1
+    total = 2 * n + 1
     yield f"(0/{total}) Preparing template images for alignment"
     for i in range(n):
         name = layers[i].name
-        yield f"({i * 3 + 1}/{total}) Subtomogram averaging of {name!r}"
-        yield f"({i * 3 + 2}/{total}) Aligning template to the average image of {name!r}"
+        yield f"({i * 2 + 1}/{total}) Subtomogram averaging of {name!r}"
+        yield f"({i * 2 + 2}/{total}) Aligning template to the average image of {name!r}"
         yield f""  # The actual yield statement is in the function
     yield f"({total}/{total}) Finishing"
 

@@ -166,8 +166,9 @@ class SplineSweeper(MagicTemplate):
     def _show_overlay_text(self, txt):
         self.canvas.text_overlay.visible = True
         self.canvas.text_overlay.text = str(txt)
-        self.canvas.text_overlay.anchor = (1, 1)
+        self.canvas.text_overlay.anchor = (0, 0)
         self.canvas.text_overlay.color = "yellow"
+        self.canvas.text_overlay.font_size = 20
         del self.canvas.image
         return
 
