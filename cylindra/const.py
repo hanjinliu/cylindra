@@ -181,7 +181,13 @@ class GlobalVariableModel(EventedModel):
                 raise ValueError(f"spacing_min > spacing_max must be satisfied.")
             if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
                 raise ValueError(f"skew_min > skew_max must be satisfied.")
-        return super().update(values, recurse)
+        # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
+        # by one). This is not desirable because min/max values should be updated at
+        # the same time. Therefore, we block the events and emit the signal manually.
+        with self.events.blocked():
+            super().update(values, recurse)
+        self.events.emit(self.dict())
+        return None
 
 
 GlobalVariables = GlobalVariableModel()

@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 import json
 
 from magicclass import (
+    impl_preview,
     magicmenu,
     set_design,
     MagicTemplate,
@@ -89,7 +90,9 @@ class GlobalVariablesMenu(MagicTemplate):
         use_gpu : bool
             Use GPU if available.
         """
-        GVar.update(locals())
+        loc = locals()
+        loc.pop("self")
+        return GVar.update(loc)
 
     @nogui
     def load_variables(self, path):
@@ -127,6 +130,13 @@ class GlobalVariablesMenu(MagicTemplate):
         path = VAR_PATH / f"{name}.json"
         self.load_variables(path)
         return None
+
+    @impl_preview(load_variables_by_name)
+    def _(self, name: str):
+        from ._previews import view_text
+
+        path = VAR_PATH / f"{name}.json"
+        return view_text(path, parent=self)
 
     @set_design(text="Save variables")
     def save_variables(self, path: Path.Save[FileFilter.JSON] = VAR_PATH):

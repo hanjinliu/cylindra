@@ -177,6 +177,7 @@ class SplineFitter(MagicTemplate):
 
         self.shifts = [None] * tomo.n_splines
         self.controller.num.max = tomo.n_splines - 1
+        self.controller.num.min = 0
         self.controller.num.value = 0
         self._cylinder_changed()
 

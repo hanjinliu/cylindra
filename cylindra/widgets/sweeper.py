@@ -229,7 +229,7 @@ class SplineSweeper(MagicTemplate):
 
     def _current_cylindrical_img(
         self, idx: int, pos: int, depth: nm
-    ) -> ip.ImgArray | Exception:
+    ) -> "ip.ImgArray | Exception":
         """Return cylindric-transformed image at the current position"""
         tomo = self.parent.tomogram
         binsize = self.params.binsize

@@ -235,6 +235,8 @@ class SpectraMeasurer(MagicTemplate):
     @SidePanel.wraps
     def select_angular_peak(self):
         """Click to start selecting the angular peak."""
+        if self.parameters.spacing is None:
+            raise ValueError("Select the axial peak first.")
         self.mode = MeasureMode.angular
 
     @log_scale.connect
@@ -271,7 +273,7 @@ class SpectraMeasurer(MagicTemplate):
             self.parameters.skew = np.rad2deg(
                 np.arctan(yfreq / afreq * 2 * _p.spacing / _p.radius)
             )
-            self.parameters.npf = int(round(a0 - acenter))
+            self.parameters.npf = int(round(abs(a0 - acenter)))
 
             if self._layer_angular in self.canvas.layers:
                 self.canvas.layers.remove(self._layer_angular)
