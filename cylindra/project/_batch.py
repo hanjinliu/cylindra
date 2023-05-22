@@ -77,6 +77,7 @@ class CylindraBatchProject(BaseProject):
         root = json_path.parent
 
         def as_relative(p: Path):
+            assert isinstance(p, Path)
             try:
                 out = p.relative_to(root)
             except Exception:

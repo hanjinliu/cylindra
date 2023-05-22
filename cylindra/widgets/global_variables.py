@@ -14,19 +14,14 @@ from magicclass.utils import show_messagebox
 from magicclass.types import Path
 
 from .widget_utils import FileFilter
-from cylindra.const import nm, GlobalVariables as GVar
-
-VAR_PATH = Path(user_config_dir("variables", "cylindra"))
-SETTINGS_PATH = Path(user_config_dir("settings", "cylindra"))
-USER_SETTINGS_NAME = "user-settings.json"
-DEFAULT_VARIABLES = "default_variables"
+from cylindra.const import nm, GlobalVariables as GVar, ConfigConst as Cfg
 
 
 @magicmenu(name="Global variables ...")
 class GlobalVariablesMenu(MagicTemplate):
     def _get_file_names(self, *_) -> list[str]:
         try:
-            return [fp.stem for fp in VAR_PATH.glob("*.json")]
+            return [fp.stem for fp in Cfg.VAR_PATH.glob("*.json")]
         except Exception:
             return []
 
@@ -127,7 +122,7 @@ class GlobalVariablesMenu(MagicTemplate):
         self, name: Annotated[str, {"choices": _get_file_names}]
     ):
         """Load global variables from one of the saved Json files."""
-        path = VAR_PATH / f"{name}.json"
+        path = Cfg.VAR_PATH / f"{name}.json"
         self.load_variables(path)
         return None
 
@@ -135,11 +130,11 @@ class GlobalVariablesMenu(MagicTemplate):
     def _(self, name: str):
         from ._previews import view_text
 
-        path = VAR_PATH / f"{name}.json"
+        path = Cfg.VAR_PATH / f"{name}.json"
         return view_text(path, parent=self)
 
     @set_design(text="Save variables")
-    def save_variables(self, path: Path.Save[FileFilter.JSON] = VAR_PATH):
+    def save_variables(self, path: Path.Save[FileFilter.JSON] = Cfg.VAR_PATH):
         """Save current global variables to a Json file."""
         gvar = GVar.dict()
         with open(path, mode="w") as f:
@@ -150,10 +145,10 @@ class GlobalVariablesMenu(MagicTemplate):
     def load_default(self):
         """Load default global variables."""
 
-        with open(SETTINGS_PATH / USER_SETTINGS_NAME) as f:
+        with open(Cfg.SETTINGS_PATH / Cfg.USER_SETTINGS_NAME) as f:
             js = json.load(f)
 
-        self.load_variables_by_name(js[DEFAULT_VARIABLES])
+        self.load_variables_by_name(js[Cfg.DEFAULT_VARIABLES])
         return None
 
 
@@ -168,35 +163,35 @@ def _is_empty(path: Path) -> bool:
 
 
 # Initialize user config directory.
-if not VAR_PATH.exists() or _is_empty(VAR_PATH):
+if not Cfg.VAR_PATH.exists() or _is_empty(Cfg.VAR_PATH):
     try:
-        if not VAR_PATH.exists():
-            VAR_PATH.mkdir(parents=True)
+        if not Cfg.VAR_PATH.exists():
+            Cfg.VAR_PATH.mkdir(parents=True)
 
         _data_dir = Path(__file__).parent.parent / "_data"
         for fp in _data_dir.glob("*.json"):
             with open(fp) as f:
                 js = json.load(f)
 
-            with open(VAR_PATH / fp.name, mode="w") as f:
+            with open(Cfg.VAR_PATH / fp.name, mode="w") as f:
                 json.dump(js, f, indent=4, separators=(", ", ": "))
 
     except Exception as e:
         print("Failed to initialize config directory.")
         print(e)
     else:
-        print(f"Config directory initialized at {VAR_PATH}.")
+        print(f"Config directory initialized at {Cfg.VAR_PATH}.")
 
-if not SETTINGS_PATH.exists() or _is_empty(SETTINGS_PATH):
+if not Cfg.SETTINGS_PATH.exists() or _is_empty(Cfg.SETTINGS_PATH):
     try:
-        if not SETTINGS_PATH.exists():
-            SETTINGS_PATH.mkdir(parents=True)
+        if not Cfg.SETTINGS_PATH.exists():
+            Cfg.SETTINGS_PATH.mkdir(parents=True)
 
-        settings_js = {DEFAULT_VARIABLES: "eukaryotic_MT"}
-        with open(SETTINGS_PATH / USER_SETTINGS_NAME, mode="w") as f:
+        settings_js = {Cfg.DEFAULT_VARIABLES: "eukaryotic_MT"}
+        with open(Cfg.SETTINGS_PATH / Cfg.USER_SETTINGS_NAME, mode="w") as f:
             json.dump(settings_js, f, indent=4, separators=(", ", ": "))
     except Exception as e:
         print("Failed to initialize settings directory.")
         print(e)
     else:
-        print(f"Settings directory initialized at {SETTINGS_PATH}.")
+        print(f"Settings directory initialized at {Cfg.SETTINGS_PATH}.")

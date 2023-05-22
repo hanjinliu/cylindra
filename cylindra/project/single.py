@@ -120,6 +120,7 @@ class CylindraProject(BaseProject):
         file_dir = json_path.parent
 
         def as_relative(p: Path):
+            assert isinstance(p, Path)
             try:
                 out = p.relative_to(file_dir)
             except Exception:
@@ -140,7 +141,7 @@ class CylindraProject(BaseProject):
             molecules=[as_relative(p) for p in molecules_paths],
             molecules_info=molecules_info,
             global_variables=as_relative(gvar_path),
-            template_image=as_relative(gui.sta.params.template_path),
+            template_image=as_relative(gui.sta.params.template_path.value),
             mask_parameters=gui.sta.params._get_mask_params(),
             tilt_range=tomo.tilt_range,
             macro=as_relative(macro_path),
@@ -279,7 +280,7 @@ class CylindraProject(BaseProject):
             gui.macro.extend(macro.args)
 
             # load subtomogram analyzer state
-            gui.sta.params.template_path = self.template_image or ""
+            gui.sta.params.template_path.value = self.template_image or ""
             gui.sta._set_mask_params(self.mask_parameters)
             gui.reset_choices()
             gui._need_save = False

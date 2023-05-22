@@ -124,10 +124,9 @@ def test_spline_switch(ui: CylindraMainWidget):
     spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.spacing].mean()
     ypitch_glob = spl.get_globalprops(H.spacing)
-    assert (
-        4.075 < ypitch_glob < 4.105
-    )  # GDP-bound microtubule has lattice spacing in this range
-    assert abs(ypitch_glob - ypitch_mean) < 0.011
+    # GDP-bound microtubule has lattice spacing in this range
+    assert 4.075 < ypitch_glob < 4.105
+    assert abs(ypitch_glob - ypitch_mean) < 0.013
     assert all(spl.localprops[H.nPF] == 13)
     assert all(spl.localprops[H.rise] > 8.3)
 

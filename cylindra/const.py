@@ -1,10 +1,12 @@
 from __future__ import annotations
 from enum import Enum
 from types import SimpleNamespace
-from typing import Union
+from pathlib import Path
 
 from psygnal import EventedModel
 from psygnal._evented_model import EventedModel
+
+from appdirs import user_config_dir
 
 nm = float  # type alias for nanometer
 pf = float  # type alias for protofilament numbering
@@ -212,3 +214,10 @@ def get_versions() -> dict[str, str]:
         "napari": napari.__version__,
         "dask": dask.__version__,
     }
+
+
+class ConfigConst(SimpleNamespace):
+    VAR_PATH = Path(user_config_dir("variables", "cylindra"))
+    SETTINGS_PATH = Path(user_config_dir("settings", "cylindra"))
+    USER_SETTINGS_NAME = "user-settings.json"
+    DEFAULT_VARIABLES = "default_variables"

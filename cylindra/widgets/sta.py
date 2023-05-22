@@ -29,7 +29,7 @@ import napari
 
 from cylindra import utils
 from cylindra.types import MoleculesLayer, get_monomer_layers
-from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm
+from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, ConfigConst as Cfg
 from cylindra.components import CylSpline
 
 from .widget_utils import FileFilter, timer
@@ -97,6 +97,32 @@ def _get_alignment(method: str):
         return alignment.PCCAlignment
     else:
         raise ValueError(f"Method {method!r} is unknown.")
+
+
+def _get_template_path_hist() -> list[Path]:
+    path = Path(Cfg.SETTINGS_PATH / "template_path_hist.txt")
+    if path.exists():
+        out: list[Path] = []
+        for line in path.read_text().splitlines():
+            if line.strip() == "":
+                continue
+            try:
+                out.append(Path(line))
+            except ValueError:
+                pass
+        return out
+    return []
+
+
+def _set_template_path_hist(paths: list[Path]):
+    path = Path(Cfg.SETTINGS_PATH / "template_path_hist.txt")
+    try:
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True)
+        path.write_text("\n".join([p for p in paths]) + "\n")
+    except Exception:
+        pass
+    return None
 
 
 MASK_CHOICES = ("No mask", "Blur template", "From file")
@@ -179,7 +205,7 @@ class StaParameters(MagicTemplate):
         Select how to create a mask.
     """
 
-    template_path = vfield(
+    template_path = field(
         Optional[
             Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]
         ],
@@ -196,18 +222,32 @@ class StaParameters(MagicTemplate):
         self._viewer: Union[napari.Viewer, None] = None
         self.mask_choice = MASK_CHOICES[0]
 
+        # load history
+        line: HistoryFileEdit = self.template_path.inner_widget
+        for fp in _get_template_path_hist():
+            line.append_history(str(fp))
+
     @mask_choice.connect
     def _on_mask_switch(self):
         v = self.mask_choice
         self.params.visible = v == MASK_CHOICES[1]
         self.mask_path.visible = v == MASK_CHOICES[2]
 
+    def _save_history(self):
+        try:
+            line: HistoryFileEdit = self.template_path.inner_widget
+            _hist = [str(p) for p in line.get_history()[-20:]]
+            _set_template_path_hist(_hist)
+        except Exception:
+            pass
+
     def _get_template(self, path: Union[Path, None] = None, allow_none: bool = False):
         if path is None:
-            path = self.template_path
+            path = self.template_path.value
         else:
-            if self.template_path != path:
-                self.template_path = path
+            if self.template_path.value != path:
+                self.template_path.value = path
+        self._save_history()
 
         if path is None:
             if self._last_average is None:
@@ -347,13 +387,19 @@ class SubtomogramAveraging(MagicTemplate):
     @property
     def template(self) -> "ip.ImgArray | None":
         """Template image."""
-        loader = self._get_loader(binsize=1, molecules=Molecules.empty())
-        template, _ = loader.normalize_input(self.params._get_template())
-        return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
+        if self._get_parent().tomogram is None:
+            raise RuntimeError("Cannot create template before loading a tomogram.")
+        else:
+            loader = self._get_loader(binsize=1, molecules=Molecules.empty())
+            template, _ = loader.normalize_input(self.params._get_template())
+            scale = loader.scale
+        return ip.asarray(template, axes="zyx").set_scale(zyx=scale, unit="nm")
 
     @property
     def mask(self) -> "ip.ImgArray | None":
         """Mask image."""
+        if self._get_parent().tomogram is None:
+            raise RuntimeError("Cannot create mask before loading a tomogram.")
         loader = self._get_loader(binsize=1, molecules=Molecules.empty())
         _, mask = loader.normalize_input(
             self.params._get_template(allow_none=True), self.params._get_mask()
@@ -1127,7 +1173,7 @@ class SubtomogramAveraging(MagicTemplate):
             mask=self.params._get_mask(params=mask_params),
         )
         fsc, avg = loader.reshape(
-            template=template,
+            template=template if size is None else None,
             mask=mask,
             shape=None if size is None else (parent.tomogram.nm2pixel(size),) * 3,
         ).fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
