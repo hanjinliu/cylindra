@@ -1415,7 +1415,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _get_reanalysis_macro(self, path: Path):
         _ui_sym = mk.symbol(self)
-        project = CylindraProject.from_json(path)
+        project = CylindraProject.from_json(get_project_json(path))
         macro_path = Path(project.macro)
         macro_expr = mk.parse(macro_path.read_text())
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)

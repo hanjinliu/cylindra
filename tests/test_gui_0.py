@@ -7,7 +7,7 @@ from magicclass import testing as mcls_testing
 
 from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
-from cylindra.const import PropertyNames as H
+from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 import pytest
 from .utils import pytest_group
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
@@ -221,6 +221,30 @@ def test_preview(ui: CylindraMainWidget):
     assert len(ui.parent_viewer.layers) == nlayer + 1
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
+
+    tester = mcls_testing.FunctionGuiTester(ui.split_molecules)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
+    tester = mcls_testing.FunctionGuiTester(ui.paint_molecules)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
+    tester = mcls_testing.FunctionGuiTester(ui.load_project_for_reanalysis)
+    tester.update_parameters(path=PROJECT_DIR_13PF)
+    tester.click_preview()
+
+    tester = mcls_testing.FunctionGuiTester(ui.load_molecules)
+    tester.update_parameters(
+        paths=[PROJECT_DIR_13PF / "Mono-0.csv", PROJECT_DIR_13PF / "Mono-1.csv"]
+    )
+    tester.click_preview()
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -474,3 +498,17 @@ def test_calc_skews(
     each_skew = layer.features["skew-deg"][:-npf]
     # individial skews must be almost equal to the global skew angle
     assert abs(each_skew.mean() - skew_angle) < 1e-2
+
+
+def test_spline_fitter(ui: CylindraMainWidget):
+    ui.open_image(
+        TEST_DIR / f"14pf_MT.tif",
+        scale=1.052,
+        tilt_range=(-60.0, 60.0),
+        bin_size=[1],
+        filter=False,
+    )
+    ui.register_path(coords=[[21.974, 117.148, 34.873], [21.974, 36.449, 58.084]])
+    ui.spline_fitter.fit(
+        shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
+    )

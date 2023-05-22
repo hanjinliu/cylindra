@@ -25,13 +25,15 @@ if TYPE_CHECKING:
 
 @impl_preview(CylindraMainWidget.load_molecules)
 def _(self: CylindraMainWidget, paths: list[str]):
-    return view_tables(paths, parent=self)
+    w = view_tables(paths, parent=self)
+    self._active_widgets.add(w)
 
 
 @impl_preview(CylindraMainWidget.load_project)
 def _(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_json(get_project_json(path)).make_project_viewer()
     pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+    self._active_widgets.add(pviewer)
     return pviewer.show()
 
 
@@ -73,6 +75,7 @@ def _(self: CylindraMainWidget, path: Path):
     w.read_only = True
     w.native.setParent(self.native, w.native.windowFlags())
     w.show()
+    self._active_widgets.add(w)
     return None
 
 
