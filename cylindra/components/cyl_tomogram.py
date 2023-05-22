@@ -747,7 +747,7 @@ class CylTomogram(Tomogram):
         spl = self.splines[i]
 
         if spl.radius is None:
-            raise ValueError("Radius has not been determined yet.")
+            raise ValueError("Radius is not measured yet.")
 
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)

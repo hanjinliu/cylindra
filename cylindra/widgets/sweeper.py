@@ -56,7 +56,7 @@ class SplineSweeper(MagicTemplate):
         binsize = vfield(record=False).with_choices(_get_available_binsize)
 
     radius = vfield(Optional[nm], label="Radius (nm)").with_options(
-        text="Use global variable 'fit_width'", options={"max": 200.0}
+        text="Use spline radius", options={"max": 200.0}
     )
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
@@ -148,8 +148,10 @@ class SplineSweeper(MagicTemplate):
                 return self._show_overlay_text(result)
             img = self.post_filter(result.proj("r")).value
         elif _type == YPROJ:
-            block = self._current_cartesian_img(idx, pos, depth).proj("y")
-            img = self.post_filter(block[ip.slicer.x[::-1]]).value
+            result = self._current_cartesian_img(idx, pos, depth).proj("y")
+            if isinstance(result, Exception):
+                return self._show_overlay_text(result)
+            img = self.post_filter(result[ip.slicer.x[::-1]]).value
         elif _type == CFT:
             result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
             if isinstance(result, Exception):
@@ -201,17 +203,18 @@ class SplineSweeper(MagicTemplate):
         )
         return None
 
-    def _current_cartesian_img(self, idx: int, pos: nm, depth: nm) -> ip.ImgArray:
+    def _current_cartesian_img(
+        self, idx: int, pos: nm, depth: nm
+    ) -> "ip.ImgArray | Exception":
         """Return local Cartesian image at the current position."""
         tomo = self.parent.tomogram
         binsize = self.params.binsize
         spl = tomo.splines[idx]
         depth_px = tomo.nm2pixel(depth, binsize=binsize)
-        if r := self.radius:
-            width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
-        else:
-            width_px = tomo.nm2pixel(GVar.fit_width)
-
+        r = self.radius if self.radius is not None else spl.radius
+        width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
+        if r is None:
+            raise ValueError("Measure spline radius or manually set it.")
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3
         ).local_cartesian(
@@ -236,15 +239,11 @@ class SplineSweeper(MagicTemplate):
         ylen = tomo.nm2pixel(depth, binsize=binsize)
         spl = tomo.splines[idx]
 
-        if r := self.radius:
-            rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
-            rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
-        else:
-            if r := spl.radius:
-                rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
-                rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
-            else:
-                return ValueError("CFT requires radius input.")
+        r = self.radius if self.radius is not None else spl.radius
+        if r is None:
+            raise ValueError("Measure spline radius or manually set it.")
+        rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
+        rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
 
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3

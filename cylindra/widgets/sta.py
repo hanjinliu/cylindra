@@ -719,12 +719,9 @@ class SubtomogramAveraging(MagicTemplate):
         else:
             shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
 
-        loader = (
+        aligned_loader = (
             self._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)
-            .reshape(
-                mask,
-                shape=shape,
-            )
+            .reshape(mask, shape=shape)
             .align_no_template(
                 mask=mask,
                 max_shifts=max_shifts,
@@ -778,7 +775,7 @@ class SubtomogramAveraging(MagicTemplate):
         for path in other_templates:
             templates.append(pipe.from_file(path))
 
-        loader = self._get_loader(
+        aligned_loader = self._get_loader(
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,

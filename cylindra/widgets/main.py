@@ -280,13 +280,15 @@ class CylindraMainWidget(MagicTemplate):
         for _ in range(n_refine):
             self.refine_splines(
                 splines=splines,
-                max_interval=interval,
+                max_interval=max(interval, 30),
                 bin_size=bin_size,
             )
         self.measure_radius(splines=splines, bin_size=bin_size)
         self.add_anchors(splines=splines, interval=interval)
         if local_props:
-            self.local_ft_analysis(splines=splines, ft_size=ft_size, bin_size=bin_size)
+            self.local_ft_analysis(
+                splines=splines, interval=interval, ft_size=ft_size, bin_size=bin_size
+            )
         if infer_polarity:
             self.auto_align_to_polarity()
         if global_props:
@@ -873,7 +875,6 @@ class CylindraMainWidget(MagicTemplate):
         for i in range(len(tomo.splines)):
             spl = tomo.splines[i]
             spl.orientation = _new_orientations[i]
-            yield
 
         if align_to is not None:
             return thread_worker.to_callback(self.align_to_polarity, align_to)
@@ -1414,6 +1415,7 @@ class CylindraMainWidget(MagicTemplate):
         return _global_ft_analysis_on_return
 
     def _get_reanalysis_macro(self, path: Path):
+        """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_json(get_project_json(path))
         macro_path = Path(project.macro)
