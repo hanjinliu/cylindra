@@ -1,5 +1,5 @@
 import os
-from typing import Annotated
+from typing import Annotated, Sequence
 from magicclass import (
     do_not_record,
     magicclass,
@@ -23,7 +23,7 @@ from ._previews import view_image
 from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
 from cylindra.components import CylTomogram, AutoCorrelationPicker
-from cylindra.const import GlobalVariables as GVar
+from cylindra.const import GlobalVariables as GVar, nm
 from cylindra.widgets.global_variables import GlobalVariablesMenu
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -313,12 +313,15 @@ class Runner(MagicTemplate):
         Check if infer spline polarity after run.
     """
 
-    def _get_splines(self, _=None) -> list[tuple[str, int]]:
-        """Get list of spline objects for categorical widgets."""
+    def _get_parent(self):
         from .main import CylindraMainWidget
 
+        return self.find_ancestor(CylindraMainWidget)
+
+    def _get_splines(self, _=None) -> list[tuple[str, int]]:
+        """Get list of spline objects for categorical widgets."""
         try:
-            tomo = self.find_ancestor(CylindraMainWidget).tomogram
+            tomo = self._get_parent().tomogram
         except Exception:
             return []
         if tomo is None:
@@ -326,10 +329,8 @@ class Runner(MagicTemplate):
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
     def _get_available_binsize(self, _=None) -> list[int]:
-        from .main import CylindraMainWidget
-
         try:
-            parent = self.find_ancestor(CylindraMainWidget)
+            parent = self._get_parent()
         except Exception:
             return [1]
         if parent.tomogram is None:
@@ -350,6 +351,7 @@ class Runner(MagicTemplate):
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties")
     infer_polarity = vfield(True, label="Infer polarity")
+    map_monomers = vfield(True, label="Map monomers")
 
     @all_splines.connect
     def _toggle_spline_list(self, val: bool):
@@ -371,9 +373,67 @@ class Runner(MagicTemplate):
             return self.splines
 
     def _get_max_shift(self, w=None):
-        return self.params1.max_shift
+        if self.fit:
+            return self.params1.max_shift
+        else:
+            return -1.0
 
-    run_workflow = abstractapi()
+    @set_design(text="Run")
+    @do_not_record(recursive=False)
+    def run_workflow(
+        self,
+        splines: Annotated[Sequence[int], {"bind": _get_splines_to_run}] = (),
+        bin_size: Annotated[int, {"bind": bin_size}] = 1,
+        max_shift: Annotated[nm, {"bind": _get_max_shift}] = 5.0,
+        edge_sigma: Annotated[nm, {"bind": params1.edge_sigma}] = 2.0,
+        n_refine: Annotated[int, {"bind": n_refine}] = 1,
+        local_props: Annotated[bool, {"bind": local_props}] = True,
+        interval: Annotated[nm, {"bind": params2.interval}] = 32.0,
+        ft_size: Annotated[nm, {"bind": params2.ft_size}] = 32.0,
+        global_props: Annotated[bool, {"bind": global_props}] = True,
+        paint: Annotated[bool, {"bind": params2.paint}] = True,
+        infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
+        map_monomers: Annotated[bool, {"bind": map_monomers}] = True,
+    ):
+        """Run workflow."""
+        parent = self._get_parent()
+        if parent.layer_work.data.size > 0:
+            raise ValueError("The last spline is not registered yet.")
+        if parent.tomogram.n_splines == 0:
+            raise ValueError("No spline found.")
+        elif len(splines) == 0:
+            splines = list(range(parent.tomogram.n_splines))
+        parent._runner.close()
+
+        if max_shift > 0.0:
+            parent.fit_splines(
+                splines=splines,
+                bin_size=bin_size,
+                edge_sigma=edge_sigma,
+                max_shift=max_shift,
+            )
+        for _ in range(n_refine):
+            parent.refine_splines(
+                splines=splines,
+                max_interval=max(interval, 30),
+                bin_size=bin_size,
+            )
+        parent.measure_radius(splines=splines, bin_size=bin_size)
+        parent.add_anchors(splines=splines, interval=interval)
+        if local_props:
+            parent.local_ft_analysis(
+                splines=splines, interval=interval, ft_size=ft_size, bin_size=bin_size
+            )
+        if infer_polarity:
+            parent.auto_align_to_polarity()
+        if global_props:
+            parent.global_ft_analysis(splines=splines, bin_size=bin_size)
+        if local_props and paint:
+            parent.paint_cylinders()
+        if map_monomers:
+            parent.map_monomers(orientation=GVar.clockwise)
+        parent._current_ft_size = ft_size
+        return None
 
 
 @magicclass(name="_Open image", record=False)

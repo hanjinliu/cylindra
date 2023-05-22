@@ -232,7 +232,6 @@ class SplineControl(MagicTemplate):
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
-        r_ave = spl.radius / tomo.scale / binsize
         r_inner = (spl.radius - GVar.thickness_inner) / tomo.scale / binsize
         r_outer = (spl.radius + GVar.thickness_outer) / tomo.scale / binsize
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2

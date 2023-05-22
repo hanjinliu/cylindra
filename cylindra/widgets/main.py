@@ -234,7 +234,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return undo_callback(self.delete_spline).with_args(-1)
 
-    _runner = subwidgets.Runner
+    _runner = field(subwidgets.Runner)
     _image_loader = subwidgets.ImageLoader
 
     @toolbar.wraps
@@ -245,59 +245,59 @@ class CylindraMainWidget(MagicTemplate):
         """Run cylindrical fitting algorithm with various settings."""
         return self._runner.show(run=False)
 
-    @_runner.wraps
-    @set_design(text="Run")
-    @do_not_record(recursive=False)
-    def run_workflow(
-        self,
-        splines: Annotated[Sequence[int], {"bind": _runner._get_splines_to_run}] = (),
-        bin_size: Annotated[int, {"bind": _runner.bin_size}] = 1,
-        max_shift: Annotated[nm, {"bind": _runner._get_max_shift}] = 5.0,
-        edge_sigma: Annotated[nm, {"bind": _runner.params1.edge_sigma}] = 2.0,
-        n_refine: Annotated[int, {"bind": _runner.n_refine}] = 1,
-        local_props: Annotated[bool, {"bind": _runner.local_props}] = True,
-        interval: Annotated[nm, {"bind": _runner.params2.interval}] = 32.0,
-        ft_size: Annotated[nm, {"bind": _runner.params2.ft_size}] = 32.0,
-        global_props: Annotated[bool, {"bind": _runner.global_props}] = True,
-        paint: Annotated[bool, {"bind": _runner.params2.paint}] = True,
-        infer_polarity: Annotated[bool, {"bind": _runner.infer_polarity}] = True,
-    ):
-        """Run cylindrical fitting."""
-        if self.layer_work.data.size > 0:
-            raise ValueError("The last spline is not registered yet.")
-        if self.tomogram.n_splines == 0:
-            raise ValueError("No spline found.")
-        elif len(splines) == 0:
-            splines = list(range(self.tomogram.n_splines))
-        self._runner.close()
+    # @_runner.wraps
+    # @set_design(text="Run")
+    # @do_not_record(recursive=False)
+    # def run_workflow(
+    #     self,
+    #     splines: Annotated[Sequence[int], {"bind": _runner._get_splines_to_run}] = (),
+    #     bin_size: Annotated[int, {"bind": _runner.bin_size}] = 1,
+    #     max_shift: Annotated[nm, {"bind": _runner._get_max_shift}] = 5.0,
+    #     edge_sigma: Annotated[nm, {"bind": _runner.params1.edge_sigma}] = 2.0,
+    #     n_refine: Annotated[int, {"bind": _runner.n_refine}] = 1,
+    #     local_props: Annotated[bool, {"bind": _runner.local_props}] = True,
+    #     interval: Annotated[nm, {"bind": _runner.params2.interval}] = 32.0,
+    #     ft_size: Annotated[nm, {"bind": _runner.params2.ft_size}] = 32.0,
+    #     global_props: Annotated[bool, {"bind": _runner.global_props}] = True,
+    #     paint: Annotated[bool, {"bind": _runner.params2.paint}] = True,
+    #     infer_polarity: Annotated[bool, {"bind": _runner.infer_polarity}] = True,
+    # ):
+    #     """Run cylindrical fitting."""
+    #     if self.layer_work.data.size > 0:
+    #         raise ValueError("The last spline is not registered yet.")
+    #     if self.tomogram.n_splines == 0:
+    #         raise ValueError("No spline found.")
+    #     elif len(splines) == 0:
+    #         splines = list(range(self.tomogram.n_splines))
+    #     self._runner.close()
 
-        self.fit_splines(
-            splines=splines,
-            bin_size=bin_size,
-            edge_sigma=edge_sigma,
-            max_shift=max_shift,
-        )
-        for _ in range(n_refine):
-            self.refine_splines(
-                splines=splines,
-                max_interval=max(interval, 30),
-                bin_size=bin_size,
-            )
-        self.measure_radius(splines=splines, bin_size=bin_size)
-        self.add_anchors(splines=splines, interval=interval)
-        if local_props:
-            self.local_ft_analysis(
-                splines=splines, interval=interval, ft_size=ft_size, bin_size=bin_size
-            )
-        if infer_polarity:
-            self.auto_align_to_polarity()
-        if global_props:
-            self.global_ft_analysis(splines=splines, bin_size=bin_size)
-        if local_props and paint:
-            self.paint_cylinders()
-        self._current_ft_size = ft_size
-        self._need_save = True
-        return None
+    #     self.fit_splines(
+    #         splines=splines,
+    #         bin_size=bin_size,
+    #         edge_sigma=edge_sigma,
+    #         max_shift=max_shift,
+    #     )
+    #     for _ in range(n_refine):
+    #         self.refine_splines(
+    #             splines=splines,
+    #             max_interval=max(interval, 30),
+    #             bin_size=bin_size,
+    #         )
+    #     self.measure_radius(splines=splines, bin_size=bin_size)
+    #     self.add_anchors(splines=splines, interval=interval)
+    #     if local_props:
+    #         self.local_ft_analysis(
+    #             splines=splines, interval=interval, ft_size=ft_size, bin_size=bin_size
+    #         )
+    #     if infer_polarity:
+    #         self.auto_align_to_polarity()
+    #     if global_props:
+    #         self.global_ft_analysis(splines=splines, bin_size=bin_size)
+    #     if local_props and paint:
+    #         self.paint_cylinders()
+    #     self._current_ft_size = ft_size
+    #     self._need_save = True
+    #     return None
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "clear_last.svg")
