@@ -1200,12 +1200,36 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"bind": SplineControl.num}],
         spacing: Annotated[Optional[nm], {"label": "spacing (nm)", "text": "Do not update"}] = None,
-        skew: Annotated[Optional[float], {"label": "skew angle (°)", "text": "Do not update"}] = None,
-        rise: Annotated[Optional[nm], {"label": "rise angle (°)", "text": "Do not update"}] = None,
+        skew: Annotated[Optional[float], {"label": "skew angle (deg)", "text": "Do not update"}] = None,
+        rise: Annotated[Optional[nm], {"label": "rise angle (deg)", "text": "Do not update"}] = None,
         npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
         radius: Annotated[Optional[nm], {"label": "radius (nm)", "text": "Do not update"}] = None,
         orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
     ):  # fmt: skip
+        """
+        Set spline global properties.
+
+        This method will overwrite spline properties with the user input. You should
+        not call this method unless there's a good reason to do so, e.g. the number
+        of protofilaments is obviously wrong.
+
+        Parameters
+        ----------
+        spline : int
+            The index of spline to update.
+        spacing : nm, optional
+            If given, update the monomer spacing.
+        skew : float, optional
+            If given, update the skew angle.
+        rise : float, optional
+            If given, update the rise ange.
+        npf : int , optional
+            If given, update the number of protofilaments.
+        radius : nm, optional
+            If given, update the radius of the cylinder.
+        orientation : str, optional
+            If given, update the spline orientation.
+        """
         spl = self.tomogram.splines[spline]
         old_spl = spl.copy()
         spl.update_props(

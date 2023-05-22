@@ -235,28 +235,22 @@ class SplineControl(MagicTemplate):
         r_ave = spl.radius / tomo.scale / binsize
         r_inner = (spl.radius - GVar.thickness_inner) / tomo.scale / binsize
         r_outer = (spl.radius + GVar.thickness_outer) / tomo.scale / binsize
-        xmin, xmax = -r_outer + lx / 2 - 0.5, r_outer + lx / 2 + 0.5
+        xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
         self.canvas[0].add_curve(
             [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime"
         )
 
         # draw two circles in ZX-view
-        self.canvas[1].add_curve(
-            *_circle(r_inner, center=(lx / 2, lz / 2)), color="lime"
-        )
-        self.canvas[1].add_curve(
-            *_circle(r_outer, center=(lx / 2, lz / 2)), color="lime"
-        )
+        center = (lx / 2 - 0.5, lz / 2 - 0.5)
+        self.canvas[1].add_curve(*_circle(r_inner, center=center), color="lime")
+        self.canvas[1].add_curve(*_circle(r_outer, center=center), color="lime")
 
         # draw polarity
+        kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
         if spl.orientation == "PlusToMinus":
-            self.canvas[2].add_text(
-                lx / 2, lz / 2, "+", size=16, color="lime", anchor=(0.5, 0.5)
-            )
+            self.canvas[2].add_text(*center, "+", **kw)
         elif spl.orientation == "MinusToPlus":
-            self.canvas[2].add_text(
-                lx / 2, lz / 2, "-", size=16, color="lime", anchor=(0.5, 0.5)
-            )
+            self.canvas[2].add_text(*center, "-", **kw)
 
         # update pyqtgraph
         if (xs := spl.get_localprops(H.splDist, None)) is not None:

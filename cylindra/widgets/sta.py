@@ -185,7 +185,7 @@ class StaParameters(MagicTemplate):
         ],
         label="Template",
     ).with_options(text="Use last averaged image", value=Path(""))
-    mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
+    mask_choice = vfield(label="Mask", record=False).with_choices(MASK_CHOICES)
     params = field(MaskParameters, name="Mask parameters")
     mask_path = field(mask_path)
 
@@ -206,7 +206,8 @@ class StaParameters(MagicTemplate):
         if path is None:
             path = self.template_path
         else:
-            self.template_path = path
+            if self.template_path != path:
+                self.template_path = path
 
         if path is None:
             if self._last_average is None:
@@ -253,11 +254,16 @@ class StaParameters(MagicTemplate):
             params = self._get_mask_params()
         else:
             if params is None:
-                self.mask_choice = MASK_CHOICES[0]
+                if self.mask_choice != MASK_CHOICES[0]:
+                    self.mask_choice = MASK_CHOICES[0]
             elif isinstance(params, tuple):
-                self.mask_choice = MASK_CHOICES[1]
+                if self.mask_choice != MASK_CHOICES[1]:
+                    self.mask_choice = MASK_CHOICES[1]
             else:
-                self.mask_path.mask_path = params
+                if self.mask_choice != MASK_CHOICES[2]:
+                    self.mask_choice = MASK_CHOICES[2]
+                if self.mask_path.mask_path != params:
+                    self.mask_path.mask_path = params
 
         if params is None:
             return None
@@ -305,7 +311,7 @@ class StaParameters(MagicTemplate):
         return layer
 
 
-@magicclass(widget_type="scrollable")
+@magicclass
 @_shared_doc.update_cls
 class SubtomogramAveraging(MagicTemplate):
     """Widget for subtomogram averaging."""
@@ -550,7 +556,7 @@ class SubtomogramAveraging(MagicTemplate):
         @thread_worker.to_callback
         def _on_yield(
             mole_trans: Molecules,
-            img_trans: "NDArray[np.float32]",
+            merge: "NDArray[np.float32]",
             layer: MoleculesLayer,
         ):
             points = parent.add_molecules(
@@ -559,9 +565,6 @@ class SubtomogramAveraging(MagicTemplate):
                 source=layer.source_component,
             )
             new_layers.append(points)
-            img_norm = utils.normalize_image(img_trans)
-            temp_norm = utils.normalize_image(template)
-            merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
@@ -575,6 +578,7 @@ class SubtomogramAveraging(MagicTemplate):
                 template=self.params._get_template(path=template_path),
                 mask=self.params._get_mask(params=mask_params),
             )
+            temp_norm = utils.normalize_image(template)
 
             _scale = parent.tomogram.scale * bin_size
 
@@ -595,22 +599,26 @@ class SubtomogramAveraging(MagicTemplate):
             )
 
             rotator = Rotation.from_quat(result.quat)
-            shift_nm = result.shift * _scale
+            svec = result.shift * _scale
             _mole_trans = mole.linear_transform(
                 result.shift * _scale, rotator
-            ).with_features([pl.col(Mole.position) + shift_nm[1]])
+            ).with_features([pl.col(Mole.position) + svec[1]])
             aligned_molecules.append(_mole_trans)
 
-            yield _on_yield(_mole_trans, _img_trans, layer)
+            img_norm = utils.normalize_image(_img_trans)
+            merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
+            yield _on_yield(_mole_trans, merge, layer)
 
             # logging
-            _Logger.print_html(
-                "{rotvec_str} = {rot_str}, {vec_str} = {shift_nm_str}".format(
-                    vec_str=", ".join(f"{x}<sub>shift</sub>" for x in "XYZ"),
-                    rotvec_str=", ".join(f"{x}<sub>rot</sub>" for x in "XYZ"),
-                    shift_nm_str=", ".join(f"{s:.2f} nm" for s in shift_nm[::-1]),
-                    rot_str=", ".join(f"{s:.2f}" for s in rotator.as_rotvec()[::-1]),
-                )
+            rvec = rotator.as_rotvec()
+            _Logger.print_table(
+                [
+                    ["", "X", "Y", "Z"],
+                    ["Shift (nm)", f"{svec[2]:2f}", f"{svec[1]:2f}", f"{svec[0]:2f}"],
+                    ["Rot vector", f"{rvec[2]:2f}", f"{rvec[1]:2f}", f"{rvec[0]:2f}"],
+                ],
+                header=False,
+                index=False,
             )
 
         t0.toc()
@@ -657,12 +665,11 @@ class SubtomogramAveraging(MagicTemplate):
 
         combiner = MoleculesCombiner()
 
-        loader = self._get_loader(
+        aligned_loader = self._get_loader(
             binsize=bin_size,
             molecules=combiner.concat(layer.molecules for layer in layers),
             order=interpolation,
-        )
-        aligned_loader = loader.align(
+        ).align(
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
@@ -712,17 +719,20 @@ class SubtomogramAveraging(MagicTemplate):
         else:
             shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
 
-        loader = self._get_loader(
-            binsize=bin_size, molecules=molecules, order=interpolation
-        ).reshape(mask, shape=shape)
-
-        aligned_loader = loader.align_no_template(
-            mask=mask,
-            max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
-            cutoff=cutoff,
-            alignment_model=_get_alignment(method),
-            tilt_range=parent.tomogram.tilt_range,
+        loader = (
+            self._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)
+            .reshape(
+                mask,
+                shape=shape,
+            )
+            .align_no_template(
+                mask=mask,
+                max_shifts=max_shifts,
+                rotations=(z_rotation, y_rotation, x_rotation),
+                cutoff=cutoff,
+                alignment_model=_get_alignment(method),
+                tilt_range=parent.tomogram.tilt_range,
+            )
         )
 
         t0.toc()
@@ -772,8 +782,7 @@ class SubtomogramAveraging(MagicTemplate):
             binsize=bin_size,
             molecules=molecules,
             order=interpolation,
-        )
-        aligned_loader = loader.align_multi_templates(
+        ).align_multi_templates(
             templates=templates,
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,

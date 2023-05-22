@@ -186,7 +186,7 @@ def calc_resolution(
 def plot_projections(merge: np.ndarray):
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(nrows=1, ncols=2)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
     # normalize
     if merge.dtype.kind == "f":
         merge = np.clip(merge, 0, 1)
