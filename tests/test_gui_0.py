@@ -101,6 +101,17 @@ def test_spline_deletion(ui: CylindraMainWidget):
     assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
 
 
+def test_workflow_with_may_input(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui._runner.run_workflow([0], max_shift=-1)  # no fit
+    ui._runner.run_workflow([0], n_refine=0)  # no refine
+    ui._runner.run_workflow([0], max_shift=-1, n_refine=0)  # no fit/refine
+    ui._runner.run_workflow([0], local_props=False, paint=False)  # no localprops
+    ui._runner.run_workflow(
+        [0], global_props=False, map_monomers=False
+    )  # no globalprops
+
+
 def test_spline_switch(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
@@ -493,8 +504,10 @@ def test_auto_align(ui: CylindraMainWidget):
 def test_molecules_to_spline(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=False)
     assert len(ui.tomogram.splines) == 2
-    ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]], interval=20)
+    old_ori = ui.tomogram.splines[0].orientation
+    ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]])
     assert len(ui.tomogram.splines) == 2
+    assert ui.tomogram.splines[0].orientation == old_ori
 
 
 # NOTE: calc_intervals and calc_skews are very likely to contain bugs with different

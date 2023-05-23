@@ -420,7 +420,6 @@ class Runner(MagicTemplate):
                 bin_size=bin_size,
             )
         parent.measure_radius(splines=splines, bin_size=bin_size)
-        parent.add_anchors(splines=splines, interval=interval)
         if local_props:
             parent.local_ft_analysis(
                 splines=splines, interval=interval, ft_size=ft_size, bin_size=bin_size

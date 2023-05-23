@@ -3,13 +3,13 @@ from typing import Union, TYPE_CHECKING
 from pathlib import Path
 import macrokit as mk
 from pydantic import BaseModel
+import polars as pl
 
 from cylindra.const import PropertyNames as H, get_versions
 from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
-    import polars as pl
 
 
 class MoleculesInfo(BaseModel):
@@ -248,14 +248,15 @@ class CylindraProject(BaseProject):
 
         for i, spl in enumerate(splines):
             spl.localprops = all_localprops.get(i, None)
-            if spl.has_localprops(H.splPos):
+            if spl.has_localprops([H.splDist, H.splPos]):
                 spl._anchors = np.asarray(spl.localprops[H.splPos])
                 spl.localprops.drop(["SplineID", "PosID"])
             spl.globalprops = all_globalprops.get(i, None)
-            if spl.has_globalprops(H.nPF):
-                spl.globalprops = spl.globalprops.with_columns(
-                    pl.col(H.nPF).cast(pl.UInt8)
-                )
+
+            spl.localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
+            spl.globalprops = spl.globalprops.with_columns(
+                _get_casting(spl.globalprops)
+            )
 
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(filt=filter)
@@ -325,3 +326,15 @@ class CylindraProject(BaseProject):
     @property
     def result_dir(self) -> Path:
         return Path(self.macro).parent
+
+
+def _get_casting(df: pl.DataFrame):
+    out = []
+    for cname in df.columns:
+        if cname == H.nPF:
+            out.append(pl.col(cname).cast(pl.UInt8))
+        elif cname == H.orientation:
+            out.append(pl.col(cname).cast(pl.Utf8))
+        else:
+            out.append(pl.col(cname).cast(pl.Float32))
+    return out

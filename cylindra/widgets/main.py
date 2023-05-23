@@ -1193,7 +1193,9 @@ class CylindraMainWidget(MagicTemplate):
     def molecules_to_spline(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
-        interval: Annotated[nm, {"label": "Interval (nm)", "min": 1.0}] = 24.5,
+        delete_old: bool = True,
+        inherit_props: bool = True,
+        missing_ok: bool = False,
     ):  # fmt: skip
         """
         Create splines from molecules.
@@ -1206,24 +1208,43 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{interval}
+        {layers}
+        delete_old : bool, default is True
+            If True, delete the old spline if the molecules has one.
+        inherit_props : bool, default is True
+            If True, copy the global properties from the old spline to the new one.
+        missing_ok : bool, default is False
+            If False, raise an error if the source spline is not found in the tomogram.
         """
         tomo = self.tomogram
         if len(layers) == 0:
             raise ValueError("No layers are selected.")
+
+        # first check missing_ok=False case
         for layer in layers:
-            layer: MoleculesLayer
-            mole = layer.molecules
-            spl = utils.molecules_to_spline(mole)
             # NOTE: The source spline may not exist in the spline list if `molecules_to_spline`
             # is called twice.
-            if layer.source_component in tomo.splines:
+            try:
+                tomo.splines.index(layer.source_component)
+            except ValueError as e:
+                if not missing_ok:
+                    raise e
+
+        for layer in layers:
+            mole = layer.molecules
+            spl = utils.molecules_to_spline(mole)
+            try:
                 idx = tomo.splines.index(layer.source_component)
-                tomo.splines[idx] = spl
-            else:
+            except ValueError as e:
                 tomo.splines.append(spl)
+            else:
+                if inherit_props:
+                    spl.globalprops = tomo.splines[idx].globalprops.clone()
+                if delete_old:
+                    tomo.splines[idx] = spl
+                else:
+                    tomo.splines.append(spl)
             layer.source_component = spl
-            spl.make_anchors(interval=interval)
 
         self.reset_choices()
         self.sample_subtomograms()

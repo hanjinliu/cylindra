@@ -602,7 +602,6 @@ class SubtomogramAveraging(MagicTemplate):
         @thread_worker.to_callback
         def _on_yield(
             mole_trans: Molecules,
-            merge: "NDArray[np.float32]",
             layer: MoleculesLayer,
         ):
             points = parent.add_molecules(
@@ -613,8 +612,6 @@ class SubtomogramAveraging(MagicTemplate):
             new_layers.append(points)
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
-            with _Logger.set_plt():
-                widget_utils.plot_projections(merge)
 
         aligned_molecules: list[Molecules] = []
         for layer in layers:
@@ -635,7 +632,6 @@ class SubtomogramAveraging(MagicTemplate):
             model = _get_alignment(method)(
                 template,
                 mask,
-                cutoff=1.0,
                 rotations=(z_rotation, y_rotation, x_rotation),
                 tilt_range=None,  # NOTE: because input is an average
             )
@@ -653,7 +649,11 @@ class SubtomogramAveraging(MagicTemplate):
 
             img_norm = utils.normalize_image(_img_trans)
             merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
-            yield _on_yield(_mole_trans, merge, layer)
+
+            yield _on_yield(_mole_trans, layer)
+
+            with _Logger.set_plt():
+                widget_utils.plot_projections(merge)
 
             # logging
             rvec = rotator.as_rotvec()
@@ -674,7 +674,7 @@ class SubtomogramAveraging(MagicTemplate):
         def _align_averaged_on_return():
             return (
                 undo_callback(parent._try_removing_layers)
-                .with_args(layers)
+                .with_args(new_layers)
                 .with_redo(parent._add_layers_future(new_layers))
             )
 
