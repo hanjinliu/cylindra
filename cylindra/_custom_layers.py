@@ -38,8 +38,9 @@ class MoleculesLayer(Points):
         self._colormap_info: ColormapInfo | None = None
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
         super().__init__(data.pos, **kwargs)
-        if data.features is not None:
-            self.features = data.features
+        features = data.features
+        if features is not None and len(features) > 0:
+            self.features = features
 
     @property
     def molecules(self) -> Molecules:

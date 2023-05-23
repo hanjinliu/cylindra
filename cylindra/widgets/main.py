@@ -847,26 +847,27 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Splines.wraps
-    @set_design(text="Clip splines")
+    @set_design(text="Clip/extend splines")
     def clip_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        clip_lengths: Annotated[tuple[nm, nm], {"options": {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
+        clip_lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """
-        Clip selected spline at its edges by given lengths.
+        Clip or extend selected spline at its edges by given lengths.
 
         Parameters
         ----------
         spline : int
            The ID of spline to be clipped.
         clip_lengths : tuple of float, default is (0., 0.)
-            The length in nm to be clipped at the start and end of the spline.
+            The length in nm to be clipped at the start and end of the spline. Negative value means extending the
+            spline by linear extrapolation.
         """
         if spline is None:
             return
         spl = self.tomogram.splines[spline]
-        _old_lims = spl.lims
+        _old_spl = spl.copy
         length = spl.length()
         start, stop = np.array(clip_lengths) / length
         self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
@@ -877,7 +878,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @undo_callback
         def out():
-            self.tomogram.splines[spline] = spl.restore().clip(*_old_lims)
+            self.tomogram.splines[spline] = _old_spl
             self._update_splines_in_images()
 
         return out
@@ -1488,12 +1489,10 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map centers")
     def map_centers(
         self,
-        splines: Annotated[
-            list[int], {"choices": _get_splines, "widget_type": "Select"}
-        ] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
-    ):
+    ):  # fmt: skip
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
 
@@ -1526,13 +1525,11 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map alogn PF")
     def map_along_pf(
         self,
-        splines: Annotated[
-            list[int], {"choices": _get_splines, "widget_type": "Select"}
-        ],
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}],
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         angle_offset: Annotated[float, {"max": 360}] = 0.0,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
-    ):
+    ):  # fmt: skip
         """
         Map molecules along splines. Each molecule is rotated by skew angle.
 
@@ -1607,11 +1604,8 @@ class CylindraMainWidget(MagicTemplate):
     def extend_molecules(
         self,
         layer: MoleculesLayer,
-        counts: Annotated[
-            dict[int, tuple[int, int]],
-            {"label": "prepend/append", "widget_type": widget_utils.ProtofilamentEdit},
-        ] = {},
-    ):
+        counts: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": widget_utils.ProtofilamentEdit}] = {},
+    ):  # fmt: skip
         """
         Extend the existing molecules by linear outerpolation.
 

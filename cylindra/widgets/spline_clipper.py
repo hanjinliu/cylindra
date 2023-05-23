@@ -11,7 +11,7 @@ import impy as ip
 class SplineClipper(MagicTemplate):
     canvas = field(QtMultiImageCanvas).with_options(nrows=2, ncols=2)
     clip_length = vfield(nm, label="Clip length (nm)", record=False).with_options(
-        max=20, step=0.1
+        max=20.0, step=0.1
     )
 
     # canvas is as follows:
@@ -88,7 +88,7 @@ class SplineClipper(MagicTemplate):
         self.clip_length = self.current_clip_length[1 - int(self._clip_at_start)]
         self._update_canvas()
 
-    @do_not_record
+    @do_not_record(recursive=False)
     def clip_here(self):
         parent = self._parent_widget()
         parent.clip_spline(self._get_spline_id(), self.current_clip_length)

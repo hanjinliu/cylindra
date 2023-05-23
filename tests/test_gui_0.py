@@ -111,6 +111,33 @@ def test_workflow_with_may_input(ui: CylindraMainWidget):
         [0], global_props=False, map_monomers=False
     )  # no globalprops
 
+    # toggle many widgets to check if they are working
+    ui._runner.all_splines = False
+    ui._runner.all_splines = True
+    ui._runner.fit = False
+    ui._runner.fit = True
+    ui._runner.local_props = False
+    ui._runner.local_props = True
+
+
+def test_reanalysis(ui: CylindraMainWidget):
+    ui.load_project_for_reanalysis(PROJECT_DIR_14PF)
+    assert ui.tomogram.splines[0].orientation == "none"
+    ui.measure_radius()
+    assert ui.get_spline(0).radius is not None
+    ui.reanalyze_image()
+    assert ui.get_spline(0).radius is None
+
+
+def test_map_molecules(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.map_along_pf([0])
+    ui.map_centers([0])
+    ui.macro.undo()
+    ui.macro.undo()
+    ui.macro.redo()
+    ui.macro.redo()
+
 
 def test_spline_switch(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
@@ -566,6 +593,7 @@ def test_calc_radii(ui: CylindraMainWidget):
     layer = ui.parent_viewer.layers[-1]
     ui.calculate_radii(layer=layer)
     assert layer.features["radius-nm"].std() < 0.1
+    ui.plot_molecule_feature(layer, backend="qt")
 
 
 def test_spline_fitter(ui: CylindraMainWidget):
