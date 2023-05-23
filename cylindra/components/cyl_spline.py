@@ -207,6 +207,7 @@ class CylSpline(Spline):
         if rise is not None:
             loc.append(pl.repeat(rise, pl.count()).cast(pl.Float32).alias(H.rise))
             glob.append(pl.Series([rise]).cast(pl.Float32).alias(H.rise))
+            # TODO: update H.start
         if npf is not None:
             loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.nPF))

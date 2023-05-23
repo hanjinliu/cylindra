@@ -2629,10 +2629,15 @@ class CylindraMainWidget(MagicTemplate):
         fgui = get_function_gui(self.set_spline_props)
         fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
         fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
+        fgui.spacing.value = (
+            None  # NOTE: setting to not-a-None value to update the inner widget.
+        )
         fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
         fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
+        fgui.skew.value = None
         fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
         fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
+        fgui.npf.value = None
 
         fgui = get_function_gui(self.cylinder_simulator.update_model)
         fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
