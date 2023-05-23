@@ -874,9 +874,6 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         # current layer will be removed. Select another layer.
         self.parent_viewer.layers.selection = {self.layer_work}
-        # initialize clipping values
-        fgui = get_function_gui(self, "clip_spline")
-        fgui.clip_lengths.value = (0.0, 0.0)
 
         @undo_callback
         def out():
@@ -1218,7 +1215,9 @@ class CylindraMainWidget(MagicTemplate):
             layer: MoleculesLayer
             mole = layer.molecules
             spl = utils.molecules_to_spline(mole)
-            if layer.source_component is not None:
+            # NOTE: The source spline may not exist in the spline list if `molecules_to_spline`
+            # is called twice.
+            if layer.source_component in tomo.splines:
                 idx = tomo.splines.index(layer.source_component)
                 tomo.splines[idx] = spl
             else:
@@ -1915,7 +1914,7 @@ class CylindraMainWidget(MagicTemplate):
         colors = info.cmap.map(np.linspace(0, 1, length))
         cmap_arr = np.stack([colors] * (length // 12), axis=0)
         xmin, xmax = info.clim
-        with _Logger.set_plt(rc_context={"font.size": 15}):
+        with _Logger.set_plt():
             if orientation == "vertical":
                 plt.imshow(np.swapaxis(cmap_arr, 0, 1))
                 plt.xticks([], [])
@@ -2023,6 +2022,21 @@ class CylindraMainWidget(MagicTemplate):
         layer.set_colormap(
             Mole.skew, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
         )
+        self._need_save = True
+        return None
+
+    @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Calculate radii")
+    def calculate_radii(self, layer: MoleculesLayer):
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        layer.features = utils.with_radius(layer.molecules, layer.source_component)
+        self.reset_choices()  # choices regarding of features need update
+
+        # Set colormap
+        val = layer.features[Mole.radius]
+        _clim = [val.min(), val.max()]
+        layer.set_colormap(Mole.radius, _clim, DEFAULT_COLORMAP)
         self._need_save = True
         return None
 
@@ -2242,7 +2256,7 @@ class CylindraMainWidget(MagicTemplate):
         info = layer.colormap_info
         arr = np.stack([info.cmap.map(np.linspace(0, 1, 256))] * 36, axis=0)
         xmin, xmax = info.clim
-        with _Logger.set_plt(rc_context={"font.size": 15}):
+        with _Logger.set_plt():
             plt.imshow(arr)
             plt.xticks([0, arr.shape[1] - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])

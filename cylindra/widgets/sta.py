@@ -1108,7 +1108,7 @@ class SubtomogramAveraging(MagicTemplate):
             )
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
-            with _Logger.set_plt(rc_context={"font.size": 15}):
+            with _Logger.set_plt():
                 import matplotlib.pyplot as plt
 
                 for i, r in enumerate(results):
@@ -1195,7 +1195,7 @@ class SubtomogramAveraging(MagicTemplate):
         @thread_worker.to_callback
         def _calculate_fsc_on_return():
             _Logger.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
-            with _Logger.set_plt(rc_context={"font.size": 15}):
+            with _Logger.set_plt():
                 widget_utils.plot_fsc(
                     freq,
                     fsc_mean,
@@ -1364,7 +1364,7 @@ class SubtomogramAveraging(MagicTemplate):
             # plot all the correlation
             t0.toc()
             _Logger.print_html("<code>Seam_search</code>")
-            with _Logger.set_plt(rc_context={"font.size": 15}):
+            with _Logger.set_plt():
                 _Logger.print(f"layer = {layer.name!r}")
                 _Logger.print(f"template = {str(template_path)!r}")
                 widget_utils.plot_seam_search_result(score, npf)

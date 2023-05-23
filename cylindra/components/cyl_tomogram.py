@@ -27,8 +27,8 @@ from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import ZNCCAlignment
 import impy as ip
 
-from .cyl_spline import CylSpline
-from .tomogram import Tomogram
+from cylindra.components.cyl_spline import CylSpline, rise_to_start
+from cylindra.components.tomogram import Tomogram
 from cylindra.const import (
     nm,
     PropertyNames as H,
@@ -1473,7 +1473,7 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
 
 def _local_dft_params(img: ip.ImgArray, radius: nm):
     img = img - img.mean()
-    l_circ: nm = 2 * np.pi * radius
+    perimeter: nm = 2 * np.pi * radius
     npfmin = GVar.npf_min
     npfmax = GVar.npf_max
 
@@ -1532,10 +1532,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     # decrese.
     skew = np.arctan(y_freq[ymax_f] / a_freq[amax_f] * 2 * yspace / radius)
 
-    if rise == 0.0:
-        start = 0.0
-    else:
-        start = l_circ / yspace / (np.tan(skew) + 1 / np.tan(rise))
+    start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
 
     return np.array(
         [np.rad2deg(rise), yspace, np.rad2deg(skew), amaxp_f / up_a, abs(start)],

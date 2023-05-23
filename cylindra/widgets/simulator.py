@@ -751,7 +751,7 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
         return
     _, ny, nx = sino.shape
     ysize = max(4 / nx * ny, 4)
-    with _Logger.set_plt(rc_context={"font.size": 15}):
+    with _Logger.set_plt():
         _, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, ysize))
         for i, idx in enumerate([0, n_tilt // 2, -1]):
             axes[i].imshow(sino[idx], cmap="gray")
@@ -764,7 +764,7 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
 
 @thread_worker.to_callback
 def _on_iradon_finished(rec: ip.ImgArray, title: str):
-    with _Logger.set_plt(rc_context={"font.size": 15}):
+    with _Logger.set_plt():
         plt.imshow(rec.proj("z"), cmap="gray")
         plt.title(title)
         plt.show()

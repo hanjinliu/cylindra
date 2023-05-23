@@ -113,6 +113,7 @@ class MoleculesHeader(SimpleNamespace):
     score = "score"  # alignment score
     interval = "interval-nm"  # interval between two molecules
     skew = "skew-deg"  # skew angle between two molecules
+    radius = "radius-nm"  # distance between the molecule and the spline
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
     image = "image-id"

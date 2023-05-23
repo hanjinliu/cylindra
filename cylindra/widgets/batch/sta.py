@@ -530,7 +530,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         def _calculate_fsc_on_return():
             t0.toc()
             _Logger.print_html(f"<b>Fourier Shell Correlation of {loader_name!r}</b>")
-            with _Logger.set_plt(rc_context={"font.size": 15}):
+            with _Logger.set_plt():
                 widget_utils.plot_fsc(
                     freq, fsc_mean, fsc_std, [crit_0143, crit_0500], loader.scale
                 )

@@ -547,6 +547,14 @@ def test_calc_skews(
     assert abs(each_skew.mean() - skew_angle) < 1e-2
 
 
+def test_calc_radii(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.map_monomers(splines=[0])
+    layer = ui.parent_viewer.layers[-1]
+    ui.calculate_radii(layer=layer)
+    assert layer.features["radius-nm"].std() < 0.1
+
+
 def test_spline_fitter(ui: CylindraMainWidget):
     ui.open_image(
         TEST_DIR / f"14pf_MT.tif",

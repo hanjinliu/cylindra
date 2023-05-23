@@ -129,6 +129,7 @@ class MoleculesMenu(MagicTemplate):
         calculate_molecule_features = abstractapi()
         calculate_intervals = abstractapi()
         calculate_skews = abstractapi()
+        calculate_radii = abstractapi()
         sep1 = field(Separator)
         seam_search_by_feature = abstractapi()
 

@@ -182,9 +182,11 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _interv_vec = np.diff(_pos, axis=0, append=0)
         _u = sub.features[Mole.position] / _spl_len
         _spl_vec_norm = _norm(spl.map(_u, der=1))
-        _y_interv = np.abs(np.sum(_interv_vec * _spl_vec_norm, axis=1))
+        _y_interv = np.abs(_dot(_interv_vec, _spl_vec_norm))
         _y_interv[-1] = -1.0  # fill invalid values with -1
-        subsets.append(sub.with_features(pl.Series(Mole.interval, _y_interv)))
+        subsets.append(
+            sub.with_features(pl.Series(Mole.interval, _y_interv).cast(pl.Float32))
+        )
     return (
         Molecules.concat(subsets)
         .sort(_index_column_key)
@@ -214,12 +216,12 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _spl_vec_norm = _norm(_spl_vec)
 
         _skew_cross = np.cross(_interv_vec_norm, _spl_vec_norm, axis=1)  # cross product
-        _inner = np.sum(_skew_cross * _mole_to_spl_vec, axis=1)
+        _inner = _dot(_skew_cross, _mole_to_spl_vec)
         _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
 
         _skew = np.rad2deg(2 * spacing * _skew_sin / _radius)
         _skew[-1] = 0
-        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew)))
+        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew).cast(pl.Float32)))
 
     return (
         Molecules.concat(subsets)
@@ -229,9 +231,24 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     )
 
 
+def with_radius(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
+    """Add a column that indicates the radius of each molecule."""
+    _u = mole.features[Mole.position] / spl.length()
+    _spl_pos = spl.map(_u, der=0)
+    _spl_vec = spl.map(_u, der=1)
+    _spl_vec_norm = _norm(_spl_vec)
+    _radius_vec = _spl_pos - mole.pos
+    result = np.sqrt(_dot(_radius_vec, _radius_vec) - _dot(_radius_vec, _spl_vec_norm))
+    return mole.with_features(pl.Series(Mole.radius, result).cast(pl.Float32)).features
+
+
 def _norm(vec):
     vec_len = np.linalg.norm(vec, axis=1)
     return vec / vec_len[:, np.newaxis]
+
+
+def _dot(a, b):
+    return np.sum(a * b, axis=1)
 
 
 def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:

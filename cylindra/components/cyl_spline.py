@@ -165,11 +165,11 @@ class CylSpline(Spline):
             tan_skew = radius * skew_rad / interv / 2
             skew_incr = 0
         else:
-            pitch_incr = nrise * interv
+            space_incr = nrise * interv
             skew_incr = radius * skew_rad * nrise / 2
 
-            tan_rise = pitch_incr / (perimeter + skew_incr)
-            tan_skew = skew_incr / pitch_incr
+            tan_rise = space_incr / (perimeter + skew_incr)
+            tan_skew = skew_incr / space_incr
 
         factor = interv / (perimeter / npf)
 
@@ -207,7 +207,6 @@ class CylSpline(Spline):
         if rise is not None:
             loc.append(pl.repeat(rise, pl.count()).cast(pl.Float32).alias(H.rise))
             glob.append(pl.Series([rise]).cast(pl.Float32).alias(H.rise))
-            # TODO: update H.start
         if npf is not None:
             loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.nPF))
@@ -216,6 +215,38 @@ class CylSpline(Spline):
         if orientation is not None:
             glob.append(pl.Series([orientation]).cast(pl.Utf8).alias(H.orientation))
 
-        self.localprops = self.localprops.with_columns(loc)
-        self.globalprops = self.globalprops.with_columns(glob)
+        ldf = self.localprops.with_columns(loc)
+        gdf = self.globalprops.with_columns(glob)
+
+        # update H.start
+        if rise is not None:
+            r = radius if radius is not None else self.radius
+            if r is None:
+                raise ValueError("radius must be specified to update start number.")
+            _start_loc = rise_to_start(
+                rise=np.deg2rad(ldf[H.rise]),
+                space=ldf[H.spacing],
+                skew=np.deg2rad(ldf[H.skew]),
+                perimeter=2 * r * np.pi,
+            )
+            ldf = ldf.with_columns(
+                pl.Series(_start_loc).cast(pl.Float32).alias(H.start)
+            )
+            _start_glob = rise_to_start(
+                rise=np.deg2rad(gdf[H.rise]),
+                space=gdf[H.spacing],
+                skew=np.deg2rad(gdf[H.skew]),
+                perimeter=2 * r * np.pi,
+            )
+            gdf = gdf.with_columns(
+                pl.Series(_start_glob).cast(pl.Float32).alias(H.start)
+            )
+
+        self.localprops = ldf
+        self.globalprops = gdf
         return self
+
+
+def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
+    tan_rise = np.tan(rise)
+    return perimeter / space / (np.tan(skew) * tan_rise + 1) * tan_rise
