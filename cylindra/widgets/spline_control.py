@@ -1,20 +1,16 @@
 import numpy as np
 import impy as ip
-import polars as pl
 
 from magicclass import (
     magicclass,
     MagicTemplate,
     field,
     vfield,
-    set_options,
-    set_design,
-    abstractapi,
 )
-from magicclass.types import Bound, OneOf
+from magicclass.types import OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
-from cylindra.const import GlobalVariables as GVar, Ori, PropertyNames as H, Mode
+from cylindra.const import GlobalVariables as GVar, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 
 
@@ -232,7 +228,7 @@ class SplineControl(MagicTemplate):
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
-        r_inner = (spl.radius - GVar.thickness_inner) / tomo.scale / binsize
+        r_inner = max(spl.radius - GVar.thickness_inner, 0) / tomo.scale / binsize
         r_outer = (spl.radius + GVar.thickness_outer) / tomo.scale / binsize
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
         self.canvas[0].add_curve(

@@ -1678,6 +1678,8 @@ class CylindraMainWidget(MagicTemplate):
 
     def _get_selected_layer_choice(self, w: Widget) -> list[str]:
         """When the selected layer is changed, update the list of features."""
+        # TODO: Using `parent` and `_magic_widget` is hacky.
+        # We should avoid using them.
         try:
             parent = w.parent.parent()
             if parent is None:

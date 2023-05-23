@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import polars as pl
 
-from magicgui.widgets import SpinBox, Container, Label
+from magicgui.widgets import SpinBox, Container, Label, Widget
 from magicgui.types import Undefined
 from magicclass.widgets import ScrollableContainer
 from magicclass.logging import getLogger

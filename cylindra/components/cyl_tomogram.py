@@ -752,7 +752,7 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = (spl.radius - GVar.thickness_inner) / _scale
+        rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
         rmax = (spl.radius + GVar.thickness_outer) / _scale
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
@@ -820,7 +820,7 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size, binsize=binsize)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = (spl.radius - GVar.thickness_inner) / _scale
+        rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
         rmax = (spl.radius + GVar.thickness_outer) / _scale
         out: list[ip.ImgArray] = []
         if pos is None:
@@ -971,7 +971,9 @@ class CylTomogram(Tomogram):
             r_range = 0.5, width_px / 2
         else:
             r_range = (
-                self.nm2pixel(spl.radius - GVar.thickness_inner, binsize=binsize),
+                self.nm2pixel(
+                    _non_neg(spl.radius - GVar.thickness_inner), binsize=binsize
+                ),
                 self.nm2pixel(spl.radius + GVar.thickness_outer, binsize=binsize),
             )
         point = 0.5
@@ -1141,7 +1143,7 @@ class CylTomogram(Tomogram):
             input_img = self._get_multiscale_or_original(binsize)
             _scale = input_img.scale.x
             if radii is None:
-                inner_radius = (spl.radius - GVar.thickness_inner) / _scale
+                inner_radius = _non_neg(spl.radius - GVar.thickness_inner) / _scale
                 outer_radius = (spl.radius + GVar.thickness_outer) / _scale
 
             else:
@@ -1595,3 +1597,11 @@ def _need_rotation(spl: CylSpline, orientation: Ori | str | None) -> bool:
         if orientation is not spl.orientation:
             return True
     return False
+
+
+def _non_neg(rmin: nm, warns: bool = True) -> nm:
+    if rmin < 0:
+        if warns:
+            LOGGER.warning(f"Radius (={rmin} nm) is too small. Set to 0.0 nm.")
+        rmin = 0.0
+    return rmin

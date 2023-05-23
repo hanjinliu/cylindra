@@ -242,7 +242,7 @@ class SplineSweeper(MagicTemplate):
         r = self.radius if self.radius is not None else spl.radius
         if r is None:
             raise ValueError("Measure spline radius or manually set it.")
-        rmin = tomo.nm2pixel((r - GVar.thickness_inner), binsize=binsize)
+        rmin = tomo.nm2pixel(max(r - GVar.thickness_inner, 0), binsize=binsize)
         rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
 
         coords = spl.translate(

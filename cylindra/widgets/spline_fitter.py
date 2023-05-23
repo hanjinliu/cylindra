@@ -157,7 +157,7 @@ class SplineFitter(MagicTemplate):
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax - 5, imax + 5)
         r_peak = (imax_sub + 0.5) / nbin * r_max
-        r_inner = (r_peak - GVar.thickness_inner) / tomo.scale / binsize
+        r_inner = max(r_peak - GVar.thickness_inner, 0) / tomo.scale / binsize
         r_outer = (r_peak + GVar.thickness_outer) / tomo.scale / binsize
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)

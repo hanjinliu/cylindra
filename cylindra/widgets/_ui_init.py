@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
+
+from magicgui.widgets import FunctionGui
 from magicclass.widgets import ConsoleTextEdit
 from magicclass import setup_function_gui, impl_preview
 
@@ -191,7 +193,7 @@ def _(self: CylindraMainWidget, color_by: str, cmap, limits: tuple[float, float]
 
 
 @setup_function_gui(CylindraMainWidget.paint_molecules)
-def _(self, gui):
+def _(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.color_by.reset_choices)
 
     @gui.layer.changed.connect
@@ -212,17 +214,27 @@ def _(self, gui):
             else:
                 gui.limits[0].step = gui.limits[1].step = None
 
+    @gui.limits[0].changed.connect
+    def _assert_limits_0(val: float):
+        if val > gui.limits[1].value:
+            gui.limits[1].value = val
+
+    @gui.limits[1].changed.connect
+    def _assert_limits_1(val: float):
+        if val < gui.limits[0].value:
+            gui.limits[0].value = val
+
     return None
 
 
 @setup_function_gui(CylindraMainWidget.split_molecules)
 @setup_function_gui(CylindraMainWidget.seam_search_by_feature)
-def _(self, gui):
+def _(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 
 
 @setup_function_gui(CylindraMainWidget.extend_molecules)
-def _(self, gui):
+def _(self, gui: FunctionGui):
     @gui.layer.changed.connect
     def _on_layer_change(layer: MoleculesLayer):
         if layer is None:
