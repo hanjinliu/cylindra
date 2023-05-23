@@ -90,9 +90,31 @@ def test_mapping(orientation):
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
     tomo.fit()
     tomo.set_radius(radius=9)
-    tomo.splines[0].radius == 9
+    assert tomo.splines[0].radius == 9
     tomo.splines[0].orientation = "PlusToMinus"
 
     tomo.map_monomers(orientation=orientation)
     tomo.map_centers(orientation=orientation)
     tomo.map_pf_line(orientation=orientation)
+
+
+def test_local_cft():
+    path = TEST_DIR / "13pf_MT.tif"
+    tomo = CylTomogram.imread(path, binsize=[1, 2])
+    tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    tomo.fit()
+    tomo.set_radius(radius=9)
+    tomo.make_anchors(n=3)
+    tomo.local_cft(0)
+    tomo.local_cft(0, binsize=2)
+
+
+def test_global_cfg():
+    path = TEST_DIR / "13pf_MT.tif"
+    tomo = CylTomogram.imread(path, binsize=[1, 2])
+    tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    tomo.fit()
+    tomo.set_radius(radius=9)
+    tomo.make_anchors(n=3)
+    tomo.global_cft(0)
+    tomo.global_cft(0, binsize=2)

@@ -78,6 +78,9 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt_range == (-60, 60)
+    ui.show_splines()
+    ui.show_splines_as_meshes()
+    ui.load_splines(save_path / "spline-0.json")
 
 
 def test_spline_deletion(ui: CylindraMainWidget):

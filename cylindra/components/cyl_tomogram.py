@@ -1580,7 +1580,7 @@ def _mask_missing_wedge(
     """Mask the missing wedge of the image and return the real image."""
     if zncc._tilt_range is None:
         return img
-    mask3d = zncc._get_missing_wedge_mask(quat)
+    mask3d = zncc.get_missing_wedge_mask(quat)
     # central slice theorem
     mask = mask3d[:, 0, :]
     return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)

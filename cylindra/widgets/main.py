@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal, Sequence
+from typing import Annotated, TYPE_CHECKING, Literal
 import warnings
 from weakref import WeakSet
 
@@ -88,7 +88,7 @@ ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 SELF = mk.Mock("self")
 DEFAULT_COLORMAP = {0.0: "#0B0000", 0.58: "#FF0000", 1.0: "#FFFF00"}
-_Logger = getLogger("cylindra")
+_Logger = getLogger("cylindra")  # The GUI logger
 
 # stylesheet
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
@@ -127,13 +127,6 @@ class CylindraMainWidget(MagicTemplate):
         if self._batch is None:
             self.open_project_batch_analyzer()
         return self._batch
-
-    @property
-    def project_directory(self) -> "Path | None":
-        """The current project directory."""
-        if source := self.tomogram.source:
-            return source.parent
-        return None
 
     # Menu bar
     File = subwidgets.File
