@@ -1,6 +1,7 @@
 from pathlib import Path
 import tempfile
 
+import numpy as np
 from numpy.testing import assert_allclose
 from acryo import Molecules
 from magicclass import testing as mcls_testing
@@ -397,16 +398,55 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
 
 
 def test_project_viewer():
-    view_project(PROJECT_DIR_13PF).close()
+    view_project(PROJECT_DIR_14PF).close()
 
 
 def test_show_orientation(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
     ui.show_orientation(ui.parent_viewer.layers["Mono-0"])
 
 
-def test_merge_molecules(ui: CylindraMainWidget):
+def test_concate_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=False)
+    layer0 = ui.parent_viewer.layers["Mono-0"]
+    layer1 = ui.parent_viewer.layers["Mono-1"]
+    ui.concatenate_molecules([layer0, layer1])
+    last_layer = ui.parent_viewer.layers[-1]
+    assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
+
+
+def test_split_molecules(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.split_molecules(ui.parent_viewer.layers["Mono-0"], by=Mole.pf)
+
+
+def test_translate_molecules(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    layer = ui.parent_viewer.layers["Mono-0"]
+    ui.translate_molecules(layer, [3, -5, 2.2], internal=False)
+    new_layer = ui.parent_viewer.layers[-1]
+    assert new_layer.data.shape == layer.data.shape
+    assert_allclose(
+        new_layer.data - layer.data,
+        np.tile([3, -5, 2.2], (layer.data.shape[0], 1)),
+        rtol=1e5,
+        atol=1e6,
+    )
+    ui.macro.undo()
+    ui.macro.redo()
+    ui.translate_molecules(ui.parent_viewer.layers["Mono-0"], [1, 2, 3], internal=True)
+    assert_allclose(
+        np.linalg.norm(new_layer.data - layer.data, axis=1),
+        np.sqrt(14),
+        rtol=1e5,
+        atol=1e6,
+    )
+    ui.macro.undo()
+    ui.macro.redo()
+
+
+def test_merge_molecules(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
     ui.merge_molecule_info(
         pos=ui.parent_viewer.layers["Mono-0"],
         rotation=ui.parent_viewer.layers["Mono-1"],
@@ -417,17 +457,22 @@ def test_merge_molecules(ui: CylindraMainWidget):
 
 
 def test_molecule_features(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    import polars as pl
+
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
     ui.show_molecule_features()
-    ui.filter_molecules(
-        layer=ui.parent_viewer.layers["Mono-0"], predicate='pl.col("position-nm") < 9.2'
-    )
+    layer = ui.parent_viewer.layers["Mono-0"]
+    ui.filter_molecules(layer, predicate='pl.col("position-nm") < 9.2')
+    assert ui.parent_viewer.layers[-1].features["position-nm"].max() < 9.2
+    # make sure predicate can also be a polars.Expr
+    ui.filter_molecules(layer, predicate=pl.col("position-nm") < 8)
+    assert ui.parent_viewer.layers[-1].features["position-nm"].max() < 8
     ui.calculate_molecule_features(
-        layer=ui.parent_viewer.layers["Mono-0"],
+        layer,
         column_name="new",
         expression='pl.col("pf-id") < 4',
     )
-    ui.calculate_intervals(layer=ui.parent_viewer.layers["Mono-0"])
+    assert "new" == layer.features.columns[-1]
 
 
 def test_auto_align(ui: CylindraMainWidget):
@@ -511,3 +556,5 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.spline_fitter.fit(
         shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
     )
+    ui.macro.undo()
+    ui.macro.redo()

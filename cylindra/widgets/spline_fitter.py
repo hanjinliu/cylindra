@@ -96,7 +96,10 @@ class SplineFitter(MagicTemplate):
         @undo_callback
         def out():
             spl.copy_from(old_spl)
-            self._cylinder_changed()
+            if spl.has_anchors:
+                self._cylinder_changed()
+            else:
+                del self.canvas.image
             self._get_parent()._update_splines_in_images()
 
         @out.with_redo

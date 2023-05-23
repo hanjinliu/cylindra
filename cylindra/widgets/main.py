@@ -1716,15 +1716,9 @@ class CylindraMainWidget(MagicTemplate):
     def translate_molecules(
         self,
         layer: MoleculesLayer,
-        translation: Annotated[
-            tuple[nm, nm, nm],
-            {
-                "options": {"min": -1000, "max": 1000, "step": 0.1},
-                "label": "translation Z, Y, X (nm)",
-            },
-        ],
+        translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
         internal: bool = True,
-    ):
+    ):  # fmt: skip
         """
         Translate molecule coordinates without changing their rotations.
 
@@ -1732,7 +1726,9 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         translation : tuple of float
-            Translation (nm) of the molecules in (Z, Y, X) order.
+            Translation (nm) of the molecules in (Z, Y, X) order. Whether the world
+            coordinate or the internal coordinate is used depends on the ``internal``
+            argument.
         internal : bool, default is True
             If true, the translation is applied to the internal coordinates, i.e. molecules
             with different rotations are translated differently.
@@ -1789,7 +1785,10 @@ class CylindraMainWidget(MagicTemplate):
             A polars-style filter predicate, such as `pl.col("pf-id") == 3`
         """
         mole = layer.molecules
-        expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
+        if isinstance(predicate, pl.Expr):
+            expr = predicate
+        else:
+            expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
         out = mole.filter(expr)
         name = f"{layer.name}-Filt"
         layer = self.add_molecules(out, name=name, source=layer.source_component)

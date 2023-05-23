@@ -295,7 +295,12 @@ class Spline(BaseComponent):
             self.globalprops = None
 
     @property
-    def anchors(self) -> np.ndarray:
+    def has_anchors(self) -> bool:
+        """True if there are any anchors."""
+        return self._anchors is not None
+
+    @property
+    def anchors(self) -> NDArray[np.float32]:
         """Local anchors along spline."""
         if self._anchors is None:
             raise ValueError("Anchor has not been set yet.")
