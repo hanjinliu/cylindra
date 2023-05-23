@@ -84,6 +84,7 @@ class Splines(MagicTemplate):
         align_to_polarity = abstractapi()
         auto_align_to_polarity = abstractapi()
 
+    extend_spline = abstractapi()
     clip_spline = abstractapi()
     open_spline_clipper = abstractapi()
     delete_spline = abstractapi()

@@ -40,13 +40,43 @@ def _(self: CylindraMainWidget, path: str):
 
 
 @impl_preview(CylindraMainWidget.clip_spline, auto_call=True)
-def _(self: CylindraMainWidget, spline: int, clip_lengths: tuple[float, float]):
+def _(self: CylindraMainWidget, spline: int, lengths: tuple[float, float]):
     tomo = self.tomogram
     name = "Spline preview"
-    spl = self.tomogram.splines[spline]
+    spl = tomo.splines[spline]
     length = spl.length()
-    start, stop = np.array(clip_lengths) / length
+    start, stop = np.array(lengths) / length
     verts = tomo.splines[spline].clip(start, 1 - stop).partition(100)
+    verts_2d = verts[:, 1:]
+    viewer = self.parent_viewer
+    if name in viewer.layers:
+        layer: Layer = viewer.layers[name]
+        layer.data = verts_2d
+    else:
+        layer = viewer.add_shapes(
+            verts_2d,
+            shape_type="path",
+            edge_color="crimson",
+            edge_width=3,
+            name=name,
+        )
+    try:
+        is_active = yield
+    finally:
+        if not is_active and layer in viewer.layers:
+            viewer.layers.remove(layer)
+
+
+@impl_preview(CylindraMainWidget.extend_spline, auto_call=True)
+def _(
+    self: CylindraMainWidget,
+    spline: int,
+    lengths: tuple[float, float],
+    point_per_nm: float,
+):
+    name = "Spline preview"
+    spl = self.tomogram.splines[spline]
+    verts = spl.extended(lengths, 0.1).partition(100)
     verts_2d = verts[:, 1:]
     viewer = self.parent_viewer
     if name in viewer.layers:

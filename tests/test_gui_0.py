@@ -168,7 +168,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     ypitch_glob = spl.get_globalprops(H.spacing)
     # GDP-bound microtubule has lattice spacing in this range
     assert 4.075 < ypitch_glob < 4.105
-    assert abs(ypitch_glob - ypitch_mean) < 0.013
+    assert ypitch_glob == pytest.approx(ypitch_mean, abs=0.013)
     assert all(spl.localprops[H.nPF] == 13)
     assert all(spl.localprops[H.rise] > 8.3)
 
@@ -561,7 +561,7 @@ def test_calc_intervals(
     ui.calculate_intervals(layer=layer)
     interval = layer.features["interval-nm"][:-npf]
     # individial intervals must be almost equal to the global spacing
-    assert abs(interval.mean() - spacing) < 1e-3
+    assert interval.mean() == pytest.approx(spacing, abs=1e-3)
 
 
 @pytest_group("calc_skews", maxfail=4)
@@ -584,7 +584,7 @@ def test_calc_skews(
     ui.calculate_skews(layer=layer)
     each_skew = layer.features["skew-deg"][:-npf]
     # individial skews must be almost equal to the global skew angle
-    assert abs(each_skew.mean() - skew_angle) < 1e-2
+    assert each_skew.mean() == pytest.approx(skew_angle, abs=1e-2)
 
 
 def test_calc_radii(ui: CylindraMainWidget):

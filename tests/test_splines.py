@@ -144,6 +144,16 @@ def test_clip(mode):
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])
+def test_extend(mode):
+    spl = CylSpline(extrapolate=mode)
+    coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
+    spl.fit_voa(coords)
+    spl.orientation = "PlusToMinus"
+    out = spl.extended(1, 1.4)
+    assert out.length() == pytest.approx(spl.length() + 2.4)
+
+
+@pytest.mark.parametrize("mode", ["linear", "default"])
 def test_shift_fit(mode):
     spl = CylSpline(extrapolate=mode)
 

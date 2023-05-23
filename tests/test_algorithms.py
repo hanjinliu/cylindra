@@ -16,7 +16,7 @@ def test_run_all(coords, npf, rise, skew_range):
     path = TEST_DIR / f"{npf}pf_MT.tif"
     tomo = CylTomogram.imread(path)
 
-    assert abs(tomo.scale - 1.052) < 1e-6
+    assert tomo.scale == pytest.approx(1.052, abs=1e-6)
 
     # the length of spline is ~80 nm
     tomo.add_spline(coords=coords)
@@ -45,12 +45,12 @@ def test_run_all(coords, npf, rise, skew_range):
     assert H.spacing in tomo.collect_globalprops(allow_none=False).columns
 
     spl = tomo.splines[0]
-    ypitch_mean = spl.localprops[H.spacing].mean()
-    ypitch_glob = spl.get_globalprops(H.spacing)
+    spacing_mean = spl.localprops[H.spacing].mean()
+    spacing_glob = spl.get_globalprops(H.spacing)
 
     # GDP-bound microtubule has pitch length in this range
-    assert 4.075 < ypitch_glob < 4.105
-    assert abs(ypitch_glob - ypitch_mean) < 0.013
+    assert 4.075 < spacing_glob < 4.105
+    assert spacing_glob == pytest.approx(spacing_mean, abs=0.013)
     assert all(spl.localprops[H.nPF] == npf)
     assert all(spl.localprops[H.rise] > rise)
     skew_min, skew_max = skew_range
@@ -79,8 +79,8 @@ def test_chunked_straightening():
     prop0 = pl.DataFrame(_local_dft_params_pl(st0, spl.radius))
     prop1 = pl.DataFrame(_local_dft_params_pl(st1, spl.radius))
 
-    assert abs(prop0[H.spacing][0] - prop1[H.spacing][0]) < 1e-6
-    assert abs(prop0[H.skew][0] - prop1[H.skew][0]) < 1e-6
+    assert prop0[H.spacing][0] == pytest.approx(prop1[H.spacing][0], abs=1e-6)
+    assert prop0[H.skew][0] == pytest.approx(prop1[H.skew][0], abs=1e-6)
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])

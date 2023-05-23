@@ -785,11 +785,9 @@ class CylindraMainWidget(MagicTemplate):
     )
     def auto_align_to_polarity(
         self,
-        align_to: Annotated[
-            Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}
-        ] = None,
+        align_to: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
-    ):
+    ):  # fmt: skip
         """
         Automatically detect the polarities and align if necessary.
 
@@ -847,29 +845,51 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Splines.wraps
-    @set_design(text="Clip/extend splines")
+    @set_design(text="Extend spline")
+    def extend_spline(
+        self,
+        spline: Annotated[int, {"choices": _get_splines}],
+        lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "extension length (nm)"}}] = (0.0, 0.0),
+        point_per_nm: Annotated[float, {"min": 0.01, "max": 2.0, "step": 0.05}] = 0.5,
+    ):  # fmt: skip
+        if spline is None:
+            return
+        spl = self.tomogram.splines[spline]
+        _old_spl = spl.copy
+        self.tomogram.splines[spline] = spl.extended(lengths, point_per_nm)
+        self._update_splines_in_images()
+        self._need_save = True
+
+        @undo_callback
+        def out():
+            self.tomogram.splines[spline] = _old_spl
+            self._update_splines_in_images()
+
+        return out
+
+    @Splines.wraps
+    @set_design(text="Clip spline")
     def clip_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        clip_lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
+        lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """
-        Clip or extend selected spline at its edges by given lengths.
+        Clip selected spline at its edges by given lengths.
 
         Parameters
         ----------
         spline : int
            The ID of spline to be clipped.
         clip_lengths : tuple of float, default is (0., 0.)
-            The length in nm to be clipped at the start and end of the spline. Negative value means extending the
-            spline by linear extrapolation.
+            The length in nm to be clipped at the start and end of the spline.
         """
         if spline is None:
             return
         spl = self.tomogram.splines[spline]
         _old_spl = spl.copy
         length = spl.length()
-        start, stop = np.array(clip_lengths) / length
+        start, stop = np.array(lengths) / length
         self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
         self._update_splines_in_images()
         self._need_save = True

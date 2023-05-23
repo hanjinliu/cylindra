@@ -648,6 +648,33 @@ class Spline(BaseComponent):
         self.fit_voa(coords, variance=variance, weight=weight, weight_ramp=weight_ramp)
         return self
 
+    def extended(self, lengths: tuple[nm, nm], point_per_nm: float = 0.5) -> Self:
+        """
+        Return a new spline with extended length.
+
+        Coordinates are resampled along the spline, with extrapolated regions.
+        Note that the [0, 1] part of the returned spline is NOT identical to
+        the original.
+
+        Parameters
+        ----------
+        lengths : (float, float)
+            Extrapolation length of two ends.
+        point_per_nm : float, default is 0.5
+            Point density to resample spline.
+
+        Returns
+        -------
+        Spline
+            Longer spline.
+        """
+        l_pre, l_ap = lengths
+        l = self.length()
+        n = roundint(l * point_per_nm)
+        u = np.linspace(-l_pre / l, l_ap / l + 1, n)
+        coords = self.map(u)
+        return self.copy(copy_cache=False).fit_voa(coords)
+
     def distances(self, positions: Sequence[float] | None = None) -> np.ndarray:
         """
         Get the distances from u=0.

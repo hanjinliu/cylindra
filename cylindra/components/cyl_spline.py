@@ -114,6 +114,30 @@ class CylSpline(Spline):
             original.orientation = self.orientation
         return original
 
+    def extended(self, lengths: tuple[nm, nm], point_per_nm: float = 0.5) -> CylSpline:
+        """
+        Return a new spline with extended length.
+
+        Coordinates are resampled along the spline, with extrapolated regions.
+        Note that the [0, 1] part of the returned spline is NOT identical to
+        the original. The orientation will be inherited.
+
+        Parameters
+        ----------
+        lengths : (float, float)
+            Extrapolation length of two ends.
+        point_per_nm : float, default is 0.5
+            Point density to resample spline.
+
+        Returns
+        -------
+        Spline
+            Longer spline.
+        """
+        extended = super().extended(lengths, point_per_nm)
+        extended.orientation = self.orientation
+        return extended
+
     def cylinder_model(
         self,
         offsets: tuple[float, float] = (0.0, 0.0),
