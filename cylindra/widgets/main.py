@@ -80,6 +80,8 @@ from cylindra.widgets.widget_utils import (
     POLARS_NAMESPACE,
 )
 
+from cylindra.widgets._widget_ext import ProtofilamentEdit
+
 if TYPE_CHECKING:
     from .batch import CylindraBatchWidget
     from cylindra.components._base import BaseComponent
@@ -850,12 +852,33 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"choices": _get_splines}],
         lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "extension length (nm)"}}] = (0.0, 0.0),
-        point_per_nm: Annotated[float, {"min": 0.01, "max": 2.0, "step": 0.05}] = 0.5,
+        point_per_nm: Annotated[float, {"min": 0.01, "max": 2.0, "step": 0.05, "label": "Point/nm"}] = 0.5,
     ):  # fmt: skip
+        """
+        Extend the spline at the edges by the given lengths.
+
+        This method first samples points along the spline, and fit a new spline
+        to the sampled points. The new spline will be extended by the given lengths
+        but is NOT a strict extension of the original spline.
+
+        Parameters
+        ----------
+        spline : int
+           The ID of spline to be extended.
+        lengths : tuple of float, default is (0., 0.)
+            The length in nm to be extended at the start and end of the spline.
+        point_per_nm : float, optional
+            Density of point sampling per nm.
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         if spline is None:
             return
         spl = self.tomogram.splines[spline]
-        _old_spl = spl.copy
+        _old_spl = spl.copy()
         self.tomogram.splines[spline] = spl.extended(lengths, point_per_nm)
         self._update_splines_in_images()
         self._need_save = True
@@ -881,7 +904,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         spline : int
            The ID of spline to be clipped.
-        clip_lengths : tuple of float, default is (0., 0.)
+        lengths : tuple of float, default is (0., 0.)
             The length in nm to be clipped at the start and end of the spline.
         """
         if spline is None:
@@ -1624,7 +1647,7 @@ class CylindraMainWidget(MagicTemplate):
     def extend_molecules(
         self,
         layer: MoleculesLayer,
-        counts: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": widget_utils.ProtofilamentEdit}] = {},
+        counts: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
     ):  # fmt: skip
         """
         Extend the existing molecules by linear outerpolation.

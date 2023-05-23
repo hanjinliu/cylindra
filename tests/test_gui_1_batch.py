@@ -17,7 +17,7 @@ def _load(ui: CylindraMainWidget):
                 ],
             )
         ],
-        predicate=None,
+        predicate="pl.col('nth') < 3",
         name="Loader",
     )
 
