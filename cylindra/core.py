@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     import napari
     from acryo import Molecules
     from cylindra._custom_layers import MoleculesLayer
-    from cylindra.project.sequence import ProjectSequence
+    from cylindra.project import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline
     from cylindra.project import CylindraProject
@@ -203,12 +203,18 @@ def collect_projects(
     files : path-like or iterable of path-like
         Project file paths or a glob pattern.
     """
-    from cylindra.project.sequence import ProjectSequence
+    from cylindra.project import ProjectSequence, get_project_json
 
-    if isinstance(files, (str, Path)) and "*" in str(files):
-        import glob
+    if isinstance(files, (str, Path)):
+        if "*" in str(files):
+            import glob
 
-        files = glob.glob(str(files))
+            files = glob.glob(str(files))
+    if hasattr(files, "__iter__"):
+        files = [get_project_json(f) for f in files]
+    else:
+        raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
+
     seq = ProjectSequence.from_paths(files, skip_exc=skip_exc)
     return seq
 

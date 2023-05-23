@@ -1,12 +1,14 @@
 from pathlib import Path
-from .single import CylindraProject
+from ._single import CylindraProject
 from ._batch import CylindraBatchProject
 from ._widgets import ComponentsViewer
+from ._sequence import ProjectSequence
 
 __all__ = [
     "CylindraProject",
     "CylindraBatchProject",
     "ComponentsViewer",
+    "ProjectSequence",
     "get_project_json",
 ]
 

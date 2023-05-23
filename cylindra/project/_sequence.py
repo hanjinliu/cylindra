@@ -21,7 +21,7 @@ import impy as ip
 import polars as pl
 
 from cylindra.const import GlobalVariables, MoleculesHeader as Mole
-from .single import CylindraProject
+from ._single import CylindraProject
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -209,14 +209,3 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
         return pl.concat(dataframes, how="diagonal")
-
-    def to_dataframe(self) -> pl.DataFrame:
-        """Convert project information to a dataframe."""
-        dataframes: list[pl.DataFrame] = []
-        for prj in self._projects:
-            df = pl.DataFrame(prj.dict())
-            df = df.with_columns(
-                pl.Series("project-path", np.array([prj.project_path]))
-            )
-            dataframes.append(df)
-        return pl.concat(dataframes, how="vertical")

@@ -62,3 +62,17 @@ filterwarnings = [
     "ignore:path is deprecated:DeprecationWarning",
     "ignore:Jupyter is migrating its paths to use standard platformdirs:DeprecationWarning",
 ]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "except ImportError",
+    "except ImportError*",
+    "raise NotImplementedError",
+    "pass",
+]
+omit = [
+    "cylindra/_ipython.py",
+]
