@@ -243,9 +243,9 @@ class SplineControl(MagicTemplate):
         # draw polarity
         kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
         if spl.orientation == "PlusToMinus":
-            self.canvas[2].add_text(*center, "+", **kw)
+            self.canvas[1].add_text(*center, "+", **kw)
         elif spl.orientation == "MinusToPlus":
-            self.canvas[2].add_text(*center, "-", **kw)
+            self.canvas[1].add_text(*center, "-", **kw)
 
         # update pyqtgraph
         if (xs := spl.get_localprops(H.splDist, None)) is not None:

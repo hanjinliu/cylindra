@@ -14,6 +14,7 @@ from magicclass import (
 )
 from magicclass.widgets import Separator, ConsoleTextEdit
 from magicclass.types import SomeOf, Optional
+from magicclass.logging import getLogger
 from pathlib import Path
 import impy as ip
 
@@ -27,6 +28,7 @@ from cylindra.const import GlobalVariables as GVar, nm
 from cylindra.widgets.global_variables import GlobalVariablesMenu
 
 ICON_DIR = Path(__file__).parent / "icons"
+_Logger = getLogger("cylindra")
 
 # Menus
 
@@ -131,6 +133,7 @@ class MoleculesMenu(MagicTemplate):
         calculate_intervals = abstractapi()
         calculate_skews = abstractapi()
         calculate_radii = abstractapi()
+        calculate_lateral_angles = abstractapi()
         sep1 = field(Separator)
         seam_search_by_feature = abstractapi()
 
@@ -158,6 +161,8 @@ class Analysis(MagicTemplate):
     open_spectra_measurer = abstractapi()
     open_subtomogram_analyzer = abstractapi()
     open_project_batch_analyzer = abstractapi()
+    sep2 = field(Separator)
+    repeat_command = abstractapi()
 
 
 @magicmenu
@@ -236,14 +241,18 @@ class toolbar(MagicTemplate):
         """Undo last action."""
         if len(self.macro.undo_stack["undo"]) == 0:
             raise RuntimeError("Undo stack is empty.")
+        expr = self.macro[-1]
         self.macro.undo()
+        _Logger.print_html(f"Undo: <code>{expr}</code>")
 
     @do_not_record
     @set_design(icon=ICON_DIR / "redo.svg")
     @bind_key("Ctrl+Y")
     def redo(self):
         """Redo last undo action."""
-        return self.macro.redo()
+        self.macro.redo()
+        expr = self.macro[-1]
+        _Logger.print_html(f"Redo: <code>{expr}</code>")
 
 
 # Runner
@@ -395,7 +404,7 @@ class Runner(MagicTemplate):
         global_props: Annotated[bool, {"bind": global_props}] = True,
         paint: Annotated[bool, {"bind": params2.paint}] = True,
         infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
-        map_monomers: Annotated[bool, {"bind": map_monomers}] = True,
+        map_monomers: Annotated[bool, {"bind": map_monomers}] = False,
     ):
         """Run workflow."""
         parent = self._get_parent()

@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal
+from typing import Annotated, TYPE_CHECKING, Any, Literal
 import warnings
 from weakref import WeakSet
 
@@ -55,6 +55,7 @@ from cylindra.const import (
     Ori,
     nm,
     get_versions,
+    SplineColor,
 )
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 from cylindra.types import ColoredLayer, get_monomer_layers
@@ -1096,21 +1097,16 @@ class CylindraMainWidget(MagicTemplate):
         if len(splines) == 0:
             splines = list(range(self.tomogram.n_splines))
         old_radius = {i: self.tomogram.splines[i].radius for i in splines}
-        new_radius = {}
+        new_radius: dict[int, nm] = {}
         for i in splines:
             radius = self.tomogram.set_radius(i, binsize=bin_size)
             yield
             new_radius[i] = radius
         self._need_save = True
 
-        def out(radius_dict: dict[int, nm]):
-            def wrapper():
-                for i, radius in radius_dict.items():
-                    self.tomogram.splines[i].radius = radius
-
-            return wrapper
-
-        return undo_callback(out(new_radius)).with_redo(out(old_radius))
+        return undo_callback(_set_spline_props(self, "radius", old_radius)).with_redo(
+            _set_spline_props(self, "radius", new_radius)
+        )
 
     @Splines.wraps
     @set_design(text="Refine splines")
@@ -1347,14 +1343,17 @@ class CylindraMainWidget(MagicTemplate):
         old_props: dict[int, pl.DataFrame] = {}
         new_props: dict[int, pl.DataFrame] = {}
         for i in splines:
-            spl = tomo.splines[i]
-            old_props[i] = spl.localprops
+            old_props[i] = tomo.splines[i].localprops
             tomo.make_anchors(i=i, interval=interval)
-            new_props[i] = tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
+            tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
+            new_props[i] = tomo.splines[i].localprops
             yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size
         self._need_save = True
-        return undo_callback(_set_props(new_props)).with_redo(_set_props(old_props))
+
+        return undo_callback(
+            _set_spline_props(self, "localprops", old_props)
+        ).with_redo(_set_spline_props(self, "localprops", new_props))
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
@@ -1382,14 +1381,6 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        def _set_props(props: dict[int, pl.DataFrame]):
-            def wrapper():
-                for i, df in props.items():
-                    tomo.splines[i].globalprops = df
-                return None
-
-            return wrapper
-
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
             # show all in a table
@@ -1403,7 +1394,9 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
 
-            return undo_callback(_set_props(old_props)).with_redo(_set_props(new_props))
+            return undo_callback(
+                _set_spline_props(self, "globalprops", old_props)
+            ).with_redo(_set_spline_props(self, "globalprops", new_props))
 
         old_props: dict[int, pl.DataFrame] = {}
         new_props: dict[int, pl.DataFrame] = {}
@@ -1484,6 +1477,14 @@ class CylindraMainWidget(MagicTemplate):
         self._batch = uibatch
         uibatch.show()
         return uibatch
+
+    @Analysis.wraps
+    @set_design(text="Repeat command")
+    @do_not_record(recursive=False)
+    @bind_key("Ctrl+Shift+R")
+    def repeat_command(self):
+        """Repeat the last command."""
+        return self.macro.repeat_method(same_args=False, raise_parse_error=False)
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods
@@ -1668,12 +1669,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(
         self,
-        layers: Annotated[
-            list[MoleculesLayer],
-            {"choices": get_monomer_layers, "widget_type": "Select"},
-        ],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
         delete_old: bool = True,
-    ):
+    ):  # fmt: skip
         """
         Concatenate selected molecules and create a new ones.
 
@@ -2086,6 +2084,17 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate radii")
     def calculate_radii(self, layer: MoleculesLayer):
+        """
+        Calculate radius for each molecule.
+
+        The "radius" is defined by the distance between a molecule and the direction
+        vector of the source spline. It is calculated by taking the inner product of
+        these two.
+
+        Parameters
+        ----------
+        {layer}
+        """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
         layer.features = utils.with_radius(layer.molecules, layer.source_component)
@@ -2093,8 +2102,35 @@ class CylindraMainWidget(MagicTemplate):
 
         # Set colormap
         val = layer.features[Mole.radius]
-        _clim = [val.min(), val.max()]
+        _clim = [float(val.min()), float(val.max())]
         layer.set_colormap(Mole.radius, _clim, DEFAULT_COLORMAP)
+        self._need_save = True
+        return None
+
+    @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Calculate lateral angles")
+    def calculate_lateral_angles(self, layer: MoleculesLayer):
+        """
+        Calculate lateral angles for each molecule.
+
+        The "lateral angle" of a molecule is defined by its two lateral neighbors.
+        By definition of arc cosine, the lateral angle is in the range of [0, 180].
+        If the molecule does not have two lateral neighbors (at the edges), those
+        angles are filled with -1.
+
+        Parameters
+        ----------
+        {layer}
+        """
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        model = self.sta._get_simple_annealing_model(layer)
+        angles = np.rad2deg(model.lateral_angles())
+        angles[angles < 0] = -1.0
+        layer.features = layer.molecules.features.with_columns(
+            pl.Series(Mole.lateral_angle, angles)
+        )
+        layer.set_colormap(Mole.lateral_angle, [0, 180], DEFAULT_COLORMAP)
         self._need_save = True
         return None
 
@@ -2548,7 +2584,7 @@ class CylindraMainWidget(MagicTemplate):
             features={SPLINE_ID: []},
             opacity=0.4,
             edge_color="black",
-            face_color="blue",
+            face_color=SplineColor.DEFAULT,
             text={"color": "yellow"},
         )
         self.layer_prof.feature_defaults[SPLINE_ID] = 0
@@ -2585,13 +2621,13 @@ class CylindraMainWidget(MagicTemplate):
 
         for layer in self.overview.layers:
             if f"spline-{i}" in layer.name:
-                layer.color = "red"
+                layer.color = SplineColor.SELECTED
             else:
-                layer.color = "lime"
+                layer.color = SplineColor.DEFAULT
 
         spec = self.layer_prof.features[SPLINE_ID] == i
-        self.layer_prof.face_color = "blue"
-        self.layer_prof.face_color[spec] = [0.8, 0.0, 0.5, 1]
+        self.layer_prof.face_color = SplineColor.DEFAULT
+        self.layer_prof.face_color[spec] = SplineColor.SELECTED
         self.layer_prof.refresh()
         return None
 
@@ -2639,7 +2675,7 @@ class CylindraMainWidget(MagicTemplate):
         self.overview.add_curve(
             fit[:, 2] / scale,
             fit[:, 1] / scale,
-            color="lime",
+            color=SplineColor.DEFAULT,
             lw=2,
             name=f"spline-{i}",
         )
@@ -2685,7 +2721,7 @@ class CylindraMainWidget(MagicTemplate):
             self.overview.add_scatter(
                 coords[:, 2] / scale,
                 coords[:, 1] / scale,
-                color="lime",
+                color=SplineColor.DEFAULT,
                 symbol="x",
                 lw=2,
                 size=10,
@@ -2777,3 +2813,13 @@ def _set_layer_feature_future(layer: MoleculesLayer, features):
         layer.features = features
 
     return _wrapper
+
+
+def _set_spline_props(ui: CylindraMainWidget, attr: str, props: dict[int, Any]):
+    def wrapper():
+        tomo = ui.tomogram
+        for i, val in props.items():
+            setattr(tomo.splines[i], attr, val)
+        return None
+
+    return wrapper

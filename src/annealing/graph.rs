@@ -26,8 +26,8 @@ pub struct ShiftResult<S> {
 /// GraphComponents represents a concrete graph structure and the assigned
 /// states of nodes and edges.
 pub struct GraphComponents<Sn, Se> {
-    edges: Vec<Vec<usize>>,
-    edge_ends: Vec<(usize, usize)>,
+    edges: Vec<Vec<usize>>,  // edges[i]: list of edge indices connected to node i
+    edge_ends: Vec<(usize, usize)>,  // edge_ends[j]: two nodes connected by edge j
     node_states: Vec<Sn>,
     edge_states: Vec<Se>,
 }
@@ -42,19 +42,23 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
         }
     }
 
+    /// Number of nodes in the graph.
     pub fn node_count(&self) -> usize {
         self.node_states.len()
     }
 
+    /// Number of edges in the graph.
     pub fn edge_count(&self) -> usize {
         self.edge_states.len()
     }
 
+    /// Add a new node of state node_state to the graph.
     pub fn add_node(&mut self, node_state: Sn) {
         self.node_states.push(node_state);
         self.edges.push(Vec::new());
     }
 
+    /// Add a new edge of state edge_state to the graph, connecting nodes i and j.
     pub fn add_edge(&mut self, i: usize, j: usize, edge_state: Se) {
         let count = self.edge_count();
         self.edges[i].push(count);
@@ -63,6 +67,7 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
         self.edge_states.push(edge_state);
     }
 
+    /// Clear the graph.
     pub fn clear(&mut self) {
         self.edges.clear();
         self.edge_ends.clear();
@@ -70,18 +75,22 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
         self.edge_states.clear();
     }
 
+    /// Return the node state at index i.
     pub fn node_state(&self, i: usize) -> &Sn {
         &self.node_states[i]
     }
 
+    /// Set a new node state to the node at index i.
     pub fn set_node_state(&mut self, i: usize, node_state: Sn) {
         self.node_states[i] = node_state;
     }
 
+    /// Return the edge state at index i.
     pub fn edge_state(&self, i: usize) -> &Se {
         &self.edge_states[i]
     }
 
+    /// Return all the nodes connected to node i.
     pub fn edge(&self, i: usize) -> &Vec<usize> {
         &self.edges[i]
     }
@@ -286,6 +295,50 @@ impl CylindricGraph {
         Array1::from(distances)
     }
 
+    fn get_angles(&self, typ: &EdgeType) -> Array1<f32> {
+        if self.coords.len() == 0 {
+            panic!("Coordinates not set.")
+        }
+        let graph = self.components();
+        let mut angles = Array1::<f32>::zeros(graph.node_count());
+        for i in 0..graph.node_count() {
+            let edge_indices = graph.edge(i);
+            let mut neighbors = Vec::new();
+            for k in edge_indices.iter() {
+                if graph.edge_state(*k) != typ {
+                    continue;
+                }
+                let edge_end = graph.edge_end(*k);
+                if edge_end.0 == i {
+                    neighbors.push(edge_end.1);
+                } else {
+                    neighbors.push(edge_end.0);
+                }
+            }
+            if neighbors.len() != 2 {
+                angles[i] = -1.0;
+            } else {
+                //      (c)
+                //     /   \
+                //  (l)     (r)
+                let pos_c = graph.node_state(i);
+                let pos_l = graph.node_state(neighbors[0]);
+                let pos_r = graph.node_state(neighbors[1]);
+
+                let coord_c = &self.coords[&pos_c.index];
+                let coord_l = &self.coords[&pos_l.index];
+                let coord_r = &self.coords[&pos_r.index];
+
+                let dr_l = coord_c.at_vec(pos_c.shift.into()) - coord_l.at_vec(pos_l.shift.into());
+                let dr_r = coord_c.at_vec(pos_c.shift.into()) - coord_r.at_vec(pos_r.shift.into());
+                angles[i] = dr_l.angle(&dr_r);
+            }
+
+        }
+        angles
+    }
+
+    /// Set a box potential model to the graph.
     pub fn set_potential_model(&mut self, model: BoxPotential2D) -> &Self {
         self.binding_potential = model;
         self
@@ -351,6 +404,14 @@ impl CylindricGraph {
 
     pub fn get_lateral_distances(&self) -> Array1<f32> {
         self.get_distances(&EdgeType::Lateral)
+    }
+
+    pub fn get_longitudinal_angles(&self) -> Array1<f32> {
+        self.get_angles(&EdgeType::Longitudinal)
+    }
+
+    pub fn get_lateral_angles(&self) -> Array1<f32> {
+        self.get_angles(&EdgeType::Lateral)
     }
 
     pub fn get_edge_states(&self) -> (Array2<f32>, Array2<f32>, Array1<i32>) {

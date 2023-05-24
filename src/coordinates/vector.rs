@@ -103,13 +103,18 @@ impl<T: Real> Vector3D<T> {
         self.z * self.z + self.y * self.y + self.x * self.x
     }
 
-    /// Angle between two vectors.
-    pub fn angle(&self, other: Vector3D<T>) -> T {
-        let dot_prd = self.dot(&other);
-        let a2 = self.length2();
-        let b2 = other.length2();
-        let ab = (a2 * b2).sqrt();
-        return dot_prd / (a2 + b2 - ab - ab);
+    /// Cosine between two vectors.
+    pub fn cos_angle(&self, other: &Vector3D<T>) -> T {
+        let dot_prd = self.dot(other);
+        let a = self.length();
+        let b = other.length();
+        return dot_prd / (a * b);
+    }
+
+    /// Radian between two vectors.
+    pub fn angle(&self, other: &Vector3D<T>) -> T {
+        let cos = self.cos_angle(other);
+        cos.acos()
     }
 
     /// Return the unit vector of `self`.

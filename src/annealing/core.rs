@@ -108,6 +108,14 @@ impl CylindricAnnealingModel {
         self.graph.get_lateral_distances().into_pyarray(py).into()
     }
 
+    pub fn longitudinal_angles<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.graph.get_longitudinal_angles().into_pyarray(py).into()
+    }
+
+    pub fn lateral_angles<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.graph.get_lateral_angles().into_pyarray(py).into()
+    }
+
     pub fn get_edge_info<'py>(&self, py: Python<'py>) -> (Py<PyArray2<f32>>, Py<PyArray2<f32>>, Py<PyArray1<i32>>) {
         let (out0, out1, out2) = self.graph.get_edge_states();
         (out0.into_pyarray(py).into(), out1.into_pyarray(py).into(), out2.into_pyarray(py).into())

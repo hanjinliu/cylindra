@@ -114,6 +114,9 @@ class MoleculesHeader(SimpleNamespace):
     interval = "interval-nm"  # interval between two molecules
     skew = "skew-deg"  # skew angle between two molecules
     radius = "radius-nm"  # distance between the molecule and the spline
+    lateral_angle = (
+        "lateral-angle-deg"  # lateral angle between the molecule and the spline
+    )
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
     image = "image-id"
@@ -222,3 +225,10 @@ class ConfigConst(SimpleNamespace):
     SETTINGS_PATH = Path(user_config_dir("settings", "cylindra"))
     USER_SETTINGS_NAME = "user-settings.json"
     DEFAULT_VARIABLES = "default_variables"
+
+
+class SplineColor(SimpleNamespace):
+    """Color of spline used in the 2D/3D canvas."""
+
+    DEFAULT = [0.0, 0.0, 1.0, 1.0]
+    SELECTED = [0.8, 0.0, 0.5, 1.0]

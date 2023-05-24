@@ -17,13 +17,6 @@ cd cylindra
 pip install -e .
 ```
 
-To build in place, run following commands.
-
-```shell
-cd cylindra
-python setup.py build_ext --inplace
-```
-
 ## Implemented Functions
 
 - Automatic/manual fitting of splines to cylindrical structures in 3D.

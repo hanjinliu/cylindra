@@ -1422,6 +1422,14 @@ class SubtomogramAveraging(MagicTemplate):
 
         return out
 
+    def _get_simple_annealing_model(self, layer: MoleculesLayer):
+        # TODO: This method should finally be moved to some utils module since
+        # this analysis is independent of annealing. Currently annealing and
+        # graph construction cannot be separated.
+        parent = self._get_parent()
+        scale = parent.tomogram.scale
+        return _get_annealing_model(layer, (0, 0, 0), scale, 1)
+
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     num = 1
