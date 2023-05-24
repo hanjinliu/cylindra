@@ -10,7 +10,7 @@ import impy as ip
 def test_inverse_mapping(mode):
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
     coords = np.array([[1, 1.5, 0], [0, 1.5, 1], [-1, 1.5, 0], [2, 1.5, 3]])
 
     crds_spl = spl.cartesian_to_world(coords)
@@ -48,7 +48,7 @@ def test_inverse_mapping(mode):
 def test_coordinate_transformation(mode):
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
 
     # Cartesian
     img = ip.array(np.arange(5 * 6 * 5).reshape(5, 6, 5), dtype=np.float32, axes="zyx")
@@ -98,7 +98,7 @@ def test_invert(mode):
     spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
     spl.make_anchors(n=5)
     spl.orientation = "PlusToMinus"
 
@@ -127,7 +127,7 @@ def test_clip(mode):
     spl.orientation = "PlusToMinus"
 
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
 
     spl_c0 = spl.clip(0.2, 0.7)
@@ -147,7 +147,7 @@ def test_clip(mode):
 def test_extend(mode):
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [6, 3, 4]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
     out = spl.extend([0.4, 0.6], 5.0)
     assert out.length() == pytest.approx(spl.length() + 1.0, abs=0.5)
@@ -158,9 +158,9 @@ def test_shift_fit(mode):
     spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
     spl.make_anchors(n=4)
-    spl.shift_voa(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
+    spl = spl.shift_voa(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
     spl.make_anchors(n=4)
     assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
 
@@ -170,9 +170,9 @@ def test_dict(mode):
     spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl.fit_voa(coords)
+    spl = spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
-    spl.clip(0.2, 0.8)
+    spl = spl.clip(0.2, 0.8)
 
     d = spl.to_dict()
     spl_from_dict = CylSpline.from_dict(d)
@@ -196,7 +196,7 @@ def test_curvature(radius, mode):
 @pytest.mark.parametrize("mode", ["linear", "default"])
 def test_translate(mode):
     spl = CylSpline(extrapolate=mode)
-    spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     ds = np.array([3, 1, -2])
     spl_trans = spl.translate(ds)
     assert_allclose(
@@ -210,7 +210,7 @@ def test_translate(mode):
 @pytest.mark.parametrize("mode", ["linear", "default"])
 def test_extrapolate_map(mode):
     spl = CylSpline(extrapolate=mode)
-    spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     sl0 = [-0.5, 0, 0.5, 1, 1.5]
     sl1 = [0, 0.5, 1]
 

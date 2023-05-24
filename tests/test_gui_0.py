@@ -89,7 +89,7 @@ def test_picking_splines(ui: CylindraMainWidget):
     ui.layer_work.add(coords_13pf[0])
     ui.layer_work.add(coords_13pf[1])
     ui.pick_next()
-    get_button(ui.register_path).changed()
+    ui.register_path()
     assert len(ui.tomogram.splines) == 1
 
 

@@ -61,9 +61,9 @@ class Spline(BaseComponent):
     """
     3D spline curve model with coordinate system.
 
-    Anchor points can be set via ``anchor`` property. Every time spline parameters or
-    anchors are updated, hash value of Spline object will be changed, thus it is safe
-    to map Spline object to some result along the corresponding curve.
+    Anchor points can be set via ``anchor`` property. A spline object is semi-immutable.
+    Different spline curves are always of different objects, but the anchors and
+    properties can be dynamically changed.
 
     References
     ----------
@@ -452,7 +452,7 @@ class Spline(BaseComponent):
         Spline
             Spline fit to given coordinates.
         """
-        coords = np.asarray(coords)
+        coords = np.asarray(coords, dtype=np.float32)
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
@@ -468,7 +468,7 @@ class Spline(BaseComponent):
 
         # initialize
         s = 0.0
-        smax = np.sum(np.var(coords, axis=0)) * npoints
+        smax = float(np.sum(np.var(coords, axis=0))) * npoints
         u = np.linspace(0, 1, n)
         niter = 0
 
@@ -481,7 +481,11 @@ class Spline(BaseComponent):
             while True:
                 niter += 1
                 _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
-                curvature = self.curvature(u)
+                curvature = (
+                    Spline(degree=k, extrapolate=self.extrapolate)
+                    ._set_params(_tck, _u)
+                    .curvature(u)
+                )
                 ratio = np.max(curvature) * min_radius
                 if ratio < 1.0 - tol:  # curvature too small = underfit
                     smax = s
@@ -505,9 +509,9 @@ class Spline(BaseComponent):
         self,
         coords: ArrayLike,
         *,
-        weight: ArrayLike = None,
+        weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
-        variance: float = None,
+        variance: float | None = None,
     ) -> Self:
         """
         Fit spline model to coordinates by "Variance-Oriented Approximation".
@@ -595,6 +599,8 @@ class Spline(BaseComponent):
         Spline
             Updated spline instance.
         """
+        if shifts is None:
+            raise ValueError("Shifts must be given.")
         coords = self.map(positions)
         rot = self.get_rotator(positions)
         # insert 0 in y coordinates.
@@ -636,6 +642,8 @@ class Spline(BaseComponent):
         Spline
             Spline shifted by fitting to given coordinates.
         """
+        if shifts is None:
+            raise ValueError("Shifts must be given.")
         coords = self.map(positions)
         rot = self.get_rotator(positions)
         # insert 0 in y coordinates.
