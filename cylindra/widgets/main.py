@@ -262,6 +262,7 @@ class CylindraMainWidget(MagicTemplate):
     @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
     def clear_all(self):
         """Clear all the splines and results."""
+        self.macro.clear_undo_stack()
         self._init_widget_state()
         self._init_layers()
         self.overview.layers.clear()
@@ -317,7 +318,7 @@ class CylindraMainWidget(MagicTemplate):
     @Others.Macro.wraps
     @set_design(text="Show macro")
     @do_not_record
-    @bind_key("Ctrl-Shift-M")
+    @bind_key("Ctrl+Shift+M")
     def show_macro(self):
         """Create Python executable script of the current project."""
         new = self.macro.widget.new_window()
@@ -349,7 +350,7 @@ class CylindraMainWidget(MagicTemplate):
     @Others.wraps
     @set_design(text="Open command palette")
     @do_not_record
-    @bind_key("Ctrl-P")
+    @bind_key("Ctrl+P")
     def open_command_palette(self):
         from magicclass.command_palette import exec_command_palette
 
@@ -393,6 +394,7 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_design(text="Open image")
     @do_not_record
+    @bind_key("Ctrl+K, Ctrl+O")
     def open_image_loader(self):
         """Load an image file and process it before sending it to the viewer."""
         return self._image_loader.show()
@@ -463,6 +465,7 @@ class CylindraMainWidget(MagicTemplate):
         condition=SELF._need_save,
     )
     @do_not_record
+    @bind_key("Ctrl+K, P")
     def load_project(self, path: Path.Read[FileFilter.PROJECT], filter: bool = True):
         """Load a project json file."""
         project_path = get_project_json(path)
@@ -893,6 +896,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Clip spline")
+    @bind_key("Ctrl+K, Ctrl+X")
     def clip_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
@@ -1041,6 +1045,7 @@ class CylindraMainWidget(MagicTemplate):
     @Splines.wraps
     @set_design(text="Fit splines manually")
     @do_not_record
+    @bind_key("Ctrl+K, Ctrl+/")
     def fit_splines_manually(
         self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0
     ):
@@ -1173,9 +1178,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Set spline parameters")
+    @bind_key("Ctrl+K, Ctrl+@")
     def set_spline_props(
         self,
-        spline: Annotated[int, {"bind": SplineControl.num}],
+        spline: Annotated[int, {"choices": _get_splines}],
         spacing: Annotated[Optional[nm], {"label": "spacing (nm)", "text": "Do not update"}] = None,
         skew: Annotated[Optional[float], {"label": "skew angle (deg)", "text": "Do not update"}] = None,
         rise: Annotated[Optional[nm], {"label": "rise angle (deg)", "text": "Do not update"}] = None,
@@ -1440,6 +1446,7 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Re-analyze project")
     @do_not_record
+    @bind_key("Ctrl+K, Ctrl+Shift+L")
     def load_project_for_reanalysis(self, path: Path.Read[FileFilter.JSON]):
         """
         Load a project file to re-analyze the data.
@@ -1464,6 +1471,7 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Open subtomogram analyzer")
     @do_not_record
+    @bind_key("Ctrl+K, S")
     def open_subtomogram_analyzer(self):
         """Open the subtomogram analyzer dock widget."""
         return self.sta.show()
@@ -1471,6 +1479,7 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Open batch analyzer")
     @do_not_record
+    @bind_key("Ctrl+K, B")
     def open_project_batch_analyzer(self):
         """Open the batch analyzer widget."""
         from .batch import CylindraBatchWidget
@@ -1648,6 +1657,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @MoleculesMenu.wraps
     @set_design(text="Extend molecules")
+    @bind_key("Ctrl+K, Ctrl+E")
     def extend_molecules(
         self,
         layer: MoleculesLayer,
@@ -1861,6 +1871,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @MoleculesMenu.Visualize.wraps
     @set_design(text="Paint molecules by features")
+    @bind_key("Ctrl+K, Ctrl+F")
     def paint_molecules(
         self,
         layer: MoleculesLayer,
@@ -1982,7 +1993,7 @@ class CylindraMainWidget(MagicTemplate):
                 plt.imshow(cmap_arr)
                 plt.xticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
                 plt.yticks([], [])
-
+            plt.tight_layout()
             plt.show()
         return undo_callback(
             lambda: _Logger.print("Undoing `show_molecules_colorbar` does nothing")
@@ -2357,12 +2368,14 @@ class CylindraMainWidget(MagicTemplate):
             plt.imshow(arr)
             plt.xticks([0, arr.shape[1] - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
             plt.yticks([], [])
+            plt.tight_layout()
             plt.show()
         return None
 
     @ImageMenu.wraps
     @set_design(text="Simulate cylindric structure")
     @do_not_record
+    @bind_key("Ctrl+K, I")
     def open_simulator(self):
         """Open the simulator widget."""
         return self.cylinder_simulator.show()

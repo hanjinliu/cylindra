@@ -53,7 +53,7 @@ include-package-data = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --cov=cylindra --cov-report=xml"
+addopts = "-v --cov=cylindra --cov-report=xml --cov-report=term"
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
     "ignore::DeprecationWarning:ipykernel",

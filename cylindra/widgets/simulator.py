@@ -757,7 +757,7 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
             axes[i].imshow(sino[idx], cmap="gray")
             axes[i].set_title(f"deg = {degrees[idx]:.1f}")
             axes[i].set_axis_off()
-
+        plt.tight_layout()
         plt.show()
     return None
 
@@ -767,5 +767,6 @@ def _on_iradon_finished(rec: ip.ImgArray, title: str):
     with _Logger.set_plt():
         plt.imshow(rec.proj("z"), cmap="gray")
         plt.title(title)
+        plt.tight_layout()
         plt.show()
     return None

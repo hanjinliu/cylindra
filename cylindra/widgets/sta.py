@@ -87,6 +87,7 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
+ANNEALING_BATCH_SIZE = 10000
 _Logger = getLogger("cylindra")
 
 
@@ -1096,11 +1097,12 @@ class SubtomogramAveraging(MagicTemplate):
                 import matplotlib.pyplot as plt
 
                 for i, r in enumerate(results):
-                    _x = np.arange(r.energies.size) / 1000
+                    _x = np.arange(r.energies.size) * 1e-6 * ANNEALING_BATCH_SIZE
                     plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
                 plt.xlabel("Repeat (x10^6)")
                 plt.ylabel("Score")
                 plt.legend()
+                plt.tight_layout()
                 plt.show()
 
             @undo_callback
@@ -1614,7 +1616,7 @@ def _get_annealing_results(
             _model.temperature() > initial_temperature * 1e-4
             and _model.optimization_state() == "not_converged"
         ):
-            _model.simulate(1000)
+            _model.simulate(ANNEALING_BATCH_SIZE)
             energies.append(_model.energy())
         return _AnnealingResult(_model, np.array(energies), energies[-1])
 

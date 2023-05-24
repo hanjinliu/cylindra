@@ -16,6 +16,7 @@ from cylindra.core import (
     read_molecules,
     read_spline,
     collect_projects,
+    collect_molecules,
 )
 
 from importlib.metadata import PackageNotFoundError, version, metadata
@@ -37,4 +38,5 @@ __all__ = [
     "read_molecules",
     "read_spline",
     "collect_projects",
+    "collect_molecules",
 ]
