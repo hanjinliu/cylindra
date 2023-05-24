@@ -1,4 +1,5 @@
 from __future__ import annotations
+import glob
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
 from contextlib import suppress
@@ -207,8 +208,6 @@ def collect_projects(
 
     if isinstance(files, (str, Path)):
         if "*" in str(files):
-            import glob
-
             files = glob.glob(str(files))
     if hasattr(files, "__iter__"):
         files = [get_project_json(f) for f in files]
@@ -217,6 +216,46 @@ def collect_projects(
 
     seq = ProjectSequence.from_paths(files, skip_exc=skip_exc)
     return seq
+
+
+def collect_molecules(
+    files: PathLike | Iterable[PathLike],
+    file_id_column: str = "file-id",
+    **kwargs,
+) -> Molecules:
+    """
+    Collect molecules from multiple files into a single Molecules object.
+
+    To distinguish molecules from different files, a new column named `file-id` will be added to the
+    feature data frame of the output Molecules object.
+
+    Parameters
+    ----------
+    files : path-like or iterable of path-like
+        Input path(s). Can be a glob pattern.
+    file_id_column : str, default is "file-id"
+        Column name used to specify file identifier.
+
+    Returns
+    -------
+    Molecules
+        Concatenated molecules.
+    """
+    import polars as pl
+    from acryo import Molecules
+
+    if isinstance(files, (str, Path)):
+        if "*" in str(files):
+            files = glob.glob(str(files))
+    molecules = list[Molecules]()
+    for i, f in enumerate(files):
+        mole = Molecules.from_csv(f, **kwargs)
+        molecules.append(
+            mole.with_features(pl.repeat(i, len(mole)).alias(file_id_column))
+        )
+    if len(molecules) == 0:
+        raise ValueError(f"No molecules found. Please check the input paths.")
+    return Molecules.concat(molecules)
 
 
 def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
