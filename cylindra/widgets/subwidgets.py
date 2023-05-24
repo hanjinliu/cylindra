@@ -513,8 +513,8 @@ class ImageLoader(MagicTemplate):
     open_image = abstractapi()
 
 
-@magicclass(name="Image info", record=False, widget_type="collapsible", labels=False)
-class ImageInfo(MagicTemplate):
+@magicclass(name="General info", record=False, widget_type="collapsible", labels=False)
+class GeneralInfo(MagicTemplate):
     def __post_init__(self):
         self.text_edit.read_only = True
 

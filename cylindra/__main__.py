@@ -29,8 +29,10 @@ class Args(argparse.ArgumentParser):
         return cls().parse_args()
 
 
-def main():
+def main(viewer=None):  # "viewer" is used for testing only
+    """The main function of the CLI."""
     args = Args.from_args()
+    block = viewer is None
 
     project_file = None if args.project == "None" else args.project
     view_file = None if args.view == "None" else args.view
@@ -39,7 +41,7 @@ def main():
     if view_file:
         from cylindra import view_project
 
-        return view_project(view_file, run=True)
+        return view_project(view_file, run=block)
 
     log_level = "DEBUG" if args.debug else "INFO"
 
@@ -47,11 +49,14 @@ def main():
     import numpy, impy, polars
 
     ui = start(
-        project_file=project_file, globals_file=globals_file, log_level=log_level
+        project_file=project_file,
+        globals_file=globals_file,
+        viewer=viewer,
+        log_level=log_level,
     )
 
     ui.parent_viewer.update_console({"ui": ui, "ip": impy, "np": numpy, "pl": polars})
-    return ui.parent_viewer.show(block=True)
+    return ui.parent_viewer.show(block=block)
 
 
 if __name__ == "__main__":

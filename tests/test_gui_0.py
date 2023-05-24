@@ -4,7 +4,7 @@ import tempfile
 import numpy as np
 from numpy.testing import assert_allclose
 from acryo import Molecules
-from magicclass import testing as mcls_testing
+from magicclass import testing as mcls_testing, get_button
 
 from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
@@ -83,6 +83,16 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.load_splines(save_path / "spline-0.json")
 
 
+def test_picking_splines(ui: CylindraMainWidget):
+    path = TEST_DIR / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
+    ui.layer_work.add(coords_13pf[0])
+    ui.layer_work.add(coords_13pf[1])
+    ui.pick_next()
+    get_button(ui.register_path).changed()
+    assert len(ui.tomogram.splines) == 1
+
+
 def test_spline_deletion(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
@@ -101,7 +111,7 @@ def test_spline_deletion(ui: CylindraMainWidget):
     assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
 
 
-def test_workflow_with_may_input(ui: CylindraMainWidget):
+def test_workflow_with_many_input(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False)
     ui._runner.run_workflow([0], max_shift=-1)  # no fit
     ui._runner.run_workflow([0], n_refine=0)  # no refine
@@ -270,6 +280,14 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
 
+    tester = mcls_testing.FunctionGuiTester(ui.filter_molecules)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.update_parameters(predicate="pl.col('nth') < 4")
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer + 1
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
     tester = mcls_testing.FunctionGuiTester(ui.paint_molecules)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
@@ -286,6 +304,33 @@ def test_preview(ui: CylindraMainWidget):
         paths=[PROJECT_DIR_13PF / "Mono-0.csv", PROJECT_DIR_13PF / "Mono-1.csv"]
     )
     tester.click_preview()
+
+    tester = mcls_testing.FunctionGuiTester(ui.load_project)
+    tester.update_parameters(path=PROJECT_DIR_13PF)
+    tester.click_preview()
+
+    tester = mcls_testing.FunctionGuiTester(ui.clip_spline)
+    tester.click_preview()
+    tester.update_parameters(lengths=(3, 1))
+    tester.click_preview()
+
+    tester = mcls_testing.FunctionGuiTester(ui.extend_spline)
+    tester.click_preview()
+    tester.update_parameters(lengths=(3, 1))
+    tester.click_preview()
+
+    tester = mcls_testing.FunctionGuiTester(ui.global_variables.load_variables_by_name)
+    tester.update_parameters(var_name="TMV")
+    tester.click_preview()
+
+
+def test_sweeper(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.open_sweeper()
+    ui.spline_sweeper.refresh_widget_state()
+    ui.spline_sweeper.show_what = "CFT"
+    ui.spline_sweeper.show_what = "R-projection"
+    ui.spline_sweeper.show_what = "Y-projection"
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -609,3 +654,14 @@ def test_spline_fitter(ui: CylindraMainWidget):
     )
     ui.macro.undo()
     ui.macro.redo()
+
+
+def test_cli(make_napari_viewer):
+    import sys
+    from cylindra.__main__ import main
+
+    viewer = make_napari_viewer()
+    sys.argv = ["cylindra"]
+    main(viewer)
+    sys.argv = ["cylindra", "--view", str(PROJECT_DIR_14PF / "project.json")]
+    main(viewer)

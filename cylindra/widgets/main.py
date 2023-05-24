@@ -149,7 +149,7 @@ class CylindraMainWidget(MagicTemplate):
     toolbar = subwidgets.toolbar
 
     # Child widgets
-    ImageInfo = subwidgets.ImageInfo
+    ImageInfo = subwidgets.GeneralInfo
     SplineControl = SplineControl  # Widget for controling splines
     # Widget for summary of local properties
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
@@ -915,7 +915,7 @@ class CylindraMainWidget(MagicTemplate):
         if spline is None:
             return
         spl = self.tomogram.splines[spline]
-        _old_spl = spl.copy
+        _old_spl = spl.copy()
         length = spl.length()
         start, stop = np.array(lengths) / length
         self.tomogram.splines[spline] = spl.clip(start, 1 - stop)

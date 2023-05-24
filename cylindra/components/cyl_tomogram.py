@@ -531,14 +531,10 @@ class CylTomogram(Tomogram):
             spl.make_anchors(n=3)
             self.set_radius(i=i, binsize=binsize)
 
-        level = LOGGER.level
-        # LOGGER.setLevel(logging.WARNING)
-        try:
-            _required = [H.spacing, H.skew, H.nPF]
-            if not spl.has_globalprops(_required):
-                self.global_ft_params(i, binsize=binsize)
-        finally:
-            LOGGER.setLevel(level)
+        _required = [H.spacing, H.skew, H.nPF]
+        if not spl.has_globalprops(_required):
+            self.global_ft_params(i, binsize=binsize)
+
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
         interval = spl.length() / (npoints - 1)

@@ -44,6 +44,7 @@ class CylindraProject(BaseProject):
     tilt_range: Union[tuple[float, float], None]
     macro: PathLike
     project_path: Union[Path, None] = None
+    project_description: str = ""
 
     def _post_init(self):
         if (attr := getattr(self, "molecule_sources", None)) is not None:

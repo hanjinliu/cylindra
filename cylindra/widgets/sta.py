@@ -1464,6 +1464,8 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
 
 
 class MoleculesCombiner:
+    """Class to split/combine molecules for batch analysis."""
+
     def __init__(self, identifier: str = ".molecule_object_id"):
         self._identifier = identifier
 

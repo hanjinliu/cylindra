@@ -119,18 +119,19 @@ class GlobalVariablesMenu(MagicTemplate):
 
     @set_design(text="Load variables")
     def load_variables_by_name(
-        self, name: Annotated[str, {"choices": _get_file_names}]
+        self,
+        var_name: Annotated[str, {"choices": _get_file_names, "label": "Variable set"}],
     ):
         """Load global variables from one of the saved Json files."""
-        path = Cfg.VAR_PATH / f"{name}.json"
+        path = Cfg.VAR_PATH / f"{var_name}.json"
         self.load_variables(path)
         return None
 
     @impl_preview(load_variables_by_name)
-    def _(self, name: str):
+    def _(self, var_name: str):
         from ._previews import view_text
 
-        path = Cfg.VAR_PATH / f"{name}.json"
+        path = Cfg.VAR_PATH / f"{var_name}.json"
         return view_text(path, parent=self)
 
     @set_design(text="Save variables")

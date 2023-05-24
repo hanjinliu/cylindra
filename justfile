@@ -9,3 +9,6 @@ run:
 
 dev:
 	maturin develop --release
+
+test-all:
+	pytest -v --cov=cylindra --cov-report=xml --cov-report=term
