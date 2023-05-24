@@ -356,15 +356,14 @@ def test_clip_spline(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.register_path(coords=coords_13pf)
-    spl = ui.tomogram.splines[0]
-    length_old = spl.length()
+    length_old = ui.tomogram.splines[0].length()
     ui.clip_spline(0, (10, 5))
-    length_new = spl.length()
+    length_new = ui.tomogram.splines[0].length()
     assert length_old - 15 == pytest.approx(length_new, abs=1e-2)
 
-    length_old = spl.length()
+    length_old = ui.tomogram.splines[0].length()
     ui.clip_spline(0, (3, 1))
-    length_new = spl.length()
+    length_new = ui.tomogram.splines[0].length()
     assert length_old - 4 == pytest.approx(length_new, abs=1e-2)
 
 
