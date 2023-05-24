@@ -1148,14 +1148,14 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
 
         @undo_callback
-        def undo():
+        def undo_op():
             for i, spl in old_splines.items():
                 tomo.splines[i].copy_from(spl)
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        @undo.with_redo
-        def undo():
+        @undo_op.with_redo
+        def undo_op():
             for i, spl in new_splines.items():
                 tomo.splines[i].copy_from(spl)
             self._init_widget_state()
@@ -1167,7 +1167,7 @@ class CylindraMainWidget(MagicTemplate):
             self._init_widget_state()
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
-            return undo
+            return undo_op
 
         return out
 
@@ -1332,28 +1332,30 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        def _set_props(props: dict[int, pl.DataFrame]):
-            def wrapper():
-                for i, df in props.items():
-                    tomo.splines[i].localprops = df
-                return None
-
-            return wrapper
-
-        old_props: dict[int, pl.DataFrame] = {}
-        new_props: dict[int, pl.DataFrame] = {}
+        old_splines: dict[int, pl.DataFrame] = {}
+        new_splines: dict[int, pl.DataFrame] = {}
         for i in splines:
-            old_props[i] = tomo.splines[i].localprops
+            old_splines[i] = tomo.splines[i].copy()
             tomo.make_anchors(i=i, interval=interval)
             tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
-            new_props[i] = tomo.splines[i].localprops
+            new_splines[i] = tomo.splines[i].copy()
             yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size
         self._need_save = True
 
-        return undo_callback(
-            _set_spline_props(self, "localprops", old_props)
-        ).with_redo(_set_spline_props(self, "localprops", new_props))
+        @undo_callback
+        def undo_op():
+            for i, old_spl in old_splines.items():
+                tomo.splines[i].copy_from(old_spl)
+            self._update_splines_in_images()
+            self._update_local_properties_in_widget()
+
+        @undo_op.with_redo
+        def undo_op():
+            for i, new_spl in new_splines.items():
+                tomo.splines[i].copy_from(new_spl)
+
+        return undo_op
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
@@ -1405,7 +1407,8 @@ class CylindraMainWidget(MagicTemplate):
             old_props[i] = spl.globalprops
             if spl.radius is None:
                 tomo.set_radius(i=i)
-            new_props[i] = tomo.global_ft_params(i=i, binsize=bin_size)
+            tomo.global_ft_params(i=i, binsize=bin_size)
+            new_props[i] = tomo.splines[i].globalprops
             yield _global_ft_analysis_on_yield(i)
         self._need_save = True
         return _global_ft_analysis_on_return
