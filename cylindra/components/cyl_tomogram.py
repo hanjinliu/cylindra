@@ -124,7 +124,7 @@ def batch_process(
         # Determine along which spline function will be executed.
         if i is None:
             i_list = range(self.n_splines)
-        elif not isinstance(i, Iterable):
+        elif not hasattr(i, "__iter__"):
             raise TypeError("'i' must be int or iterable of int if specified")
         else:
             i_list = []
@@ -236,7 +236,7 @@ class CylTomogram(Tomogram):
     @property
     def n_splines(self) -> int:
         """Number of spline paths."""
-        return len(self._splines)
+        return len(self.splines)
 
     def export_localprops(self, file_path: str, **kwargs):
         """
@@ -266,9 +266,10 @@ class CylTomogram(Tomogram):
         coords : array-like
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """
-        spl = CylSpline(degree=GVar.spline_degree)
         coords = np.asarray(coords)
-        spl.fit_coa(coords, min_radius=GVar.min_curvature_radius)
+        spl = CylSpline(degree=GVar.spline_degree).fit_coa(
+            coords, min_radius=GVar.min_curvature_radius
+        )
         interval: nm = 30.0
         length = spl.length()
 
@@ -277,7 +278,7 @@ class CylTomogram(Tomogram):
         if coords.shape[0] <= spl.degree and coords.shape[0] < fit.shape[0]:
             return self.add_spline(fit)
 
-        self._splines.append(spl)
+        self.splines.append(spl)
         return None
 
     @batch_process
@@ -302,7 +303,7 @@ class CylTomogram(Tomogram):
             Maximum interval between anchors.
 
         """
-        self._splines[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
+        self.splines[i].make_anchors(interval=interval, n=n, max_interval=max_interval)
         return None
 
     def align_to_polarity(self, orientation: Ori | str = Ori.MinusToPlus) -> Self:
@@ -375,11 +376,9 @@ class CylTomogram(Tomogram):
             Result of fitting.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.fit, i={i}")
-        spl = self._splines[i]
-        spl.make_anchors(max_interval=max_interval)
+        spl = self.splines[i].make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
         interval = spl.length() / (npoints - 1)
-        spl = self._splines[i]
         depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
 
@@ -407,7 +406,7 @@ class CylTomogram(Tomogram):
                 yc, xc = np.array(subtomograms.sizesof("yx")) / 2 - 0.5
                 yr = yy - yc
                 xr = xx - xc
-                for i, ds in enumerate(spl(der=1)):
+                for _j, ds in enumerate(spl(der=1)):
                     _, vy, vx = ds
                     distance: NDArray[np.float64] = (
                         np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
@@ -420,7 +419,7 @@ class CylTomogram(Tomogram):
                             1 + np.exp((distance - distance_cutoff) / edge_sigma)
                         )
                     mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
-                    subtomograms[i] *= mask
+                    subtomograms[_j] *= mask
 
             ds = spl.map(der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
@@ -443,9 +442,9 @@ class CylTomogram(Tomogram):
                 refined_tilt_deg = np.rad2deg(refined_tilt_rad)
 
             # Rotate subtomograms
-            for i, img in enumerate(subtomograms):
+            for _j, img in enumerate(subtomograms):
                 img: ip.ImgArray
-                angle = refined_tilt_deg[i]
+                angle = refined_tilt_deg[_j]
                 img.rotate(-angle, cval=0, update=True)
 
             # zx-shift correction by self-PCC
@@ -459,9 +458,9 @@ class CylTomogram(Tomogram):
 
             shifts = np.zeros((npoints, 2))  # zx-shift
             max_shift_px = max_shift / scale * 2
-            for i in range(npoints):
-                img = subtomo_proj[i]
-                shifts[i] = mirror_zncc(img, max_shifts=max_shift_px) / 2
+            for _j in range(npoints):
+                img = subtomo_proj[_j]
+                shifts[_j] = mirror_zncc(img, max_shifts=max_shift_px) / 2
 
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -480,7 +479,9 @@ class CylTomogram(Tomogram):
 
         # Update spline parameters
         min_cr = GVar.min_curvature_radius
-        spl.fit_coa(coords, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5))
+        self.splines[i] = spl.fit_coa(
+            coords, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5)
+        )
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -588,10 +589,10 @@ class CylTomogram(Tomogram):
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
             max_shift_px = max_shift / scale
 
-            for i in range(npoints):
-                img = inputs[i]
+            for _j in range(npoints):
+                img = inputs[_j]
                 shift = mirror_zncc(img, max_shifts=max_shift_px * 2) / 2
-                imgs_aligned.value[i] = img.affine(
+                imgs_aligned.value[_j] = img.affine(
                     translation=shift, mode=Mode.constant, cval=0
                 )
 
@@ -618,19 +619,19 @@ class CylTomogram(Tomogram):
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
             quat = mole.quaternion()
-            for i in range(npoints):
-                img = inputs[i]
-                tmp = _mask_missing_wedge(template, zncc, quat[i])
+            for _j in range(npoints):
+                img = inputs[_j]
+                tmp = _mask_missing_wedge(template, zncc, quat[_j])
                 shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
 
-                rad = np.deg2rad(skew_angles[i])
+                rad = np.deg2rad(skew_angles[_j])
                 cos, sin = np.cos(rad), np.sin(rad)
                 zxrot = np.array([[cos, sin], [-sin, cos]], dtype=np.float32)
-                shifts[i] = shift @ zxrot
+                shifts[_j] = shift @ zxrot
 
         # Update spline parameters
         min_cr = GVar.min_curvature_radius
-        spl.shift_coa(
+        self.splines[i] = spl.shift_coa(
             shifts=shifts * scale, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5)
         )
         result = FitResult.from_residual(shifts * scale)
@@ -899,7 +900,7 @@ class CylTomogram(Tomogram):
             Global properties.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
-        spl = self._splines[i]
+        spl = self.splines[i]
         img_st = self.straighten_cylindric(i, binsize=binsize)
         cols = _local_dft_params_pl(img_st, spl.radius)
         out = pl.DataFrame(cols)
@@ -1038,7 +1039,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
 
-        length = self._splines[i].length(nknots=512)
+        length = self.splines[i].length(nknots=512)
 
         if chunk_length is None:
             if binsize == 1:
@@ -1059,7 +1060,7 @@ class CylTomogram(Tomogram):
         else:
             if size is None:
                 rz = rx = 1 + 2 * self.nm2pixel(
-                    self._splines[i].radius + GVar.thickness_outer, binsize=binsize
+                    self.splines[i].radius + GVar.thickness_outer, binsize=binsize
                 )
 
             else:
@@ -1122,7 +1123,7 @@ class CylTomogram(Tomogram):
                 chunk_length = 72.0
             else:
                 chunk_length = 999999
-        length = self._splines[i].length(nknots=512)
+        length = self.splines[i].length(nknots=512)
 
         if length > chunk_length:
             transformed = self._chunked_straighten(
@@ -1342,7 +1343,7 @@ class CylTomogram(Tomogram):
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        return np.concatenate([self._splines[i_]() for i_ in i], axis=0)
+        return np.concatenate([self.splines[i_]() for i_ in i], axis=0)
 
     def collect_localprops(
         self, i: int | Iterable[int] = None, allow_none: bool = True
@@ -1366,7 +1367,7 @@ class CylTomogram(Tomogram):
             i = [i]
         props: list[pl.DataFrame] = []
         for i_ in i:
-            prop = self._splines[i_].localprops
+            prop = self.splines[i_].localprops
             if len(prop) == 0:
                 if not allow_none:
                     raise ValueError(f"Local properties of spline {i_} is missing.")
@@ -1405,7 +1406,7 @@ class CylTomogram(Tomogram):
             i = [i]
         props: list[pl.DataFrame] = []
         for i_ in i:
-            prop = self._splines[i_].globalprops
+            prop = self.splines[i_].globalprops
             if len(prop) == 0:
                 if not allow_none:
                     raise ValueError(f"Global properties of spline {i_} is missing.")

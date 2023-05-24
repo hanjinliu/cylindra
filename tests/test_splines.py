@@ -149,7 +149,7 @@ def test_extend(mode):
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [6, 3, 4]])
     spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
-    out = spl.extended([0.4, 0.6], 5.0)
+    out = spl.extend([0.4, 0.6], 5.0)
     assert out.length() == pytest.approx(spl.length() + 1.0, abs=0.5)
 
 

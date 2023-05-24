@@ -494,6 +494,7 @@ class ImageLoader(MagicTemplate):
     filter_reference_image = vfield(True)
 
     @scale.wraps
+    @set_design(max_width=90)
     def read_header(self):
         """Read scale from image header."""
         path = self.path

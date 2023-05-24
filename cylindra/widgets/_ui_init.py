@@ -76,7 +76,7 @@ def _(
 ):
     name = "Spline preview"
     spl = self.tomogram.splines[spline]
-    verts = spl.extended(lengths, 0.1).partition(100)
+    verts = spl.extend(lengths, 0.1).partition(100)
     verts_2d = verts[:, 1:]
     viewer = self.parent_viewer
     if name in viewer.layers:

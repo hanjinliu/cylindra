@@ -202,16 +202,6 @@ class Spline(BaseComponent):
         new._extrapolate = ExtrapolationMode(extrapolate)
         return new
 
-    def copy_from(self, other: Spline) -> Self:
-        """Update spline parameters from another spline."""
-        self._tck = other._tck
-        self._u = other._u
-        self._anchors = other._anchors
-        self._lims = other._lims
-        self.localprops = other.localprops.clone()
-        self.globalprops = other.globalprops.clone()
-        return self
-
     @property
     def knots(self) -> np.ndarray:
         """Spline knots."""
@@ -337,12 +327,17 @@ class Spline(BaseComponent):
         """Return spline limit positions."""
         return self._lims
 
+    def _set_params(self, tck, u) -> Self:
+        self._tck = tck
+        self._u = u
+        return self
+
     def make_anchors(
         self,
         interval: nm | None = None,
         n: int | None = None,
         max_interval: nm | None = None,
-    ) -> None:
+    ) -> Self:
         """
         Make anchor points at constant intervals. Either interval, number of anchor or the
         maximum interval between anchors can be specified.
@@ -372,7 +367,7 @@ class Spline(BaseComponent):
             raise ValueError("Either 'interval' or 'n' must be specified.")
 
         self.anchors = np.linspace(0, end, n)
-        return None
+        return self
 
     def __repr__(self) -> str:
         """Use start/end points to describe a spline."""
@@ -415,10 +410,9 @@ class Spline(BaseComponent):
         Spline
             Copy of the original spline.
         """
-        original = self.__class__(degree=self.degree, lims=(0, 1))
-        original._tck = self._tck
-        original._u = self._u
-        return original
+        return self.__class__(
+            degree=self.degree, lims=(0, 1), extrapolate=self.extrapolate
+        )._set_params(self._tck, self._u)
 
     def fit_coa(
         self,
@@ -462,10 +456,10 @@ class Spline(BaseComponent):
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
-        elif npoints <= self.degree:
-            degree = npoints - 1
+        if npoints <= self.degree:
+            k = npoints - 1
         else:
-            degree = self.degree
+            k = self.degree
         if self.inverted:
             coords = coords[::-1]
 
@@ -478,15 +472,15 @@ class Spline(BaseComponent):
         u = np.linspace(0, 1, n)
         niter = 0
 
-        if degree == 1:
+        if k == 1:
             # curvature is not defined for a linear spline curve
-            self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=s)
+            _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
 
         else:
             # repeatitively fit same points with splines, with different smoothing factors
             while True:
                 niter += 1
-                self._tck, self._u = splprep(coords.T, k=degree, w=weight, s=s)
+                _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
                 curvature = self.curvature(u)
                 ratio = np.max(curvature) * min_radius
                 if ratio < 1.0 - tol:  # curvature too small = underfit
@@ -503,9 +497,9 @@ class Spline(BaseComponent):
                     )
                     break
 
-        del self.anchors  # Anchor should be deleted after spline is updated
-        self.clear_cache(loc=True, glob=True)
-        return self
+        return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(
+            _tck, _u
+        )
 
     def fit_voa(
         self,
@@ -518,9 +512,10 @@ class Spline(BaseComponent):
         """
         Fit spline model to coordinates by "Variance-Oriented Approximation".
 
-        This method conduct variance-based fitting, which is well-formulated by the function
-        ``scipy.interpolate.splprep``. The fitting result confirms that total variance
-        between spline and given coordinates does not exceed the value ``variance``.
+        This method conduct variance-based fitting, which is well-formulated by the
+        function ``scipy.interpolate.splprep``. The fitting result confirms that
+        total variance between spline and given coordinates does not exceed the
+        value ``variance``.
 
         Parameters
         ----------
@@ -534,14 +529,16 @@ class Spline(BaseComponent):
         Returns
         -------
         Spline
-            Spline fit to given coordinates.
+            New spline fit to given coordinates.
         """
         coords = np.asarray(coords)
         npoints = coords.shape[0]
         if npoints < 2:
-            raise ValueError("npoins must be > 1.")
-        elif npoints <= self.degree:
-            self._tck = self._tck[:2] + (npoints - 1,)
+            raise ValueError("Number of input coordinates must be > 1.")
+        if npoints <= self.degree:
+            k = npoints - 1
+        else:
+            k = self.degree
         if variance is None:
             s = None
         else:
@@ -552,10 +549,10 @@ class Spline(BaseComponent):
 
         if self.inverted:
             coords = coords[::-1]
-        self._tck, self._u = splprep(coords.T, k=self.degree, w=weight, s=s)
-        del self.anchors  # Anchor should be deleted after spline is updated
-        self.clear_cache(loc=True, glob=True)
-        return self
+        _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
+        return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(
+            _tck, _u
+        )
 
     def shift_coa(
         self,
@@ -603,7 +600,7 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_coa(
+        return self.fit_coa(
             coords,
             n=n,
             min_radius=min_radius,
@@ -612,7 +609,6 @@ class Spline(BaseComponent):
             weight=weight,
             weight_ramp=weight_ramp,
         )
-        return self
 
     def shift_voa(
         self,
@@ -645,10 +641,16 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        self.fit_voa(coords, variance=variance, weight=weight, weight_ramp=weight_ramp)
-        return self
+        return self.fit_voa(
+            coords, variance=variance, weight=weight, weight_ramp=weight_ramp
+        )
 
-    def extended(self, lengths: tuple[nm, nm], point_per_nm: float = 0.5) -> Self:
+    def extend(
+        self,
+        lengths: tuple[nm, nm],
+        point_per_nm: float = 0.5,
+        variance: float = 0.0,
+    ) -> Self:
         """
         Return a new spline with extended length.
 
@@ -662,6 +664,8 @@ class Spline(BaseComponent):
             Extrapolation length of two ends.
         point_per_nm : float, default is 0.5
             Point density to resample spline.
+        variance : float, default is 0.0
+            Variance of fitting used in ``fit_voa``.
 
         Returns
         -------
@@ -673,9 +677,11 @@ class Spline(BaseComponent):
         n = roundint(l * point_per_nm)
         u = np.linspace(-l_pre / l, l_ap / l + 1, n)
         coords = self.map(u)
-        return self.copy(copy_cache=False).fit_voa(coords)
+        return self.copy(copy_cache=False).fit_voa(coords, variance=variance)
 
-    def distances(self, positions: Sequence[float] | None = None) -> np.ndarray:
+    def distances(
+        self, positions: Sequence[float] | None = None
+    ) -> NDArray[np.float32]:
         """
         Get the distances from u=0.
 
@@ -692,7 +698,7 @@ class Spline(BaseComponent):
         if positions is None:
             positions = self.anchors
         length = self.length()
-        return length * np.asarray(positions)
+        return length * np.asarray(positions, dtype=np.float32)
 
     def map(
         self,

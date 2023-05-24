@@ -114,7 +114,7 @@ class CylSpline(Spline):
             original.orientation = self.orientation
         return original
 
-    def extended(self, lengths: tuple[nm, nm], point_per_nm: float = 0.5) -> CylSpline:
+    def extend(self, lengths: tuple[nm, nm], point_per_nm: float = 0.5) -> CylSpline:
         """
         Return a new spline with extended length.
 
@@ -134,7 +134,7 @@ class CylSpline(Spline):
         Spline
             Longer spline.
         """
-        extended = super().extended(lengths, point_per_nm)
+        extended = super().extend(lengths, point_per_nm)
         extended.orientation = self.orientation
         return extended
 

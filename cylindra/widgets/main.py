@@ -675,7 +675,7 @@ class CylindraMainWidget(MagicTemplate):
         if len(self.tomogram.splines) == 0:
             raise ValueError("No spline found.")
         spl = self.tomogram.splines[0]
-        if spl._anchors is not None:
+        if spl.has_anchors:
             self.SplineControl["pos"].max = spl.anchors.size - 1
         self.SplineControl._num_changed()
         self.layer_work.mode = "pan_zoom"
@@ -883,7 +883,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         spl = self.tomogram.splines[spline]
         _old_spl = spl.copy()
-        self.tomogram.splines[spline] = spl.extended(lengths, point_per_nm)
+        self.tomogram.splines[spline] = spl.extend(lengths, point_per_nm)
         self._update_splines_in_images()
         self._need_save = True
 
@@ -981,15 +981,13 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Spline Fitting", total="len(splines)")
     def fit_splines(
         self,
-        splines: Annotated[
-            list[int], {"choices": _get_splines, "widget_type": "Select"}
-        ] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
         max_shift: nm = 5.0,
-    ):
+    ):  # fmt: skip
         """
         Fit cylinder with spline curve, using manually selected points.
 
@@ -1007,7 +1005,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         if len(splines) == 0:
             splines = list(range(tomo.n_splines))
-        old_splines = {i: tomo.splines[i].copy() for i in splines}
+        old_splines = {i: tomo.splines[i] for i in splines.copy()}
         for i in splines:
             tomo.fit(
                 i,
@@ -1018,19 +1016,19 @@ class CylindraMainWidget(MagicTemplate):
                 max_shift=max_shift,
             )
             yield thread_worker.to_callback(self._update_splines_in_images)
-        new_splines = {i: tomo.splines[i].copy() for i in splines}
+        new_splines = {i: tomo.splines[i] for i in splines}
         self._need_save = True
 
         @undo_callback
         def _undo():
             for i, spl in old_splines.items():
-                tomo.splines[i].copy_from(spl)
+                tomo.splines[i] = spl.copy()
             self._update_splines_in_images()
 
         @_undo.with_redo
         def _undo():
             for i, spl in new_splines.items():
-                tomo.splines[i].copy_from(spl)
+                tomo.splines[i] = spl.copy()
             self._init_widget_state()
             self._update_splines_in_images()
 
@@ -1155,14 +1153,14 @@ class CylindraMainWidget(MagicTemplate):
         @undo_callback
         def undo_op():
             for i, spl in old_splines.items():
-                tomo.splines[i].copy_from(spl)
+                tomo.splines[i] = spl.copy()
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
         @undo_op.with_redo
         def undo_op():
             for i, spl in new_splines.items():
-                tomo.splines[i].copy_from(spl)
+                tomo.splines[i] = spl.copy()
             self._init_widget_state()
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
@@ -1228,7 +1226,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @undo_callback
         def out():
-            spl.copy_from(old_spl)
+            self.tomogram.splines[spline] = old_spl
             self.sample_subtomograms()
             self._update_splines_in_images()
 
@@ -1338,8 +1336,8 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        old_splines: dict[int, pl.DataFrame] = {}
-        new_splines: dict[int, pl.DataFrame] = {}
+        old_splines = dict[int, CylSpline]()
+        new_splines = dict[int, CylSpline]()
         for i in splines:
             old_splines[i] = tomo.splines[i].copy()
             tomo.make_anchors(i=i, interval=interval)
@@ -1352,14 +1350,14 @@ class CylindraMainWidget(MagicTemplate):
         @undo_callback
         def undo_op():
             for i, old_spl in old_splines.items():
-                tomo.splines[i].copy_from(old_spl)
+                tomo.splines[i] = old_spl.copy()
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
         @undo_op.with_redo
         def undo_op():
             for i, new_spl in new_splines.items():
-                tomo.splines[i].copy_from(new_spl)
+                tomo.splines[i] = new_spl.copy()
 
         return undo_op
 
@@ -1446,7 +1444,7 @@ class CylindraMainWidget(MagicTemplate):
     @Analysis.wraps
     @set_design(text="Re-analyze project")
     @do_not_record
-    @bind_key("Ctrl+K, Ctrl+Shift+L")
+    @bind_key("Ctrl+K, Ctrl+L")
     def load_project_for_reanalysis(self, path: Path.Read[FileFilter.JSON]):
         """
         Load a project file to re-analyze the data.
@@ -2685,7 +2683,7 @@ class CylindraMainWidget(MagicTemplate):
         scale = self.layer_image.scale[0]
 
         n = max(int(length / interval) + 1, 2)
-        fit = spl(np.linspace(0, 1, n))
+        fit = spl.map(np.linspace(0, 1, n))
         self.layer_prof.feature_defaults[SPLINE_ID] = i
         self.layer_prof.add(fit)
         self.overview.add_curve(
@@ -2733,7 +2731,7 @@ class CylindraMainWidget(MagicTemplate):
             self._add_spline_to_images(spl, i)
             if spl._anchors is None:
                 continue
-            coords = spl()
+            coords = spl.map()
             self.overview.add_scatter(
                 coords[:, 2] / scale,
                 coords[:, 1] / scale,

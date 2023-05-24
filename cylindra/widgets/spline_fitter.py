@@ -1,3 +1,4 @@
+from typing import Annotated
 import numpy as np
 import impy as ip
 
@@ -54,10 +55,6 @@ class SplineFitter(MagicTemplate):
         i = self.controller.num.value
         return np.round(self.shifts[i], 3)
 
-    def _get_spline(self, i: int):
-        parent = self._get_parent()
-        return parent.tomogram.splines[i]
-
     def _get_binsize(self) -> int:
         parent = self._get_parent()
         return roundint(parent.layer_image.scale[0] / parent.tomogram.scale)
@@ -70,33 +67,34 @@ class SplineFitter(MagicTemplate):
     def fit(
         self,
         shifts: Bound[_get_shifts],
-        i: Bound[controller.num],
+        i: Annotated[int, {"bind": controller.num}],
         max_interval: Bound[_get_max_interval],
     ):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         parent = self._get_parent()
         _scale = parent.tomogram.scale
-        spl = self._get_spline(i)
-        old_spl = spl.copy()
+        old_spl = parent.tomogram.splines[i]
 
         min_cr = GVar.min_curvature_radius
-        spl.make_anchors(max_interval=max_interval)
-        spl.shift_coa(
-            shifts=shifts * self._get_binsize() * _scale,
-            min_radius=min_cr,
-            weight_ramp=(min_cr / 10, 0.5),
+        new_spl = (
+            old_spl.make_anchors(max_interval=max_interval)
+            .shift_coa(
+                shifts=shifts * self._get_binsize() * _scale,
+                min_radius=min_cr,
+                weight_ramp=(min_cr / 10, 0.5),
+            )
+            .make_anchors(max_interval=max_interval)
         )
-        spl.make_anchors(max_interval=max_interval)
-        new_spl = spl.copy()
+        parent.tomogram.splines[i] = new_spl
         self._cylinder_changed()
         parent._update_splines_in_images()
         parent._need_save = True
 
         @undo_callback
         def out():
-            spl.copy_from(old_spl)
-            if spl.has_anchors:
+            parent.tomogram.splines[i] = old_spl.copy()
+            if old_spl.has_anchors:
                 self._cylinder_changed()
             else:
                 del self.canvas.image
@@ -104,7 +102,7 @@ class SplineFitter(MagicTemplate):
 
         @out.with_redo
         def out():
-            spl.copy_from(new_spl)
+            parent.tomogram.splines[i] = new_spl
             self._cylinder_changed()
             self._get_parent()._update_splines_in_images()
 
