@@ -360,12 +360,12 @@ def test_clip_spline(ui: CylindraMainWidget):
     length_old = spl.length()
     ui.clip_spline(0, (10, 5))
     length_new = spl.length()
-    assert (length_old - length_new) - 15 < 1e-2
+    assert length_old - 15 == pytest.approx(length_new, abs=1e-2)
 
     length_old = spl.length()
     ui.clip_spline(0, (3, 1))
     length_new = spl.length()
-    assert (length_old - length_new) - 4 < 1e-2
+    assert length_old - 4 == pytest.approx(length_new, abs=1e-2)
 
 
 def test_simulator(ui: CylindraMainWidget):

@@ -30,7 +30,7 @@ import napari
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
-from ..widget_utils import FileFilter, timer
+from ..widget_utils import FileFilter, timer, POLARS_NAMESPACE
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
 from .menus import BatchLoaderMenu, BatchSubtomogramAnalysis, BatchRefinement
@@ -64,14 +64,6 @@ _SubVolumeSize = Annotated[
     },
 ]
 _BINSIZE = OneOf[(1, 2, 3, 4, 5, 6, 7, 8)]
-POLARS_NAMESPACE = {
-    "pl": pl,
-    "int": int,
-    "float": float,
-    "str": str,
-    "np": np,
-    "__builtins__": {},
-}
 
 _Logger = getLogger("cylindra")
 

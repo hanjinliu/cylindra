@@ -17,7 +17,7 @@ from magicclass import (
 from magicclass.types import Bound, Path
 
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
-from cylindra.widgets.widget_utils import FileFilter
+from cylindra.widgets.widget_utils import FileFilter, POLARS_NAMESPACE
 from cylindra.project import CylindraBatchProject, get_project_json
 
 from .sta import BatchSubtomogramAveraging
@@ -65,6 +65,8 @@ class CylindraBatchWidget(MagicTemplate):
                 loader.add_tomogram(img.value, mole, img_id)
 
         if predicate is not None:
+            if isinstance(predicate, str):
+                predicate = eval(predicate, POLARS_NAMESPACE, {})
             loader = loader.filter(predicate)
         new = loader.replace(scale=self.constructor.scale.value)
         self._add_loader(new, name, image_paths)
