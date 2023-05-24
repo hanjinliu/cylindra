@@ -244,9 +244,6 @@ class StaParameters(MagicTemplate):
     def _get_template(self, path: Union[Path, None] = None, allow_none: bool = False):
         if path is None:
             path = self.template_path.value
-        else:
-            if self.template_path.value != path:
-                self.template_path.value = path
         self._save_history()
 
         if path is None:
@@ -292,19 +289,6 @@ class StaParameters(MagicTemplate):
     def _get_mask(self, params: "str | tuple[nm, nm] | None" = _sentinel):
         if params is self._sentinel:
             params = self._get_mask_params()
-        else:
-            if params is None:
-                if self.mask_choice != MASK_CHOICES[0]:
-                    self.mask_choice = MASK_CHOICES[0]
-            elif isinstance(params, tuple):
-                if self.mask_choice != MASK_CHOICES[1]:
-                    self.mask_choice = MASK_CHOICES[1]
-            else:
-                if self.mask_choice != MASK_CHOICES[2]:
-                    self.mask_choice = MASK_CHOICES[2]
-                if self.mask_path.mask_path != params:
-                    self.mask_path.mask_path = params
-
         if params is None:
             return None
         elif isinstance(params, tuple):

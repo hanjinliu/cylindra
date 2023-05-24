@@ -411,7 +411,7 @@ class Runner(MagicTemplate):
         if parent.layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
         if parent.tomogram.n_splines == 0:
-            raise ValueError("No spline found.")
+            raise ValueError("No spline is added to the viewer canvas.")
         elif len(splines) == 0:
             splines = list(range(parent.tomogram.n_splines))
         parent._runner.close()
