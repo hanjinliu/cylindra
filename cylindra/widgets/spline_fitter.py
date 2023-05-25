@@ -68,7 +68,7 @@ class SplineFitter(MagicTemplate):
         self,
         shifts: Bound[_get_shifts],
         i: Annotated[int, {"bind": controller.num}],
-        max_interval: Bound[_get_max_interval],
+        max_interval: Bound[_get_max_interval] = 50.0,
     ):
         """Fit current spline."""
         shifts = np.asarray(shifts)

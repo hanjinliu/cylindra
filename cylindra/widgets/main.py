@@ -474,6 +474,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Save project")
+    @bind_key("Ctrl+K, Ctrl+S")
     def save_project(self, save_dir: Path.Save):
         """
         Save current project state and the results in a directory.
@@ -1134,7 +1135,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("Ctrl+K, Ctrl+@")
     def set_spline_props(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: Annotated[int, {"bind": SplineControl.num}],
         spacing: Annotated[Optional[nm], {"label": "spacing (nm)", "text": "Do not update"}] = None,
         skew: Annotated[Optional[float], {"label": "skew angle (deg)", "text": "Do not update"}] = None,
         rise: Annotated[Optional[nm], {"label": "rise angle (deg)", "text": "Do not update"}] = None,
@@ -1400,7 +1401,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Re-analyze project")
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+L")
-    def load_project_for_reanalysis(self, path: Path.Read[FileFilter.JSON]):
+    def load_project_for_reanalysis(self, path: Path.Read[FileFilter.PROJECT]):
         """
         Load a project file to re-analyze the data.
 
