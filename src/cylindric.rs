@@ -244,7 +244,7 @@ impl CylinderGeometry {
         Ok(neighbors)
     }
 
-    pub fn get_neighbors(&self, indices: &Vec<Index>) -> PyResult<Vec<Index>> {
+    pub fn get_neighbors(&self, indices: &HashSet<Index>) -> PyResult<HashSet<Index>> {
         let mut unique_neighbors: HashSet<Index> = HashSet::new();
         // add all the neighbor candidates
         for index in indices.iter() {
@@ -259,11 +259,6 @@ impl CylinderGeometry {
             unique_neighbors.remove(index);
         }
 
-        // convert to a vector
-        let mut neighbors: Vec<Index> = Vec::new();
-        for neighbor in unique_neighbors {
-            neighbors.push(neighbor);
-        }
-        Ok(neighbors)
+        Ok(unique_neighbors)
     }
 }
