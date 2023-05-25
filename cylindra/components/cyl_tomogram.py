@@ -251,12 +251,6 @@ class CylTomogram(Tomogram):
         df.write_csv(file_path, **kwargs)
         return None
 
-    def clear_cache(self, loc: bool = True, glob: bool = True) -> None:
-        """Clear caches of registered splines."""
-        for spl in self.splines:
-            spl.clear_cache(loc, glob)
-        return None
-
     def add_spline(self, coords: ArrayLike) -> None:
         """
         Add spline path to tomogram.

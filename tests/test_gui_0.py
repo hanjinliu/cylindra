@@ -311,12 +311,8 @@ def test_preview(ui: CylindraMainWidget):
 
     tester = mcls_testing.FunctionGuiTester(ui.clip_spline)
     tester.click_preview()
-    tester.update_parameters(lengths=(3, 1))
-    tester.click_preview()
-
-    tester = mcls_testing.FunctionGuiTester(ui.extend_spline)
-    tester.click_preview()
-    tester.update_parameters(lengths=(3, 1))
+    tester.update_parameters(lengths=(3, 1))  # clip
+    tester.update_parameters(lengths=(-3, -2))  # extend
     tester.click_preview()
 
     tester = mcls_testing.FunctionGuiTester(ui.global_variables.load_variables_by_name)

@@ -54,6 +54,8 @@ class SplineInfo(TypedDict, total=False):
     extrapolate: str
 
 
+_TCK = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
+
 _void = object()
 
 
@@ -78,21 +80,11 @@ class Spline(BaseComponent):
         lims: tuple[float, float] = (0.0, 1.0),
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
     ):
-        self._tck: tuple[np.ndarray | None, list[np.ndarray] | None, int] = (
-            None,
-            None,
-            degree,
-        )
-        self._u: np.ndarray | None = None
+        self._tck: _TCK = (None, None, degree)
+        self._u: NDArray[np.float32] | None = None
         self._anchors = None
         self._extrapolate = ExtrapolationMode(extrapolate)
 
-        # check lims
-        _min, _max = lims
-        if _min < 0 or _max > 1:
-            raise ValueError(
-                f"'lims' must fit in range of [0, 1] but got {list(lims)!r}."
-            )
         self._lims = lims
         self._localprops: pl.DataFrame = pl.DataFrame([])
         self._globalprops: pl.DataFrame = pl.DataFrame([])
@@ -268,22 +260,6 @@ class Spline(BaseComponent):
         new._tck = (self.knots, c, self.degree)
         return new
 
-    def clear_cache(self, loc: bool = True, glob: bool = True):
-        """
-        Clear caches stored on the spline.
-
-        Parameters
-        ----------
-        loc : bool, default is True
-            Clear local cache if true.
-        glob : bool, default is True
-            Clear global cache if true.
-        """
-        if loc:
-            self.localprops = None
-        if glob:
-            self.globalprops = None
-
     @property
     def has_anchors(self) -> bool:
         """True if there are any anchors."""
@@ -308,13 +284,13 @@ class Spline(BaseComponent):
             )
             warnings.warn(msg, UserWarning)
         self._anchors = positions
-        self.clear_cache(loc=True, glob=False)
+        self.localprops = None  # clear anchor specific properties
         return None
 
     @anchors.deleter
     def anchors(self) -> None:
         self._anchors = None
-        self.clear_cache(loc=True, glob=False)
+        self.localprops = None  # clear anchor specific properties
         return None
 
     @property
@@ -396,10 +372,9 @@ class Spline(BaseComponent):
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        new = self.__class__(degree=self.degree, lims=(u0, u1))
-        new._tck = self._tck
-        new._u = self._u
-        return new
+        return self.__class__(degree=self.degree, lims=(u0, u1))._set_params(
+            self._tck, self._u
+        )
 
     def restore(self) -> Self:
         """
@@ -413,6 +388,26 @@ class Spline(BaseComponent):
         return self.__class__(
             degree=self.degree, lims=(0, 1), extrapolate=self.extrapolate
         )._set_params(self._tck, self._u)
+
+    def resample(self, max_interval: nm = 1.0, variance: float | None = 0.0) -> Self:
+        """
+        Resample a new spline along the original spline.
+
+        Parameters
+        ----------
+        max_interval : nm, default is 1.0
+            Maximum interval between resampling points.
+        variance : float, default is 0.0
+            Spline fitting variance.
+
+        Returns
+        -------
+        Spline
+            Resampled spline object.
+        """
+        l = self.length()
+        points = self.map(np.linspace(0, 1, ceilint(l / max_interval)))
+        return self.fit_voa(points, variance=variance)
 
     def fit_coa(
         self,
@@ -653,40 +648,6 @@ class Spline(BaseComponent):
             coords, variance=variance, weight=weight, weight_ramp=weight_ramp
         )
 
-    def extend(
-        self,
-        lengths: tuple[nm, nm],
-        point_per_nm: float = 0.5,
-        variance: float = 0.0,
-    ) -> Self:
-        """
-        Return a new spline with extended length.
-
-        Coordinates are resampled along the spline, with extrapolated regions.
-        Note that the [0, 1] part of the returned spline is NOT identical to
-        the original.
-
-        Parameters
-        ----------
-        lengths : (float, float)
-            Extrapolation length of two ends.
-        point_per_nm : float, default is 0.5
-            Point density to resample spline.
-        variance : float, default is 0.0
-            Variance of fitting used in ``fit_voa``.
-
-        Returns
-        -------
-        Spline
-            Longer spline.
-        """
-        l_pre, l_ap = lengths
-        l = self.length()
-        n = roundint(l * point_per_nm)
-        u = np.linspace(-l_pre / l, l_ap / l + 1, n)
-        coords = self.map(u)
-        return self.copy(copy_cache=False).fit_voa(coords, variance=variance)
-
     def distances(
         self, positions: Sequence[float] | None = None
     ) -> NDArray[np.float32]:
@@ -812,7 +773,7 @@ class Spline(BaseComponent):
         u = np.linspace(0, 1, n)
         return self.map(u, der)
 
-    def length(self, start: float = 0, stop: float = 1, nknots: int = 256) -> nm:
+    def length(self, start: float = 0, stop: float = 1, nknots: int = 512) -> nm:
         """
         Approximate the length of B-spline between [start, stop] by partitioning
         the spline with 'nknots' knots. nknots=256 is large enough for most cases.

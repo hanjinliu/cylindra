@@ -266,7 +266,6 @@ class CylindraMainWidget(MagicTemplate):
         self._init_widget_state()
         self._init_layers()
         self.overview.layers.clear()
-        self.tomogram.clear_cache()
         self.tomogram.splines.clear()
         self._need_save = False
         self.reset_choices()
@@ -851,56 +850,12 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Splines.wraps
-    @set_design(text="Extend spline")
-    def extend_spline(
-        self,
-        spline: Annotated[int, {"choices": _get_splines}],
-        lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "extension length (nm)"}}] = (0.0, 0.0),
-        point_per_nm: Annotated[float, {"min": 0.01, "max": 2.0, "step": 0.05, "label": "Point/nm"}] = 0.5,
-    ):  # fmt: skip
-        """
-        Extend the spline at the edges by the given lengths.
-
-        This method first samples points along the spline, and fit a new spline
-        to the sampled points. The new spline will be extended by the given lengths
-        but is NOT a strict extension of the original spline.
-
-        Parameters
-        ----------
-        spline : int
-           The ID of spline to be extended.
-        lengths : tuple of float, default is (0., 0.)
-            The length in nm to be extended at the start and end of the spline.
-        point_per_nm : float, optional
-            Density of point sampling per nm.
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
-        if spline is None:
-            return
-        spl = self.tomogram.splines[spline]
-        _old_spl = spl.copy()
-        self.tomogram.splines[spline] = spl.extend(lengths, point_per_nm)
-        self._update_splines_in_images()
-        self._need_save = True
-
-        @undo_callback
-        def out():
-            self.tomogram.splines[spline] = _old_spl
-            self._update_splines_in_images()
-
-        return out
-
-    @Splines.wraps
     @set_design(text="Clip spline")
     @bind_key("Ctrl+K, Ctrl+X")
     def clip_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        lengths: Annotated[tuple[nm, nm], {"options": {"max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
+        lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """
         Clip selected spline at its edges by given lengths.

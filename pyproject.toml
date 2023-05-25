@@ -70,6 +70,7 @@ exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     'if __name__ == "__main__":',
+    'if sys.platform == "darwin":',
     "@overload",
     "except ImportError",
     "except ImportError*",

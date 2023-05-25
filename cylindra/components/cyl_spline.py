@@ -114,30 +114,6 @@ class CylSpline(Spline):
             original.orientation = self.orientation
         return original
 
-    def extend(self, lengths: tuple[nm, nm], point_per_nm: float = 0.5) -> CylSpline:
-        """
-        Return a new spline with extended length.
-
-        Coordinates are resampled along the spline, with extrapolated regions.
-        Note that the [0, 1] part of the returned spline is NOT identical to
-        the original. The orientation will be inherited.
-
-        Parameters
-        ----------
-        lengths : (float, float)
-            Extrapolation length of two ends.
-        point_per_nm : float, default is 0.5
-            Point density to resample spline.
-
-        Returns
-        -------
-        Spline
-            Longer spline.
-        """
-        extended = super().extend(lengths, point_per_nm)
-        extended.orientation = self.orientation
-        return extended
-
     def cylinder_model(
         self,
         offsets: tuple[float, float] = (0.0, 0.0),
@@ -237,7 +213,9 @@ class CylSpline(Spline):
         if radius is not None:
             glob.append(pl.Series([radius]).cast(pl.Float32).alias(H.radius))
         if orientation is not None:
-            glob.append(pl.Series([orientation]).cast(pl.Utf8).alias(H.orientation))
+            glob.append(
+                pl.Series([str(orientation)]).cast(pl.Utf8).alias(H.orientation)
+            )
 
         ldf = self.localprops.with_columns(loc)
         gdf = self.globalprops.with_columns(glob)
@@ -248,18 +226,18 @@ class CylSpline(Spline):
             if r is None:
                 raise ValueError("radius must be specified to update start number.")
             _start_loc = rise_to_start(
-                rise=np.deg2rad(ldf[H.rise]),
-                space=ldf[H.spacing],
-                skew=np.deg2rad(ldf[H.skew]),
+                rise=np.deg2rad(ldf[H.rise].to_numpy()),
+                space=ldf[H.spacing].to_numpy(),
+                skew=np.deg2rad(ldf[H.skew].to_numpy()),
                 perimeter=2 * r * np.pi,
             )
             ldf = ldf.with_columns(
                 pl.Series(_start_loc).cast(pl.Float32).alias(H.start)
             )
             _start_glob = rise_to_start(
-                rise=np.deg2rad(gdf[H.rise]),
-                space=gdf[H.spacing],
-                skew=np.deg2rad(gdf[H.skew]),
+                rise=np.deg2rad(gdf[H.rise].to_numpy()),
+                space=gdf[H.spacing].to_numpy(),
+                skew=np.deg2rad(gdf[H.skew].to_numpy()),
                 perimeter=2 * r * np.pi,
             )
             gdf = gdf.with_columns(

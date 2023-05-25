@@ -130,17 +130,17 @@ def test_clip(mode):
     spl = spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
 
-    spl_c0 = spl.clip(0.2, 0.7)
-    spl_c1 = spl_c0.clip(0.6, 0.4)
-    assert spl_c0.orientation == "PlusToMinus"
-    assert spl_c1.orientation == "MinusToPlus"
+    spl0 = spl.clip(0.2, 0.7)
+    spl1 = spl0.clip(0.6, 0.4)
+    assert spl0.orientation == "PlusToMinus"
+    assert spl1.orientation == "MinusToPlus"
 
-    assert_allclose(spl_c0._lims, (0.2, 0.7))
-    assert_allclose(spl_c1._lims, (0.5, 0.4))
+    assert_allclose(spl0._lims, (0.2, 0.7))
+    assert_allclose(spl1._lims, (0.5, 0.4))
 
-    assert_allclose(spl([0.2, 0.5, 0.7]), spl_c0([0.0, 0.6, 1.0]))
-    assert_allclose(spl_c0([0.4, 0.5, 0.6]), spl_c1([1.0, 0.5, 0.0]))
-    assert_allclose(spl([0.4, 0.45, 0.5]), spl_c1([1.0, 0.5, 0.0]))
+    assert_allclose(spl([0.2, 0.5, 0.7]), spl0([0.0, 0.6, 1.0]))
+    assert_allclose(spl0([0.4, 0.5, 0.6]), spl1([1.0, 0.5, 0.0]))
+    assert_allclose(spl([0.4, 0.45, 0.5]), spl1([1.0, 0.5, 0.0]))
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])
@@ -149,8 +149,12 @@ def test_extend(mode):
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [6, 3, 4]])
     spl = spl.fit_voa(coords)
     spl.orientation = "PlusToMinus"
-    out = spl.extend([0.4, 0.6], 5.0)
-    assert out.length() == pytest.approx(spl.length() + 1.0, abs=0.5)
+
+    spl0 = spl.clip(-0.8, 1.2)  # relative length = 2.0
+    spl1 = spl0.clip(-0.2, 1.1)  # relative length = 2.6
+
+    assert_allclose(spl0._lims, (-0.8, 1.2))
+    assert_allclose(spl1._lims, (-1.2, 1.4))
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])
@@ -216,3 +220,18 @@ def test_extrapolate_map(mode):
 
     for der in [0, 1, 2]:
         assert_allclose(spl.map(sl0, der=der)[1:4], spl.map(sl1, der=der))
+
+
+def test_update_props():
+    spl = CylSpline()
+    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl.update_props(
+        spacing=4.1, skew=0.1, rise=9.6, npf=13, radius=9.4, orientation="PlusToMinus"
+    )
+
+
+def test_resample():
+    spl = CylSpline()
+    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]]).clip(0.1, 0.9)
+    spl0 = spl.resample(0.3)
+    assert spl.length() == pytest.approx(spl0.length(), rel=1e-2)
