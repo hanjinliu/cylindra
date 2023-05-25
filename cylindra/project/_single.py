@@ -212,6 +212,8 @@ class CylindraProject(BaseProject):
         if macro_str:
             fp = results_dir / str(self.macro)
             fp.write_text(macro_str)
+
+        self.project_description = gui.GeneralInfo.project_desc.value
         self.to_json(json_path)
         return None
 
@@ -305,6 +307,9 @@ class CylindraProject(BaseProject):
                 layer = gui.add_molecules(mole, name=Path(path).stem, source=_src)
                 if not visible:
                     layer.visible = False
+
+            # update project description widget
+            gui.GeneralInfo.project_desc.value = self.project_description
 
         return _load_project_on_return
 

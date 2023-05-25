@@ -1,5 +1,6 @@
 import os
 from typing import Annotated, Sequence
+from magicgui.widgets import TextEdit
 from magicclass import (
     do_not_record,
     magicclass,
@@ -25,6 +26,7 @@ from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
 from cylindra.components import CylTomogram, AutoCorrelationPicker
 from cylindra.const import GlobalVariables as GVar, nm
+from cylindra.project import CylindraProject
 from cylindra.widgets.global_variables import GlobalVariablesMenu
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -515,10 +517,21 @@ class ImageLoader(MagicTemplate):
 
 @magicclass(name="General info", record=False, widget_type="collapsible", labels=False)
 class GeneralInfo(MagicTemplate):
-    def __post_init__(self):
-        self.text_edit.read_only = True
+    """
+    General information of the current project.
 
-    def _from_tomogram(self, tomo: CylTomogram):
+    Attributes
+    ----------
+    image_info : str
+        Information of the image.
+    project_desc : str
+        User editable description of the project.
+    """
+
+    def __post_init__(self):
+        self.image_info.read_only = True
+
+    def _refer_tomogram(self, tomo: CylTomogram):
         img = tomo.image
         source = tomo.metadata.get("source", "Unknown")
         scale = tomo.scale
@@ -535,6 +548,12 @@ class GeneralInfo(MagicTemplate):
             f"ZYX-Shape: ({shape_px}), ({shape_nm})\n"
             f"Tilt range: {tilt_range}"
         )
-        self.text_edit.value = value
+        self.image_info.value = value
 
-    text_edit = field(widget_type=ConsoleTextEdit)
+    def _refer_project(self, project: CylindraProject):
+        self.project_desc.value = project.project_description
+
+    label0 = field("\n<b>Image information</b>", widget_type="Label")
+    image_info = field(widget_type=ConsoleTextEdit)
+    label1 = field("\n<b>Project description</b>", widget_type="Label")
+    project_desc = field(widget_type=TextEdit)

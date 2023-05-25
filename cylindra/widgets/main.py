@@ -149,7 +149,7 @@ class CylindraMainWidget(MagicTemplate):
     toolbar = subwidgets.toolbar
 
     # Child widgets
-    ImageInfo = subwidgets.GeneralInfo
+    GeneralInfo = subwidgets.GeneralInfo
     SplineControl = SplineControl  # Widget for controling splines
     # Widget for summary of local properties
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
@@ -464,7 +464,7 @@ class CylindraMainWidget(MagicTemplate):
         condition=SELF._need_save,
     )
     @do_not_record
-    @bind_key("Ctrl+K, P")
+    @bind_key("Ctrl+K, Ctrl+P")
     def load_project(self, path: Path.Read[FileFilter.PROJECT], filter: bool = True):
         """Load a project json file."""
         project_path = get_project_json(path)
@@ -2467,7 +2467,7 @@ class CylindraMainWidget(MagicTemplate):
             self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
 
         self.layer_image.metadata["current_binsize"] = bin_size
-        self.ImageInfo._from_tomogram(tomo)
+        self.GeneralInfo._refer_tomogram(tomo)
 
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit
