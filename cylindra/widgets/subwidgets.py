@@ -244,16 +244,18 @@ class toolbar(MagicTemplate):
             raise RuntimeError("Undo stack is empty.")
         expr = self.macro[-1]
         self.macro.undo()
-        _Logger.print_html(f"Undo: <code>{expr}</code>")
+        return _Logger.print_html(f"Undo: <code>{expr}</code>")
 
     @do_not_record
     @set_design(icon=ICON_DIR / "redo.svg")
     @bind_key("Ctrl+Y")
     def redo(self):
         """Redo last undo action."""
+        if len(self.macro.undo_stack["redo"]) == 0:
+            raise RuntimeError("Redo stack is empty.")
         self.macro.redo()
         expr = self.macro[-1]
-        _Logger.print_html(f"Redo: <code>{expr}</code>")
+        return _Logger.print_html(f"Redo: <code>{expr}</code>")
 
 
 # Runner

@@ -20,7 +20,12 @@ import numpy as np
 import impy as ip
 import polars as pl
 
-from cylindra.const import GlobalVariables, MoleculesHeader as Mole
+from cylindra.const import (
+    GlobalVariables,
+    MoleculesHeader as Mole,
+    IDName,
+    PropertyNames as H,
+)
 from ._single import CylindraProject
 
 if TYPE_CHECKING:
@@ -178,7 +183,20 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return col
 
     def localprops(self, allow_none: bool = True) -> pl.DataFrame:
-        """Collect all localprops into a single dataframe."""
+        """
+        Collect all localprops into a single dataframe.
+
+        Parameters
+        ----------
+        allow_none : bool, default is True
+            Continue data collection even if property table data file was not
+            found in any project. Raise error otherwise.
+
+        Returns
+        -------
+        pl.DataFrame
+            Dataframe with all the properties.
+        """
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(self._projects):
             path = prj.localprops
@@ -197,7 +215,20 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return pl.concat(dataframes, how="diagonal")
 
     def globalprops(self, allow_none: bool = True) -> pl.DataFrame:
-        """Collect all globalprops into a single dataframe."""
+        """
+        Collect all globalprops into a single dataframe.
+
+        Parameters
+        ----------
+        allow_none : bool, default is True
+            Continue data collection even if property table data file was not
+            found in any project. Raise error otherwise.
+
+        Returns
+        -------
+        pl.DataFrame
+            Dataframe with all the properties.
+        """
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(self._projects):
             path = prj.globalprops
@@ -205,7 +236,50 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 raise ValueError(
                     f"Globalprops not found in project at {prj.project_path}."
                 )
-            imagespec = pl.Series(Mole.image, np.array([idx])).cast(pl.UInt16)
+            imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
         return pl.concat(dataframes, how="diagonal")
+
+    def all_props(self, allow_none: bool = True) -> pl.DataFrame:
+        """
+        Collect all the local and global properties into a single dataframe.
+
+        The global properties are suffixed with "_glob". Note that these columns
+        will repeat the same values for each spline. For instance, the "spacing"
+        columns will look like following.
+
+        >>> col.all_props().select(["spacing", "spacing_glob"])
+
+            shape: (12, 2)
+            ┌───────────┬──────────────┐
+            │ spacing   ┆ spacing_glob │
+            │ ---       ┆ ---          │
+            │ f64       ┆ f64          │
+            ╞═══════════╪══════════════╡
+            │ 4.093385  ┆ 4.1024575    │
+            │ 4.0987015 ┆ 4.1024575    │
+            │ 4.1013646 ┆ 4.1024575    │
+            │ 4.1201043 ┆ 4.1024575    │
+            │ …         ┆ …            │
+            │ 4.0907326 ┆ 4.097444     │
+            │ 4.0960417 ┆ 4.097444     │
+            │ 4.074887  ┆ 4.089436     │
+            │ 4.0987015 ┆ 4.089436     │
+            └───────────┴──────────────┘
+
+        Parameters
+        ----------
+        allow_none : bool, default is True
+            Continue data collection even if property table data file was not
+            found in any project. Raise error otherwise.
+
+        Returns
+        -------
+        pl.DataFrame
+            Dataframe with all the properties.
+        """
+        loc = self.localprops(allow_none=allow_none)
+        glb = self.globalprops(allow_none=allow_none)
+        key = [IDName.spline, Mole.image]
+        return loc.join(glb, on=key, suffix="_glob")
