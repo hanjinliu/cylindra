@@ -112,6 +112,16 @@ def test_spline_deletion(ui: CylindraMainWidget):
     ui.delete_spline(0)
     assert ui.layer_prof.features["spline-id"].values[0] == 0.0
     assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
+    ui.macro.undo()
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui.layer_prof.features["spline-id"].values[-1] == 1.0
+    ui.macro.undo()
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
+    ui.macro.redo()
+    ui.macro.redo()
+    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
 
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):
@@ -131,6 +141,18 @@ def test_workflow_with_many_input(ui: CylindraMainWidget):
     ui._runner.fit = True
     ui._runner.local_props = False
     ui._runner.local_props = True
+
+
+def test_workflow_undo_redo(ui: CylindraMainWidget):
+    path = TEST_DIR / "14pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
+    ui.register_path(coords=coords_14pf)
+    ui._runner.run_workflow([0])
+    n_undo = len(ui.macro.undo_stack["undo"])
+    for _ in range(n_undo):
+        ui.macro.undo()
+    for _ in range(n_undo):
+        ui.macro.redo()
 
 
 def test_reanalysis(ui: CylindraMainWidget):
@@ -264,6 +286,7 @@ def test_set_molecule_colormap(ui: CylindraMainWidget):
         {0: "blue", 1: "yellow"},
         (0, 10),
     )
+    ui.show_molecules_colorbar(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -412,8 +435,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 @pytest.mark.parametrize("binsize", [1, 2])
 def test_classify_pca(ui: CylindraMainWidget, binsize: int):
     ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.filter_molecules(
+        ui.parent_viewer.layers["Mono-0"], predicate="pl.col('nth') < 3"
+    )
     ui.sta.classify_pca(
-        ui.parent_viewer.layers["Mono-0"],
+        ui.parent_viewer.layers[-1],
         mask_params=None,
         size=6.0,
         interpolation=1,
@@ -664,6 +690,13 @@ def test_calc_radii(ui: CylindraMainWidget):
     ui.plot_molecule_feature(layer, backend="qt")
 
 
+def test_calc_lateral_angels(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.map_monomers(splines=[0])
+    layer = ui.parent_viewer.layers[-1]
+    ui.calculate_lateral_angles(layer=layer)
+
+
 def test_spline_fitter(ui: CylindraMainWidget):
     ui.open_image(
         TEST_DIR / f"14pf_MT.tif",
@@ -697,7 +730,9 @@ def test_function_menu(make_napari_viewer):
     viewer: napari.Viewer = make_napari_viewer()
     vol = Volume()
     viewer.window.add_dock_widget(vol)
-    img = ip.asarray(np.arange(1000, dtype=np.float32).reshape(10, 10, 10), axes="zyx")
+    img = ip.asarray(
+        np.arange(1000, dtype=np.float32).reshape(10, 10, 10), axes="zyx"
+    ).set_scale(zyx=0.3)
     im = viewer.add_image(img, name="test image")
     vol.binning(im, 2)
     vol.gaussian_filter(im)
@@ -711,3 +746,67 @@ def test_function_menu(make_napari_viewer):
         vol.save_label_as_mask(lbl, dirpath / "test_label.tif")
         vol.save_label_as_mask(lbl, dirpath / "test_label.mrc")
     vol.plane_clip()
+
+
+def test_viterbi_alignment(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    layer = ui.parent_viewer.layers["Mono-0"]
+    ui.filter_molecules(layer, "(pl.col('nth') < 4) & (pl.col('pf-id') < 2)")
+    layer_filt = ui.parent_viewer.layers[-1]
+    ui.sta.align_all_viterbi(
+        layer_filt,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        mask_params=(0, 1),
+        max_shifts=(1.2, 1.2, 1.2),
+    )
+
+
+def test_mesh_annealing(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    layer = ui.parent_viewer.layers["Mono-0"]
+    ui.filter_molecules(layer, "pl.col('nth') < 4")
+    layer_filt = ui.parent_viewer.layers[-1]
+    mole = layer_filt.molecules
+    dist_lon = np.sqrt(np.sum((mole.pos[0] - mole.pos[13]) ** 2))
+    dist_lat = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))
+    assert dist_lon == pytest.approx(4.09, abs=0.2)
+
+    ui.sta.align_all_annealing(
+        layer_filt,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        mask_params=(0, 1),
+        max_shifts=(1.2, 1.2, 1.2),
+        distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        ntrial=1,
+    )
+
+
+def test_showing_widgets(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.show_macro()
+    ui.show_full_macro()
+    ui.show_native_macro()
+    ui.open_logger()
+    ui.open_image_loader()
+    ui.view_project(PROJECT_DIR_13PF / "project.json")
+
+
+def test_spline_clipper(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    len_old = ui.get_spline(0).length()
+    ui.open_spline_clipper()
+    ui.spline_clipper.clip_length = 1
+    ui.spline_clipper.clip_here()
+    assert ui.get_spline(0).length() == pytest.approx(len_old - 1, abs=0.01)
+    ui.spline_clipper.the_other_side()
+    ui.spline_clipper.clip_length = 1.4
+    ui.spline_clipper.clip_here()
+    assert ui.get_spline(0).length() == pytest.approx(len_old - 2.4, abs=0.02)
+
+
+def test_spectra_measurer(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.open_spectra_measurer()
+    ui.spectra_measurer.log_scale = True
+    ui.spectra_measurer.log_scale = False

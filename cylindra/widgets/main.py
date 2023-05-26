@@ -323,6 +323,7 @@ class CylindraMainWidget(MagicTemplate):
         new = self.macro.widget.new_window()
         new.textedit.value = str(self._format_macro()[self._macro_offset :])
         new.show()
+        self._active_widgets.add(new)
         return None
 
     @Others.Macro.wraps
@@ -333,6 +334,7 @@ class CylindraMainWidget(MagicTemplate):
         new = self.macro.widget.new_window()
         new.textedit.value = str(self._format_macro())
         new.show()
+        self._active_widgets.add(new)
         return None
 
     @Others.Macro.wraps
@@ -344,6 +346,7 @@ class CylindraMainWidget(MagicTemplate):
         is not editable.
         """
         self.macro.widget.show()
+        self._active_widgets.add(self.macro.widget)
         return None
 
     @Others.wraps
@@ -378,6 +381,7 @@ class CylindraMainWidget(MagicTemplate):
         w.read_only = True
         w.native.setParent(self.native, w.native.windowFlags())
         w.show()
+        self._active_widgets.add(w)
         return None
 
     @Others.Help.wraps
@@ -570,6 +574,7 @@ class CylindraMainWidget(MagicTemplate):
     def view_project(self, path: Path.Read[FileFilter.JSON]):
         pviewer = CylindraProject.from_json(path).make_project_viewer()
         pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+        self._active_widgets.add(pviewer)
         return pviewer.show()
 
     @ImageMenu.wraps

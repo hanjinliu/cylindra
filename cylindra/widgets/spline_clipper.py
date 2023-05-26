@@ -1,6 +1,7 @@
+from typing import Annotated
 from magicclass import magicclass, MagicTemplate, field, vfield, do_not_record
-from magicclass.types import Bound
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
+from cylindra.components.cyl_spline import CylSpline
 from cylindra.const import GlobalVariables as GVar, Mode, nm
 from cylindra.utils import map_coordinates
 import numpy as np
@@ -32,9 +33,9 @@ class SplineClipper(MagicTemplate):
         return self.canvas[1, 1]
 
     def __init__(self):
-        self._spline = None
+        self._spline: "CylSpline | None" = None  # the spline object to be shown
+        self._original_spline: "CylSpline | None" = None
         self._clip_at_start = True
-        self._original_lims: tuple[float, float] = (0.0, 1.0)
         self._current_lims: tuple[float, float] = (0.0, 1.0)
 
     def __post_init__(self):
@@ -68,16 +69,16 @@ class SplineClipper(MagicTemplate):
     def current_clip_length(self) -> tuple[nm, nm]:
         restored = self._spline.restore()
         length = restored.length()
-        lim0, lim1 = self._original_lims
+        lim0, lim1 = self._original_spline.lims
         clim0, clim1 = self._current_lims
         return (clim0 - lim0) * length, (lim1 - clim1) * length
 
     @do_not_record
-    def load_spline(self, spline: Bound[_get_spline_id]):
+    def load_spline(self, spline: Annotated[int, {"bind": _get_spline_id}]):
         parent = self._parent_widget()
         spl = parent.tomogram.splines[spline]
-        self._spline = spl
-        self._original_lims = self._current_lims = spl.lims
+        self._spline = self._original_spline = spl
+        self._current_lims = spl.lims
         self._subtomogram: "ip.ImgArray | None" = None
         self["clip_length"].max = spl.length()
         self._update_canvas()
@@ -91,20 +92,27 @@ class SplineClipper(MagicTemplate):
     @do_not_record(recursive=False)
     def clip_here(self):
         parent = self._parent_widget()
+        try:
+            idx = parent.tomogram.splines.index(self._original_spline)
+        except ValueError:
+            raise ValueError(
+                "The spline shown in the spline clipper widget no longer exists. "
+                "Please reload a spline."
+            )
         parent.clip_spline(self._get_spline_id(), self.current_clip_length)
+        self._spline = self._original_spline = parent.tomogram.splines[idx]
+        self._current_lims = self._spline.lims
 
     @clip_length.connect
     def _clip(self, val: nm):
-        restored = self._spline.restore()
-        length = restored.length()
-        original_spline = restored.clip(*self._original_lims)
-        lim0, lim1 = self._original_lims
+        length = self._original_spline.length()
+        lim0, lim1 = self._original_spline.lims
         if self._clip_at_start:
             self._current_lims = (lim0 + val / length, self._current_lims[1])
         else:
             self._current_lims = (self._current_lims[0], lim1 - val / length)
 
-        self._spline = original_spline.clip(*self._current_lims)
+        self._spline = self._original_spline.clip(*self._current_lims)
 
     @clip_length.connect
     def _update_canvas(self):
@@ -121,7 +129,7 @@ class SplineClipper(MagicTemplate):
 
         # sample subtomogram at the edge
         mole = spl.anchors_to_molecules([0.0, 1.0])
-        index = 0 if self._clip_at_start else -1
+        index = 0 if self._clip_at_start else mole.count() - 1
         coords = mole.subset(index).local_coordinates(
             shape=(width_px, length_px, width_px),
             scale=tomo.scale * binsize,

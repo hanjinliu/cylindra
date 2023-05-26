@@ -25,7 +25,7 @@ def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:
             arr = ip.asarray(arr, axes="zyx")
         else:
             arr = ip.asarray(arr)
-        arr.set_scale(xyz=scale)
+        arr.set_scale(xyz=scale, unit="nm")
     return arr
 
 

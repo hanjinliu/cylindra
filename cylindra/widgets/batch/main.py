@@ -14,6 +14,7 @@ from magicclass import (
 from magicclass.types import Bound, Path
 
 from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
+from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter, POLARS_NAMESPACE
 from cylindra.project import CylindraBatchProject, get_project_json
 
@@ -82,12 +83,14 @@ class CylindraBatchWidget(MagicTemplate):
         win = ui.macro.widget.new_window("Batch")
         win.textedit.value = macro_str
         win.show()
+        CylindraMainWidget._active_widgets.add(win)
         return None
 
     @constructor.MacroMenu.wraps
     @do_not_record
     def show_native_macro(self):
         self.macro.widget.show()
+        CylindraMainWidget._active_widgets.add(self.macro.widget)
         return None
 
     @constructor.File.wraps
