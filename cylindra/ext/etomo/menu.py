@@ -23,7 +23,7 @@ class PEET(MagicTemplate):
         ] = True,
     ):
         """
-        Read monomer coordinates and angles from PEET-format files.
+        Read monomer coordinates and angles from IMOD .mod files.
 
         Parameters
         ----------
@@ -163,7 +163,7 @@ class PEET(MagicTemplate):
             tomograms=str(parent.tomogram.source),
             coordinates=str(coordinates_path),
             angles=str(angles_path),
-            tilt_range=list(parent.sta.params.tilt_range),
+            tilt_range=list(parent.tomogram.tilt_range),
             template=str(template_path),
             project_name=project_name,
             shape=list(template_image.shape),
@@ -175,7 +175,8 @@ class PEET(MagicTemplate):
         mol = layer.molecules
         _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
         template_image.imsave(template_path)
-        mask_image.imsave(mask_path)
+        if mask_image is not None:
+            mask_image.imsave(mask_path)
 
         return None
 

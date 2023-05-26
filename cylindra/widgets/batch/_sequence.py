@@ -20,8 +20,9 @@ from acryo import BatchLoader, Molecules, SubtomogramLoader
 import impy as ip
 import polars as pl
 
-from cylindra.project import CylindraProject
-from cylindra.const import GlobalVariables as GVar, nm, MoleculesHeader as Mole, IDName
+from cylindra.project import CylindraProject, get_project_json
+from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole, IDName
+from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter
 from ._localprops import LocalPropsViewer
 
@@ -349,6 +350,7 @@ class ProjectSequenceEdit(MagicTemplate):
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)
+        CylindraMainWidget._active_widgets.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
         return None
@@ -368,6 +370,7 @@ class ProjectSequenceEdit(MagicTemplate):
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)
+        CylindraMainWidget._active_widgets.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
         return None
@@ -382,6 +385,7 @@ class ProjectSequenceEdit(MagicTemplate):
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
+        CylindraMainWidget._active_widgets.add(table)
         _set_parent(table, self)
         table.show()
         return None
@@ -396,6 +400,7 @@ class ProjectSequenceEdit(MagicTemplate):
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
+        CylindraMainWidget._active_widgets.add(table)
         _set_parent(table, self)
         table.show()
         return None
@@ -407,6 +412,7 @@ class ProjectSequenceEdit(MagicTemplate):
         """View local properties of splines."""
         wdt = LocalPropsViewer()
         _set_parent(wdt, self)
+        CylindraMainWidget._active_widgets.add(wdt)
         wdt.show()
         wdt._set_localprops(self._get_localprops())
         return None
@@ -423,7 +429,7 @@ class ProjectSequenceEdit(MagicTemplate):
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
-            wdt = self.projects._add(path)
+            wdt = self.projects._add(get_project_json(path))
             self.scale.value = wdt.project.scale
         self.reset_choices()
         return None

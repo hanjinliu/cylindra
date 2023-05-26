@@ -130,9 +130,12 @@ class GlobalVariablesMenu(MagicTemplate):
     @impl_preview(load_variables_by_name)
     def _(self, var_name: str):
         from ._previews import view_text
+        from cylindra.widgets import CylindraMainWidget
 
         path = Cfg.VAR_PATH / f"{var_name}.json"
-        return view_text(path, parent=self)
+        wdt = view_text(path, parent=self)
+        self.find_ancestor(CylindraMainWidget)._active_widgets.add(wdt)
+        return None
 
     @set_design(text="Save variables")
     def save_variables(self, path: Path.Save[FileFilter.JSON] = Cfg.VAR_PATH):
@@ -164,7 +167,7 @@ def _is_empty(path: Path) -> bool:
 
 
 # Initialize user config directory.
-if not Cfg.VAR_PATH.exists() or _is_empty(Cfg.VAR_PATH):
+if not Cfg.VAR_PATH.exists() or _is_empty(Cfg.VAR_PATH):  # pragma: no cover
     try:
         if not Cfg.VAR_PATH.exists():
             Cfg.VAR_PATH.mkdir(parents=True)
@@ -183,7 +186,7 @@ if not Cfg.VAR_PATH.exists() or _is_empty(Cfg.VAR_PATH):
     else:
         print(f"Config directory initialized at {Cfg.VAR_PATH}.")
 
-if not Cfg.SETTINGS_PATH.exists() or _is_empty(Cfg.SETTINGS_PATH):
+if not Cfg.SETTINGS_PATH.exists() or _is_empty(Cfg.SETTINGS_PATH):  # pragma: no cover
     try:
         if not Cfg.SETTINGS_PATH.exists():
             Cfg.SETTINGS_PATH.mkdir(parents=True)

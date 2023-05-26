@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 from enum import Enum
 
 from magicclass import (
@@ -10,7 +10,7 @@ from magicclass import (
     MagicTemplate,
     get_button,
 )
-from magicclass.types import Bound, Path, OneOf
+from magicclass.types import Path, OneOf
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 import numpy as np
@@ -201,7 +201,9 @@ class SpectraMeasurer(MagicTemplate):
     @SidePanel.wraps
     @set_design(text="Load spline")
     def load_spline(
-        self, idx: Bound[_get_current_index], binsize: Bound[_get_binsize] = 1
+        self,
+        idx: Annotated[int, {"bind": _get_current_index}],
+        binsize: Annotated[int, {"bind": _get_binsize}] = 1,
     ):
         """Load current spline to the canvas."""
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)

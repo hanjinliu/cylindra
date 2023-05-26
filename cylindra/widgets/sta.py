@@ -389,6 +389,8 @@ class SubtomogramAveraging(MagicTemplate):
         _, mask = loader.normalize_input(
             self.params._get_template(allow_none=True), self.params._get_mask()
         )
+        if mask is None:
+            return None
         return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
 
     @property

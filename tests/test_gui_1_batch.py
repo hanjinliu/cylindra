@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 import pytest
 from .utils import pytest_group
-from ._const import TEST_DIR, PROJECT_DIR_13PF
+from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
 
 def _load(ui: CylindraMainWidget):
@@ -31,6 +31,16 @@ def test_project_io(ui: CylindraMainWidget):
         assert len(ui.batch._loaders) == 1
         ui.batch.load_batch_project(path)
         assert len(ui.batch._loaders) == 1
+
+
+def test_view(ui: CylindraMainWidget):
+    ui.batch.constructor.add_children_glob(TEST_DIR / "test*" / "project.json")
+    ui.batch.constructor.clear_children()
+    ui.batch.constructor.add_children([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
+    ui.batch.constructor.view_components()
+    ui.batch.constructor.view_molecules()
+    ui.batch.constructor.view_filtered_molecules()
+    ui.batch.constructor.view_localprops()
 
 
 @pytest_group("batch.average")
