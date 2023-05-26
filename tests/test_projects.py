@@ -13,3 +13,4 @@ def test_concat():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
     seq.localprops()
     seq.globalprops()
+    seq.all_props()

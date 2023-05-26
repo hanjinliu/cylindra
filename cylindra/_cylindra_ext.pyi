@@ -74,3 +74,9 @@ def alleviate(
     label: NDArray[np.int32],
     nrise: int,
 ) -> NDArray[np.float64]: ...
+def oblique_coordinates(
+    coords: NDArray[np.int32],
+    tilts: tuple[float, float],
+    intervals: tuple[float, float],
+    offsets: tuple[float, float],
+) -> NDArray[np.float32]: ...

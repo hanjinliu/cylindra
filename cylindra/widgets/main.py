@@ -1465,9 +1465,11 @@ class CylindraMainWidget(MagicTemplate):
             list[int], {"choices": _get_splines, "widget_type": "Select"}
         ] = (),
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
-    ):
+    ):  # fmt: skip
         """
-        Map points to tubulin molecules using the results of global Fourier transformation.
+        Map monomers as a regular cylindric grid assembly.
+
+        This method uses the spline global properties.
 
         Parameters
         ----------
@@ -1493,6 +1495,41 @@ class CylindraMainWidget(MagicTemplate):
             undo_callback(self._try_removing_layers)
             .with_args(_added_layers)
             .with_redo(self._add_layers_future(_added_layers))
+        )
+
+    @MoleculesMenu.Mapping.wraps
+    @set_design(text="Map monomers with extensions")
+    def map_monomers_with_extensions(
+        self,
+        spline: Annotated[int, {"choices": _get_splines}],
+        n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
+        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+    ):  # fmt: skip
+        """
+        Map monomers as a regular cylindric grid assembly.
+
+        This method uses the spline global properties.
+
+        Parameters
+        ----------
+        splines : iterable of int
+            Select splines to map monomers.
+        n_extend : dict[int, (int, int)]
+            Number of molecules to extend. Should be mapping from the PF index to the (prepend,
+            append) number of molecules to add. Remove molecules if negative values are given.
+        {orientation}
+        """
+        tomo = self.tomogram
+        spl = tomo.splines[spline]
+        coords = widget_utils.coordinates_with_extensions(spl, n_extend)
+        mole = tomo.map_on_grid(i=spline, coords=coords, orientation=orientation)
+        layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
+
+        self._need_save = True
+        return (
+            undo_callback(self._try_removing_layer)
+            .with_args(layer)
+            .with_redo(self._add_layers_future(layer))
         )
 
     @MoleculesMenu.Mapping.wraps
@@ -1608,29 +1645,6 @@ class CylindraMainWidget(MagicTemplate):
             .with_args(layer)
             .with_redo(self._add_layers_future(layer))
         )
-
-    @MoleculesMenu.wraps
-    @set_design(text="Extend molecules")
-    @bind_key("Ctrl+K, Ctrl+E")
-    def extend_molecules(
-        self,
-        layer: MoleculesLayer,
-        counts: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
-    ):  # fmt: skip
-        """
-        Extend the existing molecules by linear outerpolation.
-
-        Parameters
-        ----------
-        {layer}
-        counts : list of (int, (int, int))
-            List of (PF, (prepend, append)) pairs. For instance, (0, (2, 3)) means that
-            two molecules will be prepended and three molecules will be appended to the
-            protofilament labeled with 0.
-        """
-        out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
-        name = layer.name + "-extended"
-        return self.add_molecules(out, name, source=layer.source_component)
 
     @MoleculesMenu.Combine.wraps
     @set_design(text="Concatenate molecules")
@@ -2732,6 +2746,9 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         get_function_gui(self.map_monomers)["orientation"].value = GVar.clockwise
+        get_function_gui(self.map_monomers_with_extensions)[
+            "orientation"
+        ].value = GVar.clockwise
         get_function_gui(self.map_along_pf)["orientation"].value = GVar.clockwise
         get_function_gui(self.map_centers)["orientation"].value = GVar.clockwise
 

@@ -3,6 +3,7 @@ pub mod viterbi;
 pub mod coordinates;
 pub mod cylindric;
 pub mod alleviate;
+pub mod oblique;
 pub mod annealing;
 pub mod exceptions;
 
@@ -19,5 +20,6 @@ fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(oblique::oblique_coordinates, m)?)?;
     Ok(())
 }

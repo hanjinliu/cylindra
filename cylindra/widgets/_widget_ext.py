@@ -17,8 +17,10 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
         val0, val1 = value
         row = Container(
             widgets=[
-                SpinBox(value=val0, tooltip="Number of molecules to prepend"),
-                SpinBox(value=val1, tooltip="Number of molecules to append"),
+                SpinBox(
+                    value=val0, min=-1000, tooltip="Number of molecules to prepend"
+                ),
+                SpinBox(value=val1, min=-1000, tooltip="Number of molecules to append"),
             ],
             layout="horizontal",
             label=str(label),

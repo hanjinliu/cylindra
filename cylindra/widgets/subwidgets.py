@@ -109,11 +109,11 @@ class MoleculesMenu(MagicTemplate):
         """Map monomers along splines in several ways."""
 
         map_monomers = abstractapi()
+        map_monomers_with_extensions = abstractapi()
         map_centers = abstractapi()
         map_along_pf = abstractapi()
 
     show_orientation = abstractapi()
-    extend_molecules = abstractapi()
     translate_molecules = abstractapi()
 
     @magicmenu(name="Combine")

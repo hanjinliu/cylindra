@@ -20,7 +20,7 @@ from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
-    from cylindra.components import CylTomogram
+    from cylindra.components import CylTomogram, CylSpline
 
 
 # namespace used in predicate
@@ -243,77 +243,21 @@ class FscResult:
     resolution_0500: nm
 
 
-def extend_protofilament(
-    mole: Molecules, counts: dict[int, tuple[int, int]]
-) -> Molecules:
-    """Extend a protofilament by linearly outpolation."""
-    existing_pf_id = set(mole.features[Mole.pf].unique())
-    if not counts.keys() <= existing_pf_id:
-        raise ValueError(f"Invalid ID: {counts.keys() - existing_pf_id}")
-    df = mole.to_dataframe()
-    zyxp = [Mole.z, Mole.y, Mole.x, Mole.position]
-    predictables = [
-        Mole.z,
-        Mole.y,
-        Mole.x,
-        Mole.zvec,
-        Mole.yvec,
-        Mole.xvec,
-        Mole.position,
-        Mole.nth,
-        Mole.pf,
-    ]
-    schema = {c: df[c].dtype for c in predictables}
-    to_prepend: list[Molecules] = []
-    to_append: list[Molecules] = []
-    for _pf_id, (_n_prepend, _n_append) in counts.items():
-        # get the data frame of the protofilament
-        df_filt = df.filter(pl.col(Mole.pf) == _pf_id).sort(pl.col(Mole.position))
-        prepend_start = df_filt[0]
-        prepend_vec = prepend_start.select(zyxp) - df_filt[1].select(zyxp)
-        append_start = df_filt[-1]
-        append_vec = append_start.select(zyxp) - df_filt[-2].select(zyxp)
-        nth_start = prepend_start[Mole.nth][0]
-        nth_stop = append_start[Mole.nth][0]
+def coordinates_with_extensions(
+    spl: CylSpline, n_extend: dict[int, tuple[int, int]]
+) -> NDArray[np.int32]:
+    model = spl.cylinder_model()
+    coords = list[NDArray[np.int32]]()
+    ny, npf = model.shape
+    for _idx in range(npf):
+        _append, _prepend = n_extend.get(_idx, (0, 0))
+        if ny + _append + _prepend <= 0:
+            continue  # size is zero
+        nth = np.arange(-_prepend, ny + _append, dtype=np.int32)
+        npf = np.full(nth.size, _idx, dtype=np.int32)
+        coords.append(np.stack([nth, npf], axis=1))
 
-        rng = np.arange(_n_prepend, 0, -1)
-        df_prepend = pl.DataFrame(
-            {
-                Mole.z: prepend_start[Mole.z][0] + prepend_vec[Mole.z][0] * rng,
-                Mole.y: prepend_start[Mole.y][0] + prepend_vec[Mole.y][0] * rng,
-                Mole.x: prepend_start[Mole.x][0] + prepend_vec[Mole.x][0] * rng,
-                Mole.zvec: np.full(_n_prepend, prepend_start[Mole.zvec][0]),
-                Mole.yvec: np.full(_n_prepend, prepend_start[Mole.yvec][0]),
-                Mole.xvec: np.full(_n_prepend, prepend_start[Mole.xvec][0]),
-                Mole.position: prepend_start[Mole.position][0]
-                + prepend_vec[Mole.position][0] * rng,  # fmt: skip # noqa E501
-                Mole.nth: np.arange(nth_start - _n_prepend, nth_start),
-                Mole.pf: np.full(_n_prepend, _pf_id),
-            },
-            schema=schema,
-        )
-
-        rng = np.arange(1, _n_append + 1)
-        df_append = pl.DataFrame(
-            {
-                Mole.z: append_start[Mole.z][0] + append_vec[Mole.z][0] * rng,
-                Mole.y: append_start[Mole.y][0] + append_vec[Mole.y][0] * rng,
-                Mole.x: append_start[Mole.x][0] + append_vec[Mole.x][0] * rng,
-                Mole.zvec: np.full(_n_append, append_start[Mole.zvec][0]),
-                Mole.yvec: np.full(_n_append, append_start[Mole.yvec][0]),
-                Mole.xvec: np.full(_n_append, append_start[Mole.xvec][0]),
-                Mole.position: append_start[Mole.position][0]
-                + append_vec[Mole.position][0] * rng,  # fmt: skip # noqa E501
-                Mole.nth: np.arange(nth_stop + 1, nth_stop + _n_append + 1),
-                Mole.pf: np.full(_n_append, _pf_id),
-            },
-            schema=schema,
-        )
-        if df_prepend.shape[0] > 0:
-            to_prepend.append(Molecules.from_dataframe(df_prepend))
-        if df_append.shape[0] > 0:
-            to_append.append(Molecules.from_dataframe(df_append))
-    return Molecules.concat(to_prepend + [mole] + to_append)
+    return np.concatenate(coords, axis=0)
 
 
 class PaintDevice:

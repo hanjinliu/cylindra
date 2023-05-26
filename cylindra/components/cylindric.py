@@ -178,9 +178,19 @@ class CylinderModel:
         mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
         return mole
 
+    def locate_molecules(self, spl: Spline, coords: NDArray[np.int32]) -> Molecules:
+        mesh = self._get_mesh(coords)
+        mole = spl.cylindrical_to_molecules(mesh)
+        pos = pl.Series(mesh[:, 1])
+        nth = coords[:, 0]
+        pf = coords[:, 1]
+        mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
+        return mole
+
     def to_mesh(self, spl: Spline):
+        """Create a mesh data for cylinder visualization."""
         nodes = spl.cylindrical_to_world(
-            self.replace(tilts=(0, 0))._get_mesh().reshape(-1, 3)
+            self.replace(tilts=(0, 0))._get_regular_mesh().reshape(-1, 3)
         )
         vertices: list[tuple[int, int, int]] = []
         ny, npf = self.shape
@@ -289,7 +299,7 @@ class CylinderModel:
                 label = np.stack(np.where(label), axis=1)
             else:
                 raise ValueError("Label shape mismatch")
-        mesh = self._get_mesh()
+        mesh = self._get_regular_mesh()
         shifted = mesh + self._displace
         shifted = alleviate(shifted, label, self.nrise)
         displace = shifted - mesh
@@ -302,63 +312,26 @@ class CylinderModel:
 
     def _get_shifted(self) -> NDArray[np.float32]:
         """Get coordinate mesh with displacements applied."""
-        mesh = self._get_mesh()
+        mesh = self._get_regular_mesh()
         return mesh + self._displace
 
-    def _get_mesh(self) -> NDArray[np.float32]:
-        """Get canonical coordinate mesh."""
-        mesh2d = oblique_meshgrid(
-            self._shape, self._tilts, self._intervals, self._offsets
-        )  # (Ny, Npf, 2)
-        radius_arr = np.full(mesh2d.shape[:2] + (1,), self._radius, dtype=np.float32)
-        mesh3d = np.concatenate([radius_arr, mesh2d], axis=2)  # (Ny, Npf, 3)
-        return mesh3d
+    def _get_regular_mesh(self) -> NDArray[np.float32]:
+        yy, aa = np.indices(self._shape, dtype=np.int32)
+        coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
+        mesh2d = self._get_mesh(coords)
+        return mesh2d.reshape(self._shape + (3,))
 
+    def _get_mesh(self, coords):
+        from cylindra._cylindra_ext import oblique_coordinates
 
-def oblique_meshgrid(
-    shape: tuple[int, int],
-    tilts: tuple[float, float] = (0.0, 0.0),
-    intervals: tuple[float, float] = (1.0, 1.0),
-    offsets: tuple[float, float] = (0.0, 0.0),
-) -> NDArray[np.float32]:
-    """
-    Construct 2-D meshgrid in oblique coordinate system.
-
-    Parameters
-    ----------
-    shape : tuple[int, int]
-        Output shape. If ``shape = (a, b)``, length of the output mesh will be ``a`` along
-        the first axis, and will be ``b`` along the second one.
-    tilts : tuple[float, float], optional
-        Tilt tangents of each axis in world coordinate. Positive tangent means that the
-        corresponding axis tilt toward the line "y=x".
-    intervals : tuple[float, float], optional
-        The intervals (or scale) of new axes.
-    offsets : tuple[float, float], optional
-        The origin of new coordinates.
-
-    Returns
-    -------
-    np.ndarray
-        World coordinates of lattice points of new coordinates.
-    """
-    tan0, tan1 = tilts
-    d0, d1 = intervals
-    c0, c1 = offsets
-    n0, n1 = shape
-
-    v0 = np.array([1, tan0], dtype=np.float32)
-    v1 = np.array([tan1, 1], dtype=np.float32)
-
-    out = np.empty((n0, n1, 2), dtype=np.float32)
-
-    for i in range(n0):
-        for j in range(n1):
-            out[i, j, :] = v0 * i + v1 * j
-
-    out[:, :, 0] = (out[:, :, 0] - np.mean(out[0, :, 0])) * d0 + c0
-    out[:, :, 1] = out[:, :, 1] * d1 + c1
-    return out
+        y_incr = -self._tilts[1] * self._shape[1] * self._intervals[0] / 2
+        yoffset = y_incr + self._offsets[0]
+        aoffset = self._offsets[1]
+        mesh2d = oblique_coordinates(
+            coords, self._tilts, self._intervals, (yoffset, aoffset)
+        )
+        r_arr = np.full(mesh2d.shape[:1] + (1,), self._radius, dtype=np.float32)
+        return np.concatenate([r_arr, mesh2d], axis=1)
 
 
 class CylindricSlice(NamedTuple):

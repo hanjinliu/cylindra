@@ -248,6 +248,18 @@ class CylSpline(Spline):
         self.globalprops = gdf
         return self
 
+    def _need_rotation(self, orientation: Ori | str | None) -> bool:
+        if orientation is not None:
+            orientation = Ori(orientation)
+            if orientation is Ori.none or self.orientation is Ori.none:
+                raise ValueError(
+                    "Either molecules' orientation or the input orientation should "
+                    "not be none."
+                )
+            if orientation is not self.orientation:
+                return True
+        return False
+
 
 def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
     tan_rise = np.tan(rise)

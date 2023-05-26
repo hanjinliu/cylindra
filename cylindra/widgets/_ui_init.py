@@ -10,7 +10,7 @@ from magicclass import setup_function_gui, impl_preview
 
 import numpy as np
 
-from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
 from cylindra.project import CylindraProject, get_project_json
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
@@ -81,15 +81,20 @@ def _(self: CylindraMainWidget, path: Path):
     return None
 
 
-@impl_preview(CylindraMainWidget.extend_molecules, auto_call=True)
+@impl_preview(CylindraMainWidget.map_monomers_with_extensions, auto_call=True)
 def _(
     self: CylindraMainWidget,
-    layer: MoleculesLayer,
-    counts: list[tuple[int, tuple[int, int]]],
+    spline: int,
+    n_extend: dict[int, tuple[int, int]],
+    orientation=None,
 ):
-    out = widget_utils.extend_protofilament(layer.molecules, dict(counts))
-    viewer = self.parent_viewer
+    tomo = self.tomogram
+    spl = tomo.splines[spline]
+    coords = widget_utils.coordinates_with_extensions(spl, n_extend)
+    out = tomo.map_on_grid(i=spline, coords=coords, orientation=orientation)
     name = "<Preview>"
+    viewer = self.parent_viewer
+
     if name in viewer.layers:
         layer: Layer = viewer.layers[name]
         layer.data = out.pos
@@ -233,22 +238,21 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 
 
-@setup_function_gui(CylindraMainWidget.extend_molecules)
-def _(self, gui: FunctionGui):
-    @gui.layer.changed.connect
-    def _on_layer_change(layer: MoleculesLayer):
-        if layer is None:
+@setup_function_gui(CylindraMainWidget.map_monomers_with_extensions)
+def _(self: CylindraMainWidget, gui: FunctionGui):
+    @gui.spline.changed.connect
+    def _on_spline_change(spline: int | None):
+        if spline is None:
             return None
-        try:
-            npf = layer.features[Mole.pf].max() + 1
-        except KeyError:
+        npf = self.get_spline(spline).get_globalprops(H.nPF, None)
+        if npf is None:
             value = {}
         else:
             value = {i: (0, 0) for i in range(npf)}
-        if gui.counts.value.keys() != value.keys():
-            gui.counts.value = value
+        if gui.n_extend.value.keys() != value.keys():
+            gui.n_extend.value = value
 
-    gui.layer.changed.emit(gui.layer.value)  # initialize
+    gui.spline.changed.emit(gui.spline.value)  # initialize
 
 
 @contextmanager

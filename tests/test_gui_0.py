@@ -266,13 +266,6 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
 
-    tester = mcls_testing.FunctionGuiTester(ui.extend_molecules)
-    nlayer = len(ui.parent_viewer.layers)
-    tester.click_preview()
-    assert len(ui.parent_viewer.layers) == nlayer + 1
-    tester.click_preview()
-    assert len(ui.parent_viewer.layers) == nlayer
-
     tester = mcls_testing.FunctionGuiTester(ui.split_molecules)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
@@ -292,6 +285,13 @@ def test_preview(ui: CylindraMainWidget):
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
+    tester = mcls_testing.FunctionGuiTester(ui.map_monomers_with_extensions)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer + 1
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
 

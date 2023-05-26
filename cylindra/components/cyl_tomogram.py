@@ -1203,7 +1203,7 @@ class CylTomogram(Tomogram):
         skew_angles = np.arange(npoints) * interval / interv * skew
         u = np.arange(npoints) * interval / length
         mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
-        if _need_rotation(spl, orientation):
+        if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
@@ -1244,7 +1244,7 @@ class CylTomogram(Tomogram):
         orientation: Ori | str | None = None,
     ) -> Molecules:
         """
-        Map coordinates of monomers in world coordinate.
+        Map monomers in a regular cylinder shape.
 
         Parameters
         ----------
@@ -1261,9 +1261,47 @@ class CylTomogram(Tomogram):
             Object that represents monomer positions and angles.
         """
         model = self.get_cylinder_model(i, offsets=offsets)
+        yy, aa = np.indices(model.shape, dtype=np.int32)
+        coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
-        mole = model.to_molecules(spl)
-        if _need_rotation(spl, orientation):
+        mole = model.locate_molecules(spl, coords)
+        if spl._need_rotation(orientation):
+            mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
+        return mole
+
+    @batch_process
+    def map_on_grid(
+        self,
+        i: int = None,
+        coords: NDArray[np.int32] = (),
+        *,
+        offsets: tuple[nm, float] = None,
+        orientation: Ori | str | None = None,
+    ) -> Molecules:
+        """
+        Map monomers in a regular cylinder shape.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that mapping will be calculated.
+        coords : ndarray
+            Integer coordinates on the cylinder surface.
+        offsets : tuple of float, optional
+            The offset of origin of oblique coordinate system to map monomers.
+        orientation : Ori or str, optional
+            Orientation of the y-axis of each molecule.
+
+        Returns
+        -------
+        Molecules
+            Object that represents monomer positions and angles.
+        """
+        model = self.get_cylinder_model(i, offsets=offsets)
+        coords = np.asarray(coords, dtype=np.int32)
+        spl = self.splines[i]
+        mole = model.locate_molecules(spl, coords)
+        if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
@@ -1311,7 +1349,7 @@ class CylTomogram(Tomogram):
         acoords = np.arange(ny) * skew_rad + np.deg2rad(angle_offset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
         mole = spl.cylindrical_to_molecules(coords)
-        if _need_rotation(spl, orientation):
+        if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
@@ -1572,19 +1610,6 @@ def _mask_missing_wedge(
     # central slice theorem
     mask = mask3d[:, 0, :]
     return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
-
-
-def _need_rotation(spl: CylSpline, orientation: Ori | str | None) -> bool:
-    if orientation is not None:
-        orientation = Ori(orientation)
-        if orientation is Ori.none or spl.orientation is Ori.none:
-            raise ValueError(
-                "Either molecules' orientation or the input orientation should "
-                "not be none."
-            )
-        if orientation is not spl.orientation:
-            return True
-    return False
 
 
 def _non_neg(rmin: nm, warns: bool = True) -> nm:
