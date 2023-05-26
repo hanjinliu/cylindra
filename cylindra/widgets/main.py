@@ -1473,9 +1473,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        splines : iterable of int
-            Select splines to map monomers.
-        {orientation}
+        {splines}{orientation}
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
@@ -1512,8 +1510,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        splines : iterable of int
-            Select splines to map monomers.
+        {spline}
         n_extend : dict[int, (int, int)]
             Number of molecules to extend. Should be mapping from the PF index to the (prepend,
             append) number of molecules to add. Remove molecules if negative values are given.
@@ -1545,10 +1542,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        splines : iterable of int
-            Select splines to map monomers.
-        {interval}
-        {orientation}
+        {splines}{interval}{orientation}
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
@@ -1572,24 +1566,25 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map alogn PF")
     def map_along_pf(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}],
+        spline: Annotated[int, {"choices": _get_splines}],
         interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         angle_offset: Annotated[float, {"max": 360}] = 0.0,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
         """
-        Map molecules along splines. Each molecule is rotated by skew angle.
+        Map molecules along the line of a protofilament.
 
         Parameters
         ----------
-        splines : iterable of int
-            Select splines to map monomers.
-        {interval}
+        {spline}{interval}
+        angle_offset : float
+            Offset of angle in degree. This parameter determines at what position monomer
+            mapping starts.
         {orientation}
         """
         tomo = self.tomogram
         mols = tomo.map_pf_line(
-            i=splines,
+            i=spline,
             interval=interval,
             angle_offset=angle_offset,
             orientation=orientation,
@@ -1598,7 +1593,7 @@ class CylindraMainWidget(MagicTemplate):
         _added_layers = []
         for i, mol in enumerate(mols):
             _name = f"PF line-{i}"
-            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True

@@ -141,7 +141,7 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False)
-    ui.map_along_pf([0])
+    ui.map_along_pf(0)
     ui.map_centers([0])
     ui.macro.undo()
     ui.macro.undo()
