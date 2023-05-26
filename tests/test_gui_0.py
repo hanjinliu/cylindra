@@ -1,10 +1,12 @@
 from pathlib import Path
 import tempfile
+import napari
 
 import numpy as np
 from numpy.testing import assert_allclose
+import impy as ip
 from acryo import Molecules
-from magicclass import testing as mcls_testing, get_button
+from magicclass import testing as mcls_testing
 
 from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
@@ -71,6 +73,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     ui.save_project(save_path)
     ui.load_project(save_path, filter=True)
+    assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     assert old_splines[0] == new_splines[0]
@@ -132,19 +135,25 @@ def test_workflow_with_many_input(ui: CylindraMainWidget):
 
 def test_reanalysis(ui: CylindraMainWidget):
     ui.load_project_for_reanalysis(PROJECT_DIR_14PF)
+    assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.tomogram.splines[0].orientation == "none"
     ui.measure_radius()
     assert ui.get_spline(0).radius is not None
+    assert len(ui.macro.undo_stack["undo"]) > 0
     ui.reanalyze_image()
+    assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.get_spline(0).radius is None
 
 
 def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0)
     ui.map_centers([0])
     ui.macro.undo()
     ui.macro.undo()
+    ui.macro.undo()
+    ui.macro.redo()
     ui.macro.redo()
     ui.macro.redo()
 
@@ -288,6 +297,13 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
 
+    tester = mcls_testing.FunctionGuiTester(ui.map_along_pf)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer + 1
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
     tester = mcls_testing.FunctionGuiTester(ui.map_monomers_with_extensions)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
@@ -347,11 +363,27 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         seed=0,
         interpolation=1,
     )
+
+    with tempfile.TemporaryDirectory() as dirpath:
+        molepath = Path(dirpath) / "monomers.txt"
+        ui.save_molecules(layer=ui.parent_viewer.layers["Mono-0"], save_path=molepath)
+        mole = ui.get_molecules("Mono-0")
+        ui.load_molecules(molepath)
+        mole_read = ui.get_molecules("monomers")
+        assert_molecule_equal(mole, mole_read)
+
+        ui.sta.save_last_average(dirpath)
+
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.align_averaged(
         layers=[ui.parent_viewer.layers["Mono-0"]],
         template_path=template_path,
         mask_params=(1, 1),
+        bin_size=bin_size,
+    )
+    ui.sta.split_and_average(
+        layer=ui.parent_viewer.layers["Mono-0"],
+        size=12.0,
         bin_size=bin_size,
     )
     ui.sta.align_all(
@@ -363,21 +395,17 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         interpolation=1,
         bin_size=bin_size,
     )
+    ui.sta.align_all_template_free(
+        layers=[ui.parent_viewer.layers["Mono-0"]],
+        mask_params=(1, 1),
+        size=12.0,
+        bin_size=bin_size,
+    )
     ui.sta.seam_search(
         layer=ui.parent_viewer.layers["Mono-0"],
         template_path=template_path,
         mask_params=(1, 1),
     )
-
-    with tempfile.TemporaryDirectory() as dirpath:
-        molepath = Path(dirpath) / "monomers.txt"
-        ui.save_molecules(layer=ui.parent_viewer.layers["Mono-0"], save_path=molepath)
-        mole = ui.get_molecules("Mono-0")
-        ui.load_molecules(molepath)
-        mole_read = ui.get_molecules("monomers")
-        assert_molecule_equal(mole, mole_read)
-
-        ui.sta.save_last_average(dirpath)
 
 
 @pytest_group("classify", maxfail=1)
@@ -656,8 +684,30 @@ def test_cli(make_napari_viewer):
     import sys
     from cylindra.__main__ import main
 
-    viewer = make_napari_viewer()
+    viewer: napari.Viewer = make_napari_viewer()
     sys.argv = ["cylindra"]
     main(viewer)
     sys.argv = ["cylindra", "--view", str(PROJECT_DIR_14PF / "project.json")]
     main(viewer)
+
+
+def test_function_menu(make_napari_viewer):
+    from cylindra.widgets.function_menu import Volume
+
+    viewer: napari.Viewer = make_napari_viewer()
+    vol = Volume()
+    viewer.window.add_dock_widget(vol)
+    img = ip.asarray(np.arange(1000, dtype=np.float32).reshape(10, 10, 10), axes="zyx")
+    im = viewer.add_image(img, name="test image")
+    vol.binning(im, 2)
+    vol.gaussian_filter(im)
+    vol.threshold(im)
+    vol.binary_operation(im, "add", viewer.layers[-1])
+    with tempfile.TemporaryDirectory() as dirpath:
+        dirpath = Path(dirpath)
+        vol.save_volume(viewer.layers[-1], dirpath / "test_image.tif")
+        vol.save_volume(viewer.layers[-1], dirpath / "test_image.mrc")
+        lbl = viewer.add_labels((img < 320).astype(np.int32), name="test labels")
+        vol.save_label_as_mask(lbl, dirpath / "test_label.tif")
+        vol.save_label_as_mask(lbl, dirpath / "test_label.mrc")
+    vol.plane_clip()

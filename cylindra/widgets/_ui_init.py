@@ -81,6 +81,37 @@ def _(self: CylindraMainWidget, path: Path):
     return None
 
 
+@impl_preview(CylindraMainWidget.map_along_pf, auto_call=True)
+def map_along_pf(
+    self: CylindraMainWidget,
+    spline: int,
+    interval: float | None,
+    angle_offset: float = 0.0,
+    orientation: str | None = None,
+):  # fmt: skip
+    tomo = self.tomogram
+    viewer = self.parent_viewer
+    out = tomo.map_pf_line(
+        i=spline,
+        interval=interval,
+        angle_offset=angle_offset,
+        orientation=orientation,
+    )
+    name = "<Preview>"
+    if name in viewer.layers:
+        layer: Layer = viewer.layers[name]
+        layer.data = out.pos
+    else:
+        layer = self.add_molecules(out, name=name)
+    layer.face_color = layer.edge_color = "crimson"
+    try:
+        is_active = yield
+    finally:
+        if not is_active and layer in viewer.layers:
+            viewer.layers.remove(layer)
+    return out
+
+
 @impl_preview(CylindraMainWidget.map_monomers_with_extensions, auto_call=True)
 def _(
     self: CylindraMainWidget,

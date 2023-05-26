@@ -749,12 +749,13 @@ class SubtomogramAveraging(MagicTemplate):
         mask = self.params._get_mask(params=mask_params)
         if size is None:
             shape = None
+            raise NotImplementedError("'size' must be given.")
         else:
             shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
 
         aligned_loader = (
             self._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)
-            .reshape(mask, shape=shape)
+            .reshape(shape=shape)
             .align_no_template(
                 mask=mask,
                 max_shifts=max_shifts,

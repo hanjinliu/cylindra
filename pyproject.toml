@@ -77,6 +77,3 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
 ]
-omit = [
-    "cylindra/_ipython.py",
-]

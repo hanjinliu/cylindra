@@ -38,7 +38,6 @@ def start(
         Give a viewer object and this viewer will be used as the parent.
     """
     from cylindra.widgets import CylindraMainWidget
-    from cylindra._ipython import install_ipython_magic
     import numpy as np
     import impy as ip
     import polars as pl
@@ -98,8 +97,6 @@ def start(
                 "Path": Path,
             }
         )
-
-    install_ipython_magic()
 
     try:
 

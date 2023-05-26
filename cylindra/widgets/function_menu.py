@@ -1,5 +1,6 @@
 import os
 from typing import Annotated
+from contextlib import suppress
 from magicclass import (
     magicclass,
     vfield,
@@ -7,7 +8,7 @@ from magicclass import (
     set_options,
     set_design,
 )
-from magicclass.types import Path, OneOf
+from magicclass.types import Path
 from magicclass.widgets import FloatRangeSlider
 import numpy as np
 import impy as ip
@@ -100,7 +101,7 @@ class Volume(MagicTemplate):
     @set_options(layout="horizontal", labels=False, auto_call=True)
     @set_design(text="Binary operation")
     def binary_operation(
-        self, layer_1: Image, op: OneOf[OPERATORS], layer_2: Image
+        self, layer_1: Image, op: Annotated[str, {"bind": OPERATORS}], layer_2: Image
     ) -> LayerDataTuple:
         if layer_1 is None or layer_2 is None:
             return None
@@ -212,22 +213,25 @@ class PlaneClip(MagicTemplate):
     @x.connect
     def _update_x(self):
         xmin, xmax = self.x
-        self.xmin_plane.position = (0,) * (self.layer.ndim - 1) + (xmin,)
-        self.xmax_plane.position = (0,) * (self.layer.ndim - 1) + (xmax,)
+        with suppress(IndexError):
+            self.xmin_plane.position = (0,) * (self.layer.ndim - 1) + (xmin,)
+            self.xmax_plane.position = (0,) * (self.layer.ndim - 1) + (xmax,)
         return None
 
     @y.connect
     def _update_y(self):
         ymin, ymax = self.y
-        self.ymin_plane.position = (0,) * (self.layer.ndim - 2) + (ymin, 0)
-        self.ymax_plane.position = (0,) * (self.layer.ndim - 2) + (ymax, 0)
+        with suppress(IndexError):
+            self.ymin_plane.position = (0,) * (self.layer.ndim - 2) + (ymin, 0)
+            self.ymax_plane.position = (0,) * (self.layer.ndim - 2) + (ymax, 0)
         return None
 
     @z.connect
     def _update_z(self):
         zmin, zmax = self.z
-        self.zmin_plane.position = (0,) * (self.layer.ndim - 3) + (zmin, 0, 0)
-        self.zmax_plane.position = (0,) * (self.layer.ndim - 3) + (zmax, 0, 0)
+        with suppress(IndexError):
+            self.zmin_plane.position = (0,) * (self.layer.ndim - 3) + (zmin, 0, 0)
+            self.zmax_plane.position = (0,) * (self.layer.ndim - 3) + (zmax, 0, 0)
         return None
 
     @layer.connect

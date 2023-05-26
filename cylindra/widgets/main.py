@@ -1395,7 +1395,9 @@ class CylindraMainWidget(MagicTemplate):
         macro = _filter_macro_for_reanalysis(
             self._format_macro()[self._macro_offset :], _ui_sym
         )
-        return macro.eval({_ui_sym: self})
+        macro.eval({_ui_sym: self})
+        self.macro.clear_undo_stack()
+        return None
 
     @Analysis.wraps
     @set_design(text="Re-analyze project")
@@ -1410,7 +1412,9 @@ class CylindraMainWidget(MagicTemplate):
         parameter set, or when there were some improvements in cylindra.
         """
         macro = self._get_reanalysis_macro(path)
-        return macro.eval({mk.symbol(self): self})
+        macro.eval({mk.symbol(self): self})
+        self.macro.clear_undo_stack()
+        return None
 
     @Analysis.wraps
     @set_design(text="Open spectra measurer")
@@ -1583,24 +1587,21 @@ class CylindraMainWidget(MagicTemplate):
         {orientation}
         """
         tomo = self.tomogram
-        mols = tomo.map_pf_line(
+        mol = tomo.map_pf_line(
             i=spline,
             interval=interval,
             angle_offset=angle_offset,
             orientation=orientation,
         )
         _Logger.print_html("<code>map_along_PF</code>")
-        _added_layers = []
-        for i, mol in enumerate(mols):
-            _name = f"PF line-{i}"
-            layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
-            _added_layers.append(layer)
-            _Logger.print(f"{_name!r}: n = {len(mol)}")
+        _name = f"PF line-{spline}"
+        layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
+        _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
         return (
-            undo_callback(self._try_removing_layers)
-            .with_args(_added_layers)
-            .with_redo(self._add_layers_future(_added_layers))
+            undo_callback(self._try_removing_layer)
+            .with_args(layer)
+            .with_redo(self._add_layers_future(layer))
         )
 
     @MoleculesMenu.wraps

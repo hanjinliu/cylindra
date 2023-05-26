@@ -1,6 +1,3 @@
-from typing import Annotated, TYPE_CHECKING, Any
-
-import numpy as np
 import impy as ip
 import polars as pl
 

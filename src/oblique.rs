@@ -7,6 +7,7 @@ use crate::value_error;
 
 
 #[pyfunction]
+/// Map integer coordinates to oblique coordinates.
 pub fn oblique_coordinates<'py>(
     py: Python<'py>,
     coords: PyReadonlyArray2<i32>,  // N x 2
