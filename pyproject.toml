@@ -28,6 +28,7 @@ dependencies = [
     "mrcfile>=1.3.0",
     "napari>=0.4.17",
     "qt-command-palette>=0.0.7",
+    "matplotlib",
 ]
 authors = [
     { email = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp" },
@@ -39,6 +40,10 @@ testing = [
     "pytest",
     "pytest-qt",
     "pytest-cov",
+]
+all = [
+    "pyqt5",
+    "scikit-learn"
 ]
 [project.scripts]
 cylindra = "cylindra.__main__:main"
