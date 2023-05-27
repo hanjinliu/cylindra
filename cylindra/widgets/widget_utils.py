@@ -15,7 +15,7 @@ import napari
 
 from acryo import Molecules, TomogramSimulator
 from cylindra import utils
-from cylindra.const import MoleculesHeader as Mole, nm, GlobalVariables as GVar
+from cylindra.const import nm, GlobalVariables as GVar
 from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
 

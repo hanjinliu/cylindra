@@ -82,7 +82,7 @@ def _(self: CylindraMainWidget, path: Path):
 
 
 @impl_preview(CylindraMainWidget.map_along_pf, auto_call=True)
-def map_along_pf(
+def _(
     self: CylindraMainWidget,
     spline: int,
     interval: float | None,

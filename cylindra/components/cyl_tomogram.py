@@ -1501,20 +1501,35 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
 
 
 def _local_dft_params(img: ip.ImgArray, radius: nm):
-    img = img - img.mean()
     perimeter: nm = 2 * np.pi * radius
     npfmin = GVar.npf_min
     npfmax = GVar.npf_max
+    dr = GVar.deconv_range
+
+    if dr > 0:
+        # deconvolution of FT image, using low frequency domain.
+        img = img - img.min()
+        _dft = img.local_dft(
+            key=ip.slicer.a[-dr : dr + 1].y[0:1].r[0:1],
+            dims="rya",
+        )[ip.slicer.y[0].r[0]]
+        _weight_ft = ip.zeros(img.shape.a, dtype=np.complex64, axes="a")
+        _weight_ft[-dr:] = _dft[:dr]
+        _weight_ft[: dr + 1] = _dft[dr:]
+        _weight = _weight_ft.ifft(dims="a", shift=False)
+        img = img / _weight[np.newaxis, np.newaxis]
+
+    img = img - img.mean()  # normalize.
 
     # First transform around the expected length of y-pitch.
     ylength_nm = img.shape.y * img.scale.y
     y0 = ceilint(ylength_nm / GVar.spacing_max) - 1
     y1 = max(ceilint(ylength_nm / GVar.spacing_min), y0 + 1)
-    up_a = 20
-    up_y = max(int(6000 / img.shape.y), 1)
-    npfrange = ceilint(
-        npfmax / 2
-    )  # The peak of longitudinal periodicity is always in this range.
+    up_a = 20  # upsampling factor for angular direction
+    up_y = max(int(6000 / img.shape.y), 1)  # upsampling factor for y direction
+
+    # The peak of longitudinal periodicity is always in this range.
+    npfrange = ceilint(npfmax / 2)
 
     power = img.local_power_spectra(
         key=ip.slicer.y[y0:y1].a[-npfrange : npfrange + 1],

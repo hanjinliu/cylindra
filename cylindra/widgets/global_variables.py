@@ -36,17 +36,16 @@ class GlobalVariablesMenu(MagicTemplate):
         skew_min: Annotated[float, {"min": -90, "max": 90}] = -1,
         skew_max: Annotated[float, {"min": -90, "max": 90}] = 1,
         min_curvature_radius: Annotated[float, {"max": 1e4}] = 100,
+        deconv_range: Annotated[int, {"max": 100}] = 2,
         clockwise: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"step": 0.1}] = 1.0,
         thickness_outer: Annotated[nm, {"step": 0.1}] = 1.0,
         fit_depth: Annotated[nm, {"step": 0.1}] = 10.0,
         fit_width: Annotated[nm, {"step": 0.1}] = 10.0,
         point_size: Annotated[nm, {"step": 0.1}] = 1.0,
-        dask_chunk: Annotated[
-            tuple[int, int, int], {"options": {"min": 16, "max": 2048, "step": 16}}
-        ] = (32, 32, 32),
+        dask_chunk: Annotated[tuple[int, int, int], {"options": {"min": 16, "max": 2048, "step": 16}}] = (32, 32, 32),
         use_gpu: bool = True,
-    ):
+    ):  # fmt: skip
         """
         Set global variables.
 
