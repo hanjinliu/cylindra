@@ -1508,16 +1508,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
 
     if dr > 0:
         # deconvolution of FT image, using low frequency domain.
-        img = img - img.min()
-        _dft = img.local_dft(
-            key=ip.slicer.a[-dr : dr + 1].y[0:1].r[0:1],
-            dims="rya",
-        )[ip.slicer.y[0].r[0]]
-        _weight_ft = ip.zeros(img.shape.a, dtype=np.complex64, axes="a")
-        _weight_ft[-dr:] = _dft[:dr]
-        _weight_ft[: dr + 1] = _dft[dr:]
-        _weight = _weight_ft.ifft(dims="a", shift=False)
-        img = img / _weight[np.newaxis, np.newaxis]
+        img = deconvolute_freq(img, dr)
 
     img = img - img.mean()  # normalize.
 
@@ -1611,6 +1602,19 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     phase = np.exp(1j * input)
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)
+
+
+def deconvolute_freq(img: ip.ImgArray, dr: int) -> ip.ImgArray:
+    img = img - img.min()
+    _dft = img.local_dft(
+        key=ip.slicer.a[-dr : dr + 1].y[0:1].r[0:1],
+        dims="rya",
+    )[ip.slicer.y[0].r[0]]
+    _weight_ft = ip.zeros(img.shape.a, dtype=np.complex64, axes="a")
+    _weight_ft[-dr:] = _dft[:dr]
+    _weight_ft[: dr + 1] = _dft[dr:]
+    _weight = _weight_ft.ifft(dims="a", shift=False)
+    return img / _weight[np.newaxis, np.newaxis]
 
 
 def _mask_missing_wedge(
