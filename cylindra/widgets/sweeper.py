@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Callable
-from magicclass import magicclass, field, vfield, MagicTemplate, bind_key
+from magicclass import magicclass, field, vfield, MagicTemplate, bind_key, nogui
 from magicclass.types import Optional, OneOf
 from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
@@ -207,11 +207,68 @@ class SplineSweeper(MagicTemplate):
         self, idx: int, pos: nm, depth: nm
     ) -> "ip.ImgArray | Exception":
         """Return local Cartesian image at the current position."""
-        tomo = self.parent.tomogram
         binsize = self.params.binsize
-        spl = tomo.splines[idx]
+        if self.radius is None:
+            hwidth = None
+        else:
+            hwidth = self.radius + GVar.thickness_outer
+        try:
+            return self.get_cartesian_image(
+                idx, pos, depth=depth, binsize=binsize, half_width=hwidth
+            )
+        except ValueError as e:
+            return e
+
+    def _current_cylindrical_img(
+        self, idx: int, pos: nm, depth: nm
+    ) -> "ip.ImgArray | Exception":
+        """Return cylindric-transformed image at the current position"""
+        binsize = self.params.binsize
+        try:
+            return self.get_cylindric_image(
+                idx, pos, depth=depth, binsize=binsize, radius=self.radius
+            )
+        except ValueError as e:
+            return e
+
+    @nogui
+    def get_cartesian_image(
+        self,
+        spline: int,
+        pos: nm,
+        *,
+        depth: nm = 32.0,
+        binsize: int = 1,
+        half_width: nm = None,
+    ) -> ip.ImgArray:
+        """
+        Get XYZ-coordinated image along a spline.
+
+        Parameters
+        ----------
+        spline : int
+            The spline index.
+        pos : nm
+            Position of the center of the image. `pos` nm from the spline start
+            point will be used.
+        depth : nm, default is 32.0
+            Depth of the output image. Depth corresponds to the length of the
+            direction parallel to the spline vector at the given position.
+        binsize : int, default is 1
+            Image bin size to use.
+        half_width : nm, optional
+            Half width size of the image. (depth, 2 * half_width, 2 * half_width)
+            will be the output image shape.
+
+        Returns
+        -------
+        ip.ImgArray
+            Cropped XYZ image.
+        """
+        tomo = self.parent.tomogram
+        spl = tomo.splines[spline]
         depth_px = tomo.nm2pixel(depth, binsize=binsize)
-        r = self.radius if self.radius is not None else spl.radius
+        r = half_width or spl.radius + GVar.thickness_outer
         width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
         if r is None:
             raise ValueError("Measure spline radius or manually set it.")
@@ -226,22 +283,49 @@ class SplineSweeper(MagicTemplate):
         img = tomo._get_multiscale_or_original(binsize)
         out = map_coordinates(img, coords, order=1)
         out = ip.asarray(out, axes="zyx")
-        out.set_scale(img)
-        out.scale_unit = img.scale_unit
+        out.set_scale(img, unit=img.scale_unit)
         return out
 
-    def _current_cylindrical_img(
-        self, idx: int, pos: int, depth: nm
-    ) -> "ip.ImgArray | Exception":
-        """Return cylindric-transformed image at the current position"""
-        tomo = self.parent.tomogram
-        binsize = self.params.binsize
-        ylen = tomo.nm2pixel(depth, binsize=binsize)
-        spl = tomo.splines[idx]
+    @nogui
+    def get_cylindric_image(
+        self,
+        spline: int,
+        pos: nm,
+        *,
+        depth: nm = 32.0,
+        binsize: int = 1,
+        radius: nm = None,
+    ) -> ip.ImgArray:
+        """
+        Get RYΘ-coordinated cylindric image.
 
-        r = self.radius if self.radius is not None else spl.radius
+        Parameters
+        ----------
+        spline : int
+            The spline index.
+        pos : nm
+            Position of the center of the image. `pos` nm from the spline start
+            point will be used.
+        depth : nm, default is 32.0
+            Depth of the output image. Depth corresponds to the length of the
+            direction parallel to the spline vector at the given position.
+        binsize : int, default is 1
+            Image bin size to use.
+        radius : nm, optional
+            Radius peak of the cylinder.
+
+        Returns
+        -------
+        ip.ImgArray
+            Cylindric image.
+        """
+        tomo = self.parent.tomogram
+        ylen = tomo.nm2pixel(depth, binsize=binsize)
+        spl = tomo.splines[spline]
+
+        r = radius or spl.radius
         if r is None:
-            raise ValueError("Measure spline radius or manually set it.")
+            raise ValueError("Radius not available in the input spline.")
         rmin = tomo.nm2pixel(max(r - GVar.thickness_inner, 0), binsize=binsize)
         rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
 
@@ -256,6 +340,7 @@ class SplineSweeper(MagicTemplate):
         img = tomo._get_multiscale_or_original(binsize)
         polar = map_coordinates(img, coords, order=1)
         polar = ip.asarray(polar, axes="rya")  # radius, y, angle
-        polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
-        polar.scale_unit = img.scale_unit
+        polar.set_scale(
+            r=img.scale.x, y=img.scale.x, a=img.scale.x, unit=img.scale_unit
+        )
         return polar

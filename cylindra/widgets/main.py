@@ -1614,8 +1614,9 @@ class CylindraMainWidget(MagicTemplate):
     def show_orientation(
         self,
         layer: MoleculesLayer,
-        orientation: Literal["x", "y", "z"] = "z",
-        color: Color = "crimson",
+        x_color: Color = "orange",
+        y_color: Color = "cyan",
+        z_color: Color = "crimson",
     ):
         """
         Show molecule orientations with a vectors layer.
@@ -1623,22 +1624,29 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
-        orientation : "x", "y" or "z", default is "z"
-            Which orientation will be shown. "z" is the spline-to-molecule direction,
-            "y" is parallel to the spline and "x" is defined by right-handedness.
-        color : Color, default is "crimson"
-            Vector color shown in viewer.
+        x_color : Color, default is "crimson"
+            Vector color of the x direction.
+        y_color : Color, default is "cyan"
+            Vector color of the y direction.
+        z_color : Color, default is "orange"
+            Vector color of the z direction.
         """
         mol = layer.molecules
-        name = f"{layer.name} {orientation.upper()}-axis"
+        nmol = len(mol)
+        name = f"Axes of {layer.name}"
 
-        vector_data = np.stack([mol.pos, getattr(mol, orientation)], axis=1)
+        zvec = np.stack([mol.pos, mol.z], axis=1)
+        yvec = np.stack([mol.pos, mol.y], axis=1)
+        xvec = np.stack([mol.pos, mol.x], axis=1)
+
+        vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
 
         layer = self.parent_viewer.add_vectors(
             vector_data,
             edge_width=0.3,
-            edge_color=[color] * len(mol),
-            length=2.4,
+            edge_color=[z_color] * nmol + [y_color] * nmol + [x_color] * nmol,
+            features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
+            length=GVar.point_size * 0.8,
             name=name,
         )
         return (
