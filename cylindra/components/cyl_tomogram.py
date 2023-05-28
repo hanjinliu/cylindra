@@ -1605,6 +1605,7 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
 
 
 def deconvolute_freq(img: ip.ImgArray, dr: int) -> ip.ImgArray:
+    """Deconvolution in the frequency domain."""
     img = img - img.min()
     _dft = img.local_dft(
         key=ip.slicer.a[-dr : dr + 1].y[0:1].r[0:1],

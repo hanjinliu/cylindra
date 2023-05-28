@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, Sequence
+from typing import Annotated, Sequence, Union
 from magicgui.widgets import TextEdit
 from magicclass import (
     do_not_record,
@@ -25,7 +25,7 @@ from ._previews import view_image
 from cylindra.utils import ceilint
 from cylindra.ext.etomo import PEET
 from cylindra.components import CylTomogram, AutoCorrelationPicker
-from cylindra.const import GlobalVariables as GVar, nm
+from cylindra.const import GlobalVariables as GVar, nm, ImageFilter
 from cylindra.project import CylindraProject
 from cylindra.widgets.global_variables import GlobalVariablesMenu
 
@@ -461,8 +461,8 @@ class ImageLoader(MagicTemplate):
     bin_size : int or list of int, default is [1]
         Initial bin size of image. Binned image will be used for visualization in the viewer.
         You can use both binned and non-binned image for analysis.
-    filter_reference_image : bool, default is True
-        Apply low-pass filter on the reference image (does not affect image data itself).
+    filter_reference_image : ImageFilter
+        Choose filter for the reference image (does not affect image data itself).
     """
 
     path = vfield(Path).with_options(filter=FileFilter.IMAGE)
@@ -494,7 +494,9 @@ class ImageLoader(MagicTemplate):
         )
 
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
-    filter_reference_image = vfield(True)
+    filter = vfield(Union[ImageFilter, None]).with_options(
+        value=ImageFilter.Lowpass, label="filter"
+    )
 
     @scale.wraps
     @set_design(max_width=90)

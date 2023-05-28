@@ -235,3 +235,12 @@ class SplineColor(SimpleNamespace):
 
     DEFAULT = [0.0, 0.0, 1.0, 1.0]
     SELECTED = [0.8, 0.0, 0.5, 1.0]
+
+
+class ImageFilter(Enum):
+    """Available filters for the reference image."""
+
+    Lowpass = "Lowpass"
+    Gaussian = "Gaussian"
+    DoG = "DoG"
+    LoG = "LoG"

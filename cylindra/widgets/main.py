@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Any, Literal
+from typing import Annotated, TYPE_CHECKING, Any, Literal, Union
 import warnings
 from weakref import WeakSet
 
@@ -56,6 +56,7 @@ from cylindra.const import (
     nm,
     get_versions,
     SplineColor,
+    ImageFilter,
 )
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 from cylindra.types import ColoredLayer, get_monomer_layers
@@ -415,7 +416,7 @@ class CylindraMainWidget(MagicTemplate):
         scale: Bound[_image_loader.scale.scale_value] = 1.0,
         tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
-        filter: Bound[_image_loader.filter_reference_image] = True,
+        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
     ):  # fmt: skip
         """
         Load an image file and process it before sending it to the viewer.
@@ -429,8 +430,8 @@ class CylindraMainWidget(MagicTemplate):
         bin_size : int or list of int, default is [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
-        filter : bool, default is True
-            Apply low-pass filter on the reference image (does not affect image data itself).
+        filter : ImageFilter, default is Lowass
+            Filter for the reference image (does not affect image data itself).
         """
         img = ip.lazy_imread(path, chunks=GVar.dask_chunk)
         if scale is not None:
@@ -469,7 +470,11 @@ class CylindraMainWidget(MagicTemplate):
     )
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+P")
-    def load_project(self, path: Path.Read[FileFilter.PROJECT], filter: bool = True):
+    def load_project(
+        self,
+        path: Path.Read[FileFilter.PROJECT],
+        filter: Union[ImageFilter, None] = ImageFilter.Lowpass,
+    ):
         """Load a project json file."""
         project_path = get_project_json(path)
         project = CylindraProject.from_json(project_path)
@@ -579,19 +584,34 @@ class CylindraMainWidget(MagicTemplate):
 
     @ImageMenu.wraps
     @set_design(text="Filter reference image")
-    @dask_thread_worker.with_progress(desc="Low-pass filtering")
+    @dask_thread_worker.with_progress(
+        desc=lambda method: f"Running {method.name} filter"
+    )
     @do_not_record
-    def filter_reference_image(self):
-        """Apply low-pass filter to enhance contrast of the reference image."""
-        cutoff = 0.2
+    def filter_reference_image(
+        self,
+        method: ImageFilter = ImageFilter.Lowpass,
+    ):
+        """Apply filter to enhance contrast of the reference image."""
+        method = ImageFilter(method)
         with utils.set_gpu():
             img: ip.ImgArray = self.layer_image.data
             overlap = [min(s, 32) for s in img.shape]
-            self.layer_image.data = img.tiled_lowpass_filter(
-                cutoff,
-                chunks=(96, 96, 96),
-                overlap=overlap,
-            )
+            _tiled = img.tiled(chunks=(96, 96, 96), overlap=overlap)
+            sigma = 1.6 / self.layer_image.scale[-1]
+            if method is ImageFilter.Lowpass:
+                self.layer_image.data = _tiled.lowpass_filter(cutoff=0.2)
+            elif method is ImageFilter.Gaussian:
+                self.layer_image.data = _tiled.gaussian_filter(
+                    sigma=sigma, fourier=True
+                )
+            elif method is ImageFilter.DoG:
+                self.layer_image.data = _tiled.dog_filter(low_sigma=sigma, fourier=True)
+            elif method is ImageFilter.LoG:
+                self.layer_image.data = _tiled.log_filter(sigma=sigma)
+            else:
+                raise ValueError(f"No method matches {method!r}")
+
         contrast_limits = np.percentile(self.layer_image.data, [1, 99.9])
 
         @thread_worker.to_callback
@@ -2466,7 +2486,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return future_func
 
-    def _send_tomogram_to_viewer(self, filt: bool):
+    def _send_tomogram_to_viewer(self, filt: "ImageFilter | None" = None):
         viewer = self.parent_viewer
         tomo = self.tomogram
         bin_size = max(x[0] for x in tomo.multiscaled)
@@ -2518,8 +2538,11 @@ class CylindraMainWidget(MagicTemplate):
             _name = f"Tomogram<{hex(id(tomo))}>"
         _Logger.print_html(f"<h2>{_name}</h2>")
         self.clear_all()
-        if filt:
-            self.filter_reference_image()
+        if isinstance(filt, bool):
+            # backward compatibility
+            filt = ImageFilter.Lowpass if filt else None
+        if filt is not None:
+            self.filter_reference_image(method=filt)
 
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules
