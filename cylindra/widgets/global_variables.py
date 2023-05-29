@@ -1,5 +1,4 @@
 import json
-from appdirs import user_config_dir
 from typing import Annotated, Literal
 import json
 

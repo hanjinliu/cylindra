@@ -83,6 +83,7 @@ from cylindra.widgets.widget_utils import (
 )
 
 from cylindra.widgets._widget_ext import ProtofilamentEdit
+from cylindra.widgets import _progress_desc as _pdesc
 
 if TYPE_CHECKING:
     from .batch import CylindraBatchWidget
@@ -150,7 +151,7 @@ class CylindraMainWidget(MagicTemplate):
     toolbar = subwidgets.toolbar
 
     # Child widgets
-    GeneralInfo = subwidgets.GeneralInfo
+    GeneralInfo = field(subwidgets.GeneralInfo)
     SplineControl = SplineControl  # Widget for controling splines
     # Widget for summary of local properties
     LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
@@ -416,7 +417,7 @@ class CylindraMainWidget(MagicTemplate):
         scale: Bound[_image_loader.scale.scale_value] = 1.0,
         tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
-        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
+        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.DoG,
     ):  # fmt: skip
         """
         Load an image file and process it before sending it to the viewer.
@@ -473,7 +474,7 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(
         self,
         path: Path.Read[FileFilter.PROJECT],
-        filter: Union[ImageFilter, None] = ImageFilter.Lowpass,
+        filter: Union[ImageFilter, None] = ImageFilter.DoG,
     ):
         """Load a project json file."""
         project_path = get_project_json(path)
@@ -584,20 +585,18 @@ class CylindraMainWidget(MagicTemplate):
 
     @ImageMenu.wraps
     @set_design(text="Filter reference image")
-    @dask_thread_worker.with_progress(
-        desc=lambda method: f"Running {method.name} filter"
-    )
+    @dask_thread_worker.with_progress(desc=_pdesc.filter_image_fmt)
     @do_not_record
     def filter_reference_image(
         self,
-        method: ImageFilter = ImageFilter.Lowpass,
+        method: ImageFilter = ImageFilter.DoG,
     ):
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)
         with utils.set_gpu():
             img: ip.ImgArray = self.layer_image.data
             overlap = [min(s, 32) for s in img.shape]
-            _tiled = img.tiled(chunks=(96, 96, 96), overlap=overlap)
+            _tiled = img.tiled(chunks=(224, 224, 224), overlap=overlap)
             sigma = 1.6 / self.layer_image.scale[-1]
             if method is ImageFilter.Lowpass:
                 self.layer_image.data = _tiled.lowpass_filter(cutoff=0.2)
@@ -1471,6 +1470,7 @@ class CylindraMainWidget(MagicTemplate):
         uibatch.native.setParent(self.native, uibatch.native.windowFlags())
         self._batch = uibatch
         uibatch.show()
+        self._active_widgets.add(uibatch)
         return uibatch
 
     @Analysis.wraps
@@ -1833,7 +1833,9 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Filter molecules")
     def filter_molecules(
-        self, layer: MoleculesLayer, predicate: ExprStr.In[POLARS_NAMESPACE]
+        self,
+        layer: MoleculesLayer,
+        predicate: ExprStr.In[POLARS_NAMESPACE],
     ):
         """
         Filter molecules by their features.

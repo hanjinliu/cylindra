@@ -1,4 +1,4 @@
-from typing import Iterable, Union, TYPE_CHECKING, Annotated, NamedTuple
+from typing import Iterable, Literal, Union, TYPE_CHECKING, Annotated, NamedTuple
 import re
 from scipy.spatial.transform import Rotation
 from magicclass import (
@@ -13,7 +13,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import OneOf, Optional, Path, Bound
+from magicclass.types import Optional, Path, Bound
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -452,8 +452,8 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         size: _SubVolumeSize = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
         """
         Subtomogram averaging using all the molecules in the selected layer.
@@ -484,9 +484,9 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         size: _SubVolumeSize = None,
-        method: OneOf["steps", "first", "last", "random"] = "steps",
+        method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
         """
         Subtomogram averaging using a subset of subvolumes.
@@ -528,8 +528,8 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         size: _SubVolumeSize = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
         """
         Split molecules into two groups and average separately.
@@ -567,8 +567,8 @@ class SubtomogramAveraging(MagicTemplate):
         z_rotation: _ZRotation = (0.0, 0.0),
         y_rotation: _YRotation = (15.0, 1.0),
         x_rotation: _XRotation = (3.0, 1.0),
-        bin_size: OneOf[_get_available_binsize] = 1,
-        method: OneOf[METHOD_CHOICES] = "zncc",
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
     ):  # fmt: skip
         """
         Align the averaged image at current monomers to the template image.
@@ -680,9 +680,9 @@ class SubtomogramAveraging(MagicTemplate):
         y_rotation: _YRotation = (0.0, 0.0),
         x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Align all the molecules for subtomogram averaging.
@@ -729,9 +729,9 @@ class SubtomogramAveraging(MagicTemplate):
         y_rotation: _YRotation = (0.0, 0.0),
         x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Align all the molecules for subtomogram averaging.
@@ -785,9 +785,9 @@ class SubtomogramAveraging(MagicTemplate):
         y_rotation: _YRotation = (0.0, 0.0),
         x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
-        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Align all the molecules for subtomogram averaging.
@@ -840,7 +840,7 @@ class SubtomogramAveraging(MagicTemplate):
         y_rotation: _YRotation = (0.0, 0.0),
         x_rotation: _XRotation = (0.0, 0.0),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range: _DistRangeLon = (3.9, 4.4),
         max_angle: Optional[float] = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
@@ -872,14 +872,12 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = timer("align_all_viterbi")
         parent = self._get_parent()
         molecules = layer.molecules
-        shape_nm = self._get_shape_in_nm()
-        loader = parent.tomogram.get_subtomogram_loader(
-            molecules, shape=shape_nm, order=interpolation
-        )
+        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
         template, mask = loader.normalize_input(
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
+        assert template.shape == mask.shape
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
@@ -912,9 +910,9 @@ class SubtomogramAveraging(MagicTemplate):
         npf = molecules.features[Mole.pf].max() + 1
 
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-        molecules_origin = molecules.translate_internal(
-            -(np.array(max_shifts) - scale) / 2
-        )
+
+        max_shifts = np.asarray(max_shifts, dtype=np.float32)
+        molecules_origin = molecules.translate_internal(max_shifts)
         # split each protofilament
         mole_list = [molecules_origin.subset(sl) for sl in slices]
 
@@ -994,7 +992,7 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (3.9, 4.4),
         distance_range_lat: _DistRangeLat = (4.7, 5.3),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
@@ -1021,10 +1019,7 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         scale = parent.tomogram.scale
         molecules = layer.molecules
-        shape_nm = self._get_shape_in_nm()
-        loader = parent.tomogram.get_subtomogram_loader(
-            molecules, shape=shape_nm, order=interpolation
-        )
+        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
         template, mask = loader.normalize_input(
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
@@ -1130,7 +1125,7 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: _FSCFreq = None,
@@ -1223,8 +1218,8 @@ class SubtomogramAveraging(MagicTemplate):
             },
         ] = None,
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        bin_size: OneOf[_get_available_binsize] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1292,7 +1287,7 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         cutoff: _CutoffFreq = 0.25,
     ):
@@ -1313,10 +1308,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = timer("seam_search")
         parent = self._get_parent()
         mole = layer.molecules
-        shape = self._get_shape_in_nm()
-        loader = parent.tomogram.get_subtomogram_loader(
-            mole, shape, order=interpolation
-        )
+        loader = parent.tomogram.get_subtomogram_loader(mole, order=interpolation)
         if npf is None:
             npf = mole.features[Mole.pf].max() + 1
 

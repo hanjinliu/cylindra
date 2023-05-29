@@ -461,7 +461,7 @@ class ImageLoader(MagicTemplate):
     bin_size : int or list of int, default is [1]
         Initial bin size of image. Binned image will be used for visualization in the viewer.
         You can use both binned and non-binned image for analysis.
-    filter_reference_image : ImageFilter
+    filter : ImageFilter
         Choose filter for the reference image (does not affect image data itself).
     """
 
@@ -494,9 +494,7 @@ class ImageLoader(MagicTemplate):
         )
 
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
-    filter = vfield(Union[ImageFilter, None]).with_options(
-        value=ImageFilter.Lowpass, label="filter"
-    )
+    filter = vfield(Union[ImageFilter, None]).with_options(value=ImageFilter.DoG)
 
     @scale.wraps
     @set_design(max_width=90)
@@ -519,7 +517,7 @@ class ImageLoader(MagicTemplate):
     open_image = abstractapi()
 
 
-@magicclass(name="General info", record=False, widget_type="collapsible", labels=False)
+@magicclass(record=False, widget_type="collapsible", labels=False)
 class GeneralInfo(MagicTemplate):
     """
     General information of the current project.

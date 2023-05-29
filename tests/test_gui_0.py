@@ -756,7 +756,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
     ui.sta.align_all_viterbi(
         layer_filt,
         template_path=TEST_DIR / "beta-tubulin.mrc",
-        mask_params=(0, 1),
+        mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
     )
 
@@ -774,7 +774,7 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     ui.sta.align_all_annealing(
         layer_filt,
         template_path=TEST_DIR / "beta-tubulin.mrc",
-        mask_params=(0, 1),
+        mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
         distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
