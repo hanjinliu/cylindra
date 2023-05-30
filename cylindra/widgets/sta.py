@@ -115,12 +115,12 @@ def _get_template_path_hist() -> list[Path]:
     return []
 
 
-def _set_template_path_hist(paths: list[Path]):
+def _set_template_path_hist(paths: list[str]):
     path = Path(Cfg.SETTINGS_PATH / "template_path_hist.txt")
     try:
         if not path.parent.exists():
             path.parent.mkdir(parents=True)
-        path.write_text("\n".join([p for p in paths]) + "\n")
+        path.write_text("\n".join([p for p in paths if Path(p).is_file()]) + "\n")
     except Exception:
         pass
     return None
@@ -601,27 +601,27 @@ class SubtomogramAveraging(MagicTemplate):
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
 
         aligned_molecules: list[Molecules] = []
+        mole = layers[0].molecules
+        loader = self._get_loader(bin_size, mole, order=1)
+        template, mask = loader.normalize_input(
+            template=self.params._get_template(path=template_path),
+            mask=self.params._get_mask(params=mask_params),
+        )
+        temp_norm = utils.normalize_image(template)
+
+        _scale = parent.tomogram.scale * bin_size
+
+        npf = mole.features[Mole.pf].max() + 1
+        dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
+        dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
+
+        model = _get_alignment(method)(
+            template,
+            mask,
+            rotations=(z_rotation, y_rotation, x_rotation),
+            tilt_range=None,  # NOTE: because input is an average
+        )
         for layer in layers:
-            mole = layer.molecules
-            loader = self._get_loader(bin_size, mole, order=1)
-            template, mask = loader.normalize_input(
-                template=self.params._get_template(path=template_path),
-                mask=self.params._get_mask(params=mask_params),
-            )
-            temp_norm = utils.normalize_image(template)
-
-            _scale = parent.tomogram.scale * bin_size
-
-            npf = mole.features[Mole.pf].max() + 1
-            dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
-            dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
-
-            model = _get_alignment(method)(
-                template,
-                mask,
-                rotations=(z_rotation, y_rotation, x_rotation),
-                tilt_range=None,  # NOTE: because input is an average
-            )
             _img_trans, result = model.fit(
                 loader.average(template.shape),
                 max_shifts=tuple(np.array([dy, dy, dx]) / _scale * 0.6),
@@ -877,7 +877,7 @@ class SubtomogramAveraging(MagicTemplate):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        assert template.shape == mask.shape
+
         if max_angle is not None:
             max_angle = np.deg2rad(max_angle)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)

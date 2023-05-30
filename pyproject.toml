@@ -20,7 +20,7 @@ classifiers = [
 license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
-    "impy-array>=2.2.2",
+    "impy-array>=2.2.3",
     "acryo>=0.4.1",
     "magic-class>=0.7.1",
     "pyqtgraph>=0.12.4",

@@ -35,7 +35,6 @@ class GlobalVariablesMenu(MagicTemplate):
         skew_min: Annotated[float, {"min": -90, "max": 90}] = -1,
         skew_max: Annotated[float, {"min": -90, "max": 90}] = 1,
         min_curvature_radius: Annotated[float, {"max": 1e4}] = 100,
-        deconv_range: Annotated[int, {"max": 100}] = 2,
         clockwise: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"step": 0.1}] = 1.0,
         thickness_outer: Annotated[nm, {"step": 0.1}] = 1.0,

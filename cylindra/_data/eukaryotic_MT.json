@@ -7,7 +7,6 @@
     "skew_min": -1.0,
     "skew_max": 1.0,
     "min_curvature_radius": 400.0,
-    "deconv_range": 2,
     "clockwise": "MinusToPlus",
     "thickness_inner": 2.0,
     "thickness_outer": 2.8,

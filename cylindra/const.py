@@ -168,7 +168,6 @@ class GlobalVariableModel(EventedModel):
     skew_min: float = -1.0
     skew_max: float = 1.0
     min_curvature_radius: nm = 400.0
-    deconv_range: int = 2
     clockwise: str = "MinusToPlus"
     thickness_inner: float = 2.0
     thickness_outer: float = 3.0
@@ -188,8 +187,6 @@ class GlobalVariableModel(EventedModel):
                 raise ValueError(f"spacing_min > spacing_max must be satisfied.")
             if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
                 raise ValueError(f"skew_min > skew_max must be satisfied.")
-            if values.get("deconv_range", Inf) < 0:
-                raise ValueError(f"deconv_range must be >= 0.")
         # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
         # by one). This is not desirable because min/max values should be updated at
         # the same time. Therefore, we block the events and emit the signal manually.

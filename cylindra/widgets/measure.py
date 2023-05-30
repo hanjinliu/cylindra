@@ -135,6 +135,17 @@ class Parameters(MagicTemplate):
 
 @magicclass(layout="horizontal", record=False)
 class SpectraMeasurer(MagicTemplate):
+    """
+    Widget to measure the periodicity of a tomographic structure.
+
+    Attributes
+    ----------
+    parameters : Parameters
+        Cylinder parameters.
+    log_scale : bool
+        Check to use log power spectra.
+    """
+
     canvas = field(QtImageCanvas)
 
     def __post_init__(self) -> None:
@@ -153,9 +164,7 @@ class SpectraMeasurer(MagicTemplate):
         log_scale = abstractapi()
 
     parameters = SidePanel.field(Parameters)
-    log_scale = SidePanel.vfield(False).with_options(
-        tooltip="Check to use log power spectra."
-    )
+    log_scale = SidePanel.vfield(False)
 
     @property
     def mode(self):
