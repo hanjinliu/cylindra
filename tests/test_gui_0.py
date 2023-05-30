@@ -716,7 +716,7 @@ def test_calc_radii(ui: CylindraMainWidget):
     ui.plot_molecule_feature(layer, backend="qt")
 
 
-def test_calc_lateral_angels(ui: CylindraMainWidget):
+def test_calc_lateral_angles(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.map_monomers(splines=[0])
     layer = ui.parent_viewer.layers[-1]
