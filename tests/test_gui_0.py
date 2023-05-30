@@ -590,17 +590,18 @@ def test_translate_molecules(ui: CylindraMainWidget):
     assert_allclose(
         new_layer.data - layer.data,
         np.tile([3, -5, 2.2], (layer.data.shape[0], 1)),
-        rtol=1e5,
-        atol=1e6,
+        rtol=1e-5,
+        atol=1e-6,
     )
     ui.macro.undo()
     ui.macro.redo()
     ui.translate_molecules(ui.parent_viewer.layers["Mono-0"], [1, 2, 3], internal=True)
+    new_layer = ui.parent_viewer.layers[-1]
     assert_allclose(
         np.linalg.norm(new_layer.data - layer.data, axis=1),
         np.sqrt(14),
-        rtol=1e5,
-        atol=1e6,
+        rtol=1e-5,
+        atol=1e-6,
     )
     ui.macro.undo()
     ui.macro.redo()
