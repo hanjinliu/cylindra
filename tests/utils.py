@@ -1,5 +1,7 @@
 from functools import wraps
+from typing import Any
 import pytest
+from contextlib import contextmanager
 
 
 class pytest_group:
@@ -43,3 +45,31 @@ class pytest_group:
                 raise e
 
         return wrapper
+
+
+class ExceptionGroup:
+    """Custom exception group to test many cases without launching the viewer many times."""
+
+    def __init__(self, max_fail: int = 9999) -> None:
+        self._list = list[tuple[Exception, Any]]()
+        self._max_fail = max_fail
+
+    @property
+    def nfail(self) -> int:
+        return len(self._list)
+
+    @contextmanager
+    def merging(self, desc=None):
+        try:
+            yield
+        except Exception as e:
+            self._list.append((e, desc))
+        if self.nfail >= self._max_fail:
+            self.raise_exceptions()
+
+    def raise_exceptions(self) -> None:
+        if self._list:
+            lines = "\n\t".join(f"({desc!r}) {exc}" for exc, desc in self._list)
+            raise RuntimeError(f"{self.nfail} test failed:\n\t{lines}") from self._list[
+                -1
+            ][0]

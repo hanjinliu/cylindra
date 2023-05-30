@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from cylindra.const import ImageFilter
 
 if TYPE_CHECKING:
     from napari.layers import Layer
-    from cylindra.const import ImageFilter
 
 
 # functions
@@ -29,7 +29,7 @@ def fmt_layers(fmt: str):
 
 
 def filter_image_fmt(method: ImageFilter):
-    return f"Running {method.name} filter"
+    return f"Running {ImageFilter(method).name} filter"
 
 
 def align_averaged_fmt(layers: list[Layer]):
