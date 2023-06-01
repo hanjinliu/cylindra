@@ -177,7 +177,11 @@ class Others(MagicTemplate):
         show_native_macro = abstractapi()
         sep0 = field(Separator)
         load_macro_file = abstractapi()
-        run_file = abstractapi()
+
+    run_workflow = abstractapi()
+    define_workflow = abstractapi()
+
+    sep0 = field(Separator)
 
     open_command_palette = abstractapi()
     GlobalVariables = GlobalVariablesMenu

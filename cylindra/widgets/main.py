@@ -43,7 +43,7 @@ from magicclass.undo import undo_callback
 from napari.layers import Image, Layer, Points
 from napari.utils.colormaps import Colormap
 
-from cylindra import utils
+from cylindra import utils, _config
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     SELECTION_LAYER_NAME,
@@ -57,7 +57,6 @@ from cylindra.const import (
     get_versions,
     SplineColor,
     ImageFilter,
-    ConfigConst as Cfg,
 )
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 from cylindra.types import ColoredLayer, get_monomer_layers
@@ -305,26 +304,35 @@ class CylindraMainWidget(MagicTemplate):
         edit.textedit.value = str(macro)
         return None
 
-    @Others.Macro.wraps
-    @set_design(text="Run file")
+    @Others.wraps
+    @set_design(text="Run workflow")
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+Shift+R")
-    def run_file(self, path: Path.Read[FileFilter.PY]):
-        """Run a Python script file."""
+    def run_workflow(self, path: Path.Read[FileFilter.PY] = _config.WORKFLOWS_DIR):
+        """Run workflow of a python file."""
+        path = Path(path)
+        if path.is_dir():
+            raise ValueError("You must specify a file.")
         macro = self._load_macro_file(path)
         _ui = str(mk.symbol(self))
         macro.eval({}, {_ui: self})
         return None
 
-    @Others.Macro.wraps
+    @Others.wraps
     @set_design(text="Define workflow")
     @do_not_record
-    def run_file(
+    @bind_key("Ctrl+K, Ctrl+Shift+D")
+    def define_workflow(
         self,
         name: str,
-        expr: str,
+        workflow: Annotated[str, {"widget_type": ConsoleTextEdit}],
     ):
-        Cfg.workflow_path(name)
+        """Define a workflow script for your daily analysis."""
+        mk.parse(workflow)  # check syntax
+        path = _config.workflow_path(name)
+        path.write_text(workflow)
+        _Logger.print("Workflow saved: " + path.as_posix())
+        return None
 
     @Others.Macro.wraps
     @set_design(text="Show macro")

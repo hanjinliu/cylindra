@@ -286,6 +286,11 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
     gui.spline.changed.emit(gui.spline.value)  # initialize
 
 
+@setup_function_gui(CylindraMainWidget.define_workflow)
+def _(self: CylindraMainWidget, gui: FunctionGui):
+    gui.workflow.syntax_highlight("python")
+
+
 @contextmanager
 def _temp_layer_colors(layer: MoleculesLayer):
     """Temporarily change the colors of a layer and restore them afterwards."""
