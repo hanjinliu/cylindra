@@ -362,10 +362,10 @@ def test_preview(ui: CylindraMainWidget):
 def test_sweeper(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False)
     ui.open_sweeper()
-    ui.spline_sweeper.refresh_widget_state()
-    ui.spline_sweeper.show_what = "CFT"
-    ui.spline_sweeper.show_what = "R-projection"
-    ui.spline_sweeper.show_what = "Y-projection"
+    ui.spline_slicer.refresh_widget_state()
+    ui.spline_slicer.show_what = "CFT"
+    ui.spline_slicer.show_what = "R-projection"
+    ui.spline_slicer.show_what = "Y-projection"
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])

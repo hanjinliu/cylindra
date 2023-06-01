@@ -71,7 +71,7 @@ from cylindra.widgets.spline_control import SplineControl
 from cylindra.widgets.spline_clipper import SplineClipper
 from cylindra.widgets.spline_fitter import SplineFitter
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra.widgets.sweeper import SplineSweeper
+from cylindra.widgets.sweeper import SplineSlicer
 from cylindra.widgets.simulator import CylinderSimulator
 from cylindra.widgets.measure import SpectraMeasurer
 
@@ -116,7 +116,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for manual spline clipping
     spline_clipper = field(SplineClipper, name="_Spline clipper")
     # Widget for sweeping along splines
-    spline_sweeper = field(SplineSweeper, name="_Spline sweeper")
+    spline_slicer = field(SplineSlicer, name="_Spline slicer")
     # Widget for pre-filtering/pre-processing
     image_processor = field(ImageProcessor, name="_Image Processor")
     # Widget for tomogram simulator
@@ -686,8 +686,8 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Open spline sweeper")
     def open_sweeper(self):
         """Open spline sweeper widget"""
-        self.spline_sweeper.show()
-        return self.spline_sweeper.refresh_widget_state()
+        self.spline_slicer.show()
+        return self.spline_slicer.refresh_widget_state()
 
     @ImageMenu.wraps
     @set_design(text="Sample subtomograms")
