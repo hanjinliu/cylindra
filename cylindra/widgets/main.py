@@ -173,6 +173,7 @@ class CylindraMainWidget(MagicTemplate):
         self._macro_offset: int = 1
         self._need_save: bool = False
         self._batch = None
+        self._project_dir: Path = None
         self.objectName()  # load napari types
 
         GVar.events.connect(self._global_variable_updated)
@@ -480,6 +481,7 @@ class CylindraMainWidget(MagicTemplate):
         project_path = get_project_json(path)
         project = CylindraProject.from_json(project_path)
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
+        self._project_dir = project_path.parent
         return thread_worker.to_callback(project.to_gui(self, filter=filter))
 
     @File.wraps
@@ -501,10 +503,22 @@ class CylindraMainWidget(MagicTemplate):
             Path of json file.
         """
         save_dir = Path(save_dir)
+        dir_posix = save_dir.as_posix()
+        if save_dir.is_file():
+            raise ValueError(f"You must specify a directory, but got {dir_posix}")
         CylindraProject.save_gui(self, save_dir / "project.json", save_dir)
-        _Logger.print(f"Project saved: {save_dir.as_posix()}")
+        _Logger.print(f"Project saved: {dir_posix}")
         self._need_save = False
-        return
+        self._project_dir = save_dir
+        return None
+
+    @File.wraps
+    @set_design(text="Overwrite project")
+    @do_not_record(recursive=False)
+    def overwrite_project(self):
+        if self._project_dir is None:
+            raise ValueError("No project is loaded.")
+        return self.save_project(self._project_dir)
 
     @File.wraps
     @set_design(text="Load splines")

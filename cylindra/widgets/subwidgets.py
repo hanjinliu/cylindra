@@ -45,6 +45,7 @@ class File(MagicTemplate):
     load_molecules = abstractapi()
     sep0 = field(Separator)
     save_project = abstractapi()
+    overwrite_project = abstractapi()
     save_spline = abstractapi()
     save_molecules = abstractapi()
     sep1 = field(Separator)
