@@ -236,6 +236,13 @@ class CylindraMainWidget(MagicTemplate):
     _runner = field(subwidgets.Runner)
     _image_loader = subwidgets.ImageLoader
 
+    def _confirm_delete(self):
+        i = self.SplineControl.num
+        if i is None:
+            # If user is writing the first spline, there's no spline registered.
+            return False
+        return self.tomogram.splines[i].has_props()
+
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "run_all.svg")
     @bind_key("F2")
@@ -248,9 +255,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(icon=ICON_DIR / "clear_last.svg")
     @confirm(
         text="Spline has properties. Are you sure to delete it?",
-        condition="self.tomogram.splines[self.SplineControl.num].has_props()",
+        condition=_confirm_delete,
     )
-    @do_not_record
+    @do_not_record(recurse=False)
     def clear_current(self):
         """Clear current selection."""
         if self.layer_work.data.size > 0:
@@ -515,6 +522,7 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_design(text="Overwrite project")
     @do_not_record(recursive=False)
+    @bind_key("Ctrl+K, Ctrl+Shift+S")
     def overwrite_project(self):
         if self._project_dir is None:
             raise ValueError("No project is loaded.")
@@ -924,10 +932,6 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
 
         return out
-
-    def _confirm_delete(self):
-        i = self.SplineControl.num
-        return self.tomogram.splines[i].has_props()
 
     @Splines.wraps
     @set_design(text="Delete spline")
