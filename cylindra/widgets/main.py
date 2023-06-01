@@ -2545,6 +2545,7 @@ class CylindraMainWidget(MagicTemplate):
             filt = ImageFilter.Lowpass if filt else None
         if filt is not None:
             self.filter_reference_image(method=filt)
+        self.GeneralInfo.project_desc.value = ""  # clear the project description
 
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules
