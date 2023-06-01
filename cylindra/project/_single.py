@@ -120,8 +120,8 @@ class CylindraProject(BaseProject):
 
         file_dir = json_path.parent
 
-        def as_relative(p: Path):
-            assert isinstance(p, Path)
+        def as_relative(p: "Path | None"):
+            assert isinstance(p, Path) or p is None
             try:
                 out = p.relative_to(file_dir)
             except Exception:

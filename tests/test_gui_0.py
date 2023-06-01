@@ -1,7 +1,7 @@
 from pathlib import Path
 import tempfile
 import napari
-
+from itertools import product
 import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip
@@ -12,7 +12,7 @@ from cylindra import view_project
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 import pytest
-from .utils import pytest_group
+from .utils import pytest_group, ExceptionGroup
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
@@ -72,7 +72,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     ui.save_project(save_path)
-    ui.load_project(save_path, filter=True)
+    ui.load_project(save_path, filter="DoG")
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
     new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
@@ -84,6 +84,29 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.show_splines()
     ui.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
+
+
+def test_io_with_different_data(ui: CylindraMainWidget):
+    path = TEST_DIR / "13pf_MT.tif"
+    params = [
+        dict(local_props=False, global_props=False),
+        dict(local_props=False, global_props=True),
+        dict(local_props=True, global_props=False),
+        dict(local_props=True, global_props=True),
+    ]
+    exc_group = ExceptionGroup()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        for param in params:
+            with exc_group.merging():
+                ui.open_image(
+                    path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2]
+                )
+                ui.register_path(coords=coords_13pf)
+                ui._runner.run_workflow(splines=[0], **param)
+                ui.save_project(tmpdir)
+                ui.load_project(tmpdir, filter="DoG")
+    exc_group.raise_exceptions()
 
 
 def test_picking_splines(ui: CylindraMainWidget):
@@ -125,7 +148,7 @@ def test_spline_deletion(ui: CylindraMainWidget):
 
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui._runner.run_workflow([0], max_shift=-1)  # no fit
     ui._runner.run_workflow([0], n_refine=0)  # no refine
     ui._runner.run_workflow([0], max_shift=-1, n_refine=0)  # no fit/refine
@@ -168,7 +191,7 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 
 def test_map_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0)
     ui.map_centers([0])
@@ -274,12 +297,12 @@ def test_spline_switch(ui: CylindraMainWidget):
 
 
 def test_set_label_colormaps(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.set_colormap(color_by="skewAngle", cmap="viridis", limits=(-1, 1))
 
 
 def test_set_molecule_colormap(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.paint_molecules(
         ui.parent_viewer.layers["Mono-0"],
         "nth",
@@ -290,7 +313,7 @@ def test_set_molecule_colormap(ui: CylindraMainWidget):
 
 
 def test_preview(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
@@ -360,7 +383,7 @@ def test_preview(ui: CylindraMainWidget):
 
 
 def test_sweeper(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.open_sweeper()
     ui.spline_sweeper.refresh_widget_state()
     ui.spline_sweeper.show_what = "CFT"
@@ -370,7 +393,7 @@ def test_sweeper(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
@@ -431,20 +454,23 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
 
 
-@pytest_group("classify", maxfail=1)
-@pytest.mark.parametrize("binsize", [1, 2])
-def test_classify_pca(ui: CylindraMainWidget, binsize: int):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+def test_classify_pca(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.filter_molecules(
         ui.parent_viewer.layers["Mono-0"], predicate="pl.col('nth') < 3"
     )
-    ui.sta.classify_pca(
-        ui.parent_viewer.layers[-1],
-        mask_params=None,
-        size=6.0,
-        interpolation=1,
-        bin_size=binsize,
-    )
+    layer = ui.parent_viewer.layers[-1]
+    exc_group = ExceptionGroup()
+    for binsize in [1, 2]:
+        with exc_group.merging():
+            ui.sta.classify_pca(
+                layer,
+                mask_params=None,
+                size=6.0,
+                interpolation=1,
+                bin_size=binsize,
+            )
+    exc_group.raise_exceptions()
 
 
 def test_clip_spline(ui: CylindraMainWidget):
@@ -537,12 +563,12 @@ def test_project_viewer():
 
 
 def test_show_orientation(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.show_orientation(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_concate_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer0 = ui.parent_viewer.layers["Mono-0"]
     layer1 = ui.parent_viewer.layers["Mono-1"]
     ui.concatenate_molecules([layer0, layer1])
@@ -551,12 +577,12 @@ def test_concate_molecules(ui: CylindraMainWidget):
 
 
 def test_split_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.split_molecules(ui.parent_viewer.layers["Mono-0"], by=Mole.pf)
 
 
 def test_translate_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer = ui.parent_viewer.layers["Mono-0"]
     ui.translate_molecules(layer, [3, -5, 2.2], internal=False)
     new_layer = ui.parent_viewer.layers[-1]
@@ -564,24 +590,25 @@ def test_translate_molecules(ui: CylindraMainWidget):
     assert_allclose(
         new_layer.data - layer.data,
         np.tile([3, -5, 2.2], (layer.data.shape[0], 1)),
-        rtol=1e5,
-        atol=1e6,
+        rtol=1e-5,
+        atol=1e-6,
     )
     ui.macro.undo()
     ui.macro.redo()
     ui.translate_molecules(ui.parent_viewer.layers["Mono-0"], [1, 2, 3], internal=True)
+    new_layer = ui.parent_viewer.layers[-1]
     assert_allclose(
         np.linalg.norm(new_layer.data - layer.data, axis=1),
         np.sqrt(14),
-        rtol=1e5,
-        atol=1e6,
+        rtol=1e-5,
+        atol=1e-6,
     )
     ui.macro.undo()
     ui.macro.redo()
 
 
 def test_merge_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.merge_molecule_info(
         pos=ui.parent_viewer.layers["Mono-0"],
         rotation=ui.parent_viewer.layers["Mono-1"],
@@ -594,7 +621,7 @@ def test_merge_molecules(ui: CylindraMainWidget):
 def test_molecule_features(ui: CylindraMainWidget):
     import polars as pl
 
-    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.show_molecule_features()
     layer = ui.parent_viewer.layers["Mono-0"]
     ui.filter_molecules(layer, predicate='pl.col("position-nm") < 9.2')
@@ -623,7 +650,7 @@ def test_auto_align(ui: CylindraMainWidget):
 
 
 def test_molecules_to_spline(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     assert len(ui.tomogram.splines) == 2
     old_ori = ui.tomogram.splines[0].orientation
     ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]])
@@ -635,54 +662,53 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
 # orientation, monomer mapping cases. Check all of the possible inputs just in case.
 
 
-@pytest_group("calc_intervals", maxfail=4)
-@pytest.mark.parametrize("orientation", ["PlusToMinus", "MinusToPlus"])
-@pytest.mark.parametrize("path", [PROJECT_DIR_13PF, PROJECT_DIR_14PF])
-@pytest.mark.parametrize("invert", [True, False])
-def test_calc_intervals(
-    ui: CylindraMainWidget,
-    path: Path,
-    invert: bool,
-    orientation: str,
-):
-    ui.load_project(path, filter=False)
-    spacing = ui.tomogram.splines[0].get_globalprops(H.spacing)
-    npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
-    if invert:
-        ui.invert_spline(spline=0)
-    ui.map_monomers(splines=[0], orientation=orientation)
-    layer = ui.parent_viewer.layers[-1]
-    ui.calculate_intervals(layer=layer)
-    interval = layer.features["interval-nm"][:-npf]
-    # individial intervals must be almost equal to the global spacing
-    assert interval.mean() == pytest.approx(spacing, abs=1e-3)
+def test_calc_intervals(ui: CylindraMainWidget):
+    exc_group = ExceptionGroup(max_fail=4)
+    for orientation, path, invert in product(
+        ["PlusToMinus", "MinusToPlus"],
+        [PROJECT_DIR_13PF, PROJECT_DIR_14PF],
+        [True, False],
+    ):
+        ui.load_project(path, filter=None)
+        spacing = ui.tomogram.splines[0].get_globalprops(H.spacing)
+        npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
+        if invert:
+            ui.invert_spline(spline=0)
+        ui.map_monomers(splines=[0], orientation=orientation)
+        layer = ui.parent_viewer.layers[-1]
+        ui.calculate_intervals(layer=layer)
+        with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
+            interval = layer.features["interval-nm"][:-npf]
+            # individial intervals must be almost equal to the global spacing
+            assert interval.mean() == pytest.approx(spacing, abs=1e-3)
+    exc_group.raise_exceptions()
 
 
-@pytest_group("calc_skews", maxfail=4)
-@pytest.mark.parametrize("orientation", ["PlusToMinus", "MinusToPlus"])
-@pytest.mark.parametrize("path", [PROJECT_DIR_13PF, PROJECT_DIR_14PF])
-@pytest.mark.parametrize("invert", [False, True])
-def test_calc_skews(
-    ui: CylindraMainWidget,
-    path: Path,
-    invert: bool,
-    orientation: str,
-):
-    ui.load_project(path, filter=False)
-    skew_angle = ui.tomogram.splines[0].get_globalprops(H.skew)
-    npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
-    if invert:
-        ui.invert_spline(spline=0)
-    ui.map_monomers(splines=[0], orientation=orientation)
-    layer = ui.parent_viewer.layers[-1]
-    ui.calculate_skews(layer=layer)
-    each_skew = layer.features["skew-deg"][:-npf]
-    # individial skews must be almost equal to the global skew angle
-    assert each_skew.mean() == pytest.approx(skew_angle, abs=1e-2)
+def test_calc_skews(ui: CylindraMainWidget):
+    exc_group = ExceptionGroup(max_fail=4)
+
+    for orientation, path, invert in product(
+        ["PlusToMinus", "MinusToPlus"],
+        [PROJECT_DIR_13PF, PROJECT_DIR_14PF],
+        [True, False],
+    ):
+        ui.load_project(path, filter=None)
+        skew_angle = ui.tomogram.splines[0].get_globalprops(H.skew)
+        npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
+        if invert:
+            ui.invert_spline(spline=0)
+        ui.map_monomers(splines=[0], orientation=orientation)
+        layer = ui.parent_viewer.layers[-1]
+        ui.calculate_skews(layer=layer)
+        with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
+            each_skew = layer.features["skew-deg"][:-npf]
+            # individial skews must be almost equal to the global skew angle
+            assert each_skew.mean() == pytest.approx(skew_angle, abs=1e-2)
+    exc_group.raise_exceptions()
 
 
 def test_calc_radii(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.map_monomers(splines=[0])
     layer = ui.parent_viewer.layers[-1]
     ui.calculate_radii(layer=layer)
@@ -690,8 +716,8 @@ def test_calc_radii(ui: CylindraMainWidget):
     ui.plot_molecule_feature(layer, backend="qt")
 
 
-def test_calc_lateral_angels(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+def test_calc_lateral_angles(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.map_monomers(splines=[0])
     layer = ui.parent_viewer.layers[-1]
     ui.calculate_lateral_angles(layer=layer)
@@ -703,7 +729,7 @@ def test_spline_fitter(ui: CylindraMainWidget):
         scale=1.052,
         tilt_range=(-60.0, 60.0),
         bin_size=[1],
-        filter=False,
+        filter=None,
     )
     ui.register_path(coords=[[21.974, 117.148, 34.873], [21.974, 36.449, 58.084]])
     ui.spline_fitter.fit(
@@ -749,7 +775,7 @@ def test_function_menu(make_napari_viewer):
 
 
 def test_viterbi_alignment(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mono-0"]
     ui.filter_molecules(layer, "(pl.col('nth') < 4) & (pl.col('pf-id') < 2)")
     layer_filt = ui.parent_viewer.layers[-1]
@@ -762,7 +788,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
 
 
 def test_mesh_annealing(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mono-0"]
     ui.filter_molecules(layer, "pl.col('nth') < 4")
     layer_filt = ui.parent_viewer.layers[-1]
@@ -783,7 +809,7 @@ def test_mesh_annealing(ui: CylindraMainWidget):
 
 
 def test_showing_widgets(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.show_macro()
     ui.show_full_macro()
     ui.show_native_macro()
@@ -793,7 +819,7 @@ def test_showing_widgets(ui: CylindraMainWidget):
 
 
 def test_spline_clipper(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     len_old = ui.get_spline(0).length()
     ui.open_spline_clipper()
     ui.spline_clipper.clip_length = 1
@@ -806,7 +832,7 @@ def test_spline_clipper(ui: CylindraMainWidget):
 
 
 def test_spectra_measurer(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.open_spectra_measurer()
     ui.spectra_measurer.log_scale = True
     ui.spectra_measurer.log_scale = False

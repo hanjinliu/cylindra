@@ -596,6 +596,8 @@ class SubtomogramAveraging(MagicTemplate):
             tilt_range=None,  # NOTE: because input is an average
         )
         for layer in layers:
+            mole = layer.molecules
+            loader = self._get_loader(bin_size, mole, order=1)
             _img_trans, result = model.fit(
                 loader.average(template.shape),
                 max_shifts=tuple(np.array([dy, dy, dx]) / _scale * 0.6),
