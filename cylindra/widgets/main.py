@@ -15,7 +15,6 @@ from magicgui.widgets import Widget
 from magicclass import (
     MagicTemplate,
     bind_key,
-    build_help,
     confirm,
     do_not_record,
     field,
@@ -37,7 +36,6 @@ from magicclass.types import (
 )
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
-from magicclass.widgets import ConsoleTextEdit
 from magicclass.undo import undo_callback
 
 from napari.layers import Image, Layer, Points
@@ -54,7 +52,6 @@ from cylindra.const import (
     MoleculesHeader as Mole,
     Ori,
     nm,
-    get_versions,
     SplineColor,
     ImageFilter,
 )
@@ -130,7 +127,7 @@ class CylindraMainWidget(MagicTemplate):
     def batch(self) -> "CylindraBatchWidget":
         """Return the batch analyzer."""
         if self._batch is None:
-            self.open_project_batch_analyzer()
+            self.Analysis.open_project_batch_analyzer()
         return self._batch
 
     # Menu bar
@@ -257,7 +254,7 @@ class CylindraMainWidget(MagicTemplate):
         text="Spline has properties. Are you sure to delete it?",
         condition=_confirm_delete,
     )
-    @do_not_record(recurse=False)
+    @do_not_record(recursive=False)
     def clear_current(self):
         """Clear current selection."""
         if self.layer_work.data.size > 0:
@@ -279,15 +276,6 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.splines.clear()
         self._need_save = False
         self.reset_choices()
-        return None
-
-    @Others.Help.wraps
-    @set_design(text="Open help")
-    @do_not_record
-    def open_help(self):
-        """Open a help window."""
-        help = build_help(self)
-        help.show()
         return None
 
     def _format_macro(self, macro: mk.Macro = None):
@@ -359,59 +347,6 @@ class CylindraMainWidget(MagicTemplate):
         self._active_widgets.add(self.macro.widget)
         return None
 
-    @Others.wraps
-    @set_design(text="Open command palette")
-    @do_not_record
-    @bind_key("Ctrl+P")
-    def open_command_palette(self):
-        from magicclass.command_palette import exec_command_palette
-
-        return exec_command_palette(self, alignment="screen")
-
-    @Others.wraps
-    @set_design(text="Open logger")
-    @do_not_record
-    def open_logger(self):
-        """Open logger window."""
-        wdt = _Logger.widget
-        name = "Log"
-        if name in self.parent_viewer.window._dock_widgets:
-            self.parent_viewer.window._dock_widgets[name].show()
-        else:
-            self.parent_viewer.window.add_dock_widget(wdt, name=name)
-
-    @Others.Help.wraps
-    @set_design(text="Info")
-    @do_not_record
-    def cylindra_info(self):
-        """Show information of dependencies."""
-        versions = get_versions()
-        value = "\n".join(f"{k}: {v}" for k, v in versions.items())
-        w = ConsoleTextEdit(value=value)
-        w.read_only = True
-        w.native.setParent(self.native, w.native.windowFlags())
-        w.show()
-        self._active_widgets.add(w)
-        return None
-
-    @Others.Help.wraps
-    @set_design(text="Report issues")
-    @do_not_record
-    def report_issues(self):
-        """Report issues on GitHub."""
-        from magicclass.utils import open_url
-
-        open_url("https://github.com/hanjinliu/cylindra/issues/new")
-        return None
-
-    @File.wraps
-    @set_design(text="Open image")
-    @do_not_record
-    @bind_key("Ctrl+K, Ctrl+O")
-    def open_image_loader(self):
-        """Load an image file and process it before sending it to the viewer."""
-        return self._image_loader.show()
-
     @_image_loader.wraps
     @set_design(text="Run")
     @dask_thread_worker.with_progress(desc="Reading image")
@@ -439,8 +374,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size : int or list of int, default is [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
-        filter : ImageFilter, default is Lowass
-            Filter for the reference image (does not affect image data itself).
+        {filter}
         """
         img = ip.lazy_imread(path, chunks=GVar.dask_chunk)
         if scale is not None:
@@ -483,13 +417,27 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Path.Read[FileFilter.PROJECT],
         filter: Union[ImageFilter, None] = ImageFilter.DoG,
+        paint: bool = True,
     ):
-        """Load a project json file."""
+        """
+        Load a project json file.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the project json file, or the project directory that contains
+            "project.json".
+        {filter}
+        paint : bool, default is True
+            Whether to paint cylinder properties if available.
+        """
         project_path = get_project_json(path)
         project = CylindraProject.from_json(project_path)
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
         self._project_dir = project_path.parent
-        return thread_worker.to_callback(project.to_gui(self, filter=filter))
+        return thread_worker.to_callback(
+            project.to_gui(self, filter=filter, paint=paint)
+        )
 
     @File.wraps
     @set_design(text="Save project")
@@ -589,22 +537,6 @@ class CylindraMainWidget(MagicTemplate):
         mole.to_csv(save_path)
         return None
 
-    @File.wraps
-    @set_design(text="Process images")
-    @do_not_record
-    def process_images(self):
-        """Open image processor."""
-        return self.image_processor.show()
-
-    @File.wraps
-    @set_design(text="View project")
-    @do_not_record
-    def view_project(self, path: Path.Read[FileFilter.JSON]):
-        pviewer = CylindraProject.from_json(path).make_project_viewer()
-        pviewer.native.setParent(self.native, pviewer.native.windowFlags())
-        self._active_widgets.add(pviewer)
-        return pviewer.show()
-
     @ImageMenu.wraps
     @set_design(text="Filter reference image")
     @dask_thread_worker.with_progress(desc=_pdesc.filter_image_fmt)
@@ -702,14 +634,6 @@ class CylindraMainWidget(MagicTemplate):
         self.layer_image.metadata["current_binsize"] = bin_size
         self.reset_choices()
         return undo_callback(self.set_multiscale).with_args(_old_bin_size)
-
-    @ImageMenu.wraps
-    @do_not_record
-    @set_design(text="Open spline sweeper")
-    def open_sweeper(self):
-        """Open spline sweeper widget"""
-        self.spline_slicer.show()
-        return self.spline_slicer.refresh_widget_state()
 
     @ImageMenu.wraps
     @set_design(text="Sample subtomograms")
@@ -1293,15 +1217,6 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         return None
 
-    @Splines.wraps
-    @set_design(text="Open spline clipper")
-    @do_not_record
-    def open_spline_clipper(self):
-        """Open the spline clipper widget to precisely clip spines."""
-        self.spline_clipper.show()
-        if self.tomogram.n_splines > 0:
-            self.spline_clipper.load_spline(self.SplineControl.num)
-
     @Analysis.wraps
     @set_design(text="Local FT analysis")
     @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
@@ -1457,39 +1372,6 @@ class CylindraMainWidget(MagicTemplate):
         macro.eval({mk.symbol(self): self})
         self.macro.clear_undo_stack()
         return None
-
-    @Analysis.wraps
-    @set_design(text="Open spectra measurer")
-    @do_not_record
-    def open_spectra_measurer(self):
-        """Open the spectra measurer widget to determine cylindric parameters."""
-        if self.tomogram is not None and self.tomogram.n_splines > 0:
-            binsize = utils.roundint(self.layer_image.scale[0] / self.tomogram.scale)
-            self.spectra_measurer.load_spline(self.SplineControl.num, binsize)
-        return self.spectra_measurer.show()
-
-    @Analysis.wraps
-    @set_design(text="Open subtomogram analyzer")
-    @do_not_record
-    @bind_key("Ctrl+K, S")
-    def open_subtomogram_analyzer(self):
-        """Open the subtomogram analyzer dock widget."""
-        return self.sta.show()
-
-    @Analysis.wraps
-    @set_design(text="Open batch analyzer")
-    @do_not_record
-    @bind_key("Ctrl+K, B")
-    def open_project_batch_analyzer(self):
-        """Open the batch analyzer widget."""
-        from .batch import CylindraBatchWidget
-
-        uibatch = CylindraBatchWidget()
-        uibatch.native.setParent(self.native, uibatch.native.windowFlags())
-        self._batch = uibatch
-        uibatch.show()
-        self._active_widgets.add(uibatch)
-        return uibatch
 
     @Analysis.wraps
     @set_design(text="Repeat command")
@@ -2388,14 +2270,6 @@ class CylindraMainWidget(MagicTemplate):
             plt.tight_layout()
             plt.show()
         return None
-
-    @ImageMenu.wraps
-    @set_design(text="Simulate cylindric structure")
-    @do_not_record
-    @bind_key("Ctrl+K, I")
-    def open_simulator(self):
-        """Open the simulator widget."""
-        return self.cylinder_simulator.show()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods

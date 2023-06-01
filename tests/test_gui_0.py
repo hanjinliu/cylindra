@@ -359,9 +359,9 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
 
 
-def test_sweeper(ui: CylindraMainWidget):
+def test_slicer(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False)
-    ui.open_sweeper()
+    ui.open_slicer()
     ui.spline_slicer.refresh_widget_state()
     ui.spline_slicer.show_what = "CFT"
     ui.spline_slicer.show_what = "R-projection"
