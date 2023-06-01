@@ -13,14 +13,15 @@ from magicclass.utils import show_messagebox
 from magicclass.types import Path
 
 from .widget_utils import FileFilter
-from cylindra.const import nm, GlobalVariables as GVar, ConfigConst as Cfg
+from cylindra.const import nm, GlobalVariables as GVar
+from cylindra import _config
 
 
 @magicmenu(name="Global variables ...")
 class GlobalVariablesMenu(MagicTemplate):
     def _get_file_names(self, *_) -> list[str]:
         try:
-            return [fp.stem for fp in Cfg.VAR_PATH.glob("*.json")]
+            return [fp.stem for fp in _config.VAR_PATH.glob("*.json")]
         except Exception:
             return []
 
@@ -120,7 +121,7 @@ class GlobalVariablesMenu(MagicTemplate):
         var_name: Annotated[str, {"choices": _get_file_names, "label": "Variable set"}],
     ):
         """Load global variables from one of the saved Json files."""
-        path = Cfg.VAR_PATH / f"{var_name}.json"
+        path = _config.VAR_PATH / f"{var_name}.json"
         self.load_variables(path)
         return None
 
@@ -129,13 +130,13 @@ class GlobalVariablesMenu(MagicTemplate):
         from ._previews import view_text
         from cylindra.widgets import CylindraMainWidget
 
-        path = Cfg.VAR_PATH / f"{var_name}.json"
+        path = _config.VAR_PATH / f"{var_name}.json"
         wdt = view_text(path, parent=self)
         self.find_ancestor(CylindraMainWidget)._active_widgets.add(wdt)
         return None
 
     @set_design(text="Save variables")
-    def save_variables(self, path: Path.Save[FileFilter.JSON] = Cfg.VAR_PATH):
+    def save_variables(self, path: Path.Save[FileFilter.JSON] = _config.VAR_PATH):
         """Save current global variables to a Json file."""
         gvar = GVar.dict()
         with open(path, mode="w") as f:
@@ -146,53 +147,8 @@ class GlobalVariablesMenu(MagicTemplate):
     def load_default(self):
         """Load default global variables."""
 
-        with open(Cfg.SETTINGS_PATH / Cfg.USER_SETTINGS_NAME) as f:
+        with open(_config.USER_SETTINGS) as f:
             js = json.load(f)
 
-        self.load_variables_by_name(js[Cfg.DEFAULT_VARIABLES])
+        self.load_variables_by_name(js[_config.DEFAULT_VARIABLES])
         return None
-
-
-def _is_empty(path: Path) -> bool:
-    """Check if a directory is empty."""
-    it = path.glob("*")
-    try:
-        next(it)
-    except StopIteration:
-        return True
-    return False
-
-
-# Initialize user config directory.
-if not Cfg.VAR_PATH.exists() or _is_empty(Cfg.VAR_PATH):  # pragma: no cover
-    try:
-        if not Cfg.VAR_PATH.exists():
-            Cfg.VAR_PATH.mkdir(parents=True)
-
-        _data_dir = Path(__file__).parent.parent / "_data"
-        for fp in _data_dir.glob("*.json"):
-            with open(fp) as f:
-                js = json.load(f)
-
-            with open(Cfg.VAR_PATH / fp.name, mode="w") as f:
-                json.dump(js, f, indent=4, separators=(", ", ": "))
-
-    except Exception as e:
-        print("Failed to initialize config directory.")
-        print(e)
-    else:
-        print(f"Config directory initialized at {Cfg.VAR_PATH}.")
-
-if not Cfg.SETTINGS_PATH.exists() or _is_empty(Cfg.SETTINGS_PATH):  # pragma: no cover
-    try:
-        if not Cfg.SETTINGS_PATH.exists():
-            Cfg.SETTINGS_PATH.mkdir(parents=True)
-
-        settings_js = {Cfg.DEFAULT_VARIABLES: "eukaryotic_MT"}
-        with open(Cfg.SETTINGS_PATH / Cfg.USER_SETTINGS_NAME, mode="w") as f:
-            json.dump(settings_js, f, indent=4, separators=(", ", ": "))
-    except Exception as e:
-        print("Failed to initialize settings directory.")
-        print(e)
-    else:
-        print(f"Settings directory initialized at {Cfg.SETTINGS_PATH}.")

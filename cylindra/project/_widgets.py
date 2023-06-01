@@ -10,7 +10,7 @@ from magicclass.ext.polars import DataFrameView
 from acryo import Molecules
 
 if TYPE_CHECKING:
-    from .single import CylindraProject
+    from ._single import CylindraProject
     from magicclass.ext.vispy._base import LayerItem
 
 

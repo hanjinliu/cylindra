@@ -57,6 +57,7 @@ from cylindra.const import (
     get_versions,
     SplineColor,
     ImageFilter,
+    ConfigConst as Cfg,
 )
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 from cylindra.types import ColoredLayer, get_monomer_layers
@@ -307,14 +308,23 @@ class CylindraMainWidget(MagicTemplate):
     @Others.Macro.wraps
     @set_design(text="Run file")
     @do_not_record
+    @bind_key("Ctrl+K, Ctrl+Shift+R")
     def run_file(self, path: Path.Read[FileFilter.PY]):
         """Run a Python script file."""
         macro = self._load_macro_file(path)
         _ui = str(mk.symbol(self))
-        with self.macro.blocked():
-            macro.eval({}, {_ui: self})
-        self.macro.extend(macro.args)
+        macro.eval({}, {_ui: self})
         return None
+
+    @Others.Macro.wraps
+    @set_design(text="Define workflow")
+    @do_not_record
+    def run_file(
+        self,
+        name: str,
+        expr: str,
+    ):
+        Cfg.workflow_path(name)
 
     @Others.Macro.wraps
     @set_design(text="Show macro")

@@ -27,9 +27,9 @@ import impy as ip
 import polars as pl
 import napari
 
-from cylindra import utils
+from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
-from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, ConfigConst as Cfg
+from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm
 from cylindra.components import CylSpline
 
 from .widget_utils import FileFilter, timer
@@ -98,32 +98,6 @@ def _get_alignment(method: str):
         return alignment.PCCAlignment
     else:
         raise ValueError(f"Method {method!r} is unknown.")
-
-
-def _get_template_path_hist() -> list[Path]:
-    path = Path(Cfg.SETTINGS_PATH / "template_path_hist.txt")
-    if path.exists():
-        out: list[Path] = []
-        for line in path.read_text().splitlines():
-            if line.strip() == "":
-                continue
-            try:
-                out.append(Path(line))
-            except ValueError:
-                pass
-        return out
-    return []
-
-
-def _set_template_path_hist(paths: list[str]):
-    path = Path(Cfg.SETTINGS_PATH / "template_path_hist.txt")
-    try:
-        if not path.parent.exists():
-            path.parent.mkdir(parents=True)
-        path.write_text("\n".join([p for p in paths if Path(p).is_file()]) + "\n")
-    except Exception:
-        pass
-    return None
 
 
 MASK_CHOICES = ("No mask", "Blur template", "From file")
@@ -225,7 +199,7 @@ class StaParameters(MagicTemplate):
 
         # load history
         line: HistoryFileEdit = self.template_path.inner_widget
-        for fp in _get_template_path_hist():
+        for fp in _config.get_template_path_hist():
             line.append_history(str(fp))
 
     @mask_choice.connect
@@ -238,7 +212,7 @@ class StaParameters(MagicTemplate):
         try:
             line: HistoryFileEdit = self.template_path.inner_widget
             _hist = [str(p) for p in line.get_history()[-20:]]
-            _set_template_path_hist(_hist)
+            _config.set_template_path_hist(_hist)
         except Exception:
             pass
 

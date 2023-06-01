@@ -220,13 +220,6 @@ def get_versions() -> dict[str, str]:
     }
 
 
-class ConfigConst(SimpleNamespace):
-    VAR_PATH = Path(user_config_dir("variables", "cylindra"))
-    SETTINGS_PATH = Path(user_config_dir("settings", "cylindra"))
-    USER_SETTINGS_NAME = "user-settings.json"
-    DEFAULT_VARIABLES = "default_variables"
-
-
 class SplineColor(SimpleNamespace):
     """Color of spline used in the 2D/3D canvas."""
 
