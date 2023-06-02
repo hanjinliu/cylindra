@@ -12,7 +12,7 @@ from typing import (
     MutableSequence,
 )
 from collections.abc import Iterable
-from functools import cached_property, partial, wraps
+from functools import partial, wraps
 
 from typing_extensions import ParamSpec, Concatenate
 import numpy as np
@@ -1549,7 +1549,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     )
 
     skew = np.arctan(peak1.yfreq / peak1.afreq * 2 * yspace / radius)
-    start = -rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
+    start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
     npf = peak1.a
 
     return np.array(
