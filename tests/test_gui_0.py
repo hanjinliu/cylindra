@@ -39,8 +39,8 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.get_spline().orientation == ori
     assert ui.GlobalProperties.params.params2.polarity.txt == ori
 
-    spec = ui.layer_prof.features["spline-id"] == ui.SplineControl.num
-    arr = ui.layer_prof.text.string.array[spec]
+    spec = ui._layer_prof.features["spline-id"] == ui.SplineControl.num
+    arr = ui._layer_prof.text.string.array[spec]
     if ori == "MinusToPlus":
         assert (arr[0], arr[-1]) == ("-", "+")
     elif ori == "PlusToMinus":
@@ -112,8 +112,8 @@ def test_io_with_different_data(ui: CylindraMainWidget):
 def test_picking_splines(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
-    ui.layer_work.add(coords_13pf[0])
-    ui.layer_work.add(coords_13pf[1])
+    ui._layer_work.add(coords_13pf[0])
+    ui._layer_work.add(coords_13pf[1])
     ui.pick_next()
     ui.register_path()
     assert len(ui.tomogram.splines) == 1
@@ -124,27 +124,27 @@ def test_spline_deletion(ui: CylindraMainWidget):
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 1.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 1.0
     ui.clear_current()
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
     ui.register_path(coords=coords_13pf[::-1])
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 1.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 1.0
     ui.delete_spline(0)
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
     ui.macro.undo()
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 1.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 1.0
     ui.macro.undo()
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
     ui.macro.redo()
     ui.macro.redo()
-    assert ui.layer_prof.features["spline-id"].values[0] == 0.0
-    assert ui.layer_prof.features["spline-id"].values[-1] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[0] == 0.0
+    assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
 
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):

@@ -161,13 +161,25 @@ class CylindraMainWidget(MagicTemplate):
     ### methods ###
 
     def __init__(self):
-        self.tomogram: CylTomogram = None
+        self._tomogram: CylTomogram = None
         self._current_ft_size: nm = 50.0
         self._tilt_range: "tuple[float, float] | None" = None
-        self.layer_image: Image = None
-        self.layer_prof: Points = None
-        self.layer_work: Points = None
-        self.layer_paint: CylinderLabels = None
+        self._layer_image: Image = None
+        self._layer_prof: Points = None
+        self._layer_work: Points = None
+        self._layer_paint: CylinderLabels = None
+        self._layer_highlight = Points(
+            ndim=3,
+            name="Highlight",
+            face_color="transparent",
+            edge_color="crimson",
+            edge_width=0.16,
+            edge_width_is_relative=True,
+            out_of_slice_display=True,
+            blending="translucent_no_depth",
+        )
+        self._layer_highlight.interactive = False
+
         self._macro_offset: int = 1
         self._need_save: bool = False
         self._batch = None
@@ -184,6 +196,11 @@ class CylindraMainWidget(MagicTemplate):
         self.global_variables.load_default()
         return None
 
+    @property
+    def tomogram(self) -> CylTomogram:
+        """The current tomogram instance."""
+        return self._tomogram
+
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         tomo = self.tomogram
@@ -193,7 +210,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _get_spline_coordinates(self, widget=None) -> np.ndarray:
         """Get coordinates of the manually picked spline."""
-        coords = self.layer_work.data
+        coords = self._layer_work.data
         return np.round(coords, 3)
 
     def _get_available_binsize(self, _=None) -> list[int]:
@@ -210,7 +227,7 @@ class CylindraMainWidget(MagicTemplate):
     def register_path(self, coords: Bound[_get_spline_coordinates] = None):
         """Register current selected points as a spline path."""
         if coords is None:
-            _coords = self.layer_work.data
+            _coords = self._layer_work.data
         else:
             _coords = np.asarray(coords)
 
@@ -224,8 +241,8 @@ class CylindraMainWidget(MagicTemplate):
 
         # draw path
         self._add_spline_to_images(spl, tomo.n_splines - 1)
-        self.layer_work.data = []
-        self.layer_prof.selected_data = set()
+        self._layer_work.data = []
+        self._layer_prof.selected_data = set()
         self.reset_choices()
         self.SplineControl.num = tomo.n_splines - 1
 
@@ -258,8 +275,8 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record(recursive=False)
     def clear_current(self):
         """Clear current selection."""
-        if self.layer_work.data.size > 0:
-            self.layer_work.data = []
+        if self._layer_work.data.size > 0:
+            self._layer_work.data = []
         else:
             self.delete_spline(self.SplineControl.num)
 
@@ -416,8 +433,7 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         self._macro_offset = len(self.macro)
-        self.tomogram = tomo
-        return thread_worker.to_callback(self._send_tomogram_to_viewer, filter)
+        return thread_worker.to_callback(self._send_tomogram_to_viewer, tomo, filter)
 
     @open_image.started.connect
     def _open_image_on_start(self):
@@ -567,29 +583,28 @@ class CylindraMainWidget(MagicTemplate):
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)
         with utils.set_gpu():
-            img: ip.ImgArray = self.layer_image.data
+            img: ip.ImgArray = self._layer_image.data
             overlap = [min(s, 32) for s in img.shape]
             _tiled = img.tiled(chunks=(224, 224, 224), overlap=overlap)
-            sigma = 1.6 / self.layer_image.scale[-1]
+            sigma = 1.6 / self._layer_image.scale[-1]
             if method is ImageFilter.Lowpass:
-                self.layer_image.data = _tiled.lowpass_filter(cutoff=0.2)
+                img_filt = _tiled.lowpass_filter(cutoff=0.2)
             elif method is ImageFilter.Gaussian:
-                self.layer_image.data = _tiled.gaussian_filter(
-                    sigma=sigma, fourier=True
-                )
+                img_filt = _tiled.gaussian_filter(sigma=sigma, fourier=True)
             elif method is ImageFilter.DoG:
-                self.layer_image.data = _tiled.dog_filter(low_sigma=sigma, fourier=True)
+                img_filt = _tiled.dog_filter(low_sigma=sigma, fourier=True)
             elif method is ImageFilter.LoG:
-                self.layer_image.data = _tiled.log_filter(sigma=sigma)
+                img_filt = _tiled.log_filter(sigma=sigma)
             else:
                 raise ValueError(f"No method matches {method!r}")
 
-        contrast_limits = np.percentile(self.layer_image.data, [1, 99.9])
+        contrast_limits = np.percentile(self._layer_image.data, [1, 99.9])
 
         @thread_worker.to_callback
         def _filter_reference_image_on_return():
-            self.layer_image.contrast_limits = contrast_limits
-            proj = self.layer_image.data.proj("z")
+            self._layer_image.data = img_filt
+            self._layer_image.contrast_limits = contrast_limits
+            proj = self._layer_image.data.proj("z")
             self.overview.image = proj
             self.overview.contrast_limits = contrast_limits
 
@@ -631,26 +646,26 @@ class CylindraMainWidget(MagicTemplate):
             Bin size of multiscaled image.
         """
         tomo = self.tomogram
-        _old_bin_size = self.layer_image.metadata["current_binsize"]
+        _old_bin_size = self._layer_image.metadata["current_binsize"]
         imgb = tomo.get_multiscale(bin_size)
-        factor = self.layer_image.scale[0] / imgb.scale.x
+        factor = self._layer_image.scale[0] / imgb.scale.x
         current_z = self.parent_viewer.dims.current_step[0]
-        self.layer_image.data = imgb
-        self.layer_image.scale = imgb.scale
-        self.layer_image.name = f"{imgb.name} (bin {bin_size})"
-        self.layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
-        self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
+        self._layer_image.data = imgb
+        self._layer_image.scale = imgb.scale
+        self._layer_image.name = f"{imgb.name} (bin {bin_size})"
+        self._layer_image.translate = [tomo.multiscale_translation(bin_size)] * 3
+        self._layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
         self.parent_viewer.dims.set_current_step(axis=0, value=current_z * factor)
 
-        if self.layer_paint is not None:
-            self.layer_paint.scale = self.layer_image.scale
-            self.layer_paint.translate = self.layer_image.translate
+        if self._layer_paint is not None:
+            self._layer_paint.scale = self._layer_image.scale
+            self._layer_paint.translate = self._layer_image.translate
 
         # update overview
         self.overview.image = imgb.proj("z")
         self.overview.xlim = [x * factor for x in self.overview.xlim]
         self.overview.ylim = [y * factor for y in self.overview.ylim]
-        self.layer_image.metadata["current_binsize"] = bin_size
+        self._layer_image.metadata["current_binsize"] = bin_size
         self.reset_choices()
         return undo_callback(self.set_multiscale).with_args(_old_bin_size)
 
@@ -667,7 +682,7 @@ class CylindraMainWidget(MagicTemplate):
         if spl.has_anchors:
             self.SplineControl["pos"].max = spl.anchors.size - 1
         self.SplineControl._num_changed()
-        self.layer_work.mode = "pan_zoom"
+        self._layer_work.mode = "pan_zoom"
 
         self._update_local_properties_in_widget()
         self._update_global_properties_in_widget()
@@ -800,7 +815,7 @@ class CylindraMainWidget(MagicTemplate):
         depth : nm, default is 40 nm
             Depth (Y-length) of the subtomogram to be sampled.
         """
-        binsize: int = self.layer_image.metadata["current_binsize"]
+        binsize: int = self._layer_image.metadata["current_binsize"]
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         _new_orientations = tomo.infer_polarity(binsize=binsize, depth=depth)
@@ -867,7 +882,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         self._need_save = True
         # current layer will be removed. Select another layer.
-        self.parent_viewer.layers.selection = {self.layer_work}
+        self.parent_viewer.layers.selection = {self._layer_work}
 
         @undo_callback
         def out():
@@ -890,18 +905,18 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
 
         # update layer
-        features = self.layer_prof.features
+        features = self._layer_prof.features
         spline_id = features[SPLINE_ID]
         spec = spline_id != i
-        old_data = self.layer_prof.data
-        self.layer_prof.data = old_data[spec]
+        old_data = self._layer_prof.data
+        self._layer_prof.data = old_data[spec]
         new_features = features[spec].copy()
         spline_id = np.asarray(new_features[SPLINE_ID])
         spline_id[spline_id >= i] -= 1
         new_features[SPLINE_ID] = spline_id
         self._update_splines_in_images()
-        self.layer_prof.features = new_features
-        self.layer_prof.feature_defaults[SPLINE_ID] = len(self.tomogram.splines)
+        self._layer_prof.features = new_features
+        self._layer_prof.feature_defaults[SPLINE_ID] = len(self.tomogram.splines)
         if self.SplineControl.need_resample and len(self.tomogram.splines) > 0:
             self.sample_subtomograms()
         self._need_save = True
@@ -909,8 +924,8 @@ class CylindraMainWidget(MagicTemplate):
         @undo_callback
         def out():
             self.tomogram.splines.insert(i, spl)
-            self.layer_prof.data = old_data
-            self.layer_prof.features = features
+            self._layer_prof.data = old_data
+            self._layer_prof.features = features
             self._add_spline_to_images(spl, i)
             self._update_splines_in_images()
             self.reset_choices()
@@ -2101,13 +2116,13 @@ class CylindraMainWidget(MagicTemplate):
     def pick_next(self):
         """Automatically pick cylinder center using previous two points."""
         picker = self.toolbar.Adjust._get_picker()
-        points = self.layer_work.data
+        points = self._layer_work.data
         if len(points) < 2:
             raise IndexError("Auto picking needs at least two points.")
-        imgb: ip.ImgArray = self.layer_image.data
+        imgb: ip.ImgArray = self._layer_image.data
         scale = imgb.scale.x
         next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
-        self.layer_work.add(next_point)
+        self._layer_work.add(next_point)
 
         change_viewer_focus(self.parent_viewer, next_point / scale, scale)
         return None
@@ -2140,7 +2155,7 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(f"Column {color_by} does not exist.")
 
         paint_device = widget_utils.PaintDevice(
-            self.layer_image.data.shape, self.layer_image.scale[-1]
+            self._layer_image.data.shape, self._layer_image.scale[-1]
         )
         lbl = yield from paint_device.paint_cylinders(
             self._current_ft_size, self.tomogram
@@ -2169,21 +2184,21 @@ class CylindraMainWidget(MagicTemplate):
         @thread_worker.to_callback
         def _on_return():
             # Add labels layer
-            if self.layer_paint is None:
+            if self._layer_paint is None:
                 layer_paint = CylinderLabels(
                     lbl,
                     color=color,
-                    scale=self.layer_image.scale,
-                    translate=self.layer_image.translate,
+                    scale=self._layer_image.scale,
+                    translate=self._layer_image.translate,
                     opacity=0.33,
                     name="Cylinder properties",
                     features=props,
                 )
-                self.layer_paint = self.parent_viewer.add_layer(layer_paint)
+                self._layer_paint = self.parent_viewer.add_layer(layer_paint)
             else:
-                self.layer_paint.data = lbl
-                self.layer_paint.features = props
-            self.layer_paint.set_colormap(color_by, limits, cmap)
+                self._layer_paint.data = lbl
+                self._layer_paint.features = props
+            self._layer_paint.set_colormap(color_by, limits, cmap)
             return undo_callback(lambda: None)  # TODO: undo paint
 
         return _on_return
@@ -2215,9 +2230,9 @@ class CylindraMainWidget(MagicTemplate):
             layer: MoleculesLayer
             molecules.append(layer.molecules)
         mole = Molecules.concat(molecules)
-        data = self.layer_image.data if target_layer is None else target_layer.data
+        data = self._layer_image.data if target_layer is None else target_layer.data
 
-        device = widget_utils.PaintDevice(data.shape, self.layer_image.scale[-1])
+        device = widget_utils.PaintDevice(data.shape, self._layer_image.scale[-1])
         template = from_file(template_path)(device.scale)
         sim = device.paint_molecules(template, mole)
 
@@ -2226,8 +2241,8 @@ class CylindraMainWidget(MagicTemplate):
             if target_layer is None:
                 layer = self.parent_viewer.add_image(
                     sim,
-                    scale=self.layer_image.scale,
-                    translate=self.layer_image.translate,
+                    scale=self._layer_image.scale,
+                    translate=self._layer_image.translate,
                     name="Simulated",
                 )
                 return (
@@ -2271,7 +2286,7 @@ class CylindraMainWidget(MagicTemplate):
         limits : tuple, default is (4.00, 4.24)
             Color limits (nm).
         """
-        self.layer_paint.set_colormap(color_by, limits, cmap)
+        self._layer_paint.set_colormap(color_by, limits, cmap)
         return None
 
     @ImageMenu.wraps
@@ -2399,16 +2414,18 @@ class CylindraMainWidget(MagicTemplate):
 
         return future_func
 
-    def _send_tomogram_to_viewer(self, filt: "ImageFilter | None" = None):
+    def _send_tomogram_to_viewer(
+        self, tomo: CylTomogram, filt: "ImageFilter | None" = None
+    ):
         viewer = self.parent_viewer
-        tomo = self.tomogram
+        self._tomogram = tomo
         bin_size = max(x[0] for x in tomo.multiscaled)
         imgb = tomo.get_multiscale(bin_size)
         tr = tomo.multiscale_translation(bin_size)
         name = f"{imgb.name} (bin {bin_size})"
         # update image layer
-        if self.layer_image not in viewer.layers:
-            self.layer_image = viewer.add_image(
+        if self._layer_image not in viewer.layers:
+            self._layer_image = viewer.add_image(
                 imgb,
                 scale=imgb.scale,
                 name=name,
@@ -2416,13 +2433,16 @@ class CylindraMainWidget(MagicTemplate):
                 contrast_limits=[np.min(imgb), np.max(imgb)],
             )
         else:
-            self.layer_image.data = imgb
-            self.layer_image.scale = imgb.scale
-            self.layer_image.name = name
-            self.layer_image.translate = [tr, tr, tr]
-            self.layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
+            self._layer_image.data = imgb
+            self._layer_image.scale = imgb.scale
+            self._layer_image.name = name
+            self._layer_image.translate = [tr, tr, tr]
+            self._layer_image.contrast_limits = [np.min(imgb), np.max(imgb)]
 
-        self.layer_image.metadata["current_binsize"] = bin_size
+        if self._layer_highlight in viewer.layers:
+            viewer.layers.remove(self._layer_highlight)
+
+        self._layer_image.metadata["current_binsize"] = bin_size
         self.GeneralInfo._refer_tomogram(tomo)
 
         # update viewer dimensions
@@ -2431,10 +2451,10 @@ class CylindraMainWidget(MagicTemplate):
         change_viewer_focus(viewer, np.asarray(imgb.shape) / 2, imgb.scale.x)
 
         # update labels layer
-        if self.layer_paint is not None:
-            self.layer_paint.data = np.zeros(imgb.shape, dtype=np.uint8)
-            self.layer_paint.scale = imgb.scale
-            self.layer_paint.translate = [tr, tr, tr]
+        if self._layer_paint is not None:
+            self._layer_paint.data = np.zeros(imgb.shape, dtype=np.uint8)
+            self._layer_paint.scale = imgb.scale
+            self._layer_paint.translate = [tr, tr, tr]
 
         # update overview
         proj = imgb.proj("z")
@@ -2472,10 +2492,10 @@ class CylindraMainWidget(MagicTemplate):
         idx: int = event.index
         layer: Layer = event.value
         if layer in (
-            self.layer_image,
-            self.layer_prof,
-            self.layer_work,
-            self.layer_paint,
+            self._layer_image,
+            self._layer_prof,
+            self._layer_work,
+            self._layer_paint,
         ):
             self.parent_viewer.layers.insert(idx, layer)
             warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
@@ -2505,10 +2525,10 @@ class CylindraMainWidget(MagicTemplate):
             self.parent_viewer.layers.remove(layer)
 
         common_properties = dict(ndim=3, out_of_slice_display=True, size=8)
-        if self.layer_prof in self.parent_viewer.layers:
-            viewer.layers.remove(self.layer_prof)
+        if self._layer_prof in self.parent_viewer.layers:
+            viewer.layers.remove(self._layer_prof)
 
-        self.layer_prof: Points = viewer.add_points(
+        self._layer_prof: Points = viewer.add_points(
             **common_properties,
             name=SELECTION_LAYER_NAME,
             features={SPLINE_ID: []},
@@ -2517,24 +2537,24 @@ class CylindraMainWidget(MagicTemplate):
             face_color=SplineColor.DEFAULT,
             text={"color": "yellow"},
         )
-        self.layer_prof.feature_defaults[SPLINE_ID] = 0
-        self.layer_prof.editable = False
+        self._layer_prof.feature_defaults[SPLINE_ID] = 0
+        self._layer_prof.editable = False
 
-        if self.layer_work in viewer.layers:
-            viewer.layers.remove(self.layer_work)
+        if self._layer_work in viewer.layers:
+            viewer.layers.remove(self._layer_work)
 
-        self.layer_work = viewer.add_points(
+        self._layer_work = viewer.add_points(
             **common_properties,
             name=WORKING_LAYER_NAME,
             face_color="yellow",
             blending="translucent_no_depth",
         )
 
-        self.layer_work.mode = "add"
+        self._layer_work.mode = "add"
 
-        if self.layer_paint is not None:
-            self.layer_paint.data = np.zeros_like(self.layer_paint.data)
-            self.layer_paint.scale = self.layer_image.scale
+        if self._layer_paint is not None:
+            self._layer_paint.data = np.zeros_like(self._layer_paint.data)
+            self._layer_paint.scale = self._layer_image.scale
         self.GlobalProperties._init_text()
 
         # Connect layer events.
@@ -2555,10 +2575,10 @@ class CylindraMainWidget(MagicTemplate):
             else:
                 layer.color = SplineColor.DEFAULT
 
-        spec = self.layer_prof.features[SPLINE_ID] == i
-        self.layer_prof.face_color = SplineColor.DEFAULT
-        self.layer_prof.face_color[spec] = SplineColor.SELECTED
-        self.layer_prof.refresh()
+        spec = self._layer_prof.features[SPLINE_ID] == i
+        self._layer_prof.face_color = SplineColor.DEFAULT
+        self._layer_prof.face_color[spec] = SplineColor.SELECTED
+        self._layer_prof.refresh()
         return None
 
     @SplineControl.num.connect
@@ -2596,12 +2616,12 @@ class CylindraMainWidget(MagicTemplate):
     def _add_spline_to_images(self, spl: CylSpline, i: int):
         interval = 15
         length = spl.length()
-        scale = self.layer_image.scale[0]
+        scale = self._layer_image.scale[0]
 
         n = max(int(length / interval) + 1, 2)
         fit = spl.map(np.linspace(0, 1, n))
-        self.layer_prof.feature_defaults[SPLINE_ID] = i
-        self.layer_prof.add(fit)
+        self._layer_prof.feature_defaults[SPLINE_ID] = i
+        self._layer_prof.add(fit)
         self.overview.add_curve(
             fit[:, 2] / scale,
             fit[:, 1] / scale,
@@ -2613,13 +2633,13 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     def _set_orientation_marker(self, idx: int):
-        spline_id = self.layer_prof.features[SPLINE_ID]
+        spline_id = self._layer_prof.features[SPLINE_ID]
         spec = spline_id == idx
-        if self.layer_prof.text.string.encoding_type == "ConstantStringEncoding":
+        if self._layer_prof.text.string.encoding_type == "ConstantStringEncoding":
             # if text uses constant string encoding, update it to ManualStringEncoding
-            string_arr = np.zeros(len(self.layer_prof.data), dtype="<U1")
+            string_arr = np.zeros(len(self._layer_prof.data), dtype="<U1")
         else:
-            string_arr = np.asarray(self.layer_prof.text.string.array, dtype="<U1")
+            string_arr = np.asarray(self._layer_prof.text.string.array, dtype="<U1")
 
         spl = self.tomogram.splines[idx]
         str_of_interest = string_arr[spec]
@@ -2635,14 +2655,14 @@ class CylindraMainWidget(MagicTemplate):
 
         # update
         string_arr[spec] = str_of_interest
-        self.layer_prof.text.string = list(string_arr)
-        return self.layer_prof.refresh()
+        self._layer_prof.text.string = list(string_arr)
+        return self._layer_prof.refresh()
 
     def _update_splines_in_images(self, _=None):
         """Refresh splines in overview canvas and napari canvas."""
         self.overview.layers.clear()
-        self.layer_prof.data = []
-        scale = self.layer_image.scale[0]
+        self._layer_prof.data = []
+        scale = self._layer_image.scale[0]
         for i, spl in enumerate(self.tomogram.splines):
             self._add_spline_to_images(spl, i)
             if spl._anchors is None:

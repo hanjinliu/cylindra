@@ -78,11 +78,16 @@ class SplineControl(MagicTemplate):
         """Change camera focus to the position of current spline fragment."""
         parent = self._get_parent()
         if not self.footer.highlight_area:
-            parent.parent_viewer.overlays.interaction_box.show = False
+            if parent._layer_highlight in parent.parent_viewer.layers:
+                parent.parent_viewer.layers.remove(parent._layer_highlight)
             return None
-        layer = parent.layer_paint
+
+        layer = parent._layer_paint
         if layer is None:
             return None
+
+        if parent._layer_highlight not in parent.parent_viewer.layers:
+            parent.parent_viewer.add_layer(parent._layer_highlight)
 
         i = self.num
         j = self.pos
@@ -90,12 +95,10 @@ class SplineControl(MagicTemplate):
         tomo = parent.tomogram
         spl = tomo.splines[i]
         anc = spl.anchors[j]
-        coords = spl.map(anc)
-        yc, xc = coords[1:]
-        y0, y1 = yc - GVar.fit_depth / 2, yc + GVar.fit_depth / 2
-        x0, x1 = xc - GVar.fit_width / 2, xc + GVar.fit_width / 2
-        parent.parent_viewer.overlays.interaction_box.show = True
-        parent.parent_viewer.overlays.interaction_box.points = [(y0, x0), (y1, x1)]
+        parent._layer_highlight.data = spl.map(anc)
+        parent._layer_highlight.size = (
+            GVar.fit_width / parent._layer_image.scale[-1] * 2
+        )
 
         return None
 
@@ -155,7 +158,7 @@ class SplineControl(MagicTemplate):
         else:
             npf_list = [0] * spl.anchors.size
 
-        binsize = parent.layer_image.metadata["current_binsize"]
+        binsize = parent._layer_image.metadata["current_binsize"]
         imgb = parent.tomogram.get_multiscale(binsize)
 
         length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
@@ -191,7 +194,7 @@ class SplineControl(MagicTemplate):
 
         parent = self.find_ancestor(CylindraMainWidget)
         tomo = parent.tomogram
-        binsize = parent.layer_image.metadata["current_binsize"]
+        binsize = parent._layer_image.metadata["current_binsize"]
         i = self.num
         j = self.pos
         if i >= len(tomo.splines):

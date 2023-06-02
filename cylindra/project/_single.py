@@ -223,7 +223,7 @@ class CylindraProject(BaseProject):
         from acryo import Molecules
         import polars as pl
 
-        gui.tomogram = CylTomogram.imread(
+        tomogram = CylTomogram.imread(
             path=self.image,
             scale=self.scale,
             tilt_range=self.tilt_range,
@@ -262,7 +262,7 @@ class CylindraProject(BaseProject):
             )
 
         def _load_project_on_return():
-            gui._send_tomogram_to_viewer(filt=filter)
+            gui._send_tomogram_to_viewer(tomogram, filt=filter)
 
             if splines:
                 gui.tomogram.splines.clear()

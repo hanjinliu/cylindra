@@ -311,8 +311,7 @@ class CylinderSimulator(MagicTemplate):
         img[:, 0, :] = img[:, -1, :] = img[:, :, 0] = img[:, :, -1] = val / 2
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         parent._macro_offset = len(parent.macro)
-        parent.tomogram = tomo
-        return thread_worker.to_callback(parent._send_tomogram_to_viewer)
+        return thread_worker.to_callback(parent._send_tomogram_to_viewer, tomo)
 
     def _get_current_index(self, *_) -> int:
         parent = self.parent_widget

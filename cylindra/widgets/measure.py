@@ -199,7 +199,7 @@ class SpectraMeasurer(MagicTemplate):
 
     def _get_binsize(self, *_) -> int:
         parent = self._get_parent()
-        return roundint(parent.layer_image.scale[0] / parent.tomogram.scale)
+        return roundint(parent._layer_image.scale[0] / parent.tomogram.scale)
 
     def _get_binsize_choices(self, *_) -> list[int]:
         parent = self._get_parent()

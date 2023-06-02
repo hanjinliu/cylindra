@@ -121,8 +121,8 @@ class SplineClipper(MagicTemplate):
         parent = self._parent_widget()
         tomo = parent.tomogram
         spl = self._spline
-        binsize: int = parent.layer_image.metadata["current_binsize"]
-        imgb = parent.layer_image.data
+        binsize: int = parent._layer_image.metadata["current_binsize"]
+        imgb = parent._layer_image.data
 
         length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)

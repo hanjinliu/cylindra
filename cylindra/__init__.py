@@ -36,6 +36,8 @@ __version__, __author__, __email__ = import_metadata()
 
 from cylindra._config import init_config
 
+init_config()
+
 del import_metadata, init_config
 
 __all__ = [

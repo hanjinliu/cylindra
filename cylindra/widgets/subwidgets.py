@@ -217,7 +217,7 @@ class Analysis(ChildWidget):
         """Open the spectra measurer widget to determine cylindric parameters."""
         main = self._get_main()
         if main.tomogram is not None and main.tomogram.n_splines > 0:
-            binsize = roundint(main.layer_image.scale[0] / main.tomogram.scale)
+            binsize = roundint(main._layer_image.scale[0] / main.tomogram.scale)
             main.spectra_measurer.load_spline(main.SplineControl.num, binsize)
         return main.spectra_measurer.show()
 
@@ -553,7 +553,7 @@ class Runner(MagicTemplate):
     ):
         """Run workflow."""
         parent = self._get_parent()
-        if parent.layer_work.data.size > 0:
+        if parent._layer_work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
         if parent.tomogram.n_splines == 0:
             raise ValueError("No spline is added to the viewer canvas.")

@@ -216,13 +216,13 @@ def _(
 
 @impl_preview(CylindraMainWidget.set_colormap, auto_call=True)
 def _(self: CylindraMainWidget, color_by: str, cmap, limits: tuple[float, float]):
-    if self.layer_paint is None:
+    if self._layer_paint is None:
         return
-    old_info = self.layer_paint.colormap_info
+    old_info = self._layer_paint.colormap_info
     cmap = dict(cmap)
-    self.layer_paint.set_colormap(color_by, limits, cmap)
+    self._layer_paint.set_colormap(color_by, limits, cmap)
     yield
-    self.layer_paint.set_colormap(color_by, old_info.clim, old_info.cmap)
+    self._layer_paint.set_colormap(color_by, old_info.clim, old_info.cmap)
 
 
 # setup FunctionGUIs
