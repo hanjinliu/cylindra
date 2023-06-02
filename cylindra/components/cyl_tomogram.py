@@ -1523,10 +1523,9 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     ).proj("r")
 
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
-    ymaxp = np.argmax(power.proj("a"))
 
     amax_f = amax - npfrange * up_a
-    ymaxp_f = ymaxp + y0 * up_y
+    ymaxp_f = ymax + y0 * up_y
     ymax_f = ymax + y0 * up_y
     a_freq = np.fft.fftfreq(img.shape.a * up_a)
     y_freq = np.fft.fftfreq(img.shape.y * up_y)
