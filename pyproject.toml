@@ -29,6 +29,7 @@ dependencies = [
     "napari>=0.4.17",
     "qt-command-palette>=0.0.7",
     "matplotlib",
+    "psutil",
 ]
 authors = [
     { email = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp" },

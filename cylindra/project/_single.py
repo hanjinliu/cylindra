@@ -217,7 +217,7 @@ class CylindraProject(BaseProject):
         self.to_json(json_path)
         return None
 
-    def to_gui(self, gui: "CylindraMainWidget", filter: bool = True):
+    def to_gui(self, gui: "CylindraMainWidget", filter=True, paint=True):
         from cylindra.components import CylSpline, CylTomogram
         import numpy as np
         from acryo import Molecules
@@ -290,7 +290,7 @@ class CylindraProject(BaseProject):
             gui._need_save = False
 
             # paint if needed
-            if self.localprops:
+            if paint and self.localprops:
                 gui.paint_cylinders()
 
             # load molecules

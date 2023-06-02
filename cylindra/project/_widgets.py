@@ -10,7 +10,7 @@ from magicclass.ext.polars import DataFrameView
 from acryo import Molecules
 
 if TYPE_CHECKING:
-    from .single import CylindraProject
+    from ._single import CylindraProject
     from magicclass.ext.vispy._base import LayerItem
 
 
@@ -119,37 +119,13 @@ class Properties(MagicTemplate):
             self.table_global.value = df
 
 
-@magicclass(record=False)
-class SubtomogramAveraging(MagicTemplate):
-    template_image = field(Vispy3DCanvas)
-    mask_parameters = vfield(str)
-    tilt_range = vfield(str)
-
-    def _from_project(self, project: "CylindraProject"):
-        from skimage.filters.thresholding import threshold_yen
-
-        if project.template_image is None or Path(project.template_image).is_dir():
-            # no template image available
-            pass
-        else:
-            img = ip.imread(project.template_image)
-            thr = threshold_yen(img.value)
-            self.template_image.add_image(img, rendering="iso", iso_threshold=thr)
-        self.mask_parameters = str(project.mask_parameters)
-        if project.tilt_range is not None:
-            s0, s1 = project.tilt_range
-            self.tilt_range = f"({s0:.1f}, {s1:.1f})"
-
-
 @magicclass(widget_type="tabbed", name="Project Viewer", record=False)
 class ProjectViewer(MagicTemplate):
     info_viewer = field(TextInfo, name="Text files")
     component_viewer = field(ComponentsViewer, name="Components")
     properties = field(Properties, name="Properties")
-    subtomogram_averaging = field(SubtomogramAveraging, name="Subtomogram averaging")
 
     def _from_project(self, project: "CylindraProject"):
         self.info_viewer._from_project(project)
         self.component_viewer._from_project(project)
         self.properties._from_project(project)
-        self.subtomogram_averaging._from_project(project)

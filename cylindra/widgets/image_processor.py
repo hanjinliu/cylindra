@@ -1,3 +1,5 @@
+from typing import Literal
+import psutil
 from pathlib import Path
 from magicclass import (
     magicclass,
@@ -7,7 +9,7 @@ from magicclass import (
     confirm,
     set_design,
 )
-from magicclass.types import Optional, OneOf, SomeOf
+from magicclass.types import Optional, SomeOf
 from magicclass.ext.dask import dask_thread_worker
 import impy as ip
 from .widget_utils import FileFilter
@@ -22,6 +24,9 @@ class ImageProcessor(MagicTemplate):
 
     Attributes
     ----------
+    max_gb: float
+        Maximum GB to load into memory. If the input image is larger than this value, the image
+        will be processed lazily. Use the half of total memory by default.
     input_image : Path
         Path to the input image file.
     suffix : str, optional
@@ -32,8 +37,9 @@ class ImageProcessor(MagicTemplate):
         Path where output image will be saved..
     """
 
+    max_gb = vfield(psutil.virtual_memory().total * 5e-10, label="Max GB")
     input_image = vfield(Path).with_options(filter=FileFilter.IMAGE)
-    suffix = vfield(Optional[str]).with_options(value="-0", text="Do not autofill")
+    suffix = vfield(Optional[str]).with_options(value="-output", text="Do not autofill")
     output_image = vfield(Path).with_options(filter=FileFilter.IMAGE, mode="w")
 
     @input_image.connect
@@ -55,7 +61,7 @@ class ImageProcessor(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Converting data type.")
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    def convert_dtype(self, dtype: OneOf["int8", "uint8", "uint16", "float32"]):
+    def convert_dtype(self, dtype: Literal["int8", "uint8", "uint16", "float32"]):
         """Convert data type of the input image."""
         img = self._imread(self.input_image)
         out = img.as_img_type(dtype)
@@ -116,5 +122,8 @@ class ImageProcessor(MagicTemplate):
         view_image(self.input_image, self)
         return None
 
-    def _imread(self, path, chunks=GVar.dask_chunk):
-        return ip.lazy_imread(path, chunks=chunks)
+    def _imread(self, path, chunks=GVar.dask_chunk) -> ip.ImgArray | ip.LazyImgArray:
+        img = ip.lazy_imread(path, chunks=chunks)
+        if img.gb < self.max_gb:
+            img = img.compute()
+        return img

@@ -382,13 +382,13 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
 
 
-def test_sweeper(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui.open_sweeper()
-    ui.spline_sweeper.refresh_widget_state()
-    ui.spline_sweeper.show_what = "CFT"
-    ui.spline_sweeper.show_what = "R-projection"
-    ui.spline_sweeper.show_what = "Y-projection"
+def test_slicer(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=False)
+    ui.ImageMenu.open_slicer()
+    ui.spline_slicer.refresh_widget_state()
+    ui.spline_slicer.show_what = "CFT"
+    ui.spline_slicer.show_what = "R-projection"
+    ui.spline_slicer.show_what = "Y-projection"
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -813,15 +813,15 @@ def test_showing_widgets(ui: CylindraMainWidget):
     ui.show_macro()
     ui.show_full_macro()
     ui.show_native_macro()
-    ui.open_logger()
-    ui.open_image_loader()
-    ui.view_project(PROJECT_DIR_13PF / "project.json")
+    ui.Others.open_logger()
+    ui.File.open_image_loader()
+    ui.File.view_project(PROJECT_DIR_13PF / "project.json")
 
 
 def test_spline_clipper(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     len_old = ui.get_spline(0).length()
-    ui.open_spline_clipper()
+    ui.Splines.open_spline_clipper()
     ui.spline_clipper.clip_length = 1
     ui.spline_clipper.clip_here()
     assert ui.get_spline(0).length() == pytest.approx(len_old - 1, abs=0.01)
@@ -832,7 +832,7 @@ def test_spline_clipper(ui: CylindraMainWidget):
 
 
 def test_spectra_measurer(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.open_spectra_measurer()
+    ui.load_project(PROJECT_DIR_13PF, filter=False)
+    ui.Analysis.open_spectra_measurer()
     ui.spectra_measurer.log_scale = True
     ui.spectra_measurer.log_scale = False

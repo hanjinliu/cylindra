@@ -14,18 +14,17 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit
-from magicclass.types import SomeOf, Optional
+from magicclass.types import SomeOf, Optional, Path
 from magicclass.logging import getLogger
-from pathlib import Path
 import impy as ip
 
 from .widget_utils import FileFilter
 from ._previews import view_image
 
-from cylindra.utils import ceilint
+from cylindra.utils import ceilint, roundint
 from cylindra.ext.etomo import PEET
 from cylindra.components import CylTomogram, AutoCorrelationPicker
-from cylindra.const import GlobalVariables as GVar, nm, ImageFilter
+from cylindra.const import GlobalVariables as GVar, nm, ImageFilter, get_versions
 from cylindra.project import CylindraProject
 from cylindra.widgets.global_variables import GlobalVariablesMenu
 
@@ -35,34 +34,76 @@ _Logger = getLogger("cylindra")
 # Menus
 
 
-@magicmenu
-class File(MagicTemplate):
-    """File I/O."""
+class ChildWidget(MagicTemplate):
+    def _get_main(self):
+        from cylindra.widgets import CylindraMainWidget
 
-    open_image_loader = abstractapi()
+        return self.find_ancestor(CylindraMainWidget)
+
+
+@magicmenu
+class File(ChildWidget):
+    """File input and output."""
+
+    @set_design(text="Open image")
+    @do_not_record
+    @bind_key("Ctrl+K, Ctrl+O")
+    def open_image_loader(self):
+        """Load an image file and process it before sending it to the viewer."""
+        return self._get_main()._image_loader.show()
+
     load_project = abstractapi()
     load_splines = abstractapi()
     load_molecules = abstractapi()
     sep0 = field(Separator)
     save_project = abstractapi()
+    overwrite_project = abstractapi()
     save_spline = abstractapi()
     save_molecules = abstractapi()
     sep1 = field(Separator)
-    process_images = abstractapi()
-    view_project = abstractapi()
+
+    @set_design(text="Process images")
+    @do_not_record
+    def open_image_processor(self):
+        """Open image processor."""
+        return self._get_main().image_processor.show()
+
+    @set_design(text="View project")
+    @do_not_record
+    def view_project(self, path: Path.Read[FileFilter.JSON]):
+        main = self._get_main()
+        pviewer = CylindraProject.from_json(path).make_project_viewer()
+        pviewer.native.setParent(main.native, pviewer.native.windowFlags())
+        main._active_widgets.add(pviewer)
+        return pviewer.show()
+
     PEET = PEET
 
 
 @magicmenu(name="Image")
-class Image(MagicTemplate):
+class Image(ChildWidget):
     """Image processing and visualization"""
 
     filter_reference_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     sep0 = field(Separator)
-    open_sweeper = abstractapi()
-    open_simulator = abstractapi()
+
+    @do_not_record
+    @set_design(text="Open spline slicer")
+    def open_slicer(self):
+        """Open spline slicer widget"""
+        main = self._get_main()
+        main.spline_slicer.show()
+        return main.spline_slicer.refresh_widget_state()
+
+    @set_design(text="Simulate cylindric structure")
+    @do_not_record
+    @bind_key("Ctrl+K, I")
+    def open_simulator(self):
+        """Open the simulator widget."""
+        return self._get_main().cylinder_simulator.show()
+
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
@@ -72,7 +113,7 @@ class Image(MagicTemplate):
 
 
 @magicmenu
-class Splines(MagicTemplate):
+class Splines(ChildWidget):
     """Operations on splines"""
 
     show_splines = abstractapi()
@@ -89,7 +130,17 @@ class Splines(MagicTemplate):
         auto_align_to_polarity = abstractapi()
 
     clip_spline = abstractapi()
-    open_spline_clipper = abstractapi()
+
+    @set_design(text="Open spline clipper")
+    @do_not_record
+    def open_spline_clipper(self):
+        """Open the spline clipper widget to precisely clip spines."""
+        main = self._get_main()
+        main.spline_clipper.show()
+        if main.tomogram.n_splines > 0:
+            main.spline_clipper.load_spline(main.SplineControl.num)
+        return None
+
     delete_spline = abstractapi()
     sep1 = field(Separator)
     fit_splines = abstractapi()
@@ -149,7 +200,7 @@ class MoleculesMenu(MagicTemplate):
 
 
 @magicmenu
-class Analysis(MagicTemplate):
+class Analysis(ChildWidget):
     """Analysis of tomograms."""
 
     measure_radius = abstractapi()
@@ -159,9 +210,39 @@ class Analysis(MagicTemplate):
     reanalyze_image = abstractapi()
     load_project_for_reanalysis = abstractapi()
     sep1 = field(Separator)
-    open_spectra_measurer = abstractapi()
-    open_subtomogram_analyzer = abstractapi()
-    open_project_batch_analyzer = abstractapi()
+
+    @set_design(text="Open spectra measurer")
+    @do_not_record
+    def open_spectra_measurer(self):
+        """Open the spectra measurer widget to determine cylindric parameters."""
+        main = self._get_main()
+        if main.tomogram is not None and main.tomogram.n_splines > 0:
+            binsize = roundint(main.layer_image.scale[0] / main.tomogram.scale)
+            main.spectra_measurer.load_spline(main.SplineControl.num, binsize)
+        return main.spectra_measurer.show()
+
+    @set_design(text="Open subtomogram analyzer")
+    @do_not_record
+    @bind_key("Ctrl+K, S")
+    def open_subtomogram_analyzer(self):
+        """Open the subtomogram analyzer dock widget."""
+        return self._get_main().sta.show()
+
+    @set_design(text="Open batch analyzer")
+    @do_not_record
+    @bind_key("Ctrl+K, B")
+    def open_project_batch_analyzer(self):
+        """Open the batch analyzer widget."""
+        from .batch import CylindraBatchWidget
+
+        main = self._get_main()
+        uibatch = CylindraBatchWidget()
+        uibatch.native.setParent(main.native, uibatch.native.windowFlags())
+        main._batch = uibatch
+        uibatch.show()
+        main._active_widgets.add(uibatch)
+        return uibatch
+
     sep2 = field(Separator)
     repeat_command = abstractapi()
 
@@ -169,6 +250,11 @@ class Analysis(MagicTemplate):
 @magicmenu
 class Others(MagicTemplate):
     """Other menus."""
+
+    def _get_main(self):
+        from cylindra.widgets import CylindraMainWidget
+
+        return self.find_ancestor(CylindraMainWidget)
 
     @magicmenu
     class Macro:
@@ -179,15 +265,67 @@ class Others(MagicTemplate):
         load_macro_file = abstractapi()
         run_file = abstractapi()
 
-    open_command_palette = abstractapi()
+    @set_design(text="Open command palette")
+    @do_not_record
+    @bind_key("Ctrl+P")
+    def open_command_palette(self):
+        from magicclass.command_palette import exec_command_palette
+
+        return exec_command_palette(self._get_main(), alignment="screen")
+
     GlobalVariables = GlobalVariablesMenu
-    open_logger = abstractapi()
+
+    @set_design(text="Open logger")
+    @do_not_record
+    def open_logger(self):
+        """Open logger window."""
+        wdt = _Logger.widget
+        name = "Log"
+        if name in self.parent_viewer.window._dock_widgets:
+            self.parent_viewer.window._dock_widgets[name].show()
+        else:
+            self.parent_viewer.window.add_dock_widget(wdt, name=name)
 
     @magicmenu
     class Help(MagicTemplate):
         open_help = abstractapi()
         cylindra_info = abstractapi()
         report_issues = abstractapi()
+
+    @Help.wraps
+    @set_design(text="Open help")
+    @do_not_record
+    def open_help(self):
+        """Open a help window."""
+        from magicclass import build_help
+
+        help = build_help(self._get_main())
+        return help.show()
+
+    @Help.wraps
+    @set_design(text="Info")
+    @do_not_record
+    def cylindra_info(self):
+        """Show information of dependencies."""
+
+        main = self._get_main()
+        versions = get_versions()
+        value = "\n".join(f"{k}: {v}" for k, v in versions.items())
+        w = ConsoleTextEdit(value=value)
+        w.read_only = True
+        w.native.setParent(main.native, w.native.windowFlags())
+        w.show()
+        main._active_widgets.add(w)
+        return None
+
+    @Help.wraps
+    @set_design(text="Report issues")
+    @do_not_record
+    def report_issues(self):
+        """Report issues on GitHub."""
+        from magicclass.utils import open_url
+
+        return open_url("https://github.com/hanjinliu/cylindra/issues/new")
 
 
 # Toolbar
