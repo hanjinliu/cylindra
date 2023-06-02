@@ -296,7 +296,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         return None
 
-    def _format_macro(self, macro: mk.Macro = None):
+    def _format_macro(self, macro: "mk.Macro | None" = None):
         if macro is None:
             macro = self.macro
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
@@ -1252,14 +1252,49 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Analysis.wraps
+    @set_design(text="Local radii analysis")
+    @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
+    def local_radii_analysis(
+        self,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
+        size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+    ):  # fmt: skip
+        tomo = self.tomogram
+        if len(splines) == 0:
+            splines = list(range(tomo.n_splines))
+        old_splines = {i: tomo.splines[i].copy() for i in splines}
+        if interval is not None:
+            tomo.make_anchors(i=splines, interval=interval)
+        tomo.local_radii(i=splines, size=size, binsize=bin_size)
+        new_splines = {i: tomo.splines[i].copy() for i in splines}
+        self._need_save = True
+
+        @undo_callback
+        def undo_op():
+            for i, old_spl in old_splines.items():
+                tomo.splines[i] = old_spl.copy()
+            self._update_splines_in_images()
+            self._update_local_properties_in_widget()
+
+        @undo_op.with_redo
+        def undo_op():
+            for i, new_spl in new_splines.items():
+                tomo.splines[i] = new_spl.copy()
+
+        return undo_op
+
+    @Analysis.wraps
     @set_design(text="Local FT analysis")
     @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
     def local_ft_analysis(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
-        interval: Annotated[nm, {"min": 1.0, "step": 0.5}] = 24.5,
-        ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 24.5,
+        interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
+        ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        radius: Literal["local", "global"] = "global",
     ):  # fmt: skip
         """
         Determine cylindrical structural parameters by local Fourier transformation.
@@ -1271,6 +1306,9 @@ class CylindraMainWidget(MagicTemplate):
             Longitudinal length of local discrete Fourier transformation used for
             structural analysis.
         {bin_size}
+        radius : str, default is "global"
+            If "local", use the local radius for the analysis. If "global", use the
+            global radius.
         """
         tomo = self.tomogram
         if len(splines) == 0:
@@ -1287,8 +1325,9 @@ class CylindraMainWidget(MagicTemplate):
         new_splines = dict[int, CylSpline]()
         for i in splines:
             old_splines[i] = tomo.splines[i].copy()
-            tomo.make_anchors(i=i, interval=interval)
-            tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size)
+            if interval is not None:
+                tomo.make_anchors(i=i, interval=interval)
+            tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size, radius=radius)
             new_splines[i] = tomo.splines[i].copy()
             yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size

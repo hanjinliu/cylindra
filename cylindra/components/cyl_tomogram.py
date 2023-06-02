@@ -57,16 +57,6 @@ if TYPE_CHECKING:
     Degenerative = Callable[[ArrayLike], Any]
 
 
-LOCALPROPS = [
-    H.splPos,
-    H.splDist,
-    H.rise,
-    H.spacing,
-    H.skew,
-    H.nPF,
-    H.start,
-]
-
 LOGGER = logging.getLogger("cylindra")
 
 
@@ -76,15 +66,16 @@ def tandg(x):
 
 
 def rmsd(shifts: ArrayLike) -> float:
+    """Root mean square deviation."""
     shifts = np.atleast_2d(shifts)
     return np.sqrt(np.sum(shifts**2) / shifts.shape[0])
 
 
 _P = ParamSpec("_P")
-_RETURN = TypeVar("_RETURN")
+_R = TypeVar("_R")
 
 
-class BatchCallable(Protocol[_P, _RETURN]):
+class BatchCallable(Protocol[_P, _R]):
     """
     This protocol enables static type checking of methods decorated with ``@batch_process``.
     The parameter specifier ``_KW`` does not add any information but currently there is not
@@ -94,17 +85,17 @@ class BatchCallable(Protocol[_P, _RETURN]):
     @overload
     def __call__(
         self, i: Literal[None], *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_RETURN]:
+    ) -> list[_R]:
         ...
 
     @overload
-    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _RETURN:
+    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         ...
 
     @overload
     def __call__(
         self, i: Iterable[int] | None, *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_RETURN]:
+    ) -> list[_R]:
         ...
 
     def __call__(self, i, *args, **kwargs):
@@ -112,8 +103,8 @@ class BatchCallable(Protocol[_P, _RETURN]):
 
 
 def batch_process(
-    func: Callable[Concatenate[CylTomogram, Any, _P], _RETURN]
-) -> BatchCallable[_P, _RETURN]:
+    func: Callable[Concatenate[CylTomogram, Any, _P], _R]
+) -> BatchCallable[_P, _R]:
     """Enable running function for every splines."""
 
     @wraps(func)
@@ -663,16 +654,10 @@ class CylTomogram(Tomogram):
             spl.radius = float(radius)
             return spl.radius
 
-        if spl._anchors is None:
+        if not spl.has_anchors:
             spl.make_anchors(n=3)
 
-        if binsize > 1:
-            input_img = self.get_multiscale(binsize)
-        else:
-            try:
-                input_img = self.get_multiscale(1)
-            except ValueError:
-                input_img = self.image
+        input_img = self._get_multiscale_or_original(binsize)
 
         depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
@@ -708,12 +693,78 @@ class CylTomogram(Tomogram):
         return r_peak_sub
 
     @batch_process
+    def local_radii(
+        self,
+        *,
+        i: int = None,
+        size: nm = 32.0,
+        binsize: int = 1,
+    ) -> pl.Series:
+        """
+        Measure the local radii along the splines.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        size : nm, default is 32.0
+            Longitudinal length of subtomograms for calculation.
+        binsize : int, default is 1
+            Multiscale binsize to be used.
+
+        Returns
+        -------
+        pl.Series
+            Radii along the spline.
+        """
+        LOGGER.info(f"Running: {self.__class__.__name__}.local_radii, i={i}")
+        spl = self.splines[i]
+
+        input_img = self._get_multiscale_or_original(binsize)
+
+        depth_px = self.nm2pixel(size, binsize=binsize)
+        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
+        scale = self.scale * binsize
+
+        mole = spl.anchors_to_molecules()
+        if binsize > 1:
+            mole = mole.translate(-self.multiscale_translation(binsize))
+
+        loader = SubtomogramLoader(
+            input_img.value,
+            mole,
+            order=1,
+            scale=scale,
+            output_shape=(width_px, depth_px, width_px),
+            corner_safe=True,
+        )
+        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
+        subtomograms[:] -= subtomograms.mean()  # normalize
+        subtomograms.set_scale(input_img)
+
+        r_max = GVar.fit_width / 2
+        nbin = roundint(r_max / scale / 2)
+        imgs2d = subtomograms.proj("y")
+        prof = imgs2d.radial_profile(nbin=nbin, r_max=r_max)  # axes: pa
+
+        radii = list[float]()
+        for each in prof:
+            imax = np.nanargmax(each)
+            imax_sub = centroid(each, imax - 5, imax + 5)
+            r_peak_sub = (imax_sub + 0.5) / nbin * r_max
+            radii.append(r_peak_sub)
+        out = pl.Series(H.radius, radii).cast(pl.Float32)
+        spl.localprops = spl.localprops.with_columns(out)
+        return out
+
+    @batch_process
     def local_ft_params(
         self,
         *,
         i: int = None,
         ft_size: nm = 32.0,
         binsize: int = 1,
+        radius: nm | Literal["local", "global"] = "global",
     ) -> pl.DataFrame:
         """
         Calculate local structural parameters from cylindrical Fourier space.
@@ -729,6 +780,9 @@ class CylTomogram(Tomogram):
             Length of subtomogram for calculation of local parameters.
         binsize : int, default is 1
             Multiscale bin size used for calculation.
+        radius : str, default is "global"
+            If "local", use the local radius for the analysis. If "global", use the
+            global radius. If a float, use the given radius.
 
         Returns
         -------
@@ -738,8 +792,7 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
         spl = self.splines[i]
 
-        if spl.radius is None:
-            raise ValueError("Radius is not measured yet.")
+        radii = _prepare_radii(spl, radius)
 
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
@@ -749,19 +802,17 @@ class CylTomogram(Tomogram):
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        for anc in spl_trans.anchors:
+        for anc, r0 in zip(spl_trans.anchors, radii):
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
             tasks.append(
                 da.from_delayed(
-                    lazy_ft_params(input_img, coords, spl.radius),
+                    lazy_ft_params(input_img, coords, r0),
                     shape=(5,),
                     meta=np.array([], dtype=np.float32),
                 )
             )
-        # with set_gpu():
-        results = np.stack(
-            da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0], axis=0
-        )
+
+        results = np.stack(da.compute(tasks)[0], axis=0)
 
         lprops = [
             pl.Series(H.splPos, spl.anchors).cast(pl.Float32),
@@ -1493,12 +1544,35 @@ class CylTomogram(Tomogram):
         return transformed
 
 
-def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
+def dask_angle_corr(
+    imgs, ang_centers, drot: float = 7, nrots: int = 29
+) -> NDArray[np.float32]:
     _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
     tasks = []
     for img, ang in zip(imgs, ang_centers):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
-    return da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
+    return da.compute(tasks)[0]
+
+
+def _prepare_radii(
+    spl: CylSpline, radius: nm | Literal["local", "global"]
+) -> NDArray[np.float32]:
+    if isinstance(radius, str):
+        if radius == "global":
+            if spl.radius is None:
+                raise ValueError("Global radius is not measured yet.")
+            radii = np.full(spl.anchors.size, spl.radius, dtype=np.float32)
+        elif radius == "local":
+            if not spl.has_localprops(H.radius):
+                raise ValueError("Local radii is not measured yet.")
+            radii = spl.localprops[H.radius].to_numpy()
+        else:
+            raise ValueError("`radius` must be 'local' or 'global' if string.")
+    else:
+        if radius <= 0:
+            raise ValueError("`radius` must be a positive float.")
+        radii = np.full(spl.anchors.size, radius, dtype=np.float32)
+    return radii
 
 
 def _local_dft_params(img: ip.ImgArray, radius: nm):
