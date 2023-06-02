@@ -49,7 +49,7 @@ def test_run_all(coords, npf, rise, skew_range):
     spacing_glob = spl.get_globalprops(H.spacing)
 
     # GDP-bound microtubule has pitch length in this range
-    assert 4.075 < spacing_glob < 4.105
+    assert 4.08 < spacing_glob < 4.11
     assert spacing_glob == pytest.approx(spacing_mean, abs=0.013)
     assert all(spl.localprops[H.nPF] == npf)
     assert all(spl.localprops[H.rise] > rise)
