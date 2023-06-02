@@ -19,16 +19,24 @@ from cylindra.core import (
     collect_molecules,
 )
 
-from importlib.metadata import PackageNotFoundError, version, metadata
 
-try:
-    __version__ = version("cylindra")
-except PackageNotFoundError:
-    __version__ = "uninstalled"
-__author__ = metadata("cylindra")["Author"]
-__email__ = metadata("cylindra")["Author-email"]
+def import_metadata():
+    from importlib.metadata import PackageNotFoundError, version, metadata
 
-del version, PackageNotFoundError, metadata
+    try:
+        _version = version("cylindra")
+    except PackageNotFoundError:
+        _version = "uninstalled"
+    _author = metadata("cylindra")["Author"]
+    _email = metadata("cylindra")["Author-email"]
+    return _version, _author, _email
+
+
+__version__, __author__, __email__ = import_metadata()
+
+from cylindra._config import init_config
+
+del import_metadata, init_config
 
 __all__ = [
     "start",

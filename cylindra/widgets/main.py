@@ -41,7 +41,7 @@ from magicclass.undo import undo_callback
 from napari.layers import Image, Layer, Points
 from napari.utils.colormaps import Colormap
 
-from cylindra import utils
+from cylindra import utils, _config
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     SELECTION_LAYER_NAME,
@@ -300,16 +300,34 @@ class CylindraMainWidget(MagicTemplate):
         edit.textedit.value = str(macro)
         return None
 
-    @Others.Macro.wraps
-    @set_design(text="Run file")
+    @Others.wraps
+    @set_design(text="Run workflow")
     @do_not_record
-    def run_file(self, path: Path.Read[FileFilter.PY]):
-        """Run a Python script file."""
+    @bind_key("Ctrl+K, Ctrl+Shift+R")
+    def run_workflow(self, path: Path.Read[FileFilter.PY] = _config.WORKFLOWS_DIR):
+        """Run workflow of a python file."""
+        path = Path(path)
+        if path.is_dir():
+            raise ValueError("You must specify a file.")
         macro = self._load_macro_file(path)
         _ui = str(mk.symbol(self))
-        with self.macro.blocked():
-            macro.eval({}, {_ui: self})
-        self.macro.extend(macro.args)
+        macro.eval({}, {_ui: self})
+        return None
+
+    @Others.wraps
+    @set_design(text="Define workflow")
+    @do_not_record
+    @bind_key("Ctrl+K, Ctrl+Shift+D")
+    def define_workflow(
+        self,
+        name: str,
+        workflow: Annotated[str, {"widget_type": ConsoleTextEdit}],
+    ):
+        """Define a workflow script for your daily analysis."""
+        mk.parse(workflow)  # check syntax
+        path = _config.workflow_path(name)
+        path.write_text(workflow)
+        _Logger.print("Workflow saved: " + path.as_posix())
         return None
 
     @Others.Macro.wraps
