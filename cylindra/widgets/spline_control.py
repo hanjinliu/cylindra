@@ -10,6 +10,7 @@ from magicclass import (
 from magicclass.types import OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 
+from napari.utils.transforms import Affine
 from cylindra.const import GlobalVariables as GVar, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 
@@ -66,38 +67,36 @@ class SplineControl(MagicTemplate):
 
     @magicclass(layout="horizontal")
     class footer(MagicTemplate):
-        focus = vfield(False, record=False).with_options(
-            text="focus on",
-            tooltip="Keep focus of viewer camera on the current spline position",
+        highlight_area = vfield(False, record=False).with_options(
+            text="Highlight subvolume",
         )
 
     @num.connect
     @pos.connect
-    @footer.focus.connect
+    @footer.highlight_area.connect
     def _highlight(self):
         """Change camera focus to the position of current spline fragment."""
         parent = self._get_parent()
+        if not self.footer.highlight_area:
+            parent.parent_viewer.overlays.interaction_box.show = False
+            return None
         layer = parent.layer_paint
         if layer is None:
-            return None
-
-        # NOTE: the setter of "show_selected_label" calls layer.refresh() so that
-        # it is very slow. Check if "show_selected_label" is True before setting it.
-        if not self.footer.focus:
-            if layer.show_selected_label:
-                layer.show_selected_label = False
             return None
 
         i = self.num
         j = self.pos
 
         tomo = parent.tomogram
+        spl = tomo.splines[i]
+        anc = spl.anchors[j]
+        coords = spl.map(anc)
+        yc, xc = coords[1:]
+        y0, y1 = yc - GVar.fit_depth / 2, yc + GVar.fit_depth / 2
+        x0, x1 = xc - GVar.fit_width / 2, xc + GVar.fit_width / 2
+        parent.parent_viewer.overlays.interaction_box.show = True
+        parent.parent_viewer.overlays.interaction_box.points = [(y0, x0), (y1, x1)]
 
-        if not layer.show_selected_label:
-            layer.show_selected_label = True
-
-        j_offset = sum(spl.anchors.size for spl in tomo.splines[:i])
-        layer.selected_label = j_offset + j + 1
         return None
 
     @property
