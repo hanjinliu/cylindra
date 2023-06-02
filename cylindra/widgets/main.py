@@ -598,7 +598,7 @@ class CylindraMainWidget(MagicTemplate):
             else:
                 raise ValueError(f"No method matches {method!r}")
 
-        contrast_limits = np.percentile(self._layer_image.data, [1, 99.9])
+        contrast_limits = np.percentile(img_filt, [1, 99.9])
 
         @thread_worker.to_callback
         def _filter_reference_image_on_return():

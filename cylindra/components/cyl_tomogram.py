@@ -12,7 +12,7 @@ from typing import (
     MutableSequence,
 )
 from collections.abc import Iterable
-from functools import partial, wraps
+from functools import cached_property, partial, wraps
 
 from typing_extensions import ParamSpec, Concatenate
 import numpy as np
@@ -29,6 +29,7 @@ import impy as ip
 
 from cylindra.components.cyl_spline import CylSpline, rise_to_start
 from cylindra.components.tomogram import Tomogram
+from cylindra.components._peak import PeakDetector
 from cylindra.const import (
     nm,
     PropertyNames as H,
@@ -1506,65 +1507,53 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     npfmax = GVar.npf_max
     img = img - img.mean()  # normalize.
 
+    peak_det = PeakDetector(img)
+
+    # y-axis
+    # ^           + <- peak0
+    # |
+    # |  +      +      + <- peak1
+    # |
+    # |       +
+    # +--------------------> a-axis
+
     # First transform around the expected length of y-pitch.
     ylength_nm = img.shape.y * img.scale.y
-    y0 = ceilint(ylength_nm / GVar.spacing_max) - 1
-    y1 = max(ceilint(ylength_nm / GVar.spacing_min), y0 + 1)
-    up_a = 20  # upsampling factor for angular direction
-    up_y = max(int(6000 / img.shape.y), 1)  # upsampling factor for y direction
-
-    # The peak of longitudinal periodicity is always in this range.
     npfrange = ceilint(npfmax / 2)
 
-    power = img.local_power_spectra(
-        key=ip.slicer.y[y0:y1].a[-npfrange : npfrange + 1],
-        upsample_factor=[1, up_y, up_a],
-        dims="rya",
-    ).proj("r")
+    peak0 = peak_det.get_peak(
+        range_y=(
+            ceilint(ylength_nm / GVar.spacing_max) - 1,
+            ceilint(ylength_nm / GVar.spacing_min),
+        ),
+        range_a=(-npfrange, npfrange + 1),
+        up_y=max(int(6000 / img.shape.y), 1),
+        up_a=20,
+    )
 
-    ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
-    ymaxp = np.argmax(power.proj("a"))
-
-    amax_f = amax - npfrange * up_a
-    ymaxp_f = ymaxp + y0 * up_y
-    ymax_f = ymax + y0 * up_y
-    a_freq = np.fft.fftfreq(img.shape.a * up_a)
-    y_freq = np.fft.fftfreq(img.shape.y * up_y)
-
-    rise = np.arctan(-a_freq[amax_f] / y_freq[ymax_f])
-    yspace = 1.0 / y_freq[ymaxp_f] * img.scale.y
+    rise = np.arctan(-peak0.afreq / peak0.yfreq)
+    yspace = 1.0 / peak0.yfreq * img.scale.y
 
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
-    dy_min = ceilint(tandg(GVar.skew_min) * y_factor * npfmin) - 1
-    dy_max = max(ceilint(tandg(GVar.skew_max) * y_factor * npfmax), dy_min + 1)
-    up_a = 20
-    up_y = max(int(21600 / (img.shape.y)), 1)
 
-    power = img.local_power_spectra(
-        key=ip.slicer.y[dy_min:dy_max].a[npfmin:npfmax],
-        upsample_factor=[1, up_y, up_a],
-        dims="rya",
-    ).proj("r")
+    peak1 = peak_det.get_peak(
+        range_y=(
+            ceilint(tandg(GVar.skew_min) * y_factor * npfmin) - 1,
+            ceilint(tandg(GVar.skew_max) * y_factor * npfmax),
+        ),
+        range_a=(npfmin, npfmax),
+        up_y=max(int(21600 / img.shape.y), 1),
+        up_a=20,
+    )
 
-    ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
-    amaxp = np.argmax(power.proj("y"))
-
-    amax_f = amax + npfmin * up_a
-    amaxp_f = amaxp + npfmin * up_a
-    ymax_f = ymax + dy_min * up_y
-    a_freq = np.fft.fftfreq(img.shape.a * up_a)
-    y_freq = np.fft.fftfreq(img.shape.y * up_y)
-
-    # When skew angle is positive and y-coordinate increses, a-coordinate will
-    # decrese.
-    skew = np.arctan(y_freq[ymax_f] / a_freq[amax_f] * 2 * yspace / radius)
-
-    start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
+    skew = np.arctan(peak1.yfreq / peak1.afreq * 2 * yspace / radius)
+    start = -rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
+    npf = peak1.a
 
     return np.array(
-        [np.rad2deg(rise), yspace, np.rad2deg(skew), amaxp_f / up_a, abs(start)],
+        [np.rad2deg(rise), yspace, np.rad2deg(skew), npf, start],
         dtype=np.float32,
     )
 
