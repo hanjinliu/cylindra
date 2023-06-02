@@ -11,7 +11,7 @@ class LocalPropsViewer(MagicTemplate):
     plt = field(QtPlotCanvas)
 
     def _get_data_index(self, w=None) -> list[str]:
-        return [(f"image={k[0]}, spline={k[1]}", k) for k in self._groups.keys()]
+        return [(f"{k[0]}, spline={k[1]}", k) for k in self._groups.keys()]
 
     def _get_columns(self, w=None) -> list[str]:
         return [H.spacing, H.skew, H.nPF, H.rise]
@@ -20,12 +20,16 @@ class LocalPropsViewer(MagicTemplate):
     column = vfield(str, label="Column name").with_choices(_get_columns)
 
     def __init__(self) -> None:
-        self._groups = {}
+        self._groups = dict[tuple[str, int], pl.DataFrame]()
 
-    def _set_localprops(self, df: pl.DataFrame) -> None:
-        self._groups = dict(
-            df.groupby(by=[Mole.image, IDName.spline], maintain_order=True)
-        )
+    def _set_localprops(self, df: pl.DataFrame, path_map: dict[int, str]) -> None:
+        groups = {}
+        for (image_id, spline_id), df_sub in df.groupby(
+            by=[Mole.image, IDName.spline], maintain_order=True
+        ):
+            path = path_map[image_id]
+            groups[path, spline_id] = df_sub
+        self._groups = groups
         self.reset_choices()
 
     def __post_init__(self) -> None:

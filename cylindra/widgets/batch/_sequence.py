@@ -341,6 +341,7 @@ class ProjectSequenceEdit(MagicTemplate):
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(iter(self.projects)):
             df = prj._get_localprops()
+            prj.path
 
             dataframes.append(
                 df.with_columns(
@@ -429,7 +430,21 @@ class ProjectSequenceEdit(MagicTemplate):
         _set_parent(wdt, self)
         CylindraMainWidget._active_widgets.add(wdt)
         wdt.show()
-        wdt._set_localprops(self._get_localprops())
+
+        dataframes = list[pl.DataFrame]()
+        path_map = dict[int, str]()
+        for idx, prj in enumerate(iter(self.projects)):
+            df = prj._get_localprops()
+
+            dataframes.append(
+                df.with_columns(
+                    pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)
+                )
+            )
+            path_map[idx] = prj.path
+
+        df_all = pl.concat(dataframes, how="diagonal")
+        wdt._set_localprops(df_all, path_map)
         return None
 
     def _get_expression(self, _=None) -> pl.Expr:
@@ -477,12 +492,10 @@ def _set_parent(wdt: Widget, parent: Widget):
 
 @impl_preview(ProjectSequenceEdit.add_children_glob)
 def _(self: ProjectSequenceEdit, pattern: str):
-    from cylindra.core import instance
-
     paths = list[str]()
     for path in glob.glob(str(pattern)):
         paths.append(Path(path).as_posix())
     wdt = ConsoleTextEdit(value="\n".join(paths))
     _set_parent(wdt, self)
-    instance()._active_widgets.add(wdt)
+    CylindraMainWidget._active_widgets.add(wdt)
     wdt.show()
