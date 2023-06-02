@@ -1500,6 +1500,33 @@ def dask_angle_corr(imgs, ang_centers, drot: float = 7, nrots: int = 29):
     return da.compute(tasks, scheduler=ip.Const["SCHEDULER"])[0]
 
 
+class PeakDetector:
+    def __init__(self, img: ip.ImgArray):
+        self._img = img
+
+    def get_peak(self, yrange, arange, up_y, up_a):
+        y0, y1 = yrange
+        a0, a1 = arange
+        power = self._img.local_power_spectra(
+            key=ip.slicer.y[y0:y1].a[a0:a1],
+            upsample_factor=[1, up_y, up_a],
+            dims="rya",
+        ).proj("r")
+
+        ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+
+        return ymax + y0 * up_y, amax + a0 * up_a
+
+    # @property
+    # def a_freq(self):
+    #     return a_freq = np.fft.fftfreq(img.shape.a * up_a)
+    #     y_freq = np.fft.fftfreq(img.shape.y * up_y)
+
+
+class PeakInfo:
+    ...
+
+
 def _local_dft_params(img: ip.ImgArray, radius: nm):
     perimeter: nm = 2 * np.pi * radius
     npfmin = GVar.npf_min
@@ -1552,10 +1579,8 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     ).proj("r")
 
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
-    amaxp = np.argmax(power.proj("y"))
 
     amax_f = amax + npfmin * up_a
-    amaxp_f = amaxp + npfmin * up_a
     ymax_f = ymax + dy_min * up_y
     a_freq = np.fft.fftfreq(img.shape.a * up_a)
     y_freq = np.fft.fftfreq(img.shape.y * up_y)
@@ -1567,7 +1592,7 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
 
     return np.array(
-        [np.rad2deg(rise), yspace, np.rad2deg(skew), amaxp_f / up_a, abs(start)],
+        [np.rad2deg(rise), yspace, np.rad2deg(skew), amax_f / up_a, abs(start)],
         dtype=np.float32,
     )
 
