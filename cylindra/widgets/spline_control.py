@@ -77,6 +77,8 @@ class SplineControl(MagicTemplate):
     def _highlight(self):
         """Change camera focus to the position of current spline fragment."""
         parent = self._get_parent()
+        if parent.parent_viewer is None:
+            return None
         if not self.footer.highlight_area:
             if parent._layer_highlight in parent.parent_viewer.layers:
                 parent.parent_viewer.layers.remove(parent._layer_highlight)
@@ -89,16 +91,12 @@ class SplineControl(MagicTemplate):
         if parent._layer_highlight not in parent.parent_viewer.layers:
             parent.parent_viewer.add_layer(parent._layer_highlight)
 
-        i = self.num
-        j = self.pos
-
         tomo = parent.tomogram
-        spl = tomo.splines[i]
-        anc = spl.anchors[j]
+        spl = tomo.splines[self.num]
+        anc = spl.anchors[self.pos]
         parent._layer_highlight.data = spl.map(anc)
-        parent._layer_highlight.size = (
-            GVar.fit_width / parent._layer_image.scale[-1] * 2
-        )
+        scale = parent._layer_image.scale[-1]
+        parent._layer_highlight.size = GVar.fit_width / scale * 2
 
         return None
 

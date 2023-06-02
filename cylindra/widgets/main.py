@@ -69,7 +69,7 @@ from cylindra.widgets.spline_control import SplineControl
 from cylindra.widgets.spline_clipper import SplineClipper
 from cylindra.widgets.spline_fitter import SplineFitter
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra.widgets.sweeper import SplineSlicer
+from cylindra.widgets.slicer import SplineSlicer
 from cylindra.widgets.simulator import CylinderSimulator
 from cylindra.widgets.measure import SpectraMeasurer
 
