@@ -37,6 +37,7 @@ from magicclass.types import (
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
+from magicclass.widgets import ConsoleTextEdit
 
 from napari.layers import Image, Layer, Points
 from napari.utils.colormaps import Colormap

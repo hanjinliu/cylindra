@@ -1,8 +1,11 @@
 from typing import Iterator
 from fnmatch import fnmatch
+import glob
+
 from magicgui.widgets import ComboBox, Container, Widget
 from magicclass import (
     do_not_record,
+    impl_preview,
     magicclass,
     field,
     magicmenu,
@@ -13,7 +16,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.types import Path, ExprStr
-from magicclass.widgets import Separator
+from magicclass.widgets import Separator, ConsoleTextEdit
 from magicclass.ext.polars import DataFrameView
 from acryo import BatchLoader, Molecules, SubtomogramLoader
 
@@ -127,7 +130,22 @@ class Project(MagicTemplate):
 
     @property
     def project(self) -> "CylindraProject | None":
+        """The project model."""
         return self._project
+
+    @property
+    def path(self) -> str:
+        """The project path."""
+        return self.Header.path.value
+
+    @property
+    def check(self) -> bool:
+        """True if the project is checked."""
+        return self.Header.check
+
+    @check.setter
+    def check(self, value: bool):
+        self.Header.check = value
 
     @Header.wraps
     @set_design(text="✕", max_width=30)
@@ -149,7 +167,7 @@ class Project(MagicTemplate):
         properties={"margins": (12, 0, 0, 0)},
     )
     class Components(MagicTemplate):
-        pass
+        """List of components (molecules and/or splines)."""
 
     splines = Components.field(SplineList)
     molecules = Components.field(MoleculeList)
@@ -176,8 +194,7 @@ class Project(MagicTemplate):
 
     @nogui
     def get_loader(self, order: int = 3) -> SubtomogramLoader:
-        path = self.Header.path.value
-        project = CylindraProject.from_json(path)
+        project = CylindraProject.from_json(self.path)
         molecules = [mole._get_molecules() for mole in self.molecules if mole.check]
         return SubtomogramLoader(
             ip.lazy_imread(project.image, chunks=GVar.dask_chunk).value,
@@ -187,21 +204,18 @@ class Project(MagicTemplate):
         )
 
     def _get_loader_paths(self) -> tuple[Path, list[Path]]:
-        path = self.Header.path.value
-        project = CylindraProject.from_json(path)
+        project = CylindraProject.from_json(self.path)
         img_path = Path(project.image)
         mole_paths = [Path(mole.line.value) for mole in self.molecules if mole.check]
         return img_path, mole_paths
 
     def _get_localprops(self) -> pl.DataFrame:
-        path = self.Header.path.value
-        project = CylindraProject.from_json(path)
+        project = CylindraProject.from_json(self.path)
         if project.localprops is None:
             raise ValueError("No localprops file found.")
 
         df = pl.read_csv(project.localprops)
-        checked = [spl.check for spl in self.splines]
-        return df.filter(pl.col(IDName.spline).is_in(checked))
+        return df
 
 
 @magicclass(
@@ -221,7 +235,7 @@ class ProjectPaths(MagicTemplate):
 
     @property
     def paths(self) -> list[Path]:
-        return [Path(wdt.Header.path.value) for wdt in self]
+        return [Path(wdt.path) for wdt in self]
 
 
 @magicclass(name="Projects", record=False)
@@ -273,7 +287,7 @@ class ProjectSequenceEdit(MagicTemplate):
     def select_all_projects(self):
         """Select all projects."""
         for wdt in self.projects:
-            wdt.Header.check = True
+            wdt.check = True
         return None
 
     @Select.wraps
@@ -281,7 +295,7 @@ class ProjectSequenceEdit(MagicTemplate):
     def select_projects_by_pattern(self, pattern: str):
         """Select projects by pattern matching."""
         for prj in self.projects:
-            prj.Header.check = fnmatch(prj.Header.path.value, pattern)
+            prj.check = fnmatch(prj.path, pattern)
         return None
 
     @Select.wraps
@@ -294,14 +308,14 @@ class ProjectSequenceEdit(MagicTemplate):
         return None
 
     def _get_project_paths(self, _=None) -> list[Path]:
-        return [wdt.Header.path.value for wdt in self.projects]
+        return [wdt.path for wdt in self.projects]
 
     def _get_selected_project_paths(self, _=None) -> list[Path]:
-        return [prj.Header.path.value for prj in self._iter_selected_projects()]
+        return [prj.path for prj in self._iter_selected_projects()]
 
     def _iter_selected_projects(self) -> Iterator[Project]:
         for prj in self.projects:
-            if prj.Header.check:
+            if prj.check:
                 yield prj
 
     def _get_batch_loader(
@@ -309,7 +323,7 @@ class ProjectSequenceEdit(MagicTemplate):
     ) -> BatchLoader:
         batch_loader = BatchLoader()
         for i, prj in enumerate(iter(self.projects)):
-            if not prj.Header.check:
+            if not prj.check:
                 continue
             loader = prj.get_loader(order=order)
             batch_loader.add_tomogram(loader.image, loader.molecules, image_id=i)
@@ -327,6 +341,7 @@ class ProjectSequenceEdit(MagicTemplate):
         dataframes: list[pl.DataFrame] = []
         for idx, prj in enumerate(iter(self.projects)):
             df = prj._get_localprops()
+
             dataframes.append(
                 df.with_columns(
                     pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)
@@ -439,8 +454,6 @@ class ProjectSequenceEdit(MagicTemplate):
     @set_design(text="Add projects with wildcard path")
     def add_children_glob(self, pattern: str):
         """Add project json files using wildcard path."""
-        import glob
-
         pattern = str(pattern)
         for path in glob.glob(pattern):
             wdt = self.projects._add(path)
@@ -460,3 +473,16 @@ class ProjectSequenceEdit(MagicTemplate):
 
 def _set_parent(wdt: Widget, parent: Widget):
     wdt.native.setParent(parent.native, wdt.native.windowFlags())
+
+
+@impl_preview(ProjectSequenceEdit.add_children_glob)
+def _(self: ProjectSequenceEdit, pattern: str):
+    from cylindra.core import instance
+
+    paths = list[str]()
+    for path in glob.glob(str(pattern)):
+        paths.append(Path(path).as_posix())
+    wdt = ConsoleTextEdit(value="\n".join(paths))
+    _set_parent(wdt, self)
+    instance()._active_widgets.add(wdt)
+    wdt.show()
