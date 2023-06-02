@@ -1516,6 +1516,11 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     # The peak of longitudinal periodicity is always in this range.
     npfrange = ceilint(npfmax / 2)
 
+    # o <------- ymax
+    # ^
+    # |
+    # +---------- amax
+
     power = img.local_power_spectra(
         key=ip.slicer.y[y0:y1].a[-npfrange : npfrange + 1],
         upsample_factor=[1, up_y, up_a],
@@ -1525,13 +1530,12 @@ def _local_dft_params(img: ip.ImgArray, radius: nm):
     ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
 
     amax_f = amax - npfrange * up_a
-    ymaxp_f = ymax + y0 * up_y
     ymax_f = ymax + y0 * up_y
     a_freq = np.fft.fftfreq(img.shape.a * up_a)
     y_freq = np.fft.fftfreq(img.shape.y * up_y)
 
     rise = np.arctan(-a_freq[amax_f] / y_freq[ymax_f])
-    yspace = 1.0 / y_freq[ymaxp_f] * img.scale.y
+    yspace = 1.0 / y_freq[ymax_f] * img.scale.y
 
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.

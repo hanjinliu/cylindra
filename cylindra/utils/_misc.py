@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 import impy as ip
-from typing import ContextManager, TypeVar, Callable
-from cylindra.const import Mode, GlobalVariables as GVar
+from typing import TypeVar, Callable
+from cylindra.const import Mode
+from contextlib import contextmanager
 
 
 def roundint(a: float):
@@ -14,12 +15,11 @@ def ceilint(a: float):
     return int(np.ceil(a))
 
 
-def set_gpu() -> ContextManager:
+@contextmanager
+def set_gpu():
     """Use GPU within this context."""
-    if GVar.use_gpu:
-        return ip.use("cupy")
-    else:
-        return ip.use("numpy")
+    # NOTE: Support GPU in the future...
+    yield
 
 
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
