@@ -16,7 +16,6 @@ from typing import (
 )
 
 from acryo import BatchLoader, Molecules
-import numpy as np
 import impy as ip
 import polars as pl
 
@@ -30,6 +29,7 @@ from ._single import CylindraProject
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+    from cylindra.components import CylSpline
 
 _V = TypeVar("_V")
 _Null = object()
@@ -138,9 +138,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return iter(self._projects)
 
     def insert(self, index: int, value: CylindraProject) -> None:
+        """Insert a project at the given index."""
         if not isinstance(value, CylindraProject):
             raise TypeError(f"Expected CylindraProject, got {type(value)}.")
-        self._projects.insert(index, value)
+        return self._projects.insert(index, value)
 
     @classmethod
     def from_paths(
@@ -162,7 +163,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return self
 
     def add(self, path: str | Path) -> Self:
-        """Add a project from path."""
+        """Add a project from a path."""
         prj = CylindraProject.from_json(path)
         self._scale_validator.value = prj.scale
         self._projects.append(prj)
@@ -182,7 +183,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
 
-    def localprops(self, allow_none: bool = True) -> pl.DataFrame:
+    def collect_localprops(self, allow_none: bool = True) -> pl.DataFrame:
         """
         Collect all localprops into a single dataframe.
 
@@ -214,7 +215,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 )
         return pl.concat(dataframes, how="diagonal")
 
-    def globalprops(self, allow_none: bool = True) -> pl.DataFrame:
+    def collect_globalprops(
+        self, allow_none: bool = True, suffix: str = ""
+    ) -> pl.DataFrame:
         """
         Collect all globalprops into a single dataframe.
 
@@ -223,6 +226,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         allow_none : bool, default is True
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
+        suffix : str, default is ""
+            Suffix to add to the column names that may be collide with the local
+            properties.
 
         Returns
         -------
@@ -239,9 +245,15 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
-        return pl.concat(dataframes, how="diagonal")
+        out = pl.concat(dataframes, how="diagonal")
+        if suffix:
+            need_rename = [H.spacing, H.skew, H.nPF, H.rise, H.radius]
+            out = out.rename(
+                {col: col + suffix for col in need_rename if col in out.columns}
+            )
+        return out
 
-    def all_props(self, allow_none: bool = True) -> pl.DataFrame:
+    def collect_joinedprops(self, allow_none: bool = True) -> pl.DataFrame:
         """
         Collect all the local and global properties into a single dataframe.
 
@@ -283,3 +295,12 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         glb = self.globalprops(allow_none=allow_none)
         key = [IDName.spline, Mole.image]
         return loc.join(glb, on=key, suffix="_glob")
+
+    localprops = collect_localprops  # alias for backward compatibility
+    globalprops = collect_globalprops  # alias for backward compatibility
+    all_props = collect_joinedprops  # alias for backward compatibility
+
+    def iter_splines(self) -> Iterable[tuple[int, CylSpline]]:
+        for i, prj in enumerate(self._projects):
+            for spl in prj.load_splines():
+                yield i, spl

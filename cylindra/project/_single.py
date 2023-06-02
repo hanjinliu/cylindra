@@ -1,15 +1,17 @@
 import os
-from typing import Union, TYPE_CHECKING
+from typing import Iterable, Union, TYPE_CHECKING
 from pathlib import Path
 import macrokit as mk
 from pydantic import BaseModel
 import polars as pl
+import numpy as np
 
 from cylindra.const import PropertyNames as H, get_versions
 from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
+    from cylindra.components import CylSpline
 
 
 class MoleculesInfo(BaseModel):
@@ -219,9 +221,7 @@ class CylindraProject(BaseProject):
 
     def to_gui(self, gui: "CylindraMainWidget", filter=True, paint=True):
         from cylindra.components import CylSpline, CylTomogram
-        import numpy as np
         from acryo import Molecules
-        import polars as pl
 
         tomogram = CylTomogram.imread(
             path=self.image,
@@ -234,32 +234,7 @@ class CylindraProject(BaseProject):
         gui._macro_offset = len(gui.macro)
 
         # load splines
-        splines = [CylSpline.from_json(path) for path in self.splines]
-        localprops_path = self.localprops
-        if localprops_path is not None:
-            all_localprops = dict(
-                iter(pl.read_csv(localprops_path).groupby("SplineID"))
-            )
-        else:
-            all_localprops = {}
-        globalprops_path = self.globalprops
-        if globalprops_path is not None:
-            df = pl.read_csv(globalprops_path)
-            all_globalprops = {i: df[i] for i in range(len(df))}
-        else:
-            all_globalprops = {}
-
-        for i, spl in enumerate(splines):
-            spl.localprops = all_localprops.get(i, None)
-            if spl.has_localprops([H.splDist, H.splPos]):
-                spl._anchors = np.asarray(spl.localprops[H.splPos])
-                spl.localprops.drop(["SplineID", "PosID"])
-            spl.globalprops = all_globalprops.get(i, None)
-
-            spl.localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
-            spl.globalprops = spl.globalprops.with_columns(
-                _get_casting(spl.globalprops)
-            )
+        splines = self.load_splines()
 
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(tomogram, filt=filter)
@@ -312,6 +287,38 @@ class CylindraProject(BaseProject):
             gui.GeneralInfo.project_desc.value = self.project_description
 
         return _load_project_on_return
+
+    def load_splines(self) -> "list[CylSpline]":
+        from cylindra.components import CylSpline
+
+        splines = [CylSpline.from_json(path) for path in self.splines]
+        localprops_path = self.localprops
+        if localprops_path is not None:
+            all_localprops = dict(
+                iter(pl.read_csv(localprops_path).groupby("SplineID"))
+            )
+        else:
+            all_localprops = {}
+        globalprops_path = self.globalprops
+        if globalprops_path is not None:
+            df = pl.read_csv(globalprops_path)
+            all_globalprops = {i: df[i] for i in range(len(df))}
+        else:
+            all_globalprops = {}
+
+        for i, spl in enumerate(splines):
+            spl.localprops = all_localprops.get(i, None)
+            if spl.has_localprops([H.splDist, H.splPos]):
+                spl._anchors = np.asarray(spl.localprops[H.splPos])
+                spl.localprops.drop(["SplineID", "PosID"])
+            spl.globalprops = all_globalprops.get(i, None)
+
+            spl.localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
+            spl.globalprops = spl.globalprops.with_columns(
+                _get_casting(spl.globalprops)
+            )
+
+        return splines
 
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""
