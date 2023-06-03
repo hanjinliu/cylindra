@@ -15,12 +15,15 @@ from magicclass import (
 from magicclass.widgets import Separator, ConsoleTextEdit
 from magicclass.types import SomeOf, Optional, Path
 from magicclass.logging import getLogger
+from magicclass.ext.polars import DataFrameView
 import impy as ip
 
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra.widgets._previews import view_image
 
+from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import ceilint, roundint
+from cylindra.types import get_monomer_layers
 from cylindra.ext.etomo import PEET
 from cylindra.components import CylTomogram
 from cylindra.const import GlobalVariables as GVar, nm, ImageFilter, get_versions
@@ -210,10 +213,29 @@ class MoleculesMenu(MagicTemplate):
     class Visualize(MagicTemplate):
         """Visualize molecules analysis results."""
 
-        show_molecule_features = abstractapi()
+        @set_design(text="Show molecule features")
+        @do_not_record
+        def show_molecule_features(self):
+            """Show molecules features in a table widget."""
+            from magicgui.widgets import Container, ComboBox
+
+            cbox = ComboBox(choices=get_monomer_layers)
+            table = DataFrameView(value={})
+
+            @cbox.changed.connect
+            def _update_table(layer: MoleculesLayer):
+                if layer is not None:
+                    table.value = layer.features
+
+            container = Container(widgets=[cbox, table], labels=False)
+            self.parent_viewer.window.add_dock_widget(
+                container, area="left", name="Molecule Features"
+            ).setFloating(True)
+            cbox.changed.emit(cbox.value)
+            return None
+
         paint_molecules = abstractapi()
         plot_molecule_feature = abstractapi()
-        show_molecules_colorbar = abstractapi()
 
 
 @magicmenu
@@ -262,7 +284,13 @@ class Analysis(ChildWidget):
         return uibatch
 
     sep2 = field(Separator)
-    repeat_command = abstractapi()
+
+    @set_design(text="Repeat command")
+    @do_not_record(recursive=False)
+    @bind_key("Ctrl+Shift+R")
+    def repeat_command(self):
+        """Repeat the last command."""
+        return self.macro.repeat_method(same_args=False, raise_parse_error=False)
 
 
 @magicmenu

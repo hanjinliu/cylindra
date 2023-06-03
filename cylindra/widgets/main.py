@@ -25,7 +25,6 @@ from magicclass import (
 )
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.ext.polars import DataFrameView
 from magicclass.types import (
     Color,
     Colormap as ColormapType,
@@ -1357,14 +1356,6 @@ class CylindraMainWidget(MagicTemplate):
         self.macro.clear_undo_stack()
         return None
 
-    @Analysis.wraps
-    @set_design(text="Repeat command")
-    @do_not_record(recursive=False)
-    @bind_key("Ctrl+Shift+R")
-    def repeat_command(self):
-        """Repeat the last command."""
-        return self.macro.repeat_method(same_args=False, raise_parse_error=False)
-
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -1695,27 +1686,6 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(out, name=name, source=layer.source_component)
         return mole
 
-    @MoleculesMenu.Visualize.wraps
-    @set_design(text="Show molecule features")
-    @do_not_record
-    def show_molecule_features(self):
-        """Show molecules features in a table widget."""
-        from magicgui.widgets import Container, ComboBox
-
-        cbox = ComboBox(choices=get_monomer_layers)
-        table = DataFrameView(value={})
-
-        @cbox.changed.connect
-        def _update_table(layer: MoleculesLayer):
-            if layer is not None:
-                table.value = layer.features
-
-        container = Container(widgets=[cbox, table], labels=False)
-        self.parent_viewer.window.add_dock_widget(
-            container, area="left", name="Molecule Features"
-        ).setFloating(True)
-        cbox.changed.emit(cbox.value)
-
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Filter molecules")
     def filter_molecules(
@@ -1844,45 +1814,6 @@ class CylindraMainWidget(MagicTemplate):
         ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
         ax.set_aspect("equal")
         return undo_callback(lambda: _Logger.print("Undoing plotting does nothing"))
-
-    @MoleculesMenu.Visualize.wraps
-    @set_design(text="Show colorbar")
-    @do_not_record
-    def show_molecules_colorbar(
-        self,
-        layer: MoleculesLayer,
-        length: Annotated[int, {"min": 16}] = 256,
-        orientation: Literal["vertical", "horizontal"] = "horizontal",
-    ):
-        """
-        Show the colorbar of the molecules layer in the logger.
-
-        Parameters
-        ----------
-        {layer}
-        length : int, default is 256
-            Length of the colorbar.
-        orientation : 'vertical' or 'horizontal', default is 'horizontal'
-            Orientation of the colorbar.
-        """
-        info = layer.colormap_info
-        colors = info.cmap.map(np.linspace(0, 1, length))
-        cmap_arr = np.stack([colors] * (length // 12), axis=0)
-        xmin, xmax = info.clim
-        with _Logger.set_plt():
-            if orientation == "vertical":
-                plt.imshow(np.swapaxis(cmap_arr, 0, 1))
-                plt.xticks([], [])
-                plt.yticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
-            else:
-                plt.imshow(cmap_arr)
-                plt.xticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
-                plt.yticks([], [])
-            plt.tight_layout()
-            plt.show()
-        return undo_callback(
-            lambda: _Logger.print("Undoing `show_molecules_colorbar` does nothing")
-        )
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate molecule features")
@@ -2244,18 +2175,41 @@ class CylindraMainWidget(MagicTemplate):
     @ImageMenu.wraps
     @set_design(text="Show colorbar")
     @do_not_record
-    def show_colorbar(self, layer: ColoredLayer):
-        """Create a colorbar from the current colormap."""
+    def show_colorbar(
+        self,
+        layer: ColoredLayer,
+        length: Annotated[int, {"min": 16}] = 256,
+        orientation: Literal["vertical", "horizontal"] = "horizontal",
+    ):
+        """
+        Show the colorbar of the molecules layer in the logger.
+
+        Parameters
+        ----------
+        {layer}
+        length : int, default is 256
+            Length of the colorbar.
+        orientation : 'vertical' or 'horizontal', default is 'horizontal'
+            Orientation of the colorbar.
+        """
         info = layer.colormap_info
-        arr = np.stack([info.cmap.map(np.linspace(0, 1, 256))] * 36, axis=0)
+        colors = info.cmap.map(np.linspace(0, 1, length))
+        cmap_arr = np.stack([colors] * (length // 12), axis=0)
         xmin, xmax = info.clim
         with _Logger.set_plt():
-            plt.imshow(arr)
-            plt.xticks([0, arr.shape[1] - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
-            plt.yticks([], [])
+            if orientation == "vertical":
+                plt.imshow(np.swapaxis(cmap_arr, 0, 1))
+                plt.xticks([], [])
+                plt.yticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
+            else:
+                plt.imshow(cmap_arr)
+                plt.xticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
+                plt.yticks([], [])
             plt.tight_layout()
             plt.show()
-        return None
+        return undo_callback(
+            lambda: _Logger.print("Undoing `show_molecules_colorbar` does nothing")
+        )
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods

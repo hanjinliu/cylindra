@@ -309,7 +309,7 @@ def test_set_molecule_colormap(ui: CylindraMainWidget):
         {0: "blue", 1: "yellow"},
         (0, 10),
     )
-    ui.show_molecules_colorbar(ui.parent_viewer.layers["Mono-0"])
+    ui.show_colorbar(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -622,7 +622,7 @@ def test_molecule_features(ui: CylindraMainWidget):
     import polars as pl
 
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui.show_molecule_features()
+    ui.MoleculesMenu.Visualize.show_molecule_features()
     layer = ui.parent_viewer.layers["Mono-0"]
     ui.filter_molecules(layer, predicate='pl.col("position-nm") < 9.2')
     assert ui.parent_viewer.layers[-1].features["position-nm"].max() < 9.2
