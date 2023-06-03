@@ -1184,9 +1184,9 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Analysis.wraps
-    @set_design(text="Local radii analysis")
+    @set_design(text="Measure local radius")
     @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
-    def local_radii_analysis(
+    def measure_local_radius(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
@@ -1210,6 +1210,57 @@ class CylindraMainWidget(MagicTemplate):
 
         self._need_save = True
 
+        return tracker.as_undo_callback()
+
+    @Analysis.wraps
+    @set_design(text="Local radii analysis by molecules")
+    def measure_local_radius_by_molecules(
+        self,
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+    ):  # fmt: skip
+        """
+        Measure radius for each local region along splines, using molecules.
+
+        Parameters
+        ----------
+        {layers}
+        """
+        _splines = list[CylSpline]()
+        _molecules = list[Molecules]()
+        _duplicated = list[CylSpline]()
+        for layer in layers:
+            spl = layer.source_component
+            if not isinstance(spl, CylSpline):
+                raise ValueError(f"Layer {layer.name} does not have spline source.")
+            if spl in _splines:
+                _duplicated.append(spl)
+            _splines.append(spl)
+            mole = layer.molecules.copy()
+            mole.features = utils.with_radius(mole, spl)
+            _molecules.append(mole)
+
+        if _duplicated:
+            _layer_names = ", ".join(repr(l.name) for l in layers)
+            raise ValueError(f"Layers {_layer_names} have duplicated spline sources.")
+
+        indices = [self.tomogram.splines.index(spl) for spl in _splines]
+        with SplineTracker(widget=self, indices=indices) as tracker:
+            for spl, mole in zip(_splines, _molecules):
+                anc_pos = spl.anchors * spl.length()
+                edges = (anc_pos[1:] + anc_pos[:-1]) / 2
+                inverted = edges[-1] < edges[0]
+                if inverted:
+                    bins = [-np.inf] + list(edges[::-1]) + [np.inf]
+                else:
+                    bins = [-np.inf] + list(edges) + [np.inf]
+                radii = list[float]()
+                for _, each in mole.cutby(Mole.position, bins):
+                    radii.append(each.features[Mole.radius].mean())
+                if inverted:
+                    radii = radii[::-1]
+                spl.localprops = spl.localprops.with_columns(
+                    pl.Series(H.radius, radii, dtype=pl.Float32)
+                )
         return tracker.as_undo_callback()
 
     @Analysis.wraps

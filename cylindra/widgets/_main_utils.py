@@ -12,7 +12,18 @@ if TYPE_CHECKING:
 
 
 class SplineTracker(ContextManager):
-    """Object that tracks changes in splines and allows to undo them."""
+    """
+    Object that tracks changes in splines and allows to undo them.
+
+    Parameters
+    ----------
+    widget : CylindraMainWidget
+        The main widget. A weak reference of it will be stored.
+    indices : iterable of int
+        Indices of splines to track.
+    sample : bool, optional
+        If True, subtomograms will be sampled after undo/redo operations.
+    """
 
     def __init__(
         self, widget: CylindraMainWidget, indices: Iterable[int], sample: bool = False
