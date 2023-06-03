@@ -144,7 +144,26 @@ class Splines(ChildWidget):
     delete_spline = abstractapi()
     sep1 = field(Separator)
     fit_splines = abstractapi()
-    fit_splines_manually = abstractapi()
+
+    @set_design(text="Fit splines manually")
+    @do_not_record
+    @bind_key("Ctrl+K, Ctrl+/")
+    def fit_splines_manually(
+        self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0
+    ):
+        """
+        Open a spline fitter window and fit cylinder with spline manually.
+
+        Parameters
+        ----------
+        max_interval : nm, default is 50.0
+            Maximum interval (nm) between spline anchors that will be used to
+            sample subtomogram projections.
+        """
+        main = self._get_main()
+        main.spline_fitter._load_parent_state(max_interval=max_interval)
+        return main.spline_fitter.show()
+
     refine_splines = abstractapi()
     sep2 = field(Separator)
     set_spline_props = abstractapi()

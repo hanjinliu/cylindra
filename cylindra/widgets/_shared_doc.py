@@ -41,8 +41,10 @@ _PARAMETERS = [
     Parameter(name="spline", type="int", desc="Index of splines to be used."),
     Parameter(name="splines", type="list of int", desc="Indices of splines to be used."),
     Parameter(name="bin_size", type="int", desc="Bin size of multiscale image to be used. Set to >1 to boost performance."),
-    Parameter(name="interval", type="nm", desc="Interval (nm) of spline anchors."),
+    Parameter(name="interval", type="nm", desc="Interval (nm) between spline anchors. Please note that resetting interval will discard all the existing local properties."),
+    Parameter(name="depth", type="nm", desc="Depth (length parallel to the spline tangent) of the subtomograms to be sampled."),
     Parameter(name="max_interval", type="nm", desc="Maximum interval (nm) between spline anchors."),
+    Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules."),
     Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the current spline orientation as is."),
     Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself. Lowpass: butterworth low-pass filter. Gaussian: Gaussian blur. DoG: difference of Gaussian. LoG: Laplacian of Gaussian."),
 ]

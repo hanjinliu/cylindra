@@ -81,6 +81,7 @@ from cylindra.widgets.widget_utils import (
 )
 
 from cylindra.widgets._widget_ext import ProtofilamentEdit
+from cylindra.widgets._main_utils import SplineTracker, normalize_spline_indices
 from cylindra.widgets import _progress_desc as _pdesc
 
 if TYPE_CHECKING:
@@ -288,10 +289,10 @@ class CylindraMainWidget(MagicTemplate):
     def clear_all(self):
         """Clear all the splines and results."""
         self.macro.clear_undo_stack()
-        self._init_widget_state()
-        self._init_layers()
         self.overview.layers.clear()
         self.tomogram.splines.clear()
+        self._init_widget_state()
+        self._init_layers()
         self._need_save = False
         self.reset_choices()
         return None
@@ -812,8 +813,7 @@ class CylindraMainWidget(MagicTemplate):
         align_to : Ori, optional
             To which direction splines will be aligned. If not given, splines will
             not be inverted even if the orientation is not aligned.
-        depth : nm, default is 40 nm
-            Depth (Y-length) of the subtomogram to be sampled.
+        {depth}
         """
         binsize: int = self._layer_image.metadata["current_binsize"]
         tomo = self.tomogram
@@ -959,60 +959,27 @@ class CylindraMainWidget(MagicTemplate):
             Maximum shift to be applied to each point of splines.
         """
         tomo = self.tomogram
-        if len(splines) == 0:
-            splines = list(range(tomo.n_splines))
-        old_splines = {i: tomo.splines[i] for i in splines.copy()}
-        for i in splines:
-            tomo.fit(
-                i,
-                max_interval=max_interval,
-                binsize=bin_size,
-                degree_precision=degree_precision,
-                edge_sigma=edge_sigma,
-                max_shift=max_shift,
-            )
-            yield thread_worker.to_callback(self._update_splines_in_images)
-        new_splines = {i: tomo.splines[i] for i in splines}
+        indices = normalize_spline_indices(splines, tomo)
+        with SplineTracker(widget=self, indices=indices) as tracker:
+            for i in indices:
+                tomo.fit(
+                    i,
+                    max_interval=max_interval,
+                    binsize=bin_size,
+                    degree_precision=degree_precision,
+                    edge_sigma=edge_sigma,
+                    max_shift=max_shift,
+                )
+                yield thread_worker.to_callback(self._update_splines_in_images)
         self._need_save = True
-
-        @undo_callback
-        def _undo():
-            for i, spl in old_splines.items():
-                tomo.splines[i] = spl.copy()
-            self._update_splines_in_images()
-
-        @_undo.with_redo
-        def _undo():
-            for i, spl in new_splines.items():
-                tomo.splines[i] = spl.copy()
-            self._init_widget_state()
-            self._update_splines_in_images()
 
         @thread_worker.to_callback
         def out():
             self._init_widget_state()
             self._update_splines_in_images()
-            return _undo
+            return tracker.as_undo_callback()
 
         return out
-
-    @Splines.wraps
-    @set_design(text="Fit splines manually")
-    @do_not_record
-    @bind_key("Ctrl+K, Ctrl+/")
-    def fit_splines_manually(
-        self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0
-    ):
-        """
-        Open a spline fitter window and fit cylinder with spline manually.
-
-        Parameters
-        ----------
-        {max_interval}
-        """
-        self.spline_fitter._load_parent_state(max_interval=max_interval)
-        self.spline_fitter.show()
-        return None
 
     @Splines.wraps
     @set_design(text="Add anchors")
@@ -1029,14 +996,12 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{interval}
         """
         tomo = self.tomogram
-        if len(splines) == 0:
-            splines = list(range(tomo.n_splines))
-        if len(splines) == 0:
-            raise ValueError("Cannot add anchors before adding splines.")
-        tomo.make_anchors(splines, interval=interval)
+        indices = normalize_spline_indices(splines, tomo)
+        with SplineTracker(widget=self, indices=indices) as tracker:
+            tomo.make_anchors(indices, interval=interval)
         self._update_splines_in_images()
         self._need_save = True
-        return None
+        return tracker.as_undo_callback()
 
     @Analysis.wraps
     @set_design(text="Measure radius")
@@ -1053,19 +1018,14 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {splines}{bin_size}
         """
-        if len(splines) == 0:
-            splines = list(range(self.tomogram.n_splines))
-        old_radius = {i: self.tomogram.splines[i].radius for i in splines}
-        new_radius: dict[int, nm] = {}
-        for i in splines:
-            radius = self.tomogram.set_radius(i, binsize=bin_size)
-            yield
-            new_radius[i] = radius
-        self._need_save = True
+        indices = normalize_spline_indices(splines, self.tomogram)
+        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
+            for i in indices:
+                self.tomogram.set_radius(i, binsize=bin_size)
+                yield
 
-        return undo_callback(_set_spline_props(self, "radius", old_radius)).with_redo(
-            _set_spline_props(self, "radius", new_radius)
-        )
+        self._need_save = True
+        return tracker.as_undo_callback()
 
     @Splines.wraps
     @set_design(text="Refine splines")
@@ -1089,44 +1049,25 @@ class CylindraMainWidget(MagicTemplate):
         {bin_size}
         """
         tomo = self.tomogram
-        if len(splines) == 0:
-            splines = list(range(tomo.n_splines))
-
-        old_splines = {i: tomo.splines[i].copy() for i in splines}
-        for i in splines:
-            tomo.refine(
-                i,
-                max_interval=max_interval,
-                corr_allowed=corr_allowed,
-                binsize=bin_size,
-            )
-            yield thread_worker.to_callback(self._update_splines_in_images)
-
-        new_splines = {i: tomo.splines[i].copy() for i in splines}
+        indices = normalize_spline_indices(splines, tomo)
+        with SplineTracker(widget=self, indices=indices) as tracker:
+            for i in indices:
+                tomo.refine(
+                    i,
+                    max_interval=max_interval,
+                    corr_allowed=corr_allowed,
+                    binsize=bin_size,
+                )
+                yield thread_worker.to_callback(self._update_splines_in_images)
 
         self._need_save = True
-
-        @undo_callback
-        def undo_op():
-            for i, spl in old_splines.items():
-                tomo.splines[i] = spl.copy()
-            self._update_splines_in_images()
-            self._update_local_properties_in_widget()
-
-        @undo_op.with_redo
-        def undo_op():
-            for i, spl in new_splines.items():
-                tomo.splines[i] = spl.copy()
-            self._init_widget_state()
-            self._update_splines_in_images()
-            self._update_local_properties_in_widget()
 
         @thread_worker.to_callback
         def out():
             self._init_widget_state()
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
-            return undo_op
+            return tracker.as_undo_callback()
 
         return out
 
@@ -1258,32 +1199,27 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
-        size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
+        """
+        Measure radius for each local region along splines.
+
+        Parameters
+        ----------
+        {splines}{interval}{depth}{bin_size}
+        """
         tomo = self.tomogram
         if len(splines) == 0:
             splines = list(range(tomo.n_splines))
-        old_splines = {i: tomo.splines[i].copy() for i in splines}
-        if interval is not None:
-            tomo.make_anchors(i=splines, interval=interval)
-        tomo.local_radii(i=splines, size=size, binsize=bin_size)
-        new_splines = {i: tomo.splines[i].copy() for i in splines}
+        with SplineTracker(widget=self, indices=splines) as tracker:
+            if interval is not None:
+                tomo.make_anchors(i=splines, interval=interval)
+            tomo.local_radii(i=splines, size=depth, binsize=bin_size)
+
         self._need_save = True
 
-        @undo_callback
-        def undo_op():
-            for i, old_spl in old_splines.items():
-                tomo.splines[i] = old_spl.copy()
-            self._update_splines_in_images()
-            self._update_local_properties_in_widget()
-
-        @undo_op.with_redo
-        def undo_op():
-            for i, new_spl in new_splines.items():
-                tomo.splines[i] = new_spl.copy()
-
-        return undo_op
+        return tracker.as_undo_callback()
 
     @Analysis.wraps
     @set_design(text="Local FT analysis")
@@ -1321,31 +1257,17 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        old_splines = dict[int, CylSpline]()
-        new_splines = dict[int, CylSpline]()
-        for i in splines:
-            old_splines[i] = tomo.splines[i].copy()
-            if interval is not None:
-                tomo.make_anchors(i=i, interval=interval)
-            tomo.local_ft_params(i=i, ft_size=ft_size, binsize=bin_size, radius=radius)
-            new_splines[i] = tomo.splines[i].copy()
-            yield _local_ft_analysis_on_yield(i)
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
+                if interval is not None:
+                    tomo.make_anchors(i=i, interval=interval)
+                tomo.local_ft_params(
+                    i=i, ft_size=ft_size, binsize=bin_size, radius=radius
+                )
+                yield _local_ft_analysis_on_yield(i)
         self._current_ft_size = ft_size
         self._need_save = True
-
-        @undo_callback
-        def undo_op():
-            for i, old_spl in old_splines.items():
-                tomo.splines[i] = old_spl.copy()
-            self._update_splines_in_images()
-            self._update_local_properties_in_widget()
-
-        @undo_op.with_redo
-        def undo_op():
-            for i, new_spl in new_splines.items():
-                tomo.splines[i] = new_spl.copy()
-
-        return undo_op
+        return tracker.as_undo_callback()
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
@@ -1373,34 +1295,31 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
+                spl = tomo.splines[i]
+                if spl.radius is None:
+                    tomo.set_radius(i=i)
+                tomo.global_ft_params(i=i, binsize=bin_size)
+                yield _global_ft_analysis_on_yield(i)
+        self._need_save = True
+
+        # show all in a table
+        df = (
+            self.tomogram.collect_globalprops()
+            .drop(IDName.spline)
+            .to_pandas()
+            .transpose()
+        )
+        df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
-            # show all in a table
-            df = (
-                self.tomogram.collect_globalprops()
-                .drop(IDName.spline)
-                .to_pandas()
-                .transpose()
-            )
-            df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
 
-            return undo_callback(
-                _set_spline_props(self, "globalprops", old_props)
-            ).with_redo(_set_spline_props(self, "globalprops", new_props))
+            return tracker.as_undo_callback()
 
-        old_props: dict[int, pl.DataFrame] = {}
-        new_props: dict[int, pl.DataFrame] = {}
-        for i in splines:
-            spl = tomo.splines[i]
-            old_props[i] = spl.globalprops
-            if spl.radius is None:
-                tomo.set_radius(i=i)
-            tomo.global_ft_params(i=i, binsize=bin_size)
-            new_props[i] = tomo.splines[i].globalprops
-            yield _global_ft_analysis_on_yield(i)
-        self._need_save = True
         return _global_ft_analysis_on_return
 
     def _get_reanalysis_macro(self, path: Path):
@@ -1536,7 +1455,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_centers(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
-        interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
+        molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
         """
@@ -1544,12 +1463,14 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{interval}{orientation}
+        {splines}{molecule_interval}{orientation}
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        mols = tomo.map_centers(i=splines, interval=interval, orientation=orientation)
+        mols = tomo.map_centers(
+            i=splines, interval=molecule_interval, orientation=orientation
+        )
         _Logger.print_html("<code>map_centers</code>")
         _added_layers = []
         for i, mol in enumerate(mols):
@@ -1569,7 +1490,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_along_pf(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
+        molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         angle_offset: Annotated[float, {"max": 360}] = 0.0,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
@@ -1578,7 +1499,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {spline}{interval}
+        {spline}{molecule_interval}
         angle_offset : float
             Offset of angle in degree. This parameter determines at what position monomer
             mapping starts.
@@ -1587,7 +1508,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         mol = tomo.map_pf_line(
             i=spline,
-            interval=interval,
+            interval=molecule_interval,
             angle_offset=angle_offset,
             orientation=orientation,
         )
@@ -2555,16 +2476,16 @@ class CylindraMainWidget(MagicTemplate):
 
         # remove all the molecules layers
         _layers_to_remove: list[str] = []
-        for layer in self.parent_viewer.layers:
+        for layer in viewer.layers:
             if isinstance(layer, MoleculesLayer):
                 _layers_to_remove.append(layer.name)
 
         for name in _layers_to_remove:
-            layer: Layer = self.parent_viewer.layers[name]
-            self.parent_viewer.layers.remove(layer)
+            layer: Layer = viewer.layers[name]
+            viewer.layers.remove(layer)
 
         common_properties = dict(ndim=3, out_of_slice_display=True, size=8)
-        if self._layer_prof in self.parent_viewer.layers:
+        if self._layer_prof in viewer.layers:
             viewer.layers.remove(self._layer_prof)
 
         self._layer_prof: Points = viewer.add_points(
@@ -2672,30 +2593,8 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     def _set_orientation_marker(self, idx: int):
-        spline_id = self._layer_prof.features[SPLINE_ID]
-        spec = spline_id == idx
-        if self._layer_prof.text.string.encoding_type == "ConstantStringEncoding":
-            # if text uses constant string encoding, update it to ManualStringEncoding
-            string_arr = np.zeros(len(self._layer_prof.data), dtype="<U1")
-        else:
-            string_arr = np.asarray(self._layer_prof.text.string.array, dtype="<U1")
-
         spl = self.tomogram.splines[idx]
-        str_of_interest = string_arr[spec]
-
-        if spl.orientation == Ori.none:
-            str_of_interest[:] = ""
-        elif spl.orientation == Ori.MinusToPlus:
-            str_of_interest[0], str_of_interest[-1] = "-", "+"
-        elif spl.orientation == Ori.PlusToMinus:
-            str_of_interest[0], str_of_interest[-1] = "+", "-"
-        else:
-            raise RuntimeError(spl.orientation)
-
-        # update
-        string_arr[spec] = str_of_interest
-        self._layer_prof.text.string = list(string_arr)
-        return self._layer_prof.refresh()
+        return _set_orientation_to_layer(self._layer_prof, idx, spl.orientation)
 
     def _update_splines_in_images(self, _=None):
         """Refresh splines in overview canvas and napari canvas."""
@@ -2807,11 +2706,36 @@ def _set_layer_feature_future(layer: MoleculesLayer, features):
     return _wrapper
 
 
-def _set_spline_props(ui: CylindraMainWidget, attr: str, props: dict[int, Any]):
-    def wrapper():
-        tomo = ui.tomogram
-        for i, val in props.items():
-            setattr(tomo.splines[i], attr, val)
-        return None
+def _set_orientation_to_layer(layer: Points, idx: int, orientation: Ori):
+    """
+    Set orientation to a napari Points layer.
 
-    return wrapper
+    For the given layer, set the points corresponding to the idx-th spline to
+    the given orientation.
+    """
+    spline_id = layer.features[SPLINE_ID]
+    spec = spline_id == idx
+    if layer.text.string.encoding_type == "ConstantStringEncoding":
+        # if text uses constant string encoding, update it to ManualStringEncoding
+        string_arr = np.zeros(len(layer.data), dtype="<U1")
+    else:
+        string_arr = np.asarray(layer.text.string.array, dtype="<U1")
+
+    str_of_interest = string_arr[spec]
+
+    if orientation is Ori.none:
+        str_of_interest[:] = ""
+    elif orientation is Ori.MinusToPlus:
+        str_of_interest[0], str_of_interest[-1] = "-", "+"
+    elif orientation is Ori.PlusToMinus:
+        str_of_interest[0], str_of_interest[-1] = "+", "-"
+    else:
+        raise RuntimeError(orientation)
+
+    # update
+    string_arr[spec] = str_of_interest
+    layer.text.string = list(string_arr)
+
+    layer.text.string = list(string_arr)
+    layer.refresh()
+    return None

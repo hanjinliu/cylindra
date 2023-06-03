@@ -85,7 +85,7 @@ def _(self: CylindraMainWidget, path: Path):
 def _(
     self: CylindraMainWidget,
     spline: int,
-    interval: float | None,
+    molecule_interval: float | None,
     angle_offset: float = 0.0,
     orientation: str | None = None,
 ):  # fmt: skip
@@ -93,7 +93,7 @@ def _(
     viewer = self.parent_viewer
     out = tomo.map_pf_line(
         i=spline,
-        interval=interval,
+        interval=molecule_interval,
         angle_offset=angle_offset,
         orientation=orientation,
     )
