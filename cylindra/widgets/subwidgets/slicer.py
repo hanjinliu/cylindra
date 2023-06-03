@@ -44,7 +44,7 @@ class SplineSlicer(MagicTemplate):
         """
 
         def _get_available_binsize(self, widget=None) -> "list[int]":
-            from .main import CylindraMainWidget
+            from cylindra.widgets.main import CylindraMainWidget
 
             try:
                 parent = self.find_ancestor(CylindraMainWidget)
@@ -62,7 +62,7 @@ class SplineSlicer(MagicTemplate):
 
     @property
     def parent(self) -> "CylindraMainWidget":
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget)
 
@@ -80,7 +80,7 @@ class SplineSlicer(MagicTemplate):
         """
 
         def _get_spline_id(self, widget=None) -> "list[tuple[str, int]]":
-            from .main import CylindraMainWidget
+            from cylindra.widgets.main import CylindraMainWidget
 
             try:
                 parent = self.find_ancestor(CylindraMainWidget)

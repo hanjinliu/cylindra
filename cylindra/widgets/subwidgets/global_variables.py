@@ -12,7 +12,7 @@ from magicclass import (
 from magicclass.utils import show_messagebox
 from magicclass.types import Path
 
-from .widget_utils import FileFilter
+from cylindra.widgets.widget_utils import FileFilter
 from cylindra.const import nm, GlobalVariables as GVar
 from cylindra import _config
 
@@ -127,7 +127,7 @@ class GlobalVariablesMenu(MagicTemplate):
 
     @impl_preview(load_variables_by_name)
     def _(self, var_name: str):
-        from ._previews import view_text
+        from cylindra.widgets._previews import view_text
         from cylindra.widgets import CylindraMainWidget
 
         path = _config.VAR_PATH / f"{var_name}.json"

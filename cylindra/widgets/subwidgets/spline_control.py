@@ -45,7 +45,7 @@ class SplineControl(MagicTemplate):
         self.canvas.enabled = False
 
     def _get_parent(self):
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget, cache=True)
 
@@ -188,9 +188,7 @@ class SplineControl(MagicTemplate):
 
     @pos.connect
     def _update_canvas(self):
-        from .main import CylindraMainWidget
-
-        parent = self.find_ancestor(CylindraMainWidget)
+        parent = self._get_parent()
         tomo = parent.tomogram
         binsize = parent._layer_image.metadata["current_binsize"]
         i = self.num

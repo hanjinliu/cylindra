@@ -110,7 +110,6 @@ MASK_CHOICES = ("No mask", "Blur template", "From file")
     visible=False,
     record=False,
 )
-@_shared_doc.update_cls
 class MaskParameters(MagicTemplate):
     """
     Parameters for soft mask creation.
@@ -187,7 +186,7 @@ class StaParameters(MagicTemplate):
         label="Template",
     ).with_options(text="Use last averaged image", value=Path(""))
     mask_choice = vfield(label="Mask", record=False).with_choices(MASK_CHOICES)
-    params = field(MaskParameters, name="Mask parameters")
+    params = field(MaskParameters, name="Parameters", label="")
     mask_path = field(mask_path)
 
     _last_average: ip.ImgArray = None  # the global average result
@@ -284,7 +283,7 @@ class StaParameters(MagicTemplate):
             except RuntimeError:
                 self._viewer = None
         if self._viewer is None:
-            from .function_menu import Volume
+            from cylindra.widgets.subwidgets import Volume
 
             self._viewer = napari.Viewer(
                 title=name, axis_labels=("z", "y", "x"), ndisplay=3
@@ -1245,7 +1244,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _on_return():
-            from .pca import PcaViewer
+            from cylindra.widgets.subwidgets import PcaViewer
 
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())

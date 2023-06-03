@@ -129,7 +129,7 @@ class SplineFitter(MagicTemplate):
             self._update_cross(x, z)
 
     def _get_parent(self):
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget, cache=True)
 

@@ -602,7 +602,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         @thread_worker.to_callback
         def _on_return():
-            from ..pca import PcaViewer
+            from cylindra.widgets.subwidgets import PcaViewer
 
             t0.toc()
             pca_viewer = PcaViewer(pca)

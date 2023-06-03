@@ -63,15 +63,7 @@ from cylindra.project import CylindraProject, get_project_json
 # widgets
 from cylindra.widgets import _shared_doc, subwidgets
 from cylindra.widgets import widget_utils
-from cylindra.widgets.image_processor import ImageProcessor
-from cylindra.widgets.properties import GlobalPropertiesWidget, LocalPropertiesWidget
-from cylindra.widgets.spline_control import SplineControl
-from cylindra.widgets.spline_clipper import SplineClipper
-from cylindra.widgets.spline_fitter import SplineFitter
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra.widgets.slicer import SplineSlicer
-from cylindra.widgets.simulator import CylinderSimulator
-from cylindra.widgets.measure import SpectraMeasurer
 
 from cylindra.widgets.widget_utils import (
     FileFilter,
@@ -111,17 +103,17 @@ class CylindraMainWidget(MagicTemplate):
     _active_widgets = WeakSet[Widget]()
 
     # Widget for manual spline fitting
-    spline_fitter = field(SplineFitter, name="_Spline fitter")
+    spline_fitter = field(subwidgets.SplineFitter, name="_Spline fitter")
     # Widget for manual spline clipping
-    spline_clipper = field(SplineClipper, name="_Spline clipper")
+    spline_clipper = field(subwidgets.SplineClipper, name="_Spline clipper")
     # Widget for sweeping along splines
-    spline_slicer = field(SplineSlicer, name="_Spline slicer")
+    spline_slicer = field(subwidgets.SplineSlicer, name="_Spline slicer")
     # Widget for pre-filtering/pre-processing
-    image_processor = field(ImageProcessor, name="_Image Processor")
+    image_processor = field(subwidgets.ImageProcessor, name="_Image Processor")
     # Widget for tomogram simulator
-    cylinder_simulator = field(CylinderSimulator, name="_Cylinder Simulator")
+    cylinder_simulator = field(subwidgets.CylinderSimulator, name="_Cylinder Simulator")
     # Widget for measuring FFT parameters from a 2D power spectra
-    spectra_measurer = field(SpectraMeasurer, name="_FFT Measurer")
+    spectra_measurer = field(subwidgets.SpectraMeasurer, name="_FFT Measurer")
     # Widget for subtomogram analysis
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
 
@@ -147,15 +139,15 @@ class CylindraMainWidget(MagicTemplate):
         return self.Others.GlobalVariables
 
     # Toolbar
-    toolbar = subwidgets.toolbar
+    toolbar = subwidgets.CylindraToolbar
 
     # Child widgets
     GeneralInfo = field(subwidgets.GeneralInfo)
-    SplineControl = SplineControl  # Widget for controling splines
+    SplineControl = subwidgets.SplineControl  # Widget for controling splines
     # Widget for summary of local properties
-    LocalProperties = field(LocalPropertiesWidget, name="Local Properties")
+    LocalProperties = field(subwidgets.LocalPropertiesWidget, name="Local Properties")  # fmt: skip
     # Widget for summary of glocal properties
-    GlobalProperties = field(GlobalPropertiesWidget, name="Global Properties")
+    GlobalProperties = field(subwidgets.GlobalPropertiesWidget, name="Global Properties")  # fmt: skip
     # Widget for 2D overview of splines
     overview = field(QtImageCanvas, name="Overview").with_options(tooltip="Overview of splines")  # fmt: skip
 

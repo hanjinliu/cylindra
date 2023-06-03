@@ -19,7 +19,7 @@ from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
 
 if TYPE_CHECKING:
-    from .main import CylindraMainWidget
+    from cylindra.widgets.main import CylindraMainWidget
 
 
 class MeasureMode(Enum):
@@ -189,7 +189,7 @@ class SpectraMeasurer(MagicTemplate):
         self._mode = value
 
     def _get_parent(self) -> "CylindraMainWidget":
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget, cache=True)
 

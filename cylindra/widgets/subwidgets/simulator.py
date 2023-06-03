@@ -258,7 +258,7 @@ class CylinderSimulator(MagicTemplate):
 
     @property
     def parent_widget(self):
-        from .main import CylindraMainWidget
+        from cylindra.widgets.main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget, cache=True)
 

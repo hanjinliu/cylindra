@@ -12,8 +12,8 @@ from magicclass import (
 from magicclass.types import Optional, SomeOf
 from magicclass.ext.dask import dask_thread_worker
 import impy as ip
-from .widget_utils import FileFilter
-from ._previews import view_image
+from cylindra.widgets.widget_utils import FileFilter
+from cylindra.widgets._previews import view_image
 from cylindra.const import GlobalVariables as GVar
 
 

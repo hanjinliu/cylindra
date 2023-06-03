@@ -751,7 +751,7 @@ def test_cli(make_napari_viewer):
 
 
 def test_function_menu(make_napari_viewer):
-    from cylindra.widgets.function_menu import Volume
+    from cylindra.widgets.subwidgets import Volume
 
     viewer: napari.Viewer = make_napari_viewer()
     vol = Volume()
