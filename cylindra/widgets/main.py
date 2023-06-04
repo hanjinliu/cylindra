@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Any, Literal, Union
+from typing import Annotated, TYPE_CHECKING, Literal, Union
 import warnings
 from weakref import WeakSet
 
@@ -1767,11 +1767,8 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         color_by: Annotated[str, {"choices": _get_paint_molecules_choice}],
         cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Annotated[
-            tuple[float, float],
-            {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"},
-        ] = (4.00, 4.24),
-    ):
+        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
+    ):  # fmt: skip
         """
         Paint molecules by a feature.
 
@@ -2147,11 +2144,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         from acryo.pipe import from_file
 
-        molecules = []
-        for layer in layers:
-            layer: MoleculesLayer
-            molecules.append(layer.molecules)
-        mole = Molecules.concat(molecules)
+        mole = Molecules.concat([layer.molecules for layer in layers])
         data = self._layer_image.data if target_layer is None else target_layer.data
 
         device = widget_utils.PaintDevice(data.shape, self._layer_image.scale[-1])
@@ -2204,8 +2197,7 @@ class CylindraMainWidget(MagicTemplate):
         limits : tuple, default is (4.00, 4.24)
             Color limits (nm).
         """
-        self._layer_paint.set_colormap(color_by, limits, cmap)
-        return None
+        return self._layer_paint.set_colormap(color_by, limits, cmap)
 
     @ImageMenu.wraps
     @set_design(text="Show colorbar")
@@ -2275,7 +2267,9 @@ class CylindraMainWidget(MagicTemplate):
                     break
             else:
                 raise ValueError("No molecules found in the layer list.")
-        layer: MoleculesLayer = self.parent_viewer.layers[name]
+        layer = self.parent_viewer.layers[name]
+        if not isinstance(layer, MoleculesLayer):
+            raise ValueError(f"Layer {name!r} is not a molecules layer.")
         return layer.molecules
 
     @nogui
@@ -2308,8 +2302,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         mole = self.get_molecules(name)
         shape = self.sta._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=order)
-        return loader
+        return self.tomogram.get_subtomogram_loader(mole, shape, order=order)
 
     @nogui
     @do_not_record
