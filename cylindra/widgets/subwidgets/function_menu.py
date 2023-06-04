@@ -101,7 +101,7 @@ class Volume(MagicTemplate):
     @set_options(layout="horizontal", labels=False, auto_call=True)
     @set_design(text="Binary operation")
     def binary_operation(
-        self, layer_1: Image, op: Annotated[str, {"bind": OPERATORS}], layer_2: Image
+        self, layer_1: Image, op: Annotated[str, {"choices": OPERATORS}], layer_2: Image
     ) -> LayerDataTuple:
         if layer_1 is None or layer_2 is None:
             return None

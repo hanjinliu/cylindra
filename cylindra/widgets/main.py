@@ -2209,7 +2209,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal["vertical", "horizontal"] = "horizontal",
     ):
         """
-        Show the colorbar of the molecules layer in the logger.
+        Show the colorbar of the molecules or painted cylinder in the logger.
 
         Parameters
         ----------

@@ -758,7 +758,7 @@ def test_function_menu(make_napari_viewer):
     viewer.window.add_dock_widget(vol)
     img = ip.asarray(
         np.arange(1000, dtype=np.float32).reshape(10, 10, 10), axes="zyx"
-    ).set_scale(zyx=0.3)
+    ).set_scale(zyx=0.3, unit="nm")
     im = viewer.add_image(img, name="test image")
     vol.binning(im, 2)
     vol.gaussian_filter(im)
