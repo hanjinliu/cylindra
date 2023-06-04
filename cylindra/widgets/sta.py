@@ -29,7 +29,7 @@ import napari
 
 from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
-from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm
+from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
 from cylindra.components import CylSpline
 
 from .widget_utils import FileFilter, timer
@@ -557,7 +557,7 @@ class SubtomogramAveraging(MagicTemplate):
         layers = _assert_list_of_layers(layers)
         parent = self._get_parent()
 
-        new_layers = []
+        new_layers = list[MoleculesLayer]()
 
         @thread_worker.to_callback
         def _on_yield(
@@ -573,7 +573,7 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
 
-        aligned_molecules: list[Molecules] = []
+        # aligned_molecules: list[Molecules] = []
         mole = layers[0].molecules
         loader = self._get_loader(bin_size, mole, order=1)
         template, mask = loader.normalize_input(
@@ -607,10 +607,24 @@ class SubtomogramAveraging(MagicTemplate):
             _mole_trans = mole.linear_transform(
                 result.shift * _scale, rotator
             ).with_features([pl.col(Mole.position) + svec[1]])
-            aligned_molecules.append(_mole_trans)
+            # aligned_molecules.append(_mole_trans)
 
+            # create images for visualization in the logger
             img_norm = utils.normalize_image(_img_trans)
             merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
+
+            # write offsets to spline globalprops if available
+            if isinstance(spl := layer.source_component, CylSpline):
+                if spl.radius is None:
+                    _radius = utils.with_radius(mole, spl)[Mole.radius].mean()
+                else:
+                    _radius = spl.radius
+                _offset_y = svec[1]
+                _offset_a = np.arctan2(svec[2], svec[0] + _radius)
+                spl.globalprops = spl.globalprops.with_columns(
+                    pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
+                    pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
+                )
 
             yield _on_yield(_mole_trans, layer)
 

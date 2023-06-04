@@ -83,7 +83,9 @@ class PropertyNames(SimpleNamespace):
     skew = "skewAngle"
     nPF = "nPF"
     radius = "radius"
-    orientation = "orientation"
+    orientation = "orientation"  # global only
+    offset_axial = "offset_axial"  # global only
+    offset_angular = "offset_angular"  # global only
     start = "start"
 
 

@@ -10,11 +10,12 @@ from magicclass import setup_function_gui, impl_preview
 
 import numpy as np
 
-from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
+from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject, get_project_json
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets._previews import view_tables
+from cylindra.widgets._main_utils import normalize_offsets
 from napari.utils.colormaps import label_colormap
 
 if TYPE_CHECKING:
@@ -86,7 +87,7 @@ def _(
     self: CylindraMainWidget,
     spline: int,
     molecule_interval: float | None,
-    angle_offset: float = 0.0,
+    offsets: tuple[float, float] | None = None,
     orientation: str | None = None,
 ):  # fmt: skip
     tomo = self.tomogram
@@ -94,7 +95,7 @@ def _(
     out = tomo.map_pf_line(
         i=spline,
         interval=molecule_interval,
-        angle_offset=angle_offset,
+        offsets=normalize_offsets(offsets, tomo.splines[spline]),
         orientation=orientation,
     )
     name = "<Preview>"
@@ -118,11 +119,17 @@ def _(
     spline: int,
     n_extend: dict[int, tuple[int, int]],
     orientation=None,
+    offsets: tuple[float, float] | None = None,
 ):
     tomo = self.tomogram
     spl = tomo.splines[spline]
     coords = widget_utils.coordinates_with_extensions(spl, n_extend)
-    out = tomo.map_on_grid(i=spline, coords=coords, orientation=orientation)
+    out = tomo.map_on_grid(
+        i=spline,
+        coords=coords,
+        orientation=orientation,
+        offsets=normalize_offsets(offsets, tomo.splines[spline]),
+    )
     name = "<Preview>"
     viewer = self.parent_viewer
 

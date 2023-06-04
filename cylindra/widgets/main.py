@@ -71,8 +71,12 @@ from cylindra.widgets.widget_utils import (
     POLARS_NAMESPACE,
 )
 
-from cylindra.widgets._widget_ext import ProtofilamentEdit
-from cylindra.widgets._main_utils import SplineTracker, normalize_spline_indices
+from cylindra.widgets._widget_ext import ProtofilamentEdit, OffsetEdit
+from cylindra.widgets._main_utils import (
+    SplineTracker,
+    normalize_spline_indices,
+    normalize_offsets,
+)
 from cylindra.widgets import _progress_desc as _pdesc
 
 if TYPE_CHECKING:
@@ -84,6 +88,15 @@ SPLINE_ID = "spline-id"
 SELF = mk.Mock("self")
 DEFAULT_COLORMAP = {0.0: "#0B0000", 0.58: "#FF0000", 1.0: "#FFFF00"}
 _Logger = getLogger("cylindra")  # The GUI logger
+
+# annotated types
+_OffsetType = Annotated[
+    Optional[tuple[nm, float]],
+    {
+        "text": "Infer offsets from spline global properties",
+        "options": {"widget_type": OffsetEdit},
+    },
+]
 
 # stylesheet
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
@@ -1416,10 +1429,9 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("M")
     def map_monomers(
         self,
-        splines: Annotated[
-            list[int], {"choices": _get_splines, "widget_type": "Select"}
-        ] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        offsets: _OffsetType = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1428,18 +1440,23 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{orientation}
+        {splines}{orientation}{offsets}
         """
         tomo = self.tomogram
-        if len(splines) == 0 and len(tomo.splines) > 0:
-            splines = tuple(range(len(tomo.splines)))
-        molecules = tomo.map_monomers(i=splines, orientation=orientation)
+        indices = normalize_spline_indices(splines, tomo)
 
         _Logger.print_html("<code>map_monomers</code>")
         _added_layers = []
-        for i, mol in enumerate(molecules):
+        for i in indices:
+            spl = tomo.splines[i]
+            mol = tomo.map_monomers(
+                i=i,
+                orientation=orientation,
+                offsets=normalize_offsets(offsets, spl),
+            )
+
             _name = f"Mono-{i}"
-            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            layer = self.add_molecules(mol, _name, source=spl)
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
 
@@ -1457,6 +1474,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"choices": _get_splines}],
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        offsets: _OffsetType = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1469,12 +1487,17 @@ class CylindraMainWidget(MagicTemplate):
         n_extend : dict[int, (int, int)]
             Number of molecules to extend. Should be mapping from the PF index to the (prepend,
             append) number of molecules to add. Remove molecules if negative values are given.
-        {orientation}
+        {orientation}{offsets}
         """
         tomo = self.tomogram
         spl = tomo.splines[spline]
         coords = widget_utils.coordinates_with_extensions(spl, n_extend)
-        mole = tomo.map_on_grid(i=spline, coords=coords, orientation=orientation)
+        mole = tomo.map_on_grid(
+            i=spline,
+            coords=coords,
+            orientation=orientation,
+            offsets=normalize_offsets(offsets, spl),
+        )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
 
         self._need_save = True
@@ -1525,7 +1548,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"choices": _get_splines}],
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
-        angle_offset: Annotated[float, {"max": 360}] = 0.0,
+        offsets: _OffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
         """
@@ -1533,20 +1556,16 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {spline}{molecule_interval}
-        angle_offset : float
-            Offset of angle in degree. This parameter determines at what position monomer
-            mapping starts.
-        {orientation}
+        {spline}{molecule_interval}{offsets}{orientation}
         """
         tomo = self.tomogram
+        _Logger.print_html("<code>map_along_PF</code>")
         mol = tomo.map_pf_line(
             i=spline,
             interval=molecule_interval,
-            angle_offset=angle_offset,
+            offsets=normalize_offsets(offsets, tomo.splines[spline]),
             orientation=orientation,
         )
-        _Logger.print_html("<code>map_along_PF</code>")
         _name = f"PF line-{spline}"
         layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
         _Logger.print(f"{_name!r}: n = {len(mol)}")
