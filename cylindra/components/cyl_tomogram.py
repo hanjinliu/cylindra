@@ -753,7 +753,37 @@ class CylTomogram(Tomogram):
             imax_sub = centroid(each, imax - 5, imax + 5)
             r_peak_sub = (imax_sub + 0.5) / nbin * r_max
             radii.append(r_peak_sub)
-        out = pl.Series(H.radius, radii).cast(pl.Float32)
+        out = pl.Series(H.radius, radii, dtype=pl.Float32)
+        spl.localprops = spl.localprops.with_columns(out)
+        return out
+
+    @batch_process
+    def count_npf(
+        self,
+        *,
+        i: int = None,
+        size: nm = 32.0,
+        binsize: int = 1,
+        radius: nm | Literal["local", "global"] = "global",
+    ) -> pl.Series:
+        LOGGER.info(f"Running: {self.__class__.__name__}.count_npf, i={i}")
+        spl = self.splines[i]
+
+        radii = _prepare_radii(spl, radius)
+
+        ylen = self.nm2pixel(size)
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
+        rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
+        rmax = (spl.radius + GVar.thickness_outer) / _scale
+        tasks = []
+        LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        for anc, r0 in zip(spl_trans.anchors, radii):
+            coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
+            tasks.append(try_all_npf(input_img, coords, r0))
+        results: list[int] = da.compute(*tasks)
+        out = pl.Series(H.nPF, results, dtype=pl.UInt8)
         spl.localprops = spl.localprops.with_columns(out)
         return out
 
@@ -806,7 +836,7 @@ class CylTomogram(Tomogram):
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
             tasks.append(
                 da.from_delayed(
-                    lazy_ft_params(input_img, coords, r0),
+                    ft_params(input_img, coords, r0),
                     shape=(5,),
                     meta=np.array([], dtype=np.float32),
                 )
@@ -1644,15 +1674,30 @@ def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> list[pl.Series]:
     ]
 
 
+@delayed
 def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
+    return _local_dft_params(get_polar_image(img, coords, radius), radius)
+
+
+@delayed
+def try_all_npf(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
+    polar = get_polar_image(img, coords, radius)
+    prof = ndi.spline_filter1d(polar.proj("ry").value, output=np.float32, mode="wrap")
+    score = list[float]()
+    npf_list = list(range(GVar.npf_min, GVar.npf_max + 1))
+    for npf in npf_list:
+        single_shift = prof.size / npf
+        sum_img = prof + sum(ndi.shift(prof, single_shift * i) for i in range(1, npf))
+        avg: NDArray[np.float32] = sum_img / npf
+        score.append(avg.max() - avg.min())
+    return npf_list[np.argmax(score)]
+
+
+def get_polar_image(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
     polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
-    polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x)
-    polar.scale_unit = img.scale_unit
-    return _local_dft_params(polar, radius)
-
-
-lazy_ft_params = delayed(ft_params)
+    polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x, unit=img.scale_unit)
+    return polar
 
 
 def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):

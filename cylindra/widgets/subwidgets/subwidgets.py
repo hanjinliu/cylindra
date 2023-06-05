@@ -267,12 +267,14 @@ class Analysis(ChildWidget):
     measure_radius = abstractapi()
     measure_local_radius = abstractapi()
     measure_radius_by_molecules = abstractapi()
+    count_npf = abstractapi()
+    sep0 = field(Separator)
     local_ft_analysis = abstractapi()
     global_ft_analysis = abstractapi()
-    sep0 = field(Separator)
+    sep1 = field(Separator)
     reanalyze_image = abstractapi()
     load_project_for_reanalysis = abstractapi()
-    sep1 = field(Separator)
+    sep2 = field(Separator)
 
     @set_design(text="Open spectra measurer")
     @do_not_record
