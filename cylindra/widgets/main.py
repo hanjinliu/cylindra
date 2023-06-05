@@ -363,41 +363,6 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print("Workflow saved: " + path.as_posix())
         return None
 
-    @Others.Macro.wraps
-    @set_design(text="Show macro")
-    @do_not_record
-    @bind_key("Ctrl+Shift+M")
-    def show_macro(self):
-        """Create Python executable script of the current project."""
-        new = self.macro.widget.new_window()
-        new.textedit.value = str(self._format_macro()[self._macro_offset :])
-        new.show()
-        self._active_widgets.add(new)
-        return None
-
-    @Others.Macro.wraps
-    @set_design(text="Show full macro")
-    @do_not_record
-    def show_full_macro(self):
-        """Create Python executable script since the startup this time."""
-        new = self.macro.widget.new_window()
-        new.textedit.value = str(self._format_macro())
-        new.show()
-        self._active_widgets.add(new)
-        return None
-
-    @Others.Macro.wraps
-    @set_design(text="Show native macro")
-    @do_not_record
-    def show_native_macro(self):
-        """
-        Show the native macro widget of magic-class, which is always synchronized but
-        is not editable.
-        """
-        self.macro.widget.show()
-        self._active_widgets.add(self.macro.widget)
-        return None
-
     @_image_loader.wraps
     @set_design(text="Run")
     @dask_thread_worker.with_progress(desc="Reading image")
@@ -1294,14 +1259,22 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
     def count_npf(
         self,
-        splines: Annotated[
-            list[int], {"choices": _get_splines, "widget_type": CheckBoxes}
-        ] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
-    ):
+    ):  # fmt: skip
+        """
+        Count the number of protofilaments in real space.
+
+        Parameters
+        ----------
+        {splines}{interval}{depth}{bin_size}
+        radius : str, default is "global"
+            If "local", use the local radius for the analysis. If "global", use the
+            global radius.
+        """
         tomo = self.tomogram
         indices = normalize_spline_indices(splines, tomo)
         with SplineTracker(widget=self, indices=indices, sample=True) as tracker:

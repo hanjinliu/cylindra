@@ -825,9 +825,9 @@ def test_mesh_annealing(ui: CylindraMainWidget):
 
 def test_showing_widgets(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.show_macro()
-    ui.show_full_macro()
-    ui.show_native_macro()
+    ui.Others.Macro.show_macro()
+    ui.Others.Macro.show_full_macro()
+    ui.Others.Macro.show_native_macro()
     ui.Others.open_logger()
     ui.File.open_image_loader()
     ui.File.view_project(PROJECT_DIR_13PF / "project.json")

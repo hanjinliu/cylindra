@@ -118,6 +118,30 @@ class Splines(ChildWidget):
 
     show_splines = abstractapi()
     show_splines_as_meshes = abstractapi()
+
+    @set_design(text="Show local properties")
+    @do_not_record
+    def show_localprops(self):
+        """Show spline local properties in a table widget."""
+        from magicgui.widgets import Container, ComboBox
+
+        main = self._get_main()
+        cbox = ComboBox(choices=main._get_splines)
+        table = DataFrameView(value={})
+
+        @cbox.changed.connect
+        def _update_table(i: int):
+            if i is not None:
+                spl = main.tomogram.splines[i]
+                table.value = spl.localprops
+
+        container = Container(widgets=[cbox, table], labels=False)
+        self.parent_viewer.window.add_dock_widget(
+            container, area="left", name="Molecule Features"
+        ).setFloating(True)
+        cbox.changed.emit(cbox.value)
+        return None
+
     add_anchors = abstractapi()
     sep0 = field(Separator)
 
@@ -168,29 +192,6 @@ class Splines(ChildWidget):
     sep2 = field(Separator)
     set_spline_props = abstractapi()
     molecules_to_spline = abstractapi()
-
-    @set_design(text="Show local properties")
-    @do_not_record
-    def show_localprops(self):
-        """Show spline local properties in a table widget."""
-        from magicgui.widgets import Container, ComboBox
-
-        main = self._get_main()
-        cbox = ComboBox(choices=main._get_splines)
-        table = DataFrameView(value={})
-
-        @cbox.changed.connect
-        def _update_table(i: int):
-            if i is not None:
-                spl = main.tomogram.splines[i]
-                table.value = spl.localprops
-
-        container = Container(widgets=[cbox, table], labels=False)
-        self.parent_viewer.window.add_dock_widget(
-            container, area="left", name="Molecule Features"
-        ).setFloating(True)
-        cbox.changed.emit(cbox.value)
-        return None
 
 
 @magicmenu(name="Molecules")
@@ -319,19 +320,46 @@ class Analysis(ChildWidget):
 
 
 @magicmenu
-class Others(MagicTemplate):
+class Others(ChildWidget):
     """Other menus."""
 
-    def _get_main(self):
-        from cylindra.widgets import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget)
-
     @magicmenu
-    class Macro:
-        show_macro = abstractapi()
-        show_full_macro = abstractapi()
-        show_native_macro = abstractapi()
+    class Macro(ChildWidget):
+        @set_design(text="Show macro")
+        @do_not_record
+        @bind_key("Ctrl+Shift+M")
+        def show_macro(self):
+            """Create Python executable script of the current project."""
+            main = self._get_main()
+            new = main.macro.widget.new_window()
+            new.textedit.value = str(main._format_macro()[main._macro_offset :])
+            new.show()
+            main._active_widgets.add(new)
+            return None
+
+        @set_design(text="Show full macro")
+        @do_not_record
+        def show_full_macro(self):
+            """Create Python executable script since the startup this time."""
+            main = self._get_main()
+            new = main.macro.widget.new_window()
+            new.textedit.value = str(main._format_macro())
+            new.show()
+            main._active_widgets.add(new)
+            return None
+
+        @set_design(text="Show native macro")
+        @do_not_record
+        def show_native_macro(self):
+            """
+            Show the native macro widget of magic-class, which is always synchronized but
+            is not editable.
+            """
+            main = self._get_main()
+            main.macro.widget.show()
+            main._active_widgets.add(main.macro.widget)
+            return None
+
         sep0 = field(Separator)
         load_macro_file = abstractapi()
 
