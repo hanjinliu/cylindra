@@ -1222,10 +1222,12 @@ class CylindraMainWidget(MagicTemplate):
         return tracker.as_undo_callback()
 
     @Analysis.wraps
-    @set_design(text="Local radii analysis by molecules")
-    def measure_local_radius_by_molecules(
+    @set_design(text="Measure radius by molecules")
+    def measure_radius_by_molecules(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+        locals: Annotated[bool, {"label": "Measure local properties"}] = True,
+        globals: Annotated[bool, {"label": "Measure global properties"}] = True,
     ):  # fmt: skip
         """
         Measure radius for each local region along splines, using molecules.
@@ -1233,7 +1235,17 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layers}
+        locals : bool, default is True
+            If True, measure each local radius by cutting molecules into pieces and average the
+            distance from the source spline.
+        globals : bool, default is True
+            If True, measure the global radius by averaging the distance from the source spline
+            of all molecules.
         """
+        if not (locals or globals):
+            raise ValueError("At least one of locals and globals must be True.")
+
+        # check duplicated spline sources
         _splines = list[CylSpline]()
         _molecules = list[Molecules]()
         _duplicated = list[CylSpline]()
@@ -1255,21 +1267,24 @@ class CylindraMainWidget(MagicTemplate):
         indices = [self.tomogram.splines.index(spl) for spl in _splines]
         with SplineTracker(widget=self, indices=indices) as tracker:
             for spl, mole in zip(_splines, _molecules):
-                anc_pos = spl.anchors * spl.length()
-                edges = (anc_pos[1:] + anc_pos[:-1]) / 2
-                inverted = edges[-1] < edges[0]
-                if inverted:
-                    bins = [-np.inf] + list(edges[::-1]) + [np.inf]
-                else:
-                    bins = [-np.inf] + list(edges) + [np.inf]
-                radii = list[float]()
-                for _, each in mole.cutby(Mole.position, bins):
-                    radii.append(each.features[Mole.radius].mean())
-                if inverted:
-                    radii = radii[::-1]
-                spl.localprops = spl.localprops.with_columns(
-                    pl.Series(H.radius, radii, dtype=pl.Float32)
-                )
+                if locals:
+                    anc_pos = spl.anchors * spl.length()
+                    edges = (anc_pos[1:] + anc_pos[:-1]) / 2
+                    inverted = edges[-1] < edges[0]
+                    if inverted:
+                        bins = [-np.inf] + list(edges[::-1]) + [np.inf]
+                    else:
+                        bins = [-np.inf] + list(edges) + [np.inf]
+                    radii = list[float]()
+                    for _, each in mole.cutby(Mole.position, bins):
+                        radii.append(each.features[Mole.radius].mean())
+                    if inverted:
+                        radii = radii[::-1]
+                    spl.localprops = spl.localprops.with_columns(
+                        pl.Series(H.radius, radii, dtype=pl.Float32)
+                    )
+                if globals:
+                    spl.radius = mole.features[Mole.radius].mean()
         return tracker.as_undo_callback()
 
     @Analysis.wraps
