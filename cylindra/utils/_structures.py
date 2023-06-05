@@ -49,8 +49,8 @@ def try_all_seams(
     tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]
         Correlation, average and boolean array correspond to each seam position.
     """
-    corrs: list[float] = []
-    labels: list[np.ndarray] = []  # list of boolean arrays
+    corrs = list[float]()
+    labels = list[np.ndarray]()  # list of boolean arrays
 
     if mask is None:
         mask = 1
@@ -71,7 +71,7 @@ def try_all_seams(
     averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
     averaged_images.set_scale(zyx=loader.scale)
 
-    corrs: list[float] = []
+    corrs = list[float]()
     for avg in averaged_images:
         avg: ip.ImgArray
         corr = ip.zncc((avg * mask).lowpass_filter(cutoff=cutoff), masked_template)
@@ -131,7 +131,7 @@ def angle_corr(
     mask = ip.circular_mask(img_z.shape.y / 2 + 2, img_z.shape)
     img_mirror: ip.ImgArray = img_z["x=::-1"]
     angs = np.linspace(ang_center - drot, ang_center + drot, nrots, endpoint=True)
-    corrs = []
+    corrs = list[float]()
     f0 = np.sqrt(img_z.power_spectra(dims="yx", zero_norm=True))
     cval = np.mean(img_z)
     for ang in angs:
@@ -157,7 +157,7 @@ def molecules_to_spline(mole: Molecules):
 def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
     try:
         pf_label = mole.features[Mole.pf]
-        pos_list: list[NDArray[np.float32]] = []  # each shape: (y, ndim)
+        pos_list = list[NDArray[np.float32]]()  # each shape: (y, ndim)
         for pf in range(pf_label.max() + 1):
             pos_list.append(mole.pos[pf_label == pf])
         pos = np.stack(pos_list, axis=1)  # shape: (y, pf, ndim)
@@ -175,7 +175,7 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     _index_column_key = "._index_column"
     mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
-    subsets: list[Molecules] = []
+    subsets = list[Molecules]()
     for _, sub in mole0.groupby(Mole.pf):
         _pos = sub.pos
         _interv_vec = np.diff(_pos, axis=0, append=0)
@@ -184,7 +184,7 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _y_interv = np.abs(_dot(_interv_vec, _spl_vec_norm))
         _y_interv[-1] = -1.0  # fill invalid values with -1
         subsets.append(
-            sub.with_features(pl.Series(Mole.interval, _y_interv).cast(pl.Float32))
+            sub.with_features(pl.Series(Mole.interval, _y_interv, dtype=pl.Float32))
         )
     return (
         Molecules.concat(subsets)
@@ -199,7 +199,7 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     _index_column_key = "._index_column"
     mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
-    subsets: list[Molecules] = []
+    subsets = list[Molecules]()
     spacing = spl.get_globalprops(H.spacing)
     for _, sub in mole0.groupby(Mole.pf):
         _pos = sub.pos
@@ -220,7 +220,7 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
 
         _skew = np.rad2deg(2 * spacing * _skew_sin / _radius)
         _skew[-1] = 0
-        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew).cast(pl.Float32)))
+        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew, dtype=pl.Float32)))
 
     return (
         Molecules.concat(subsets)
@@ -238,7 +238,7 @@ def with_radius(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     _spl_vec_norm = _norm(_spl_vec)
     _radius_vec = _spl_pos - mole.pos
     result = np.sqrt(_dot(_radius_vec, _radius_vec) - _dot(_radius_vec, _spl_vec_norm))
-    return mole.with_features(pl.Series(Mole.radius, result).cast(pl.Float32)).features
+    return mole.with_features(pl.Series(Mole.radius, result, dtype=pl.Float32)).features
 
 
 def _norm(vec):
@@ -267,7 +267,7 @@ def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:
     _id = np.arange(nmole)
     assert _id.size % npf == 0
 
-    scores: list[int] = []
+    scores = list[int]()
     for pf in range(npf):
         res = (_id - pf) // npf
         sl = _binarize(res % 2 == 0)

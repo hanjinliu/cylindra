@@ -535,7 +535,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         z_rotation: _ZRotation = (0.0, 0.0),
@@ -660,7 +660,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Alignment of {}"))
     def align_all(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -709,7 +709,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(descs=_pdesc.align_template_free_fmt)
     def align_all_template_free(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -764,7 +764,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Multi-template alignment of {}"))  # fmt: skip
     def align_all_multi_template(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
         template_path: Bound[params.template_path],
         other_templates: Path.Multiple[FileFilter.IMAGE],
         mask_params: Bound[params._get_mask_params],

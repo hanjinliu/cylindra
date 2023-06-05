@@ -99,6 +99,10 @@ _OffsetType = Annotated[
     },
 ]
 
+_Interval = Annotated[
+    Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}
+]
+
 # stylesheet
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
 
@@ -1199,7 +1203,7 @@ class CylindraMainWidget(MagicTemplate):
     def measure_local_radius(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
-        interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = None,
+        interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
@@ -1227,10 +1231,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Measure radius by molecules")
     def measure_radius_by_molecules(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
+        interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
-        locals: Annotated[bool, {"label": "Measure local properties"}] = True,
-        globals: Annotated[bool, {"label": "Measure global properties"}] = True,
     ):  # fmt: skip
         """
         Measure radius for each local region along splines, using molecules.
@@ -1241,17 +1244,8 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layers}
-        locals : bool, default is True
-            If True, measure each local radius by cutting molecules into pieces and average the
-            distance from the source spline.
-        globals : bool, default is True
-            If True, measure the global radius by averaging the distance from the source spline
-            of all molecules.
+        {layers}{interval}{depth}
         """
-        if not (locals or globals):
-            raise ValueError("At least one of locals and globals must be True.")
-
         if isinstance(layers, MoleculesLayer):
             # allow single layer input.
             layers = [layers]
@@ -1277,19 +1271,17 @@ class CylindraMainWidget(MagicTemplate):
 
         indices = [self.tomogram.splines.index(spl) for spl in _splines]
         with SplineTracker(widget=self, indices=indices) as tracker:
-            for spl, mole in zip(_splines, _molecules):
-                if locals:
-                    anc_pos = spl.anchors * spl.length()
-                    radii = list[float]()
-                    for pos in anc_pos:
-                        lower, upper = pos - depth / 2, pos + depth / 2
-                        pred = pl.col(Mole.position).is_between(lower, upper)
-                        radii.append(mole.features.filter(pred)[Mole.radius].mean())
-                    spl.localprops = spl.localprops.with_columns(
-                        pl.Series(H.radius, radii, dtype=pl.Float32)
-                    )
-                if globals:
-                    spl.radius = mole.features[Mole.radius].mean()
+            for i, spl, mole in zip(indices, _splines, _molecules):
+                if interval is not None:
+                    self.tomogram.make_anchors(i=i, interval=interval)
+                radii = list[float]()
+                for pos in spl.anchors * spl.length():
+                    lower, upper = pos - depth / 2, pos + depth / 2
+                    pred = pl.col(Mole.position).is_between(lower, upper)
+                    radii.append(mole.features.filter(pred)[Mole.radius].mean())
+                spl.localprops = spl.localprops.with_columns(
+                    pl.Series(H.radius, radii, dtype=pl.Float32)
+                )
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1298,7 +1290,7 @@ class CylindraMainWidget(MagicTemplate):
     def local_ft_analysis(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
-        interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
+        interval: _Interval = 32.0,
         ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
@@ -1318,8 +1310,7 @@ class CylindraMainWidget(MagicTemplate):
             global radius.
         """
         tomo = self.tomogram
-        if len(splines) == 0:
-            splines = list(range(tomo.n_splines))
+        indices = normalize_spline_indices(splines, tomo)
 
         @thread_worker.to_callback
         def _local_ft_analysis_on_yield(i: int):
@@ -1328,8 +1319,8 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
-            for i in splines:
+        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
+            for i in indices:
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_ft_params(
@@ -1356,8 +1347,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{bin_size}
         """
         tomo = self.tomogram
-        if len(splines) == 0:
-            splines = list(range(tomo.n_splines))
+        indices = normalize_spline_indices(splines, tomo)
 
         @thread_worker.to_callback
         def _global_ft_analysis_on_yield(i: int):
@@ -1366,8 +1356,8 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             self._update_local_properties_in_widget()
 
-        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
-            for i in splines:
+        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
+            for i in indices:
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.set_radius(i=i)

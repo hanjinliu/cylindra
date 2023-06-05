@@ -508,7 +508,7 @@ class CylinderSimulator(MagicTemplate):
         save_dir: Annotated[Path.Dir, {"label": "Save at"}],
         nsr: _NSRatio = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
-        n_tilt: int = 61,
+        n_tilt: Annotated[int, {"label": "Number of tilts"}] = 61,
         shape: Bound[_get_shape] = None,
         scale: Bound[_get_scale] = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -603,7 +603,7 @@ class CylinderSimulator(MagicTemplate):
         save_dir: Annotated[Path.Dir, {"label": "Save at"}],
         nsr: _NSRatio = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
-        n_tilt: int = 61,
+        n_tilt: Annotated[int, {"label": "Number of tilts"}] = 61,
         shape: Bound[_get_shape] = None,
         scale: Bound[_get_scale] = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -681,9 +681,9 @@ class CylinderSimulator(MagicTemplate):
     def expand(
         self,
         exp: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "expansion (nm)"}],
-        yrange: Bound[Operator.yrange],
-        arange: Bound[Operator.arange],
-        allev: Bound[Operator.allev] = True,
+        yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
+        arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
+        allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Expand the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, exp)
@@ -699,9 +699,9 @@ class CylinderSimulator(MagicTemplate):
     def screw(
         self,
         skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
-        yrange: Bound[Operator.yrange],
-        arange: Bound[Operator.arange],
-        allev: Bound[Operator.allev] = True,
+        yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
+        arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
+        allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Screw (change the skew angles of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, skew)
@@ -717,9 +717,9 @@ class CylinderSimulator(MagicTemplate):
     def dilate(
         self,
         radius: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}],
-        yrange: Bound[Operator.yrange],
-        arange: Bound[Operator.arange],
-        allev: Bound[Operator.allev] = True,
+        yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
+        arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
+        allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Dilate (increase the local radius of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, radius)
