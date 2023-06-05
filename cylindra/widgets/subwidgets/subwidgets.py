@@ -431,8 +431,6 @@ class Runner(MagicTemplate):
     """
     Attributes
     ----------
-    all_splines : bool
-        Uncheck to select along which spline algorithms will be executed.
     splines : list of int
         Splines that will be analyzed
     bin_size : int
