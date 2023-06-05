@@ -1284,7 +1284,7 @@ class CylindraMainWidget(MagicTemplate):
                     for pos in anc_pos:
                         lower, upper = pos - depth / 2, pos + depth / 2
                         pred = pl.col(Mole.position).is_between(lower, upper)
-                        radii.append(mole.features.filter(pred).mean())
+                        radii.append(mole.features.filter(pred)[Mole.radius].mean())
                     spl.localprops = spl.localprops.with_columns(
                         pl.Series(H.radius, radii, dtype=pl.Float32)
                     )

@@ -129,7 +129,7 @@ class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtoc
         self._qwidget.itemChanged.connect(self._emit_data)
         self._qwidget.itemClicked.connect(self._toggle_item_checked)
         self._qwidget.itemEntered.connect(self._toggle_item_checked)
-        self._qwidget.setMaximumHeight(100)
+        self._qwidget.setMaximumHeight(80)
 
     def _emit_data(self):
         self._event_filter.valueChanged.emit(
