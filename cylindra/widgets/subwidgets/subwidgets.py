@@ -33,8 +33,6 @@ from .global_variables import GlobalVariablesMenu
 
 _Logger = getLogger("cylindra")
 
-# Menus
-
 
 class ChildWidget(MagicTemplate):
     def _get_main(self):
@@ -170,6 +168,29 @@ class Splines(ChildWidget):
     sep2 = field(Separator)
     set_spline_props = abstractapi()
     molecules_to_spline = abstractapi()
+
+    @set_design(text="Show local properties")
+    @do_not_record
+    def show_localprops(self):
+        """Show spline local properties in a table widget."""
+        from magicgui.widgets import Container, ComboBox
+
+        main = self._get_main()
+        cbox = ComboBox(choices=main._get_splines)
+        table = DataFrameView(value={})
+
+        @cbox.changed.connect
+        def _update_table(i: int):
+            if i is not None:
+                spl = main.tomogram.splines[i]
+                table.value = spl.localprops
+
+        container = Container(widgets=[cbox, table], labels=False)
+        self.parent_viewer.window.add_dock_widget(
+            container, area="left", name="Molecule Features"
+        ).setFloating(True)
+        cbox.changed.emit(cbox.value)
+        return None
 
 
 @magicmenu(name="Molecules")

@@ -1685,7 +1685,15 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         by: Annotated[str, {"choices": _get_selected_layer_choice}],
     ):
-        """Split molecules by a feature column."""
+        """
+        Split molecules by a feature column.
+
+        Parameters
+        ----------
+        {layer}
+        by : str
+            Name of the feature to split by.
+        """
         n_unique = layer.molecules.features[by].n_unique()
         if n_unique > 48:
             raise ValueError(f"Too many groups ({n_unique}).")
@@ -2015,7 +2023,7 @@ class CylindraMainWidget(MagicTemplate):
     def seam_search_by_feature(
         self,
         layer: MoleculesLayer,
-        feature_name: Annotated[str, {"choices": _get_selected_layer_choice}],
+        by: Annotated[str, {"choices": _get_selected_layer_choice}],
     ):
         """
         Search for seams by a feature.
@@ -2023,14 +2031,14 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
-        feature_name : str
+        by : str
             Name of the feature that will be used for seam search.
         """
         feat = layer.features
-        if feature_name not in feat.columns:
-            raise ValueError(f"Column {feature_name} does not exist.")
+        if by not in feat.columns:
+            raise ValueError(f"Column {by} does not exist.")
         npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
-        seam = utils.infer_seam_from_labels(feat[feature_name], npf=npf)
+        seam = utils.infer_seam_from_labels(feat[by], npf=npf)
         _id = np.arange(len(feat))
         res = (_id - seam) // npf
         layer.features = layer.molecules.features.with_columns(

@@ -210,7 +210,14 @@ class SplineControl(MagicTemplate):
         self.canvas[0].text_overlay.text = f"{i}-{j}"
         self.canvas[0].text_overlay.color = "lime"
 
-        if spl.radius is None:
+        if spl.has_localprops(H.radius):
+            radii = spl.get_localprops(H.radius)
+            if len(radii) != self["pos"].max + 1:
+                return None
+            r0 = radii[j]
+        elif spl.has_globalprops(H.radius):
+            r0 = spl.get_globalprops(H.radius)
+        else:
             return None
         lz, ly, lx = np.array(proj.shape)
 
@@ -221,8 +228,8 @@ class SplineControl(MagicTemplate):
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
-        r_inner = max(spl.radius - GVar.thickness_inner, 0) / tomo.scale / binsize
-        r_outer = (spl.radius + GVar.thickness_outer) / tomo.scale / binsize
+        r_inner = max(r0 - GVar.thickness_inner, 0) / tomo.scale / binsize
+        r_outer = (r0 + GVar.thickness_outer) / tomo.scale / binsize
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
         self.canvas[0].add_curve(
             [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime"
