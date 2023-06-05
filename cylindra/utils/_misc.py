@@ -154,38 +154,50 @@ def map_coordinates(
 
 
 class Projections:
-    """Class that stores projections of a 3D image."""
+    """
+    Class that stores projections of a 3D image, calculated lazily.
 
-    # We have to think thoroughly about the XYZ coordinate here.
-    # In right-handed coordinate system, the XYZ axes look like following.
+    Note
+    ----
+    We have to think thoroughly about the XYZ coordinate here.
+    In right-handed coordinate system, the XYZ axes look like following.
 
-    #     Z (parallel to sight)
-    #    (x)------> X
-    #     |
-    #     |
-    #     |
-    #     v Y
+        Z (parallel to sight)
+       (x)------> X
+        |
+        |
+        |
+        v Y
 
-    # When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
-    # and viewed parallel to Y axis, the projection should look like following.
+    When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
+    and viewed parallel to Y axis, the projection should look like following.
 
-    #     X <-------(x) Y
-    #                |
-    #                |
-    #                |
-    #              Z v
+        X <-------(x) Y
+                   |
+                   |
+                   |
+                 Z v
 
-    # Therefore, if we use standard ``imshow`` functions like ``plt.imshow`` and those
-    # in ``pyqtgraph``, we must **flip along X axis**.
+    Therefore, if we use standard ``imshow`` functions like ``plt.imshow`` and those
+    in ``pyqtgraph``, we must **flip along X axis**.
+    """
 
-    def __init__(self, image: ip.ImgArray):
+    FLIP = ip.slicer.x[::-1]
+
+    def __init__(self, image: ip.ImgArray | ip.LazyImgArray, npf: int = 13):
         self.yx = image.proj("z")
-        self.zx = image.proj("y")["x=::-1"]
+        self.zx = image.proj("y")[self.FLIP]
         self.zx_ave = None
+        self.npf = int(npf)
 
         self.shape = image.shape
 
-    def rotational_average(self, npf: int):
-        if npf > 1:
-            self.zx_ave = rotational_average(self.zx, fold=int(npf))
-        return self.zx_ave
+    def compute(self) -> Projections:
+        """Compute the projection if needed."""
+        if isinstance(self.yx, ip.LazyImgArray):
+            self.yx = self.yx.compute()
+        if isinstance(self.zx, ip.LazyImgArray):
+            self.zx = self.zx.compute()
+        if self.zx_ave is None and self.npf > 1:
+            self.zx_ave = rotational_average(self.zx, fold=self.npf)
+        return self
