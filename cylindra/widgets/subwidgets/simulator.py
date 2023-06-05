@@ -2,7 +2,7 @@ from typing import Any, TYPE_CHECKING, Annotated
 import json
 import matplotlib.pyplot as plt
 
-from magicgui.widgets import RangeSlider
+import macrokit as mk
 from magicclass import (
     abstractapi,
     magicclass,
@@ -14,7 +14,8 @@ from magicclass import (
     impl_preview,
     confirm,
 )
-from magicclass.types import Bound, OneOf, Optional, Path
+from magicgui.widgets import RangeSlider
+from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import Separator
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
+SELF = mk.Mock("self")
 
 _TiltRange = Annotated[
     tuple[float, float],
@@ -52,7 +54,9 @@ _TiltRange = Annotated[
     },
 ]
 
-_NSRatio = Annotated[
+_NSRatio = Annotated[float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}]
+
+_NSRatios = Annotated[
     list[float],
     {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
 ]
@@ -117,6 +121,7 @@ class CylinderSimulator(MagicTemplate):
         """Simulate using current model."""
 
         simulate_tomogram = abstractapi()
+        simulate_tomogram_and_open = abstractapi()
         simulate_tilt_series = abstractapi()
 
     @magicmenu(name="Transform")
@@ -277,7 +282,7 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Create an empty image")
     @confirm(
         text="You may have unsaved data. Continue?",
-        condition="self.parent_widget._need_save",
+        condition=SELF.parent_widget._need_save,
     )
     def create_empty_image(
         self,
@@ -507,12 +512,12 @@ class CylinderSimulator(MagicTemplate):
         self,
         template_path: Path.Read[FileFilter.IMAGE],
         save_dir: Annotated[Path.Dir, {"label": "Save at"}],
-        nsr: _NSRatio = [2.0],
+        nsr: _NSRatios = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 61,
-        shape: Bound[_get_shape] = None,
-        scale: Bound[_get_scale] = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        shape: Annotated[Any, {"bind": _get_shape}] = None,
+        scale: Annotated[nm, {"bind": _get_scale}] = None,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
         """
@@ -528,11 +533,14 @@ class CylinderSimulator(MagicTemplate):
         save_dir : Path
             Path to the directory where the images will be saved.
         nsr : list of float
-            Noise-to-signal ratio.
+            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+            value of the true monomer density and N is the standard deviation of
+            the Gaussian noise. Duplicate values are allowed, which is useful
+            for simulation of multiple images with the same noise level.
         tilt_range : tuple of float
-            Minimum and maximum tilt angles.
+            Minimum and maximum tilt angles in degree.
         n_tilt : int
-            Number of tilt angles.
+            Number of tilt angles between minimum and maximum angles.
         interpolation : int
             Interpolation method used during the simulation.
         seed : int, optional
@@ -542,7 +550,9 @@ class CylinderSimulator(MagicTemplate):
             scale = self._get_scale()
         if shape is None:
             shape = self._get_shape()
+
         save_dir = Path(save_dir)
+        nsr = list(round(float(_nsr), 4) for _nsr in nsr)
         parent = self.parent_widget
         degrees = np.linspace(*tilt_range, n_tilt)
         sino, mole = self._prep_radon(
@@ -597,17 +607,91 @@ class CylinderSimulator(MagicTemplate):
 
     @SimulateMenu.wraps
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
-    @set_design(text="Simulation tilt series")
+    @set_design(text="Simulate tomogram and open")
+    @confirm(
+        text="You may have unsaved data. Run anyway?",
+        condition=SELF.parent_widget._need_save,
+    )
+    def simulate_tomogram_and_open(
+        self,
+        template_path: Path.Read[FileFilter.IMAGE],
+        nsr: _NSRatio = 2.0,
+        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 32}}] = [1],
+        tilt_range: _TiltRange = (-60.0, 60.0),
+        n_tilt: Annotated[int, {"label": "Number of tilts"}] = 61,
+        shape: Annotated[Any, {"bind": _get_shape}] = None,
+        scale: Annotated[nm, {"bind": _get_scale}] = None,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
+    ):  # fmt: skip
+        """
+        Simulate a tomogram and open the image immediately.
+
+        This function projects the template image to each tilt series, adding
+        Gaussian noise, and back-projects the noisy tilt series to the tomogram.
+
+        Parameters
+        ----------
+        template_path : Path
+            Path to the image used for the template.
+        nsr : list of float
+            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+            value of the true monomer density and N is the standard deviation of
+            the Gaussian noise.
+        bin_size : list of int
+            Bin sizes used to create multi-scaled images from the simulated image.
+        tilt_range : tuple of float
+            Minimum and maximum tilt angles in degree.
+        n_tilt : int
+            Number of tilt angles between minimum and maximum angles.
+        interpolation : int
+            Interpolation method used during the simulation.
+        seed : int, optional
+            Random seed used for the Gaussian noise.
+        """
+        if scale is None:
+            scale = self._get_scale()
+        if shape is None:
+            shape = self._get_shape()
+
+        nsr = round(float(nsr), 4)
+        parent = self.parent_widget
+        degrees = np.linspace(*tilt_range, n_tilt)
+        sino, _ = self._prep_radon(template_path, degrees, scale, shape, interpolation)
+
+        yield _on_radon_finished(sino, degrees)
+
+        rng = ip.random.default_rng(seed)
+        imax = sino.max()
+        sino_noise = sino + rng.normal(
+            scale=imax * nsr, size=sino.shape, axes=sino.axes
+        )
+        rec = sino_noise.iradon(
+            degrees,
+            central_axis="y",
+            height=shape[0],
+            order=interpolation,
+        ).set_scale(zyx=scale, unit="nm")
+        yield _on_iradon_finished(rec, f"N/S = {nsr:.1f}")
+
+        tomo = CylTomogram.from_image(
+            rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
+        )
+        return dask_thread_worker.to_callback(parent._send_tomogram_to_viewer, tomo)
+
+    @SimulateMenu.wraps
+    @dask_thread_worker.with_progress(desc="Simulating tilt series...")
+    @set_design(text="Simulate tilt series")
     def simulate_tilt_series(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
         save_dir: Annotated[Path.Dir, {"label": "Save at"}],
-        nsr: _NSRatio = [2.0],
+        nsr: _NSRatios = [2.0],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 61,
-        shape: Bound[_get_shape] = None,
-        scale: Bound[_get_scale] = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        shape: Annotated[Any, {"bind": _get_shape, "widget_type": "EmptyWidget"}] = None,
+        scale: Annotated[nm, {"bind": _get_scale}] = None,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
         """
@@ -621,11 +705,13 @@ class CylinderSimulator(MagicTemplate):
             Path to the directory where the images will be saved. If None, the images
             will be added to the viewer.
         nsr : list of float
-            Noise-to-signal ratio.
+            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+            value of the true monomer density and N is the standard deviation of
+            the Gaussian noise.
         tilt_range : tuple of float
-            Minimum and maximum tilt angles.
+            Minimum and maximum tilt angles in degree.
         n_tilt : int
-            Number of tilt angles.
+            Number of tilt angles between minimum and maximum angles.
         interpolation : int
             Interpolation method used during the simulation.
         seed : int, optional
@@ -676,14 +762,18 @@ class CylinderSimulator(MagicTemplate):
 
         return None
 
+    # TODO: should be like
+    #   yrange: tuple[nm, nm]
+    #   arange: tuple[float, float]
+    # but magicgui TupleEdit doesn't support `bind`. Use Any for now.
     @TransformMenu.wraps
     @set_design(text="Expansion/Compaction")
     @impl_preview(auto_call=True)
     def expand(
         self,
         exp: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "expansion (nm)"}],
-        yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
-        arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
+        yrange: Annotated[Any, {"bind": Operator.yrange, "widget_type": "EmptyWidget"}],
+        arange: Annotated[Any, {"bind": Operator.arange, "widget_type": "EmptyWidget"}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Expand the selected molecules."""
@@ -700,8 +790,8 @@ class CylinderSimulator(MagicTemplate):
     def screw(
         self,
         skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
-        yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
-        arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
+        yrange: Annotated[Any, {"bind": Operator.yrange, "widget_type": "EmptyWidget"}],
+        arange: Annotated[Any, {"bind": Operator.arange, "widget_type": "EmptyWidget"}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Screw (change the skew angles of) the selected molecules."""
@@ -718,8 +808,8 @@ class CylinderSimulator(MagicTemplate):
     def dilate(
         self,
         radius: Annotated[nm, {"min": -10.0, "max": 10.0, "step": 0.1, "label": "radius (nm)"}],
-        yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
-        arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
+        yrange: Annotated[Any, {"bind": Operator.yrange, "widget_type": "EmptyWidget"}],
+        arange: Annotated[Any, {"bind": Operator.arange, "widget_type": "EmptyWidget"}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Dilate (increase the local radius of) the selected molecules."""

@@ -87,7 +87,12 @@ if TYPE_CHECKING:
 ICON_DIR = Path(__file__).parent / "icons"
 SPLINE_ID = "spline-id"
 SELF = mk.Mock("self")
-DEFAULT_COLORMAP = {0.0: "#0B0000", 0.58: "#FF0000", 1.0: "#FFFF00"}
+DEFAULT_COLORMAP = {
+    0.00: "#0B0000",  # black
+    0.30: "#872D9D",  # purple
+    0.68: "#FF0000",  # red
+    1.00: "#FFFF00",  # yellow
+}
 _Logger = getLogger("cylindra")  # The GUI logger
 
 # annotated types
