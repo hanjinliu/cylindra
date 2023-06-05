@@ -1363,7 +1363,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         *,
         interval: nm | None = None,
-        angle_offset: float = 0.0,
+        offsets: tuple[nm, float] = (0.0, 0.0),
         orientation: Ori | str | None = None,
     ) -> Molecules:
         """
@@ -1377,8 +1377,8 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that mapping will be calculated.
-        angle_offset : float, default is 0.0
-            Angle offset in degree.
+        offsets : (float, float), default is (0.0, 0.0)
+            Axial offset in nm and angular offset in degree.
 
         Returns
         -------
@@ -1396,9 +1396,10 @@ class CylTomogram(Tomogram):
         ny = roundint(spl.length() / interval)
         skew_rad = np.deg2rad(skew) * interval / interv
 
+        yoffset, aoffset = offsets
         rcoords = np.full(ny, spl.radius)
-        ycoords = np.arange(ny) * interval
-        acoords = np.arange(ny) * skew_rad + np.deg2rad(angle_offset)
+        ycoords = np.arange(ny) * interval + yoffset
+        acoords = np.arange(ny) * skew_rad + np.deg2rad(aoffset)
         coords = np.stack([rcoords, ycoords, acoords], axis=1)
         mole = spl.cylindrical_to_molecules(coords)
         if spl._need_rotation(orientation):

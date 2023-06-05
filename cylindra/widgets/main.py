@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Any, Literal, Union
+from typing import Annotated, TYPE_CHECKING, Literal, Union
 import warnings
 from weakref import WeakSet
 
@@ -71,8 +71,12 @@ from cylindra.widgets.widget_utils import (
     POLARS_NAMESPACE,
 )
 
-from cylindra.widgets._widget_ext import ProtofilamentEdit
-from cylindra.widgets._main_utils import SplineTracker, normalize_spline_indices
+from cylindra.widgets._widget_ext import ProtofilamentEdit, OffsetEdit
+from cylindra.widgets._main_utils import (
+    SplineTracker,
+    normalize_spline_indices,
+    normalize_offsets,
+)
 from cylindra.widgets import _progress_desc as _pdesc
 
 if TYPE_CHECKING:
@@ -84,6 +88,15 @@ SPLINE_ID = "spline-id"
 SELF = mk.Mock("self")
 DEFAULT_COLORMAP = {0.0: "#0B0000", 0.58: "#FF0000", 1.0: "#FFFF00"}
 _Logger = getLogger("cylindra")  # The GUI logger
+
+# annotated types
+_OffsetType = Annotated[
+    Optional[tuple[nm, float]],
+    {
+        "text": "Infer offsets from spline global properties",
+        "options": {"widget_type": OffsetEdit},
+    },
+]
 
 # stylesheet
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
@@ -697,11 +710,7 @@ class CylindraMainWidget(MagicTemplate):
             edge_color="lime",
             edge_width=1,
         )
-        return (
-            undo_callback(self._try_removing_layer)
-            .with_args(layer)
-            .with_redo(self._add_layers_future(layer))
-        )
+        return self._undo_callback_for_layer(layer)
 
     @Splines.wraps
     @set_design(text="Show splines as meshes")
@@ -1213,10 +1222,12 @@ class CylindraMainWidget(MagicTemplate):
         return tracker.as_undo_callback()
 
     @Analysis.wraps
-    @set_design(text="Local radii analysis by molecules")
-    def measure_local_radius_by_molecules(
+    @set_design(text="Measure radius by molecules")
+    def measure_radius_by_molecules(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+        locals: Annotated[bool, {"label": "Measure local properties"}] = True,
+        globals: Annotated[bool, {"label": "Measure global properties"}] = True,
     ):  # fmt: skip
         """
         Measure radius for each local region along splines, using molecules.
@@ -1224,7 +1235,17 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layers}
+        locals : bool, default is True
+            If True, measure each local radius by cutting molecules into pieces and average the
+            distance from the source spline.
+        globals : bool, default is True
+            If True, measure the global radius by averaging the distance from the source spline
+            of all molecules.
         """
+        if not (locals or globals):
+            raise ValueError("At least one of locals and globals must be True.")
+
+        # check duplicated spline sources
         _splines = list[CylSpline]()
         _molecules = list[Molecules]()
         _duplicated = list[CylSpline]()
@@ -1246,21 +1267,24 @@ class CylindraMainWidget(MagicTemplate):
         indices = [self.tomogram.splines.index(spl) for spl in _splines]
         with SplineTracker(widget=self, indices=indices) as tracker:
             for spl, mole in zip(_splines, _molecules):
-                anc_pos = spl.anchors * spl.length()
-                edges = (anc_pos[1:] + anc_pos[:-1]) / 2
-                inverted = edges[-1] < edges[0]
-                if inverted:
-                    bins = [-np.inf] + list(edges[::-1]) + [np.inf]
-                else:
-                    bins = [-np.inf] + list(edges) + [np.inf]
-                radii = list[float]()
-                for _, each in mole.cutby(Mole.position, bins):
-                    radii.append(each.features[Mole.radius].mean())
-                if inverted:
-                    radii = radii[::-1]
-                spl.localprops = spl.localprops.with_columns(
-                    pl.Series(H.radius, radii, dtype=pl.Float32)
-                )
+                if locals:
+                    anc_pos = spl.anchors * spl.length()
+                    edges = (anc_pos[1:] + anc_pos[:-1]) / 2
+                    inverted = edges[-1] < edges[0]
+                    if inverted:
+                        bins = [-np.inf] + list(edges[::-1]) + [np.inf]
+                    else:
+                        bins = [-np.inf] + list(edges) + [np.inf]
+                    radii = list[float]()
+                    for _, each in mole.cutby(Mole.position, bins):
+                        radii.append(each.features[Mole.radius].mean())
+                    if inverted:
+                        radii = radii[::-1]
+                    spl.localprops = spl.localprops.with_columns(
+                        pl.Series(H.radius, radii, dtype=pl.Float32)
+                    )
+                if globals:
+                    spl.radius = mole.features[Mole.radius].mean()
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1416,10 +1440,9 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("M")
     def map_monomers(
         self,
-        splines: Annotated[
-            list[int], {"choices": _get_splines, "widget_type": "Select"}
-        ] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        offsets: _OffsetType = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1428,27 +1451,28 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{orientation}
+        {splines}{orientation}{offsets}
         """
         tomo = self.tomogram
-        if len(splines) == 0 and len(tomo.splines) > 0:
-            splines = tuple(range(len(tomo.splines)))
-        molecules = tomo.map_monomers(i=splines, orientation=orientation)
+        indices = normalize_spline_indices(splines, tomo)
 
         _Logger.print_html("<code>map_monomers</code>")
         _added_layers = []
-        for i, mol in enumerate(molecules):
+        for i in indices:
+            spl = tomo.splines[i]
+            mol = tomo.map_monomers(
+                i=i,
+                orientation=orientation,
+                offsets=normalize_offsets(offsets, spl),
+            )
+
             _name = f"Mono-{i}"
-            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+            layer = self.add_molecules(mol, _name, source=spl)
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
 
         self._need_save = True
-        return (
-            undo_callback(self._try_removing_layers)
-            .with_args(_added_layers)
-            .with_redo(self._add_layers_future(_added_layers))
-        )
+        return self._undo_callback_for_layer(_added_layers)
 
     @MoleculesMenu.Mapping.wraps
     @set_design(text="Map monomers with extensions")
@@ -1457,6 +1481,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"choices": _get_splines}],
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        offsets: _OffsetType = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1469,20 +1494,21 @@ class CylindraMainWidget(MagicTemplate):
         n_extend : dict[int, (int, int)]
             Number of molecules to extend. Should be mapping from the PF index to the (prepend,
             append) number of molecules to add. Remove molecules if negative values are given.
-        {orientation}
+        {orientation}{offsets}
         """
         tomo = self.tomogram
         spl = tomo.splines[spline]
         coords = widget_utils.coordinates_with_extensions(spl, n_extend)
-        mole = tomo.map_on_grid(i=spline, coords=coords, orientation=orientation)
+        mole = tomo.map_on_grid(
+            i=spline,
+            coords=coords,
+            orientation=orientation,
+            offsets=normalize_offsets(offsets, spl),
+        )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
 
         self._need_save = True
-        return (
-            undo_callback(self._try_removing_layer)
-            .with_args(layer)
-            .with_redo(self._add_layers_future(layer))
-        )
+        return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.Mapping.wraps
     @set_design(text="Map centers")
@@ -1513,11 +1539,7 @@ class CylindraMainWidget(MagicTemplate):
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
-        return (
-            undo_callback(self._try_removing_layers)
-            .with_args(_added_layers)
-            .with_redo(self._add_layers_future(_added_layers))
-        )
+        return self._undo_callback_for_layer(_added_layers)
 
     @MoleculesMenu.Mapping.wraps
     @set_design(text="Map alogn PF")
@@ -1525,7 +1547,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"choices": _get_splines}],
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
-        angle_offset: Annotated[float, {"max": 360}] = 0.0,
+        offsets: _OffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
         """
@@ -1533,29 +1555,21 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {spline}{molecule_interval}
-        angle_offset : float
-            Offset of angle in degree. This parameter determines at what position monomer
-            mapping starts.
-        {orientation}
+        {spline}{molecule_interval}{offsets}{orientation}
         """
         tomo = self.tomogram
+        _Logger.print_html("<code>map_along_PF</code>")
         mol = tomo.map_pf_line(
             i=spline,
             interval=molecule_interval,
-            angle_offset=angle_offset,
+            offsets=normalize_offsets(offsets, tomo.splines[spline]),
             orientation=orientation,
         )
-        _Logger.print_html("<code>map_along_PF</code>")
         _name = f"PF line-{spline}"
         layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
         _Logger.print(f"{_name!r}: n = {len(mol)}")
         self._need_save = True
-        return (
-            undo_callback(self._try_removing_layer)
-            .with_args(layer)
-            .with_redo(self._add_layers_future(layer))
-        )
+        return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.wraps
     @set_design(text="Show orientation")
@@ -1597,18 +1611,13 @@ class CylindraMainWidget(MagicTemplate):
             length=GVar.point_size * 0.8,
             name=name,
         )
-        return (
-            undo_callback(self._try_removing_layer)
-            .with_args(layer)
-            .with_redo(self._add_layers_future(layer))
-        )
+        return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.Combine.wraps
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
-        delete_old: bool = True,
     ):  # fmt: skip
         """
         Concatenate selected molecules and create a new ones.
@@ -1616,19 +1625,14 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layers}
-        delete_old : bool, default is True
-            Delete the selected source layers after concatenation.
         """
         if len(layers) == 0:
             raise ValueError("No layer selected.")
         all_molecules = Molecules.concat([layer.molecules for layer in layers])
         points = add_molecules(self.parent_viewer, all_molecules, name="Mono-concat")
-        if delete_old:
-            for layer in layers:
-                self.parent_viewer.layers.remove(layer)
 
         # logging
-        layer_names: list[str] = []
+        layer_names = list[str]()
         for layer in layers:
             layer.visible = False
             layer_names.append(layer.name)
@@ -1636,7 +1640,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html("<code>concatenate_molecules</code>")
         _Logger.print("Concatenated:", ", ".join(layer_names))
         _Logger.print(f"{points.name!r}: n = {len(all_molecules)}")
-        return None
+        return self._undo_callback_for_layer(points)
 
     @MoleculesMenu.Combine.wraps
     @set_design(text="Merge molecule info")
@@ -1659,8 +1663,10 @@ class CylindraMainWidget(MagicTemplate):
         _rot = rotation.molecules
         _feat = features.molecules
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
-        self.add_molecules(mole, name="Mono-merged", source=pos.source_component)
-        return None
+        layer = self.add_molecules(
+            mole, name="Mono-merged", source=pos.source_component
+        )
+        return self._undo_callback_for_layer(layer)
 
     def _get_selected_layer_choice(self, w: Widget) -> list[str]:
         """When the selected layer is changed, update the list of features."""
@@ -1683,21 +1689,18 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         by: Annotated[str, {"choices": _get_selected_layer_choice}],
-        delete_old: bool = False,
     ):
         """Split molecules by a feature column."""
         n_unique = layer.molecules.features[by].n_unique()
         if n_unique > 48:
-            raise ValueError(
-                f"Too many groups ({n_unique}). Did you choose a float column?"
-            )
+            raise ValueError(f"Too many groups ({n_unique}).")
+        _added_layers = list[MoleculesLayer]()
         for _key, mole in layer.molecules.groupby(by):
-            self.add_molecules(
+            layer = self.add_molecules(
                 mole, name=f"{layer.name}_{_key}", source=layer.source_component
             )
-        if delete_old:
-            self.parent_viewer.layers.remove(layer)
-        return None
+            _added_layers.append(layer)
+        return self._undo_callback_for_layer(_added_layers)
 
     @MoleculesMenu.wraps
     @set_design(text="Translate molecules")
@@ -1735,7 +1738,7 @@ class CylindraMainWidget(MagicTemplate):
                 out = out.drop_features([Mole.position])
         name = f"{layer.name}-Shift"
         layer = self.add_molecules(out, name=name, source=layer.source_component)
-        return mole
+        return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Filter molecules")
@@ -1762,11 +1765,7 @@ class CylindraMainWidget(MagicTemplate):
         name = f"{layer.name}-Filt"
         layer = self.add_molecules(out, name=name, source=layer.source_component)
 
-        return (
-            undo_callback(self._try_removing_layer)
-            .with_args(layer)
-            .with_redo(self._add_layers_future(layer))
-        )
+        return self._undo_callback_for_layer(layer)
 
     def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
@@ -1783,11 +1782,8 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         color_by: Annotated[str, {"choices": _get_paint_molecules_choice}],
         cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Annotated[
-            tuple[float, float],
-            {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"},
-        ] = (4.00, 4.24),
-    ):
+        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
+    ):  # fmt: skip
         """
         Paint molecules by a feature.
 
@@ -1923,6 +1919,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        feat = layer.molecules.features
         layer.features = utils.with_interval(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
 
@@ -1930,7 +1927,7 @@ class CylindraMainWidget(MagicTemplate):
         _clim = [GVar.spacing_min, GVar.spacing_max]
         layer.set_colormap(Mole.interval, _clim, DEFAULT_COLORMAP)
         self._need_save = True
-        return None
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate skews")
@@ -1950,6 +1947,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        feat = layer.molecules.features
         layer.features = utils.with_skew(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
         extreme = np.max(np.abs(layer.features[Mole.skew]))
@@ -1960,7 +1958,7 @@ class CylindraMainWidget(MagicTemplate):
             Mole.skew, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
         )
         self._need_save = True
-        return None
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate radii")
@@ -1978,6 +1976,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        feat = layer.molecules.features
         layer.features = utils.with_radius(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
 
@@ -1986,7 +1985,7 @@ class CylindraMainWidget(MagicTemplate):
         _clim = [float(val.min()), float(val.max())]
         layer.set_colormap(Mole.radius, _clim, DEFAULT_COLORMAP)
         self._need_save = True
-        return None
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate lateral angles")
@@ -2005,6 +2004,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        feat = layer.molecules.features
         model = self.sta._get_simple_annealing_model(layer)
         angles = np.rad2deg(model.lateral_angles())
         angles[angles < 0] = -1.0
@@ -2013,7 +2013,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         layer.set_colormap(Mole.lateral_angle, [0, 180], DEFAULT_COLORMAP)
         self._need_save = True
-        return None
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Seam search by feature")
@@ -2159,11 +2159,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         from acryo.pipe import from_file
 
-        molecules = []
-        for layer in layers:
-            layer: MoleculesLayer
-            molecules.append(layer.molecules)
-        mole = Molecules.concat(molecules)
+        mole = Molecules.concat([layer.molecules for layer in layers])
         data = self._layer_image.data if target_layer is None else target_layer.data
 
         device = widget_utils.PaintDevice(data.shape, self._layer_image.scale[-1])
@@ -2179,11 +2175,7 @@ class CylindraMainWidget(MagicTemplate):
                     translate=self._layer_image.translate,
                     name="Simulated",
                 )
-                return (
-                    undo_callback(self._try_removing_layer)
-                    .with_args(layer)
-                    .with_redo(self._add_layers_future(layer))
-                )
+                return self._undo_callback_for_layer(layer)
 
             else:
                 target_layer.data = new_data = data + sim
@@ -2220,8 +2212,7 @@ class CylindraMainWidget(MagicTemplate):
         limits : tuple, default is (4.00, 4.24)
             Color limits (nm).
         """
-        self._layer_paint.set_colormap(color_by, limits, cmap)
-        return None
+        return self._layer_paint.set_colormap(color_by, limits, cmap)
 
     @ImageMenu.wraps
     @set_design(text="Show colorbar")
@@ -2233,7 +2224,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal["vertical", "horizontal"] = "horizontal",
     ):
         """
-        Show the colorbar of the molecules layer in the logger.
+        Show the colorbar of the molecules or painted cylinder in the logger.
 
         Parameters
         ----------
@@ -2249,7 +2240,7 @@ class CylindraMainWidget(MagicTemplate):
         xmin, xmax = info.clim
         with _Logger.set_plt():
             if orientation == "vertical":
-                plt.imshow(np.swapaxis(cmap_arr, 0, 1))
+                plt.imshow(np.swapaxes(cmap_arr, 0, 1))
                 plt.xticks([], [])
                 plt.yticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
             else:
@@ -2291,7 +2282,9 @@ class CylindraMainWidget(MagicTemplate):
                     break
             else:
                 raise ValueError("No molecules found in the layer list.")
-        layer: MoleculesLayer = self.parent_viewer.layers[name]
+        layer = self.parent_viewer.layers[name]
+        if not isinstance(layer, MoleculesLayer):
+            raise ValueError(f"Layer {name!r} is not a molecules layer.")
         return layer.molecules
 
     @nogui
@@ -2324,8 +2317,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         mole = self.get_molecules(name)
         shape = self.sta._get_shape_in_nm()
-        loader = self.tomogram.get_subtomogram_loader(mole, shape, order=order)
-        return loader
+        return self.tomogram.get_subtomogram_loader(mole, shape, order=order)
 
     @nogui
     @do_not_record
@@ -2357,7 +2349,9 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"ValueError: {e}")
         return None
 
-    def _try_removing_layers(self, layers: list[Layer]):
+    def _try_removing_layers(self, layers: "Layer | list[Layer]"):
+        if isinstance(layers, Layer):
+            layers = [layers]
         for layer in layers:
             self._try_removing_layer(layer)
 
@@ -2370,6 +2364,13 @@ class CylindraMainWidget(MagicTemplate):
                 self.parent_viewer.add_layer(layer)
 
         return future_func
+
+    def _undo_callback_for_layer(self, layer: "Layer | list[Layer]"):
+        return (
+            undo_callback(self._try_removing_layers)
+            .with_args(layer)
+            .with_redo(self._add_layers_future(layer))
+        )
 
     def _send_tomogram_to_viewer(
         self, tomo: CylTomogram, filt: "ImageFilter | None" = None
@@ -2472,7 +2473,7 @@ class CylindraMainWidget(MagicTemplate):
         self._disconnect_layerlist_events()
 
         # remove all the molecules layers
-        _layers_to_remove: list[str] = []
+        _layers_to_remove = list[str]()
         for layer in viewer.layers:
             if isinstance(layer, MoleculesLayer):
                 _layers_to_remove.append(layer.name)

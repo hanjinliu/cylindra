@@ -1,7 +1,7 @@
 from __future__ import annotations
 import polars as pl
 
-from magicgui.widgets import SpinBox, Container, Label, CheckBox
+from magicgui.widgets import SpinBox, Container, Label, FloatSpinBox, CheckBox
 from magicgui.types import Undefined
 from magicclass.widgets import ScrollableContainer
 
@@ -11,6 +11,7 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
         self, value=Undefined, *, labels=True, nullable=False, **kwargs
     ) -> None:
         super().__init__(labels=labels, **kwargs)
+        self.changed.disconnect()
         self.value = value
 
     def _add_row(self, label: int, value: tuple[int, int]):
@@ -56,6 +57,51 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
 
     def _on_changed(self):
         self.changed.emit(self.value)
+
+
+class OffsetEdit(Container[FloatSpinBox]):
+    def __init__(self, value=Undefined, *, nullable=False, **kwargs):
+        self._offset_y = FloatSpinBox(
+            value=0.0,
+            label="axial (nm)",
+            min=-100,
+            max=100,
+            step=0.1,
+            tooltip="Offset in the axial direction.",
+        )
+        self._offset_a = FloatSpinBox(
+            value=0.0,
+            label="angular (deg)",
+            min=-180,
+            max=180,
+            step=0.1,
+            tooltip="Offset in the angular direction.",
+        )
+        super().__init__(
+            widgets=[self._offset_y, self._offset_a], labels=True, **kwargs
+        )
+        self.changed.disconnect()
+        self._offset_y.changed.connect(self._on_value_change)
+        self._offset_a.changed.connect(self._on_value_change)
+        if value is Undefined:
+            value = (0.0, 0.0)
+        self.value = value
+
+    def _on_value_change(self):
+        self.changed.emit(self.value)
+
+    @property
+    def value(self) -> tuple[float, float]:
+        """Value of the widget"""
+        return (self._offset_y.value, self._offset_a.value)
+
+    @value.setter
+    def value(self, val: tuple[float, float]) -> None:
+        y, a = val
+        with self.changed.blocked():
+            self._offset_y.value = y
+            self._offset_a.value = a
+        self.changed.emit((y, a))
 
 
 # class CheckBoxes(ScrollableContainer[CheckBox]):

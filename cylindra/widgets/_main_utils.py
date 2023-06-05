@@ -5,6 +5,7 @@ import weakref
 from typing import TYPE_CHECKING, ContextManager, Iterable
 
 from magicclass.undo import undo_callback
+from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline, CylTomogram
@@ -91,3 +92,14 @@ def normalize_spline_indices(indices: Iterable[int], tomo: CylTomogram) -> list[
     if len(indices) == 0:
         raise ValueError("No splines to operate on.")
     return indices
+
+
+def normalize_offsets(
+    offsets: tuple[float, float] | None, spl: CylSpline
+) -> tuple[float, float]:
+    if offsets is None:
+        offsets = (
+            spl.get_globalprops(H.offset_axial, 0.0),
+            spl.get_globalprops(H.offset_angular, 0.0),
+        )
+    return offsets

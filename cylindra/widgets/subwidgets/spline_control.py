@@ -9,10 +9,12 @@ from magicclass import (
 )
 from magicclass.types import OneOf
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
+from dask import delayed, array as da
 
-from napari.utils.transforms import Affine
 from cylindra.const import GlobalVariables as GVar, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
+
+delayed_map_coordinates = delayed(map_coordinates)
 
 
 @magicclass(widget_type="groupbox", name="Spline Control")
@@ -31,7 +33,7 @@ class SplineControl(MagicTemplate):
     """
 
     def __post_init__(self):
-        self.projections: list[Projections] = []
+        self._projections = list[Projections]()
 
         self.canvas.min_height = 200
         self.canvas.max_height = 230
@@ -107,12 +109,10 @@ class SplineControl(MagicTemplate):
 
     @num.connect
     def _num_changed(self):
-        from cylindra.widgets.main import CylindraMainWidget
-
         i = self.num
         if i is None:
             return
-        parent = self.find_ancestor(CylindraMainWidget)
+        parent = self._get_parent()
         tomo = parent.tomogram
         if i >= len(tomo.splines):
             return
@@ -136,10 +136,8 @@ class SplineControl(MagicTemplate):
         return None
 
     def _load_projection(self):
-        from cylindra.widgets.main import CylindraMainWidget
-
         i = self.num
-        parent = self.find_ancestor(CylindraMainWidget)
+        parent = self._get_parent()
         tomo = parent.tomogram
         if i >= len(tomo.splines):
             return
@@ -165,25 +163,22 @@ class SplineControl(MagicTemplate):
         mole = spl.anchors_to_molecules()
         if binsize > 1:
             mole = mole.translate(-parent.tomogram.multiscale_translation(binsize))
+        loc_shape = (width_px, length_px, width_px)
         coords = mole.local_coordinates(
-            shape=(width_px, length_px, width_px),
+            shape=loc_shape,
             scale=tomo.scale * binsize,
         )
-        out: list[ip.ImgArray] = []
-        for crds in coords:
-            mapped = map_coordinates(
+        projections = list[Projections]()
+        for crds, npf in zip(coords, npf_list):
+            mapped = delayed_map_coordinates(
                 imgb, crds, order=1, mode=Mode.constant, cval=np.mean
             )
-            out.append(ip.asarray(mapped, axes="zyx"))
+            vol = ip.LazyImgArray(
+                da.from_delayed(mapped, shape=loc_shape, dtype=imgb.dtype), axes="zyx"
+            )
+            projections.append(Projections(vol, npf=npf))
 
-        projections = []
-        for img, npf in zip(out, npf_list):
-            proj = Projections(img)
-            if npf > 1:
-                proj.rotational_average(npf)
-            projections.append(proj)
-
-        self.projections = projections
+        self._projections = projections
         return None
 
     @pos.connect
@@ -195,13 +190,13 @@ class SplineControl(MagicTemplate):
         j = self.pos
         if i >= len(tomo.splines):
             return
-        if not self.projections or i is None or j is None:
+        if not self._projections or i is None or j is None:
             for ic in range(3):
                 self.canvas[ic].layers.clear()
             return
         spl = tomo.splines[i]
         # Set projections
-        proj = self.projections[j]
+        proj = self._projections[j].compute()
         for ic in range(3):
             self.canvas[ic].layers.clear()
         self.canvas[0].image = proj.yx

@@ -46,6 +46,7 @@ _PARAMETERS = [
     Parameter(name="max_interval", type="nm", desc="Maximum interval (nm) between spline anchors."),
     Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules."),
     Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the current spline orientation as is."),
+    Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),
     Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself. Lowpass: butterworth low-pass filter. Gaussian: Gaussian blur. DoG: difference of Gaussian. LoG: Laplacian of Gaussian."),
 ]
 # fmt: on
