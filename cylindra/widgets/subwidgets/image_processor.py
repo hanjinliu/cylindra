@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 import psutil
 from pathlib import Path
 from magicclass import (
@@ -9,11 +9,12 @@ from magicclass import (
     confirm,
     set_design,
 )
-from magicclass.types import Optional, SomeOf
+from magicclass.types import Optional
 from magicclass.ext.dask import dask_thread_worker
 import impy as ip
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra.widgets._previews import view_image
+from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.const import GlobalVariables as GVar
 
 
@@ -108,7 +109,12 @@ class ImageProcessor(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Flipping image.")
     @set_design(text="Flip image")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    def flip(self, axes: SomeOf["x", "y", "z"] = ()):
+    def flip(
+        self,
+        axes: Annotated[
+            list[str], {"choices": ["x", "y", "z"], "widget_type": CheckBoxes}
+        ] = (),
+    ):
         """Flip image by the given axes."""
         img = self._imread(self.input_image)
         for a in axes:

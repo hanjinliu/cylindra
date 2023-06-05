@@ -1,5 +1,6 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal, Union
+from turtle import color
+from typing import Annotated, TYPE_CHECKING, Callable, Literal, Union
 import warnings
 from weakref import WeakSet
 
@@ -71,7 +72,7 @@ from cylindra.widgets.widget_utils import (
     POLARS_NAMESPACE,
 )
 
-from cylindra.widgets._widget_ext import ProtofilamentEdit, OffsetEdit
+from cylindra.widgets._widget_ext import ProtofilamentEdit, OffsetEdit, CheckBoxes
 from cylindra.widgets._main_utils import (
     SplineTracker,
     normalize_spline_indices,
@@ -937,7 +938,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Spline Fitting", total="len(splines)")
     def fit_splines(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         degree_precision: float = 0.5,
@@ -985,7 +986,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Add anchors")
     def add_anchors(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
     ):  # fmt: skip
         """
@@ -1008,7 +1009,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
     def measure_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1032,7 +1033,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Refining splines", total="len(splines)")
     def refine_splines(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1133,7 +1134,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Molecules to spline")
     def molecules_to_spline(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
         delete_old: bool = True,
         inherit_props: bool = True,
         missing_ok: bool = False,
@@ -1197,8 +1198,8 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
     def measure_local_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
-        interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
@@ -1210,12 +1211,13 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{interval}{depth}{bin_size}
         """
         tomo = self.tomogram
-        if len(splines) == 0:
-            splines = list(range(tomo.n_splines))
-        with SplineTracker(widget=self, indices=splines) as tracker:
-            if interval is not None:
-                tomo.make_anchors(i=splines, interval=interval)
-            tomo.local_radii(i=splines, size=depth, binsize=bin_size)
+        indices = normalize_spline_indices(splines, tomo)
+        with SplineTracker(widget=self, indices=indices) as tracker:
+            for i in indices:
+                if interval is not None:
+                    tomo.make_anchors(i=i, interval=interval)
+                tomo.local_radii(i=i, size=depth, binsize=bin_size)
+                yield
 
         self._need_save = True
 
@@ -1225,12 +1227,17 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Measure radius by molecules")
     def measure_radius_by_molecules(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         locals: Annotated[bool, {"label": "Measure local properties"}] = True,
         globals: Annotated[bool, {"label": "Measure global properties"}] = True,
     ):  # fmt: skip
         """
         Measure radius for each local region along splines, using molecules.
+
+        Please note that the radius defined by the peak of the radial profile is not always
+        the same as the radius measured by this method. If the molecules are aligned using
+        a template image whose mass density is not centered, these radii may differ a lot.
 
         Parameters
         ----------
@@ -1244,6 +1251,10 @@ class CylindraMainWidget(MagicTemplate):
         """
         if not (locals or globals):
             raise ValueError("At least one of locals and globals must be True.")
+
+        if isinstance(layers, MoleculesLayer):
+            # allow single layer input.
+            layers = [layers]
 
         # check duplicated spline sources
         _splines = list[CylSpline]()
@@ -1269,17 +1280,11 @@ class CylindraMainWidget(MagicTemplate):
             for spl, mole in zip(_splines, _molecules):
                 if locals:
                     anc_pos = spl.anchors * spl.length()
-                    edges = (anc_pos[1:] + anc_pos[:-1]) / 2
-                    inverted = edges[-1] < edges[0]
-                    if inverted:
-                        bins = [-np.inf] + list(edges[::-1]) + [np.inf]
-                    else:
-                        bins = [-np.inf] + list(edges) + [np.inf]
                     radii = list[float]()
-                    for _, each in mole.cutby(Mole.position, bins):
-                        radii.append(each.features[Mole.radius].mean())
-                    if inverted:
-                        radii = radii[::-1]
+                    for pos in anc_pos:
+                        lower, upper = pos - depth / 2, pos + depth / 2
+                        pred = pl.col(Mole.position).is_between(lower, upper)
+                        radii.append(mole.features.filter(pred).mean())
                     spl.localprops = spl.localprops.with_columns(
                         pl.Series(H.radius, radii, dtype=pl.Float32)
                     )
@@ -1292,7 +1297,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
     def local_ft_analysis(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         interval: Annotated[Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}] = 32.0,
         ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1340,7 +1345,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Global Fourier transform", total="len(splines)")
     def global_ft_analysis(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1440,7 +1445,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("M")
     def map_monomers(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
     ):  # fmt: skip
@@ -1514,7 +1519,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map centers")
     def map_centers(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": "Select"}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
@@ -1617,7 +1622,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
     ):  # fmt: skip
         """
         Concatenate selected molecules and create a new ones.
@@ -2142,7 +2147,7 @@ class CylindraMainWidget(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Back-painting molecules ...")
     def backpaint_molecule_density(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": "Select"}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
         template_path: Path.Read[FileFilter.IMAGE],
         target_layer: Annotated[Optional[Image], {"text": "Create a new layer"}] = None,
     ):  # fmt: skip
@@ -2486,7 +2491,7 @@ class CylindraMainWidget(MagicTemplate):
         if self._layer_prof in viewer.layers:
             viewer.layers.remove(self._layer_prof)
 
-        self._layer_prof: Points = viewer.add_points(
+        self._layer_prof = viewer.add_points(
             **common_properties,
             name=SELECTION_LAYER_NAME,
             features={SPLINE_ID: []},

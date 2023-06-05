@@ -1,8 +1,15 @@
 from __future__ import annotations
-import polars as pl
+from contextlib import contextmanager
+from typing import Any, Callable, Iterable
+from magicgui.widgets.bases._value_widget import ValueWidget
 
-from magicgui.widgets import SpinBox, Container, Label, FloatSpinBox, CheckBox
-from magicgui.types import Undefined
+from qtpy import QtWidgets as QtW
+from qtpy.QtCore import Qt
+
+from magicgui.widgets import SpinBox, Container, Label, FloatSpinBox, protocols
+from magicgui.widgets.bases import CategoricalWidget
+from magicgui.types import ChoicesType, Undefined
+from magicgui.backends._qtpy import widgets as backend_qtw
 from magicclass.widgets import ScrollableContainer
 
 
@@ -104,7 +111,147 @@ class OffsetEdit(Container[FloatSpinBox]):
         self.changed.emit((y, a))
 
 
-# class CheckBoxes(ScrollableContainer[CheckBox]):
-#     def __init__(self, value=Undefined, *, labels=True, nullable=False, **kwargs) -> None:
-#         super().__init__(labels=labels, **kwargs)
-#         self.value = value
+@contextmanager
+def _signals_blocked(obj: QtW.QWidget):
+    before = obj.blockSignals(True)
+    try:
+        yield
+    finally:
+        obj.blockSignals(before)
+
+
+class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtocol):
+    _qwidget: QtW.QListWidget
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(QtW.QListWidget, "isChecked", "setCurrentIndex", "", **kwargs)
+        self._qwidget.setSelectionMode(QtW.QAbstractItemView.SelectionMode.NoSelection)
+        self._qwidget.itemChanged.connect(self._emit_data)
+        self._qwidget.itemClicked.connect(self._toggle_item_checked)
+        self._qwidget.itemEntered.connect(self._toggle_item_checked)
+        self._qwidget.setMaximumHeight(100)
+
+    def _emit_data(self):
+        self._event_filter.valueChanged.emit(
+            [d.data(Qt.ItemDataRole.UserRole) for d in self._iter_checked()]
+        )
+
+    def _toggle_item_checked(self, item: QtW.QListWidgetItem):
+        if item.checkState() == Qt.CheckState.Checked:
+            state = Qt.CheckState.Unchecked
+        else:
+            state = Qt.CheckState.Checked
+        item.setCheckState(state)
+
+    def _iter_checked(self):
+        for i in range(self._qwidget.count()):
+            item = self._qwidget.item(i)
+            if item.checkState() == Qt.CheckState.Checked:
+                yield item
+
+    def _mgui_bind_change_callback(self, callback):
+        self._event_filter.valueChanged.connect(callback)
+
+    def _mgui_get_count(self) -> int:
+        """Return the number of items in the dropdown."""
+        return self._qwidget.count()
+
+    def _mgui_get_choice(self, choice_name: str) -> list[Any]:
+        items = self._qwidget.findItems(choice_name, Qt.MatchFlag.MatchExactly)
+        return [i.data(Qt.ItemDataRole.UserRole) for i in items]
+
+    def _mgui_get_current_choice(self) -> list[str]:  # type: ignore[override]
+        return [i.text() for i in self._iter_checked()]
+
+    def _mgui_get_value(self) -> Any:
+        return [i.data(Qt.ItemDataRole.UserRole) for i in self._iter_checked()]
+
+    def _mgui_set_value(self, value) -> None:
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+        selected_prev = self._iter_checked()
+        with _signals_blocked(self._qwidget):
+            for i in range(self._qwidget.count()):
+                item = self._qwidget.item(i)
+                if item.data(Qt.ItemDataRole.UserRole) in value:
+                    item.setCheckState(Qt.CheckState.Checked)
+                else:
+                    item.setCheckState(Qt.CheckState.Unchecked)
+        selected_post = self._iter_checked()
+        if selected_prev != selected_post:
+            self._emit_data()
+
+    def _mgui_set_choice(self, choice_name: str, data: Any) -> None:
+        """Set data for ``choice_name``."""
+        items = self._qwidget.findItems(choice_name, Qt.MatchFlag.MatchExactly)
+        # if it's not in the list, add a new item
+        if not items:
+            item = QtW.QListWidgetItem(choice_name)
+            item.setCheckState(Qt.CheckState.Checked)
+            item.setData(Qt.ItemDataRole.UserRole, data)
+            self._qwidget.addItem(item)
+        # otherwise update its data
+        else:
+            for item in items:
+                item.setData(Qt.ItemDataRole.UserRole, data)
+
+    def _mgui_set_choices(self, choices: Iterable[tuple[str, Any]]) -> None:
+        """Set current items in categorical type ``widget`` to ``choices``."""
+        choices_ = list(choices)
+        if not choices_:
+            self._qwidget.clear()
+            return
+
+        with _signals_blocked(self._qwidget):
+            choice_names = [x[0] for x in choices_]
+            selected_prev = self._iter_checked()
+            # remove choices that no longer exist
+            for i in reversed(range(self._qwidget.count())):
+                if self._qwidget.item(i).text() not in choice_names:
+                    self._qwidget.takeItem(i)
+            # update choices
+            for name, data in choices_:
+                self._mgui_set_choice(name, data)
+            selected_post = self._iter_checked()
+        if selected_prev != selected_post:
+            self._emit_data()
+
+    def _mgui_del_choice(self, choice_name: str) -> None:
+        """Delete choice_name."""
+        for i in reversed(range(self._qwidget.count())):
+            if self._qwidget.item(i).text() == choice_name:
+                self._qwidget.takeItem(i)
+
+    def _mgui_get_choices(self) -> tuple[tuple[str, Any], ...]:
+        """Get available choices."""
+        return tuple(
+            (
+                self._qwidget.item(i).text(),
+                self._qwidget.item(i).data(Qt.ItemDataRole.UserRole),
+            )
+            for i in range(self._qwidget.count())
+        )
+
+
+class CheckBoxes(CategoricalWidget):
+    _allow_multiple = True
+
+    def __init__(
+        self,
+        value: Any = Undefined,
+        choices: ChoicesType = (),
+        *,
+        allow_multiple: bool | None = None,
+        bind: Any | Callable[[ValueWidget], Any] = Undefined,
+        nullable: bool = False,
+        **base_widget_kwargs: Any,
+    ) -> None:
+        base_widget_kwargs["widget_type"] = BaseSelect
+        super().__init__(
+            value,
+            choices,
+            allow_multiple=allow_multiple,
+            bind=bind,
+            nullable=nullable,
+            **base_widget_kwargs,
+        )

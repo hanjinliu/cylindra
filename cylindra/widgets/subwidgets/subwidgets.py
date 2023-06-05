@@ -13,13 +13,14 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit
-from magicclass.types import SomeOf, Optional, Path
+from magicclass.types import Optional, Path
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
 import impy as ip
 
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra.widgets._previews import view_image
+from cylindra.widgets._widget_ext import CheckBoxes
 
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import ceilint, roundint
@@ -401,7 +402,7 @@ class runner_params1:
         options=dict(step=0.1, min=0.0, max=50.0),
         text="Don't use dense mode",
     )
-    max_shift = vfield(5.0, label="Maximum shift (nm)").with_options(max=50.0, step=0.5)
+    max_shift = vfield(5.0, label="Max shift (nm)").with_options(max=50.0, step=0.5)
 
 
 @magicclass(widget_type="groupbox", name="Local-CFT parameters", record=False)
@@ -421,9 +422,7 @@ class runner_params2:
     """
 
     interval = vfield(32.0, label="Interval (nm)").with_options(min=1.0, max=200.0)
-    ft_size = vfield(32.0, label="Local-CFT window size (nm)").with_options(
-        min=1.0, max=200.0
-    )
+    ft_size = vfield(32.0, label="FT window size (nm)").with_options(min=1.0, max=200.0)
     paint = vfield(True)
 
 
@@ -475,8 +474,7 @@ class Runner(MagicTemplate):
             out = [1] + out
         return sorted(out)
 
-    all_splines = vfield(True).with_options(text="Run for all the splines.")
-    splines = vfield(SomeOf[_get_splines]).with_options(visible=False)
+    splines = vfield(widget_type=CheckBoxes).with_choices(_get_splines)
     bin_size = vfield(int).with_choices(choices=_get_available_binsize)
 
     fit = vfield(True, label="Fit splines")
@@ -488,10 +486,6 @@ class Runner(MagicTemplate):
     infer_polarity = vfield(True, label="Infer polarity")
     map_monomers = vfield(True, label="Map monomers")
 
-    @all_splines.connect
-    def _toggle_spline_list(self, val: bool):
-        self["splines"].visible = not val
-
     @fit.connect
     def _toggle_fit_params(self, visible: bool):
         self.params1.visible = visible
@@ -499,13 +493,6 @@ class Runner(MagicTemplate):
     @local_props.connect
     def _toggle_localprops_params(self, visible: bool):
         self.params2.visible = visible
-
-    def _get_splines_to_run(self, w=None) -> list[int]:
-        if self.all_splines:
-            n_choices = len(self["splines"].choices)
-            return list(range(n_choices))
-        else:
-            return self.splines
 
     def _get_max_shift(self, w=None):
         if self.fit:
@@ -517,7 +504,7 @@ class Runner(MagicTemplate):
     @do_not_record(recursive=False)
     def run_workflow(
         self,
-        splines: Annotated[Sequence[int], {"bind": _get_splines_to_run}] = (),
+        splines: Annotated[Sequence[int], {"bind": splines}] = (),
         bin_size: Annotated[int, {"bind": bin_size}] = 1,
         max_shift: Annotated[nm, {"bind": _get_max_shift}] = 5.0,
         edge_sigma: Annotated[nm, {"bind": params1.edge_sigma}] = 2.0,
