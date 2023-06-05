@@ -129,12 +129,12 @@ class CylinderSimulator(MagicTemplate):
         dilate = abstractapi()
 
     def __post_init__(self) -> None:
-        self._model: CylinderModel = None
+        self._model: "CylinderModel | None" = None
         self._parameters = CylinderParameters()
-        self._spline: CylSpline = None
-        self._spline_arrow: layers.Arrows3D = None
-        self._points: layers.Points3D = None
-        self._selections: layers.Points3D = None
+        self._spline: "CylSpline | None" = None
+        self._spline_arrow: "layers.Arrows3D | None" = None
+        self._points: "layers.Points3D | None" = None
+        self._selections: "layers.Points3D | None" = None
         self._layer_control = None
         self._simulate_shape = (0, 0, 0)
         self._simulate_scale = 0.0
@@ -459,7 +459,8 @@ class CylinderSimulator(MagicTemplate):
             radius=radius,
             offsets=offsets,
         )
-        kwargs = {H.spacing: spacing, H.skew: skew, H.rise: rise, H.nPF: npf}
+        # NOTE: these parameters are hard-coded for microtubule for now.
+        kwargs = {H.spacing: spacing, H.skew: skew, H.rise: -rise, H.nPF: npf}
         model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
         self.model = model
 
@@ -716,7 +717,7 @@ class CylinderSimulator(MagicTemplate):
     @impl_preview(auto_call=True)
     def dilate(
         self,
-        radius: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.1, "label": "radius (nm)"}],
+        radius: Annotated[nm, {"min": -10.0, "max": 10.0, "step": 0.1, "label": "radius (nm)"}],
         yrange: Annotated[tuple[nm, nm], {"bind": Operator.yrange}],
         arange: Annotated[tuple[float, float], {"bind": Operator.arange}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,

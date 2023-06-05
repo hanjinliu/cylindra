@@ -15,7 +15,7 @@ import napari
 
 from acryo import Molecules, TomogramSimulator
 from cylindra import utils
-from cylindra.const import nm, GlobalVariables as GVar
+from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
 from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
 
@@ -303,12 +303,18 @@ class PaintDevice:
         matrices = []
         for i, spl in enumerate(tomo.splines):
             # Prepare template hollow image
-            r0 = spl.radius / tomo.scale * 0.9 / binsize
-            r1 = spl.radius / tomo.scale * 1.1 / binsize
             _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
-            domains = []
+            domains = list[NDArray[np.bool_]]()
             dist = [-np.inf] + list(spl.distances()) + [np.inf]
-            for j in range(spl.anchors.size):
+            if spl.has_localprops(H.radius) and len(radii) == spl.anchors.size:
+                radii = spl.get_localprops(H.radius)
+            elif spl.has_globalprops(H.radius):
+                radii = [spl.get_globalprops(H.radius)] * spl.anchors.size
+            else:
+                raise RuntimeError(f"Radius not found in spline-{i}.")
+            for j, r0 in enumerate(radii):
+                r0 = max(r0 - GVar.thickness_inner, 0.0) / tomo.scale / binsize
+                r1 = (r0 + GVar.thickness_outer) / tomo.scale / binsize
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 ry = (
                     min(
