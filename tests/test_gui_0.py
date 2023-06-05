@@ -14,6 +14,7 @@ from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 import pytest
 from .utils import pytest_group, ExceptionGroup
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
+from cylindra._custom_layers import MoleculesLayer
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
@@ -486,6 +487,20 @@ def test_clip_spline(ui: CylindraMainWidget):
     ui.clip_spline(0, (3, 1))
     length_new = ui.tomogram.splines[0].length()
     assert length_old - 4 == pytest.approx(length_new, abs=1e-2)
+
+
+def test_local_radii_by_molecules(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
+    mole = ui.get_molecules("Mono-0")
+    shifts = np.zeros((mole.count(), 3), dtype=np.float32)
+    shifts[:, 0] = np.linspace(-1, 1, mole.count())
+    mole_tr = mole.translate_internal(shifts)
+
+    ui.add_molecules(mole_tr, "Corn", source=ui.get_spline(0))
+    layer = ui.parent_viewer.layers["Corn"]
+    ui.measure_radius_by_molecules([layer])
+    radii = ui.get_spline(0).localprops[H.radius]
+    assert all(np.diff(radii) > 0)
 
 
 def test_simulator(ui: CylindraMainWidget):

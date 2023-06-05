@@ -573,7 +573,6 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
 
-        # aligned_molecules: list[Molecules] = []
         mole = layers[0].molecules
         loader = self._get_loader(bin_size, mole, order=1)
         template, mask = loader.normalize_input(
@@ -607,7 +606,6 @@ class SubtomogramAveraging(MagicTemplate):
             _mole_trans = mole.linear_transform(
                 result.shift * _scale, rotator
             ).with_features([pl.col(Mole.position) + svec[1]])
-            # aligned_molecules.append(_mole_trans)
 
             # create images for visualization in the logger
             img_norm = utils.normalize_image(_img_trans)
