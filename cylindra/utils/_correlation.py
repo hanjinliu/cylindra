@@ -45,7 +45,7 @@ def mirror_zncc(img0: ip.ImgArray, max_shifts=None):
 
 
 def rotated_auto_zncc(img0: ip.ImgArray, degrees: Iterable[float], max_shifts=None):
-    results: list[tuple[np.ndarray, float, float]] = []
+    results = list[tuple[np.ndarray, float, float]]()
     for deg in degrees:
         img1 = img0.rotate(deg, mode="constant", dims=2)
         results.append(

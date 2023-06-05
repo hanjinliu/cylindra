@@ -2666,7 +2666,7 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
         "set_multiscale",
         "spline_fitter.fit",
     }
-    exprs: list[mk.Expr] = []
+    exprs = list[mk.Expr]()
     breaked_line: "mk.Expr | None" = None
     for line in macro_expr.args:
         if line.head is not mk.Head.call:

@@ -90,7 +90,7 @@ class CylindraBatchProject(BaseProject):
             results_dir = Path(results_dir)
         macro_path = results_dir / "script.py"
 
-        loaders: list[LoaderInfoModel] = []
+        loaders = list[LoaderInfoModel]()
         for info in gui._loaders:
             name = info.name
             loaders.append(

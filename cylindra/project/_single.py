@@ -97,13 +97,13 @@ class CylindraProject(BaseProject):
         )
 
         # Save path of splines
-        spline_paths: list[Path] = []
+        spline_paths = list[Path]()
         for i in range(len(gui.tomogram.splines)):
             spline_paths.append(results_dir / f"spline-{i}.json")
 
         # Save path of molecules
-        molecules_paths: list[Path] = []
-        molecules_info: list[MoleculesInfo] = []
+        molecules_paths = list[Path]()
+        molecules_info = list[MoleculesInfo]()
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue

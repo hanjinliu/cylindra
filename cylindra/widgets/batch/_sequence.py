@@ -338,7 +338,7 @@ class ProjectSequenceEdit(MagicTemplate):
         return [prj._get_loader_paths() for prj in self.projects]
 
     def _get_localprops(self) -> pl.DataFrame:
-        dataframes: list[pl.DataFrame] = []
+        dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(iter(self.projects)):
             df = prj._get_localprops()
             prj.path

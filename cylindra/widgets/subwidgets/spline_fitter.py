@@ -206,7 +206,7 @@ class SplineFitter(MagicTemplate):
             shape=(width_px, length_px, width_px),
             scale=tomo.scale * binsize,
         )
-        out: list[ip.ImgArray] = []
+        out = list[ip.ImgArray]()
         for crds in coords:
             out.append(
                 map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)

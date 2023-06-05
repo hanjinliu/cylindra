@@ -341,8 +341,8 @@ class PaintDevice:
         # paint roughly
         for i, crd in enumerate(tomo.collect_anchor_coords()):
             center = tomo.nm2pixel(crd, binsize=binsize)
-            sl: list[slice] = []
-            outsl: list[slice] = []
+            sl = list[slice]()
+            outsl = list[slice]()
             # We should deal with the borders of image.
             for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
                 _sl, _pad = utils.make_slice_and_pad(c - l // 2, c + l // 2 + 1, size)

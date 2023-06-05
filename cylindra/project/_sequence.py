@@ -80,7 +80,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     """
 
     def __init__(self, *, check_scale: bool = True):
-        self._projects: list[CylindraProject] = []
+        self._projects = list[CylindraProject]()
         self._scale_validator = ScaleValidator(check_scale)
 
     def __repr__(self) -> str:
@@ -198,7 +198,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         pl.DataFrame
             Dataframe with all the properties.
         """
-        dataframes: list[pl.DataFrame] = []
+        dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             path = prj.localprops
             if path is None:
@@ -235,7 +235,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         pl.DataFrame
             Dataframe with all the properties.
         """
-        dataframes: list[pl.DataFrame] = []
+        dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             path = prj.globalprops
             if path is None and not allow_none:

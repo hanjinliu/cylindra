@@ -136,7 +136,7 @@ class CylinderModel:
 
     def __repr__(self) -> str:
         _cls = type(self).__name__
-        strs: list[str] = []
+        strs = list[str]()
         for k, v in self.to_params().items():
             if isinstance(v, float):
                 strs.append(f"{k}={v:.3g}")
@@ -192,7 +192,7 @@ class CylinderModel:
         nodes = spl.cylindrical_to_world(
             self.replace(tilts=(0, 0))._get_regular_mesh().reshape(-1, 3)
         )
-        vertices: list[tuple[int, int, int]] = []
+        vertices = list[tuple[int, int, int]]()
         ny, npf = self.shape
         for y in range(ny):
             for a in range(npf):
@@ -384,7 +384,7 @@ class CylindricSliceResolver(NamedTuple):
         if astart >= astop:
             raise ValueError("start must be larger than stop.")
 
-        slices: list[CylindricSlice] = []
+        slices = list[CylindricSlice]()
         npart_start, res_start = divmod(astart, na)
         npart_stop, res_stop = divmod(astop, na)
 

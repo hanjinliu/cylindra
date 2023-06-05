@@ -498,7 +498,7 @@ def test_local_radii_by_molecules(ui: CylindraMainWidget):
 
     ui.add_molecules(mole_tr, "Corn", source=ui.get_spline(0))
     layer = ui.parent_viewer.layers["Corn"]
-    ui.measure_radius_by_molecules([layer], depth=12)
+    ui.measure_radius_by_molecules([layer], interval=8, depth=12)
     radii = ui.get_spline(0).localprops[H.radius]
     assert all(np.diff(radii) > 0)
 

@@ -157,8 +157,8 @@ class FitResult(NamedTuple):
 
 
 class SplineList(MutableSequence[CylSpline]):
-    def __init__(self, iterable=()) -> None:
-        self._list: list[CylSpline] = list(iterable)
+    def __init__(self, iterable: Iterable[CylSpline] = ()) -> None:
+        self._list = list(iterable)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._list!r})"
@@ -865,7 +865,7 @@ class CylTomogram(Tomogram):
         _scale = input_img.scale.x
         rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
         rmax = (spl.radius + GVar.thickness_outer) / _scale
-        out: list[ip.ImgArray] = []
+        out = list[ip.ImgArray]()
         if pos is None:
             anchors = spl.anchors
         else:
@@ -1450,7 +1450,7 @@ class CylTomogram(Tomogram):
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        props: list[pl.DataFrame] = []
+        props = list[pl.DataFrame]()
         for i_ in i:
             prop = self.splines[i_].localprops
             if len(prop) == 0:
@@ -1489,7 +1489,7 @@ class CylTomogram(Tomogram):
             i = range(self.n_splines)
         elif isinstance(i, int):
             i = [i]
-        props: list[pl.DataFrame] = []
+        props = list[pl.DataFrame]()
         for i_ in i:
             prop = self.splines[i_].globalprops
             if len(prop) == 0:

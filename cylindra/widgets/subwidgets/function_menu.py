@@ -55,7 +55,7 @@ class Volume(MagicTemplate):
             return None
         img = _convert_array(layer.data, layer.scale[-1])
         out = img.binning(binsize=bin_size, check_edges=False)
-        translate: list[float] = []
+        translate = list[float]()
         for k, v in img.scale.items():
             if k in ["z", "y", "x"]:
                 translate.append((bin_size - 1) / 2 * v)

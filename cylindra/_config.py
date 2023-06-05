@@ -91,7 +91,7 @@ def _is_empty(path: Path) -> bool:
 def get_template_path_hist() -> list[Path]:
     path = Path(SETTINGS_DIR / TEMPLATE_PATH_HIST)
     if path.exists():
-        out: list[Path] = []
+        out = list[Path]()
         for line in path.read_text().splitlines():
             if line.strip() == "":
                 continue

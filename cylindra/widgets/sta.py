@@ -1455,7 +1455,7 @@ class MoleculesCombiner:
     def concat(self, molecules: "Molecules | Iterable[Molecules]") -> Molecules:
         if isinstance(molecules, Molecules):
             return molecules
-        inputs: list[Molecules] = []
+        inputs = list[Molecules]()
         for i, mole in enumerate(molecules):
             inputs.append(
                 mole.with_features(
@@ -1467,7 +1467,7 @@ class MoleculesCombiner:
     def split(self, molecules: Molecules) -> list[Molecules]:
         if self._identifier not in molecules.features.columns:
             return molecules
-        out: list[Molecules] = []
+        out = list[Molecules]()
         for _, mole in molecules.groupby(self._identifier):
             out.append(mole.drop_features(self._identifier))
         return out
