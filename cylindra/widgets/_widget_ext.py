@@ -130,6 +130,9 @@ class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtoc
         self._qwidget.itemClicked.connect(self._toggle_item_checked)
         self._qwidget.itemEntered.connect(self._toggle_item_checked)
         self._qwidget.setMaximumHeight(80)
+        self._qwidget.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
 
     def _emit_data(self):
         self._event_filter.valueChanged.emit(

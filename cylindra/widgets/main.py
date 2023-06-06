@@ -1258,7 +1258,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Count PF number")
-    @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
+    @thread_worker.with_progress(desc="Count PF number", total="len(splines)")
     def count_npf(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
@@ -1284,6 +1284,7 @@ class CylindraMainWidget(MagicTemplate):
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.count_npf(i=i, size=depth, binsize=bin_size, radius=radius)
+                yield
         self._need_save = True
         return tracker.as_undo_callback()
 

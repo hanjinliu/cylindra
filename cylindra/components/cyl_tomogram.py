@@ -49,7 +49,6 @@ from cylindra.utils import (
     map_coordinates,
     rotated_auto_zncc,
     roundint,
-    ceilint,
     set_gpu,
     mirror_zncc,
     angle_corr,
@@ -775,7 +774,6 @@ class CylTomogram(Tomogram):
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
         tasks = []
-        LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         for anc, r0 in zip(spl_trans.anchors, radii):
             rmin = _non_neg(r0 - GVar.thickness_inner) / _scale
