@@ -775,7 +775,6 @@ class CylTomogram(Tomogram):
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
         tasks = []
-        LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         for anc, r0 in zip(spl_trans.anchors, radii):
             rmin = _non_neg(r0 - GVar.thickness_inner) / _scale
@@ -1304,7 +1303,7 @@ class CylTomogram(Tomogram):
         _required = [H.spacing, H.skew, H.rise, H.nPF]
         _missing = [k for k in _required if k not in kwargs]
         if not spl.has_globalprops(_missing):
-            self.global_ft_params(i)
+            self.global_ft_params(i=i)
         return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process
@@ -1407,7 +1406,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         if not spl.has_globalprops([H.spacing, H.skew]):
-            self.global_ft_params(i)
+            self.global_ft_params(i=i)
         interv = spl.get_globalprops(H.spacing) * 2
         skew = spl.get_globalprops(H.skew)
 

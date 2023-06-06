@@ -1366,6 +1366,7 @@ class SubtomogramAveraging(MagicTemplate):
     def _align_all_on_return(
         self, molecules: list[Molecules], old_layers: list[MoleculesLayer]
     ):
+        """The return callback function for alignment methods."""
         parent = self._get_parent()
         new_layers = []
         for mole, layer in zip(molecules, old_layers):
