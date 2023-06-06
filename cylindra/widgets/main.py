@@ -1110,10 +1110,11 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Molecules to spline")
     def molecules_to_spline(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
-        delete_old: bool = True,
-        inherit_props: bool = True,
-        missing_ok: bool = False,
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
+        delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
+        inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
+        missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
+        update_sources: Annotated[bool, {"label": "Update all the spline sources"}] = True,
     ):  # fmt: skip
         """
         Create splines from molecules.
@@ -1128,11 +1129,18 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layers}
         delete_old : bool, default is True
-            If True, delete the old spline if the molecules has one.
+            If True, delete the old spline if the molecules has one. For instance, if
+            "Mono-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
+            created from "Mono-0", then "Spline-0" will be deleted from the list.
         inherit_props : bool, default is True
             If True, copy the global properties from the old spline to the new one.
         missing_ok : bool, default is False
             If False, raise an error if the source spline is not found in the tomogram.
+        update_sources : bool, default is True
+            If True, all the molecules with the out-of-date source spline will be updated
+            to the newly created splines. For instance, if "Mono-0" and "Mono-1" have the
+            spline "Spline-0" as the source, and a spline "Spline-1" is created from
+            "Mono-1", then the source of "Mono-1" will be updated to "Spline-1" as well.
         """
         tomo = self.tomogram
         if len(layers) == 0:
@@ -1158,11 +1166,16 @@ class CylindraMainWidget(MagicTemplate):
             else:
                 if inherit_props:
                     spl.globalprops = tomo.splines[idx].globalprops.clone()
+                old_spl = tomo.splines[idx]
                 if delete_old:
                     tomo.splines[idx] = spl
                 else:
                     tomo.splines.append(spl)
-            layer.source_component = spl
+                layer.source_component = spl
+                if update_sources:
+                    for each in layers:
+                        if each.source_component is old_spl:
+                            each.source_component = spl
 
         self.reset_choices()
         self.sample_subtomograms()
