@@ -183,7 +183,7 @@ def calc_resolution(
 def plot_projections(merge: np.ndarray):
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
+    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
     # normalize
     if merge.dtype.kind == "f":
         merge = np.clip(merge, 0, 1)
@@ -206,9 +206,8 @@ def plot_forward_and_reverse(
     template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv
 ):
     import matplotlib.pyplot as plt
-    from cylindra import utils
 
-    fig, axes = plt.subplots(nrows=2, ncols=3)
+    _, axes = plt.subplots(nrows=2, ncols=3)
     template_proj_fw = np.max(template_fw, axis=1)
     fit_proj_fw = np.max(fit_fw, axis=1)
     merge_fw = utils.merge_images(fit_proj_fw, template_proj_fw)
@@ -298,7 +297,7 @@ class PaintDevice:
             utils.roundint(r / bin_scale * 1.73) * 2 + 1 for r in [15, ft_size / 2, 15]
         )
         center = np.array([lz, ly, lx]) / 2 + 0.5
-        z, y, x = np.indices((lz, ly, lx))
+        z, _, x = np.indices((lz, ly, lx))
         cylinders = list[list[NDArray[np.bool_]]]()
         matrices = list[list[NDArray[np.float32]]]()
         for i, spl in enumerate(tomo.splines):

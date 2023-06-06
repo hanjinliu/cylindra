@@ -520,7 +520,7 @@ class CylTomogram(Tomogram):
 
         _required = [H.spacing, H.skew, H.nPF]
         if not spl.has_globalprops(_required):
-            self.global_ft_params(i, binsize=binsize)
+            self.global_ft_params(i=i, binsize=binsize)
 
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
@@ -1258,7 +1258,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         if spl.has_globalprops([H.spacing, H.skew]):
-            self.global_ft_params(i)
+            self.global_ft_params(i=i)
 
         interv = spl.get_globalprops(H.spacing) * 2
         skew = spl.get_globalprops(H.skew)
