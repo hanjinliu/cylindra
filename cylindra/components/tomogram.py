@@ -4,6 +4,7 @@ from typing import Iterable, Any, overload, TYPE_CHECKING
 from pathlib import Path
 import warnings
 import numpy as np
+from numpy.typing import NDArray
 import impy as ip
 
 from cylindra.const import nm, GlobalVariables as GVar
@@ -28,9 +29,10 @@ class Tomogram:
 
     def __init__(self):
         self._metadata: dict[str, Any] = {}
-        self._image = None
+        self._image: ip.ImgArray | ip.LazyImgArray | None = None
         self._multiscaled = []
         self._tilt_range = None
+        self._scale = 1.0
 
     def __hash__(self) -> int:
         """Use unsafe hash."""
@@ -40,8 +42,16 @@ class Tomogram:
         return str(self)
 
     def __str__(self) -> str:
-        shape = str(self._image.shape).lstrip("AxesShape")
-        return f"{self.__class__.__name__}{shape}"
+        shape = str(self._image.shape) if self._image is not None else "unknown"
+        scale = f"{self.scale:.4f}" if self._image is not None else "unknown"
+        if source := self.metadata.get("source", None):
+            source = Path(source).as_posix()
+        return f"{self.__class__.__name__}({shape=}, {scale=}, {source=})"
+
+    @property
+    def scale(self) -> nm:
+        """Scale of the tomogram."""
+        return self._scale
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -158,8 +168,10 @@ class Tomogram:
         return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
 
     @property
-    def image(self) -> ip.LazyImgArray:
+    def image(self) -> ip.ImgArray | ip.LazyImgArray:
         """Tomogram image data."""
+        if self._image is None:
+            raise ValueError("Image is not set.")
         return self._image
 
     @property
@@ -183,7 +195,7 @@ class Tomogram:
             or abs(_img.scale.z - _img.scale.y) > 1e-4
         ):
             raise ValueError("Uneven scale.")
-        self.scale = _img.scale.x
+        self._scale = _img.scale.x
         self._image = _img
         return None
 
@@ -192,7 +204,7 @@ class Tomogram:
         ...
 
     @overload
-    def nm2pixel(self, value: Iterable[nm], binsize: int = 1) -> np.ndarray:
+    def nm2pixel(self, value: Iterable[nm], binsize: int = 1) -> NDArray[np.floating]:
         ...
 
     def nm2pixel(self, value, binsize: int = 1):
@@ -237,8 +249,7 @@ class Tomogram:
                 return _img
         if add:
             return self.add_multiscale(binsize)
-        else:
-            raise ValueError(f"Multiscale = {binsize} not found.")
+        raise ValueError(f"Multiscale = {binsize} not found.")
 
     def _get_multiscale_or_original(
         self, binsize: int
@@ -262,8 +273,7 @@ class Tomogram:
         img_inv = -self.image
         img_inv.release()
         self._set_image(img_inv)
-        for i in range(len(self._multiscaled)):
-            _b, _img = self._multiscaled[i]
+        for i, (_b, _img) in enumerate(self._multiscaled):
             self._multiscaled[i] = (_b, -_img)
         return self
 

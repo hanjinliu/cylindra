@@ -67,7 +67,7 @@ def simulate_local_expansion(
                 results.append(CftResult(_nsr, _rep, sp[0], sp[8], sp[14]))
 
         results = pl.DataFrame(results).sort(by="nsr")
-        print(results.write_csv())
+        print(results.write_csv(separator="\t", float_precision=3))
 
 
 if __name__ == "__main__":

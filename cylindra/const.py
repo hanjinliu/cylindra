@@ -1,12 +1,8 @@
 from __future__ import annotations
 from enum import Enum
 from types import SimpleNamespace
-from pathlib import Path
 
 from psygnal import EventedModel
-from psygnal._evented_model import EventedModel
-
-from appdirs import user_config_dir
 
 nm = float  # type alias for nanometer
 pf = float  # type alias for protofilament numbering
@@ -185,11 +181,11 @@ class GlobalVariableModel(EventedModel):
         Inf = float("inf")
         if isinstance(values, dict):
             if values.get("npf_min", -Inf) >= values.get("npf_max", Inf):
-                raise ValueError(f"npf_min > npf_max must be satisfied.")
+                raise ValueError("npf_min > npf_max must be satisfied.")
             if values.get("spacing_min", -Inf) >= values.get("spacing_max", Inf):
-                raise ValueError(f"spacing_min > spacing_max must be satisfied.")
+                raise ValueError("spacing_min > spacing_max must be satisfied.")
             if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
-                raise ValueError(f"skew_min > skew_max must be satisfied.")
+                raise ValueError("skew_min > skew_max must be satisfied.")
         # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
         # by one). This is not desirable because min/max values should be updated at
         # the same time. Therefore, we block the events and emit the signal manually.
