@@ -1729,6 +1729,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
         internal: bool = True,
+        inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):  # fmt: skip
         """
         Translate molecule coordinates without changing their rotations.
@@ -1743,6 +1744,7 @@ class CylindraMainWidget(MagicTemplate):
         internal : bool, default is True
             If true, the translation is applied to the internal coordinates, i.e. molecules
             with different rotations are translated differently.
+        {inherit_source}
         """
         mole = layer.molecules
         if internal:
@@ -1756,9 +1758,12 @@ class CylindraMainWidget(MagicTemplate):
             if Mole.position in out.features.columns:
                 # spline position is not predictable.
                 out = out.drop_features([Mole.position])
-        name = f"{layer.name}-Shift"
-        layer = self.add_molecules(out, name=name, source=layer.source_component)
-        return self._undo_callback_for_layer(layer)
+        if inherit_source:
+            source = layer.source_component
+        else:
+            source = None
+        new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
+        return self._undo_callback_for_layer(new)
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Filter molecules")
@@ -1766,6 +1771,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         predicate: ExprStr.In[POLARS_NAMESPACE],
+        inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):
         """
         Filter molecules by their features.
@@ -1775,6 +1781,7 @@ class CylindraMainWidget(MagicTemplate):
         {layer}
         predicate : ExprStr
             A polars-style filter predicate, such as `pl.col("pf-id") == 3`
+        {inherit_source}
         """
         mole = layer.molecules
         if isinstance(predicate, pl.Expr):
@@ -1782,10 +1789,13 @@ class CylindraMainWidget(MagicTemplate):
         else:
             expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
         out = mole.filter(expr)
-        name = f"{layer.name}-Filt"
-        layer = self.add_molecules(out, name=name, source=layer.source_component)
+        if inherit_source:
+            source = layer.source_component
+        else:
+            source = None
+        new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
 
-        return self._undo_callback_for_layer(layer)
+        return self._undo_callback_for_layer(new)
 
     def _get_paint_molecules_choice(self, w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
@@ -1796,7 +1806,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @MoleculesMenu.Visualize.wraps
     @set_design(text="Paint molecules by features")
-    @bind_key("Ctrl+K, Ctrl+F")
+    @bind_key("Ctrl+K, C")
     def paint_molecules(
         self,
         layer: MoleculesLayer,

@@ -48,6 +48,7 @@ _PARAMETERS = [
     Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the current spline orientation as is."),
     Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),
     Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself. Lowpass: butterworth low-pass filter. Gaussian: Gaussian blur. DoG: difference of Gaussian. LoG: Laplacian of Gaussian."),
+    Parameter(name="inherit_source", type="bool", desc="If True and the input molecules layer has its spline source, the new layer will inherit it."),
 ]
 # fmt: on
 

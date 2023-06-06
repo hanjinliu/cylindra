@@ -1428,7 +1428,9 @@ class CylTomogram(Tomogram):
     #   Utility functions
     #####################################################################################
 
-    def collect_anchor_coords(self, i: int | Iterable[int] = None) -> NDArray:
+    def collect_anchor_coords(
+        self, i: int | Iterable[int] = None
+    ) -> NDArray[np.float32]:
         """
         Collect all the anchor coordinates into a single np.ndarray.
 
