@@ -299,8 +299,8 @@ class PaintDevice:
         )
         center = np.array([lz, ly, lx]) / 2 + 0.5
         z, y, x = np.indices((lz, ly, lx))
-        cylinders = []
-        matrices = []
+        cylinders = list[list[NDArray[np.bool_]]]()
+        matrices = list[list[NDArray[np.float32]]]()
         for i, spl in enumerate(tomo.splines):
             # Prepare template hollow image
             _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
@@ -312,9 +312,9 @@ class PaintDevice:
                 radii = [spl.get_globalprops(H.radius)] * spl.anchors.size
             else:
                 raise RuntimeError(f"Radius not found in spline-{i}.")
-            for j, r0 in enumerate(radii):
-                r0 = max(r0 - GVar.thickness_inner, 0.0) / tomo.scale / binsize
-                r1 = (r0 + GVar.thickness_outer) / tomo.scale / binsize
+            for j, rc in enumerate(radii):
+                r0 = max(rc - GVar.thickness_inner, 0.0) / tomo.scale / binsize
+                r1 = (rc + GVar.thickness_outer) / tomo.scale / binsize
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 ry = (
                     min(

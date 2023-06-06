@@ -674,6 +674,7 @@ class CylinderSimulator(MagicTemplate):
         ).set_scale(zyx=scale, unit="nm")
         yield _on_iradon_finished(rec, f"N/S = {nsr:.1f}")
 
+        rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
         )

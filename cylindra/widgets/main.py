@@ -377,6 +377,7 @@ class CylindraMainWidget(MagicTemplate):
         tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.DoG,
+        eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip
         """
         Load an image file and process it before sending it to the viewer.
@@ -410,6 +411,7 @@ class CylindraMainWidget(MagicTemplate):
             scale=scale,
             tilt_range=tilt_range,
             binsize=bin_size,
+            eager=eager,
         )
 
         self._macro_offset = len(self.macro)

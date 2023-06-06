@@ -128,6 +128,7 @@ class Tomogram:
         scale: float = None,
         tilt_range: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
+        eager: bool = False,
     ) -> Self:
         """
         Read a image as a dask array.
@@ -142,6 +143,9 @@ class Tomogram:
             Tilt range in degree.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
+        eager : bool, default is False
+            Whether to read the image lazily. If True, the entire image will be read
+            into the memory.
 
         Returns
         -------
@@ -149,6 +153,8 @@ class Tomogram:
             Tomogram object with the image that has just been read and multi-scales.
         """
         img = ip.lazy_imread(path, chunks=GVar.dask_chunk, name="tomogram").as_float()
+        if eager:
+            img = img.compute()
         return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
 
     @property

@@ -68,7 +68,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
     ylength_nm = img.shape.y * img.scale.y
     npfrange = ceilint(npfmax / 2)
 
-    peak0 = peak_det.get_peak(
+    peakv = peak_det.get_peak(
         range_y=(
             ceilint(ylength_nm / GVar.spacing_max) - 1,
             ceilint(ylength_nm / GVar.spacing_min),
@@ -78,26 +78,26 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         up_a=20,
     )
 
-    rise = np.arctan(-peak0.afreq / peak0.yfreq)
-    yspace = 1.0 / peak0.yfreq * img.scale.y
+    rise = np.arctan(-peakv.afreq / peakv.yfreq)
+    yspace = 1.0 / peakv.yfreq * img.scale.y
 
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
 
-    peak1 = peak_det.get_peak(
+    peakh = peak_det.get_peak(
         range_y=(
-            ceilint(tandg(GVar.skew_min) * y_factor * npfmin) - 1,
-            ceilint(tandg(GVar.skew_max) * y_factor * npfmax),
+            ceilint(np.tan(np.deg2rad(GVar.skew_min)) * y_factor * npfmin) - 1,
+            ceilint(np.tan(np.deg2rad(GVar.skew_max)) * y_factor * npfmax),
         ),
         range_a=(npfmin, npfmax),
         up_y=max(int(21600 / img.shape.y), 1),
         up_a=20,
     )
 
-    skew = np.arctan(peak1.yfreq / peak1.afreq * 2 * yspace / radius)
+    skew = np.arctan(peakh.yfreq / peakh.afreq * 2 * yspace / radius)
     start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
-    npf = peak1.a
+    npf = peakh.a
 
     return LocalParams(
         rise=np.rad2deg(rise),
