@@ -14,7 +14,6 @@ from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 import pytest
 from .utils import pytest_group, ExceptionGroup
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
-from cylindra._custom_layers import MoleculesLayer
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
@@ -65,7 +64,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.set_multiscale(1)
     ui.register_path(coords=coords[npf])
     ui.register_path(coords=coords[npf][::-1])
-    ui._runner.run_workflow(interval=24.0)
+    ui._runner.run(interval=24.0)
     ui.auto_align_to_polarity(align_to="MinusToPlus")
     ui.map_monomers(splines=[0, 1])
 
@@ -104,7 +103,7 @@ def test_io_with_different_data(ui: CylindraMainWidget):
                     path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2]
                 )
                 ui.register_path(coords=coords_13pf)
-                ui._runner.run_workflow(splines=[0], **param)
+                ui._runner.run(splines=[0], **param)
                 ui.save_project(tmpdir)
                 ui.load_project(tmpdir, filter="DoG")
     exc_group.raise_exceptions()
@@ -150,13 +149,11 @@ def test_spline_deletion(ui: CylindraMainWidget):
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui._runner.run_workflow([0], max_shift=-1)  # no fit
-    ui._runner.run_workflow([0], n_refine=0)  # no refine
-    ui._runner.run_workflow([0], max_shift=-1, n_refine=0)  # no fit/refine
-    ui._runner.run_workflow([0], local_props=False, paint=False)  # no localprops
-    ui._runner.run_workflow(
-        [0], global_props=False, map_monomers=False
-    )  # no globalprops
+    ui._runner.run([0], max_shift=-1)  # no fit
+    ui._runner.run([0], n_refine=0)  # no refine
+    ui._runner.run([0], max_shift=-1, n_refine=0)  # no fit/refine
+    ui._runner.run([0], local_props=False, paint=False)  # no localprops
+    ui._runner.run([0], global_props=False, map_monomers=False)  # no globalprops
 
     # toggle many widgets to check if they are working
     ui._runner.all_splines = False
@@ -171,7 +168,7 @@ def test_workflow_undo_redo(ui: CylindraMainWidget):
     path = TEST_DIR / "14pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.register_path(coords=coords_14pf)
-    ui._runner.run_workflow([0])
+    ui._runner.run([0])
     n_undo = len(ui.macro.undo_stack["undo"])
     for _ in range(n_undo):
         ui.macro.undo()
@@ -225,7 +222,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.pos = 0
     assert_canvas(ui, [False, False, True])
 
-    ui._runner.run_workflow(interval=32.0)
+    ui._runner.run(interval=32.0)
 
     # check results
     spl = ui.tomogram.splines[0]
@@ -658,7 +655,7 @@ def test_auto_align(ui: CylindraMainWidget):
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
 
-    ui._runner.run_workflow(interval=32.0)
+    ui._runner.run(interval=32.0)
     ui.auto_align_to_polarity(align_to="MinusToPlus")
     assert ui.tomogram.splines[0].orientation == "MinusToPlus"
     assert ui.tomogram.splines[1].orientation == "MinusToPlus"

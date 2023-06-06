@@ -551,7 +551,7 @@ class Runner(MagicTemplate):
 
     @set_design(text="Run")
     @do_not_record(recursive=False)
-    def run_workflow(
+    def run(
         self,
         splines: Annotated[Sequence[int], {"bind": splines}] = (),
         bin_size: Annotated[int, {"bind": bin_size}] = 1,
@@ -592,7 +592,7 @@ class Runner(MagicTemplate):
         parent.measure_radius(splines=splines, bin_size=bin_size)
         if local_props:
             parent.local_ft_analysis(
-                splines=splines, interval=interval, ft_size=ft_size, bin_size=bin_size
+                splines=splines, interval=interval, depth=ft_size, bin_size=bin_size
             )
         if infer_polarity:
             parent.auto_align_to_polarity()

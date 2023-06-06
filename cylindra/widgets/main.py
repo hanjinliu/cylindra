@@ -373,7 +373,7 @@ class CylindraMainWidget(MagicTemplate):
     def open_image(
         self,
         path: Bound[_image_loader.path],
-        scale: Bound[_image_loader.scale.scale_value] = 1.0,
+        scale: Bound[_image_loader.scale.scale_value] = None,
         tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.DoG,
@@ -1292,7 +1292,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         interval: _Interval = 32.0,
-        ft_size: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
     ):  # fmt: skip
@@ -1302,7 +1302,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{interval}
-        ft_size : nm, default is 32.0
+        depth : nm, default is 32.0
             Longitudinal length of local discrete Fourier transformation used for
             structural analysis.
         {bin_size}
@@ -1325,10 +1325,10 @@ class CylindraMainWidget(MagicTemplate):
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_ft_params(
-                    i=i, ft_size=ft_size, binsize=bin_size, radius=radius
+                    i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
                 yield _local_ft_analysis_on_yield(i)
-        self._current_ft_size = ft_size
+        self._current_ft_size = depth
         self._need_save = True
         return tracker.as_undo_callback()
 

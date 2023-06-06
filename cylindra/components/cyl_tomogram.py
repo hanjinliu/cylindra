@@ -27,9 +27,14 @@ from acryo import Molecules, SubtomogramLoader
 from acryo.alignment import ZNCCAlignment
 import impy as ip
 
-from cylindra.components.cyl_spline import CylSpline, rise_to_start
+from cylindra.components.cyl_spline import CylSpline
 from cylindra.components.tomogram import Tomogram
-from cylindra.components._peak import PeakDetector
+from cylindra.components._localprops import (
+    try_all_npf,
+    ft_params,
+    polar_ft_params,
+    LocalParams,
+)
 from cylindra.const import (
     nm,
     PropertyNames as H,
@@ -58,11 +63,6 @@ if TYPE_CHECKING:
 
 
 LOGGER = logging.getLogger("cylindra")
-
-
-def tandg(x):
-    """Tangent in degree."""
-    return np.tan(np.deg2rad(x))
 
 
 def rmsd(shifts: ArrayLike) -> float:
@@ -774,14 +774,14 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
-        rmax = (spl.radius + GVar.thickness_outer) / _scale
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         for anc, r0 in zip(spl_trans.anchors, radii):
+            rmin = _non_neg(r0 - GVar.thickness_inner) / _scale
+            rmax = (r0 + GVar.thickness_outer) / _scale
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-            tasks.append(try_all_npf(input_img, coords, r0))
+            tasks.append(try_all_npf(input_img, coords))
         results: list[int] = da.compute(*tasks)
         out = pl.Series(H.nPF, results, dtype=pl.UInt8)
         spl.localprops = spl.localprops.with_columns(out)
@@ -832,31 +832,22 @@ class CylTomogram(Tomogram):
         tasks = []
         LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        lazy_ft_params = delayed(ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-            tasks.append(
-                da.from_delayed(
-                    ft_params(input_img, coords, r0),
-                    shape=(5,),
-                    meta=np.array([], dtype=np.float32),
-                )
-            )
+            tasks.append(lazy_ft_params(input_img, coords, r0))
 
-        results = np.stack(da.compute(tasks)[0], axis=0)
+        lprops = pl.DataFrame(
+            da.compute(*tasks),
+            schema=LocalParams.polars_schema(),
+        ).with_columns(
+            pl.Series(H.splPos, spl.anchors, dtype=pl.Float32),
+            pl.Series(H.splDist, spl.distances(), dtype=pl.Float32),
+        )
 
-        lprops = [
-            pl.Series(H.splPos, spl.anchors).cast(pl.Float32),
-            pl.Series(H.splDist, spl.distances()).cast(pl.Float32),
-            pl.Series(H.rise, results[:, 0]).cast(pl.Float32),
-            pl.Series(H.spacing, results[:, 1]).cast(pl.Float32),
-            pl.Series(H.skew, results[:, 2]).cast(pl.Float32),
-            pl.Series(H.nPF, np.round(results[:, 3])).cast(pl.UInt8),
-            pl.Series(H.start, results[:, 4]).cast(pl.Float32),
-        ]
-        out = pl.DataFrame(lprops)
         spl.localprops = spl.localprops.with_columns(lprops)
 
-        return out
+        return lprops
 
     @batch_process
     def local_cft(
@@ -978,9 +969,8 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self.splines[i]
         img_st = self.straighten_cylindric(i, binsize=binsize)
-        cols = _local_dft_params_pl(img_st, spl.radius)
-        out = pl.DataFrame(cols)
-        spl.globalprops = spl.globalprops.with_columns(cols)
+        out = polar_ft_params(img_st, spl.radius).to_polars()
+        spl.globalprops = spl.globalprops.with_columns(out)
         return out
 
     @batch_process
@@ -1604,100 +1594,6 @@ def _prepare_radii(
             raise ValueError("`radius` must be a positive float.")
         radii = np.full(spl.anchors.size, radius, dtype=np.float32)
     return radii
-
-
-def _local_dft_params(img: ip.ImgArray, radius: nm):
-    perimeter: nm = 2 * np.pi * radius
-    npfmin = GVar.npf_min
-    npfmax = GVar.npf_max
-    img = img - img.mean()  # normalize.
-
-    peak_det = PeakDetector(img)
-
-    # y-axis
-    # ^           + <- peak0
-    # |
-    # |  +      +      + <- peak1
-    # |
-    # |       +
-    # +--------------------> a-axis
-
-    # First transform around the expected length of y-pitch.
-    ylength_nm = img.shape.y * img.scale.y
-    npfrange = ceilint(npfmax / 2)
-
-    peak0 = peak_det.get_peak(
-        range_y=(
-            ceilint(ylength_nm / GVar.spacing_max) - 1,
-            ceilint(ylength_nm / GVar.spacing_min),
-        ),
-        range_a=(-npfrange, npfrange + 1),
-        up_y=max(int(6000 / img.shape.y), 1),
-        up_a=20,
-    )
-
-    rise = np.arctan(-peak0.afreq / peak0.yfreq)
-    yspace = 1.0 / peak0.yfreq * img.scale.y
-
-    # Second, transform around 13 pf lateral periodicity.
-    # This analysis measures skew angle and protofilament number.
-    y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
-
-    peak1 = peak_det.get_peak(
-        range_y=(
-            ceilint(tandg(GVar.skew_min) * y_factor * npfmin) - 1,
-            ceilint(tandg(GVar.skew_max) * y_factor * npfmax),
-        ),
-        range_a=(npfmin, npfmax),
-        up_y=max(int(21600 / img.shape.y), 1),
-        up_a=20,
-    )
-
-    skew = np.arctan(peak1.yfreq / peak1.afreq * 2 * yspace / radius)
-    start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
-    npf = peak1.a
-
-    return np.array(
-        [np.rad2deg(rise), yspace, np.rad2deg(skew), npf, start],
-        dtype=np.float32,
-    )
-
-
-def _local_dft_params_pl(img: ip.ImgArray, radius: nm) -> list[pl.Series]:
-    rise, space, skew, npf, start = _local_dft_params(img, radius)
-    return [
-        pl.Series(H.rise, [rise], dtype=pl.Float32),
-        pl.Series(H.spacing, [space], dtype=pl.Float32),
-        pl.Series(H.skew, [skew], dtype=pl.Float32),
-        pl.Series(H.nPF, [int(round(npf))], dtype=pl.UInt8),
-        pl.Series(H.start, [start], dtype=pl.Float32),
-    ]
-
-
-@delayed
-def ft_params(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
-    return _local_dft_params(get_polar_image(img, coords, radius), radius)
-
-
-@delayed
-def try_all_npf(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
-    polar = get_polar_image(img, coords, radius)
-    prof = ndi.spline_filter1d(polar.proj("ry").value, output=np.float32, mode="wrap")
-    score = list[float]()
-    npf_list = list(range(GVar.npf_min, GVar.npf_max + 1))
-    for npf in npf_list:
-        single_shift = prof.size / npf
-        sum_img = prof + sum(ndi.shift(prof, single_shift * i) for i in range(1, npf))
-        avg: NDArray[np.float32] = sum_img / npf
-        score.append(avg.max() - avg.min())
-    return npf_list[np.argmax(score)]
-
-
-def get_polar_image(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm):
-    polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
-    polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
-    polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x, unit=img.scale_unit)
-    return polar
 
 
 def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):

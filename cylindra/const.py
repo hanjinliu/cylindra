@@ -100,6 +100,7 @@ class Mode(SimpleNamespace):
     """Padding mode used in scipy.ndimage."""
 
     grid_wrap = "grid-wrap"
+    wrap = "wrap"
     reflect = "reflect"
     mirror = "mirror"
     constant = "constant"
