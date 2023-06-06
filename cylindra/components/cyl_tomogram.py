@@ -49,7 +49,6 @@ from cylindra.utils import (
     map_coordinates,
     rotated_auto_zncc,
     roundint,
-    ceilint,
     set_gpu,
     mirror_zncc,
     angle_corr,
