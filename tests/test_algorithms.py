@@ -73,14 +73,14 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200)
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
 
-    from cylindra.components.cyl_tomogram import _local_dft_params_pl
+    from cylindra.components._localprops import polar_ft_params
 
     spl = tomo.splines[0]
-    prop0 = pl.DataFrame(_local_dft_params_pl(st0, spl.radius))
-    prop1 = pl.DataFrame(_local_dft_params_pl(st1, spl.radius))
+    prop0 = polar_ft_params(st0, spl.radius)
+    prop1 = polar_ft_params(st1, spl.radius)
 
-    assert prop0[H.spacing][0] == pytest.approx(prop1[H.spacing][0], abs=1e-6)
-    assert prop0[H.skew][0] == pytest.approx(prop1[H.skew][0], abs=1e-6)
+    assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
+    assert prop0.skew == pytest.approx(prop1.skew, abs=1e-6)
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])

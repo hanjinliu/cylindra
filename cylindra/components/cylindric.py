@@ -311,10 +311,9 @@ class CylinderModel:
             _ny = _y.stop - _y.start
             if _ny == 0:
                 continue
+            _ar = by * np.arange(1, _ny + 1)
             displace[:, _a, axis] -= _ny / 2 * by
-            displace[_y.start : _y.stop, _a, axis] += (by * np.arange(_ny))[
-                :, np.newaxis
-            ]
+            displace[_y.start : _y.stop, _a, axis] += _ar[:, np.newaxis]
             displace[_y.stop :, _a, axis] += by * _ny
         return self.replace(displace=displace)
 
@@ -412,6 +411,9 @@ class CylindricSliceResolver(NamedTuple):
         slices = list[CylindricSlice]()
         npart_start, res_start = divmod(astart, na)
         npart_stop, res_stop = divmod(astop, na)
+        if res_stop == 0:
+            npart_stop -= 1
+            res_stop = na
 
         i = npart_start
         s0 = res_start
@@ -426,7 +428,6 @@ class CylindricSliceResolver(NamedTuple):
 
             i += 1
             s0 = 0
-
         return slices
 
     def get_slice(self, arr: np.ndarray) -> np.ndarray:
