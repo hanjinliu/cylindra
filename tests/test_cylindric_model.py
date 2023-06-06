@@ -73,6 +73,7 @@ def test_expand():
     pos_y = mole.pos[:, 1].reshape(10, 8)
 
     dy = np.diff(pos_y, axis=0)
+    print(np.round(dy, 3))
     # NOTE: After diff, 3:6 (not 4:7) are expanded
     assert_allclose(dy[:3], 2.0, rtol=1e-6, atol=1e-6)
     assert_allclose(dy[3:6], 2.5, rtol=1e-6, atol=1e-6)
