@@ -206,6 +206,8 @@ def collect_projects(
     if isinstance(files, (str, Path)):
         if "*" in str(files):
             files = glob.glob(str(files))
+        else:
+            files = [get_project_json(files)]
     if hasattr(files, "__iter__"):
         files = [get_project_json(f) for f in files]
     else:

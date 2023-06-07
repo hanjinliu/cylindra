@@ -197,8 +197,8 @@ class CylSpline(Spline):
         radius: nm | None = None,
         orientation: Ori | str | None = None,
     ):
-        loc = []
-        glob = []
+        loc = list[pl.Expr]()
+        glob = list[pl.Series]()
         if spacing is not None:
             loc.append(pl.repeat(spacing, pl.count()).cast(pl.Float32).alias(H.spacing))
             glob.append(pl.Series([spacing]).cast(pl.Float32).alias(H.spacing))
@@ -263,5 +263,6 @@ class CylSpline(Spline):
 
 
 def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
+    """Convert rise angle to start number."""
     tan_rise = np.tan(rise)
     return perimeter / space / (np.tan(skew) * tan_rise + 1) * tan_rise

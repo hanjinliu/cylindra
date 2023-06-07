@@ -11,6 +11,7 @@ def test_io():
 
 def test_concat():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
-    seq.localprops()
-    seq.globalprops()
-    seq.all_props()
+    seq.collect_localprops()
+    seq.collect_globalprops()
+    seq.collect_joinedprops()
+    seq.collect_spline_coords(ders=(0, 1))

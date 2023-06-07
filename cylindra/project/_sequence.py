@@ -15,8 +15,6 @@ from typing import (
     overload,
 )
 
-from acryo import BatchLoader, Molecules
-import impy as ip
 import polars as pl
 
 from cylindra.const import (
@@ -30,6 +28,7 @@ from ._single import CylindraProject
 if TYPE_CHECKING:
     from typing_extensions import Self
     from cylindra.components import CylSpline
+    from acryo import BatchLoader
 
 _V = TypeVar("_V")
 _Null = object()
@@ -171,6 +170,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
     def sta_loader(self) -> BatchLoader:
         """Construct a STA loader from all the projects."""
+        import impy as ip
+        from acryo import BatchLoader, Molecules
+
         col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy_imread(prj.image, chunks=GlobalVariables.dask_chunk)
@@ -261,7 +263,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         will repeat the same values for each spline. For instance, the "spacing"
         columns will look like following.
 
-        >>> col.all_props().select(["spacing", "spacing_glob"])
+        >>> col.collect_joinedprops().select(["spacing", "spacing_glob"])
 
             shape: (12, 2)
             ┌───────────┬──────────────┐
@@ -272,10 +274,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             │ 4.093385  ┆ 4.1024575    │
             │ 4.0987015 ┆ 4.1024575    │
             │ 4.1013646 ┆ 4.1024575    │
-            │ 4.1201043 ┆ 4.1024575    │
             │ …         ┆ …            │
-            │ 4.0907326 ┆ 4.097444     │
-            │ 4.0960417 ┆ 4.097444     │
             │ 4.074887  ┆ 4.089436     │
             │ 4.0987015 ┆ 4.089436     │
             └───────────┴──────────────┘
@@ -300,7 +299,46 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     globalprops = collect_globalprops  # alias for backward compatibility
     all_props = collect_joinedprops  # alias for backward compatibility
 
-    def iter_splines(self) -> Iterable[tuple[int, CylSpline]]:
-        for i, prj in enumerate(self._projects):
-            for spl in prj.load_splines():
-                yield i, spl
+    def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
+        """Iterate over all the splines in all the projects."""
+        for i_prj, prj in enumerate(self._projects):
+            for i_spl in range(prj.nsplines):
+                spl = prj.load_spline(i_spl)
+                yield (i_prj, i_spl), spl
+
+    def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
+        """
+        Collect spline coordinates or its derivative(s) as a dataframe.
+
+        Coordinates will be labeled as "z", "y", "x". The 1st derivative will be
+        labeled as "dz", "dy", "dx", and so on.
+
+        Parameters
+        ----------
+        ders : int or iterable of int, default is 0
+            Derivative order(s) to collect. If multiple values are given, all the
+            derivatives will be concatenated in a single dataframe.
+        """
+        dfs = list[pl.DataFrame]()
+        if not hasattr(ders, "__iter__"):
+            ders = [ders]
+        for (i, j), spl in self.iter_splines():
+            nanc = spl.anchors.size
+            df = pl.DataFrame(
+                [
+                    pl.repeat(i, nanc, eager=True, dtype=pl.UInt16).alias(Mole.image),
+                    pl.repeat(j, nanc, eager=True, dtype=pl.UInt16).alias(
+                        IDName.spline
+                    ),
+                ]
+            )
+            for der in ders:
+                d = "d" * der
+                coords = spl.map(der=der)
+                df = df.with_columns(
+                    pl.Series(coords[:, 0], dtype=pl.Float32).alias(f"{d}z"),
+                    pl.Series(coords[:, 1], dtype=pl.Float32).alias(f"{d}y"),
+                    pl.Series(coords[:, 2], dtype=pl.Float32).alias(f"{d}x"),
+                )
+            dfs.append(df)
+        return pl.concat(dfs, how="vertical")

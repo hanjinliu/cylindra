@@ -229,7 +229,7 @@ class CylindraProject(BaseProject):
         gui._macro_offset = len(gui.macro)
 
         # load splines
-        molecules_list = [self.load_molecules(i) for i in range(len(self.molecules))]
+        molecules_list = [self.load_molecules(i) for i in range(self.nmolecules)]
 
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(tomogram, filt=filter)
@@ -331,7 +331,7 @@ class CylindraProject(BaseProject):
             binsize=self.multiscales,
         )
 
-        splines_list = [self.load_spline(i) for i in range(len(self.splines))]
+        splines_list = [self.load_spline(i) for i in range(self.nsplines)]
         tomo.splines.extend(splines_list)
 
         return tomo
@@ -355,6 +355,16 @@ class CylindraProject(BaseProject):
     @property
     def result_dir(self) -> Path:
         return Path(self.macro).parent
+
+    @property
+    def nsplines(self) -> int:
+        """Number of splines in the project."""
+        return len(self.splines)
+
+    @property
+    def nmolecules(self) -> int:
+        """Number of molecules in the project."""
+        return len(self.molecules)
 
 
 def _get_casting(df: pl.DataFrame):

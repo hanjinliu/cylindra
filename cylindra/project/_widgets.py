@@ -1,13 +1,11 @@
 from typing import TYPE_CHECKING
-from pathlib import Path
 import numpy as np
 import polars as pl
 import impy as ip
-from magicclass import magicclass, field, vfield, MagicTemplate
+from magicclass import magicclass, field, MagicTemplate
 from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label
 from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.ext.polars import DataFrameView
-from acryo import Molecules
 
 if TYPE_CHECKING:
     from ._single import CylindraProject
@@ -73,6 +71,7 @@ class ComponentsViewer(MagicTemplate):
 
     def _from_project(self, project: "CylindraProject"):
         from cylindra.components import CylSpline
+        from acryo import Molecules
 
         self.canvas.layers.clear()
         self.components.clear()
