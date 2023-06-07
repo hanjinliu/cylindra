@@ -305,7 +305,7 @@ class PaintDevice:
             _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
             domains = list[NDArray[np.bool_]]()
             dist = [-np.inf] + list(spl.distances()) + [np.inf]
-            if spl.has_localprops(H.radius) and len(radii) == spl.anchors.size:
+            if len(spl.get_localprops(H.radius, [])) == spl.anchors.size:
                 radii = spl.get_localprops(H.radius)
             elif spl.has_globalprops(H.radius):
                 radii = [spl.get_globalprops(H.radius)] * spl.anchors.size

@@ -258,3 +258,7 @@ class CheckBoxes(CategoricalWidget):
             nullable=nullable,
             **base_widget_kwargs,
         )
+
+    def reset_choices(self, *_: Any) -> None:
+        super().reset_choices(*_)
+        self.value = self.choices

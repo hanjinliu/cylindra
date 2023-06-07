@@ -268,7 +268,6 @@ class Analysis(ChildWidget):
     measure_radius = abstractapi()
     measure_local_radius = abstractapi()
     measure_radius_by_molecules = abstractapi()
-    count_npf = abstractapi()
     sep0 = field(Separator)
     local_ft_analysis = abstractapi()
     global_ft_analysis = abstractapi()

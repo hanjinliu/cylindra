@@ -757,35 +757,6 @@ class CylTomogram(Tomogram):
         return out
 
     @batch_process
-    def count_npf(
-        self,
-        *,
-        i: int = None,
-        size: nm = 32.0,
-        binsize: int = 1,
-        radius: nm | Literal["local", "global"] = "global",
-    ) -> pl.Series:
-        LOGGER.info(f"Running: {self.__class__.__name__}.count_npf, i={i}")
-        spl = self.splines[i]
-
-        radii = _prepare_radii(spl, radius)
-
-        ylen = self.nm2pixel(size)
-        input_img = self._get_multiscale_or_original(binsize)
-        _scale = input_img.scale.x
-        tasks = []
-        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        for anc, r0 in zip(spl_trans.anchors, radii):
-            rmin = _non_neg(r0 - GVar.thickness_inner) / _scale
-            rmax = (r0 + GVar.thickness_outer) / _scale
-            coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-            tasks.append(try_all_npf(input_img, coords))
-        results: list[int] = da.compute(*tasks)
-        out = pl.Series(H.nPF, results, dtype=pl.UInt8)
-        spl.localprops = spl.localprops.with_columns(out)
-        return out
-
-    @batch_process
     def local_ft_params(
         self,
         *,
