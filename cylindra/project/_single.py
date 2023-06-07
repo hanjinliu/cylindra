@@ -6,7 +6,7 @@ from pydantic import BaseModel
 import polars as pl
 import numpy as np
 
-from cylindra.const import PropertyNames as H, get_versions
+from cylindra.const import IDName, PropertyNames as H, get_versions
 from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
@@ -292,7 +292,7 @@ class CylindraProject(BaseProject):
         localprops_path = self.localprops
         if localprops_path is not None:
             all_localprops = dict(
-                iter(pl.read_csv(localprops_path).groupby("SplineID"))
+                iter(pl.read_csv(localprops_path).groupby(IDName.spline))
             )
         else:
             all_localprops = {}
@@ -307,7 +307,7 @@ class CylindraProject(BaseProject):
             spl._localprops = all_localprops.get(i, pl.DataFrame([]))
             if spl.has_localprops([H.splDist, H.splPos]):
                 spl._anchors = np.asarray(spl.localprops[H.splPos])
-                spl.localprops.drop(["SplineID", "PosID"])
+                spl._localprops = spl.localprops.drop([IDName.spline, IDName.pos])
             spl._globalprops = all_globalprops.get(i, pl.DataFrame([]))
 
             spl._localprops = spl.localprops.with_columns(_get_casting(spl.localprops))

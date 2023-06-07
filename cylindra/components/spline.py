@@ -101,7 +101,7 @@ class Spline(BaseComponent):
         """Window size of local properties in nm."""
         return self._localprops_window_size
 
-    def update_localprops(self, props: Any, window_size: nm) -> Self:
+    def update_localprops(self, props: Any, window_size: nm | dict[str, nm]) -> Self:
         """
         Set local properties of given window size.
 
@@ -118,10 +118,13 @@ class Spline(BaseComponent):
             df = props
 
         self._localprops = self._localprops.with_columns(df)
-        ws = float(window_size)
-        if ws <= 0:
-            raise ValueError(f"Window size must be positive, got {ws}.")
-        self._localprops_window_size.update({c: ws for c in df.columns})
+        if isinstance(window_size, dict):
+            self._localprops_window_size.update(
+                {c: _pos_float(window_size[c]) for c in df.columns}
+            )
+        else:
+            ws = _pos_float(window_size)
+            self._localprops_window_size.update({c: ws for c in df.columns})
         return self
 
     def drop_localprops(self, keys: str | Iterable[str]) -> Self:
@@ -1489,3 +1492,10 @@ def _linear_polar_mapping(output_coords, k_angle, k_radius, center):
     cc = ((output_coords[:, 0] / k_radius) * np.cos(angle)) + center[1]
     coords = np.column_stack((cc, rr))
     return coords
+
+
+def _pos_float(x: Any) -> float:
+    out = float(x)
+    if out < 0:
+        raise ValueError("Value must be positive.")
+    return out

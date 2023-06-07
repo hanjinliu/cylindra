@@ -65,7 +65,7 @@ class CylSpline(Spline):
         return (
             super()
             .invert()
-            .set_localprops(self.localprops[::-1], self.localprops_window_size)
+            .update_localprops(self.localprops[::-1], self.localprops_window_size)
         )
 
     def clip(self, start: float, stop: float) -> CylSpline:
