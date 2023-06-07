@@ -154,7 +154,7 @@ class SplineControl(MagicTemplate):
         else:
             npf_list = [0] * spl.anchors.size
 
-        binsize = parent._layer_image.metadata["current_binsize"]
+        binsize = parent._current_binsize
         imgb = parent.tomogram.get_multiscale(binsize)
 
         length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
@@ -185,7 +185,7 @@ class SplineControl(MagicTemplate):
     def _update_canvas(self):
         parent = self._get_parent()
         tomo = parent.tomogram
-        binsize = parent._layer_image.metadata["current_binsize"]
+        binsize = parent._current_binsize
         i = self.num
         j = self.pos
         if i >= len(tomo.splines):
@@ -221,10 +221,12 @@ class SplineControl(MagicTemplate):
             return None
         lz, ly, lx = np.array(proj.shape)
 
-        if parent._current_ft_size is None:
+        depths = list(spl.localprops_window_size.values())
+        depth0 = depths[0] if len(depths) > 0 else None
+        if depth0 is None:
             ylen = 25 / binsize / tomo.scale
         else:
-            ylen = parent._current_ft_size / 2 / binsize / tomo.scale
+            ylen = depth0 / 2 / binsize / tomo.scale
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5

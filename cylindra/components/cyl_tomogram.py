@@ -753,7 +753,7 @@ class CylTomogram(Tomogram):
             r_peak_sub = (imax_sub + 0.5) / nbin * r_max
             radii.append(r_peak_sub)
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
-        spl.localprops = spl.localprops.with_columns(out)
+        spl.update_localprops([out], size)
         return out
 
     @batch_process
@@ -814,7 +814,7 @@ class CylTomogram(Tomogram):
             pl.Series(H.splDist, spl.distances(), dtype=pl.Float32),
         )
 
-        spl.localprops = spl.localprops.with_columns(lprops)
+        spl.update_localprops(lprops, ft_size)
 
         return lprops
 

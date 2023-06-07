@@ -37,6 +37,7 @@ class SplineClipper(MagicTemplate):
         self._original_spline: "CylSpline | None" = None
         self._clip_at_start = True
         self._current_lims: tuple[float, float] = (0.0, 1.0)
+        self._subtomograms: "ip.ImgArray | None" = None
 
     def __post_init__(self):
         self.canvas[1, 0].lock_contrast_limits = True
@@ -79,7 +80,6 @@ class SplineClipper(MagicTemplate):
         spl = parent.tomogram.splines[spline]
         self._spline = self._original_spline = spl
         self._current_lims = spl.lims
-        self._subtomogram: "ip.ImgArray | None" = None
         self["clip_length"].max = spl.length()
         self._update_canvas()
 
@@ -121,7 +121,7 @@ class SplineClipper(MagicTemplate):
         parent = self._parent_widget()
         tomo = parent.tomogram
         spl = self._spline
-        binsize: int = parent._layer_image.metadata["current_binsize"]
+        binsize: int = parent._current_binsize
         imgb = parent._layer_image.data
 
         length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)

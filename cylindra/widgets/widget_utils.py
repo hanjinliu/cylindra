@@ -285,7 +285,7 @@ class PaintDevice:
         img = simulator.simulate(self._shape)
         return img
 
-    def paint_cylinders(self, ft_size: nm, tomo: CylTomogram):
+    def paint_cylinders(self, tomo: CylTomogram, prop: str):
         lbl = np.zeros(self._shape, dtype=np.uint8)
         all_df = tomo.collect_localprops()
         if all_df is None:
@@ -293,14 +293,16 @@ class PaintDevice:
         bin_scale = self._scale  # scale of binned reference image
         binsize = utils.roundint(bin_scale / tomo.scale)
 
-        lz, ly, lx = (
-            utils.roundint(r / bin_scale * 1.73) * 2 + 1 for r in [15, ft_size / 2, 15]
-        )
-        center = np.array([lz, ly, lx]) / 2 + 0.5
-        z, _, x = np.indices((lz, ly, lx))
         cylinders = list[list[NDArray[np.bool_]]]()
         matrices = list[list[NDArray[np.float32]]]()
         for i, spl in enumerate(tomo.splines):
+            depth = spl.localprops_window_size.get(prop, GVar.fit_depth)
+            lz, ly, lx = (
+                utils.roundint(r / bin_scale * 1.73) * 2 + 1
+                for r in [15, depth / 2, 15]
+            )
+            center = np.array([lz, ly, lx]) / 2 + 0.5
+            z, _, x = np.indices((lz, ly, lx))
             # Prepare template hollow image
             _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
             domains = list[NDArray[np.bool_]]()
@@ -319,7 +321,7 @@ class PaintDevice:
                     min(
                         abs(dist[j + 1] - dist[j]) / 2,
                         abs(dist[j + 2] - dist[j + 1]) / 2,
-                        ft_size / 2,
+                        depth / 2,
                     )
                     / bin_scale
                     + 0.5

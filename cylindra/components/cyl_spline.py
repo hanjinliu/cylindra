@@ -30,10 +30,10 @@ class CylSpline(Spline):
     def radius(self, value: nm | None):
         if value is None:
             if H.radius in self.globalprops.columns:
-                self.globalprops = self.globalprops.drop(H.radius)
+                self.drop_globalprops(H.radius)
             return None
         col = pl.Series(H.radius, [value]).cast(pl.Float32)
-        self.globalprops = self.globalprops.with_columns(col)
+        self._globalprops = self.globalprops.with_columns(col)
         return None
 
     @property
@@ -48,7 +48,7 @@ class CylSpline(Spline):
         else:
             value = Ori(value)
         col = pl.Series(H.orientation, [str(value)])
-        self.globalprops = self.globalprops.with_columns(col)
+        self._globalprops = self.globalprops.with_columns(col)
         return None
 
     def invert(self) -> CylSpline:
@@ -62,10 +62,11 @@ class CylSpline(Spline):
         """
         # NOTE: invert() calls clip() internally.
         # We don't have to invert the orientation here.
-        inverted = super().invert()
-        inverted.localprops = self.localprops[::-1]
-
-        return inverted
+        return (
+            super()
+            .invert()
+            .update_localprops(self.localprops[::-1], self.localprops_window_size)
+        )
 
     def clip(self, start: float, stop: float) -> CylSpline:
         """
@@ -90,7 +91,7 @@ class CylSpline(Spline):
         """
         clipped = super().clip(start, stop)
 
-        clipped.globalprops = self.globalprops
+        clipped._globalprops = self.globalprops.clone()
         if start > stop:
             clipped.orientation = Ori.invert(self.orientation)
         else:
@@ -244,8 +245,8 @@ class CylSpline(Spline):
                 pl.Series(_start_glob).cast(pl.Float32).alias(H.start)
             )
 
-        self.localprops = ldf
-        self.globalprops = gdf
+        self._localprops = ldf
+        self._globalprops = gdf
         return self
 
     def _need_rotation(self, orientation: Ori | str | None) -> bool:
