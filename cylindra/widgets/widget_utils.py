@@ -296,7 +296,7 @@ class PaintDevice:
         cylinders = list[list[NDArray[np.bool_]]]()
         matrices = list[list[NDArray[np.float32]]]()
         for i, spl in enumerate(tomo.splines):
-            depth = spl.localprops_window_size[prop]
+            depth = spl.localprops_window_size.get(prop, GVar.fit_depth)
             lz, ly, lx = (
                 utils.roundint(r / bin_scale * 1.73) * 2 + 1
                 for r in [15, depth / 2, 15]
@@ -307,7 +307,7 @@ class PaintDevice:
             _sq = (z - lz / 2 - 0.5) ** 2 + (x - lx / 2 - 0.5) ** 2
             domains = list[NDArray[np.bool_]]()
             dist = [-np.inf] + list(spl.distances()) + [np.inf]
-            if spl.has_localprops(H.radius) and len(radii) == spl.anchors.size:
+            if len(spl.get_localprops(H.radius, [])) == spl.anchors.size:
                 radii = spl.get_localprops(H.radius)
             elif spl.has_globalprops(H.radius):
                 radii = [spl.get_globalprops(H.radius)] * spl.anchors.size

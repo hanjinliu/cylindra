@@ -304,14 +304,14 @@ class CylindraProject(BaseProject):
             all_globalprops = {}
 
         for i, spl in enumerate(splines):
-            spl.localprops = all_localprops.get(i, None)
+            spl._localprops = all_localprops.get(i, pl.DataFrame([]))
             if spl.has_localprops([H.splDist, H.splPos]):
                 spl._anchors = np.asarray(spl.localprops[H.splPos])
                 spl.localprops.drop(["SplineID", "PosID"])
-            spl.globalprops = all_globalprops.get(i, None)
+            spl._globalprops = all_globalprops.get(i, pl.DataFrame([]))
 
-            spl.localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
-            spl.globalprops = spl.globalprops.with_columns(
+            spl._localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
+            spl._globalprops = spl.globalprops.with_columns(
                 _get_casting(spl.globalprops)
             )
 

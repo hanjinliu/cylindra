@@ -221,10 +221,12 @@ class SplineControl(MagicTemplate):
             return None
         lz, ly, lx = np.array(proj.shape)
 
-        if spl.localprops_window_size is None:
+        depths = list(spl.localprops_window_size.values())
+        depth0 = depths[0] if len(depths) > 0 else None
+        if depth0 is None:
             ylen = 25 / binsize / tomo.scale
         else:
-            ylen = spl.localprops_window_size / 2 / binsize / tomo.scale
+            ylen = depth0 / 2 / binsize / tomo.scale
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
