@@ -12,6 +12,7 @@ from ._base import BaseProject, PathLike, resolve_path
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
     from cylindra.components import CylSpline
+    from acryo import Molecules
 
 
 class MoleculesInfo(BaseModel):
@@ -220,7 +221,7 @@ class CylindraProject(BaseProject):
         return None
 
     def to_gui(self, gui: "CylindraMainWidget", filter=True, paint=True):
-        from cylindra.components import CylSpline, CylTomogram
+        from cylindra.components import CylTomogram
         from acryo import Molecules
 
         tomogram = CylTomogram.imread(
@@ -319,6 +320,31 @@ class CylindraProject(BaseProject):
             )
 
         return splines
+
+    def get_spline(self, idx: int) -> CylSpline:
+        from cylindra.components import CylSpline
+
+        spl = CylSpline.from_json(self.splines[idx])
+        if self.localprops is not None:
+            _loc = pl.read_csv(self.localprops).filter(pl.col("SplineID") == idx)
+        else:
+            _loc = pl.DataFrame([])
+        if self.globalprops is not None:
+            _glob = pl.read_csv(self.globalprops)[idx]
+        else:
+            _glob = pl.DataFrame([])
+        spl._localprops = _loc.with_columns(_get_casting(_loc))
+        spl._globalprops = _glob.with_columns(_get_casting(_glob))
+        return spl
+
+    def get_molecules(self, idx: "int | str") -> Molecules:
+        from acryo import Molecules
+
+        if isinstance(idx, str):
+            for path in self.molecules:
+                if Path(path).stem == idx:
+                    return Molecules.from_csv(path)
+        return Molecules.from_csv(self.molecules[idx])
 
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""

@@ -1147,13 +1147,13 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("No layers are selected.")
 
         # first check missing_ok=False case
-        for layer in layers:
-            # NOTE: The source spline may not exist in the spline list if `molecules_to_spline`
-            # is called twice.
-            try:
-                tomo.splines.index(layer.source_component)
-            except ValueError as e:
-                if not missing_ok:
+        if not missing_ok:
+            for layer in layers:
+                # NOTE: The source spline may not exist in the spline list if
+                # `molecules_to_spline` is called twice.
+                try:
+                    tomo.splines.index(layer.source_component)
+                except ValueError as e:
                     raise e
 
         for layer in layers:
@@ -1285,11 +1285,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{interval}
-        depth : nm, default is 32.0
-            Longitudinal length of local discrete Fourier transformation used for
-            structural analysis.
-        {bin_size}
+        {splines}{interval}{depth}{bin_size}
         radius : str, default is "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius.
