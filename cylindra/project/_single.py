@@ -130,7 +130,7 @@ class CylindraProject(BaseProject):
                 out = p
             return out
 
-        self = cls(
+        return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
             dependency_versions=_versions,
@@ -149,7 +149,6 @@ class CylindraProject(BaseProject):
             macro=as_relative(macro_path),
             project_path=json_path,
         )
-        return self
 
     @classmethod
     def save_gui(
@@ -220,11 +219,12 @@ class CylindraProject(BaseProject):
 
     def to_gui(
         self,
-        gui: "CylindraMainWidget",
+        gui: "CylindraMainWidget | None" = None,
         filter: bool = True,
         paint: bool = True,
     ):
         """Update CylindraMainWidget state based on the project model."""
+        gui = _get_instance(gui)
         tomogram = self.load_tomogram()
         gui._macro_offset = len(gui.macro)
 
@@ -367,3 +367,14 @@ def _get_casting(df: pl.DataFrame):
         else:
             out.append(pl.col(cname).cast(pl.Float32))
     return out
+
+
+def _get_instance(gui: "CylindraMainWidget | None" = None):
+    if gui is not None:
+        return gui
+    from cylindra import instance
+
+    ui = instance()
+    if ui is None:
+        raise RuntimeError("No CylindraMainWidget GUI found.")
+    return ui
