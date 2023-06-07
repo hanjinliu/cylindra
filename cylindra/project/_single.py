@@ -229,15 +229,12 @@ class CylindraProject(BaseProject):
         gui._macro_offset = len(gui.macro)
 
         # load splines
-        splines_list = [self.load_spline(i) for i in range(len(self.splines))]
         molecules_list = [self.load_molecules(i) for i in range(len(self.molecules))]
 
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(tomogram, filt=filter)
 
-            if splines_list:
-                gui.tomogram.splines.clear()
-                gui.tomogram.splines.extend(splines_list)
+            if len(tomogram.splines) > 0:
                 gui._update_splines_in_images()
                 with gui.macro.blocked():
                     gui.sample_subtomograms()
@@ -270,11 +267,12 @@ class CylindraProject(BaseProject):
                 if self.molecules_info is not None:
                     _info = self.molecules_info[idx]
                     if _info.source is not None:
-                        _src = splines_list[_info.source]
+                        _src = tomogram.splines[_info.source]
                     visible = _info.visible
                 else:
                     visible = True
                 _fpath = self.molecules[idx]
+
                 layer = gui.add_molecules(mole, name=Path(_fpath).stem, source=_src)
                 if not visible:
                     layer.visible = False

@@ -2416,13 +2416,20 @@ class CylindraMainWidget(MagicTemplate):
         except Exception:
             _name = f"Tomogram<{hex(id(tomo))}>"
         _Logger.print_html(f"<h2>{_name}</h2>")
-        self.clear_all()
+
+        self.macro.clear_undo_stack()
+        self.overview.layers.clear()
+        self._init_widget_state()
+        self._init_layers()
+        self.reset_choices()
+
         if isinstance(filt, bool):
             # backward compatibility
             filt = ImageFilter.Lowpass if filt else None
         if filt is not None:
             self.filter_reference_image(method=filt)
         self.GeneralInfo.project_desc.value = ""  # clear the project description
+        self._need_save = False
 
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules
@@ -2512,7 +2519,7 @@ class CylindraMainWidget(MagicTemplate):
     @SplineControl.num.connect
     def _highlight_spline(self):
         i = self.SplineControl.num
-        if i is None:
+        if i is None or self._layer_prof is None:
             return
 
         for layer in self.overview.layers:
