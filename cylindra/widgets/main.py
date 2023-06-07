@@ -165,7 +165,8 @@ class CylindraMainWidget(MagicTemplate):
 
     # Child widgets
     GeneralInfo = field(subwidgets.GeneralInfo)
-    SplineControl = subwidgets.SplineControl  # Widget for controling splines
+    # Widget for controling splines
+    SplineControl = subwidgets.SplineControl
     # Widget for summary of local properties
     LocalProperties = field(subwidgets.LocalPropertiesWidget, name="Local Properties")  # fmt: skip
     # Widget for summary of glocal properties
@@ -177,7 +178,6 @@ class CylindraMainWidget(MagicTemplate):
 
     def __init__(self):
         self._tomogram: CylTomogram = None
-        self._current_ft_size: nm = 50.0
         self._tilt_range: "tuple[float, float] | None" = None
         self._layer_image: Image = None
         self._layer_prof: Points = None
@@ -199,6 +199,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save: bool = False
         self._batch = None
         self._project_dir: Path = None
+        self._current_binsize: int = 1
         self.objectName()  # load napari types
 
         GVar.events.connect(self._global_variable_updated)
@@ -628,7 +629,7 @@ class CylindraMainWidget(MagicTemplate):
             Bin size of multiscaled image.
         """
         tomo = self.tomogram
-        _old_bin_size = self._layer_image.metadata["current_binsize"]
+        _old_bin_size = self._current_binsize
         imgb = tomo.get_multiscale(bin_size)
         factor = self._layer_image.scale[0] / imgb.scale.x
         current_z = self.parent_viewer.dims.current_step[0]
@@ -647,7 +648,7 @@ class CylindraMainWidget(MagicTemplate):
         self.overview.image = imgb.proj("z")
         self.overview.xlim = [x * factor for x in self.overview.xlim]
         self.overview.ylim = [y * factor for y in self.overview.ylim]
-        self._layer_image.metadata["current_binsize"] = bin_size
+        self._current_binsize = bin_size
         self.reset_choices()
         return undo_callback(self.set_multiscale).with_args(_old_bin_size)
 
@@ -792,7 +793,7 @@ class CylindraMainWidget(MagicTemplate):
             not be inverted even if the orientation is not aligned.
         {depth}
         """
-        binsize: int = self._layer_image.metadata["current_binsize"]
+        binsize: int = self._current_binsize
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         _new_orientations = tomo.infer_polarity(binsize=binsize, depth=depth)
@@ -1264,8 +1265,8 @@ class CylindraMainWidget(MagicTemplate):
                     lower, upper = pos - depth / 2, pos + depth / 2
                     pred = pl.col(Mole.position).is_between(lower, upper)
                     radii.append(mole.features.filter(pred)[Mole.radius].mean())
-                spl.localprops = spl.localprops.with_columns(
-                    pl.Series(H.radius, radii, dtype=pl.Float32)
+                spl.update_localprops(
+                    [pl.Series(H.radius, radii, dtype=pl.Float32)], depth
                 )
         return tracker.as_undo_callback()
 
@@ -1344,7 +1345,6 @@ class CylindraMainWidget(MagicTemplate):
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
                 yield _local_ft_analysis_on_yield(i)
-        self._current_ft_size = depth
         self._need_save = True
         return tracker.as_undo_callback()
 
@@ -2107,10 +2107,6 @@ class CylindraMainWidget(MagicTemplate):
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """
-        if self._current_ft_size is None:
-            raise ValueError(
-                "Local structural parameters have not been determined yet."
-            )
 
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
@@ -2121,9 +2117,7 @@ class CylindraMainWidget(MagicTemplate):
         paint_device = widget_utils.PaintDevice(
             self._layer_image.data.shape, self._layer_image.scale[-1]
         )
-        lbl = yield from paint_device.paint_cylinders(
-            self._current_ft_size, self.tomogram
-        )
+        lbl = yield from paint_device.paint_cylinders(self.tomogram, color_by)
 
         # Labels layer properties
         _id = "ID"
@@ -2430,7 +2424,7 @@ class CylindraMainWidget(MagicTemplate):
         if self._layer_highlight in viewer.layers:
             viewer.layers.remove(self._layer_highlight)
 
-        self._layer_image.metadata["current_binsize"] = bin_size
+        self._current_binsize = bin_size
         self.GeneralInfo._refer_tomogram(tomo)
 
         # update viewer dimensions

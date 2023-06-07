@@ -51,6 +51,7 @@ class SplineInfo(TypedDict, total=False):
     k: int
     u: list[float]
     lims: tuple[float, float]
+    localprops_window_size: dict[str, nm]
     extrapolate: str
 
 
@@ -86,19 +87,54 @@ class Spline(BaseComponent):
         self._extrapolate = ExtrapolationMode(extrapolate)
 
         self._lims = lims
-        self._localprops: pl.DataFrame = pl.DataFrame([])
-        self._globalprops: pl.DataFrame = pl.DataFrame([])
+        self._localprops_window_size = dict[str, nm]()
+        self._localprops = pl.DataFrame([])
+        self._globalprops = pl.DataFrame([])
 
     @property
     def localprops(self) -> pl.DataFrame:
         """Local properties of the spline."""
         return self._localprops
 
-    @localprops.setter
-    def localprops(self, df: pl.DataFrame):
-        if not isinstance(df, pl.DataFrame):
-            df = pl.DataFrame(df)
-        self._localprops = df
+    @property
+    def localprops_window_size(self) -> dict[str, nm]:
+        """Window size of local properties in nm."""
+        return self._localprops_window_size
+
+    def update_localprops(self, props: Any, window_size: nm | dict[str, nm]) -> Self:
+        """
+        Set local properties of given window size.
+
+        Parameters
+        ----------
+        props : DataFrame-like object
+            Local properties.
+        window_size : nm, optional
+            Window size of local properties in nm.
+        """
+        if not isinstance(props, pl.DataFrame):
+            df = pl.DataFrame(props)
+        else:
+            df = props
+
+        self._localprops = self._localprops.with_columns(df)
+        if isinstance(window_size, dict):
+            self._localprops_window_size.update(
+                {c: _pos_float(window_size[c]) for c in df.columns}
+            )
+        else:
+            ws = _pos_float(window_size)
+            self._localprops_window_size.update({c: ws for c in df.columns})
+        return self
+
+    def drop_localprops(self, keys: str | Iterable[str]) -> Self:
+        """Drop local properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        self._localprops = self._localprops.drop(keys)
+        for key in keys:
+            self._localprops_window_size.pop(key, None)
+        return self
 
     @property
     def globalprops(self) -> pl.DataFrame:
@@ -109,7 +145,16 @@ class Spline(BaseComponent):
     def globalprops(self, df: pl.DataFrame):
         if not isinstance(df, pl.DataFrame):
             df = pl.DataFrame(df)
+        if df.shape[0] > 1:
+            raise ValueError("Global properties must be a single row.")
         self._globalprops = df
+
+    def drop_globalprops(self, keys: str | Iterable[str]) -> Self:
+        """Drop global properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        self._globalprops = self._globalprops.drop(keys)
+        return self
 
     def get_localprops(self, key: str, default=_void) -> pl.Series:
         """
@@ -161,14 +206,14 @@ class Spline(BaseComponent):
         """True if there are any properties."""
         return len(self._localprops) > 0 or len(self._globalprops) > 0
 
-    def copy(self, copy_cache: bool = True) -> Self:
+    def copy(self, copy_props: bool = True) -> Self:
         """
         Copy Spline object.
 
         Parameters
         ----------
-        copy_cache : bool, default is True
-            Also copy cached properties if true.
+        copy_props : bool, default is True
+            Also copy local/global properties if true.
 
         Returns
         -------
@@ -180,9 +225,10 @@ class Spline(BaseComponent):
         new._u = self._u
         new._anchors = self._anchors
 
-        if copy_cache:
-            new.localprops = self.localprops.clone()
-            new.globalprops = self.globalprops.clone()
+        if copy_props:
+            new._localprops = self.localprops.clone()
+            new._globalprops = self.globalprops.clone()
+            new._localprops_window_size = self.localprops_window_size.copy()
 
         return new
 
@@ -284,13 +330,15 @@ class Spline(BaseComponent):
             )
             warnings.warn(msg, UserWarning)
         self._anchors = positions
-        self.localprops = None  # clear anchor specific properties
+        self._localprops = pl.DataFrame([])  # clear anchor specific properties
+        self._localprops_window_size.clear()
         return None
 
     @anchors.deleter
     def anchors(self) -> None:
         self._anchors = None
-        self.localprops = None  # clear anchor specific properties
+        self._localprops = pl.DataFrame([])  # clear anchor specific properties
+        self._localprops_window_size.clear()
         return None
 
     @property
@@ -846,6 +894,7 @@ class Spline(BaseComponent):
             "k": k,
             "u": u.tolist(),
             "lims": self._lims,
+            "localprops_window_size": self._localprops_window_size,
             "extrapolate": self._extrapolate.name,
         }
 
@@ -874,6 +923,7 @@ class Spline(BaseComponent):
         k = roundint(d["k"])
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
+        self._localprops_window_size = d.get("localprops_window_size", {})
         return self
 
     def affine_matrix(
@@ -1442,3 +1492,10 @@ def _linear_polar_mapping(output_coords, k_angle, k_radius, center):
     cc = ((output_coords[:, 0] / k_radius) * np.cos(angle)) + center[1]
     coords = np.column_stack((cc, rr))
     return coords
+
+
+def _pos_float(x: Any) -> float:
+    out = float(x)
+    if out < 0:
+        raise ValueError("Value must be positive.")
+    return out

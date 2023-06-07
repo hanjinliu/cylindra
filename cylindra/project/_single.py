@@ -6,7 +6,7 @@ from pydantic import BaseModel
 import polars as pl
 import numpy as np
 
-from cylindra.const import PropertyNames as H, get_versions
+from cylindra.const import IDName, PropertyNames as H, get_versions
 from ._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
@@ -34,7 +34,6 @@ class CylindraProject(BaseProject):
     image: PathLike
     scale: float
     multiscales: list[int]
-    current_ft_size: float
     splines: list[PathLike]
     localprops: Union[PathLike, None]
     globalprops: Union[PathLike, None]
@@ -137,7 +136,6 @@ class CylindraProject(BaseProject):
             image=as_relative(tomo.source),
             scale=tomo.scale,
             multiscales=[x[0] for x in tomo.multiscaled],
-            current_ft_size=gui._current_ft_size,
             splines=[as_relative(p) for p in spline_paths],
             localprops=as_relative(localprops_path),
             globalprops=as_relative(globalprops_path),
@@ -230,7 +228,6 @@ class CylindraProject(BaseProject):
             binsize=self.multiscales,
         )
 
-        gui._current_ft_size = self.current_ft_size
         gui._macro_offset = len(gui.macro)
 
         # load splines
@@ -295,7 +292,7 @@ class CylindraProject(BaseProject):
         localprops_path = self.localprops
         if localprops_path is not None:
             all_localprops = dict(
-                iter(pl.read_csv(localprops_path).groupby("SplineID"))
+                iter(pl.read_csv(localprops_path).groupby(IDName.spline))
             )
         else:
             all_localprops = {}
@@ -307,14 +304,14 @@ class CylindraProject(BaseProject):
             all_globalprops = {}
 
         for i, spl in enumerate(splines):
-            spl.localprops = all_localprops.get(i, None)
+            spl._localprops = all_localprops.get(i, pl.DataFrame([]))
             if spl.has_localprops([H.splDist, H.splPos]):
                 spl._anchors = np.asarray(spl.localprops[H.splPos])
-                spl.localprops.drop(["SplineID", "PosID"])
-            spl.globalprops = all_globalprops.get(i, None)
+                spl._localprops = spl.localprops.drop([IDName.spline, IDName.pos])
+            spl._globalprops = all_globalprops.get(i, pl.DataFrame([]))
 
-            spl.localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
-            spl.globalprops = spl.globalprops.with_columns(
+            spl._localprops = spl.localprops.with_columns(_get_casting(spl.localprops))
+            spl._globalprops = spl.globalprops.with_columns(
                 _get_casting(spl.globalprops)
             )
 

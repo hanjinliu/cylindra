@@ -602,7 +602,6 @@ class Runner(MagicTemplate):
             parent.paint_cylinders()
         if map_monomers:
             parent.map_monomers(orientation=GVar.clockwise)
-        parent._current_ft_size = ft_size
         return None
 
 
