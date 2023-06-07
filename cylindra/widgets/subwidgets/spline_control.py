@@ -154,7 +154,7 @@ class SplineControl(MagicTemplate):
         else:
             npf_list = [0] * spl.anchors.size
 
-        binsize = parent._layer_image.metadata["current_binsize"]
+        binsize = parent._current_binsize
         imgb = parent.tomogram.get_multiscale(binsize)
 
         length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
@@ -185,7 +185,7 @@ class SplineControl(MagicTemplate):
     def _update_canvas(self):
         parent = self._get_parent()
         tomo = parent.tomogram
-        binsize = parent._layer_image.metadata["current_binsize"]
+        binsize = parent._current_binsize
         i = self.num
         j = self.pos
         if i >= len(tomo.splines):
