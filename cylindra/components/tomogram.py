@@ -204,7 +204,9 @@ class Tomogram:
         ...
 
     @overload
-    def nm2pixel(self, value: Iterable[nm], binsize: int = 1) -> NDArray[np.floating]:
+    def nm2pixel(
+        self, value: Iterable[nm] | NDArray[np.number], binsize: int = 1
+    ) -> NDArray[np.intp]:
         ...
 
     def nm2pixel(self, value, binsize: int = 1):

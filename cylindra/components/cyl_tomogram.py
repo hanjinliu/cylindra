@@ -1428,27 +1428,11 @@ class CylTomogram(Tomogram):
     #   Utility functions
     #####################################################################################
 
-    def collect_anchor_coords(
-        self, i: int | Iterable[int] = None
-    ) -> NDArray[np.float32]:
-        """
-        Collect all the anchor coordinates into a single np.ndarray.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        np.ndarray
-            Coordinates in shape (N, 3).
-        """
-        if i is None:
-            i = range(self.n_splines)
-        elif isinstance(i, int):
-            i = [i]
-        return np.concatenate([self.splines[i_]() for i_ in i], axis=0)
+    def iter_anchor_coords(self) -> Iterable[NDArray[np.float32]]:
+        """Iterate over anchor coordinates of all splines."""
+        for i in range(self.n_splines):
+            coords = self.splines[i].map()
+            yield from coords
 
     def collect_localprops(
         self, i: int | Iterable[int] = None, allow_none: bool = True

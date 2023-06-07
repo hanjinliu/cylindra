@@ -117,14 +117,14 @@ def ft_params(
 @delayed
 def try_all_npf(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray):
     polar = get_polar_image(img, coords)
-    prof = ndi.spline_filter1d(
-        polar.proj("ry").value, output=np.float32, mode=Mode.wrap
-    )
+    prof = ndi.spline_filter(polar.proj("y").value, output=np.float32, mode=Mode.wrap)
     score = list[float]()
     npf_list = list(range(GVar.npf_min, GVar.npf_max + 1))
     for npf in npf_list:
-        single_shift = prof.size / npf
-        sum_img = prof + sum(ndi.shift(prof, single_shift * i) for i in range(1, npf))
+        single_shift = prof.shape[1] / npf
+        sum_img = prof + sum(
+            ndi.shift(prof, [0, single_shift * i]) for i in range(1, npf)
+        )
         avg: NDArray[np.float32] = sum_img / npf
         score.append(avg.max() - avg.min())
     return npf_list[np.argmax(score)]
