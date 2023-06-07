@@ -98,7 +98,7 @@ def test_viterbi_1d_upper_bound(scale, skew_max):
 
 
 @pytest.mark.parametrize("seed", [1, 12, 1234, 12345, 9999])
-@pytest.mark.parametrize("skew_max", [None, 3.14 / 2, 3.14 / 3])
+@pytest.mark.parametrize("skew_max", [None, 1.57, 1.047])  # None, pi/2, pi/3
 def test_viterbi_1d_distance(seed: int, skew_max):
     n = 4
     dist_min, dist_max = 2 * np.sqrt(3), 7 * np.sqrt(3)

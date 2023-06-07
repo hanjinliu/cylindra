@@ -266,7 +266,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
     @Header.wraps
     @set_design(text="✕", max_width=36)
-    def remove_loader(self, loader_name: Bound[_get_current_loader_name]):
+    def remove_loader(
+        self, loader_name: Annotated[str, {"bind": _get_current_loader_name}]
+    ):
         """Remove this loader"""
         loaderlist = self._get_parent()._loaders
         del loaderlist[loader_name]
@@ -284,8 +286,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @set_design(text="Split loader")
     def split_loader(
         self,
-        loader_name: Bound[_get_current_loader_name],
-        by: OneOf[_get_selected_loader_choice],
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
+        by: Annotated[str, {"choices": _get_selected_loader_choice}],
         delete_old: bool = False,
     ):
         parent = self._get_parent()
@@ -320,7 +322,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @set_design(text="Filter loader")
     def filter_loader(
         self,
-        loader_name: Bound[_get_current_loader_name],
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         expression: ExprStr.In[POLARS_NAMESPACE],
     ):
         """
@@ -364,7 +366,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all(
         self,
-        loader_name: Bound[_get_current_loader_name],
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         size: _SubVolumeSize = None,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: _BINSIZE = 1,
@@ -391,7 +393,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Aligning all molecules")
     def align_all(
         self,
-        loader_name: Bound[_get_current_loader_name],
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         tilt_range: Bound[params.tilt_range] = None,
@@ -440,7 +442,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Calculating FSC")
     def calculate_fsc(
         self,
-        loader_name: Bound[_get_current_loader_name],
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -540,7 +542,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @dask_thread_worker.with_progress(descs=_classify_pca_fmt)
     def classify_pca(
         self,
-        loader_name: Bound[_get_current_loader_name],
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         mask_params: Bound[params._get_mask_params],
         size: Annotated[
             Optional[nm],

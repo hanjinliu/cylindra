@@ -181,28 +181,6 @@ class SplineSlicer(MagicTemplate):
             self.canvas.contrast_limits = (img.min(), img.max())
         return None
 
-    def _show_global_r_proj(self):
-        """Show radial projection of cylindrical image along current spline."""
-        i = self.controller.spline_id
-        polar = self.parent.tomogram.straighten_cylindric(i).proj("r")
-        self.canvas.image = polar.value
-        self.canvas.text_overlay.update(
-            visible=True, text=f"{i}-global", color="magenta"
-        )
-        return None
-
-    def _show_global_ft(self, i: int):
-        """View Fourier space along current spline."""
-        polar = self.parent.tomogram.straighten_cylindric(i)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
-        pw[:] = pw / pw.max()
-
-        self.canvas.image = pw.value
-        self.canvas.text_overlay.update(
-            visible=True, text=f"{i}-global", color="magenta"
-        )
-        return None
-
     def _current_cartesian_img(
         self, idx: int, pos: nm, depth: nm
     ) -> "ip.ImgArray | Exception":

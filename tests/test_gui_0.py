@@ -72,6 +72,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     old_splines = ui.tomogram.splines.copy()
     old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
     ui.save_project(save_path)
+    ui.overwrite_project()
     ui.load_project(save_path, filter="DoG")
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
@@ -135,14 +136,14 @@ def test_spline_deletion(ui: CylindraMainWidget):
     ui.delete_spline(0)
     assert ui._layer_prof.features["spline-id"].values[0] == 0.0
     assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
-    ui.macro.undo()
+    ui.toolbar.undo()
     assert ui._layer_prof.features["spline-id"].values[0] == 0.0
     assert ui._layer_prof.features["spline-id"].values[-1] == 1.0
-    ui.macro.undo()
+    ui.toolbar.undo()
     assert ui._layer_prof.features["spline-id"].values[0] == 0.0
     assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
-    ui.macro.redo()
-    ui.macro.redo()
+    ui.toolbar.redo()
+    ui.toolbar.redo()
     assert ui._layer_prof.features["spline-id"].values[0] == 0.0
     assert ui._layer_prof.features["spline-id"].values[-1] == 0.0
 
@@ -156,8 +157,6 @@ def test_workflow_with_many_input(ui: CylindraMainWidget):
     ui._runner.run([0], global_props=False, map_monomers=False)  # no globalprops
 
     # toggle many widgets to check if they are working
-    ui._runner.all_splines = False
-    ui._runner.all_splines = True
     ui._runner.fit = False
     ui._runner.fit = True
     ui._runner.local_props = False
@@ -199,6 +198,24 @@ def test_map_molecules(ui: CylindraMainWidget):
     ui.macro.redo()
     ui.macro.redo()
     ui.macro.redo()
+
+
+def test_napari_operations(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
+    name = ui.parent_viewer.layers[-1].name
+    del ui.parent_viewer.layers[-1]
+    assert str(ui.macro[-1]) == f"del ui.parent_viewer.layers[{name!r}]"
+    ui.macro.undo()
+    assert not str(ui.macro[-1]).startswith("del ")
+
+
+def test_load_macro(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fp = Path(tmpdir) / "test_macro.py"
+        fp.write_text("print(0)")
+        ui.load_macro_file(fp)
+        ui.run_workflow(fp)
 
 
 def test_spline_switch(ui: CylindraMainWidget):
@@ -385,8 +402,11 @@ def test_slicer(ui: CylindraMainWidget):
     ui.ImageMenu.open_slicer()
     ui.spline_slicer.refresh_widget_state()
     ui.spline_slicer.show_what = "CFT"
+    ui.spline_slicer._update_canvas()
     ui.spline_slicer.show_what = "R-projection"
+    ui.spline_slicer._update_canvas()
     ui.spline_slicer.show_what = "Y-projection"
+    ui.spline_slicer._update_canvas()
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -409,8 +429,10 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
 
     with tempfile.TemporaryDirectory() as dirpath:
-        molepath = Path(dirpath) / "monomers.txt"
+        dirpath = Path(dirpath)
+        molepath = dirpath / "monomers.txt"
         ui.save_molecules(layer=ui.parent_viewer.layers["Mono-0"], save_path=molepath)
+        ui.save_spline(0, dirpath / "spline-x.json")
         mole = ui.get_molecules("Mono-0")
         ui.load_molecules(molepath)
         mole_read = ui.get_molecules("monomers")

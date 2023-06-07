@@ -332,6 +332,7 @@ class CylindraMainWidget(MagicTemplate):
         macro = self._load_macro_file(path)
         edit = self.macro.widget.new_window(path.name)
         edit.textedit.value = str(macro)
+        self._active_widgets.add(edit)
         return None
 
     @Others.wraps
