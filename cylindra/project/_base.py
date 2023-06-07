@@ -61,7 +61,7 @@ class BaseProject(BaseModel):
         return None
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.project_path})"
+        return f"{type(self).__name__}({self.project_path!r})"
 
     @classmethod
     def from_json(cls, path: str):
