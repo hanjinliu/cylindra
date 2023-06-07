@@ -34,7 +34,6 @@ class CylindraProject(BaseProject):
     image: PathLike
     scale: float
     multiscales: list[int]
-    current_ft_size: float
     splines: list[PathLike]
     localprops: Union[PathLike, None]
     globalprops: Union[PathLike, None]
@@ -137,7 +136,6 @@ class CylindraProject(BaseProject):
             image=as_relative(tomo.source),
             scale=tomo.scale,
             multiscales=[x[0] for x in tomo.multiscaled],
-            current_ft_size=gui._current_ft_size,
             splines=[as_relative(p) for p in spline_paths],
             localprops=as_relative(localprops_path),
             globalprops=as_relative(globalprops_path),
@@ -230,7 +228,6 @@ class CylindraProject(BaseProject):
             binsize=self.multiscales,
         )
 
-        gui._current_ft_size = self.current_ft_size
         gui._macro_offset = len(gui.macro)
 
         # load splines

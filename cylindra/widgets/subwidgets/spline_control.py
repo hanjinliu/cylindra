@@ -221,10 +221,10 @@ class SplineControl(MagicTemplate):
             return None
         lz, ly, lx = np.array(proj.shape)
 
-        if parent._current_ft_size is None:
+        if spl.localprops_window_size is None:
             ylen = 25 / binsize / tomo.scale
         else:
-            ylen = parent._current_ft_size / 2 / binsize / tomo.scale
+            ylen = spl.localprops_window_size / 2 / binsize / tomo.scale
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5

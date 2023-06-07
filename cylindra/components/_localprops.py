@@ -117,7 +117,9 @@ def ft_params(
 @delayed
 def try_all_npf(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray):
     polar = get_polar_image(img, coords)
-    prof = ndi.spline_filter(polar.proj("y").value, output=np.float32, mode=Mode.wrap)
+    prof: NDArray[np.float32] = ndi.spline_filter(
+        polar.proj("y").value, output=np.float32, mode=Mode.wrap
+    )
     score = list[float]()
     npf_list = list(range(GVar.npf_min, GVar.npf_max + 1))
     for npf in npf_list:

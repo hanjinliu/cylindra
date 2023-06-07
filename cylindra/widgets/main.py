@@ -177,7 +177,6 @@ class CylindraMainWidget(MagicTemplate):
 
     def __init__(self):
         self._tomogram: CylTomogram = None
-        self._current_ft_size: nm = 50.0
         self._tilt_range: "tuple[float, float] | None" = None
         self._layer_image: Image = None
         self._layer_prof: Points = None
@@ -1264,8 +1263,8 @@ class CylindraMainWidget(MagicTemplate):
                     lower, upper = pos - depth / 2, pos + depth / 2
                     pred = pl.col(Mole.position).is_between(lower, upper)
                     radii.append(mole.features.filter(pred)[Mole.radius].mean())
-                spl.localprops = spl.localprops.with_columns(
-                    pl.Series(H.radius, radii, dtype=pl.Float32)
+                spl.update_localprops(
+                    [pl.Series(H.radius, radii, dtype=pl.Float32)], depth
                 )
         return tracker.as_undo_callback()
 
@@ -1344,7 +1343,6 @@ class CylindraMainWidget(MagicTemplate):
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
                 yield _local_ft_analysis_on_yield(i)
-        self._current_ft_size = depth
         self._need_save = True
         return tracker.as_undo_callback()
 
@@ -2107,10 +2105,6 @@ class CylindraMainWidget(MagicTemplate):
         2. Map the masks to the reference image.
         3. Erase masks using reference image, based on intensity.
         """
-        if self._current_ft_size is None:
-            raise ValueError(
-                "Local structural parameters have not been determined yet."
-            )
 
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
@@ -2121,9 +2115,7 @@ class CylindraMainWidget(MagicTemplate):
         paint_device = widget_utils.PaintDevice(
             self._layer_image.data.shape, self._layer_image.scale[-1]
         )
-        lbl = yield from paint_device.paint_cylinders(
-            self._current_ft_size, self.tomogram
-        )
+        lbl = yield from paint_device.paint_cylinders(self.tomogram, color_by)
 
         # Labels layer properties
         _id = "ID"
