@@ -794,7 +794,7 @@ class CylindraMainWidget(MagicTemplate):
             not be inverted even if the orientation is not aligned.
         {depth}
         """
-        binsize: int = self._current_binsize
+        binsize: int = self._current_binsize  # TODO: provide from arguments?
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         _new_orientations = tomo.infer_polarity(binsize=binsize, depth=depth)
@@ -2367,6 +2367,7 @@ class CylindraMainWidget(MagicTemplate):
         viewer = self.parent_viewer
         self._tomogram = tomo
         bin_size = max(x[0] for x in tomo.multiscaled)
+        self._current_binsize = bin_size
         imgb = tomo.get_multiscale(bin_size)
         tr = tomo.multiscale_translation(bin_size)
         name = f"{imgb.name} (bin {bin_size})"
@@ -2389,7 +2390,6 @@ class CylindraMainWidget(MagicTemplate):
         if self._layer_highlight in viewer.layers:
             viewer.layers.remove(self._layer_highlight)
 
-        self._current_binsize = bin_size
         self.GeneralInfo._refer_tomogram(tomo)
 
         # update viewer dimensions
