@@ -1471,11 +1471,7 @@ class CylTomogram(Tomogram):
                 if not allow_none:
                     raise ValueError(f"Global properties of spline {i_} is missing.")
                 continue
-            props.append(
-                prop.with_columns(
-                    pl.Series(IDName.spline, [i_]),
-                )
-            )
+            props.append(prop.with_columns(pl.Series(IDName.spline, [i_])))
 
         if len(props) == 0:
             return None

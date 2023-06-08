@@ -6,8 +6,8 @@ from pydantic import BaseModel
 import polars as pl
 import numpy as np
 
-from cylindra.const import IDName, PropertyNames as H, get_versions
-from ._base import BaseProject, PathLike, resolve_path
+from cylindra.const import IDName, PropertyNames as H, get_versions, cast_dataframe
+from cylindra.project._base import BaseProject, PathLike, resolve_path
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -301,8 +301,8 @@ class CylindraProject(BaseProject):
         for c in [IDName.spline, IDName.pos]:
             if c in _loc.columns:
                 _loc = _loc.drop(c)
-        spl._localprops = _loc.with_columns(_get_casting(_loc))
-        spl._globalprops = _glob.with_columns(_get_casting(_glob))
+        spl._localprops = cast_dataframe(_loc)
+        spl._globalprops = cast_dataframe(_glob)
 
         return spl
 
@@ -365,18 +365,6 @@ class CylindraProject(BaseProject):
     def nmolecules(self) -> int:
         """Number of molecules in the project."""
         return len(self.molecules)
-
-
-def _get_casting(df: pl.DataFrame):
-    out = []
-    for cname in df.columns:
-        if cname == H.nPF:
-            out.append(pl.col(cname).cast(pl.UInt8))
-        elif cname == H.orientation:
-            out.append(pl.col(cname).cast(pl.Utf8))
-        else:
-            out.append(pl.col(cname).cast(pl.Float32))
-    return out
 
 
 def _get_instance(gui: "CylindraMainWidget | None" = None):

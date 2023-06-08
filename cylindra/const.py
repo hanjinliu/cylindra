@@ -3,6 +3,7 @@ from enum import Enum
 from types import SimpleNamespace
 
 from psygnal import EventedModel
+import polars as pl
 
 nm = float  # type alias for nanometer
 pf = float  # type alias for protofilament numbering
@@ -113,9 +114,7 @@ class MoleculesHeader(SimpleNamespace):
     interval = "interval-nm"  # interval between two molecules
     skew = "skew-deg"  # skew angle between two molecules
     radius = "radius-nm"  # distance between the molecule and the spline
-    lateral_angle = (
-        "lateral-angle-deg"  # lateral angle between the molecule and the spline
-    )
+    lateral_angle = "lateral-angle-deg"  # lateral angle between molecules
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"
     image = "image-id"
@@ -233,3 +232,22 @@ class ImageFilter(Enum):
     Gaussian = "Gaussian"
     DoG = "DoG"
     LoG = "LoG"
+
+
+_POLARS_DTYPES = {
+    PropertyNames.nPF: pl.UInt8,
+    PropertyNames.orientation: pl.Utf8,
+    IDName.spline: pl.UInt16,
+    MoleculesHeader.image: pl.UInt16,
+}
+
+
+def cast_dataframe(df: pl.DataFrame) -> pl.DataFrame:
+    """Cast the dataframe to the appropriate dtype based on the columns."""
+    out = list[pl.Expr]()
+    for cname in df.columns:
+        if dtype := _POLARS_DTYPES.get(cname, None):
+            out.append(pl.col(cname).cast(dtype))
+        elif df[cname].dtype in pl.FLOAT_DTYPES:
+            out.append(pl.col(cname).cast(pl.Float32))
+    return df.with_columns(out)

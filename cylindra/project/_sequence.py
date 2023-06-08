@@ -22,8 +22,9 @@ from cylindra.const import (
     MoleculesHeader as Mole,
     IDName,
     PropertyNames as H,
+    cast_dataframe,
 )
-from ._single import CylindraProject
+from cylindra.project._single import CylindraProject
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -203,19 +204,19 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             path = prj.localprops
-            if path is None:
-                if not allow_none:
-                    raise ValueError(
-                        f"Localprops not found in project at {prj.project_path}."
-                    )
+            if path is None and not allow_none:
+                raise ValueError(
+                    f"Localprops not found in project at {prj.project_path}."
+                )
             else:
                 df = pl.read_csv(path)
                 dataframes.append(
                     df.with_columns(
-                        pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)
+                        pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image),
+                        pl.col(IDName.spline).cast(pl.UInt16),
                     )
                 )
-        return pl.concat(dataframes, how="diagonal")
+        return cast_dataframe(pl.concat(dataframes, how="diagonal"))
 
     def collect_globalprops(
         self, allow_none: bool = True, suffix: str = ""
