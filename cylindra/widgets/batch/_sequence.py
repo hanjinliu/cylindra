@@ -24,7 +24,7 @@ import impy as ip
 import polars as pl
 
 from cylindra.project import CylindraProject, get_project_json
-from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole, IDName
+from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter
 from ._localprops import LocalPropsViewer
@@ -189,10 +189,10 @@ class Project(MagicTemplate):
         for mole_path in project.molecules:
             self.molecules._add_path(mole_path)
 
-        self.margins = (0, 0, 0, 0)
         return self
 
     @nogui
+    @do_not_record
     def get_loader(self, order: int = 3) -> SubtomogramLoader:
         project = CylindraProject.from_json(self.path)
         molecules = [mole._get_molecules() for mole in self.molecules if mole.check]
