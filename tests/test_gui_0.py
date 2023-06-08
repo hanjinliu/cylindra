@@ -67,6 +67,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui._runner.run(interval=24.0)
     ui.auto_align_to_polarity(align_to="MinusToPlus")
     ui.map_monomers(splines=[0, 1])
+    ui.measure_local_radius(splines=[0, 1])
 
     # Save project
     old_splines = ui.tomogram.splines.copy()
@@ -150,11 +151,19 @@ def test_spline_deletion(ui: CylindraMainWidget):
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui._runner.run([0], max_shift=-1)  # no fit
-    ui._runner.run([0], n_refine=0)  # no refine
-    ui._runner.run([0], max_shift=-1, n_refine=0)  # no fit/refine
-    ui._runner.run([0], local_props=False, paint=False)  # no localprops
-    ui._runner.run([0], global_props=False, map_monomers=False)  # no globalprops
+    exc_group = ExceptionGroup()
+    with exc_group.merging():
+        ui._runner.run([0], max_shift=-1)  # no fit
+    with exc_group.merging():
+        ui._runner.run([0], n_refine=0)  # no refine
+    with exc_group.merging():
+        ui._runner.run([0], max_shift=-1, n_refine=0)  # no fit/refine
+    with exc_group.merging():
+        ui._runner.run([0], local_props=False, paint=False)  # no localprops
+    with exc_group.merging():
+        ui._runner.run([0], global_props=False, map_monomers=False)  # no globalprops
+
+    exc_group.raise_exceptions()
 
     # toggle many widgets to check if they are working
     ui._runner.fit = False
@@ -312,7 +321,7 @@ def test_spline_switch(ui: CylindraMainWidget):
 
 
 def test_set_label_colormaps(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.set_colormap(color_by="skewAngle", cmap="viridis", limits=(-1, 1))
 
 
@@ -372,7 +381,7 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer
 
-    tester = mcls_testing.FunctionGuiTester(ui.load_project_for_reanalysis, paint=False)
+    tester = mcls_testing.FunctionGuiTester(ui.load_project_for_reanalysis)
     tester.update_parameters(path=PROJECT_DIR_13PF)
     tester.click_preview()
 
@@ -382,7 +391,7 @@ def test_preview(ui: CylindraMainWidget):
     )
     tester.click_preview()
 
-    tester = mcls_testing.FunctionGuiTester(ui.load_project, paint=False)
+    tester = mcls_testing.FunctionGuiTester(ui.load_project)
     tester.update_parameters(path=PROJECT_DIR_13PF)
     tester.click_preview()
 

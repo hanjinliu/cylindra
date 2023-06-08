@@ -248,7 +248,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
-        out = pl.concat(dataframes, how="diagonal")
+        out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         if suffix:
             need_rename = [H.spacing, H.skew, H.nPF, H.rise, H.radius]
             out = out.rename(
@@ -291,8 +291,8 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         pl.DataFrame
             Dataframe with all the properties.
         """
-        loc = self.localprops(allow_none=allow_none)
-        glb = self.globalprops(allow_none=allow_none)
+        loc = self.collect_localprops(allow_none=allow_none)
+        glb = self.collect_globalprops(allow_none=allow_none)
         key = [IDName.spline, Mole.image]
         return loc.join(glb, on=key, suffix="_glob")
 

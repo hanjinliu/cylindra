@@ -594,7 +594,7 @@ class Runner(MagicTemplate):
                 splines=splines, interval=interval, depth=ft_size, bin_size=bin_size
             )
         if infer_polarity:
-            parent.auto_align_to_polarity()
+            parent.auto_align_to_polarity(bin_size=bin_size)
         if global_props:
             parent.global_ft_analysis(splines=splines, bin_size=bin_size)
         if local_props and paint:

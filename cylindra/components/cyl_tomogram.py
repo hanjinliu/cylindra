@@ -1441,12 +1441,11 @@ class CylTomogram(Tomogram):
 
         if len(props) == 0:
             return None
-
-        return pl.concat(props, how="vertical")
+        return pl.concat(props, how="diagonal")
 
     def collect_globalprops(
         self, i: int | Iterable[int] = None, allow_none: bool = True
-    ) -> pl.DataFrame:
+    ) -> pl.DataFrame | None:
         """
         Collect all the global properties into a single polars.DataFrame.
 

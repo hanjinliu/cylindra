@@ -1,6 +1,5 @@
 import os
-from turtle import color
-from typing import Annotated, TYPE_CHECKING, Callable, Literal, Union
+from typing import Annotated, TYPE_CHECKING, Literal, Union
 import warnings
 from weakref import WeakSet
 
@@ -777,6 +776,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         align_to: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Automatically detect the polarities and align if necessary.
@@ -792,12 +792,11 @@ class CylindraMainWidget(MagicTemplate):
         align_to : Ori, optional
             To which direction splines will be aligned. If not given, splines will
             not be inverted even if the orientation is not aligned.
-        {depth}
+        {depth}{bin_size}
         """
-        binsize: int = self._current_binsize  # TODO: provide from arguments?
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
-        _new_orientations = tomo.infer_polarity(binsize=binsize, depth=depth)
+        _new_orientations = tomo.infer_polarity(binsize=bin_size, depth=depth)
         for i in range(len(tomo.splines)):
             spl = tomo.splines[i]
             spl.orientation = _new_orientations[i]
