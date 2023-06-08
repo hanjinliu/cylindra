@@ -30,10 +30,11 @@ import impy as ip
 from cylindra.components.cyl_spline import CylSpline
 from cylindra.components.tomogram import Tomogram
 from cylindra.components._localprops import (
-    try_all_npf,
     ft_params,
     polar_ft_params,
     LocalParams,
+    get_polar_image,
+    mask_spectra,
 )
 from cylindra.const import (
     nm,
@@ -866,13 +867,7 @@ class CylTomogram(Tomogram):
                 coords = spl_trans.local_cylindrical(
                     (rmin, rmax), ylen, anc, scale=_scale
                 )
-                polar = map_coordinates(
-                    input_img, coords, order=3, mode=Mode.constant, cval=np.mean
-                )
-                # "rya" = radius, y, angle
-                polar = ip.asarray(polar, axes="rya", dtype=np.float32)
-                polar.set_scale(r=_scale, y=_scale, a=_scale)
-                polar.scale_unit = self.image.scale_unit
+                polar = get_polar_image(input_img, coords)
                 polar[:] -= np.mean(polar)
                 out.append(polar.fft(dims="rya"))
 
@@ -964,7 +959,14 @@ class CylTomogram(Tomogram):
         return img_st.fft(dims="rya")
 
     @batch_process
-    def infer_polarity(self, i: int = None, binsize: int = 1, depth: nm = 40) -> Ori:
+    def infer_polarity(
+        self,
+        i: int = None,
+        *,
+        binsize: int = 1,
+        depth: nm = 40,
+        mask_freq: bool = True,
+    ) -> Ori:
         """
         Infer spline polarities using polar 2D image.
 
@@ -1008,10 +1010,12 @@ class CylTomogram(Tomogram):
                 ),
                 self.nm2pixel(spl.radius + GVar.thickness_outer, binsize=binsize),
             )
-        point = 0.5
+        point = 0.5  # the sampling point
         coords = spl.local_cylindrical(r_range, depth_px, point, scale=current_scale)
-        mapped = map_coordinates(imgb, coords, order=1, mode=Mode.reflect)
-        img_flat = ip.asarray(mapped, axes="rya").proj("y")
+        polar = get_polar_image(imgb, coords, order=1)
+        if mask_freq:
+            polar = mask_spectra(polar)
+        img_flat = polar.proj("y")
 
         if (npf := spl.get_globalprops(H.nPF, None)) is None:
             # if the global properties are already calculated, use it
