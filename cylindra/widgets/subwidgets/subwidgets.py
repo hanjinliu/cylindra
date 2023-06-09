@@ -108,7 +108,6 @@ class Image(ChildWidget):
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
     backpaint_molecule_density = abstractapi()
-    set_colormap = abstractapi()
     show_colorbar = abstractapi()
 
 

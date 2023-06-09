@@ -49,6 +49,9 @@ _PARAMETERS = [
     Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),
     Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself. Lowpass: butterworth low-pass filter. Gaussian: Gaussian blur. DoG: difference of Gaussian. LoG: Laplacian of Gaussian."),
     Parameter(name="inherit_source", type="bool", desc="If True and the input molecules layer has its spline source, the new layer will inherit it."),
+    Parameter(name="color_by", type="str", desc="Name of the feature to paint by."),
+    Parameter(name="cmap", type="colormap", desc="Colormap to be used for painting."),
+    Parameter(name="limits", type="(float, float)", desc="Lower and upper limits of the colormap."),
 ]
 # fmt: on
 

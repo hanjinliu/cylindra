@@ -1783,13 +1783,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layer}
-        color_by : str
-            Name of the feature to paint by.
-        cmap : ColormapType, default is "hot"-like colormap
-            Colormap to use for painting.
-        limits : tuple of float
-            Limits for the colormap.
+        {layer}{color_by}{cmap}{limits}
         """
         layer.set_colormap(color_by, limits, cmap)
         info = layer.colormap_info
@@ -2067,11 +2061,10 @@ class CylindraMainWidget(MagicTemplate):
         """
         Paint cylinder fragments by its local properties.
 
-        1. Prepare small boxes and make masks inside them.
-        2. Map the masks to the reference image.
-        3. Erase masks using reference image, based on intensity.
+        Parameters
+        ----------
+        {color_by}{cmap}{limits}
         """
-
         color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
         all_df = tomo.collect_localprops()
@@ -2179,28 +2172,6 @@ class CylindraMainWidget(MagicTemplate):
                 return out
 
         return _on_return
-
-    @ImageMenu.wraps
-    @set_design(text="Set colormap")
-    def set_colormap(
-        self,
-        color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.nPF, H.rise]}] = H.spacing,
-        cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
-    ):  # fmt: skip
-        """
-        Set the color-map for painting cylinders.
-
-        Parameters
-        ----------
-        color_by : str, default is "yPitch"
-            Select what property image will be colored by.
-        cmap : colormap type, default is "hot"-like colormap
-            Linear colormap input.
-        limits : tuple, default is (4.00, 4.24)
-            Color limits (nm).
-        """
-        return self._layer_paint.set_colormap(color_by, limits, cmap)
 
     @ImageMenu.wraps
     @set_design(text="Show colorbar")
