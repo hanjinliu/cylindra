@@ -2,25 +2,13 @@ from __future__ import annotations
 
 from typing import NamedTuple
 import numpy as np
-from numpy.typing import NDArray
 import impy as ip
 import polars as pl
-from scipy import ndimage as ndi
-from dask import delayed
 from cylindra.const import nm, PropertyNames as H, GlobalVariables as GVar, Mode
 from cylindra.components._peak import PeakDetector
 from cylindra.components.cyl_spline import rise_to_start
 
-from cylindra.utils import (
-    map_coordinates,
-    ceilint,
-    roundint,
-)
-
-
-def tandg(x):
-    """Tangent in degree."""
-    return np.tan(np.deg2rad(x))
+from cylindra.utils import map_coordinates, ceilint, roundint
 
 
 class LocalParams(NamedTuple):
@@ -65,14 +53,10 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
     # +--------------------> a-axis
 
     # First transform around the expected length of y-pitch.
-    ylength_nm = img.shape.y * img.scale.y
     npfrange = ceilint(npfmax / 2)
 
     peakv = peak_det.get_peak(
-        range_y=(
-            ceilint(ylength_nm / GVar.spacing_max) - 1,
-            ceilint(ylength_nm / GVar.spacing_min),
-        ),
+        range_y=get_yrange(img),
         range_a=(-npfrange, npfrange + 1),
         up_y=max(int(6000 / img.shape.y), 1),
         up_a=20,
@@ -90,7 +74,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
             ceilint(np.tan(np.deg2rad(GVar.skew_min)) * y_factor * npfmin) - 1,
             ceilint(np.tan(np.deg2rad(GVar.skew_max)) * y_factor * npfmax),
         ),
-        range_a=(npfmin, npfmax),
+        range_a=get_arange(img),
         up_y=max(int(21600 / img.shape.y), 1),
         up_a=20,
     )
@@ -114,26 +98,34 @@ def ft_params(
     return polar_ft_params(get_polar_image(img, coords), radius)
 
 
-@delayed
-def try_all_npf(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray):
-    polar = get_polar_image(img, coords)
-    prof: NDArray[np.float32] = ndi.spline_filter(
-        polar.proj("y").value, output=np.float32, mode=Mode.wrap
-    )
-    score = list[float]()
-    npf_list = list(range(GVar.npf_min, GVar.npf_max + 1))
-    for npf in npf_list:
-        single_shift = prof.shape[1] / npf
-        sum_img = prof + sum(
-            ndi.shift(prof, [0, single_shift * i]) for i in range(1, npf)
-        )
-        avg: NDArray[np.float32] = sum_img / npf
-        score.append(avg.max() - avg.min())
-    return npf_list[np.argmax(score)]
-
-
-def get_polar_image(img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray):
-    polar = map_coordinates(img, coords, order=3, mode=Mode.constant, cval=np.mean)
+def get_polar_image(
+    img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, order: int = 3
+):
+    polar = map_coordinates(img, coords, order=order, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
     polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x, unit=img.scale_unit)
     return polar
+
+
+def get_yrange(img: ip.ImgArray) -> tuple[int, int]:
+    """Get the range of y-axis in the polar image."""
+    ylength_nm = img.shape.y * img.scale.y
+    return (
+        ceilint(ylength_nm / GVar.spacing_max) - 1,
+        ceilint(ylength_nm / GVar.spacing_min),
+    )
+
+
+def get_arange(img: ip.ImgArray) -> tuple[int, int]:
+    """Get the range of a-axis in the polar image."""
+    return GVar.npf_min, GVar.npf_max + 1
+
+
+def mask_spectra(polar: ip.ImgArray) -> ip.ImgArray:
+    """Mask the spectra of the polar image."""
+    polar_ft = polar.fft(shift=False, dims="rya")
+    mask = ip.zeros(polar.shape, dtype=np.bool_, axes="rya")
+    mask[ip.slicer.y[slice(*get_yrange(polar))]] = True
+    mask[ip.slicer.a[slice(*get_arange(polar))]] = True
+    polar_ft[~mask] = 0.0
+    return polar_ft.ifft(shift=False, dims="rya")
