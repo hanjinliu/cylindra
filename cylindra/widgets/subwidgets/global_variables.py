@@ -11,13 +11,15 @@ from magicclass import (
 )
 from magicclass.utils import show_messagebox
 from magicclass.types import Path
-
+from magicclass.logging import getLogger
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra.const import nm, GlobalVariables as GVar
 from cylindra import _config
 
+_Logger = getLogger("cylindra")
 
-@magicmenu(name="Global variables ...")
+
+@magicmenu(name="Global variables ...", record=False)
 class GlobalVariablesMenu(MagicTemplate):
     def _get_file_names(self, *_) -> list[str]:
         try:
@@ -88,7 +90,7 @@ class GlobalVariablesMenu(MagicTemplate):
         return GVar.update(loc)
 
     @nogui
-    def load_variables(self, path):
+    def load_variables(self, path: "Path | str"):
         """Load global variables from a Json file."""
         with open(path) as f:
             gvar: dict = json.load(f)
@@ -113,6 +115,7 @@ class GlobalVariablesMenu(MagicTemplate):
             )
 
         GVar.update(gvar)
+        _Logger.print(f"Global variables are set to:\n{Path(path).as_posix()}")
         return None
 
     @set_design(text="Load variables")
@@ -123,16 +126,6 @@ class GlobalVariablesMenu(MagicTemplate):
         """Load global variables from one of the saved Json files."""
         path = _config.VAR_PATH / f"{var_name}.json"
         self.load_variables(path)
-        return None
-
-    @impl_preview(load_variables_by_name)
-    def _(self, var_name: str):
-        from cylindra.widgets._previews import view_text
-        from cylindra.widgets import CylindraMainWidget
-
-        path = _config.VAR_PATH / f"{var_name}.json"
-        wdt = view_text(path, parent=self)
-        self.find_ancestor(CylindraMainWidget)._active_widgets.add(wdt)
         return None
 
     @set_design(text="Save variables")
@@ -152,3 +145,14 @@ class GlobalVariablesMenu(MagicTemplate):
 
         self.load_variables_by_name(js[_config.DEFAULT_VARIABLES])
         return None
+
+
+@impl_preview(GlobalVariablesMenu.load_variables_by_name)
+def _(self: GlobalVariablesMenu, var_name: str):
+    from cylindra.widgets._previews import view_text
+    from cylindra.widgets import CylindraMainWidget
+
+    path = _config.VAR_PATH / f"{var_name}.json"
+    wdt = view_text(path, parent=self)
+    self.find_ancestor(CylindraMainWidget)._active_widgets.add(wdt)
+    return None

@@ -45,7 +45,7 @@ class CylindraToolbar(MagicTemplate):
             Maximum shift (nm) to search in auto picking.
         """
 
-        interval = vfield(50.0, widget_type="FloatSlider").with_options(min=10, max=100)  # fmt: skip
+        interval = vfield(80.0, widget_type="FloatSlider").with_options(min=10, max=1000)  # fmt: skip
         max_angle = vfield(12.0, widget_type="FloatSlider").with_options(min=1.0, max=40.0, step=0.5)  # fmt: skip
         angle_step = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip
         max_shifts = vfield(20.0).with_options(min=1.0, max=50.0, step=0.5)

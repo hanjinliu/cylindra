@@ -2620,6 +2620,24 @@ class CylindraMainWidget(MagicTemplate):
         get_function_gui(self.map_along_pf)["orientation"].value = GVar.clockwise
         get_function_gui(self.map_centers)["orientation"].value = GVar.clockwise
 
+        if self._global_variable_change_may_affect() and self.parent_viewer:
+            msg_color = "yellow" if self.parent_viewer.theme == "dark" else "red"
+            _Logger.print_html(
+                f'<font color="{msg_color}"><b>'
+                "WARNING: Global variables changed in the process."
+                "</b></font>"
+            )
+
+    def _global_variable_change_may_affect(self) -> bool:
+        """Return true if global variable change may affect the analysis."""
+        if self._macro_offset >= len(self.macro):
+            return False
+        _cur_macro = self.macro[-self._macro_offset :]
+        _filt_macro = _filter_macro_for_reanalysis(_cur_macro, mk.symbol(self))
+        if _filt_macro.args[-1].head is mk.Head.comment:
+            return True
+        return False
+
 
 ############################################################################################
 #   Other helper functions

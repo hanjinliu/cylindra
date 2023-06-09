@@ -320,11 +320,6 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
 
 
-def test_set_label_colormaps(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.set_colormap(color_by="skewAngle", cmap="viridis", limits=(-1, 1))
-
-
 def test_set_molecule_colormap(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.paint_molecules(
