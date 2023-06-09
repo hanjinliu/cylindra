@@ -691,9 +691,25 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     assert len(ui.tomogram.splines) == 2
     old_ori = ui.tomogram.splines[0].orientation
-    ui.molecules_to_spline(layers=[ui.parent_viewer.layers["Mono-0"]])
+    layer_src = ui.parent_viewer.layers["Mono-0"]
+    ui.molecules_to_spline(layers=[layer_src])
     assert len(ui.tomogram.splines) == 2
     assert ui.tomogram.splines[0].orientation == old_ori
+    assert layer_src.source_component is ui.tomogram.splines[0]
+    ui.translate_molecules(layer_src, [1, 1, 1], internal=True, inherit_source=True)
+    layer_trans = ui.parent_viewer.layers[-1]
+    assert layer_trans.source_component is ui.tomogram.splines[0]
+    old_spl = ui.tomogram.splines[0]
+    ui.molecules_to_spline(layers=[layer_trans], update_sources=True)
+    new_spl = ui.tomogram.splines[0]
+    assert old_spl is not new_spl
+    assert layer_trans.source_component is new_spl
+    assert layer_src.source_component is new_spl
+    ui.molecules_to_spline(layers=[layer_trans], update_sources=False)
+    new_spl0 = ui.tomogram.splines[0]
+    assert new_spl is not new_spl0
+    assert layer_trans.source_component is new_spl0
+    assert layer_src.source_component is new_spl
 
 
 # NOTE: calc_intervals and calc_skews are very likely to contain bugs with different

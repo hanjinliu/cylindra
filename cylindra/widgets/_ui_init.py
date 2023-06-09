@@ -237,10 +237,12 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
         layer: MoleculesLayer = gui.layer.value
         series = layer.molecules.features[color_by]
         if series.dtype.__name__[0] in "IUF":
-            gui.limits[0].min = gui.limits[1].min = series.min()
-            gui.limits[0].max = gui.limits[1].max = series.max()
-            gui.limits[0].value = gui.limits[0].min
-            gui.limits[1].value = gui.limits[1].max
+            min_, max_ = series.min(), series.max()
+            offset_ = (max_ - min_) / 2
+            gui.limits[0].min = gui.limits[1].min = min_ - offset_
+            gui.limits[0].max = gui.limits[1].max = max_ + offset_
+            gui.limits[0].value = min_
+            gui.limits[1].value = max_
             if series.dtype.__name__[0] in "IU":
                 gui.limits[0].step = gui.limits[1].step = 1
             else:

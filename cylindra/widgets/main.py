@@ -1152,31 +1152,33 @@ class CylindraMainWidget(MagicTemplate):
             for layer in layers:
                 # NOTE: The source spline may not exist in the spline list if
                 # `molecules_to_spline` is called twice.
-                try:
-                    tomo.splines.index(layer.source_component)
-                except ValueError as e:
-                    raise e
+                if _src := layer.source_component:
+                    tomo.splines.index(_src)
 
         for layer in layers:
             mole = layer.molecules
             spl = utils.molecules_to_spline(mole)
             try:
                 idx = tomo.splines.index(layer.source_component)
-            except ValueError as e:
+            except ValueError:
                 tomo.splines.append(spl)
             else:
                 if inherit_props:
                     spl.globalprops = tomo.splines[idx].globalprops.clone()
                 old_spl = tomo.splines[idx]
+                # Must be updated here, otherwise each.source_component may return
+                # None since GC may delete the old spline.
+                if update_sources:
+                    for each in self.parent_viewer.layers:
+                        if not isinstance(each, MoleculesLayer):
+                            continue
+                        if each.source_component is old_spl:
+                            each.source_component = spl
                 if delete_old:
                     tomo.splines[idx] = spl
                 else:
                     tomo.splines.append(spl)
-                layer.source_component = spl
-                if update_sources:
-                    for each in layers:
-                        if each.source_component is old_spl:
-                            each.source_component = spl
+            layer.source_component = spl
 
         self.reset_choices()
         self.sample_subtomograms()
