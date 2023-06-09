@@ -55,7 +55,6 @@ def main(viewer=None):  # "viewer" is used for testing only
         log_level=log_level,
     )
 
-    ui.parent_viewer.update_console({"ui": ui, "ip": impy, "np": numpy, "pl": polars})
     return ui.parent_viewer.show(block=block)
 
 

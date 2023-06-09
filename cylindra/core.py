@@ -44,8 +44,11 @@ def start(
     import matplotlib.pyplot as plt
     from magicclass import defaults, logging
 
+    from IPython import get_ipython
+
     global _CURRENT_INSTANCE
 
+    # TODO: use widget specific settings
     defaults["macro-highlight"] = True
     defaults["undo-max-history"] = 16
     del defaults
@@ -99,15 +102,23 @@ def start(
         )
 
     try:
-
+        # napari viewer does not disconnect layer events when the viewer is closed,
+        # so we need to do it manually
         @viewer.window._qt_window.destroyed.connect
         def _on_destroy():
             viewer.layers.events.removing.disconnect()
             viewer.layers.events.removed.disconnect()
 
+        # napari-console disables calltips by default. It's better to enable it.
+        viewer.window._qt_viewer.console.enable_calltips = True
+
     except Exception:
         # since it uses private API, it may break in the future
         pass
+
+    # Programmatically run `%matplotlib inline` magic
+    ipy = get_ipython()
+    ipy.run_line_magic("matplotlib", "inline")
 
     ui.show()
     return ui
