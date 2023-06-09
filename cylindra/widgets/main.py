@@ -2613,6 +2613,9 @@ class CylindraMainWidget(MagicTemplate):
             npf=fgui.npf.value,
         )
 
+        fgui = get_function_gui(self.paint_cylinders)
+        fgui.limits.value = (GVar.spacing_min, GVar.spacing_max)
+
         get_function_gui(self.map_monomers)["orientation"].value = GVar.clockwise
         get_function_gui(self.map_monomers_with_extensions)[
             "orientation"

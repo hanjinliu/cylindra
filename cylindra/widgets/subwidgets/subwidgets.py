@@ -3,6 +3,7 @@ from typing import Annotated, Sequence, Union
 from magicgui.widgets import TextEdit
 from magicclass import (
     do_not_record,
+    get_function_gui,
     magicclass,
     magicmenu,
     field,
@@ -597,7 +598,8 @@ class Runner(MagicTemplate):
         if global_props:
             parent.global_ft_analysis(splines=splines, bin_size=bin_size)
         if local_props and paint:
-            parent.paint_cylinders()
+            limits = get_function_gui(parent.paint_cylinders).limits.value
+            parent.paint_cylinders(limits=limits)
         if map_monomers:
             parent.map_monomers(orientation=GVar.clockwise)
         return None
