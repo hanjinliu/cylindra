@@ -25,12 +25,14 @@ impl Reservoir {
         }
     }
 
+    /// Cool the reservoir to state t=n.
     pub fn cool(&mut self, n: usize) {
         self.temperature =
             self.temperature_diff * (-(n as f32) / self.time_constant).exp()
             + self.min_temperature;
     }
 
+    /// Calculate the probability of accepting a state with energy difference de.
     pub fn prob(&self, de: f32) -> f32 {
         if de < 0.0 {
             1.0
@@ -39,10 +41,12 @@ impl Reservoir {
         }
     }
 
+    /// Return the current temperature.
     pub fn temperature(&self) -> f32 {
         self.temperature
     }
 
+    /// Initialize the reservoir.
     pub fn initialize(&mut self) {
         self.temperature = self.temperature_diff + self.min_temperature;
     }

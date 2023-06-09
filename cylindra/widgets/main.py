@@ -1332,20 +1332,13 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         indices = normalize_spline_indices(splines, tomo)
 
-        @thread_worker.to_callback
-        def _global_ft_analysis_on_yield(i: int):
-            if i == 0:
-                self.sample_subtomograms()
-            self._update_splines_in_images()
-            self._update_local_properties_in_widget()
-
         with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
             for i in indices:
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.set_radius(i=i)
                 tomo.global_ft_params(i=i, binsize=bin_size)
-                yield _global_ft_analysis_on_yield(i)
+
         self._need_save = True
 
         # show all in a table
@@ -1359,6 +1352,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.to_callback
         def _global_ft_analysis_on_return():
+            self.sample_subtomograms()
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
 
@@ -1590,6 +1584,27 @@ class CylindraMainWidget(MagicTemplate):
             name=name,
         )
         return self._undo_callback_for_layer(layer)
+
+    @MoleculesMenu.wraps
+    @set_design(text="Set source spline")
+    def set_source_spline(
+        self, layer: MoleculesLayer, spline: Annotated[int, {"choices": _get_splines}]
+    ):
+        """
+        Set source spline for a molecules layer.
+
+        Parameters
+        ----------
+        {layer}{spline}
+        """
+        old_spl = layer.source_component
+        layer.source_component = self.tomogram.splines[spline]
+
+        @undo_callback
+        def _undo():
+            layer.source_component = old_spl
+
+        return _undo
 
     @MoleculesMenu.Combine.wraps
     @set_design(text="Concatenate molecules")

@@ -136,12 +136,15 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         return self._source_component()
 
     @source_component.setter
-    def source_component(self, obj: BaseComponent):
+    def source_component(self, obj: BaseComponent | None):
         from cylindra.components._base import BaseComponent
 
-        if not isinstance(obj, BaseComponent):
+        if obj is None:
+            self._source_component = None
+        elif not isinstance(obj, BaseComponent):
             raise TypeError("Must be a CylSpline object")
-        self._source_component = weakref.ref(obj)
+        else:
+            self._source_component = weakref.ref(obj)
 
     @property
     def colormap_info(self) -> ColormapInfo | None:

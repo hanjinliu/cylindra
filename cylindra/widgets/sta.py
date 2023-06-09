@@ -88,7 +88,6 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
-ANNEALING_BATCH_SIZE = 10000
 _Logger = getLogger("cylindra")
 
 
@@ -984,7 +983,7 @@ class SubtomogramAveraging(MagicTemplate):
         distance_range_long: _DistRangeLon = (3.9, 4.4),
         distance_range_lat: _DistRangeLat = (4.7, 5.3),
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        ntrial: Annotated[int, {"min": 1}] = 6,
+        ntrial: Annotated[int, {"min": 1}] = 5,
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1003,6 +1002,8 @@ class SubtomogramAveraging(MagicTemplate):
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape.
         """
+        import matplotlib.pyplot as plt
+
         t0 = timer("align_all_annealing")
         parent = self._get_parent()
         scale = parent.tomogram.scale
@@ -1011,14 +1012,6 @@ class SubtomogramAveraging(MagicTemplate):
         template, mask = loader.normalize_input(
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
-        )
-
-        # Calculating landscape is time consuming. We can check the distance limits
-        # beforehand.
-        _check_annealing_graph_distaces(
-            _get_annealing_model(layer, (0, 0, 0), scale, upsample_factor),
-            distance_range_long,
-            distance_range_lat,
         )
 
         energy_dsk = -loader.construct_landscape(
@@ -1035,20 +1028,27 @@ class SubtomogramAveraging(MagicTemplate):
         annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
         energy: "NDArray[np.float32]" = energy_dsk.compute()
         local_shape = energy.shape[1:]
+        nmole = molecules.pos.size
 
-        time_const = molecules.pos.size * np.product(local_shape)
-        initial_temperature = np.std(energy) * 2
+        time_const = nmole * np.product(local_shape)
+        batch_size = max(int(time_const / 20), 1)
+        _energy_std = np.std(energy)
 
         # construct the annealing model
         annealing.set_energy_landscape(energy).set_reservoir(
-            temperature=initial_temperature,
+            temperature=_energy_std * 2,
             time_constant=time_const,
         ).set_box_potential(
             *distance_range_long,
             *distance_range_lat,
+            cooling_rate=_energy_std / time_const * 10,
+        ).with_reject_limit(
+            nmole * 300
         )
 
-        results = _get_annealing_results(annealing, initial_temperature, range(ntrial))
+        results = _get_annealing_results(
+            annealing, _energy_std * 2, range(ntrial), batch_size
+        )
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 
         inds = best_model.shifts()
@@ -1080,10 +1080,8 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
-                import matplotlib.pyplot as plt
-
                 for i, r in enumerate(results):
-                    _x = np.arange(r.energies.size) * 1e-6 * ANNEALING_BATCH_SIZE
+                    _x = np.arange(r.energies.size) * 1e-6 * batch_size
                     plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
                 plt.xlabel("Repeat (x10^6)")
                 plt.ylabel("Score")
@@ -1493,28 +1491,6 @@ class _AnnealingResult(NamedTuple):
     energy: float
 
 
-def _check_annealing_graph_distaces(
-    annealing: "CylindricAnnealingModel",
-    dist_lon,
-    dist_lat,
-):
-    lon_min, lon_max = dist_lon
-    lat_min, lat_max = dist_lat
-    lon = annealing.longitudinal_distances()
-    lat = annealing.lateral_distances()
-    _tmin = "Some of the {typ} distances are smaller than the minimum {min:3f}."
-    _tmax = "Some of the {typ} distances are larger than the maximum {max:3f}."
-
-    if lon.min() < lon_min:
-        raise ValueError(_tmin.format(typ="longitudinal", min=lon_min))
-    elif lon.max() > lon_max:
-        raise ValueError(_tmax.format(typ="longitudinal", max=lon_max))
-    if lat.min() < lat_min:
-        raise ValueError(_tmin.format(typ="lateral", min=lat_min))
-    elif lat.max() > lat_max:
-        raise ValueError(_tmax.format(typ="lateral", max=lat_max))
-
-
 def _get_annealing_model(
     layer: MoleculesLayer,
     max_shifts: _MaxShifts,
@@ -1591,18 +1567,25 @@ def _get_annealing_results(
     annealing: "CylindricAnnealingModel",
     initial_temperature: float,
     seeds: Iterable[int],
+    batch_size: int,
 ) -> list[_AnnealingResult]:
     from dask import array as da, delayed
 
     @delayed
     def _run(seed: int) -> _AnnealingResult:
         _model = annealing.with_seed(seed)
+        rng = np.random.default_rng(seed)
+        loc_shape = _model.local_shape()
+        shifts = np.stack(
+            [rng.integers(0, s0, _model.node_count()) for s0 in loc_shape], axis=1
+        )
+        _model.set_shifts(shifts)
         energies = [_model.energy()]
         while (
             _model.temperature() > initial_temperature * 1e-4
             and _model.optimization_state() == "not_converged"
         ):
-            _model.simulate(ANNEALING_BATCH_SIZE)
+            _model.simulate(batch_size)
             energies.append(_model.energy())
         return _AnnealingResult(_model, np.array(energies), energies[-1])
 

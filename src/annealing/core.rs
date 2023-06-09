@@ -10,7 +10,7 @@ use super::{
     random::RandomNumberGenerator,
     graph::CylindricGraph,
     reservoir::Reservoir,
-    potential::BoxPotential2D,
+    potential::TrapezoidalPotential2D,
 };
 use crate::{value_error, cylindric::Index};
 
@@ -46,7 +46,7 @@ impl CylindricAnnealingModel {
             graph: CylindricGraph::empty(),
             reservoir: Reservoir::new(1.0, 1.0, 0.0),
             iteration: 0,
-            reject_limit: 200,
+            reject_limit: 1000,
         }
     }
 
@@ -156,6 +156,10 @@ impl CylindricAnnealingModel {
         Ok(slf)
     }
 
+    pub fn node_count(&self) -> usize {
+        self.graph.components().node_count()
+    }
+
     #[pyo3(signature = (energy))]
     pub fn set_energy_landscape<'py>(
         mut slf: PyRefMut<'py, Self>,
@@ -166,7 +170,7 @@ impl CylindricAnnealingModel {
         Ok(slf)
     }
 
-    #[pyo3(signature = (lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max))]
+    #[pyo3(signature = (lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max, cooling_rate=1e-3))]
     /// Set a box potential with given borders.
     pub fn set_box_potential(
         mut slf: PyRefMut<Self>,
@@ -174,9 +178,12 @@ impl CylindricAnnealingModel {
         lon_dist_max: f32,
         lat_dist_min: f32,
         lat_dist_max: f32,
+        cooling_rate: f32,
     ) -> PyResult<PyRefMut<Self>>{
         slf.graph.set_potential_model(
-            BoxPotential2D::new(lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max)?
+            TrapezoidalPotential2D::new(
+                lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max, cooling_rate
+            )?
         );
         Ok(slf)
     }
@@ -184,6 +191,20 @@ impl CylindricAnnealingModel {
     /// Get integer shift in each local coordinates as a numpy array.
     pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray2<isize>> {
         self.graph.get_shifts().into_pyarray(py).into()
+    }
+
+    pub fn set_shifts<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        shifts: PyReadonlyArray2<isize>,
+    ) -> PyResult<PyRefMut<'py, Self>> {
+        let shifts = shifts.as_array().to_shared();
+        slf.graph.set_shifts(shifts)?;
+        Ok(slf)
+    }
+
+    pub fn local_shape(&self) -> (isize, isize, isize) {
+        let shape = self.graph.local_shape;
+        (shape.z, shape.y, shape.x)
     }
 
     /// Calculate the current energy of the graph.
@@ -205,10 +226,10 @@ impl CylindricAnnealingModel {
         self.iteration
     }
 
-    #[pyo3(signature = (nsteps=10000, nsettle=1000))]
+    #[pyo3(signature = (nsteps=10000))]
     /// Run simulation for given number of steps.
     /// If simulation failed or converged, it will stop.
-    pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize, nsettle: usize) -> PyResult<()> {
+    pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize) -> PyResult<()> {
         self.graph.check_graph()?;
         if nsteps <= 0 {
             return value_error!("nsteps must be positive");
@@ -236,12 +257,7 @@ impl CylindricAnnealingModel {
                     }
                     self.iteration += 1;
                     self.reservoir.cool(self.iteration);
-                }
-                // Keep proceeding until the energy settles.
-                for _ in 0..nsettle {
-                    if !self.proceed() {
-                        break;
-                    }
+                    self.graph.cool(self.iteration);
                 }
                 Ok(())
             }

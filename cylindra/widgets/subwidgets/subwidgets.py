@@ -208,6 +208,7 @@ class MoleculesMenu(MagicTemplate):
         map_along_pf = abstractapi()
 
     show_orientation = abstractapi()
+    set_source_spline = abstractapi()
     translate_molecules = abstractapi()
 
     @magicmenu(name="Combine")

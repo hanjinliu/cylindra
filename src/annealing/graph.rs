@@ -9,7 +9,7 @@ use crate::{
     coordinates::{Vector3D, CoordinateSystem},
     cylindric::Index,
     annealing::{
-        potential::{BoxPotential2D, BindingPotential2D, EdgeType},
+        potential::{TrapezoidalPotential2D, BindingPotential2D, EdgeType},
         random::RandomNumberGenerator,
     }
 };
@@ -112,8 +112,8 @@ pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
     coords: Arc<HashMap<Index, CoordinateSystem<f32>>>,
     energy: Arc<HashMap<Index, Array<f32, Ix3>>>,
-    binding_potential: BoxPotential2D,
-    local_shape: Vector3D<isize>,
+    binding_potential: TrapezoidalPotential2D,
+    pub local_shape: Vector3D<isize>,
 }
 
 impl CylindricGraph {
@@ -123,7 +123,7 @@ impl CylindricGraph {
             components: GraphComponents::empty(),
             coords: Arc::new(HashMap::new()),
             energy: Arc::new(HashMap::new()),
-            binding_potential: BoxPotential2D::unbounded(),
+            binding_potential: TrapezoidalPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
     }
@@ -229,6 +229,11 @@ impl CylindricGraph {
         Ok(self)
     }
 
+    /// Cool down the binding potential.
+    pub fn cool(&mut self, n: usize) {
+        self.binding_potential.cool(n);
+    }
+
     /// Get the graph components.
     pub fn components(&self) -> &GraphComponents<NodeState, EdgeType> {
         &self.components
@@ -271,6 +276,21 @@ impl CylindricGraph {
             shifts[[i, 2]] = shift.x;
         }
         shifts
+    }
+
+    pub fn set_shifts(&mut self, shifts: ArcArray2<isize>) -> PyResult<&Self> {
+        let n_nodes = self.components.node_count();
+        if shifts.shape() != [n_nodes as usize, 3] {
+            return value_error!("shifts has wrong shape");
+        }
+        for i in 0..n_nodes {
+            let mut state = self.components.node_state(i).clone();
+            state.shift.z = shifts[[i, 0]];
+            state.shift.y = shifts[[i, 1]];
+            state.shift.x = shifts[[i, 2]];
+            self.components.set_node_state(i, state);
+        }
+        Ok(self)
     }
 
     fn get_distances(&self, typ: &EdgeType) -> Array1<f32> {
@@ -339,9 +359,13 @@ impl CylindricGraph {
     }
 
     /// Set a box potential model to the graph.
-    pub fn set_potential_model(&mut self, model: BoxPotential2D) -> &Self {
+    pub fn set_potential_model(&mut self, model: TrapezoidalPotential2D) -> &Self {
         self.binding_potential = model;
         self
+    }
+
+    pub fn potential_slope(&self) -> f32 {
+        self.binding_potential.slopes().0
     }
 
     /// Calculate the total energy of the graph.
