@@ -1,14 +1,16 @@
 from __future__ import annotations
+
 import glob
 from pathlib import Path
+from weakref import WeakSet
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
 from contextlib import suppress
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import napari
+    from magicgui.widgets import Widget
     from acryo import Molecules
-    from cylindra._custom_layers import MoleculesLayer
     from cylindra.project import ProjectSequence
     from cylindra.widgets import CylindraMainWidget
     from cylindra.components import CylSpline
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
 
 PathLike = Union[str, Path]
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
+_ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
 
 
 def start(
@@ -42,16 +45,11 @@ def start(
     import impy as ip
     import polars as pl
     import matplotlib.pyplot as plt
-    from magicclass import defaults, logging
+    from magicclass import logging
 
     from IPython import get_ipython
 
     global _CURRENT_INSTANCE
-
-    # TODO: use widget specific settings
-    defaults["macro-highlight"] = True
-    defaults["undo-max-history"] = 16
-    del defaults
 
     if viewer is None:
         import napari
@@ -59,6 +57,9 @@ def start(
         viewer = napari.Viewer()
 
     ui = CylindraMainWidget()
+    ui.macro.options.max_undo = 16
+    ui.macro.options.syntax_highlight = True
+    _ACTIVE_WIDGETS.add(ui)
 
     # set logger
     logger = logging.getLogger("cylindra")
@@ -137,6 +138,7 @@ def view_project(project_file: PathLike, run: bool = False):
         get_project_json(project_file)
     ).make_project_viewer()
     widget.show(run=run)
+    _ACTIVE_WIDGETS.add(widget)
     return widget
 
 
@@ -266,15 +268,3 @@ def collect_molecules(
     if len(molecules) == 0:
         raise ValueError(f"No molecules found. Please check the input paths.")
     return Molecules.concat(molecules)
-
-
-def layer_to_coordinates(layer: MoleculesLayer, npf: int | None = None):
-    """Convert point coordinates of a Points layer into a structured array."""
-    import impy as ip
-
-    if npf is None:
-        npf = layer.molecules.features[Mole.pf].max() + 1
-    data = layer.data.reshape(-1, npf, 3)
-    data = ip.asarray(data, name=layer.name, axes=["L", "PF", "dim"])
-    data.axes["dim"].labels = ("z", "y", "x")
-    return data

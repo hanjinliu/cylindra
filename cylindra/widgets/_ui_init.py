@@ -4,6 +4,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+import polars as pl
 from magicgui.widgets import FunctionGui
 from magicclass.widgets import ConsoleTextEdit
 from magicclass import setup_function_gui, impl_preview
@@ -61,6 +62,7 @@ def _(self: CylindraMainWidget, spline: int, lengths: tuple[float, float]):
             edge_width=3,
             name=name,
         )
+    is_active = False
     try:
         is_active = yield
     finally:
@@ -105,6 +107,7 @@ def _(
     else:
         layer = self.add_molecules(out, name=name)
     layer.face_color = layer.edge_color = "crimson"
+    is_active = False
     try:
         is_active = yield
     finally:
@@ -139,6 +142,7 @@ def _(
     else:
         layer = self.add_molecules(out, name=name)
     layer.face_color = layer.edge_color = "crimson"
+    is_active = False
     try:
         is_active = yield
     finally:
@@ -174,6 +178,7 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, translation, internal: bo
     else:
         layer = self.add_molecules(out, name=name)
         layer.face_color = layer.edge_color = "crimson"
+    is_active = False
     try:
         is_active = yield
     finally:
@@ -200,6 +205,7 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
         layer = self.add_molecules(out, name=name)
     # filtering changes the number of molecules. We need to update the colors.
     layer.face_color = layer.edge_color = "crimson"
+    is_active = False
     try:
         is_active = yield
     finally:
@@ -236,14 +242,14 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
             return
         layer: MoleculesLayer = gui.layer.value
         series = layer.molecules.features[color_by]
-        if series.dtype.__name__[0] in "IUF":
+        if series.dtype in pl.NUMERIC_DTYPES:
             min_, max_ = series.min(), series.max()
             offset_ = (max_ - min_) / 2
             gui.limits[0].min = gui.limits[1].min = min_ - offset_
             gui.limits[0].max = gui.limits[1].max = max_ + offset_
             gui.limits[0].value = min_
             gui.limits[1].value = max_
-            if series.dtype.__name__[0] in "IU":
+            if series.dtype in pl.INTEGER_DTYPES:
                 gui.limits[0].step = gui.limits[1].step = 1
             else:
                 gui.limits[0].step = gui.limits[1].step = None
@@ -282,11 +288,6 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
             gui.n_extend.value = value
 
     gui.spline.changed.emit(gui.spline.value)  # initialize
-
-
-@setup_function_gui(CylindraMainWidget.define_workflow)
-def _(self: CylindraMainWidget, gui: FunctionGui):
-    gui.workflow.syntax_highlight("python")
 
 
 @contextmanager

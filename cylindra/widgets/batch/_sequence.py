@@ -71,9 +71,6 @@ class SplineWidget(MagicTemplate):
 
 @magicclass(widget_type="collapsible", record=False, name="Splines")
 class SplineList(MagicTemplate):
-    def __iter__(self) -> Iterator[SplineWidget]:
-        return super().__iter__()
-
     def _add_path(self, path: Path):
         wdt = SplineWidget()
         wdt.line.value = str(path)

@@ -16,7 +16,7 @@ USER_SETTINGS = SETTINGS_DIR / "user-settings.json"
 
 def workflow_path(name: str | Path) -> Path:
     """Path to the workflow file."""
-    out: Path = WORKFLOWS_DIR / name
+    out = WORKFLOWS_DIR / name
     if out.suffix != ".py":
         out = out.with_suffix(".py")
     return out

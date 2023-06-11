@@ -46,7 +46,6 @@ def main(viewer=None):  # "viewer" is used for testing only
     log_level = "DEBUG" if args.debug else "INFO"
 
     from cylindra import start
-    import numpy, impy, polars
 
     ui = start(
         project_file=project_file,

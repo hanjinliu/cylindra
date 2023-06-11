@@ -33,10 +33,10 @@ from magicclass.types import (
     ExprStr,
     Bound,
 )
+from magicclass.functools import partial as mpartial
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
-from magicclass.widgets import ConsoleTextEdit
 
 from napari.layers import Image, Layer, Points
 from napari.utils.colormaps import Colormap
@@ -196,8 +196,8 @@ class CylindraMainWidget(MagicTemplate):
 
         self._macro_offset: int = 1
         self._need_save: bool = False
-        self._batch = None
-        self._project_dir: Path = None
+        self._batch: "CylindraBatchWidget | None" = None
+        self._project_dir: "Path | None" = None
         self._current_binsize: int = 1
         self.objectName()  # load napari types
 
@@ -209,6 +209,10 @@ class CylindraMainWidget(MagicTemplate):
         self.GlobalProperties.collapsed = False
         self.overview.min_height = 300
         self.global_variables.load_default()
+
+        # load all the workflows
+        for file in _config.WORKFLOWS_DIR.glob("*.py"):
+            self.Others.Workflows.append_workflow(file)
         return None
 
     @property
@@ -334,38 +338,30 @@ class CylindraMainWidget(MagicTemplate):
         self._active_widgets.add(edit)
         return None
 
-    @Others.wraps
-    @set_design(text="Run workflow")
-    @do_not_record
-    @bind_key("Ctrl+K, Ctrl+Shift+R")
-    def run_workflow(self, path: Path.Read[FileFilter.PY] = _config.WORKFLOWS_DIR):
+    @do_not_record(recursive=False)
+    @nogui
+    def run_workflow(self, filename: str):
         """Run workflow of a python file."""
-        path = Path(path)
+        from runpy import run_path
+
+        path = Path(filename)
+        if not path.exists():
+            path = _config.workflow_path(filename)
+            if not path.exists():
+                raise FileNotFoundError(f"File not found: {filename}")
         if path.is_dir():
             raise ValueError("You must specify a file.")
-        macro = self._load_macro_file(path)
-        _ui = str(mk.symbol(self))
-        macro.eval({}, {_ui: self})
-        return None
 
-    @Others.wraps
-    @set_design(text="Define workflow")
-    @do_not_record
-    @bind_key("Ctrl+K, Ctrl+Shift+D")
-    def define_workflow(
-        self,
-        name: str,
-        workflow: Annotated[str, {"widget_type": ConsoleTextEdit}],
-    ):
-        """Define a workflow script for your daily analysis."""
-        mk.parse(workflow)  # check syntax
-        path = _config.workflow_path(name)
-        path.write_text(workflow)
-        _Logger.print("Workflow saved: " + path.as_posix())
+        ns = run_path(str(path))
+        if callable(main := ns.get("main")):
+            main(self)
+            _Logger.print(f"Workflow {path.stem} finished.")
+        else:
+            raise ValueError("No main function found.")
         return None
 
     @_image_loader.wraps
-    @set_design(text="Run")
+    @set_design(text="Open")
     @dask_thread_worker.with_progress(desc="Reading image")
     @confirm(
         text="You may have unsaved data. Open a new tomogram?",
