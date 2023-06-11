@@ -31,22 +31,24 @@ from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
 from cylindra.components import CylSpline
-from cylindra.widgets._widget_ext import CheckBoxes
+from cylindra.widgets._widget_ext import CheckBoxes, RotationEdit
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+    from dask import array as da
     from napari.layers import Image
     from cylindra._cylindra_ext import CylindricAnnealingModel
     from cylindra.widgets.main import CylindraMainWidget
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
-_ZRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_YRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
+_Rotations = Annotated[
+    tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
+    {"widget_type": RotationEdit},
+]
 _MaxShifts = Annotated[
     tuple[nm, nm, nm],
     {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
@@ -537,9 +539,7 @@ class SubtomogramAveraging(MagicTemplate):
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (15.0, 1.0),
-        x_rotation: _XRotation = (3.0, 1.0),
+        rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
     ):  # fmt: skip
@@ -551,7 +551,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{z_rotation}{y_rotation}{x_rotation}{bin_size}{method}
+        {layers}{template_path}{mask_params}{rotations}{bin_size}{method}
         """
         t0 = timer("align_averaged")
         layers = _assert_list_of_layers(layers)
@@ -590,7 +590,7 @@ class SubtomogramAveraging(MagicTemplate):
         model = _get_alignment(method)(
             template,
             mask,
-            rotations=(z_rotation, y_rotation, x_rotation),
+            rotations=rotations,
             tilt_range=None,  # NOTE: because input is an average
         )
         for layer in layers:
@@ -663,9 +663,7 @@ class SubtomogramAveraging(MagicTemplate):
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
@@ -676,8 +674,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}{method}{bin_size}
+        {layers}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all")
         layers = _assert_list_of_layers(layers)
@@ -693,7 +690,7 @@ class SubtomogramAveraging(MagicTemplate):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
+            rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
             tilt_range=parent.tomogram.tilt_range,
@@ -712,9 +709,7 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
@@ -725,8 +720,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{mask_params}{size}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}{method}{bin_size}
+        {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_template_free")
         layers = _assert_list_of_layers(layers)
@@ -746,7 +740,7 @@ class SubtomogramAveraging(MagicTemplate):
             .align_no_template(
                 mask=mask,
                 max_shifts=max_shifts,
-                rotations=(z_rotation, y_rotation, x_rotation),
+                rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
                 tilt_range=parent.tomogram.tilt_range,
@@ -768,9 +762,7 @@ class SubtomogramAveraging(MagicTemplate):
         other_templates: Path.Multiple[FileFilter.IMAGE],
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
@@ -784,8 +776,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layers}{template_path}
         other_templates : list of Path or str
             Path to other template images.
-        {mask_params}{max_shifts}{z_rotation}{y_rotation}{x_rotation}{cutoff}
-        {interpolation}{method}{bin_size}
+        {mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_multi_template")
         layers = _assert_list_of_layers(layers)
@@ -804,7 +795,7 @@ class SubtomogramAveraging(MagicTemplate):
             templates=templates,
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
-            rotations=(z_rotation, y_rotation, x_rotation),
+            rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
             tilt_range=parent.tomogram.tilt_range,
@@ -823,9 +814,7 @@ class SubtomogramAveraging(MagicTemplate):
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range: _DistRangeLon = (3.9, 4.4),
@@ -843,8 +832,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{max_shifts}{z_rotation}{y_rotation}
-        {x_rotation}{cutoff}{interpolation}
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
         distance_range : tuple of float, default is (3.9, 4.4)
             Range of allowed distance between monomers.
         upsample_factor : int, default is 5
@@ -872,7 +860,7 @@ class SubtomogramAveraging(MagicTemplate):
         _Logger.print(f"Search size (px): {search_size}")
 
         model = alignment.ZNCCAlignment.with_params(
-            rotations=(z_rotation, y_rotation, x_rotation),
+            rotations=rotations,
             cutoff=cutoff,
             tilt_range=parent.tomogram.tilt_range,
         )
@@ -884,15 +872,7 @@ class SubtomogramAveraging(MagicTemplate):
             upsample=upsample_factor,
             alignment_model=model,
         )
-
-        if not model.has_rotation:
-            score = score_dsk.compute()
-        else:
-            tasks = da.max(score_dsk, axis=1)
-            argmax = da.argmax(score_dsk, axis=1)
-            out = da.compute([tasks, argmax], argmax)[0]
-            score, argmax = out
-
+        score, argmax = _calc_landscape(model, score_dsk)
         scale = parent.tomogram.scale
         npf = molecules.features[Mole.pf].max() + 1
 
@@ -932,33 +912,10 @@ class SubtomogramAveraging(MagicTemplate):
             (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
             dtype=np.float32,
         )
-        molecules_opt = molecules.translate_internal(all_shifts)
-        if model.has_rotation:
-            quats = np.zeros((len(molecules), 4), dtype=np.float32)
-            for i, (shift, _) in enumerate(vit_out):
-                quats = np.stack(
-                    [
-                        model.quaternions[argmax[i, iz, iy, ix]]
-                        for i, (iz, iy, ix) in enumerate(inds)
-                    ],
-                    axis=0,
-                )
-
-            molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-
-            rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
-            molecules_opt.features = molecules_opt.features.with_columns(
-                pl.Series("align-dzrot", rotvec[:, 0]),
-                pl.Series("align-dyrot", rotvec[:, 1]),
-                pl.Series("align-dxrot", rotvec[:, 2]),
-            )
-
-        molecules_opt.features = molecules_opt.features.with_columns(
-            pl.Series("align-dz", all_shifts[:, 0]),
-            pl.Series("align-dy", all_shifts[:, 1]),
-            pl.Series("align-dx", all_shifts[:, 2]),
-            pl.Series(Mole.score, opt_score),
+        molecules_opt = _landscape_result_with_rotation(
+            molecules, all_shifts, inds, argmax, model
         )
+        molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
         t0.toc()
         parent._need_save = True
         aligned_loader = SubtomogramLoader(
@@ -978,6 +935,7 @@ class SubtomogramAveraging(MagicTemplate):
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
         max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (3.9, 4.4),
@@ -994,7 +952,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{max_shifts}{cutoff}{interpolation}
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
         distance_range_long : tuple of float
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
@@ -1013,20 +971,22 @@ class SubtomogramAveraging(MagicTemplate):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-
-        energy_dsk = -loader.construct_landscape(
+        model = alignment.ZNCCAlignment.with_params(
+            rotations=rotations,
+            cutoff=cutoff,
+            tilt_range=parent.tomogram.tilt_range,
+        )
+        score_dsk = loader.construct_landscape(
             template,
             mask=mask,
             max_shifts=max_shifts,
             upsample=upsample_factor,
-            alignment_model=alignment.ZNCCAlignment.with_params(
-                cutoff=cutoff,
-                tilt_range=parent.tomogram.tilt_range,
-            ),
+            alignment_model=model,
         )
+        score, argmax = _calc_landscape(model, score_dsk)
 
         annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
-        energy: "NDArray[np.float32]" = energy_dsk.compute()
+        energy = -score
         local_shape = energy.shape[1:]
         nmole = molecules.pos.size
 
@@ -1059,14 +1019,10 @@ class SubtomogramAveraging(MagicTemplate):
 
         int_offset = np.array(local_shape) // 2
         all_shifts = (inds - int_offset) / upsample_factor * scale
-
-        molecules_opt = molecules.translate_internal(all_shifts)
-        molecules_opt.features = molecules_opt.features.with_columns(
-            pl.Series("align-dz", all_shifts[:, 0]),
-            pl.Series("align-dy", all_shifts[:, 1]),
-            pl.Series("align-dx", all_shifts[:, 2]),
-            pl.Series(Mole.score, opt_score),
+        molecules_opt = _landscape_result_with_rotation(
+            molecules, all_shifts, inds, argmax, model
         )
+        molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
         t0.toc()
         parent._need_save = True
 
@@ -1443,6 +1399,55 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
     else:
         raise ValueError(f"method {method!r} not supported.")
     return sl
+
+
+def _calc_landscape(
+    model: alignment.TomographyInput,
+    score_dsk: "da.Array",
+) -> "tuple[NDArray[np.float32], NDArray[np.int32] | None]":
+    from dask import array as da
+
+    if not model.has_rotation:
+        score = score_dsk.compute()
+        argmax = None
+    else:
+        tasks = da.max(score_dsk, axis=1)
+        argmax = da.argmax(score_dsk, axis=1)
+        score, argmax = da.compute(tasks, argmax)
+    return score, argmax
+
+
+def _landscape_result_with_rotation(
+    molecules: Molecules,
+    shifts: "NDArray[np.float32]",
+    inds: "NDArray[np.int32]",
+    argmax: "NDArray[np.int32]",
+    model: alignment.ZNCCAlignment,
+):
+    molecules_opt = molecules.translate_internal(shifts)
+    if model.has_rotation:
+        quats = np.stack(
+            [
+                model.quaternions[argmax[i, iz, iy, ix]]
+                for i, (iz, iy, ix) in enumerate(inds)
+            ],
+            axis=0,
+        )
+        molecules_opt = molecules_opt.rotate_by_quaternion(quats)
+
+        rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
+        molecules_opt = molecules_opt.with_features(
+            pl.Series("align-dzrot", rotvec[:, 0]),
+            pl.Series("align-dyrot", rotvec[:, 1]),
+            pl.Series("align-dxrot", rotvec[:, 2]),
+        )
+
+    molecules_opt = molecules_opt.with_features(
+        pl.Series("align-dz", shifts[:, 0]),
+        pl.Series("align-dy", shifts[:, 1]),
+        pl.Series("align-dx", shifts[:, 2]),
+    )
+    return molecules_opt
 
 
 class MoleculesCombiner:

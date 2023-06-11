@@ -68,25 +68,11 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
 
 class OffsetEdit(Container[FloatSpinBox]):
     def __init__(self, value=Undefined, *, nullable=False, **kwargs):
-        self._offset_y = FloatSpinBox(
-            value=0.0,
-            label="axial (nm)",
-            min=-100,
-            max=100,
-            step=0.1,
-            tooltip="Offset in the axial direction.",
-        )
-        self._offset_a = FloatSpinBox(
-            value=0.0,
-            label="angular (deg)",
-            min=-180,
-            max=180,
-            step=0.1,
-            tooltip="Offset in the angular direction.",
-        )
-        super().__init__(
-            widgets=[self._offset_y, self._offset_a], labels=True, **kwargs
-        )
+        # fmt: off
+        self._offset_y = FloatSpinBox(value=0.0, label="axial (nm)", min=-100, max=100, step=0.1, tooltip="Offset in the axial direction.")
+        self._offset_a = FloatSpinBox(value=0.0, label="angular (deg)", min=-180, max=180, step=0.1, tooltip="Offset in the angular direction.")
+        super().__init__(widgets=[self._offset_y, self._offset_a], labels=True, **kwargs)
+        # fmt: on
         self.changed.disconnect()
         self._offset_y.changed.connect(self._on_value_change)
         self._offset_a.changed.connect(self._on_value_change)
@@ -109,6 +95,74 @@ class OffsetEdit(Container[FloatSpinBox]):
             self._offset_y.value = y
             self._offset_a.value = a
         self.changed.emit((y, a))
+
+
+def _rotation_widgets(max=180):
+    _max = FloatSpinBox(
+        label="max",
+        max=max,
+        step=0.1,
+        tooltip="Maximum rotation angle in external degree",
+    )
+    _step = FloatSpinBox(
+        label="step",
+        max=max,
+        step=0.1,
+        tooltip="Step of rotation angle in degree (rotation angles will be calculated by adding/subtracting this value, with 0.0 as the center)",
+    )
+    return _max, _step
+
+
+class RotationEdit(Container[Container[FloatSpinBox]]):
+    def __init__(self, value=Undefined, *, nullable=False, **kwargs):
+        # fmt: off
+        self._z_max, self._z_step = _rotation_widgets(180)
+        self._y_max, self._y_step = _rotation_widgets(180)
+        self._x_max, self._x_step = _rotation_widgets(90)
+        _z_container = Container(widgets=[self._z_max, self._z_step], labels=True, label="Z", layout="horizontal")
+        _z_container.margins = (0, 0, 0, 0)
+        _y_container = Container(widgets=[self._y_max, self._y_step], labels=True, label="Y", layout="horizontal")
+        _y_container.margins = (0, 0, 0, 0)
+        _x_container = Container(widgets=[self._x_max, self._x_step], labels=True, label="X", layout="horizontal")
+        _x_container.margins = (0, 0, 0, 0)
+        super().__init__(widgets=[_z_container, _y_container, _x_container], labels=True, **kwargs)
+        # fmt: on
+        self.changed.disconnect()
+        self._z_max.changed.connect(self._on_value_change)
+        self._z_step.changed.connect(self._on_value_change)
+        self._y_max.changed.connect(self._on_value_change)
+        self._y_step.changed.connect(self._on_value_change)
+        self._x_max.changed.connect(self._on_value_change)
+        self._x_step.changed.connect(self._on_value_change)
+        if value is Undefined:
+            value = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0))
+        self.value = value
+
+    def _on_value_change(self):
+        self.changed.emit(self.value)
+
+    @property
+    def value(
+        self,
+    ) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
+        """Value of the widget"""
+        return (
+            (self._z_max.value, self._z_step.value),
+            (self._y_max.value, self._y_step.value),
+            (self._x_max.value, self._x_step.value),
+        )
+
+    @value.setter
+    def value(self, val: tuple[float, float]) -> None:
+        (z_max, z_step), (y_max, y_step), (x_max, x_step) = val
+        with self.changed.blocked():
+            self._z_max.value = z_max
+            self._z_step.value = z_step
+            self._y_max.value = y_max
+            self._y_step.value = y_step
+            self._x_max.value = x_max
+            self._x_step.value = x_step
+        self.changed.emit(val)
 
 
 @contextmanager

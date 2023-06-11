@@ -30,6 +30,7 @@ import napari
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
+from cylindra.widgets._widget_ext import RotationEdit
 from ..widget_utils import FileFilter, timer, POLARS_NAMESPACE
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
@@ -48,9 +49,10 @@ def _classify_pca_fmt():
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
-_ZRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_YRotation = Annotated[tuple[float, float], {"options": {"max": 180.0, "step": 0.1}}]
-_XRotation = Annotated[tuple[float, float], {"options": {"max": 90.0, "step": 0.1}}]
+_Rotations = Annotated[
+    tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
+    {"widget_type": RotationEdit},
+]
 _MaxShifts = Annotated[
     tuple[nm, nm, nm],
     {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
@@ -398,9 +400,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params],
         tilt_range: Bound[params.tilt_range] = None,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        z_rotation: _ZRotation = (0.0, 0.0),
-        y_rotation: _YRotation = (0.0, 0.0),
-        x_rotation: _XRotation = (0.0, 0.0),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
@@ -421,7 +421,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 template=template,
                 mask=mask,
                 max_shifts=max_shifts,
-                rotations=(z_rotation, y_rotation, x_rotation),
+                rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
                 tilt_range=tilt_range,

@@ -461,7 +461,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         template_path=template_path,
         mask_params=(1, 1),
         max_shifts=(1.0, 1.1, 1.0),
-        y_rotation=(1.0, 1.0),
+        rotations=((0.0, 0.0), (1.0, 1.0), (0.0, 0.0)),
         interpolation=1,
         bin_size=bin_size,
     )
