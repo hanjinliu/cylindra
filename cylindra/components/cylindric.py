@@ -215,6 +215,7 @@ class CylinderModel:
         return mole
 
     def locate_molecules(self, spl: Spline, coords: NDArray[np.int32]) -> Molecules:
+        """Locate molecules at given integer coordinates around the spline."""
         mesh = self._get_mesh(coords)
         mole = spl.cylindrical_to_molecules(mesh)
         pos = pl.Series(mesh[:, 1])

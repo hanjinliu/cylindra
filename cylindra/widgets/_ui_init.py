@@ -101,8 +101,8 @@ def _(
         orientation=orientation,
     )
     if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.data = out.pos
+        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
+        layer.molecules = out
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     layer.face_color = layer.edge_color = "crimson"
@@ -135,8 +135,8 @@ def _(
     viewer = self.parent_viewer
 
     if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.data = out.pos
+        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
+        layer.molecules = out
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     layer.face_color = layer.edge_color = "crimson"
@@ -195,8 +195,8 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
         return
     out = mole.filter(expr)
     if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.data = out.pos
+        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
+        layer.molecules = out
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     # filtering changes the number of molecules. We need to update the colors.

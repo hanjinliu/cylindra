@@ -97,7 +97,7 @@ class OffsetEdit(Container[FloatSpinBox]):
         self.changed.emit((y, a))
 
 
-def _rotation_widgets(max=180):
+def _rotation_widgets(max: float = 180.0):
     _max = FloatSpinBox(
         label="max",
         max=max,

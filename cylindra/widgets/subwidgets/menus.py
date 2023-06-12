@@ -361,7 +361,13 @@ class Others(ChildWidget):
             return None
 
         sep0 = field(Separator)
-        load_macro_file = abstractapi()
+
+        @set_design(text="Load Python file")
+        @do_not_record
+        def load_macro_file(self, path: Path.Read[FileFilter.PY]):
+            """Load a Python script file to a new macro window."""
+            main = self._get_main()
+            return main.load_macro_file(path)
 
     @magicmenu(record=False)
     class Workflows(ChildWidget):

@@ -252,9 +252,9 @@ def coordinates_with_extensions(
         _append, _prepend = n_extend.get(_idx, (0, 0))
         if ny + _append + _prepend <= 0:
             continue  # size is zero
-        nth = np.arange(-_prepend, ny + _append, dtype=np.int32)
-        npf = np.full(nth.size, _idx, dtype=np.int32)
-        coords.append(np.stack([nth, npf], axis=1))
+        _nth = np.arange(-_prepend, ny + _append, dtype=np.int32)
+        _npf = np.full(_nth.size, _idx, dtype=np.int32)
+        coords.append(np.stack([_nth, _npf], axis=1))
 
     return np.concatenate(coords, axis=0)
 

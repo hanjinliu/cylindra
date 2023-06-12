@@ -147,12 +147,12 @@ class CylindraMainWidget(MagicTemplate):
         return self._batch
 
     # Menu bar
-    File = subwidgets.File
+    File = field(subwidgets.File)
     ImageMenu = subwidgets.Image
     Splines = subwidgets.Splines
     MoleculesMenu = subwidgets.MoleculesMenu
-    Analysis = subwidgets.Analysis
-    Others = subwidgets.Others
+    Analysis = field(subwidgets.Analysis)
+    Others = field(subwidgets.Others)
 
     # Menu for global variables
     @property
@@ -322,18 +322,14 @@ class CylindraMainWidget(MagicTemplate):
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
         return macro.format([(mk.symbol(self.parent_viewer), v)])
 
-    def _load_macro_file(self, path: Path):
-        with open(path) as f:
-            txt = f.read()
-        macro = mk.parse(txt)
-        return self._format_macro(macro)
-
-    @Others.Macro.wraps
-    @set_design(text="Load file")
     @do_not_record
+    @nogui
     def load_macro_file(self, path: Path.Read[FileFilter.PY]):
         """Load a Python script file to a new macro window."""
-        macro = self._load_macro_file(path)
+
+        with open(path) as f:
+            txt = f.read()
+        macro = self._format_macro(mk.parse(txt))
         edit = self.macro.widget.new_window(path.name)
         edit.textedit.value = str(macro)
         self._active_widgets.add(edit)
