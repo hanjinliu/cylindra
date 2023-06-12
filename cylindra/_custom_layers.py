@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, NamedTuple
 import weakref
 import polars as pl
 import numpy as np

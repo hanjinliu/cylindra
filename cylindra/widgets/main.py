@@ -2636,13 +2636,17 @@ class CylindraMainWidget(MagicTemplate):
         get_function_gui(self.map_along_pf)["orientation"].value = GVar.clockwise
         get_function_gui(self.map_centers)["orientation"].value = GVar.clockwise
 
-        if self._global_variable_change_may_affect() and self.parent_viewer:
-            msg_color = "yellow" if self.parent_viewer.theme == "dark" else "red"
-            _Logger.print_html(
-                f'<font color="{msg_color}"><b>'
-                "WARNING: Global variables changed in the process."
-                "</b></font>"
-            )
+        try:
+            if self._global_variable_change_may_affect() and self.parent_viewer:
+                msg_color = "yellow" if self.parent_viewer.theme == "dark" else "red"
+                _Logger.print_html(
+                    f'<font color="{msg_color}"><b>'
+                    "WARNING: Global variables changed in the process."
+                    "</b></font>"
+                )
+        except RuntimeError:
+            # Event emission may fail during testing, due to GC.
+            pass
 
     def _global_variable_change_may_affect(self) -> bool:
         """Return true if global variable change may affect the analysis."""
