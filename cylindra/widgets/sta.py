@@ -871,6 +871,7 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=model,
         )
         score, argmax = _calc_landscape(model, score_dsk)
+        yield
         scale = parent.tomogram.scale
         npf = molecules.features[Mole.pf].max() + 1
 
@@ -982,7 +983,7 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=model,
         )
         score, argmax = _calc_landscape(model, score_dsk)
-
+        yield
         annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
         energy = -score
         local_shape = energy.shape[1:]
