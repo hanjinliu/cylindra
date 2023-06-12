@@ -3,6 +3,7 @@ import re
 from scipy.spatial.transform import Rotation
 from magicclass import (
     do_not_record,
+    get_function_gui,
     magicclass,
     magicmenu,
     field,
@@ -1554,16 +1555,38 @@ def _(
 
     canvas = QtMultiPlotCanvas(ncols=2)
     canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
-    canvas[0].add_infline((distance_range_long[0], 0), 90, color="yellow", ls=":")
-    canvas[0].add_infline((distance_range_long[1], 0), 90, color="yellow", ls=":")
+    long_low = canvas[0].add_infline(
+        (distance_range_long[0], 0), 90, color="yellow", ls=":"
+    )
+    long_high = canvas[0].add_infline(
+        (distance_range_long[1], 0), 90, color="yellow", ls=":"
+    )
     canvas[0].add_infline((0, 0), 0, color="gray")
     canvas[0].title = "Longitudinal distances"
     canvas[1].add_hist(data_lat, bins=24, density=False, name="Lateral")
-    canvas[1].add_infline((distance_range_lat[0], 0), 90, color="yellow", ls=":")
-    canvas[1].add_infline((distance_range_lat[1], 0), 90, color="yellow", ls=":")
+    lat_low = canvas[1].add_infline(
+        (distance_range_lat[0], 0), 90, color="yellow", ls=":"
+    )
+    lat_high = canvas[1].add_infline(
+        (distance_range_lat[1], 0), 90, color="yellow", ls=":"
+    )
     canvas[1].add_infline((0, 0), 0, color="gray")
     canvas[1].title = "Lateral distances"
     canvas.native.setParent(parent.native, canvas.native.windowFlags())
+
+    # connect value change signals
+    fgui = get_function_gui(self.align_all_annealing)
+
+    @fgui.distance_range_long.changed.connect
+    def _long_changed(val: tuple[float, float]):
+        long_low.pos = (val[0], 0)
+        long_high.pos = (val[1], 0)
+
+    @fgui.distance_range_lat.changed.connect
+    def _lat_changed(val: tuple[float, float]):
+        lat_low.pos = (val[0], 0)
+        lat_high.pos = (val[1], 0)
+
     canvas.show()
     return None
 

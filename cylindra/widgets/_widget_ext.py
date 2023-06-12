@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Iterable
 from magicgui.widgets.bases._value_widget import ValueWidget
 
-from qtpy import QtWidgets as QtW
+from qtpy import QtWidgets as QtW, QtCore, QtGui
 from qtpy.QtCore import Qt
 
 from magicgui.widgets import SpinBox, Container, Label, FloatSpinBox, protocols
@@ -174,19 +174,39 @@ def _signals_blocked(obj: QtW.QWidget):
         obj.blockSignals(before)
 
 
+class _ListWidget(QtW.QListWidget):
+    def __init__(self, parent: QtW.QWidget | None = None):
+        super().__init__(parent)
+        self.setSelectionMode(QtW.QAbstractItemView.SelectionMode.NoSelection)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.itemEntered.connect(self._item_entered)
+        self._mouse_down = False
+
+    def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
+        self._mouse_down = True
+        return super().mousePressEvent(e)
+
+    def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
+        self._mouse_down = False
+        return super().mouseReleaseEvent(e)
+
+    def _item_entered(self, item: QtW.QListWidgetItem):
+        if self._mouse_down:
+            self.itemClicked.emit(item)
+
+    def sizeHint(self) -> QtCore.QSize:
+        size = super().sizeHint()
+        size.setHeight(int(size.height() / 2))
+        return size
+
+
 class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtocol):
-    _qwidget: QtW.QListWidget
+    _qwidget: _ListWidget
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(QtW.QListWidget, "isChecked", "setCurrentIndex", "", **kwargs)
-        self._qwidget.setSelectionMode(QtW.QAbstractItemView.SelectionMode.NoSelection)
+        super().__init__(_ListWidget, "isChecked", "setCurrentIndex", "", **kwargs)
         self._qwidget.itemChanged.connect(self._emit_data)
         self._qwidget.itemClicked.connect(self._toggle_item_checked)
-        self._qwidget.itemEntered.connect(self._toggle_item_checked)
-        self._qwidget.setMaximumHeight(80)
-        self._qwidget.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
 
     def _emit_data(self):
         self._event_filter.valueChanged.emit(
@@ -312,7 +332,3 @@ class CheckBoxes(CategoricalWidget):
             nullable=nullable,
             **base_widget_kwargs,
         )
-
-    def reset_choices(self, *_: Any) -> None:
-        super().reset_choices(*_)
-        self.value = self.choices

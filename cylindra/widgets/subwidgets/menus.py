@@ -376,13 +376,13 @@ class Others(ChildWidget):
             filename: Annotated[str, {"choices": _get_workflow_names}],
         ):
             main = self._get_main()
-            main.run_workflow(filename)
+            return main.run_workflow(filename)
 
         @nogui
         def append_workflow(self, path: Path):
             main = self._get_main()
 
-            @set_design(text=f"Run {path.stem}")
+            @set_design(text=f"Run `{path.stem}`")
             @do_not_record
             def run():
                 return main.run_workflow(path)
@@ -397,9 +397,9 @@ class Others(ChildWidget):
             workflow: Annotated[str, {"widget_type": ConsoleTextEdit}],
         ):
             """Define a workflow script for the daily analysis."""
-            workflow_expr = normalize_workflow(workflow, self)
+            code = normalize_workflow(workflow, self._get_main())
             path = _config.workflow_path(filename)
-            path.write_text(str(workflow_expr))
+            path.write_text(code)
             _Logger.print("Workflow saved: " + path.as_posix())
             return None
 
@@ -481,33 +481,29 @@ class Others(ChildWidget):
         return open_url("https://github.com/hanjinliu/cylindra/issues/new")
 
 
-def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> Expr:
+def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     expr = parse(workflow)
     # TODO: fix macro-kit to check this
     # check_call_args(expr, {"ui": ui})
     check_attributes(expr, {"ui": ui})
+    _main_function_found = False
+    for line in expr.args:
+        if isinstance(line, Symbol):
+            continue
+        if line.head is Head.function and line.args[0].args[0].name == "main":
+            _main_function_found = True
+            break
 
-    import_expr = parse(
-        "import numpy as np\n"
-        "import impy as ip\n"
-        "import polars as pl\n"
-        "from pathlib import Path\n"
-        "from cylindra.widgets import CylindraMainWidget"
-    )
-    arg_expr = Expr(Head.annotate, [symbol(ui), "CylindraMainWidget"])
-    main_expr = Expr(
-        Head.function,
-        [Expr(Head.call, [Symbol("main"), arg_expr]), expr],
-    )
-    empty_expr = Expr(Head.empty, [])
-    workflow_expr = Expr(Head.block, import_expr.args + [empty_expr, main_expr])
-    return workflow_expr
+    if not _main_function_found:
+        raise ValueError("No main function found in workflow script.")
+    return workflow
 
 
 @setup_function_gui(Others.Workflows.run_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
-    txt = ConsoleTextEdit(enabled=False)
+    txt = ConsoleTextEdit()
     txt.syntax_highlight("python")
+    txt.read_only = True
     gui.insert(1, txt)
 
     @gui.filename.changed.connect
@@ -520,6 +516,20 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
 @setup_function_gui(Others.Workflows.define_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
     gui.workflow.syntax_highlight("python")
+    gui.workflow.value = "\n".join(
+        [
+            "import numpy as np",
+            "import impy as ip",
+            "import polars as pl",
+            "from pathlib import Path",
+            "from cylindra.widgets import CylindraMainWidget",
+            "",
+            "def main(ui: 'CylindraMainWidget'):",
+            "    # Write your workflow here",
+            "",
+        ]
+    )
+    gui.called.connect(self.reset_choices)
 
 
 @setup_function_gui(Others.Workflows.edit_workflow)

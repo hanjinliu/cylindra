@@ -44,6 +44,7 @@ from napari.utils.colormaps import Colormap
 from cylindra import utils, _config
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
+    PREVIEW_LAYER_NAME,
     SELECTION_LAYER_NAME,
     WORKING_LAYER_NAME,
     GlobalVariables as GVar,
@@ -2419,7 +2420,11 @@ class CylindraMainWidget(MagicTemplate):
         # NOTE: To make recorded macro completely reproducible, removing molecules
         # from the viewer layer list must always be monitored.
         layer: Layer = self.parent_viewer.layers[event.index]
-        if isinstance(layer, MoleculesLayer) and self.macro.active:
+        if (
+            isinstance(layer, MoleculesLayer)
+            and self.macro.active
+            and layer.name != PREVIEW_LAYER_NAME  # ignore preview layer
+        ):
             expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
             undo = self._add_layers_future(layer)
             self.macro.append_with_undo(mk.Expr("del", [expr]), undo)

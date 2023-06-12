@@ -11,7 +11,7 @@ from magicclass import setup_function_gui, impl_preview
 
 import numpy as np
 
-from cylindra.const import PropertyNames as H
+from cylindra.const import PropertyNames as H, PREVIEW_LAYER_NAME
 from cylindra.project import CylindraProject, get_project_json
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
@@ -100,12 +100,11 @@ def _(
         offsets=normalize_offsets(offsets, tomo.splines[spline]),
         orientation=orientation,
     )
-    name = "<Preview>"
-    if name in viewer.layers:
-        layer: Layer = viewer.layers[name]
+    if PREVIEW_LAYER_NAME in viewer.layers:
+        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
         layer.data = out.pos
     else:
-        layer = self.add_molecules(out, name=name)
+        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     layer.face_color = layer.edge_color = "crimson"
     is_active = False
     try:
@@ -133,14 +132,13 @@ def _(
         orientation=orientation,
         offsets=normalize_offsets(offsets, tomo.splines[spline]),
     )
-    name = "<Preview>"
     viewer = self.parent_viewer
 
-    if name in viewer.layers:
-        layer: Layer = viewer.layers[name]
+    if PREVIEW_LAYER_NAME in viewer.layers:
+        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
         layer.data = out.pos
     else:
-        layer = self.add_molecules(out, name=name)
+        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     layer.face_color = layer.edge_color = "crimson"
     is_active = False
     try:
@@ -171,12 +169,11 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, translation, internal: bo
     else:
         out = mole.translate(translation)
     viewer = self.parent_viewer
-    name = "<Preview>"
-    if name in viewer.layers:
-        layer: Layer = viewer.layers[name]
+    if PREVIEW_LAYER_NAME in viewer.layers:
+        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
         layer.data = out.pos
     else:
-        layer = self.add_molecules(out, name=name)
+        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
         layer.face_color = layer.edge_color = "crimson"
     is_active = False
     try:
@@ -197,12 +194,11 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
         yield
         return
     out = mole.filter(expr)
-    name = "<Preview>"
-    if name in viewer.layers:
-        layer: Layer = viewer.layers[name]
+    if PREVIEW_LAYER_NAME in viewer.layers:
+        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
         layer.data = out.pos
     else:
-        layer = self.add_molecules(out, name=name)
+        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     # filtering changes the number of molecules. We need to update the colors.
     layer.face_color = layer.edge_color = "crimson"
     is_active = False

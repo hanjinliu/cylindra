@@ -2,30 +2,16 @@ from typing import Annotated, Sequence
 
 from magicclass import (
     do_not_record,
-    get_function_gui,
     magicclass,
     vfield,
     MagicTemplate,
     set_design,
 )
 from magicclass.types import Optional
-from magicclass.logging import getLogger
-from magicclass.ext.polars import DataFrameView
-import impy as ip
 
-from cylindra.widgets.widget_utils import FileFilter
-from cylindra.widgets._previews import view_image
 from cylindra.widgets._widget_ext import CheckBoxes
 
-from cylindra._custom_layers import MoleculesLayer
-from cylindra.utils import ceilint, roundint
-from cylindra.types import get_monomer_layers
-from cylindra.ext.etomo import PEET
-from cylindra.components import CylTomogram
-from cylindra.const import GlobalVariables as GVar, nm, ImageFilter, get_versions
-from cylindra.project import CylindraProject
-from cylindra import _config
-from .global_variables import GlobalVariablesMenu
+from cylindra.const import GlobalVariables as GVar, nm
 
 
 @magicclass(widget_type="groupbox", name="Fitting parameters", record=False)
@@ -143,7 +129,7 @@ class Runner(MagicTemplate):
         else:
             return -1.0
 
-    @set_design(text="Fit & Measure")
+    @set_design(text="Fit and Measure")
     @do_not_record(recursive=False)
     def run(
         self,
@@ -193,8 +179,7 @@ class Runner(MagicTemplate):
         if global_props:
             parent.global_ft_analysis(splines=splines, bin_size=bin_size)
         if local_props and paint:
-            limits = get_function_gui(parent.paint_cylinders).limits.value
-            parent.paint_cylinders(limits=limits)
+            parent.paint_cylinders(limits=(GVar.spacing_min, GVar.spacing_max))
         if map_monomers:
             parent.map_monomers(orientation=GVar.clockwise)
         return None
