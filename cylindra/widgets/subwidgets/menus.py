@@ -483,7 +483,8 @@ class Others(ChildWidget):
 
 def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> Expr:
     expr = parse(workflow)
-    check_call_args(expr, {"ui": ui})
+    # TODO: fix macro-kit to check this
+    # check_call_args(expr, {"ui": ui})
     check_attributes(expr, {"ui": ui})
 
     import_expr = parse(

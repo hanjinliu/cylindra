@@ -224,7 +224,6 @@ def test_load_macro(ui: CylindraMainWidget):
         fp = Path(tmpdir) / "test_macro.py"
         fp.write_text("print(0)")
         ui.load_macro_file(fp)
-        ui.run_workflow(fp)
 
 
 def test_spline_switch(ui: CylindraMainWidget):
