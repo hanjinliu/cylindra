@@ -759,8 +759,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_multi_template(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
-        template_path: Bound[params.template_path],
-        other_templates: Path.Multiple[FileFilter.IMAGE],
+        template_paths: Path.Multiple[FileFilter.IMAGE],
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -774,8 +773,8 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{template_path}
-        other_templates : list of Path or str
+        {layers}
+        template_paths : list of Path or str
             Path to other template images.
         {mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
@@ -784,9 +783,7 @@ class SubtomogramAveraging(MagicTemplate):
         parent = self._get_parent()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
-        templates = [self.params._get_template(path=template_path)]
-        for path in other_templates:
-            templates.append(pipe.from_file(path))
+        templates = [pipe.from_file(path) for path in template_paths]
 
         aligned_loader = self._get_loader(
             binsize=bin_size,
@@ -1588,6 +1585,12 @@ def _(
         lat_high.pos = (val[1], 0)
 
     canvas.show()
+
+    is_active = yield
+    if not is_active:
+        fgui.distance_range_long.changed.disconnect(_long_changed)
+        fgui.distance_range_lat.changed.disconnect(_lat_changed)
+        canvas.close()
     return None
 
 

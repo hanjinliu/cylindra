@@ -1,6 +1,6 @@
 from typing import Annotated, TYPE_CHECKING
 
-from macrokit import Expr, Head, parse, Symbol, symbol
+from macrokit import Head, parse, Symbol
 from macrokit.utils import check_call_args, check_attributes
 
 from magicclass import (
@@ -15,7 +15,7 @@ from magicclass import (
     bind_key,
     abstractapi,
 )
-from magicclass.widgets import Separator, ConsoleTextEdit
+from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
 from magicclass.types import Path
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
@@ -394,7 +394,7 @@ class Others(ChildWidget):
         def define_workflow(
             self,
             filename: str,
-            workflow: Annotated[str, {"widget_type": ConsoleTextEdit}],
+            workflow: Annotated[str, {"widget_type": CodeEdit}],
         ):
             """Define a workflow script for the daily analysis."""
             code = normalize_workflow(workflow, self._get_main())
@@ -408,7 +408,7 @@ class Others(ChildWidget):
         def edit_workflow(
             self,
             filename: Annotated[str, {"choices": _get_workflow_names}],
-            workflow: Annotated[str, {"widget_type": ConsoleTextEdit}],
+            workflow: Annotated[str, {"widget_type": CodeEdit}],
         ):
             """View or edit a workflow script."""
             return self.define_workflow(filename, workflow)
@@ -501,7 +501,7 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
 
 @setup_function_gui(Others.Workflows.run_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
-    txt = ConsoleTextEdit()
+    txt = CodeEdit()
     txt.syntax_highlight("python")
     txt.read_only = True
     gui.insert(1, txt)

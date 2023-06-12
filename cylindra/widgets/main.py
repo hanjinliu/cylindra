@@ -1859,6 +1859,7 @@ class CylindraMainWidget(MagicTemplate):
             center = (pf[i], y[i])
             circ = Circle(center, 0.5, fc=face_color[i], ec="black", lw=0.1)
             ax.add_patch(circ)
+        ax.set_title(layer.name)
         ax.set_xlim(pf.min() - 0.6, pf.max() + 0.6)
         ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
         ax.set_aspect("equal")

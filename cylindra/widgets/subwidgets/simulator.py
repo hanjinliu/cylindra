@@ -105,8 +105,8 @@ class CylinderParameters:
 # Main widget class
 @magicclass(widget_type="scrollable", labels=False)
 class CylinderSimulator(MagicTemplate):
-    @magicmenu(name="Viewer")
-    class ViewerMenu(MagicTemplate):
+    @magicmenu(name="Create")
+    class CreateMenu(MagicTemplate):
         """Receive image or spline data from the viewer"""
 
         create_empty_image = abstractapi()
@@ -277,7 +277,7 @@ class CylinderSimulator(MagicTemplate):
         """Set new model and simulate molecules with the same spline."""
         return self._set_model(model, self._spline)
 
-    @ViewerMenu.wraps
+    @CreateMenu.wraps
     @thread_worker.with_progress(desc="Creating an image")
     @set_design(text="Create an empty image")
     @confirm(
@@ -350,13 +350,13 @@ class CylinderSimulator(MagicTemplate):
             self.update_model(**self.parameters.asdict())
         return None
 
-    @ViewerMenu.wraps
+    @CreateMenu.wraps
     @set_design(text="Set current spline")
     def set_current_spline(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Use the current parameters and the spline to construct a model and molecules."""
         return self._set_spline(self.parent_widget.tomogram.splines[idx])
 
-    @ViewerMenu.wraps
+    @CreateMenu.wraps
     @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Copy the spline parameters in the viewer."""
@@ -375,7 +375,7 @@ class CylinderSimulator(MagicTemplate):
         )
         return None
 
-    @ViewerMenu.wraps
+    @CreateMenu.wraps
     @set_design(text="Create a straight line")
     def create_straight_line(
         self,
@@ -413,7 +413,7 @@ class CylinderSimulator(MagicTemplate):
         self.show()
         return None
 
-    @ViewerMenu.wraps
+    @CreateMenu.wraps
     @set_design(text="Send molecules to viewer")
     def send_moleclues_to_viewer(self):
         """Send the current molecules to the viewer."""
