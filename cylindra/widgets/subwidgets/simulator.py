@@ -363,7 +363,7 @@ class CylinderSimulator(MagicTemplate):
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
 
-        if spl.has_globalprops([H.spacing, H.skew, H.rise, H.nPF, H.radius]):
+        if not spl.has_globalprops([H.spacing, H.skew, H.rise, H.nPF, H.radius]):
             raise ValueError("Global property is not calculated yet.")
 
         self.parameters.update(
