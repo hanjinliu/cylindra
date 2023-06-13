@@ -213,7 +213,10 @@ class CylindraMainWidget(MagicTemplate):
 
         # load all the workflows
         for file in _config.WORKFLOWS_DIR.glob("*.py"):
-            self.Others.Workflows.append_workflow(file)
+            try:
+                self.Others.Workflows.append_workflow(file)
+            except Exception as e:
+                _Logger.exception(f"Failed to load workflow {file.stem}: {e}")
         return None
 
     @property
