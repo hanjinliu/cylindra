@@ -1820,7 +1820,7 @@ class CylindraMainWidget(MagicTemplate):
             props = spl.globalprops
             spacing = props[H.spacing][0]
             rise = np.deg2rad(props[H.rise][0])
-            tan = np.tan(rise) / spacing * (2 * np.pi * spl.radius / npf)
+            tan = np.tan(-rise) / spacing * (2 * np.pi * spl.radius / npf)
         else:
             _, _, nrise = utils.infer_geometry_from_molecules(mole)
             tan = nrise / npf
@@ -1846,7 +1846,10 @@ class CylindraMainWidget(MagicTemplate):
             ax.add_patch(circ)
         ax.set_title(layer.name)
         ax.set_xlim(pf.min() - 0.6, pf.max() + 0.6)
-        ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
+        if backend == "inline":
+            ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
+        elif backend == "qt":
+            ax.set_ylim(y.mean() - pf.mean() - 0.6, y.mean() - pf.mean() + 0.6)
         ax.set_aspect("equal")
         return undo_callback(lambda: _Logger.print("Undoing plotting does nothing"))
 
@@ -2119,8 +2122,8 @@ class CylindraMainWidget(MagicTemplate):
         return _on_return
 
     @ImageMenu.wraps
-    @set_design(text="Back-paint molecules")
-    @dask_thread_worker.with_progress(desc="Back-painting molecules ...")
+    @set_design(text="Back-paint template")
+    @dask_thread_worker.with_progress(desc="Back-painting templat densities...")
     def backpaint_molecule_density(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
