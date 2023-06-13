@@ -337,25 +337,11 @@ class CylindraMainWidget(MagicTemplate):
 
     @do_not_record(recursive=False)
     @nogui
-    def run_workflow(self, filename: str):
+    def run_workflow(self, filename: str, *args, **kwargs):
         """Run workflow of a python file."""
-        from runpy import run_path
-
-        path = Path(filename)
-        if not path.exists():
-            path = _config.workflow_path(filename)
-            if not path.exists():
-                raise FileNotFoundError(f"File not found: {filename}")
-        if path.is_dir():
-            raise ValueError("You must specify a file.")
-
-        ns = run_path(str(path))
-        if callable(main := ns.get("main")):
-            main(self)
-            _Logger.print(f"Workflow {path.stem} finished.")
-        else:
-            raise ValueError("No main function found.")
-        return None
+        main = _config.get_main_function(filename)
+        out = main(self, *args, **kwargs)
+        return out
 
     @_image_loader.wraps
     @set_design(text="Open")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import json
+from typing import Callable
 
 from appdirs import user_config_dir
 
@@ -20,6 +21,24 @@ def workflow_path(name: str | Path) -> Path:
     if out.suffix != ".py":
         out = out.with_suffix(".py")
     return out
+
+
+def get_main_function(filename: str | Path) -> Callable:
+    """Get the main function object from the file."""
+    from runpy import run_path
+
+    path = Path(filename)
+    if not path.exists():
+        path = workflow_path(filename)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {filename}")
+    if path.is_dir():
+        raise ValueError("You must specify a file.")
+
+    ns = run_path(str(path))
+    if callable(main := ns.get("main")):
+        return main
+    raise ValueError(f"No main function found in file {path.as_posix()}.")
 
 
 def init_config(force: bool = False):  # pragma: no cover

@@ -1,3 +1,5 @@
+from functools import partial
+import inspect
 from typing import Annotated, TYPE_CHECKING
 
 from macrokit import Head, parse, Symbol
@@ -19,6 +21,7 @@ from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
 from magicclass.types import Path
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
+from magicgui import magicgui
 
 from cylindra.widgets.widget_utils import FileFilter
 
@@ -374,6 +377,10 @@ class Others(ChildWidget):
         def _get_workflow_names(self, *_) -> list[str]:
             return [file.stem for file in _config.WORKFLOWS_DIR.glob("*.py")]
 
+        def _make_method_name(self, path: Path) -> str:
+            abs_path = _config.workflow_path(path)
+            return f"Run_{hex(hash(abs_path))}"
+
         @set_design(text="Run workflow")
         @bind_key("Ctrl+K, Ctrl+Shift+R")
         @set_options(labels=False)
@@ -381,19 +388,26 @@ class Others(ChildWidget):
             self,
             filename: Annotated[str, {"choices": _get_workflow_names}],
         ):
-            main = self._get_main()
-            return main.run_workflow(filename)
+            fname = self._make_method_name(filename)
+            self[fname].changed()
 
         @nogui
         def append_workflow(self, path: Path):
+            """Append workflow as a widget to the menu."""
             main = self._get_main()
+            main_func = _config.get_main_function(path)
+            partial_func = partial(main_func, main)
+            prms = list(inspect.signature(main_func).parameters.values())[1:]
+            partial_func.__signature__ = inspect.Signature(prms)
 
-            @set_design(text=f"Run `{path.stem}`")
-            @do_not_record
-            def run():
-                return main.run_workflow(path)
-
-            return self.append(run)
+            fn = set_design(text=f"Run `{path.stem}`")(do_not_record(partial_func))
+            fn.__name__ = self._make_method_name(path)
+            # Old menu should be removed
+            try:
+                del self[fn.__name__]
+            except (IndexError, KeyError):
+                pass
+            return self.append(fn)
 
         @set_design(text="Define workflow")
         @bind_key("Ctrl+K, Ctrl+Shift+D")
@@ -403,9 +417,23 @@ class Others(ChildWidget):
             workflow: Annotated[str, {"widget_type": CodeEdit}],
         ):
             """Define a workflow script for the daily analysis."""
+            if filename == "":
+                raise ValueError("Filename must be specified.")
             code = normalize_workflow(workflow, self._get_main())
             path = _config.workflow_path(filename)
-            path.write_text(code)
+            if path.exists():
+                old_text: str | None = path.read_text()
+            else:
+                old_text = None
+            path.write_text(code, encoding="utf-8")
+            try:
+                self.append_workflow(path)
+            except Exception as e:
+                if old_text:
+                    path.write_text(old_text, encoding="utf-8")
+                else:
+                    path.unlink(missing_ok=True)
+                raise e
             _Logger.print("Workflow saved: " + path.as_posix())
             return None
 
