@@ -7,6 +7,7 @@ from macrokit.utils import check_call_args, check_attributes
 
 from magicclass import (
     do_not_record,
+    get_function_gui,
     magicmenu,
     field,
     nogui,
@@ -388,6 +389,8 @@ class Others(ChildWidget):
             self,
             filename: Annotated[str, {"choices": _get_workflow_names}],
         ):
+            # close this magicgui before running whole workflow
+            get_function_gui(self.run_workflow).close()
             fname = self._make_method_name(filename)
             self[fname].changed()
 
@@ -435,6 +438,7 @@ class Others(ChildWidget):
                     path.unlink(missing_ok=True)
                 raise e
             _Logger.print("Workflow saved: " + path.as_posix())
+            get_function_gui(self.define_workflow).reset_choices()
             return None
 
         @set_design(text="View/Edit workflow")
