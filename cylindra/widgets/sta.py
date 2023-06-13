@@ -76,6 +76,9 @@ _DistRangeLat = Annotated[
         "label": "Lateral range (nm)",
     },
 ]
+_AngleMaxLon = Annotated[
+    float, {"max": 90.0, "step": 0.5, "label": "Maximum angle (deg)"}
+]
 _FSCFreq = Annotated[
     Optional[float],
     {
@@ -537,7 +540,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
@@ -939,6 +942,7 @@ class SubtomogramAveraging(MagicTemplate):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (3.9, 4.4),
         distance_range_lat: _DistRangeLat = (4.7, 5.3),
+        angle_max: _AngleMaxLon = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         ntrial: Annotated[int, {"min": 1}] = 5,
     ):
@@ -956,6 +960,9 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
+        angle_max : float
+            Maximum allowed angle between longitudinally consecutive monomers and the Y
+            axis.
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape.
         """
@@ -1000,6 +1007,7 @@ class SubtomogramAveraging(MagicTemplate):
         ).set_box_potential(
             *distance_range_long,
             *distance_range_lat,
+            float(np.deg2rad(angle_max)),
             cooling_rate=_energy_std / time_const * 10,
         ).with_reject_limit(
             nmole * 300

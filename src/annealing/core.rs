@@ -10,7 +10,6 @@ use super::{
     random::RandomNumberGenerator,
     graph::CylindricGraph,
     reservoir::Reservoir,
-    potential::TrapezoidalPotential2D,
 };
 use crate::{value_error, cylindric::Index};
 
@@ -170,7 +169,9 @@ impl CylindricAnnealingModel {
         Ok(slf)
     }
 
-    #[pyo3(signature = (lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max, cooling_rate=1e-3))]
+    #[pyo3(signature =
+        (lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max, lon_ang_max=-1.0, cooling_rate=1e-3))
+    ]
     /// Set a box potential with given borders.
     pub fn set_box_potential(
         mut slf: PyRefMut<Self>,
@@ -178,13 +179,15 @@ impl CylindricAnnealingModel {
         lon_dist_max: f32,
         lat_dist_min: f32,
         lat_dist_max: f32,
+        lon_ang_max: f32,
         cooling_rate: f32,
     ) -> PyResult<PyRefMut<Self>>{
-        slf.graph.set_potential_model(
-            TrapezoidalPotential2D::new(
-                lon_dist_min, lon_dist_max, lat_dist_min, lat_dist_max, cooling_rate
-            )?
-        );
+        let model = slf.graph.binding_potential
+            .with_lon_dist(lon_dist_min, lon_dist_max)?
+            .with_lat_dist(lat_dist_min, lat_dist_max)?
+            .with_lon_ang(lon_ang_max)?
+            .with_cooling_rate(cooling_rate);
+        slf.graph.set_potential_model(model);
         Ok(slf)
     }
 

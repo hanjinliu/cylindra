@@ -61,6 +61,7 @@ class CylindricAnnealingModel:
         lon_dist_max: float,
         lat_dist_min: float,
         lat_dist_max: float,
+        lon_ang_max: float,
         cooling_rate: float = 1e-3,
     ) -> CylindricAnnealingModel: ...
     def shifts(self) -> NDArray[np.int32]: ...
