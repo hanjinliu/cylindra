@@ -31,7 +31,6 @@ import napari
 from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
-from cylindra.components import CylSpline
 from cylindra.widgets._widget_ext import CheckBoxes, RotationEdit
 
 from .widget_utils import FileFilter, timer
@@ -616,7 +615,7 @@ class SubtomogramAveraging(MagicTemplate):
             merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
 
             # write offsets to spline globalprops if available
-            if isinstance(spl := layer.source_component, CylSpline):
+            if spl := layer.source_spline:
                 if spl.radius is None:
                     _radius = utils.with_radius(mole, spl)[Mole.radius].mean()
                 else:
@@ -814,7 +813,7 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
-        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -936,7 +935,7 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
-        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1513,7 +1512,7 @@ def _get_annealing_model(
 
     molecules = layer.molecules
     scale_factor = scale / upsample_factor
-    if isinstance(spl := layer.source_component, CylSpline):
+    if spl := layer.source_spline:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
     else:

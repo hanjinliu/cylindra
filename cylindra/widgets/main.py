@@ -1816,7 +1816,7 @@ class CylindraMainWidget(MagicTemplate):
         nth = mole.features[Mole.nth].to_numpy()
         pf = mole.features[Mole.pf].to_numpy()
         npf = int(pf.max() + 1)
-        if isinstance(spl := layer.source_component, CylSpline):
+        if spl := layer.source_spline:
             props = spl.globalprops
             spacing = props[H.spacing][0]
             rise = np.deg2rad(props[H.rise][0])
@@ -1849,7 +1849,7 @@ class CylindraMainWidget(MagicTemplate):
         if backend == "inline":
             ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
         elif backend == "qt":
-            ax.set_ylim(y.mean() - pf.mean() - 0.6, y.mean() - pf.mean() + 0.6)
+            ax.set_ylim(y.mean() - pf.mean() - 0.6, y.mean() + pf.mean() + 0.6)
         ax.set_aspect("equal")
         return undo_callback(lambda: _Logger.print("Undoing plotting does nothing"))
 

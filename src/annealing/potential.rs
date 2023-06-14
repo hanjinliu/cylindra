@@ -98,7 +98,7 @@ impl TrapezoidalCosineBoundary {
     }
 
     pub fn unbounded() -> Self {
-        Self { ang_max: 3.15, slope: 0.0, }
+        Self { ang_max: 1.58, slope: 0.0, }
     }
 
     ///           o         Cosine is calculated as the angle between the
@@ -106,7 +106,7 @@ impl TrapezoidalCosineBoundary {
     ///    i                of local coordinates is always parallel to the
     /// ---------------> y  y axis.
     pub fn energy(&self, dr: Vector3D<f32>) -> f32 {
-        let ang = dr.cos_angle_y().acos();
+        let ang = dr.cos_angle_y().abs().acos();
         if ang > self.ang_max {
             self.slope * (ang - self.ang_max).sqrt()
         } else {
