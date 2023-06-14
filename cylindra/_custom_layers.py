@@ -10,7 +10,7 @@ from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import impy as ip
-    from cylindra.components._base import BaseComponent
+    from cylindra.components import BaseComponent, CylSpline
     from napari.utils import Colormap
 
 
@@ -145,6 +145,15 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             raise TypeError("Must be a CylSpline object")
         else:
             self._source_component = weakref.ref(obj)
+
+    @property
+    def source_spline(self) -> CylSpline | None:
+        from cylindra.components import CylSpline
+
+        src = self.source_component
+        if not isinstance(src, CylSpline):
+            return None
+        return src
 
     @property
     def colormap_info(self) -> ColormapInfo | None:

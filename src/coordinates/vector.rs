@@ -111,6 +111,13 @@ impl<T: Real> Vector3D<T> {
         return dot_prd / (a * b);
     }
 
+    /// Cosine between self and (0, 1, 0)
+    pub fn cos_angle_y(&self) -> T {
+        let dot_prd = self.y;
+        let a = self.length();
+        return dot_prd / a;
+    }
+
     /// Radian between two vectors.
     pub fn angle(&self, other: &Vector3D<T>) -> T {
         let cos = self.cos_angle(other);

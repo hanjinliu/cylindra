@@ -1,5 +1,5 @@
 use pyo3::prelude::PyResult;
-use crate::value_error;
+use crate::{value_error, coordinates::Vector3D};
 
 pub trait BindingPotential<Se, T> {
     fn calculate(&self, dist2: T, typ: Se) -> T;
@@ -9,12 +9,12 @@ pub trait BindingPotential<Se, T> {
 }
 
 pub trait BindingPotential2D {
-    fn longitudinal(&self, dist2: f32) -> f32;
-    fn lateral(&self, dist2: f32) -> f32;
-    fn calculate(&self, dist2: f32, typ: &EdgeType) -> f32 {
+    fn longitudinal(&self, dr: Vector3D<f32>) -> f32;
+    fn lateral(&self, dr: Vector3D<f32>) -> f32;
+    fn calculate(&self, dr: Vector3D<f32>, typ: &EdgeType) -> f32 {
         match typ {
-            EdgeType::Longitudinal => self.longitudinal(dist2),
-            EdgeType::Lateral => self.lateral(dist2),
+            EdgeType::Longitudinal => self.longitudinal(dr),
+            EdgeType::Lateral => self.lateral(dr),
         }
     }
     fn cool(&mut self, _n: usize) {
@@ -28,69 +28,50 @@ pub enum EdgeType {
     Lateral,
 }
 
-pub struct EmptyPotential2D {}
-
-impl BindingPotential2D for EmptyPotential2D {
-    fn longitudinal(&self, _dist2: f32) -> f32 { 0.0 }
-    fn lateral(&self, _dist2: f32) -> f32 { 0.0 }
-}
-
 #[derive(Clone)]
-/// A potential model with shape:
-///    ~~    ~~
-///     │    │
-///     └────┘
-pub struct BoxPotential2D {
-    lon_dist_min2: f32,
-    lon_dist_max2: f32,
-    lat_dist_min2: f32,
-    lat_dist_max2: f32,
+/// A 1D potential model with shape:
+///    ~~      ~~
+///     \      /
+///      \____/
+/// With this boundary, distances will be softly restricted to the range
+/// [dist_min2.sqrt(), dist_max2.sqrt()].
+struct TrapezoidalBoundary {
+    dist_min2: f32,
+    dist_max2: f32,
+    slope: f32,
 }
 
-impl BoxPotential2D {
-    pub fn new(
-        lon_dist_min: f32,
-        lon_dist_max: f32,
-        lat_dist_min: f32,
-        lat_dist_max: f32,
-    ) -> PyResult<Self> {
-        if lon_dist_min < 0.0 || lon_dist_max < 0.0 || lat_dist_min < 0.0 || lat_dist_max < 0.0 {
+impl TrapezoidalBoundary {
+    pub fn new(dist_min: f32, dist_max: f32, slope: f32) -> PyResult<Self> {
+        if dist_min < 0.0 || dist_max < 0.0 {
             return value_error!("All distances must be positive");
-        } else if lon_dist_min >= lon_dist_max || lat_dist_min >= lat_dist_max {
+        } else if dist_min >= dist_max {
             return value_error!("Minimum distance must be smaller than maximum distance");
         }
         Ok(
             Self {
-                lon_dist_min2: lon_dist_min * lon_dist_min,
-                lon_dist_max2: lon_dist_max * lon_dist_max,
-                lat_dist_min2: lat_dist_min * lat_dist_min,
-                lat_dist_max2: lat_dist_max * lat_dist_max,
+                dist_min2: dist_min * dist_min,
+                dist_max2: dist_max * dist_max,
+                slope,
             }
         )
     }
 
+    /// An unbounded version of the model.
     pub fn unbounded() -> Self {
         Self {
-            lon_dist_min2: 0.0,
-            lon_dist_max2: std::f32::INFINITY,
-            lat_dist_min2: 0.0,
-            lat_dist_max2: std::f32::INFINITY,
-        }
-    }
-}
-
-impl BindingPotential2D for BoxPotential2D {
-    fn longitudinal(&self, dist2: f32) -> f32 {
-        if dist2 < self.lon_dist_min2 || self.lon_dist_max2 < dist2 {
-            std::f32::INFINITY
-        } else {
-            0.0
+            dist_min2: 0.0,
+            dist_max2: std::f32::INFINITY,
+            slope: 0.0,
         }
     }
 
-    fn lateral(&self, dist2: f32) -> f32 {
-        if dist2 < self.lat_dist_min2 || self.lat_dist_max2 < dist2 {
-            std::f32::INFINITY
+    /// Calculated energy of given square of distance.
+    pub fn energy(&self, dist2: f32) -> f32 {
+        if dist2 < self.dist_min2 {
+            self.slope * (self.dist_min2 - dist2).sqrt()
+        } else if self.dist_max2 < dist2 {
+            self.slope * (dist2 - self.dist_max2).sqrt()
         } else {
             0.0
         }
@@ -98,17 +79,47 @@ impl BindingPotential2D for BoxPotential2D {
 }
 
 #[derive(Clone)]
-/// A potential model with shape:
-///    ~~      ~~
-///     \      /
-///      \____/
+/// A 1D symmetric potential model for an angle.
+/// With this boundary, angles will be softly restricted to the range
+/// [-ang_max, ang_max].
+struct TrapezoidalCosineBoundary {
+    ang_max: f32,
+    slope: f32,
+}
+
+impl TrapezoidalCosineBoundary {
+    pub fn new(ang_max: f32, slope: f32) -> PyResult<Self> {
+        if ang_max <= 0.0 {
+            return value_error!("Maximum angle must be positive");
+        }
+        Ok(
+            Self { ang_max, slope }
+        )
+    }
+
+    pub fn unbounded() -> Self {
+        Self { ang_max: 1.58, slope: 0.0, }
+    }
+
+    ///           o         Cosine is calculated as the angle between the
+    ///    o     i+1        y axis and the vector from i to i+1. The y axis
+    ///    i                of local coordinates is always parallel to the
+    /// ---------------> y  y axis.
+    pub fn energy(&self, dr: Vector3D<f32>) -> f32 {
+        let ang = dr.cos_angle_y().abs().acos();
+        if ang > self.ang_max {
+            self.slope * (ang - self.ang_max).sqrt()
+        } else {
+            0.0
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct TrapezoidalPotential2D {
-    lon_dist_min2: f32,
-    lon_dist_max2: f32,
-    lat_dist_min2: f32,
-    lat_dist_max2: f32,
-    lon_slope: f32,
-    lat_slope: f32,
+    lon: TrapezoidalBoundary,
+    lat: TrapezoidalBoundary,
+    angle: TrapezoidalCosineBoundary,
     cooling_rate: f32,
 }
 
@@ -118,103 +129,77 @@ impl TrapezoidalPotential2D {
         lon_dist_max: f32,
         lat_dist_min: f32,
         lat_dist_max: f32,
+        lon_ang_max: f32,
         cooling_rate: f32,
     ) -> PyResult<Self> {
-        if lon_dist_min < 0.0 || lon_dist_max < 0.0 || lat_dist_min < 0.0 || lat_dist_max < 0.0 {
-            return value_error!("All distances must be positive");
-        } else if lon_dist_min >= lon_dist_max || lat_dist_min >= lat_dist_max {
-            return value_error!("Minimum distance must be smaller than maximum distance");
-        } else if cooling_rate < 0.0 {
+        if cooling_rate < 0.0 {
             return value_error!("Cooling rate must be non-negative");
         }
 
         Ok(
             Self {
-                lon_dist_min2: lon_dist_min * lon_dist_min,
-                lon_dist_max2: lon_dist_max * lon_dist_max,
-                lat_dist_min2: lat_dist_min * lat_dist_min,
-                lat_dist_max2: lat_dist_max * lat_dist_max,
-                lon_slope: 0.0,
-                lat_slope: 0.0,
+                lon: TrapezoidalBoundary::new(lon_dist_min, lon_dist_max, 0.0)?,
+                lat: TrapezoidalBoundary::new(lat_dist_min, lat_dist_max, 0.0)?,
+                angle: TrapezoidalCosineBoundary::new(lon_ang_max, 0.0)?,
                 cooling_rate,
             }
         )
     }
 
-
     pub fn unbounded() -> Self {
         Self {
-            lon_dist_min2: 0.0,
-            lon_dist_max2: std::f32::INFINITY,
-            lat_dist_min2: 0.0,
-            lat_dist_max2: std::f32::INFINITY,
-            lon_slope: 0.0,
-            lat_slope: 0.0,
+            lon: TrapezoidalBoundary::unbounded(),
+            lat: TrapezoidalBoundary::unbounded(),
+            angle: TrapezoidalCosineBoundary::unbounded(),
             cooling_rate: 0.0,
         }
     }
 
-    pub fn slopes(&self)-> (f32, f32) {
-        (self.lon_slope, self.lat_slope)
+    pub fn with_lon_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = TrapezoidalBoundary::new(min, max, self.lon.slope)?;
+        Ok(new)
     }
+
+    pub fn with_lat_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lat = TrapezoidalBoundary::new(min, max, self.lat.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_lon_ang(&self, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.angle = TrapezoidalCosineBoundary::new(max, self.angle.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_cooling_rate(&self, cooling_rate: f32) -> Self {
+        let mut new = self.clone();
+        new.cooling_rate = cooling_rate;
+        new
+    }
+
 }
 
 impl BindingPotential2D for TrapezoidalPotential2D {
-    fn longitudinal(&self, dist2: f32) -> f32 {
-        if dist2 < self.lon_dist_min2 {
-            self.lon_slope * (self.lon_dist_min2 - dist2).sqrt()
-        } else if self.lon_dist_max2 < dist2 {
-            self.lon_slope * (dist2 - self.lon_dist_max2).sqrt()
-        } else {
-            0.0
-        }
+    fn longitudinal(&self, dr: Vector3D<f32>) -> f32 {
+        // Energy coming from longitudinal distance
+        let dist2 = dr.length2();
+        let eng_dist = self.lon.energy(dist2);
+        let eng_ang = self.angle.energy(dr);
+        eng_dist + eng_ang
     }
 
-    fn lateral(&self, dist2: f32) -> f32 {
-        if dist2 < self.lat_dist_min2 {
-            self.lat_slope * (self.lat_dist_min2 - dist2).sqrt()
-        } else if self.lat_dist_max2 < dist2 {
-            self.lat_slope * (dist2 - self.lat_dist_max2).sqrt()
-        } else {
-            0.0
-        }
+    fn lateral(&self, dr: Vector3D<f32>) -> f32 {
+        let dist2 = dr.length2();
+        self.lat.energy(dist2)
     }
 
+    /// Cool the potential by increasing the slope of the trapezoid.
     fn cool(&mut self, n: usize) {
-        self.lon_slope = self.cooling_rate * n as f32;
-        self.lat_slope = self.cooling_rate * n as f32;
-    }
-}
-
-pub struct HarmonicPotential2D {
-    halfk0: f32,
-    halfk1: f32,
-    r0: f32,
-    r1: f32,
-}
-
-impl HarmonicPotential2D {
-    pub fn new(
-        halfk0: f32,
-        halfk1: f32,
-        r0: f32,
-        r1: f32,
-    ) -> PyResult<Self> {
-        if halfk0 < 0.0 || halfk1 < 0.0 || r0 < 0.0 || r1 < 0.0 {
-            return value_error!("All parameters must be positive");
-        }
-        Ok(Self { halfk0, halfk1, r0, r1 })
-    }
-}
-
-impl BindingPotential2D for HarmonicPotential2D {
-    fn longitudinal(&self, dist2: f32) -> f32 {
-        let x = dist2.sqrt() - self.r0;
-        self.halfk0 * x * x
-    }
-
-    fn lateral(&self, dist2: f32) -> f32 {
-        let x = dist2.sqrt() - self.r1;
-        self.halfk1 * x * x
+        let slope = self.cooling_rate * n as f32;
+        self.lon.slope = slope;
+        self.lat.slope = slope;
+        self.angle.slope = slope;
     }
 }

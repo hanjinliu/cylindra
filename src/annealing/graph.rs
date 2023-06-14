@@ -112,7 +112,7 @@ pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
     coords: Arc<HashMap<Index, CoordinateSystem<f32>>>,
     energy: Arc<HashMap<Index, Array<f32, Ix3>>>,
-    binding_potential: TrapezoidalPotential2D,
+    pub binding_potential: TrapezoidalPotential2D,
     pub local_shape: Vector3D<isize>,
 }
 
@@ -253,7 +253,7 @@ impl CylindricGraph {
         let coord1 = &self.coords[&node_state0.index];
         let coord2 = &self.coords[&node_state1.index];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
-        self.binding_potential.calculate(dr.length2(), typ)
+        self.binding_potential.calculate(dr, typ)
     }
 
     /// Return a random neighbor state of a given node state.
@@ -362,10 +362,6 @@ impl CylindricGraph {
     pub fn set_potential_model(&mut self, model: TrapezoidalPotential2D) -> &Self {
         self.binding_potential = model;
         self
-    }
-
-    pub fn potential_slope(&self) -> f32 {
-        self.binding_potential.slopes().0
     }
 
     /// Calculate the total energy of the graph.

@@ -31,7 +31,6 @@ import napari
 from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
-from cylindra.components import CylSpline
 from cylindra.widgets._widget_ext import CheckBoxes, RotationEdit
 
 from .widget_utils import FileFilter, timer
@@ -75,6 +74,9 @@ _DistRangeLat = Annotated[
         "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
         "label": "Lateral range (nm)",
     },
+]
+_AngleMaxLon = Annotated[
+    float, {"max": 90.0, "step": 0.5, "label": "Maximum angle (deg)"}
 ]
 _FSCFreq = Annotated[
     Optional[float],
@@ -537,7 +539,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
+        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
@@ -613,7 +615,7 @@ class SubtomogramAveraging(MagicTemplate):
             merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
 
             # write offsets to spline globalprops if available
-            if isinstance(spl := layer.source_component, CylSpline):
+            if spl := layer.source_spline:
                 if spl.radius is None:
                     _radius = utils.with_radius(mole, spl)[Mole.radius].mean()
                 else:
@@ -811,7 +813,7 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
-        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -933,12 +935,13 @@ class SubtomogramAveraging(MagicTemplate):
         layer: MoleculesLayer,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params] = None,
-        max_shifts: _MaxShifts = (0.6, 0.6, 0.6),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (3.9, 4.4),
         distance_range_lat: _DistRangeLat = (4.7, 5.3),
+        angle_max: _AngleMaxLon = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         ntrial: Annotated[int, {"min": 1}] = 5,
     ):
@@ -956,6 +959,9 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
+        angle_max : float
+            Maximum allowed angle between longitudinally consecutive monomers and the Y
+            axis.
         upsample_factor : int, default is 5
             Upsampling factor of ZNCC landscape.
         """
@@ -1000,6 +1006,7 @@ class SubtomogramAveraging(MagicTemplate):
         ).set_box_potential(
             *distance_range_long,
             *distance_range_lat,
+            float(np.deg2rad(angle_max)),
             cooling_rate=_energy_std / time_const * 10,
         ).with_reject_limit(
             nmole * 300
@@ -1505,7 +1512,7 @@ def _get_annealing_model(
 
     molecules = layer.molecules
     scale_factor = scale / upsample_factor
-    if isinstance(spl := layer.source_component, CylSpline):
+    if spl := layer.source_spline:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
     else:
