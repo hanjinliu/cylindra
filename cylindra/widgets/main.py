@@ -1921,6 +1921,37 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Calculate elevation angles")
+    def calculate_elevation_angles(self, layer: MoleculesLayer):
+        """
+        Calculate elevation angles (in degree) between adjacent molecules.
+
+        The "elevation angles" is defined by the angle between the vector of two
+        adjacent molecules and the vector of the spline curve corresponding to one of
+        the molecules.
+
+        Parameters
+        ----------
+        {layer}
+        """
+        if layer.source_component is None:
+            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        feat = layer.molecules.features
+        layer.features = utils.with_elevation_angle(
+            layer.molecules, layer.source_component
+        )
+        self.reset_choices()  # choices regarding of features need update
+
+        # Set colormap
+        extreme = np.max(np.abs(layer.features[Mole.elev_angle]))
+        _clim = [-extreme, extreme]
+        layer.set_colormap(
+            Mole.elev_angle, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
+        )
+        self._need_save = True
+        return undo_callback(_set_layer_feature_future(layer, feat))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate skews")
     def calculate_skews(self, layer: MoleculesLayer):
         """
@@ -1941,9 +1972,9 @@ class CylindraMainWidget(MagicTemplate):
         feat = layer.molecules.features
         layer.features = utils.with_skew(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
-        extreme = np.max(np.abs(layer.features[Mole.skew]))
 
         # Set colormap
+        extreme = np.max(np.abs(layer.features[Mole.skew]))
         _clim = [-extreme, extreme]
         layer.set_colormap(
             Mole.skew, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])

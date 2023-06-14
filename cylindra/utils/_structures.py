@@ -194,6 +194,36 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     )
 
 
+def with_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
+    """Add a column that indicates the elevation angle."""
+    _index_column_key = "._index_column"
+    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    _spl_len = spl.length()
+    subsets = list[Molecules]()
+    for _, sub in mole0.groupby(Mole.pf):
+        _pos = sub.pos
+        _interv_vec = np.diff(_pos, axis=0, append=0)
+
+        _u = sub.features[Mole.position] / _spl_len
+        _spl_vec = spl.map(_u, der=1)
+
+        _cos = _dot(_interv_vec, _spl_vec) / (
+            np.linalg.norm(_interv_vec, axis=1) * np.linalg.norm(_spl_vec, axis=1)
+        )
+
+        _deg = np.rad2deg(np.arccos(_cos))
+        _deg[-1] = -0.0  # fill invalid values with 0
+        subsets.append(
+            sub.with_features(pl.Series(Mole.elev_angle, _deg, dtype=pl.Float32))
+        )
+    return (
+        Molecules.concat(subsets)
+        .sort(_index_column_key)
+        .drop_features(_index_column_key)
+        .features
+    )
+
+
 def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     """Add a column that indicates the skew of each molecule to the next one."""
     _index_column_key = "._index_column"

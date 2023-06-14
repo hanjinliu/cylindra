@@ -1007,7 +1007,7 @@ class SubtomogramAveraging(MagicTemplate):
             *distance_range_long,
             *distance_range_lat,
             float(np.deg2rad(angle_max)),
-            cooling_rate=_energy_std / time_const * 10,
+            cooling_rate=_energy_std / time_const * 4,
         ).with_reject_limit(
             nmole * 300
         )

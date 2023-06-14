@@ -36,8 +36,8 @@ pub enum EdgeType {
 /// With this boundary, distances will be softly restricted to the range
 /// [dist_min2.sqrt(), dist_max2.sqrt()].
 struct TrapezoidalBoundary {
-    dist_min2: f32,
-    dist_max2: f32,
+    dist_min: f32,
+    dist_max: f32,
     slope: f32,
 }
 
@@ -49,29 +49,26 @@ impl TrapezoidalBoundary {
             return value_error!("Minimum distance must be smaller than maximum distance");
         }
         Ok(
-            Self {
-                dist_min2: dist_min * dist_min,
-                dist_max2: dist_max * dist_max,
-                slope,
-            }
+            Self { dist_min, dist_max, slope }
         )
     }
 
     /// An unbounded version of the model.
     pub fn unbounded() -> Self {
         Self {
-            dist_min2: 0.0,
-            dist_max2: std::f32::INFINITY,
+            dist_min: 0.0,
+            dist_max: std::f32::INFINITY,
             slope: 0.0,
         }
     }
 
     /// Calculated energy of given square of distance.
-    pub fn energy(&self, dist2: f32) -> f32 {
-        if dist2 < self.dist_min2 {
-            self.slope * (self.dist_min2 - dist2).sqrt()
-        } else if self.dist_max2 < dist2 {
-            self.slope * (dist2 - self.dist_max2).sqrt()
+    pub fn energy(&self, dr: &Vector3D<f32>) -> f32 {
+        let dist = dr.length();
+        if dist < self.dist_min {
+            self.slope * (self.dist_min - dist)
+        } else if self.dist_max < dist {
+            self.slope * (dist - self.dist_max)
         } else {
             0.0
         }
@@ -98,17 +95,17 @@ impl TrapezoidalCosineBoundary {
     }
 
     pub fn unbounded() -> Self {
-        Self { ang_max: 1.58, slope: 0.0, }
+        Self { ang_max: std::f32::INFINITY, slope: 0.0, }
     }
 
     ///           o         Cosine is calculated as the angle between the
     ///    o     i+1        y axis and the vector from i to i+1. The y axis
     ///    i                of local coordinates is always parallel to the
     /// ---------------> y  y axis.
-    pub fn energy(&self, dr: Vector3D<f32>) -> f32 {
+    pub fn energy(&self, dr: &Vector3D<f32>) -> f32 {
         let ang = dr.cos_angle_y().abs().acos();
         if ang > self.ang_max {
-            self.slope * (ang - self.ang_max).sqrt()
+            self.slope * (ang - self.ang_max)
         } else {
             0.0
         }
@@ -184,15 +181,13 @@ impl TrapezoidalPotential2D {
 impl BindingPotential2D for TrapezoidalPotential2D {
     fn longitudinal(&self, dr: Vector3D<f32>) -> f32 {
         // Energy coming from longitudinal distance
-        let dist2 = dr.length2();
-        let eng_dist = self.lon.energy(dist2);
-        let eng_ang = self.angle.energy(dr);
+        let eng_dist = self.lon.energy(&dr);
+        let eng_ang = self.angle.energy(&dr);
         eng_dist + eng_ang
     }
 
     fn lateral(&self, dr: Vector3D<f32>) -> f32 {
-        let dist2 = dr.length2();
-        self.lat.energy(dist2)
+        self.lat.energy(&dr)
     }
 
     /// Cool the potential by increasing the slope of the trapezoid.
