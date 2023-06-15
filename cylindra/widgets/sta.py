@@ -816,7 +816,7 @@ class SubtomogramAveraging(MagicTemplate):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range: _DistRangeLon = (3.9, 4.4),
-        max_angle: Optional[float] = 6.0,
+        angle_max: Optional[float] = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
@@ -833,10 +833,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
         distance_range : tuple of float, default is (3.9, 4.4)
             Range of allowed distance between monomers.
-        upsample_factor : int, default is 5
-            Upsampling factor of ZNCC landscape. Be careful not to set this parameter too
-            large. Calculation will take much longer for larger ``upsample_factor``.
-            Doubling ``upsample_factor`` results in 2^6 = 64 times longer calculation time.
+        {angle_max}{upsample_factor}
         """
         from dask import array as da
         from dask import delayed
@@ -851,8 +848,8 @@ class SubtomogramAveraging(MagicTemplate):
             mask=self.params._get_mask(params=mask_params),
         )
 
-        if max_angle is not None:
-            max_angle = np.deg2rad(max_angle)
+        if angle_max is not None:
+            angle_max = np.deg2rad(angle_max)
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
         _Logger.print(f"Search size (px): {search_size}")
@@ -895,7 +892,7 @@ class SubtomogramAveraging(MagicTemplate):
             return grid.viterbi(dist_min, dist_max, max_angle)
 
         viterbi_tasks = [
-            _run_viterbi(s, m, dist_min, dist_max, max_angle)
+            _run_viterbi(s, m, dist_min, dist_max, angle_max)
             for s, m in zip(scores, mole_list)
         ]
         vit_out: list[tuple[np.ndarray, float]] = da.compute(viterbi_tasks)[0]
@@ -957,14 +954,8 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
-        angle_max : float
-            Maximum allowed angle between longitudinally consecutive monomers and the Y
-            axis.
-        upsample_factor : int, default is 5
-            Upsampling factor of ZNCC landscape.
+        {angle_max}{upsample_factor}
         """
-        import matplotlib.pyplot as plt
-
         t0 = timer("align_all_annealing")
         parent = self._get_parent()
         scale = parent.tomogram.scale
@@ -1040,14 +1031,7 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
-                for i, r in enumerate(results):
-                    _x = np.arange(r.energies.size) * 1e-6 * batch_size
-                    plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
-                plt.xlabel("Repeat (x10^6)")
-                plt.ylabel("Score")
-                plt.legend()
-                plt.tight_layout()
-                plt.show()
+                widget_utils.plot_annealing_result(results, batch_size)
 
             @undo_callback
             def out():
@@ -1074,8 +1058,8 @@ class SubtomogramAveraging(MagicTemplate):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range_long: _DistRangeLon = (3.9, 4.4),
-        distance_range_lat: _DistRangeLat = (4.7, 5.3),
+        distance_range_long: _DistRangeLon = (4.0, 4.28),
+        distance_range_lat: _DistRangeLat = (5.0, 5.2),
         angle_max: _AngleMaxLon = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         ntrial: Annotated[int, {"min": 1}] = 5,
@@ -1094,14 +1078,8 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
-        angle_max : float
-            Maximum allowed angle between longitudinally consecutive monomers and the Y
-            axis.
-        upsample_factor : int, default is 5
-            Upsampling factor of ZNCC landscape.
+        {angle_max}{upsample_factor}
         """
-        import matplotlib.pyplot as plt
-
         t0 = timer("align_all_annealing")
         parent = self._get_parent()
         scale = parent.tomogram.scale
@@ -1177,14 +1155,7 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
-                for i, r in enumerate(results):
-                    _x = np.arange(r.energies.size) * 1e-6 * batch_size
-                    plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
-                plt.xlabel("Repeat (x10^6)")
-                plt.ylabel("Score")
-                plt.legend()
-                plt.tight_layout()
-                plt.show()
+                widget_utils.plot_annealing_result(results, batch_size)
 
             @undo_callback
             def out():
@@ -1636,12 +1607,6 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
     return shift
 
 
-class _AnnealingResult(NamedTuple):
-    model: "CylindricAnnealingModel"
-    energies: "NDArray[np.float32]"
-    energy: float
-
-
 def _get_annealing_model(
     layer: MoleculesLayer,
     max_shifts: _MaxShifts,
@@ -1747,11 +1712,11 @@ def _get_annealing_results(
     initial_temperature: float,
     seeds: Iterable[int],
     batch_size: int,
-) -> list[_AnnealingResult]:
+) -> list[widget_utils.AnnealingResult]:
     from dask import array as da, delayed
 
     @delayed
-    def _run(seed: int) -> _AnnealingResult:
+    def _run(seed: int) -> widget_utils.AnnealingResult:
         _model = annealing.with_seed(seed)
         rng = np.random.default_rng(seed)
         loc_shape = _model.local_shape()
@@ -1766,10 +1731,10 @@ def _get_annealing_results(
         ):
             _model.simulate(batch_size)
             energies.append(_model.energy())
-        return _AnnealingResult(_model, np.array(energies), energies[-1])
+        return widget_utils.AnnealingResult(_model, np.array(energies), energies[-1])
 
     tasks = [_run(s) for s in seeds]
-    results: list[_AnnealingResult] = da.compute(tasks)[0]
+    results: list[widget_utils.AnnealingResult] = da.compute(tasks)[0]
     if all(result.model.optimization_state() == "failed" for result in results):
         raise RuntimeError(
             "Failed to optimize for all trials. You may check the distance range."

@@ -51,6 +51,8 @@ _PARAMETERS = [
     Parameter(name="color_by", type="str", desc="Name of the feature to paint by."),
     Parameter(name="cmap", type="colormap", desc="Colormap to be used for painting."),
     Parameter(name="limits", type="(float, float)", desc="Lower and upper limits of the colormap."),
+    Parameter(name="upsample_factor", type="int", desc="Upsampling factor of ZNCC landscape. Be careful not to set this parameter too large. Calculation will take much longer for larger ``upsample_factor``."),
+    Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
 ]
 # fmt: on
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from typing import Sequence, TYPE_CHECKING
+from typing import NamedTuple, Sequence, TYPE_CHECKING
 from dataclasses import dataclass
 from timeit import default_timer
 import inspect
@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import polars as pl
-
+import matplotlib.pyplot as plt
 from magicclass.logging import getLogger
 import napari
 
@@ -21,6 +21,7 @@ from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
     from cylindra.components import CylTomogram, CylSpline
+    from cylindra._cylindra_ext import CylindricAnnealingModel
 
 
 # namespace used in predicate
@@ -96,19 +97,24 @@ def change_viewer_focus(
     return None
 
 
-def sheared_heatmap(arr: np.ndarray, npf: int = 13, start: int = 3):
-    sy, sx = arr.shape
-    ny, nx = 5, 10
-    arr1 = np.stack([arr] * ny, axis=1).reshape(sy * ny, sx)
-    arr2 = np.stack([arr1] * nx, axis=2).reshape(sy * ny, sx * nx)
-    shear = start / npf * ny / nx
-    mtx = np.array([[1.0, shear, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    return ndi.affine_transform(arr2, matrix=mtx, order=1, prefilter=False)
+class AnnealingResult(NamedTuple):
+    model: CylindricAnnealingModel
+    energies: NDArray[np.float32]
+    energy: float
+
+
+def plot_annealing_result(results: list[AnnealingResult], batch_size):
+    for i, r in enumerate(results):
+        _x = np.arange(r.energies.size) * 1e-6 * batch_size
+        plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
+    plt.xlabel("Repeat (x10^6)")
+    plt.ylabel("Score")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_seam_search_result(score: np.ndarray, npf: int):
-    import matplotlib.pyplot as plt
-
     imax = np.argmax(score)
     # plot the score
     plt.figure(figsize=(6, 2.4))
@@ -130,8 +136,6 @@ def plot_fsc(
     crit: list[float],
     scale: nm,
 ):
-    import matplotlib.pyplot as plt
-
     ind = freq <= 0.7
     plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
     plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
@@ -181,8 +185,6 @@ def calc_resolution(
 
 
 def plot_projections(merge: np.ndarray):
-    import matplotlib.pyplot as plt
-
     _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
     # normalize
     if merge.dtype.kind == "f":
@@ -205,8 +207,6 @@ def plot_projections(merge: np.ndarray):
 def plot_forward_and_reverse(
     template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv
 ):
-    import matplotlib.pyplot as plt
-
     _, axes = plt.subplots(nrows=2, ncols=3)
     template_proj_fw = np.max(template_fw, axis=1)
     fit_proj_fw = np.max(fit_fw, axis=1)
