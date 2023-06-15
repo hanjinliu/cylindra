@@ -169,6 +169,7 @@ class Refinement(MagicTemplate):
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
     align_all_annealing = abstractapi()
+    align_all_annealing_multi_template = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -775,17 +776,14 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layers}
-        template_paths : list of Path or str
-            Path to other template images.
-        {mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
+        {layers}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_multi_template")
         layers = _assert_list_of_layers(layers)
         parent = self._get_parent()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
-        templates = [pipe.from_file(path) for path in template_paths]
+        templates = pipe.from_files(template_paths)
 
         aligned_loader = self._get_loader(
             binsize=bin_size,
@@ -872,7 +870,7 @@ class SubtomogramAveraging(MagicTemplate):
             upsample=upsample_factor,
             alignment_model=model,
         )
-        score, argmax = _calc_landscape(model, score_dsk)
+        score, argmax = _calc_landscape(model, score_dsk, n_templates=1)
         yield
         scale = parent.tomogram.scale
         npf = molecules.features[Mole.pf].max() + 1
@@ -928,7 +926,7 @@ class SubtomogramAveraging(MagicTemplate):
         return self._align_all_on_return([aligned_loader.molecules], [layer])
 
     @Refinement.wraps
-    @set_design(text="Alignment by simulated annealing")
+    @set_design(text="Simulated annealing")
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing(
         self,
@@ -939,8 +937,8 @@ class SubtomogramAveraging(MagicTemplate):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range_long: _DistRangeLon = (3.9, 4.4),
-        distance_range_lat: _DistRangeLat = (4.7, 5.3),
+        distance_range_long: _DistRangeLon = (4.0, 4.28),
+        distance_range_lat: _DistRangeLat = (5.0, 5.2),
         angle_max: _AngleMaxLon = 6.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         ntrial: Annotated[int, {"min": 1}] = 5,
@@ -988,7 +986,144 @@ class SubtomogramAveraging(MagicTemplate):
             upsample=upsample_factor,
             alignment_model=model,
         )
-        score, argmax = _calc_landscape(model, score_dsk)
+        score, argmax = _calc_landscape(model, score_dsk, n_templates=1)
+        yield
+        annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+        energy = -score
+        local_shape = energy.shape[1:]
+        nmole = molecules.pos.size
+
+        time_const = nmole * np.product(local_shape)
+        batch_size = max(int(time_const / 20), 1)
+        _energy_std = np.std(energy)
+
+        # construct the annealing model
+        annealing.set_energy_landscape(energy).set_reservoir(
+            temperature=_energy_std * 2,
+            time_constant=time_const,
+        ).set_box_potential(
+            *distance_range_long,
+            *distance_range_lat,
+            float(np.deg2rad(angle_max)),
+            cooling_rate=_energy_std / time_const * 4,
+        ).with_reject_limit(
+            nmole * 300
+        )
+
+        results = _get_annealing_results(
+            annealing, _energy_std * 2, range(ntrial), batch_size
+        )
+        best_model = sorted(results, key=lambda r: r.energy)[0].model
+
+        inds = best_model.shifts()
+        opt_score = -np.fromiter(
+            (energy[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
+            dtype=np.float32,
+        )
+
+        int_offset = np.array(local_shape) // 2
+        all_shifts = (inds - int_offset) / upsample_factor * scale
+        molecules_opt = _landscape_result_with_rotation(
+            molecules, all_shifts, inds, argmax, model
+        )
+        molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
+        t0.toc()
+        parent._need_save = True
+
+        @thread_worker.to_callback
+        def _on_return():
+            points = parent.add_molecules(
+                molecules_opt,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+            )
+            layer.visible = False
+            _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
+            with _Logger.set_plt():
+                for i, r in enumerate(results):
+                    _x = np.arange(r.energies.size) * 1e-6 * batch_size
+                    plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
+                plt.xlabel("Repeat (x10^6)")
+                plt.ylabel("Score")
+                plt.legend()
+                plt.tight_layout()
+                plt.show()
+
+            @undo_callback
+            def out():
+                parent._try_removing_layer(points)
+                layer.visible = True
+
+            @out.with_redo
+            def out():
+                parent.parent_viewer.add_layer(points)
+
+            return out
+
+        return _on_return
+
+    @Refinement.wraps
+    @set_design(text="Simulated annealing (multi-template)")
+    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    def align_all_annealing_multi_template(
+        self,
+        layer: MoleculesLayer,
+        template_paths: Path.Multiple[FileFilter.IMAGE],
+        mask_params: Bound[params._get_mask_params] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        distance_range_long: _DistRangeLon = (3.9, 4.4),
+        distance_range_lat: _DistRangeLat = (4.7, 5.3),
+        angle_max: _AngleMaxLon = 6.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        ntrial: Annotated[int, {"min": 1}] = 5,
+    ):
+        """
+        2D-constrained subtomogram alignment using simulated annealing.
+
+        This alignment method considers the distance between every adjacent monomers.
+        Two-dimensionally connected optimization can be approximated by the simulated
+        annealing algorithm.
+
+        Parameters
+        ----------
+        {layer}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
+        distance_range_long : tuple of float
+            Range of allowed distance between longitudianlly consecutive monomers.
+        distance_range_lat : tuple of float
+            Range of allowed distance between laterally consecutive monomers.
+        angle_max : float
+            Maximum allowed angle between longitudinally consecutive monomers and the Y
+            axis.
+        upsample_factor : int, default is 5
+            Upsampling factor of ZNCC landscape.
+        """
+        import matplotlib.pyplot as plt
+
+        t0 = timer("align_all_annealing")
+        parent = self._get_parent()
+        scale = parent.tomogram.scale
+        molecules = layer.molecules
+        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
+        templates = pipe.from_files(template_paths)
+
+        model = alignment.ZNCCAlignment.with_params(
+            rotations=rotations,
+            cutoff=cutoff,
+            tilt_range=parent.tomogram.tilt_range,
+        )
+        score_dsk = loader.construct_landscape(
+            templates,
+            mask=self.params._get_mask(params=mask_params),
+            max_shifts=max_shifts,
+            upsample=upsample_factor,
+            alignment_model=model,
+        )
+        score, argmax = _calc_landscape(
+            model, score_dsk, n_templates=len(template_paths)
+        )
         yield
         annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
         energy = -score
@@ -1408,17 +1543,21 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
 
 
 def _calc_landscape(
-    model: alignment.TomographyInput,
+    model: "alignment._base.ParametrizedModel",
     score_dsk: "da.Array",
+    n_templates: int = 1,
 ) -> "tuple[NDArray[np.float32], NDArray[np.int32] | None]":
     from dask import array as da
 
     if not model.has_rotation:
         score = score_dsk.compute()
+        if n_templates > 1:
+            score = np.max(score, axis=1)
         argmax = None
     else:
         tasks = da.max(score_dsk, axis=1)
         argmax = da.argmax(score_dsk, axis=1)
+        # NOTE: argmax.shape[0] == n_templates * len(model.quaternion)
         score, argmax = da.compute(tasks, argmax)
     return score, argmax
 
@@ -1428,13 +1567,14 @@ def _landscape_result_with_rotation(
     shifts: "NDArray[np.float32]",
     inds: "NDArray[np.int32]",
     argmax: "NDArray[np.int32]",
-    model: alignment.ZNCCAlignment,
+    model: "alignment._base.ParametrizedModel",
 ):
     molecules_opt = molecules.translate_internal(shifts)
     if model.has_rotation:
+        nrotation = len(model.quaternions)
         quats = np.stack(
             [
-                model.quaternions[argmax[i, iz, iy, ix]]
+                model.quaternions[argmax[i, iz, iy, ix] % nrotation]
                 for i, (iz, iy, ix) in enumerate(inds)
             ],
             axis=0,
