@@ -39,7 +39,7 @@ from cylindra.widgets._widget_ext import (
 )
 
 from .widget_utils import FileFilter, timer
-from . import widget_utils, _shared_doc, _progress_desc as _pdesc
+from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -988,7 +988,9 @@ class SubtomogramAveraging(MagicTemplate):
         )
         score, argmax = _calc_landscape(model, score_dsk, n_templates=1)
         yield
-        annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+        annealing = _annealing.get_annealing_model(
+            layer, max_shifts, scale, upsample_factor
+        )
         energy = -score
         local_shape = energy.shape[1:]
         nmole = molecules.pos.size
@@ -1010,7 +1012,7 @@ class SubtomogramAveraging(MagicTemplate):
             nmole * 300
         )
 
-        results = _get_annealing_results(
+        results = _annealing.get_annealing_results(
             annealing, _energy_std * 2, random_seeds, batch_size
         )
         best_model = sorted(results, key=lambda r: r.energy)[0].model
@@ -1040,7 +1042,7 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
-                widget_utils.plot_annealing_result(results, batch_size)
+                _annealing.plot_annealing_result(results, batch_size)
 
             @undo_callback
             def out():
@@ -1112,7 +1114,9 @@ class SubtomogramAveraging(MagicTemplate):
             model, score_dsk, n_templates=len(template_paths)
         )
         yield
-        annealing = _get_annealing_model(layer, max_shifts, scale, upsample_factor)
+        annealing = _annealing.get_annealing_model(
+            layer, max_shifts, scale, upsample_factor
+        )
         energy = -score
         local_shape = energy.shape[1:]
         nmole = molecules.pos.size
@@ -1134,7 +1138,7 @@ class SubtomogramAveraging(MagicTemplate):
             nmole * 300
         )
 
-        results = _get_annealing_results(
+        results = _annealing.get_annealing_results(
             annealing, _energy_std * 2, random_seeds, batch_size
         )
         best_model = sorted(results, key=lambda r: r.energy)[0].model
@@ -1164,7 +1168,7 @@ class SubtomogramAveraging(MagicTemplate):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
             with _Logger.set_plt():
-                widget_utils.plot_annealing_result(results, batch_size)
+                _annealing.plot_annealing_result(results, batch_size)
 
             @undo_callback
             def out():
@@ -1473,7 +1477,7 @@ class SubtomogramAveraging(MagicTemplate):
         # graph construction cannot be separated.
         parent = self._get_parent()
         scale = parent.tomogram.scale
-        return _get_annealing_model(layer, (0, 0, 0), scale, 1)
+        return _annealing.get_annealing_model(layer, (0, 0, 0), scale, 1)
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
@@ -1616,148 +1620,10 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
     return shift
 
 
-def _get_annealing_model(
-    layer: MoleculesLayer,
-    max_shifts: _MaxShifts,
-    scale: nm,
-    upsample_factor: int = 5,
-) -> "CylindricAnnealingModel":
-    from cylindra._cylindra_ext import CylindricAnnealingModel
-
-    molecules = layer.molecules
-    scale_factor = scale / upsample_factor
-    if spl := layer.source_spline:
-        cyl = spl.cylinder_model()
-        _nrise, _npf = cyl.nrise, cyl.shape[1]
-    else:
-        raise ValueError(f"{layer!r} does not have a valid source spline.")
-
-    _max_shifts = np.asarray(max_shifts, dtype=np.float32)
-    max_shifts_px = (_max_shifts / scale_factor).astype(np.int32) * scale_factor
-    m0 = molecules.translate_internal(-max_shifts_px)
-
-    return (
-        CylindricAnnealingModel()
-        .construct_graph(
-            indices=molecules.features.select([Mole.nth, Mole.pf])
-            .to_numpy()
-            .astype(np.int32),
-            npf=_npf,
-            nrise=_nrise,
-        )
-        .set_graph_coordinates(
-            origin=m0.pos,
-            zvec=m0.z.astype(np.float32) * scale_factor,
-            yvec=m0.y.astype(np.float32) * scale_factor,
-            xvec=m0.x.astype(np.float32) * scale_factor,
-        )
-    )
-
-
-@impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")
-def _(
-    self: SubtomogramAveraging,
-    layer: MoleculesLayer,
-    distance_range_long: _DistRangeLon = (3.9, 4.4),
-    distance_range_lat: _DistRangeLat = (4.7, 5.3),
-    upsample_factor: int = 5,
-):
-    parent = self._get_parent()
-    scale = parent.tomogram.scale
-    annealing = _get_annealing_model(layer, (0, 0, 0), scale, upsample_factor)
-
-    data_lon = annealing.longitudinal_distances()
-    data_lat = annealing.lateral_distances()
-
-    # TODO: show network using this.
-    # edge0, edge1, typ = annealing.get_edge_info()
-
-    canvas = QtMultiPlotCanvas(ncols=2)
-    canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
-    long_low = canvas[0].add_infline(
-        (distance_range_long[0], 0), 90, color="yellow", ls=":"
-    )
-    long_high = canvas[0].add_infline(
-        (distance_range_long[1], 0), 90, color="yellow", ls=":"
-    )
-    canvas[0].add_infline((0, 0), 0, color="gray")
-    canvas[0].title = "Longitudinal distances"
-    canvas[1].add_hist(data_lat, bins=24, density=False, name="Lateral")
-    lat_low = canvas[1].add_infline(
-        (distance_range_lat[0], 0), 90, color="yellow", ls=":"
-    )
-    lat_high = canvas[1].add_infline(
-        (distance_range_lat[1], 0), 90, color="yellow", ls=":"
-    )
-    canvas[1].add_infline((0, 0), 0, color="gray")
-    canvas[1].title = "Lateral distances"
-    canvas.native.setParent(parent.native, canvas.native.windowFlags())
-
-    # connect value change signals
-    fgui = get_function_gui(self.align_all_annealing)
-
-    @fgui.distance_range_long.changed.connect
-    def _long_changed(val: tuple[float, float]):
-        long_low.pos = (val[0], 0)
-        long_high.pos = (val[1], 0)
-
-    @fgui.distance_range_lat.changed.connect
-    def _lat_changed(val: tuple[float, float]):
-        lat_low.pos = (val[0], 0)
-        lat_high.pos = (val[1], 0)
-
-    canvas.show()
-
-    is_active = yield
-    if not is_active:
-        fgui.distance_range_long.changed.disconnect(_long_changed)
-        fgui.distance_range_lat.changed.disconnect(_lat_changed)
-        canvas.close()
-    return None
-
-
-def _get_annealing_results(
-    annealing: "CylindricAnnealingModel",
-    initial_temperature: float,
-    seeds: Iterable[int],
-    batch_size: int,
-) -> list[widget_utils.AnnealingResult]:
-    from dask import array as da, delayed
-
-    @delayed
-    def _run(seed: int) -> widget_utils.AnnealingResult:
-        _model = annealing.with_seed(seed)
-        rng = np.random.default_rng(seed)
-        loc_shape = _model.local_shape()
-        shifts = np.stack(
-            [rng.integers(0, s0, _model.node_count()) for s0 in loc_shape], axis=1
-        )
-        _model.set_shifts(shifts)
-        energies = [_model.energy()]
-        while (
-            _model.temperature() > initial_temperature * 1e-4
-            and _model.optimization_state() == "not_converged"
-        ):
-            _model.simulate(batch_size)
-            energies.append(_model.energy())
-        return widget_utils.AnnealingResult(_model, np.array(energies), energies[-1])
-
-    tasks = [_run(s) for s in seeds]
-    results: list[widget_utils.AnnealingResult] = da.compute(tasks)[0]
-    if all(result.model.optimization_state() == "failed" for result in results):
-        raise RuntimeError(
-            "Failed to optimize for all trials. You may check the distance range."
-        )
-    elif not any(
-        result.model.optimization_state() == "converged" for result in results
-    ):
-        _Logger.print("Optimization did not converge for any trial.")
-
-    _Logger.print_table(
-        {
-            "Iteration": [r.model.iteration() for r in results],
-            "Score": [-r.energy for r in results],
-            "State": [r.model.optimization_state() for r in results],
-        }
-    )
-    return results
+impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(
+    _annealing.preview_single
+)
+impl_preview(
+    SubtomogramAveraging.align_all_annealing_multi_template,
+    text="Preview molecule network",
+)(_annealing.preview_multiple)

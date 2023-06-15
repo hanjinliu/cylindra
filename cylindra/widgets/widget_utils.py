@@ -21,7 +21,6 @@ from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
     from cylindra.components import CylTomogram, CylSpline
-    from cylindra._cylindra_ext import CylindricAnnealingModel
 
 
 # namespace used in predicate
@@ -95,23 +94,6 @@ def change_viewer_focus(
     viewer.camera.zoom = zoom
     viewer.dims.set_current_step(axis=0, value=center[0] / v_scale[0] * scale)
     return None
-
-
-class AnnealingResult(NamedTuple):
-    model: CylindricAnnealingModel
-    energies: NDArray[np.float32]
-    energy: float
-
-
-def plot_annealing_result(results: list[AnnealingResult], batch_size):
-    for i, r in enumerate(results):
-        _x = np.arange(r.energies.size) * 1e-6 * batch_size
-        plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
-    plt.xlabel("Repeat (x10^6)")
-    plt.ylabel("Score")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
 
 
 def plot_seam_search_result(score: np.ndarray, npf: int):
