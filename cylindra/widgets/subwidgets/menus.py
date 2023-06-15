@@ -131,7 +131,8 @@ class Image(ChildWidget):
 
         Parameters
         ----------
-        {layer}
+        layer : Layer
+            The layer to show the colorbar of.
         length : int, default is 256
             Length of the colorbar.
         orientation : 'vertical' or 'horizontal', default is 'horizontal'

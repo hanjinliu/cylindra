@@ -327,7 +327,7 @@ def test_set_molecule_colormap(ui: CylindraMainWidget):
         {0: "blue", 1: "yellow"},
         (0, 10),
     )
-    ui.show_colorbar(ui.parent_viewer.layers["Mono-0"])
+    ui.ImageMenu.show_colorbar(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -857,7 +857,7 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         max_shifts=(1.2, 1.2, 1.2),
         distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
         distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
-        ntrial=1,
+        random_seeds=[0],
     )
 
 

@@ -31,7 +31,12 @@ import napari
 from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
-from cylindra.widgets._widget_ext import CheckBoxes, RotationEdit, RandomSeedEdit
+from cylindra.widgets._widget_ext import (
+    CheckBoxes,
+    RotationEdit,
+    RandomSeedEdit,
+    MultiFileEdit,
+)
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc
@@ -60,6 +65,9 @@ _SubVolumeSize = Annotated[
         "options": {"value": 12.0, "max": 100.0},
         "label": "size (nm)",
     },
+]
+_ImagePaths = Annotated[
+    list[Path], {"widget_type": MultiFileEdit, "filter": FileFilter.IMAGE}
 ]
 _DistRangeLon = Annotated[
     tuple[nm, nm],
@@ -763,7 +771,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_multi_template(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
-        template_paths: Path.Multiple[FileFilter.IMAGE],
+        template_paths: _ImagePaths,
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -1053,7 +1061,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_annealing_multi_template(
         self,
         layer: MoleculesLayer,
-        template_paths: Path.Multiple[FileFilter.IMAGE],
+        template_paths: _ImagePaths,
         mask_params: Bound[params._get_mask_params] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),

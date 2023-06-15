@@ -1,5 +1,6 @@
 from __future__ import annotations
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Callable, Iterable
 import random
 from magicgui.widgets.bases._value_widget import ValueWidget
@@ -14,7 +15,9 @@ from magicgui.widgets import (
     FloatSpinBox,
     LineEdit,
     PushButton,
+    CheckBox,
     protocols,
+    show_file_dialog,
 )
 from magicgui.widgets.bases import CategoricalWidget
 from magicgui.types import ChoicesType, Undefined
@@ -201,6 +204,7 @@ class RandomSeedEdit(Container):
             labels=False,
             **kwargs,
         )
+        self.margins = (0, 0, 0, 0)
         self.changed.disconnect()
         # NOTE: don't relay value-change event of the line edit to the parents. Evaluation usually
         # fails and it is potentially dangerous or time consuming.
@@ -245,6 +249,102 @@ class RandomSeedEdit(Container):
             else:
                 raise TypeError(f"Invalid type for value: {type(val)}")
         self._seeds.value = val
+
+
+class MultiFileEdit(Container):
+    def __init__(
+        self,
+        value=Undefined,
+        *,
+        filter: str | None = None,
+        nullable=False,
+        **kwargs: Any,
+    ) -> None:
+        # fmt: off
+        self._add_btn = PushButton(label="Add", tooltip="Add new file paths.")
+        self._toggle_btn = PushButton(label="Select", tooltip="Toggle file path deletion.")
+        self._del_btn = PushButton(label="Delete", tooltip="Delete selected paths.", visible=False)
+        self._add_btn.max_width = 60
+        self._toggle_btn.max_width = 50
+        self._del_btn.max_width = 50
+        _cnt = Container(widgets=[self._del_btn, self._toggle_btn, self._add_btn], layout="horizontal")
+        _cnt.margins = (0, 0, 0, 0)
+        self._paths = ScrollableContainer(widgets=[], layout="vertical", labels=True)
+        self._filter = filter
+        super().__init__(widgets=[self._paths, _cnt], layout="vertical", labels=False, **kwargs)
+        # fmt: on
+        self.margins = (0, 0, 0, 0)
+        self.changed.disconnect()
+        self._add_btn.clicked.connect(self._add_files_from_dialog)
+        self._toggle_btn.clicked.connect(self._toggle_delete_checkboxes)
+        self._del_btn.clicked.connect(self._delete_checked_paths)
+        self.value = value
+
+    def _append_paths(self, paths: list[str]):
+        for i, path in enumerate(paths):
+            line = LineEdit(value=str(path))
+            cbox = CheckBox(value=False, visible=False)
+            _cnt = Container(
+                widgets=[cbox, line], layout="horizontal", labels=False, label=f"({i}):"
+            )
+            _cnt.margins = (0, 0, 0, 0)
+            self._paths.append(_cnt)
+
+    def _toggle_delete_checkboxes(self):
+        visible = not self._del_btn.visible
+        for wdt in self._paths:
+            wdt[0].visible = visible
+            if visible:
+                wdt[0].value = False  # uncheck
+        if visible:
+            self._toggle_btn.label = "Cancel"
+        else:
+            self._toggle_btn.label = "Select"
+        self._del_btn.visible = visible
+
+    def _delete_checked_paths(self):
+        to_delete = list[int]()
+        for i, wdt in enumerate(self._paths):
+            assert wdt[0].visible
+            if wdt[0].value:
+                to_delete.append(i)
+        for i in sorted(to_delete, reverse=True):
+            del self._paths[i]
+        # relabel
+        for i, wdt in enumerate(self._paths):
+            wdt.label = f"({i}):"
+        self._toggle_delete_checkboxes()
+
+    @property
+    def value(self) -> list[Path]:
+        return [Path(wdt[1].value) for wdt in self._paths]
+
+    @value.setter
+    def value(self, val: list[str | Path]):
+        # clear paths
+        self._paths.clear()
+        if val is Undefined:
+            return
+        self._append_paths(val)
+
+    def _add_files_from_dialog(self):
+        import os
+
+        _paths = self.value
+        if _paths:
+            start_path: Path = _paths[-1]
+            _start_path: str | None = os.fspath(start_path.expanduser().absolute())
+        else:
+            _start_path = None
+        result = show_file_dialog(
+            mode="rm",
+            caption="Select files to add",
+            filter=self._filter,
+            start_path=_start_path,
+            parent=self.native,
+        )
+        if result:
+            self._append_paths(result)
 
 
 @contextmanager

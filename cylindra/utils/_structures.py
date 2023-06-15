@@ -210,9 +210,9 @@ def with_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _cos = _dot(_interv_vec, _spl_vec) / (
             np.linalg.norm(_interv_vec, axis=1) * np.linalg.norm(_spl_vec, axis=1)
         )
-        if not np.all((-1 < _cos) & (_cos < 1)):
+        if not np.all((-1 <= _cos) & (_cos <= 1)):
             raise ValueError(
-                f"Cosine values must be in range (-1, 1) but got:\n{_cos!r}"
+                f"Cosine values must be in range [-1, 1] but got:\n{_cos!r}"
             )
         _deg = np.rad2deg(np.arccos(_cos))
         _deg[-1] = 0.0  # fill invalid values with 0
