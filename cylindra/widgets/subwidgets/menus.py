@@ -1,9 +1,11 @@
 from functools import partial
 import inspect
-from typing import Annotated, TYPE_CHECKING
+from typing import Annotated, TYPE_CHECKING, Literal
 
+import numpy as np
 from macrokit import Head, parse, Symbol
 from macrokit.utils import check_call_args, check_attributes
+import matplotlib.pyplot as plt
 
 from magicclass import (
     do_not_record,
@@ -22,13 +24,12 @@ from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
 from magicclass.types import Path
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
-from magicgui import magicgui
 
 from cylindra.widgets.widget_utils import FileFilter
 
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
-from cylindra.types import get_monomer_layers
+from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions
 from cylindra.project import CylindraProject
@@ -116,7 +117,42 @@ class Image(ChildWidget):
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
     backpaint_molecule_density = abstractapi()
-    show_colorbar = abstractapi()
+
+    @set_design(text="Show colorbar")
+    @do_not_record
+    def show_colorbar(
+        self,
+        layer: ColoredLayer,
+        length: Annotated[int, {"min": 16}] = 256,
+        orientation: Literal["vertical", "horizontal"] = "horizontal",
+    ):
+        """
+        Show the colorbar of the molecules or painted cylinder in the logger.
+
+        Parameters
+        ----------
+        {layer}
+        length : int, default is 256
+            Length of the colorbar.
+        orientation : 'vertical' or 'horizontal', default is 'horizontal'
+            Orientation of the colorbar.
+        """
+        info = layer.colormap_info
+        colors = info.cmap.map(np.linspace(0, 1, length))
+        cmap_arr = np.stack([colors] * (length // 12), axis=0)
+        xmin, xmax = info.clim
+        with _Logger.set_plt():
+            if orientation == "vertical":
+                plt.imshow(np.swapaxes(cmap_arr, 0, 1)[::-1])
+                plt.xticks([], [])
+                plt.yticks([0, length - 1], [f"{xmax:.2f}", f"{xmin:.2f}"])
+            else:
+                plt.imshow(cmap_arr)
+                plt.xticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
+                plt.yticks([], [])
+            plt.tight_layout()
+            plt.show()
+        return None
 
 
 @magicmenu

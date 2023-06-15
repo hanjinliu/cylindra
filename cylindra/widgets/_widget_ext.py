@@ -1,12 +1,21 @@
 from __future__ import annotations
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable
+import random
 from magicgui.widgets.bases._value_widget import ValueWidget
 
 from qtpy import QtWidgets as QtW, QtCore, QtGui
 from qtpy.QtCore import Qt
 
-from magicgui.widgets import SpinBox, Container, Label, FloatSpinBox, protocols
+from magicgui.widgets import (
+    SpinBox,
+    Container,
+    Label,
+    FloatSpinBox,
+    LineEdit,
+    PushButton,
+    protocols,
+)
 from magicgui.widgets.bases import CategoricalWidget
 from magicgui.types import ChoicesType, Undefined
 from magicgui.backends._qtpy import widgets as backend_qtw
@@ -14,6 +23,8 @@ from magicclass.widgets import ScrollableContainer
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
+    """Widget for editing protofilament prepend/append numbers."""
+
     def __init__(
         self, value=Undefined, *, labels=True, nullable=False, **kwargs
     ) -> None:
@@ -67,6 +78,8 @@ class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
 
 
 class OffsetEdit(Container[FloatSpinBox]):
+    """Widget for editing offset in the axial and angular direction."""
+
     def __init__(self, value=Undefined, *, nullable=False, **kwargs):
         # fmt: off
         self._offset_y = FloatSpinBox(value=0.0, label="axial (nm)", min=-100, max=100, step=0.1, tooltip="Offset in the axial direction.")
@@ -114,6 +127,8 @@ def _rotation_widgets(max: float = 180.0):
 
 
 class RotationEdit(Container[Container[FloatSpinBox]]):
+    """Widget for editing Euler rotation angles for subtomogram averaging."""
+
     def __init__(self, value=Undefined, *, nullable=False, **kwargs):
         # fmt: off
         self._z_max, self._z_step = _rotation_widgets(180)
@@ -163,6 +178,73 @@ class RotationEdit(Container[Container[FloatSpinBox]]):
             self._x_max.value = x_max
             self._x_step.value = x_step
         self.changed.emit(val)
+
+
+class RandomSeedEdit(Container):
+    """Widget for editing random seed values."""
+
+    def __init__(self, value=Undefined, *, nullable=False, **kwargs: Any) -> None:
+        self._seeds = LineEdit(
+            value="0, 1, 2, 3, 4",
+            tooltip=(
+                "Random seed values. You can use any Python literals in this box.\n"
+                "e.g.) `0, 1, 2, 3, 4`, `range(3)`"
+            ),
+        )
+        self._btn = PushButton(
+            label="Add", tooltip="Add a new random seed value to the list."
+        )
+        self._btn.max_width = 32
+        super().__init__(
+            widgets=[self._seeds, self._btn],
+            layout="horizontal",
+            labels=False,
+            **kwargs,
+        )
+        self.changed.disconnect()
+        # NOTE: don't relay value-change event of the line edit to the parents. Evaluation usually
+        # fails and it is potentially dangerous or time consuming.
+        self._btn.clicked.connect(self._generate_new_seed)
+        self.value = value
+
+    def _on_value_change(self):
+        self.changed.emit(self.value)
+
+    def _generate_new_seed(self):
+        try:
+            val = self.value
+        except Exception:
+            val = []
+        count = 0
+        while (newval := random.randint(0, 1e9 - 1)) in val:
+            # sample an identical value.
+            count += 1
+            if count > 1000:  # just in case!
+                raise RecursionError("Failed to generate a new random seed value.")
+        val.append(newval)
+        self.value = val
+
+    @property
+    def value(self) -> list[int]:
+        _str = self._seeds.value
+        if _str == "":
+            raise ValueError("Empty string is not allowed.")
+        out = eval(_str, {"__builtins__": {"range": range}}, {})
+        if isinstance(out, int):
+            return [out]
+        for i, x in enumerate(out):
+            if not isinstance(x, int):
+                raise TypeError(f"Invalid type at {i}-th component: {type(x)}")
+        return list(out)
+
+    @value.setter
+    def value(self, val: Any):
+        if not isinstance(val, str):
+            if hasattr(val, "__iter__"):
+                val = ", ".join(str(int(v)) for v in val)
+            else:
+                raise TypeError(f"Invalid type for value: {type(val)}")
+        self._seeds.value = val
 
 
 @contextmanager

@@ -33,7 +33,6 @@ from magicclass.types import (
     ExprStr,
     Bound,
 )
-from magicclass.functools import partial as mpartial
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -57,7 +56,7 @@ from cylindra.const import (
     ImageFilter,
 )
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
-from cylindra.types import ColoredLayer, get_monomer_layers
+from cylindra.types import get_monomer_layers
 from cylindra.project import CylindraProject, get_project_json
 
 # widgets
@@ -1320,6 +1319,7 @@ class CylindraMainWidget(MagicTemplate):
                 if spl.radius is None:
                     tomo.set_radius(i=i)
                 tomo.global_ft_params(i=i, binsize=bin_size)
+                yield
 
         self._need_save = True
 
@@ -1655,7 +1655,7 @@ class CylindraMainWidget(MagicTemplate):
             if mgui is None or mgui.layer.value is None:
                 return []
             return mgui.layer.value.features.columns
-        except Exception as e:
+        except Exception:
             return []
 
     @MoleculesMenu.MoleculeFeatures.wraps
@@ -2206,45 +2206,6 @@ class CylindraMainWidget(MagicTemplate):
                 return out
 
         return _on_return
-
-    @ImageMenu.wraps
-    @set_design(text="Show colorbar")
-    @do_not_record
-    def show_colorbar(
-        self,
-        layer: ColoredLayer,
-        length: Annotated[int, {"min": 16}] = 256,
-        orientation: Literal["vertical", "horizontal"] = "horizontal",
-    ):
-        """
-        Show the colorbar of the molecules or painted cylinder in the logger.
-
-        Parameters
-        ----------
-        {layer}
-        length : int, default is 256
-            Length of the colorbar.
-        orientation : 'vertical' or 'horizontal', default is 'horizontal'
-            Orientation of the colorbar.
-        """
-        info = layer.colormap_info
-        colors = info.cmap.map(np.linspace(0, 1, length))
-        cmap_arr = np.stack([colors] * (length // 12), axis=0)
-        xmin, xmax = info.clim
-        with _Logger.set_plt():
-            if orientation == "vertical":
-                plt.imshow(np.swapaxes(cmap_arr, 0, 1))
-                plt.xticks([], [])
-                plt.yticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
-            else:
-                plt.imshow(cmap_arr)
-                plt.xticks([0, length - 1], [f"{xmin:.2f}", f"{xmax:.2f}"])
-                plt.yticks([], [])
-            plt.tight_layout()
-            plt.show()
-        return undo_callback(
-            lambda: _Logger.print("Undoing `show_molecules_colorbar` does nothing")
-        )
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods

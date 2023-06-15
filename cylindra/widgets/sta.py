@@ -31,7 +31,7 @@ import napari
 from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
-from cylindra.widgets._widget_ext import CheckBoxes, RotationEdit
+from cylindra.widgets._widget_ext import CheckBoxes, RotationEdit, RandomSeedEdit
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc
@@ -78,6 +78,7 @@ _DistRangeLat = Annotated[
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "Maximum angle (deg)"}
 ]
+_RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 _FSCFreq = Annotated[
     Optional[float],
     {
@@ -935,10 +936,10 @@ class SubtomogramAveraging(MagicTemplate):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (4.0, 4.28),
-        distance_range_lat: _DistRangeLat = (5.0, 5.2),
-        angle_max: _AngleMaxLon = 6.0,
+        distance_range_lat: _DistRangeLat = (5.1, 5.3),
+        angle_max: _AngleMaxLon = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        ntrial: Annotated[int, {"min": 1}] = 5,
+        random_seeds: _RandomSeeds = range(5),
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -954,7 +955,7 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
-        {angle_max}{upsample_factor}
+        {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
         parent = self._get_parent()
@@ -1002,7 +1003,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
 
         results = _get_annealing_results(
-            annealing, _energy_std * 2, range(ntrial), batch_size
+            annealing, _energy_std * 2, random_seeds, batch_size
         )
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 
@@ -1059,10 +1060,10 @@ class SubtomogramAveraging(MagicTemplate):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (4.0, 4.28),
-        distance_range_lat: _DistRangeLat = (5.0, 5.2),
-        angle_max: _AngleMaxLon = 6.0,
+        distance_range_lat: _DistRangeLat = (5.1, 5.3),
+        angle_max: _AngleMaxLon = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        ntrial: Annotated[int, {"min": 1}] = 5,
+        random_seeds: _RandomSeeds = range(5),
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1078,7 +1079,7 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
-        {angle_max}{upsample_factor}
+        {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
         parent = self._get_parent()
@@ -1126,7 +1127,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
 
         results = _get_annealing_results(
-            annealing, _energy_std * 2, range(ntrial), batch_size
+            annealing, _energy_std * 2, random_seeds, batch_size
         )
         best_model = sorted(results, key=lambda r: r.energy)[0].model
 

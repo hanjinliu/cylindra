@@ -53,10 +53,12 @@ _PARAMETERS = [
     Parameter(name="limits", type="(float, float)", desc="Lower and upper limits of the colormap."),
     Parameter(name="upsample_factor", type="int", desc="Upsampling factor of ZNCC landscape. Be careful not to set this parameter too large. Calculation will take much longer for larger ``upsample_factor``."),
     Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
+    Parameter(name="random_seeds", type="iterable of int", desc="Random seed integers. Number of integers will be the number of trials."),
 ]
 # fmt: on
 
 _TRANSLATION_MAP = {param.name: param.to_string() for param in _PARAMETERS}
+assert len(_TRANSLATION_MAP) == len(_PARAMETERS)  # check duplication
 
 
 def update_doc(f: Callable):
