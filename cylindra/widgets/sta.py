@@ -1623,6 +1623,7 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
 impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(
     _annealing.preview_single
 )
+
 impl_preview(
     SubtomogramAveraging.align_all_annealing_multi_template,
     text="Preview molecule network",
