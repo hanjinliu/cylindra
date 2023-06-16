@@ -1,4 +1,12 @@
-from typing import Iterable, Literal, Union, TYPE_CHECKING, Annotated, NamedTuple
+from typing import (
+    Iterable,
+    Literal,
+    SupportsInt,
+    Union,
+    TYPE_CHECKING,
+    Annotated,
+    NamedTuple,
+)
 import re
 from scipy.spatial.transform import Rotation
 from magicclass import (
@@ -966,6 +974,7 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
+        random_seeds = _normalize_random_seeds(random_seeds)
         parent = self._get_parent()
         scale = parent.tomogram.scale
         molecules = layer.molecules
@@ -1092,6 +1101,7 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
+        random_seeds = _normalize_random_seeds(random_seeds)
         parent = self._get_parent()
         scale = parent.tomogram.scale
         molecules = layer.molecules
@@ -1618,6 +1628,19 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
             shift[idx, :] = offset
 
     return shift
+
+
+def _normalize_random_seeds(seeds) -> list[int]:
+    if isinstance(seeds, SupportsInt):
+        return [int(seeds)]
+    out = list[int]()
+    for i, seed in enumerate(seeds):
+        if not isinstance(seed, SupportsInt):
+            raise TypeError(f"seed {seed!r} is not an integer.")
+        out.append(int(seed))
+    if len(out) == 0:
+        raise ValueError("No random seed is given.")
+    return out
 
 
 impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(

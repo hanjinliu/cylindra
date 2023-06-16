@@ -232,7 +232,7 @@ class RandomSeedEdit(Container):
     def value(self) -> list[int]:
         _str = self._seeds.value
         if _str == "":
-            raise ValueError("Empty string is not allowed.")
+            return []
         out = eval(_str, {"__builtins__": {"range": range}}, {})
         if isinstance(out, int):
             return [out]
