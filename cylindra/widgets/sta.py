@@ -892,7 +892,7 @@ class SubtomogramAveraging(MagicTemplate):
         inds = np.empty((len(molecules), 3), dtype=np.int32)
         for i, result in enumerate(vit_out):
             inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
-        molecules_opt = landscape.align_molecules(molecules, inds)
+        molecules_opt = landscape.transform_molecules(molecules, inds)
         t0.toc()
         parent._need_save = True
         return self._align_all_on_return([molecules_opt], [layer])
@@ -1093,17 +1093,19 @@ class SubtomogramAveraging(MagicTemplate):
                 point_layers = []
                 for i, result in enumerate(results):
                     points = parent.add_molecules(
-                        landscape.align_molecules(layer.molecules, result.indices),
+                        landscape.transform_molecules(layer.molecules, result.indices),
                         name=_coerce_aligned_name(layer.name, self.parent_viewer)
                         + f" [{i}]",
                         source=layer.source_component,
+                        metadata={"annealing-result": result},
                     )
                     point_layers.append(points)
             else:
                 points = parent.add_molecules(
-                    landscape.align_molecules(layer.molecules, results[0].indices),
+                    landscape.transform_molecules(layer.molecules, results[0].indices),
                     name=_coerce_aligned_name(layer.name, self.parent_viewer),
                     source=layer.source_component,
+                    metadata={"annealing-result": result},
                 )
                 point_layers = [points]
             layer.visible = False

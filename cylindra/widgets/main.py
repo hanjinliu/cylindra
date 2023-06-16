@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal, Union
+from typing import Annotated, TYPE_CHECKING, Literal, Union, Any
 import warnings
 from weakref import WeakSet
 
@@ -2248,9 +2248,12 @@ class CylindraMainWidget(MagicTemplate):
         molecules: Molecules,
         name: "str | None" = None,
         source: "BaseComponent | None" = None,
+        metadata: "dict[str, Any]" = {},
     ) -> MoleculesLayer:
         """Add molecules as a points layer to the viewer."""
-        return add_molecules(self.parent_viewer, molecules, name, source=source)
+        return add_molecules(
+            self.parent_viewer, molecules, name, source=source, metadata=metadata
+        )
 
     @nogui
     @do_not_record

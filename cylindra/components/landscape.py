@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, SupportsIndex, SupportsInt, overload
+from typing import TYPE_CHECKING, SupportsIndex, SupportsInt
 from pathlib import Path
 from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
 import polars as pl
-from acryo import Molecules, pipe
+from acryo import Molecules, pipe, alignment
 
 from cylindra.const import MoleculesHeader as Mole, nm
 from .cyl_spline import CylSpline
 
 if TYPE_CHECKING:
-    from acryo.loader._loader import LoaderBase
+    from acryo.loader._base import LoaderBase, TemplateInputType, MaskInputType
     from acryo.alignment._base import ParametrizedModel, TomographyInput
     from dask import array as da
     from cylindra._cylindra_ext import CylindricAnnealingModel
@@ -36,13 +36,14 @@ class Landscape:
         Alignment model used.
     scale_factor : float
         Scale factor to convert from pixels to nanometers (upsampling considered).
+        ``scale / upsample_factor`` will be passed to this parameter from the GUI.
     """
 
     energy_array: NDArray[np.float32]
     molecules: Molecules
     argmax: NDArray[np.int32] | None
     alignment_model: ParametrizedModel | TomographyInput
-    scale_factor: float  # scale / upsample_factor
+    scale_factor: float
 
     def __getitem__(
         self, key: slice | list[SupportsIndex] | NDArray[np.integer]
@@ -63,18 +64,37 @@ class Landscape:
 
     @property
     def offset_nm(self) -> NDArray[np.float32]:
+        """Offset in nm."""
         return self.offset * self.scale_factor
 
     @classmethod
     def from_loader(
         cls,
         loader: LoaderBase,
-        template,
-        mask,
-        max_shifts,
-        upsample_factor,
-        alignment_model,
-    ):
+        template: TemplateInputType,
+        mask: MaskInputType = None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        upsample_factor: int = 5,
+        alignment_model=alignment.ZNCCAlignment,
+    ) -> Landscape:
+        """
+        Construct a landscape from a loader object.
+
+        Parameters
+        ----------
+        loader : LoaderBase
+            Any loader object from ``acryo``.
+        template : template input type
+            Template image or a list of template images to be used.
+        mask : mask input type, optional
+            Mask image to be used, by default None
+        max_shifts : (float, float, float), optional
+            Maximum shifts in nm, in (Z, Y, X) order.
+        upsample_factor : int
+            Upsampling factor for landscape construction.
+        alignment_model : alignment model object
+            Alignment model to be used to evaluate correlation score.
+        """
         if isinstance(template, (str, Path)):
             template = pipe.from_file(template)
             multi = False
@@ -106,9 +126,24 @@ class Landscape:
             scale_factor=loader.scale / upsample_factor,
         )
 
-    def align_molecules(
+    def transform_molecules(
         self, molecules: Molecules, indices: NDArray[np.int32]
     ) -> Molecules:
+        """
+        Transform the input molecules based on the landscape.
+
+        Parameters
+        ----------
+        molecules : Molecules
+            Molecules object to be transformed.
+        indices : integer array
+            Indices in the landscape to be used for transformation.
+
+        Returns
+        -------
+        Molecules
+            Transformed molecules.
+        """
         offset = self.offset
         shifts = ((indices - offset) * self.scale_factor).astype(np.float32)
         molecules_opt = molecules.translate_internal(shifts)
@@ -147,6 +182,7 @@ class Landscape:
         )
 
     def run_viterbi(self, dist_range: tuple[nm, nm], angle_max: float | None = None):
+        """Run Viterbi alignment."""
         from cylindra._cylindra_ext import ViterbiGrid
 
         mole = self.molecules.translate_internal(-self.offset)
@@ -169,6 +205,7 @@ class Landscape:
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
     ) -> CylindricAnnealingModel:
+        """Get an annealing model using the landscape."""
         from cylindra._cylindra_ext import CylindricAnnealingModel
 
         cyl = spl.cylinder_model()
@@ -221,6 +258,7 @@ class Landscape:
         reject_limit: int | None = None,
         random_seeds: list[int] = [0],
     ) -> list[AnnealingResult]:
+        """Run simulated mesh annealing."""
         from dask import array as da, delayed
 
         if angle_max is None:

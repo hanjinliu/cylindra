@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from typing import Sequence, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING, Any
 from dataclasses import dataclass
 from timeit import default_timer
 import inspect
@@ -65,6 +65,7 @@ def add_molecules(
     mol: Molecules,
     name: str,
     source: BaseComponent | None = None,
+    metadata: dict[str, Any] = {},
 ) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
     layer = MoleculesLayer(
@@ -74,6 +75,7 @@ def add_molecules(
         edge_color="lime",
         out_of_slice_display=True,
         name=name,
+        metadata=metadata.copy(),
     )
     if source is not None:
         layer.source_component = source
