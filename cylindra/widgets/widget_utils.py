@@ -353,37 +353,3 @@ class PaintDevice:
             yield
 
         return lbl
-
-
-def landscape_result_with_rotation(
-    molecules: Molecules,
-    shifts: NDArray[np.float32],
-    inds: NDArray[np.int32],
-    argmax: NDArray[np.int32],
-    model: alignment._base.ParametrizedModel,
-):
-    molecules_opt = molecules.translate_internal(shifts)
-    if model.has_rotation:
-        nrotation = len(model.quaternions)
-        quats = np.stack(
-            [
-                model.quaternions[argmax[i, iz, iy, ix] % nrotation]
-                for i, (iz, iy, ix) in enumerate(inds)
-            ],
-            axis=0,
-        )
-        molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-
-        rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
-        molecules_opt = molecules_opt.with_features(
-            pl.Series("align-dzrot", rotvec[:, 0]),
-            pl.Series("align-dyrot", rotvec[:, 1]),
-            pl.Series("align-dxrot", rotvec[:, 2]),
-        )
-
-    molecules_opt = molecules_opt.with_features(
-        pl.Series("align-dz", shifts[:, 0]),
-        pl.Series("align-dy", shifts[:, 1]),
-        pl.Series("align-dx", shifts[:, 2]),
-    )
-    return molecules_opt

@@ -2,7 +2,7 @@ from typing import NamedTuple
 import numpy as np
 from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra._custom_layers import MoleculesLayer
-from acryo import alignment, Molecules
+from acryo import Molecules
 
 from magicgui import magicgui
 from magicclass.ext.pyqtgraph import plot_api as plt
@@ -14,12 +14,11 @@ class DemoResult(NamedTuple):
     temps: np.ndarray
 
 
-def boltzmann_demo(
+def mesh_annealing_demo(
     self: SubtomogramAveraging,
     layer: MoleculesLayer,
     template_path,
     mask_params=None,
-    tilt_range=None,
     max_shifts=(0.6, 0.6, 0.6),
     cutoff: float = 0.5,
     interpolation: int = 3,
@@ -27,69 +26,20 @@ def boltzmann_demo(
     distance_range_lat: tuple[float, float] = (4.7, 5.3),
     upsample_factor: int = 3,
 ):
-    from cylindra._cylindra_ext import CylindricAnnealingModel
-
     parent = self._get_parent()
     molecules = layer.molecules
-    shape_nm = self._get_shape_in_nm()
-    loader = parent.tomogram.get_subtomogram_loader(
-        molecules, shape=shape_nm, order=interpolation
-    )
-    template, mask = loader.normalize_input(
-        template=self.params._get_template(path=template_path),
-        mask=self.params._get_mask(params=mask_params),
-    )
-    max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
-    search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-    model = alignment.ZNCCAlignment.with_params(
-        cutoff=cutoff,
-        tilt_range=tilt_range,
-    )
 
-    score_dsk = loader.construct_landscape(
-        template,
-        mask=mask,
+    landscape = self.construct_landscape(
+        layer=layer,
+        template_path=template_path,
+        mask_params=mask_params,
         max_shifts=max_shifts,
-        upsample=upsample_factor,
-        alignment_model=model,
+        cutoff=cutoff,
+        interpolation=interpolation,
+        upsample_factor=upsample_factor,
     )
-
-    score: np.ndarray = score_dsk.compute()
-    scale = parent.tomogram.scale
-    m0 = molecules.translate_internal(-(np.array(max_shifts) - scale) / 2)
-
-    dist_lon = np.array(distance_range_long) / scale * upsample_factor
-    dist_lat = np.array(distance_range_lat) / scale * upsample_factor
-    spl = layer.source_component
-    _cyl_model = spl.cylinder_model()
-    _grid_shape = _cyl_model.shape
-    _vec_shape = _grid_shape + (3,)
-    energy = -score
-
-    time_const = molecules.pos.size * np.product(search_size)
-    initial_temperature = np.std(energy) * 2
-
-    # construct the annealing model
-    annealing = (
-        CylindricAnnealingModel()
-        .set_graph(
-            energy.reshape(_grid_shape + search_size),
-            (m0.pos / scale * upsample_factor).reshape(_vec_shape),
-            m0.z.reshape(_vec_shape).astype(np.float32),
-            m0.y.reshape(_vec_shape).astype(np.float32),
-            m0.x.reshape(_vec_shape).astype(np.float32),
-            _cyl_model.nrise,
-        )
-        .set_reservoir(
-            temperature=initial_temperature,
-            time_constant=time_const,
-        )
-        .set_box_potential(
-            *dist_lon,
-            *dist_lat,
-        )
-    )
-
+    spl = layer.source_spline
+    annealing = landscape.annealing_model(spl, distance_range_long, distance_range_lat)
     _model = annealing.with_seed(seed=0)
     energies = [_model.energy()]
 
@@ -99,9 +49,9 @@ def boltzmann_demo(
         _model.simulate(10000)
         energies.append(_model.energy())
 
-        offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
+        offset = landscape.offset
         all_shifts_px = ((_model.shifts() - offset) / upsample_factor).reshape(-1, 3)
-        all_shifts = all_shifts_px * scale
+        all_shifts = all_shifts_px * parent.tomogram.scale
 
         all_molecules.append(molecules.translate_internal(all_shifts))
         temps.append(_model.temperature())

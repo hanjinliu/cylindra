@@ -1,7 +1,6 @@
 from typing import (
     Iterable,
     Literal,
-    SupportsInt,
     Union,
     TYPE_CHECKING,
     Annotated,
@@ -10,7 +9,6 @@ import re
 from scipy.spatial.transform import Rotation
 from magicclass import (
     do_not_record,
-    get_function_gui,
     magicclass,
     magicmenu,
     field,
@@ -44,6 +42,7 @@ from cylindra.widgets._widget_ext import (
     RandomSeedEdit,
     MultiFileEdit,
 )
+from cylindra.components import Landscape, ViterbiResult
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
@@ -52,7 +51,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from dask import array as da
     from napari.layers import Image
-    from cylindra._cylindra_ext import CylindricAnnealingModel
     from cylindra.widgets.main import CylindraMainWidget
 
 # annotated types
@@ -853,7 +851,6 @@ class SubtomogramAveraging(MagicTemplate):
         """
         from dask import array as da
         from dask import delayed
-        from cylindra._cylindra_ext import ViterbiGrid
 
         t0 = timer("align_all_viterbi")
         parent = self._get_parent()
@@ -870,73 +867,35 @@ class SubtomogramAveraging(MagicTemplate):
         search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
         _Logger.print(f"Search size (px): {search_size}")
 
-        model = alignment.ZNCCAlignment.with_params(
-            rotations=rotations,
-            cutoff=cutoff,
-            tilt_range=parent.tomogram.tilt_range,
-        )
-
-        score_dsk = loader.construct_landscape(
-            template,
+        landscape = Landscape.from_loader(
+            loader,
+            template=template,
             mask=mask,
             max_shifts=max_shifts,
-            upsample=upsample_factor,
-            alignment_model=model,
+            upsample_factor=upsample_factor,
+            alignment_model=alignment.ZNCCAlignment.with_params(
+                rotations=rotations,
+                cutoff=cutoff,
+                tilt_range=parent.tomogram.tilt_range,
+            ),
         )
-        score, argmax = _calc_landscape(model, score_dsk, n_templates=1)
         yield
-        scale = parent.tomogram.scale
         npf = molecules.features[Mole.pf].max() + 1
 
         slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-
-        max_shifts = np.asarray(max_shifts, dtype=np.float32)
-        molecules_origin = molecules.translate_internal(max_shifts)
-        # split each protofilament
-        mole_list = [molecules_origin.subset(sl) for sl in slices]
-
-        dist_min, dist_max = np.array(distance_range) / scale * upsample_factor
-        scores = [score[sl] for sl in slices]
-
-        @delayed
-        def _run_viterbi(s: np.ndarray, m: Molecules, dist_min, dist_max, max_angle):
-            origin = (m.pos / scale * upsample_factor).astype(np.float32)
-            zvec = m.z.astype(np.float32)
-            yvec = m.y.astype(np.float32)
-            xvec = m.x.astype(np.float32)
-            grid = ViterbiGrid(s, origin, zvec, yvec, xvec)
-            return grid.viterbi(dist_min, dist_max, max_angle)
-
         viterbi_tasks = [
-            _run_viterbi(s, m, dist_min, dist_max, angle_max)
-            for s, m in zip(scores, mole_list)
+            delayed(landscape[sl].run_viterbi)(distance_range, angle_max)
+            for sl in slices
         ]
-        vit_out: list[tuple[np.ndarray, float]] = da.compute(viterbi_tasks)[0]
+        vit_out: list[ViterbiResult] = da.compute(viterbi_tasks)[0]
 
-        offset = (np.array(max_shifts_px) * upsample_factor).astype(np.int32)
         inds = np.empty((len(molecules), 3), dtype=np.int32)
-        for i, (shift, _) in enumerate(vit_out):
-            _check_viterbi_shift(shift, max_shifts_px, i)
-            inds[slices[i], :] = shift
-        all_shifts = ((inds - offset) / upsample_factor * scale).astype(np.float32)
-
-        opt_score = np.fromiter(
-            (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
-            dtype=np.float32,
-        )
-        molecules_opt = widget_utils.landscape_result_with_rotation(
-            molecules, all_shifts, inds, argmax, model
-        )
-        molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
+        for i, result in enumerate(vit_out):
+            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
+        molecules_opt = landscape.align_molecules(molecules, inds)
         t0.toc()
         parent._need_save = True
-        aligned_loader = SubtomogramLoader(
-            parent.tomogram.image.value,
-            molecules_opt,
-            order=interpolation,
-            output_shape=template.shape,
-        )
-        return self._align_all_on_return([aligned_loader.molecules], [layer])
+        return self._align_all_on_return([molecules_opt], [layer])
 
     @Refinement.wraps
     @set_design(text="Simulated annealing")
@@ -974,7 +933,7 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
-        out = self._align_all_annealing(
+        out = yield from self._align_all_annealing(
             layer=layer,
             template_path=template_path,
             mask_params=mask_params,
@@ -1028,7 +987,7 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing_multi_template")
-        out = self._align_all_annealing(
+        out = yield from self._align_all_annealing(
             layer=layer,
             template_path=template_paths,
             mask_params=mask_params,
@@ -1045,6 +1004,36 @@ class SubtomogramAveraging(MagicTemplate):
         )
         t0.toc()
         return out
+
+    @nogui
+    @do_not_record
+    def construct_landscape(
+        self,
+        layer: MoleculesLayer,
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+    ):
+        parent = self._get_parent()
+        loader = parent.tomogram.get_subtomogram_loader(
+            layer.molecules, order=interpolation
+        )
+        return Landscape.from_loader(
+            loader,
+            template=template_path,
+            mask=self.params._get_mask(params=mask_params),
+            max_shifts=max_shifts,
+            upsample_factor=upsample_factor,
+            alignment_model=alignment.ZNCCAlignment.with_params(
+                rotations=rotations,
+                cutoff=cutoff,
+                tilt_range=parent.tomogram.tilt_range,
+            ),
+        )
 
     def _align_all_annealing(
         self,
@@ -1063,9 +1052,10 @@ class SubtomogramAveraging(MagicTemplate):
         return_all: bool = False,
     ):
         parent = self._get_parent()
-        score, argmax = self.get_landscape(
-            template=template_path,
-            mask=self.params._get_mask(params=mask_params),
+        landscape = self.construct_landscape(
+            layer=layer,
+            template_path=template_path,
+            mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=rotations,
             cutoff=cutoff,
@@ -1073,19 +1063,28 @@ class SubtomogramAveraging(MagicTemplate):
             upsample_factor=upsample_factor,
         )
         yield
-        annealer = _annealing.Annealer(
-            layer=layer,
-            max_shifts=max_shifts,
-            scale_factor=parent.tomogram.scale / upsample_factor,
+        results = landscape.run_annealing(
+            layer.source_spline,
+            distance_range_long,
+            distance_range_lat,
+            angle_max,
             random_seeds=random_seeds,
-            energy=-score,
-            constraint=_annealing.Constraint(
-                distance_range_long,
-                distance_range_lat,
-                angle_max,
-            ),
         )
-        results = sorted(annealer.run(), key=lambda r: r.energy)
+        if all(result.state == "failed" for result in results):
+            raise RuntimeError(
+                "Failed to optimize for all trials. You may check the distance range."
+            )
+        elif not any(result.state == "converged" for result in results):
+            _Logger.print("Optimization did not converge for any trial.")
+
+        _Logger.print_table(
+            {
+                "Iteration": [r.niter for r in results],
+                "Score": [-r.energies[-1] for r in results],
+                "State": [r.state for r in results],
+            }
+        )
+        results = sorted(results, key=lambda r: r.energies[-1])
         parent._need_save = True
 
         @thread_worker.to_callback
@@ -1094,7 +1093,7 @@ class SubtomogramAveraging(MagicTemplate):
                 point_layers = []
                 for i, result in enumerate(results):
                     points = parent.add_molecules(
-                        annealer.align_molecules(result, argmax),
+                        landscape.align_molecules(layer.molecules, result.indices),
                         name=_coerce_aligned_name(layer.name, self.parent_viewer)
                         + f" [{i}]",
                         source=layer.source_component,
@@ -1102,7 +1101,7 @@ class SubtomogramAveraging(MagicTemplate):
                     point_layers.append(points)
             else:
                 points = parent.add_molecules(
-                    annealer.align_molecules(results[0], argmax),
+                    landscape.align_molecules(layer.molecules, results[0].indices),
                     name=_coerce_aligned_name(layer.name, self.parent_viewer),
                     source=layer.source_component,
                 )
@@ -1147,25 +1146,24 @@ class SubtomogramAveraging(MagicTemplate):
         )
         if isinstance(template, (str, Path)):
             template = pipe.from_file(template)
-        elif hasattr(template, "__iter__") and isinstance(
+            multi = False
+        elif isinstance(template, (list, tuple)) and isinstance(
             next(iter(template), None), (str, Path)
         ):
             template = pipe.from_files(template)
+            multi = True
+        elif isinstance(template, np.ndarray):
+            multi = template.ndim == 4
         else:
             raise TypeError(f"Invalid type of template: {type(template)}")
-        temps = loader.normalize_template(template)
-        if temps.ndim == 4:
-            n_templates = temps.shape[0]
-        else:
-            n_templates = 1
         score_dsk = loader.construct_landscape(
-            temps,
+            template,
             mask=mask,
             max_shifts=max_shifts,
             upsample=upsample_factor,
             alignment_model=model,
         )
-        return _calc_landscape(model, score_dsk, n_templates=n_templates)
+        return _calc_landscape(model, score_dsk, multi_templates=multi)
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
@@ -1506,13 +1504,13 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
 def _calc_landscape(
     model: "alignment._base.ParametrizedModel",
     score_dsk: "da.Array",
-    n_templates: int = 1,
+    multi_templates: bool = False,
 ) -> "tuple[NDArray[np.float32], NDArray[np.int32] | None]":
     from dask import array as da
 
     if not model.has_rotation:
         score = score_dsk.compute()
-        if n_templates > 1:
+        if multi_templates:
             score = np.max(score, axis=1)
         argmax = None
     else:
