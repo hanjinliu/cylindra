@@ -1,6 +1,8 @@
 from __future__ import annotations
+from dataclasses import dataclass
 
-from typing import Iterable, TYPE_CHECKING, NamedTuple
+from typing import Iterable, TYPE_CHECKING, SupportsInt
+from acryo import Molecules
 import matplotlib.pyplot as plt
 
 from magicgui.widgets import FunctionGui
@@ -9,9 +11,11 @@ from magicclass.logging import getLogger
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 
 import numpy as np
+import polars as pl
 
 from cylindra.types import MoleculesLayer
 from cylindra.const import MoleculesHeader as Mole, nm
+from cylindra.widgets import widget_utils
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -24,13 +28,11 @@ _Logger = getLogger("cylindra")
 def get_annealing_model(
     layer: MoleculesLayer,
     max_shifts: tuple[nm, nm, nm],
-    scale: nm,
-    upsample_factor: int = 5,
+    scale_factor: float,  # scale / upsample_factor
 ) -> CylindricAnnealingModel:
     from cylindra._cylindra_ext import CylindricAnnealingModel
 
     molecules = layer.molecules
-    scale_factor = scale / upsample_factor
     if spl := layer.source_spline:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
@@ -60,7 +62,7 @@ def get_annealing_model(
 
 
 def get_distances(layer: MoleculesLayer, scale: nm, upsample_factor: int):
-    annealing = get_annealing_model(layer, (0, 0, 0), scale, upsample_factor)
+    annealing = get_annealing_model(layer, (0, 0, 0), scale / upsample_factor)
     data_lon = annealing.longitudinal_distances()
     data_lat = annealing.lateral_distances()
     return data_lon, data_lat
@@ -188,7 +190,7 @@ def get_annealing_results(
         ):
             _model.simulate(batch_size)
             energies.append(_model.energy())
-        return AnnealingResult(_model, np.array(energies), energies[-1])
+        return AnnealingResult(_model, np.array(energies), energies[-1], batch_size)
 
     tasks = [_run(s) for s in seeds]
     results: list[AnnealingResult] = da.compute(tasks)[0]
@@ -211,18 +213,115 @@ def get_annealing_results(
     return results
 
 
-class AnnealingResult(NamedTuple):
+@dataclass
+class AnnealingResult:
     model: CylindricAnnealingModel
     energies: NDArray[np.float32]
     energy: float
+    time_const: float
 
 
-def plot_annealing_result(results: list[AnnealingResult], batch_size):
+def _to_batch_size(time_const: float) -> int:
+    return max(int(time_const / 20), 1)
+
+
+def plot_annealing_result(results: list[AnnealingResult]):
     for i, r in enumerate(results):
-        _x = np.arange(r.energies.size) * 1e-6 * batch_size
+        _x = np.arange(r.energies.size) * 1e-6 * _to_batch_size(r.time_const)
         plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
     plt.xlabel("Repeat (x10^6)")
     plt.ylabel("Score")
     plt.legend()
     plt.tight_layout()
     plt.show()
+
+
+@dataclass
+class Constraint:
+    """Annealing constraint."""
+
+    distance_range_long: tuple[nm, nm]
+    distance_range_lat: tuple[nm, nm]
+    angle_max: float
+
+
+@dataclass
+class Annealer:
+    layer: MoleculesLayer
+    max_shifts: tuple[nm, nm, nm]
+    scale_factor: float
+    random_seeds: list[int]
+    energy: NDArray[np.float32]
+    constraint: Constraint
+
+    def __post_init__(self):
+        self.random_seeds = _normalize_random_seeds(self.random_seeds)
+
+    def run(
+        self,
+        time_const: float | None = None,
+        temperature: float | None = None,
+        cooling_rate: float | None = None,
+        reject_limit: int | None = None,
+    ) -> list[AnnealingResult]:
+        annealing = get_annealing_model(self.layer, self.max_shifts, self.scale_factor)
+        local_shape = self.energy.shape[1:]
+        nmole = self.layer.molecules.pos.size
+
+        if time_const is None:
+            time_const = nmole * np.product(local_shape)
+        batch_size = _to_batch_size(time_const)
+        _energy_std = np.std(self.energy)
+        if temperature is None:
+            temperature = _energy_std * 2
+        if cooling_rate is None:
+            cooling_rate = _energy_std / time_const * 4
+        if reject_limit is None:
+            reject_limit = nmole * 300
+
+        # construct the annealing model
+        annealing.set_energy_landscape(self.energy).set_reservoir(
+            temperature=temperature,
+            time_constant=time_const,
+        ).set_box_potential(
+            *self.constraint.distance_range_long,
+            *self.constraint.distance_range_lat,
+            float(np.deg2rad(self.constraint.angle_max)),
+            cooling_rate=cooling_rate,
+        ).with_reject_limit(
+            reject_limit
+        )
+
+        return get_annealing_results(
+            annealing, temperature, self.random_seeds, batch_size
+        )
+
+    def align_molecules(
+        self, result: AnnealingResult, argmax: NDArray[np.float32]
+    ) -> Molecules:
+        best_model = result.model
+
+        inds = best_model.shifts()
+        opt_score = -np.fromiter(
+            (self.energy[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
+            dtype=np.float32,
+        )
+
+        int_offset = np.array(self.energy.shape[1:]) // 2
+        all_shifts = (inds - int_offset) * self.scale_factor
+        return widget_utils.landscape_result_with_rotation(
+            self.layer.molecules, all_shifts, inds, argmax, result.model
+        ).with_features(pl.Series(Mole.score, opt_score))
+
+
+def _normalize_random_seeds(seeds) -> list[int]:
+    if isinstance(seeds, SupportsInt):
+        return [int(seeds)]
+    out = list[int]()
+    for i, seed in enumerate(seeds):
+        if not isinstance(seed, SupportsInt):
+            raise TypeError(f"seed {seed!r} is not an integer.")
+        out.append(int(seed))
+    if len(out) == 0:
+        raise ValueError("No random seed is given.")
+    return out

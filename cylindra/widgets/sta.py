@@ -5,7 +5,6 @@ from typing import (
     Union,
     TYPE_CHECKING,
     Annotated,
-    NamedTuple,
 )
 import re
 from scipy.spatial.transform import Rotation
@@ -15,6 +14,7 @@ from magicclass import (
     magicclass,
     magicmenu,
     field,
+    nogui,
     vfield,
     MagicTemplate,
     set_design,
@@ -27,7 +27,6 @@ from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
 from magicclass.ext.dask import dask_thread_worker as dask_worker
-from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
 
@@ -925,7 +924,7 @@ class SubtomogramAveraging(MagicTemplate):
             (score[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
             dtype=np.float32,
         )
-        molecules_opt = _landscape_result_with_rotation(
+        molecules_opt = widget_utils.landscape_result_with_rotation(
             molecules, all_shifts, inds, argmax, model
         )
         molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
@@ -956,6 +955,7 @@ class SubtomogramAveraging(MagicTemplate):
         angle_max: _AngleMaxLon = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = range(5),
+        return_all: bool = False,
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -974,97 +974,23 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
-        random_seeds = _normalize_random_seeds(random_seeds)
-        parent = self._get_parent()
-        scale = parent.tomogram.scale
-        molecules = layer.molecules
-        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
-        template, mask = loader.normalize_input(
-            template=self.params._get_template(path=template_path),
-            mask=self.params._get_mask(params=mask_params),
-        )
-        model = alignment.ZNCCAlignment.with_params(
+        out = self._align_all_annealing(
+            layer=layer,
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
             rotations=rotations,
             cutoff=cutoff,
-            tilt_range=parent.tomogram.tilt_range,
+            interpolation=interpolation,
+            distance_range_long=distance_range_long,
+            distance_range_lat=distance_range_lat,
+            angle_max=angle_max,
+            upsample_factor=upsample_factor,
+            random_seeds=random_seeds,
+            return_all=return_all,
         )
-        score_dsk = loader.construct_landscape(
-            template,
-            mask=mask,
-            max_shifts=max_shifts,
-            upsample=upsample_factor,
-            alignment_model=model,
-        )
-        score, argmax = _calc_landscape(model, score_dsk, n_templates=1)
-        yield
-        annealing = _annealing.get_annealing_model(
-            layer, max_shifts, scale, upsample_factor
-        )
-        energy = -score
-        local_shape = energy.shape[1:]
-        nmole = molecules.pos.size
-
-        time_const = nmole * np.product(local_shape)
-        batch_size = max(int(time_const / 20), 1)
-        _energy_std = np.std(energy)
-
-        # construct the annealing model
-        annealing.set_energy_landscape(energy).set_reservoir(
-            temperature=_energy_std * 2,
-            time_constant=time_const,
-        ).set_box_potential(
-            *distance_range_long,
-            *distance_range_lat,
-            float(np.deg2rad(angle_max)),
-            cooling_rate=_energy_std / time_const * 4,
-        ).with_reject_limit(
-            nmole * 300
-        )
-
-        results = _annealing.get_annealing_results(
-            annealing, _energy_std * 2, random_seeds, batch_size
-        )
-        best_model = sorted(results, key=lambda r: r.energy)[0].model
-
-        inds = best_model.shifts()
-        opt_score = -np.fromiter(
-            (energy[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
-            dtype=np.float32,
-        )
-
-        int_offset = np.array(local_shape) // 2
-        all_shifts = (inds - int_offset) / upsample_factor * scale
-        molecules_opt = _landscape_result_with_rotation(
-            molecules, all_shifts, inds, argmax, model
-        )
-        molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
         t0.toc()
-        parent._need_save = True
-
-        @thread_worker.to_callback
-        def _on_return():
-            points = parent.add_molecules(
-                molecules_opt,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-                source=layer.source_component,
-            )
-            layer.visible = False
-            _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
-            with _Logger.set_plt():
-                _annealing.plot_annealing_result(results, batch_size)
-
-            @undo_callback
-            def out():
-                parent._try_removing_layer(points)
-                layer.visible = True
-
-            @out.with_redo
-            def out():
-                parent.parent_viewer.add_layer(points)
-
-            return out
-
-        return _on_return
+        return out
 
     @Refinement.wraps
     @set_design(text="Simulated annealing (multi-template)")
@@ -1083,6 +1009,7 @@ class SubtomogramAveraging(MagicTemplate):
         angle_max: _AngleMaxLon = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = range(5),
+        return_all: bool = False,
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1100,98 +1027,145 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between laterally consecutive monomers.
         {angle_max}{upsample_factor}{random_seeds}
         """
-        t0 = timer("align_all_annealing")
-        random_seeds = _normalize_random_seeds(random_seeds)
-        parent = self._get_parent()
-        scale = parent.tomogram.scale
-        molecules = layer.molecules
-        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
-        templates = pipe.from_files(template_paths)
+        t0 = timer("align_all_annealing_multi_template")
+        out = self._align_all_annealing(
+            layer=layer,
+            template_path=template_paths,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            distance_range_long=distance_range_long,
+            distance_range_lat=distance_range_lat,
+            angle_max=angle_max,
+            upsample_factor=upsample_factor,
+            random_seeds=random_seeds,
+            return_all=return_all,
+        )
+        t0.toc()
+        return out
 
+    def _align_all_annealing(
+        self,
+        layer: MoleculesLayer,
+        template_path: Bound[params.template_path],
+        mask_params: Bound[params._get_mask_params] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        distance_range_long: _DistRangeLon = (4.0, 4.28),
+        distance_range_lat: _DistRangeLat = (5.1, 5.3),
+        angle_max: _AngleMaxLon = 10.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        random_seeds: _RandomSeeds = range(5),
+        return_all: bool = False,
+    ):
+        parent = self._get_parent()
+        score, argmax = self.get_landscape(
+            template=template_path,
+            mask=self.params._get_mask(params=mask_params),
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            upsample_factor=upsample_factor,
+        )
+        yield
+        annealer = _annealing.Annealer(
+            layer=layer,
+            max_shifts=max_shifts,
+            scale_factor=parent.tomogram.scale / upsample_factor,
+            random_seeds=random_seeds,
+            energy=-score,
+            constraint=_annealing.Constraint(
+                distance_range_long,
+                distance_range_lat,
+                angle_max,
+            ),
+        )
+        results = sorted(annealer.run(), key=lambda r: r.energy)
+        parent._need_save = True
+
+        @thread_worker.to_callback
+        def _on_return():
+            if return_all:
+                point_layers = []
+                for i, result in enumerate(results):
+                    points = parent.add_molecules(
+                        annealer.align_molecules(result, argmax),
+                        name=_coerce_aligned_name(layer.name, self.parent_viewer)
+                        + f" [{i}]",
+                        source=layer.source_component,
+                    )
+                    point_layers.append(points)
+            else:
+                points = parent.add_molecules(
+                    annealer.align_molecules(results[0], argmax),
+                    name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                    source=layer.source_component,
+                )
+                point_layers = [points]
+            layer.visible = False
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+            @undo_callback
+            def out():
+                parent._try_removing_layer(point_layers)
+                layer.visible = True
+
+            @out.with_redo
+            def out():
+                for points in point_layers:
+                    parent.parent_viewer.add_layer(points)
+
+            return out
+
+        return _on_return
+
+    @nogui
+    @do_not_record
+    def get_landscape(
+        self,
+        molecules: Molecules,
+        template,
+        mask=None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: float = 0.5,
+        interpolation: int = 3,
+        upsample_factor: int = 5,
+    ):
+        parent = self._get_parent()
+        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
         model = alignment.ZNCCAlignment.with_params(
             rotations=rotations,
             cutoff=cutoff,
             tilt_range=parent.tomogram.tilt_range,
         )
+        if isinstance(template, (str, Path)):
+            template = pipe.from_file(template)
+        elif hasattr(template, "__iter__") and isinstance(
+            next(iter(template), None), (str, Path)
+        ):
+            template = pipe.from_files(template)
+        else:
+            raise TypeError(f"Invalid type of template: {type(template)}")
+        temps = loader.normalize_template(template)
+        if temps.ndim == 4:
+            n_templates = temps.shape[0]
+        else:
+            n_templates = 1
         score_dsk = loader.construct_landscape(
-            templates,
-            mask=self.params._get_mask(params=mask_params),
+            temps,
+            mask=mask,
             max_shifts=max_shifts,
             upsample=upsample_factor,
             alignment_model=model,
         )
-        score, argmax = _calc_landscape(
-            model, score_dsk, n_templates=len(template_paths)
-        )
-        yield
-        annealing = _annealing.get_annealing_model(
-            layer, max_shifts, scale, upsample_factor
-        )
-        energy = -score
-        local_shape = energy.shape[1:]
-        nmole = molecules.pos.size
-
-        time_const = nmole * np.product(local_shape)
-        batch_size = max(int(time_const / 20), 1)
-        _energy_std = np.std(energy)
-
-        # construct the annealing model
-        annealing.set_energy_landscape(energy).set_reservoir(
-            temperature=_energy_std * 2,
-            time_constant=time_const,
-        ).set_box_potential(
-            *distance_range_long,
-            *distance_range_lat,
-            float(np.deg2rad(angle_max)),
-            cooling_rate=_energy_std / time_const * 4,
-        ).with_reject_limit(
-            nmole * 300
-        )
-
-        results = _annealing.get_annealing_results(
-            annealing, _energy_std * 2, random_seeds, batch_size
-        )
-        best_model = sorted(results, key=lambda r: r.energy)[0].model
-
-        inds = best_model.shifts()
-        opt_score = -np.fromiter(
-            (energy[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(inds)),
-            dtype=np.float32,
-        )
-
-        int_offset = np.array(energy.shape[1:]) // 2
-        all_shifts = (inds - int_offset) / upsample_factor * scale
-        molecules_opt = _landscape_result_with_rotation(
-            molecules, all_shifts, inds, argmax, model
-        )
-        molecules_opt = molecules_opt.with_features(pl.Series(Mole.score, opt_score))
-        t0.toc()
-        parent._need_save = True
-
-        @thread_worker.to_callback
-        def _on_return():
-            points = parent.add_molecules(
-                molecules_opt,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-                source=layer.source_component,
-            )
-            layer.visible = False
-            _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
-            with _Logger.set_plt():
-                _annealing.plot_annealing_result(results, batch_size)
-
-            @undo_callback
-            def out():
-                parent._try_removing_layer(points)
-                layer.visible = True
-
-            @out.with_redo
-            def out():
-                parent.parent_viewer.add_layer(points)
-
-            return out
-
-        return _on_return
+        return _calc_landscape(model, score_dsk, n_templates=n_templates)
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
@@ -1480,7 +1454,7 @@ class SubtomogramAveraging(MagicTemplate):
         # graph construction cannot be separated.
         parent = self._get_parent()
         scale = parent.tomogram.scale
-        return _annealing.get_annealing_model(layer, (0, 0, 0), scale, 1)
+        return _annealing.get_annealing_model(layer, (0, 0, 0), scale)
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
@@ -1549,40 +1523,6 @@ def _calc_landscape(
     return score, argmax
 
 
-def _landscape_result_with_rotation(
-    molecules: Molecules,
-    shifts: "NDArray[np.float32]",
-    inds: "NDArray[np.int32]",
-    argmax: "NDArray[np.int32]",
-    model: "alignment._base.ParametrizedModel",
-):
-    molecules_opt = molecules.translate_internal(shifts)
-    if model.has_rotation:
-        nrotation = len(model.quaternions)
-        quats = np.stack(
-            [
-                model.quaternions[argmax[i, iz, iy, ix] % nrotation]
-                for i, (iz, iy, ix) in enumerate(inds)
-            ],
-            axis=0,
-        )
-        molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-
-        rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
-        molecules_opt = molecules_opt.with_features(
-            pl.Series("align-dzrot", rotvec[:, 0]),
-            pl.Series("align-dyrot", rotvec[:, 1]),
-            pl.Series("align-dxrot", rotvec[:, 2]),
-        )
-
-    molecules_opt = molecules_opt.with_features(
-        pl.Series("align-dz", shifts[:, 0]),
-        pl.Series("align-dy", shifts[:, 1]),
-        pl.Series("align-dx", shifts[:, 2]),
-    )
-    return molecules_opt
-
-
 class MoleculesCombiner:
     """Class to split/combine molecules for batch analysis."""
 
@@ -1621,19 +1561,6 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
             shift[idx, :] = offset
 
     return shift
-
-
-def _normalize_random_seeds(seeds) -> list[int]:
-    if isinstance(seeds, SupportsInt):
-        return [int(seeds)]
-    out = list[int]()
-    for i, seed in enumerate(seeds):
-        if not isinstance(seed, SupportsInt):
-            raise TypeError(f"seed {seed!r} is not an integer.")
-        out.append(int(seed))
-    if len(out) == 0:
-        raise ValueError("No random seed is given.")
-    return out
 
 
 impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(

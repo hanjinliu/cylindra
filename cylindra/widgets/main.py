@@ -688,7 +688,7 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
         # NOTE: re-adding surface layer is not redoable, since viewer.add_layer seems
         # broken for the surface layer.
-        return undo_callback(self._try_removing_layer, redo=False).with_args(layer)
+        return undo_callback(self._try_removing_layers, redo=False).with_args(layer)
 
     @Splines.Orientation.wraps
     @set_design(text="Invert spline")
