@@ -1159,7 +1159,7 @@ class SubtomogramAveraging(MagicTemplate):
             dtype=np.float32,
         )
 
-        int_offset = np.array(local_shape) // 2
+        int_offset = np.array(energy.shape[1:]) // 2
         all_shifts = (inds - int_offset) / upsample_factor * scale
         molecules_opt = _landscape_result_with_rotation(
             molecules, all_shifts, inds, argmax, model
@@ -1286,21 +1286,14 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         mask_params: Bound[params._get_mask_params],
-        size: Annotated[
-            Optional[nm],
-            {
-                "text": "Use mask shape",
-                "options": {"value": 12.0, "max": 100.0},
-                "label": "size (nm)",
-            },
-        ] = None,
+        size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-    ):
+    ):  # fmt: skip
         """
         Classify molecules in a layer using PCA and K-means clustering.
 

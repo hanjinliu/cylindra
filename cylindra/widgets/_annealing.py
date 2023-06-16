@@ -59,7 +59,7 @@ def get_annealing_model(
     )
 
 
-def _get_distance_data(layer, scale, upsample_factor: int):
+def get_distances(layer: MoleculesLayer, scale: nm, upsample_factor: int):
     annealing = get_annealing_model(layer, (0, 0, 0), scale, upsample_factor)
     data_lon = annealing.longitudinal_distances()
     data_lat = annealing.lateral_distances()
@@ -112,7 +112,7 @@ def _preview_function(
 ):
     parent = widget._get_parent()
     scale = parent.tomogram.scale
-    data_lon, data_lat = _get_distance_data(layer, scale, upsample_factor)
+    data_lon, data_lat = get_distances(layer, scale, upsample_factor)
 
     canvas = QtMultiPlotCanvas(ncols=2)
     parent._active_widgets.add(canvas)
@@ -139,7 +139,7 @@ def _preview_function(
     # connect value change signals
     @fgui.layer.changed.connect
     def _layer_changed(val: MoleculesLayer):
-        data_lon, data_lat = _get_distance_data(val, scale, upsample_factor)
+        data_lon, data_lat = get_distances(val, scale, upsample_factor)
         lon_hist.set_hist(data_lon)
         lat_hist.set_hist(data_lat)
 
