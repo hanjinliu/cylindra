@@ -256,6 +256,11 @@ impl CylindricGraph {
         self.binding_potential.calculate(dr, typ)
     }
 
+    pub fn random_local_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
+        let idx = node_state.index.clone();
+        let shift_new = rng.uniform_vec(&self.local_shape);
+        NodeState { index: idx, shift: shift_new }
+    }
     /// Return a random neighbor state of a given node state.
     pub fn random_local_neighbor_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
         let idx = node_state.index.clone();
@@ -364,6 +369,19 @@ impl CylindricGraph {
         self
     }
 
+    pub fn energy_at(&self, i: usize) -> f32 {
+        let mut energy = 0.0;
+        let graph = self.components();
+        energy += self.internal(&graph.node_state(i));
+        for j in graph.edge(i) {
+            let edge = graph.edge_end(*j);
+            let node_state0 = graph.node_state(edge.0);
+            let node_state1 = graph.node_state(edge.1);
+            energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
+        }
+        energy
+    }
+
     /// Calculate the total energy of the graph.
     pub fn energy(&self) -> f32 {
         let mut energy = 0.0;
@@ -380,14 +398,37 @@ impl CylindricGraph {
         energy
     }
 
-    /// Randomly choose one node and return a possible shift. This method does not actually
-    /// update the graph.
+    /// Randomly choose a node and a possible neighbor shift. This method does not actually
+    /// update the graph but just calculate the resulting energy difference.
     pub fn try_random_shift(&self, rng: &mut RandomNumberGenerator) -> ShiftResult<NodeState> {
         let graph = self.components();
         let idx = rng.uniform_int(graph.node_count());
         let state_old = graph.node_state(idx);
         let mut e_old = self.internal(&state_old);
         let state_new = self.random_local_neighbor_state(&state_old, rng);
+        let mut e_new = self.internal(&state_new);
+        let connected_edges = graph.edge(idx);
+        for edge_id in connected_edges {
+            let edge_id = *edge_id;
+            let ends = graph.edge_end(edge_id);
+            let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
+            let other_state = graph.node_state(other_idx);
+            e_old += self.binding(&state_old, &other_state, &graph.edge_state(edge_id));
+            e_new += self.binding(&state_new, &other_state, &graph.edge_state(edge_id));
+        }
+        let de = e_new - e_old;
+        ShiftResult { index: idx, state: state_new, energy_diff: de }
+    }
+
+    /// Randomly choose a node and a unbounded jump. This method does not actually
+    /// update the graph but just calculate the resulting energy difference.
+    pub fn try_random_jump(&self, rng: &mut RandomNumberGenerator) -> ShiftResult<NodeState> {
+        let graph = self.components();
+        let idx = rng.uniform_int(graph.node_count());
+        let state_old = graph.node_state(idx);
+        let mut e_old = self.internal(&state_old);
+
+        let state_new = self.random_local_state(&state_old, rng);
         let mut e_new = self.internal(&state_new);
         let connected_edges = graph.edge(idx);
         for edge_id in connected_edges {

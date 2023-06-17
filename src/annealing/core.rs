@@ -30,6 +30,7 @@ pub struct CylindricAnnealingModel {
     reservoir: Reservoir,
     iteration: usize,
     reject_limit: usize,
+    jump_every: usize,
 }
 
 #[pymethods]
@@ -46,6 +47,7 @@ impl CylindricAnnealingModel {
             reservoir: Reservoir::new(1.0, 1.0, 0.0),
             iteration: 0,
             reject_limit: 1000,
+            jump_every: 100,
         }
     }
 
@@ -58,8 +60,9 @@ impl CylindricAnnealingModel {
             optimization_state: self.optimization_state.clone(),
             graph: self.graph.clone(),
             reservoir: self.reservoir.clone(),
-            iteration: 0,
+            iteration: self.iteration,
             reject_limit: self.reject_limit,
+            jump_every: self.jump_every,
         };
         out.reservoir.initialize();
         Py::new(py, out).unwrap()
@@ -73,8 +76,25 @@ impl CylindricAnnealingModel {
             optimization_state: self.optimization_state.clone(),
             graph: self.graph.clone(),
             reservoir: self.reservoir.clone(),
-            iteration: 0,
+            iteration: self.iteration,
             reject_limit,
+            jump_every: self.jump_every,
+        };
+        out.reservoir.initialize();
+        Py::new(py, out).unwrap()
+    }
+
+    #[pyo3(signature = (jump_every))]
+    /// Return a new instance with different jump frequency.
+    pub fn with_jump_every<'py>(&self, py: Python<'py>, jump_every: usize) -> Py<Self> {
+        let mut out = Self {
+            rng: self.rng.clone(),
+            optimization_state: self.optimization_state.clone(),
+            graph: self.graph.clone(),
+            reservoir: self.reservoir.clone(),
+            iteration: self.iteration,
+            reject_limit: self.reject_limit,
+            jump_every,
         };
         out.reservoir.initialize();
         Py::new(py, out).unwrap()
@@ -233,7 +253,6 @@ impl CylindricAnnealingModel {
     /// Run simulation for given number of steps.
     /// If simulation failed or converged, it will stop.
     pub fn simulate<'py>(&mut self, py: Python<'py>, nsteps: usize) -> PyResult<()> {
-        self.graph.check_graph()?;
         if nsteps <= 0 {
             return value_error!("nsteps must be positive");
         }
@@ -244,8 +263,13 @@ impl CylindricAnnealingModel {
         py.allow_threads(
             move || {
                 // Simulate while cooling.
-                for _ in 0..nsteps {
-                    if self.proceed() {
+                for k in 0..nsteps {
+                    let accepted = if k % self.jump_every > 0 {
+                        self.proceed()
+                    } else {
+                        self.proceed_jump()
+                    };
+                    if accepted {
                         reject_count = 0;
                     } else {
                         reject_count += 1;
@@ -274,6 +298,26 @@ impl CylindricAnnealingModel {
     fn proceed(&mut self) -> bool {
         // Randomly shift a node.
         let result = self.graph.try_random_shift(&mut self.rng);
+
+        // If the shift causes energy change from Inf to Inf, energy difference is NaN.
+        if result.energy_diff.is_nan() {
+            return false;
+        }
+
+        // Decide whether to accept the shift.
+        let prob = self.reservoir.prob(result.energy_diff);
+        if self.rng.bernoulli(prob) {
+            // accept shift
+            self.graph.apply_shift(&result);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn proceed_jump(&mut self) -> bool {
+        // Randomly shift a node.
+        let result = self.graph.try_random_jump(&mut self.rng);
 
         // If the shift causes energy change from Inf to Inf, energy difference is NaN.
         if result.energy_diff.is_nan() {

@@ -33,9 +33,8 @@ def get_annealing_model(
         raise ValueError(f"{layer!r} does not have a valid source spline.")
 
     _max_shifts = np.asarray(max_shifts, dtype=np.float32)
-    max_shifts_px = (_max_shifts / scale_factor).astype(np.int32) * scale_factor
-    m0 = molecules.translate_internal(-max_shifts_px)
-
+    _max_shifts_clipped = (_max_shifts / scale_factor).astype(np.int32) * scale_factor
+    m0 = molecules.translate_internal(-_max_shifts_clipped)
     return (
         CylindricAnnealingModel()
         .construct_graph(

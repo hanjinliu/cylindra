@@ -29,6 +29,13 @@ impl RandomNumberGenerator {
         dist.sample(&mut self.rng)
     }
 
+    pub fn uniform_vec(&mut self, shape: &Vector3D<isize>) -> Vector3D<isize> {
+        let z = self.uniform_int(shape.z as usize);
+        let y = self.uniform_int(shape.y as usize);
+        let x = self.uniform_int(shape.x as usize);
+        Vector3D::new(z as isize, y as isize, x as isize)
+    }
+
     pub fn rand_shift(&mut self, src: &Vector3D<isize>, shape: &Vector3D<isize>) -> Vector3D<isize> {
         let mut neighbors = Vec::new();
 

@@ -185,7 +185,7 @@ class Landscape:
         """Run Viterbi alignment."""
         from cylindra._cylindra_ext import ViterbiGrid
 
-        mole = self.molecules.translate_internal(-self.offset)
+        mole = self.molecules.translate_internal(-self.offset_nm)
         origin = (mole.pos / self.scale_factor).astype(np.float32)
         zvec = mole.z.astype(np.float32)
         yvec = mole.y.astype(np.float32)
@@ -204,6 +204,7 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
+        jump_every: int = 100,
     ) -> CylindricAnnealingModel:
         """Get an annealing model using the landscape."""
         from cylindra._cylindra_ext import CylindricAnnealingModel
@@ -211,7 +212,9 @@ class Landscape:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
         molecules = self.molecules
-        mole = molecules.translate_internal(-self.offset)
+        mole = molecules.translate_internal(-self.offset_nm)
+        if angle_max is None:
+            angle_max = 90.0
 
         time_const, temperature, cooling_rate, reject_limit = self._normalize_args(
             time_const, temperature, cooling_rate, reject_limit
@@ -244,6 +247,7 @@ class Landscape:
                 cooling_rate=cooling_rate,
             )
             .with_reject_limit(reject_limit)
+            .with_jump_every(jump_every)
         )
 
     def run_annealing(

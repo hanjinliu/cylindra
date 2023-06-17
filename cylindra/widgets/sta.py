@@ -1038,17 +1038,17 @@ class SubtomogramAveraging(MagicTemplate):
     def _align_all_annealing(
         self,
         layer: MoleculesLayer,
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params] = None,
-        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        template_path: "Path | list[Path]",
+        mask_params=None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range_long: _DistRangeLon = (4.0, 4.28),
-        distance_range_lat: _DistRangeLat = (5.1, 5.3),
-        angle_max: _AngleMaxLon = 10.0,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = range(5),
+        cutoff: float = 0.5,
+        interpolation: int = 3,
+        distance_range_long: tuple[nm, nm] = (4.0, 4.28),
+        distance_range_lat: tuple[nm, nm] = (5.1, 5.3),
+        angle_max: float = 10.0,
+        upsample_factor: int = 5,
+        random_seeds: Iterable[int] = range(5),
         return_all: bool = False,
     ):
         parent = self._get_parent()
@@ -1105,7 +1105,7 @@ class SubtomogramAveraging(MagicTemplate):
                     landscape.transform_molecules(layer.molecules, results[0].indices),
                     name=_coerce_aligned_name(layer.name, self.parent_viewer),
                     source=layer.source_component,
-                    metadata={"annealing-result": result},
+                    metadata={"annealing-result": result[0]},
                 )
                 point_layers = [points]
             layer.visible = False
