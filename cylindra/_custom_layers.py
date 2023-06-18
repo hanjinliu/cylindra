@@ -21,6 +21,10 @@ class ColormapInfo(NamedTuple):
     clim: tuple[float, float]
     name: str
 
+    def map(self, x):
+        l, h = self.clim
+        return self.cmap.map((x - l) / (h - l))
+
 
 class _FeatureBoundLayer:
     def _get_tooltip_text(

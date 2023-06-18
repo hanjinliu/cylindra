@@ -265,10 +265,15 @@ class PaintDevice:
     def scale(self) -> nm:
         return self._scale
 
-    def paint_molecules(self, template: NDArray[np.float32], molecules: Molecules):
+    def paint_molecules(
+        self,
+        template: NDArray[np.float32],
+        molecules: Molecules,
+        colors: NDArray[np.float32],
+    ):
         simulator = TomogramSimulator(order=1, scale=self._scale)
         simulator.add_molecules(molecules, template)
-        img = simulator.simulate(self._shape)
+        img = simulator.simulate(self._shape, colormap=colors)
         return img
 
     def paint_cylinders(self, tomo: CylTomogram, prop: str):

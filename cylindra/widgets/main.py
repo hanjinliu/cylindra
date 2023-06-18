@@ -2166,55 +2166,50 @@ class CylindraMainWidget(MagicTemplate):
     @ImageMenu.wraps
     @set_design(text="Back-paint molecule features")
     @dask_thread_worker.with_progress(desc="Back-painting molecule features...")
-    def backpaint_molecules(
+    def molecules_to_image(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
         template_path: Path.Read[FileFilter.IMAGE],
-        target_layer: Annotated[Optional[Image], {"text": "Create a new layer"}] = None,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
         Simulate an image using selected molecules.
 
         Parameters
         ----------
-        {layers}
-        template_path : path-like
-            Path to the template image.
-        target_layer : Image, optional
-            If given, this layer will be over-painted by the simulated image.
+        {layers}{template_path}{bin_size}
         """
         from acryo.pipe import from_file
+        from napari.experimental import link_layers
 
-        mole = Molecules.concat([layer.molecules for layer in layers])
-        data = self._layer_image.data if target_layer is None else target_layer.data
-
-        device = widget_utils.PaintDevice(data.shape, self._layer_image.scale[-1])
+        tomo = self.tomogram
+        scale = tomo.scale
+        translate = tomo.multiscale_translation(bin_size)
+        shape = tuple(s // bin_size for s in tomo.image.shape)
+        device = widget_utils.PaintDevice(shape, scale)
         template = from_file(template_path)(device.scale)
-        sim = device.paint_molecules(template, mole)
+
+        sim = np.zeros((3,) + shape, dtype=np.float32)
+        for layer in layers:
+            sim += device.paint_molecules(template, layer.molecules, layer.face_color)
 
         @thread_worker.to_callback
         def _on_return():
-            if target_layer is None:
+            layers = []
+            clim = sim.min(), sim.max()
+            for img, cmap in zip(sim, ["red", "green", "blue"]):
                 layer = self.parent_viewer.add_image(
-                    sim,
-                    scale=self._layer_image.scale,
-                    translate=self._layer_image.translate,
-                    name="Simulated",
+                    img,
+                    scale=[scale] * 3,
+                    translate=[translate] * 3,
+                    colormap=cmap,
+                    contrast_limits=clim,
+                    blending="additive",
+                    name=f"Back-painted [{cmap[0].upper()}]",
                 )
-                return self._undo_callback_for_layer(layer)
-
-            else:
-                target_layer.data = new_data = data + sim
-
-                @undo_callback
-                def out():
-                    target_layer.data = data
-
-                @out.with_redo
-                def out():
-                    target_layer.data = new_data
-
-                return out
+                layers.append(layer)
+            link_layers(layers)
+            return self._undo_callback_for_layer(layer)
 
         return _on_return
 

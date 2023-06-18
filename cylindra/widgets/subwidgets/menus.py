@@ -116,7 +116,7 @@ class Image(ChildWidget):
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
-    backpaint_molecules = abstractapi()
+    molecules_to_image = abstractapi()
 
     @set_design(text="Show colorbar")
     @do_not_record
