@@ -287,12 +287,7 @@ class Landscape:
         @delayed
         def _run(seed: int) -> AnnealingResult:
             _model = annealing.with_seed(seed)
-            rng = np.random.default_rng(seed)
-            loc_shape = _model.local_shape()
-            shifts = np.stack(
-                [rng.integers(0, s0, _model.node_count()) for s0 in loc_shape], axis=1
-            )
-            _model.set_shifts(shifts)
+            _model.init_shift_random()
             energies = [_model.energy()]
             while (
                 _model.temperature() > temperature * 1e-4

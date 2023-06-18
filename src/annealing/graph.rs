@@ -283,7 +283,22 @@ impl CylindricGraph {
         shifts
     }
 
-    pub fn set_shifts(&mut self, shifts: ArcArray2<isize>) -> PyResult<&Self> {
+    pub fn set_shifts(&mut self, shifts: &Array2<isize>) -> PyResult<&Self> {
+        let n_nodes = self.components.node_count();
+        if shifts.shape() != [n_nodes as usize, 3] {
+            return value_error!("shifts has wrong shape");
+        }
+        for i in 0..n_nodes {
+            let mut state = self.components.node_state(i).clone();
+            state.shift.z = shifts[[i, 0]];
+            state.shift.y = shifts[[i, 1]];
+            state.shift.x = shifts[[i, 2]];
+            self.components.set_node_state(i, state);
+        }
+        Ok(self)
+    }
+
+    pub fn set_shifts_arc(&mut self, shifts: &ArcArray2<isize>) -> PyResult<&Self> {
         let n_nodes = self.components.node_count();
         if shifts.shape() != [n_nodes as usize, 3] {
             return value_error!("shifts has wrong shape");

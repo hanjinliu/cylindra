@@ -110,6 +110,19 @@ _Interval = Annotated[
 # stylesheet
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
 
+
+def _choice_getter(method_name: str):
+    def _get_choice(self: "CylindraMainWidget", w=None) -> list[str]:
+        # don't use get_function_gui. It causes RecursionError.
+        gui = self[method_name].mgui
+        if gui is None or gui.layer.value is None:
+            return []
+        return gui.layer.value.features.columns
+
+    _get_choice.__qualname__ = "CylindraMainWidget._get_choice"
+    return _get_choice
+
+
 ############################################################################################
 #   The Main Widget of cylindra
 ############################################################################################
@@ -254,8 +267,7 @@ class CylindraMainWidget(MagicTemplate):
             _coords = np.asarray(coords)
 
         if _coords.size == 0:
-            warnings.warn("No points are in the viewer.", UserWarning)
-            return None
+            raise ValueError("No points are given.")
 
         tomo = self.tomogram
         tomo.add_spline(_coords)
@@ -1663,7 +1675,7 @@ class CylindraMainWidget(MagicTemplate):
     def split_molecules(
         self,
         layer: MoleculesLayer,
-        by: Annotated[str, {"choices": _get_selected_layer_choice}],
+        by: Annotated[str, {"choices": _choice_getter("split_molecules")}],
     ):
         """
         Split molecules by a feature column.
@@ -1773,7 +1785,7 @@ class CylindraMainWidget(MagicTemplate):
     def paint_molecules(
         self,
         layer: MoleculesLayer,
-        color_by: Annotated[str, {"choices": _get_paint_molecules_choice}],
+        color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
     ):  # fmt: skip
@@ -2042,7 +2054,7 @@ class CylindraMainWidget(MagicTemplate):
     def seam_search_by_feature(
         self,
         layer: MoleculesLayer,
-        by: Annotated[str, {"choices": _get_selected_layer_choice}],
+        by: Annotated[str, {"choices": _choice_getter("seam_search_by_feature")}],
     ):
         """
         Search for seams by a feature.
@@ -2099,7 +2111,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {color_by}{cmap}{limits}
         """
-        color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
+        # color: dict[int, list[float]] = {0: [0, 0, 0, 0]}
         tomo = self.tomogram
         all_df = tomo.collect_localprops()
         if color_by not in all_df.columns:
@@ -2136,7 +2148,6 @@ class CylindraMainWidget(MagicTemplate):
             if self._layer_paint is None:
                 layer_paint = CylinderLabels(
                     lbl,
-                    color=color,
                     scale=self._layer_image.scale,
                     translate=self._layer_image.translate,
                     opacity=0.33,
@@ -2153,9 +2164,9 @@ class CylindraMainWidget(MagicTemplate):
         return _on_return
 
     @ImageMenu.wraps
-    @set_design(text="Back-paint template")
-    @dask_thread_worker.with_progress(desc="Back-painting templat densities...")
-    def backpaint_molecule_density(
+    @set_design(text="Back-paint molecule features")
+    @dask_thread_worker.with_progress(desc="Back-painting molecule features...")
+    def backpaint_molecules(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
         template_path: Path.Read[FileFilter.IMAGE],

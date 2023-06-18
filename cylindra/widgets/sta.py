@@ -623,7 +623,7 @@ class SubtomogramAveraging(MagicTemplate):
             svec = result.shift * _scale
             _mole_trans = mole.linear_transform(
                 result.shift * _scale, rotator
-            ).with_features([pl.col(Mole.position) + svec[1]])
+            ).with_features(pl.col(Mole.position) + svec[1])
 
             # create images for visualization in the logger
             img_norm = utils.normalize_image(_img_trans)
@@ -914,7 +914,9 @@ class SubtomogramAveraging(MagicTemplate):
         angle_max: _AngleMaxLon = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = range(5),
-        return_all: bool = False,
+        return_all: Annotated[
+            bool, {"label": "Return all the annealing results"}
+        ] = False,
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -968,7 +970,9 @@ class SubtomogramAveraging(MagicTemplate):
         angle_max: _AngleMaxLon = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = range(5),
-        return_all: bool = False,
+        return_all: Annotated[
+            bool, {"label": "Return all the annealing results"}
+        ] = False,
     ):
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1105,7 +1109,7 @@ class SubtomogramAveraging(MagicTemplate):
                     landscape.transform_molecules(layer.molecules, results[0].indices),
                     name=_coerce_aligned_name(layer.name, self.parent_viewer),
                     source=layer.source_component,
-                    metadata={"annealing-result": result[0]},
+                    metadata={"annealing-result": results[0]},
                 )
                 point_layers = [points]
             layer.visible = False

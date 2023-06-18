@@ -4,6 +4,7 @@ use pyo3::{
 };
 use numpy::{
     IntoPyArray, PyReadonlyArray2, PyReadonlyArray4, PyArray1, PyArray2,
+    ndarray::Array2,
 };
 
 use super::{
@@ -110,6 +111,22 @@ impl CylindricAnnealingModel {
     ) -> PyRefMut<Self> {
         slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
         slf
+    }
+
+    /// Initialize the node states randomly.
+    pub fn init_shift_random(&mut self) -> PyResult<()> {
+        let shape = self.local_shape();
+        let mut shift_array = Array2::zeros((self.node_count(), 3));
+        for i in 0..self.node_count() {
+            let z = self.rng.uniform_int(shape.0 as usize);
+            let y = self.rng.uniform_int(shape.1 as usize);
+            let x = self.rng.uniform_int(shape.2 as usize);
+            shift_array[[i, 0]] = z as isize;
+            shift_array[[i, 1]] = y as isize;
+            shift_array[[i, 2]] = x as isize;
+        }
+        self.graph.set_shifts(&shift_array)?;
+        Ok(())
     }
 
     /// Get the temperature of the reservoir.
@@ -221,7 +238,7 @@ impl CylindricAnnealingModel {
         shifts: PyReadonlyArray2<isize>,
     ) -> PyResult<PyRefMut<'py, Self>> {
         let shifts = shifts.as_array().to_shared();
-        slf.graph.set_shifts(shifts)?;
+        slf.graph.set_shifts_arc(&shifts)?;
         Ok(slf)
     }
 
