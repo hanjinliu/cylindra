@@ -1445,7 +1445,8 @@ class CylTomogram(Tomogram):
 
         if len(props) == 0:
             return None
-        return pl.concat(props, how="diagonal")
+        how = "diagonal" if allow_none else "vertical"
+        return pl.concat(props, how=how)
 
     def collect_globalprops(
         self, i: int | Iterable[int] = None, allow_none: bool = True
@@ -1478,7 +1479,8 @@ class CylTomogram(Tomogram):
 
         if len(props) == 0:
             return None
-        return pl.concat(props, how="vertical")
+        how = "diagonal" if allow_none else "vertical"
+        return pl.concat(props, how=how)
 
     def _chunked_straighten(
         self,

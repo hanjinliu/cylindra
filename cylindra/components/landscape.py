@@ -317,7 +317,7 @@ class Landscape:
         if cooling_rate is None:
             cooling_rate = _energy_std / time_const * 8
         if reject_limit is None:
-            reject_limit = nmole * 300
+            reject_limit = nmole * 100
         return time_const, temperature, cooling_rate, reject_limit
 
 

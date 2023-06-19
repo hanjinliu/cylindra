@@ -6,6 +6,7 @@ import polars as pl
 import numpy as np
 from acryo import Molecules
 from napari.layers import Points, Labels
+from napari.utils.status_messages import generate_layer_coords_status
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
@@ -27,28 +28,46 @@ class ColormapInfo(NamedTuple):
 
 
 class _FeatureBoundLayer:
-    def _get_tooltip_text(
+    def get_status(
         self,
-        position,
+        position: tuple | None = None,
         *,
         view_direction: np.ndarray | None = None,
         dims_displayed: list[int] | None = None,
         world: bool = False,
-    ):
-        strs = list[str]()
-        nchar = 0
-        for msg in self._get_properties(
+    ) -> dict:
+        if position is not None:
+            value = self.get_value(
+                position,
+                view_direction=view_direction,
+                dims_displayed=dims_displayed,
+                world=world,
+            )
+        else:
+            value = None
+
+        source_info = self._get_source_info()
+        source_info["coordinates"] = generate_layer_coords_status(position, value)
+
+        # if this points layer has properties
+        properties = self._get_properties(
             position,
             view_direction=view_direction,
             dims_displayed=dims_displayed,
             world=world,
-        ):
-            nchar += len(msg)
-            if nchar > 88:
-                strs.append("...")
-                break
-            strs.append(msg)
-        return "\n".join(strs)
+        )
+        if properties:
+            msgs = list[str]()
+            nchars = 0
+            for prop in properties:
+                msgs.append(prop)
+                nchars += len(prop)
+                if nchars > 80:
+                    msgs.append("...")
+                    break
+            source_info["coordinates"] += "; " + ", ".join(msgs)
+
+        return source_info
 
     def _get_properties(
         self,

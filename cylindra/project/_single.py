@@ -175,8 +175,8 @@ class CylindraProject(BaseProject):
         macro_str = str(gui._format_macro(gui.macro[gui._macro_offset :]))
 
         tomo = gui.tomogram
-        localprops = tomo.collect_localprops()
-        globalprops = tomo.collect_globalprops()
+        localprops = tomo.collect_localprops(allow_none=True)
+        globalprops = tomo.collect_globalprops(allow_none=True)
 
         if results_dir is None:
             results_dir = json_path.parent / (json_path.stem + "_results")
@@ -289,10 +289,12 @@ class CylindraProject(BaseProject):
         spl = CylSpline.from_json(self.splines[idx])
         if self.localprops is not None:
             _loc = pl.read_csv(self.localprops).filter(pl.col(IDName.spline) == idx)
+            _loc = _drop_null_columns(_loc)
         else:
             _loc = pl.DataFrame([])
         if self.globalprops is not None:
             _glob = pl.read_csv(self.globalprops)[idx]
+            _glob = _drop_null_columns(_glob)
         else:
             _glob = pl.DataFrame([])
 
@@ -376,3 +378,14 @@ def _get_instance(gui: "CylindraMainWidget | None" = None):
     if ui is None:
         raise RuntimeError("No CylindraMainWidget GUI found.")
     return ui
+
+
+def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:
+    nrows = df.shape[0]
+    to_drop = list[str]()
+    for count in df.null_count().row(0):
+        if count == nrows:
+            to_drop.append(df.columns[count])
+    if to_drop:
+        return df.drop(to_drop)
+    return df
