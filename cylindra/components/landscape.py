@@ -295,6 +295,7 @@ class Landscape:
             ):
                 _model.simulate(batch_size)
                 energies.append(_model.energy())
+            eng_lon, eng_lat = _model.binding_energies()
             return AnnealingResult(
                 energies=np.array(energies),
                 batch_size=batch_size,
@@ -302,7 +303,7 @@ class Landscape:
                 indices=_model.shifts(),
                 niter=_model.iteration(),
                 state=_model.optimization_state(),
-            )
+            ).with_debug_info(eng_lon=eng_lon, eng_lat=eng_lat)
 
         tasks = [_run(s) for s in random_seeds]
         results: list[AnnealingResult] = da.compute(tasks)[0]
@@ -324,12 +325,37 @@ class Landscape:
 
 @dataclass
 class AnnealingResult:
+    """
+    Dataclass for annealing results.
+
+    Parameters
+    ----------
+    energies : np.ndarray
+        History of energies of the annealing process.
+    batch_size : int
+        Batch size used in the annealing process.
+    time_const : float
+        Time constant used for cooling.
+    indices : np.ndarray
+        The optimized indices of the molecules.
+    niter : int
+        Number of iterations.
+    state : str
+        Optimization state.
+    """
+
     energies: NDArray[np.float32]
     batch_size: int
     time_const: float
     indices: NDArray[np.int32]
     niter: int
     state: str
+
+    def with_debug_info(self, **kwargs) -> AnnealingResult:
+        # insider use only
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        return self
 
 
 def _to_batch_size(time_const: float) -> int:

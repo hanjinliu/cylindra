@@ -252,6 +252,11 @@ impl CylindricAnnealingModel {
         self.graph.energy()
     }
 
+    pub fn binding_energies<'py>(&self, py: Python<'py>) -> (Py<PyArray1<f32>>, Py<PyArray1<f32>>) {
+        let (lon, lat) = self.graph.binding_energies();
+        (lon.into_pyarray(py).into(), lat.into_pyarray(py).into())
+    }
+
     /// Get current optimization state as a string.
     pub fn optimization_state(&self) -> String {
         match self.optimization_state {

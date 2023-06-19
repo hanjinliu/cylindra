@@ -1,20 +1,19 @@
 use pyo3::prelude::PyResult;
 use crate::{value_error, coordinates::Vector3D};
 
-pub trait BindingPotential<Se, T> {
-    fn calculate(&self, dist2: T, typ: Se) -> T;
-    fn cool(&mut self, _n: usize) {
-        // Do nothing by default.
-    }
-}
-
 pub trait BindingPotential2D {
-    fn longitudinal(&self, dr: Vector3D<f32>) -> f32;
-    fn lateral(&self, dr: Vector3D<f32>) -> f32;
-    fn calculate(&self, dr: Vector3D<f32>, typ: &EdgeType) -> f32 {
+    fn longitudinal(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32;
+    fn lateral(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32;
+
+    /// Calculate the binding energy of the given conditions.
+    /// # Arguments
+    /// * `dr` - The vector in the world coordinate between the two molecule centers.
+    /// * `vec` - The vector in the world coordinate between the origin of the local coordinate
+    ///   systems.
+    fn calculate(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>, typ: &EdgeType) -> f32 {
         match typ {
-            EdgeType::Longitudinal => self.longitudinal(dr),
-            EdgeType::Lateral => self.lateral(dr),
+            EdgeType::Longitudinal => self.longitudinal(dr, vec),
+            EdgeType::Lateral => self.lateral(dr, vec),
         }
     }
     fn cool(&mut self, _n: usize) {
@@ -102,8 +101,8 @@ impl TrapezoidalCosineBoundary {
     ///    o     i+1        y axis and the vector from i to i+1. The y axis
     ///    i                of local coordinates is always parallel to the
     /// ---------------> y  y axis.
-    pub fn energy(&self, dr: &Vector3D<f32>) -> f32 {
-        let ang = dr.cos_angle_y().abs().acos();
+    pub fn energy(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32 {
+        let ang = dr.cos_angle(vec).abs().acos();
         if ang > self.ang_max {
             self.slope * (ang - self.ang_max)
         } else {
@@ -179,14 +178,14 @@ impl TrapezoidalPotential2D {
 }
 
 impl BindingPotential2D for TrapezoidalPotential2D {
-    fn longitudinal(&self, dr: Vector3D<f32>) -> f32 {
+    fn longitudinal(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32 {
         // Energy coming from longitudinal distance
-        let eng_dist = self.lon.energy(&dr);
-        let eng_ang = self.angle.energy(&dr);
+        let eng_dist = self.lon.energy(dr);
+        let eng_ang = self.angle.energy(dr, vec);
         eng_dist + eng_ang
     }
 
-    fn lateral(&self, dr: Vector3D<f32>) -> f32 {
+    fn lateral(&self, dr: &Vector3D<f32>, _vec: &Vector3D<f32>) -> f32 {
         self.lat.energy(&dr)
     }
 

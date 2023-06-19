@@ -643,7 +643,7 @@ class SubtomogramAveraging(MagicTemplate):
                     _radius = spl.radius
                 _offset_y = svec[1]
                 _offset_a = np.arctan2(svec[2], svec[0] + _radius)
-                if spl.orientation is Ori.MinusToPlus:
+                if spl.orientation is Ori.PlusToMinus:
                     _offset_y = -_offset_y
                     _offset_a = -_offset_a
                 spl.globalprops = spl.globalprops.with_columns(

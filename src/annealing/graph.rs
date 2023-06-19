@@ -240,6 +240,8 @@ impl CylindricGraph {
     }
 
     /// Calculate the internal energy of a node state.
+    /// # Arguments
+    /// * `node_state` - The node state of interest.
     pub fn internal(&self, node_state: &NodeState) -> f32 {
         let idx = &node_state.index;
         let vec = node_state.shift;
@@ -247,13 +249,20 @@ impl CylindricGraph {
     }
 
     /// Calculate the binding energy between two nodes.
+    /// # Arguments
+    /// * `node_state0` - The node state of the first node.
+    /// * `node_state1` - The node state of the second node.
+    /// * `typ` - The type of the edge between the two nodes.
     pub fn binding(&self, node_state0: &NodeState, node_state1: &NodeState, typ: &EdgeType) -> f32 {
         let vec1 = node_state0.shift;
         let vec2 = node_state1.shift;
         let coord1 = &self.coords[&node_state0.index];
         let coord2 = &self.coords[&node_state1.index];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
-        self.binding_potential.calculate(dr, typ)
+        let ey1 = coord1.ey;
+        let ey2 = coord2.ey;
+        let ey = (ey1 + ey2) / 2.0;
+        self.binding_potential.calculate(&dr, &ey, typ)
     }
 
     pub fn random_local_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
@@ -384,6 +393,7 @@ impl CylindricGraph {
         self
     }
 
+    /// Calculate the local energy at the given index.
     pub fn energy_at(&self, i: usize) -> f32 {
         let mut energy = 0.0;
         let graph = self.components();
@@ -411,6 +421,31 @@ impl CylindricGraph {
             energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
         }
         energy
+    }
+
+    pub fn binding_energies(&self) -> (Array1<f32>, Array1<f32>) {
+        let graph = self.components();
+        let mut eng_lon = Array1::zeros(graph.node_count());
+        let mut eng_lat = Array1::zeros(graph.node_count());
+        for idx in 0..graph.edge_count() {
+            // node0 ---- edge ---- node1
+            let edge = graph.edge_end(idx);
+            let estate = graph.edge_state(idx);
+            let node_state0 = graph.node_state(edge.0);
+            let node_state1 = graph.node_state(edge.1);
+            let eng = self.binding(&node_state0, &node_state1, &estate);
+            match estate {
+                EdgeType::Longitudinal => {
+                    eng_lon[edge.0] += eng;
+                    eng_lon[edge.1] += eng;
+                }
+                EdgeType::Lateral => {
+                    eng_lat[edge.0] += eng;
+                    eng_lat[edge.1] += eng;
+                }
+            }
+        }
+        (eng_lon, eng_lat)
     }
 
     /// Randomly choose a node and a possible neighbor shift. This method does not actually
