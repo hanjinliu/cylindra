@@ -285,13 +285,8 @@ impl CylindricAnnealingModel {
         py.allow_threads(
             move || {
                 // Simulate while cooling.
-                for k in 0..nsteps {
-                    let accepted = if k % self.jump_every > 0 {
-                        self.proceed()
-                    } else {
-                        self.proceed_jump()
-                    };
-                    if accepted {
+                for _ in 0..nsteps {
+                    if self.proceed() {
                         reject_count = 0;
                     } else {
                         reject_count += 1;
@@ -320,26 +315,6 @@ impl CylindricAnnealingModel {
     fn proceed(&mut self) -> bool {
         // Randomly shift a node.
         let result = self.graph.try_random_shift(&mut self.rng);
-
-        // If the shift causes energy change from Inf to Inf, energy difference is NaN.
-        if result.energy_diff.is_nan() {
-            return false;
-        }
-
-        // Decide whether to accept the shift.
-        let prob = self.reservoir.prob(result.energy_diff);
-        if self.rng.bernoulli(prob) {
-            // accept shift
-            self.graph.apply_shift(&result);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn proceed_jump(&mut self) -> bool {
-        // Randomly shift a node.
-        let result = self.graph.try_random_jump(&mut self.rng);
 
         // If the shift causes energy change from Inf to Inf, energy difference is NaN.
         if result.energy_diff.is_nan() {

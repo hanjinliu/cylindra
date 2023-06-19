@@ -601,7 +601,7 @@ def test_project_viewer():
 
 def test_show_orientation(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    ui.show_orientation(ui.parent_viewer.layers["Mono-0"])
+    ui.MoleculesMenu.show_orientation(ui.parent_viewer.layers["Mono-0"])
 
 
 def test_concate_molecules(ui: CylindraMainWidget):

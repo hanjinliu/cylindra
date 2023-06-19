@@ -204,7 +204,6 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
-        jump_every: int = 100,
     ) -> CylindricAnnealingModel:
         """Get an annealing model using the landscape."""
         from cylindra._cylindra_ext import CylindricAnnealingModel
@@ -247,7 +246,6 @@ class Landscape:
                 cooling_rate=cooling_rate,
             )
             .with_reject_limit(reject_limit)
-            .with_jump_every(jump_every)
         )
 
     def run_annealing(
@@ -295,7 +293,7 @@ class Landscape:
             ):
                 _model.simulate(batch_size)
                 energies.append(_model.energy())
-            eng_lon, eng_lat = _model.binding_energies()
+
             return AnnealingResult(
                 energies=np.array(energies),
                 batch_size=batch_size,
@@ -303,7 +301,7 @@ class Landscape:
                 indices=_model.shifts(),
                 niter=_model.iteration(),
                 state=_model.optimization_state(),
-            ).with_debug_info(eng_lon=eng_lon, eng_lat=eng_lat)
+            )
 
         tasks = [_run(s) for s in random_seeds]
         results: list[AnnealingResult] = da.compute(tasks)[0]
@@ -363,11 +361,11 @@ def _to_batch_size(time_const: float) -> int:
 
 
 def _normalize_random_seeds(seeds) -> list[int]:
-    if isinstance(seeds, SupportsInt):
+    if isinstance(seeds, SupportsInt):  # noqa
         return [int(seeds)]
     out = list[int]()
     for i, seed in enumerate(seeds):
-        if not isinstance(seed, SupportsInt):
+        if not isinstance(seed, SupportsInt):  # noqa
             raise TypeError(f"{i}-th seed {seed!r} is not an integer.")
         out.append(int(seed))
     if len(out) == 0:

@@ -265,7 +265,8 @@ class MoleculesMenu(ChildWidget):
 
         Parameters
         ----------
-        {layer}
+        layer : MolecularLayer
+            The layer to show the orientation of.
         x_color : Color, default is "crimson"
             Vector color of the x direction.
         y_color : Color, default is "cyan"
@@ -532,6 +533,19 @@ class Others(ChildWidget):
             """View or edit a workflow script."""
             return self.define_workflow(filename, workflow)
 
+        @set_design(text="Delete workflow")
+        @set_options(call_button="Overwrite", labels=False)
+        def delete_workflow(
+            self,
+            filename: Annotated[list[str], {"choices": _get_workflow_names}],
+        ):
+            path = _config.workflow_path(filename)
+            if path.exists():
+                path.unlink()
+            else:
+                raise FileNotFoundError(f"Workflow file not found: {path.as_posix()}")
+            return None
+
         sep0 = field(Separator)
 
     sep0 = field(Separator)
@@ -658,5 +672,19 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
     @gui.filename.changed.connect
     def _on_name_change(filename: str):
         gui.workflow.value = _config.workflow_path(filename).read_text()
+
+    _on_name_change(gui.filename.value)
+
+
+@setup_function_gui(Others.Workflows.delete_workflow)
+def _(self: Others.Workflows, gui: "FunctionGui"):
+    code = CodeEdit()
+    code.syntax_highlight("python")
+    code.read_only = True
+    gui.insert(1, code)
+
+    @gui.filename.changed.connect
+    def _on_name_change(filename: str):
+        code.value = _config.workflow_path(filename).read_text()
 
     _on_name_change(gui.filename.value)
