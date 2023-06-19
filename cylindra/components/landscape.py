@@ -290,7 +290,7 @@ class Landscape:
             _model.init_shift_random()
             energies = [_model.energy()]
             while (
-                _model.temperature() > temperature * 1e-4
+                _model.temperature() > temperature * 1e-6
                 and _model.optimization_state() == "not_converged"
             ):
                 _model.simulate(batch_size)
@@ -317,7 +317,7 @@ class Landscape:
         if temperature is None:
             temperature = _energy_std * 2
         if cooling_rate is None:
-            cooling_rate = _energy_std / time_const * 4
+            cooling_rate = _energy_std / time_const * 8
         if reject_limit is None:
             reject_limit = nmole * 300
         return time_const, temperature, cooling_rate, reject_limit
