@@ -1084,7 +1084,7 @@ class SubtomogramAveraging(MagicTemplate):
         _Logger.print_table(
             {
                 "Iteration": [r.niter for r in results],
-                "Score": [-r.energies[-1] for r in results],
+                "Score": [-float(r.energies[-1]) for r in results],
                 "State": [r.state for r in results],
             }
         )

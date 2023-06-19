@@ -322,15 +322,15 @@ class Analysis(ChildWidget):
     load_project_for_reanalysis = abstractapi()
     sep2 = field(Separator)
 
-    @set_design(text="Open spectra measurer")
+    @set_design(text="Open spectra inspector")
     @do_not_record
-    def open_spectra_measurer(self):
+    def open_spectra_inspector(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
         main = self._get_main()
         if main.tomogram is not None and main.tomogram.n_splines > 0:
             binsize = roundint(main._layer_image.scale[0] / main.tomogram.scale)
-            main.spectra_measurer.load_spline(main.SplineControl.num, binsize)
-        return main.spectra_measurer.show()
+            main.spectra_inspector.load_spline(main.SplineControl.num, binsize)
+        return main.spectra_inspector.show()
 
     @set_design(text="Open subtomogram analyzer")
     @do_not_record

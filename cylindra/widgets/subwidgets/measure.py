@@ -134,7 +134,7 @@ class Parameters(MagicTemplate):
 
 
 @magicclass(layout="horizontal", record=False)
-class SpectraMeasurer(MagicTemplate):
+class SpectraInspector(MagicTemplate):
     """
     Widget to measure the periodicity of a tomographic structure.
 

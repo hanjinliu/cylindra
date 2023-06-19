@@ -924,6 +924,6 @@ def test_spline_clipper(ui: CylindraMainWidget):
 
 def test_spectra_measurer(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=False, paint=False)
-    ui.Analysis.open_spectra_measurer()
-    ui.spectra_measurer.log_scale = True
-    ui.spectra_measurer.log_scale = False
+    ui.Analysis.open_spectra_inspector()
+    ui.spectra_inspector.log_scale = True
+    ui.spectra_inspector.log_scale = False

@@ -1,7 +1,7 @@
 from .function_menu import Volume
 from .global_variables import GlobalVariablesMenu
 from .image_processor import ImageProcessor
-from .measure import SpectraMeasurer
+from .measure import SpectraInspector
 from .misc import ImageLoader, GeneralInfo
 from .pca import PcaViewer
 from .properties import LocalPropertiesWidget, GlobalPropertiesWidget
@@ -25,7 +25,7 @@ __all__ = [
     "Volume",
     "GlobalVariablesMenu",
     "ImageProcessor",
-    "SpectraMeasurer",
+    "SpectraInspector",
     "PcaViewer",
     "LocalPropertiesWidget",
     "GlobalPropertiesWidget",

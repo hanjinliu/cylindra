@@ -147,7 +147,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for tomogram simulator
     cylinder_simulator = field(subwidgets.CylinderSimulator, name="_Cylinder Simulator")
     # Widget for measuring FFT parameters from a 2D power spectra
-    spectra_measurer = field(subwidgets.SpectraMeasurer, name="_FFT Measurer")
+    spectra_inspector = field(subwidgets.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
 
