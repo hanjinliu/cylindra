@@ -1538,48 +1538,6 @@ class CylindraMainWidget(MagicTemplate):
         return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.wraps
-    @set_design(text="Show orientation")
-    def show_orientation(
-        self,
-        layer: MoleculesLayer,
-        x_color: Color = "orange",
-        y_color: Color = "cyan",
-        z_color: Color = "crimson",
-    ):
-        """
-        Show molecule orientations with a vectors layer.
-
-        Parameters
-        ----------
-        {layer}
-        x_color : Color, default is "crimson"
-            Vector color of the x direction.
-        y_color : Color, default is "cyan"
-            Vector color of the y direction.
-        z_color : Color, default is "orange"
-            Vector color of the z direction.
-        """
-        mol = layer.molecules
-        nmol = len(mol)
-        name = f"Axes of {layer.name}"
-
-        zvec = np.stack([mol.pos, mol.z], axis=1)
-        yvec = np.stack([mol.pos, mol.y], axis=1)
-        xvec = np.stack([mol.pos, mol.x], axis=1)
-
-        vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
-
-        layer = self.parent_viewer.add_vectors(
-            vector_data,
-            edge_width=0.3,
-            edge_color=[z_color] * nmol + [y_color] * nmol + [x_color] * nmol,
-            features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
-            length=GVar.point_size * 0.8,
-            name=name,
-        )
-        return self._undo_callback_for_layer(layer)
-
-    @MoleculesMenu.wraps
     @set_design(text="Set source spline")
     def set_source_spline(
         self, layer: MoleculesLayer, spline: Annotated[int, {"choices": _get_splines}]

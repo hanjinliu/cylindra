@@ -35,7 +35,13 @@ import napari
 
 from cylindra import utils, _config
 from cylindra.types import MoleculesLayer, get_monomer_layers
-from cylindra.const import ALN_SUFFIX, MoleculesHeader as Mole, nm, PropertyNames as H
+from cylindra.const import (
+    ALN_SUFFIX,
+    MoleculesHeader as Mole,
+    nm,
+    PropertyNames as H,
+    Ori,
+)
 from cylindra.widgets._widget_ext import (
     CheckBoxes,
     RotationEdit,
@@ -632,11 +638,14 @@ class SubtomogramAveraging(MagicTemplate):
             # write offsets to spline globalprops if available
             if spl := layer.source_spline:
                 if spl.radius is None:
-                    _radius = utils.with_radius(mole, spl)[Mole.radius].mean()
+                    _radius: nm = utils.with_radius(mole, spl)[Mole.radius].mean()
                 else:
                     _radius = spl.radius
                 _offset_y = svec[1]
                 _offset_a = np.arctan2(svec[2], svec[0] + _radius)
+                if spl.orientation is Ori.MinusToPlus:
+                    _offset_y = -_offset_y
+                    _offset_a = -_offset_a
                 spl.globalprops = spl.globalprops.with_columns(
                     pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
                     pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),

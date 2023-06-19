@@ -21,7 +21,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
-from magicclass.types import Path
+from magicclass.types import Path, Color
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
 
@@ -31,7 +31,7 @@ from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
-from cylindra.const import nm, get_versions
+from cylindra.const import nm, get_versions, GlobalVariables as GVar
 from cylindra.project import CylindraProject
 from cylindra import _config
 from .global_variables import GlobalVariablesMenu
@@ -239,7 +239,7 @@ class Splines(ChildWidget):
 
 
 @magicmenu(name="Molecules")
-class MoleculesMenu(MagicTemplate):
+class MoleculesMenu(ChildWidget):
     """Operations on molecules"""
 
     @magicmenu
@@ -251,7 +251,50 @@ class MoleculesMenu(MagicTemplate):
         map_centers = abstractapi()
         map_along_pf = abstractapi()
 
-    show_orientation = abstractapi()
+    @set_design(text="Show orientation")
+    @do_not_record
+    def show_orientation(
+        self,
+        layer: MoleculesLayer,
+        x_color: Color = "orange",
+        y_color: Color = "cyan",
+        z_color: Color = "crimson",
+    ):
+        """
+        Show molecule orientations with a vectors layer.
+
+        Parameters
+        ----------
+        {layer}
+        x_color : Color, default is "crimson"
+            Vector color of the x direction.
+        y_color : Color, default is "cyan"
+            Vector color of the y direction.
+        z_color : Color, default is "orange"
+            Vector color of the z direction.
+        """
+        main = self._get_main()
+        mol = layer.molecules
+        nmol = len(mol)
+        name = f"Axes of {layer.name}"
+
+        zvec = np.stack([mol.pos, mol.z], axis=1)
+        yvec = np.stack([mol.pos, mol.y], axis=1)
+        xvec = np.stack([mol.pos, mol.x], axis=1)
+
+        vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
+
+        # TODO: edge color not considered
+        layer = main.parent_viewer.add_vectors(
+            vector_data,
+            edge_width=0.3,
+            edge_color=[z_color] * nmol + [y_color] * nmol + [x_color] * nmol,
+            features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
+            length=GVar.point_size * 0.8,
+            name=name,
+        )
+        return main._undo_callback_for_layer(layer)
+
     set_source_spline = abstractapi()
     translate_molecules = abstractapi()
 
