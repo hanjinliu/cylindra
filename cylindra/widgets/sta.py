@@ -1,4 +1,5 @@
 from typing import (
+    Any,
     Iterable,
     Literal,
     Union,
@@ -188,6 +189,7 @@ class Refinement(MagicTemplate):
     align_all_template_free = abstractapi()
     align_all_multi_template = abstractapi()
     align_all_viterbi = abstractapi()
+    align_all_viterbi_multi_template = abstractapi()
     align_all_annealing = abstractapi()
     align_all_annealing_multi_template = abstractapi()
 
@@ -838,8 +840,8 @@ class SubtomogramAveraging(MagicTemplate):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range: _DistRangeLon = (3.9, 4.4),
-        angle_max: Optional[float] = 6.0,
+        distance_range: _DistRangeLon = (4.0, 4.28),
+        angle_max: Optional[float] = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
@@ -858,53 +860,52 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between monomers.
         {angle_max}{upsample_factor}
         """
-        from dask import array as da
-        from dask import delayed
-
+        kwargs = locals()
+        kwargs.pop("self")
         t0 = timer("align_all_viterbi")
-        parent = self._get_parent()
-        molecules = layer.molecules
-        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
-        template, mask = loader.normalize_input(
-            template=self.params._get_template(path=template_path),
-            mask=self.params._get_mask(params=mask_params),
-        )
-
-        if angle_max is not None:
-            angle_max = np.deg2rad(angle_max)
-        max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
-        search_size = tuple(int(px * upsample_factor) * 2 + 1 for px in max_shifts_px)
-        _Logger.print(f"Search size (px): {search_size}")
-
-        landscape = Landscape.from_loader(
-            loader,
-            template=template,
-            mask=mask,
-            max_shifts=max_shifts,
-            upsample_factor=upsample_factor,
-            alignment_model=alignment.ZNCCAlignment.with_params(
-                rotations=rotations,
-                cutoff=cutoff,
-                tilt_range=parent.tomogram.tilt_range,
-            ),
-        )
-        yield
-        npf = molecules.features[Mole.pf].max() + 1
-
-        slices = [np.asarray(molecules.features[Mole.pf] == i) for i in range(npf)]
-        viterbi_tasks = [
-            delayed(landscape[sl].run_viterbi)(distance_range, angle_max)
-            for sl in slices
-        ]
-        vit_out: list[ViterbiResult] = da.compute(viterbi_tasks)[0]
-
-        inds = np.empty((len(molecules), 3), dtype=np.int32)
-        for i, result in enumerate(vit_out):
-            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
-        molecules_opt = landscape.transform_molecules(molecules, inds)
+        out = yield from self._align_all_viterbi(**kwargs)
         t0.toc()
-        parent._need_save = True
-        return self._align_all_on_return([molecules_opt], [layer])
+        return out
+
+    @Refinement.wraps
+    @set_design(text="Viterbi Alignment (multi-template)")
+    @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
+    def align_all_viterbi_multi_template(
+        self,
+        layer: MoleculesLayer,
+        template_paths: _ImagePaths,
+        mask_params: Bound[params._get_mask_params] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        distance_range: _DistRangeLon = (4.0, 4.28),
+        angle_max: Optional[float] = 5.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+    ):
+        """
+        Subtomogram alignment using 1D Viterbi alignment.
+
+        1D Viterbi alignment is an alignment algorithm that considers the distance and
+        the skew angle between every longitudinally adjacent monomers. The classical
+        Viterbi algorithm is used to find the global optimal solution of the alignment.
+        Note that Viterbi alignment is data size dependent, i.e. the alignment result
+        of a molecule may vary depending on the total number of molecules in the dataset.
+
+        Parameters
+        ----------
+        {layer}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
+        distance_range : (float, float)
+            Range of allowed distance between monomers.
+        {angle_max}{upsample_factor}
+        """
+        kwargs = locals()
+        kwargs = kwargs.setdefault("template_path", kwargs.pop("template_paths"))
+        kwargs.pop("self")
+        t0 = timer("align_all_viterbi_multi_template")
+        out = yield from self._align_all_viterbi(**kwargs)
+        t0.toc()
+        return out
 
     @Refinement.wraps
     @set_design(text="Simulated annealing")
@@ -920,7 +921,7 @@ class SubtomogramAveraging(MagicTemplate):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (4.0, 4.28),
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
-        angle_max: _AngleMaxLon = 10.0,
+        angle_max: _AngleMaxLon = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = range(5),
         return_all: Annotated[
@@ -943,22 +944,10 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between laterally consecutive monomers.
         {angle_max}{upsample_factor}{random_seeds}
         """
+        kwargs = locals()
+        kwargs.pop("self")
         t0 = timer("align_all_annealing")
-        out = yield from self._align_all_annealing(
-            layer=layer,
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            interpolation=interpolation,
-            distance_range_long=distance_range_long,
-            distance_range_lat=distance_range_lat,
-            angle_max=angle_max,
-            upsample_factor=upsample_factor,
-            random_seeds=random_seeds,
-            return_all=return_all,
-        )
+        out = yield from self._align_all_annealing(**kwargs)
         t0.toc()
         return out
 
@@ -976,13 +965,13 @@ class SubtomogramAveraging(MagicTemplate):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         distance_range_long: _DistRangeLon = (4.0, 4.28),
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
-        angle_max: _AngleMaxLon = 10.0,
+        angle_max: _AngleMaxLon = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = range(5),
         return_all: Annotated[
             bool, {"label": "Return all the annealing results"}
         ] = False,
-    ):
+    ):  # fmt: off
         """
         2D-constrained subtomogram alignment using simulated annealing.
 
@@ -999,22 +988,11 @@ class SubtomogramAveraging(MagicTemplate):
             Range of allowed distance between laterally consecutive monomers.
         {angle_max}{upsample_factor}{random_seeds}
         """
+        kwargs = locals()
+        kwargs = kwargs.setdefault("template_path", kwargs.pop("template_paths"))
+        kwargs.pop("self")
         t0 = timer("align_all_annealing_multi_template")
-        out = yield from self._align_all_annealing(
-            layer=layer,
-            template_path=template_paths,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            interpolation=interpolation,
-            distance_range_long=distance_range_long,
-            distance_range_lat=distance_range_lat,
-            angle_max=angle_max,
-            upsample_factor=upsample_factor,
-            random_seeds=random_seeds,
-            return_all=return_all,
-        )
+        out = yield from self._align_all_annealing(**kwargs)
         t0.toc()
         return out
 
@@ -1023,20 +1001,46 @@ class SubtomogramAveraging(MagicTemplate):
     def construct_landscape(
         self,
         layer: MoleculesLayer,
-        template_path: Bound[params.template_path],
+        template_path: Any,
         mask_params: Bound[params._get_mask_params] = None,
-        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        cutoff: float = 0.5,
+        interpolation: int = 3,
+        upsample_factor: int = 5,
     ):
+        """
+        Construct a landscape for subtomogram alignment.
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            Layer to construct the landscape.
+        template_path : template input type
+            Template(s) used for landscape construction.
+        mask_params : make input type
+            Parameters used to create a mask.
+        max_shifts : (float, float, float), default is (0.8, 0.8, 0.8)
+            Maximum shift in nm.
+        rotations : _Rotations, optional
+            Rotation ranges of the template in degrees.
+        cutoff : float, default is 0.5
+            Cutoff frequency of low-pass filter.
+        interpolation : int, default is 3
+            Interpolation order.
+        upsample_factor : int, default is 5
+            Upsampling factor of the landscape.
+
+        Returns
+        -------
+        Landscape
+            The landscape instance.
+        """
         parent = self._get_parent()
-        loader = parent.tomogram.get_subtomogram_loader(
-            layer.molecules, order=interpolation
-        )
         return Landscape.from_loader(
-            loader,
+            loader=parent.tomogram.get_subtomogram_loader(
+                layer.molecules, order=interpolation
+            ),
             template=template_path,
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
@@ -1047,6 +1051,52 @@ class SubtomogramAveraging(MagicTemplate):
                 tilt_range=parent.tomogram.tilt_range,
             ),
         )
+
+    def _align_all_viterbi(
+        self,
+        layer: MoleculesLayer,
+        template_path: "Path | list[Path]",
+        mask_params=None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: float = 0.5,
+        interpolation: int = 3,
+        distance_range: tuple[nm, nm] = (4.0, 4.28),
+        angle_max: "float | None" = 5.0,
+        upsample_factor: int = 5,
+    ):
+        from dask import delayed, compute
+
+        parent = self._get_parent()
+        landscape = self.construct_landscape(
+            layer=layer,
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            upsample_factor=upsample_factor,
+        )
+
+        yield
+        max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
+        mole = layer.molecules
+        npf = mole.features[Mole.pf].max() + 1
+
+        slices = [(mole.features[Mole.pf] == i).to_numpy() for i in range(npf)]
+        viterbi_tasks = [
+            delayed(landscape[sl].run_viterbi)(distance_range, angle_max)
+            for sl in slices
+        ]
+        vit_out: list[ViterbiResult] = compute(viterbi_tasks)[0]
+
+        inds = np.empty((mole.count(), 3), dtype=np.int32)
+        for i, result in enumerate(vit_out):
+            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
+        molecules_opt = landscape.transform_molecules(mole, inds)
+        parent._need_save = True
+        return self._align_all_on_return([molecules_opt], [layer])
 
     def _align_all_annealing(
         self,

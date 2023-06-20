@@ -56,6 +56,18 @@ class Landscape:
         argmax = self.argmax[key] if self.argmax is not None else None
         return Landscape(energy, mole, argmax, self.alignment_model, self.scale_factor)
 
+    def __repr__(self) -> str:
+        energy_array_repr = f"<{self.energy_array.shape!r} array>"
+        mole_repr = f"<{self.molecules.count()} molecules>"
+        argmax_repr = (
+            f"<{self.argmax.shape!r} array>" if self.argmax is not None else None
+        )
+        return (
+            f"Landscape(energy_array={energy_array_repr}, molecules={mole_repr}, "
+            f"argmax={argmax_repr}, alignment_model={self.alignment_model!r}, "
+            f"scale_factor={self.scale_factor:.3g})"
+        )
+
     @property
     def offset(self) -> NDArray[np.int32]:
         """Shift from the corner (0, 0, 0) to the center."""
@@ -185,13 +197,16 @@ class Landscape:
         """Run Viterbi alignment."""
         from cylindra._cylindra_ext import ViterbiGrid
 
+        if angle_max is not None:
+            angle_max = np.deg2rad(angle_max)
         mole = self.molecules.translate_internal(-self.offset_nm)
         origin = (mole.pos / self.scale_factor).astype(np.float32)
         zvec = mole.z.astype(np.float32)
         yvec = mole.y.astype(np.float32)
         xvec = mole.x.astype(np.float32)
         grid = ViterbiGrid(-self.energy_array, origin, zvec, yvec, xvec)
-        result = grid.viterbi(*dist_range, angle_max)
+        _dist_range = [d / self.scale_factor for d in dist_range]
+        result = grid.viterbi(*_dist_range, angle_max)
         return ViterbiResult(result[0], result[1])
 
     def annealing_model(
