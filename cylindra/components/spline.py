@@ -1288,7 +1288,7 @@ class Spline(BaseComponent):
 
     def cylindrical_to_molecules(
         self,
-        coords: np.ndarray,
+        coords: NDArray[np.float32],
     ) -> Molecules:
         """
         Convert coordinates of points near the spline to ``Molecules`` instance.
@@ -1316,12 +1316,13 @@ class Spline(BaseComponent):
 
     def slice_along(
         self,
-        array: np.ndarray,
+        array: NDArray[np.float32],
         s_range: tuple[float, float] = (0.0, 1.0),
         order: int = 3,
         mode: str = Mode.constant,
         cval: float = 0.0,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
+        """Slice input array along the spline."""
         _, coords = self._get_y_ax_coords(s_range)
         from scipy import ndimage as ndi
 

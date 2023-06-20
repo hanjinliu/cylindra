@@ -143,6 +143,7 @@ class CylinderSimulator(MagicTemplate):
         self._layer_control = None
         self._simulate_shape = (0, 0, 0)
         self._simulate_scale = 0.0
+        self._molecules: "Molecules | None" = None
         self.canvas.min_height = 300
 
     @property
@@ -382,9 +383,13 @@ class CylinderSimulator(MagicTemplate):
         length: nm = 150.0,
         size: _ImageSize = (60.0, 200.0, 60.0),
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
-        yxrotation: Annotated[float, {"max": 90, "step": 1}] = 0.0,
-        zxrotation: Annotated[float, {"max": 90, "step": 1}] = 0.0,
-    ):
+        yxrotation: Annotated[
+            float, {"max": 90, "step": 1, "label": "Rotation in YX plane (deg)"}
+        ] = 0.0,
+        zxrotation: Annotated[
+            float, {"max": 90, "step": 1, "label": "Rotation in ZX plane (deg)"}
+        ] = 0.0,
+    ):  # fmt: off
         """
         Create a straight line as a cylinder spline.
 
@@ -597,7 +602,7 @@ class CylinderSimulator(MagicTemplate):
                 height=shape[0],
                 order=interpolation,
             ).set_scale(zyx=scale, unit="nm")
-            yield _on_iradon_finished(rec, f"N/S = {nsr_val:.1f}")
+            yield _on_iradon_finished(rec.proj("z"), f"N/S = {nsr_val:.1f}")
 
             file_name = save_dir / f"image-{i}.mrc"
             rec.imsave(file_name)
@@ -672,7 +677,7 @@ class CylinderSimulator(MagicTemplate):
             height=shape[0],
             order=interpolation,
         ).set_scale(zyx=scale, unit="nm")
-        yield _on_iradon_finished(rec, f"N/S = {nsr:.1f}")
+        yield _on_iradon_finished(rec.proj("z"), f"N/S = {nsr:.1f}")
 
         rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(
@@ -856,7 +861,7 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
 @thread_worker.to_callback
 def _on_iradon_finished(rec: ip.ImgArray, title: str):
     with _Logger.set_plt():
-        plt.imshow(rec.proj("z"), cmap="gray")
+        plt.imshow(rec, cmap="gray")
         plt.title(title)
         plt.tight_layout()
         plt.show()

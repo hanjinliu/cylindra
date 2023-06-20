@@ -224,26 +224,26 @@ class CylSpline(Spline):
         # update H.start
         if rise is not None:
             r = radius if radius is not None else self.radius
-            if r is None:
-                raise ValueError("radius must be specified to update start number.")
-            _start_loc = rise_to_start(
-                rise=np.deg2rad(ldf[H.rise].to_numpy()),
-                space=ldf[H.spacing].to_numpy(),
-                skew=np.deg2rad(ldf[H.skew].to_numpy()),
-                perimeter=2 * r * np.pi,
-            )
-            ldf = ldf.with_columns(
-                pl.Series(_start_loc).cast(pl.Float32).alias(H.start)
-            )
-            _start_glob = rise_to_start(
-                rise=np.deg2rad(gdf[H.rise].to_numpy()),
-                space=gdf[H.spacing].to_numpy(),
-                skew=np.deg2rad(gdf[H.skew].to_numpy()),
-                perimeter=2 * r * np.pi,
-            )
-            gdf = gdf.with_columns(
-                pl.Series(_start_glob).cast(pl.Float32).alias(H.start)
-            )
+            if r is not None and self.has_localprops([H.rise, H.spacing, H.skew]):
+                _start_loc = rise_to_start(
+                    rise=np.deg2rad(ldf[H.rise].to_numpy()),
+                    space=ldf[H.spacing].to_numpy(),
+                    skew=np.deg2rad(ldf[H.skew].to_numpy()),
+                    perimeter=2 * r * np.pi,
+                )
+                ldf = ldf.with_columns(
+                    pl.Series(_start_loc).cast(pl.Float32).alias(H.start)
+                )
+            if r is not None and self.has_globalprops([H.rise, H.spacing, H.skew]):
+                _start_glob = rise_to_start(
+                    rise=np.deg2rad(gdf[H.rise].to_numpy()),
+                    space=gdf[H.spacing].to_numpy(),
+                    skew=np.deg2rad(gdf[H.skew].to_numpy()),
+                    perimeter=2 * r * np.pi,
+                )
+                gdf = gdf.with_columns(
+                    pl.Series(_start_glob).cast(pl.Float32).alias(H.start)
+                )
 
         self._localprops = ldf
         self._globalprops = gdf
