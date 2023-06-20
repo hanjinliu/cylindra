@@ -520,7 +520,7 @@ class Others(ChildWidget):
                     path.unlink(missing_ok=True)
                 raise e
             _Logger.print("Workflow saved: " + path.as_posix())
-            get_function_gui(self.define_workflow).reset_choices()
+            self.reset_choices()
             return None
 
         @set_design(text="View/Edit workflow")
@@ -534,7 +534,7 @@ class Others(ChildWidget):
             return self.define_workflow(filename, workflow)
 
         @set_design(text="Delete workflow")
-        @set_options(call_button="Overwrite", labels=False)
+        @set_options(call_button="Delete", labels=False)
         def delete_workflow(
             self,
             filename: Annotated[list[str], {"choices": _get_workflow_names}],
@@ -544,6 +544,12 @@ class Others(ChildWidget):
                 path.unlink()
             else:
                 raise FileNotFoundError(f"Workflow file not found: {path.as_posix()}")
+            name = self._make_method_name(path)
+            for i, action in enumerate(self):
+                if action.name == name:
+                    del self[i]
+                    break
+            self.reset_choices()
             return None
 
         sep0 = field(Separator)
