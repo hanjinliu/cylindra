@@ -116,7 +116,6 @@ class Image(ChildWidget):
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
-    molecules_to_image = abstractapi()
 
     @set_design(text="Show colorbar")
     @do_not_record
@@ -210,6 +209,7 @@ class Splines(ChildWidget):
         return None
 
     delete_spline = abstractapi()
+    copy_spline = abstractapi()
     sep1 = field(Separator)
     fit_splines = abstractapi()
 

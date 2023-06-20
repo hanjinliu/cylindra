@@ -1053,6 +1053,7 @@ class CylTomogram(Tomogram):
         range_: tuple[float, float] = (0.0, 1.0),
         chunk_length: nm | None = None,
         binsize: int = 1,
+        filt_func: Callable[[ip.ImgArray], ip.ImgArray] | None = None,
     ) -> ip.ImgArray:
         """
         Straightening by building curved coordinate system around splines. Currently
@@ -1070,10 +1071,14 @@ class CylTomogram(Tomogram):
             If spline is longer than this, it will be first split into chunks,
             straightened respectively and all the straightened images are concatenated
             afterward, to avoid loading entire image into memory.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
+        filt_func : callable, optional
+            Image filter function applied to the straightened image.
 
         Returns
         -------
-        ip.array.ImgArray
+        ip.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """
         spl = self.splines[i]
@@ -1094,6 +1099,8 @@ class CylTomogram(Tomogram):
                 function=self.straighten,
                 chunk_length=chunk_length,
                 size=size,
+                binsize=binsize,
+                filt_func=filt_func,
             )
 
         else:
@@ -1109,6 +1116,8 @@ class CylTomogram(Tomogram):
                     rz = rx = self.nm2pixel(size, binsize=binsize)
 
             input_img = self._get_multiscale_or_original(binsize)
+            if filt_func is not None:
+                input_img = filt_func(input_img)
             _scale = input_img.scale.x
             coords = spl.cartesian(shape=(rz, rx), s_range=range_, scale=_scale)
             with set_gpu():
@@ -1130,6 +1139,7 @@ class CylTomogram(Tomogram):
         range_: tuple[float, float] = (0.0, 1.0),
         chunk_length: nm | None = None,
         binsize: int = 1,
+        filt_func: Callable[[ip.ImgArray], ip.ImgArray] | None = None,
     ) -> ip.ImgArray:
         """
         Straightening by building curved coordinate system around splines. Currently
@@ -1147,10 +1157,14 @@ class CylTomogram(Tomogram):
             If spline is longer than this, it will be first split into chunks,
             straightened respectively and all the straightened images are concatenated
             afterward, to avoid loading entire image into memory.
+        binsize : int, default is 1
+            Multiscale bin size used for calculation.
+        filt_func : callable, optional
+            Image filter function applied to the straightened image.
 
         Returns
         -------
-        ip.array.ImgArray
+        ip.ImgArray
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """
         spl = self.splines[i]
@@ -1173,10 +1187,13 @@ class CylTomogram(Tomogram):
                 chunk_length=chunk_length,
                 radii=radii,
                 binsize=binsize,
+                filt_func=filt_func,
             )
 
         else:
             input_img = self._get_multiscale_or_original(binsize)
+            if filt_func is not None:
+                input_img = filt_func(input_img)
             _scale = input_img.scale.x
             if radii is None:
                 inner_radius = _non_neg(spl.radius - GVar.thickness_inner) / _scale

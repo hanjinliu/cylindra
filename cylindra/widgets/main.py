@@ -904,6 +904,16 @@ class CylindraMainWidget(MagicTemplate):
         return out
 
     @Splines.wraps
+    @set_design(text="Copy spline")
+    def copy_spline(self, i: Annotated[int, {"bind": SplineControl.num}]):
+        """Make a copy of the current spline"""
+        spl = self.tomogram.splines[i]
+        self.tomogram.splines.append(spl.copy())
+        self.reset_choices()
+        self.SplineControl.num = len(self.tomogram.splines) - 1
+        return undo_callback(self.delete_spline).with_args(-1)
+
+    @Splines.wraps
     @set_design(text="Fit splines")
     @thread_worker.with_progress(desc="Spline Fitting", total="len(splines)")
     def fit_splines(
@@ -2118,56 +2128,6 @@ class CylindraMainWidget(MagicTemplate):
                 self._layer_paint.features = props
             self._layer_paint.set_colormap(color_by, limits, cmap)
             return undo_callback(lambda: None)  # TODO: undo paint
-
-        return _on_return
-
-    @ImageMenu.wraps
-    @set_design(text="Back-paint molecule features")
-    @dask_thread_worker.with_progress(desc="Back-painting molecule features...")
-    def molecules_to_image(
-        self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
-        template_path: Path.Read[FileFilter.IMAGE],
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-    ):  # fmt: skip
-        """
-        Simulate an image using selected molecules.
-
-        Parameters
-        ----------
-        {layers}{template_path}{bin_size}
-        """
-        from acryo.pipe import from_file
-        from napari.experimental import link_layers
-
-        tomo = self.tomogram
-        scale = tomo.scale
-        translate = tomo.multiscale_translation(bin_size)
-        shape = tuple(s // bin_size for s in tomo.image.shape)
-        device = widget_utils.PaintDevice(shape, scale)
-        template = from_file(template_path)(device.scale)
-
-        sim = np.zeros((3,) + shape, dtype=np.float32)
-        for layer in layers:
-            sim += device.paint_molecules(template, layer.molecules, layer.face_color)
-
-        @thread_worker.to_callback
-        def _on_return():
-            layers = []
-            clim = sim.min(), sim.max()
-            for img, cmap in zip(sim, ["red", "green", "blue"]):
-                layer = self.parent_viewer.add_image(
-                    img,
-                    scale=[scale] * 3,
-                    translate=[translate] * 3,
-                    colormap=cmap,
-                    contrast_limits=clim,
-                    blending="additive",
-                    name=f"Back-painted [{cmap[0].upper()}]",
-                )
-                layers.append(layer)
-            link_layers(layers)
-            return self._undo_callback_for_layer(layer)
 
         return _on_return
 
