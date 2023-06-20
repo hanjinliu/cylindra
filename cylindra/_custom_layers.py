@@ -204,12 +204,12 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         column = self.molecules.features[name]
         clim = tuple(clim)
         cmap = _normalize_colormap(cmap_input)
-        if column.dtype.__name__[0] in "IU":
+        if column.dtype in pl.INTEGER_DTYPES:
             cmin, cmax = clim
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
             colors = cmap.map(arr)
             self.face_color = self.edge_color = colors
-        elif column.dtype.__name__[0] == "F":
+        elif column.dtype in pl.FLOAT_DTYPES:
             self.face_color = self.edge_color = column.name
             self.face_colormap = self.edge_colormap = cmap
             self.face_contrast_limits = self.edge_contrast_limits = clim
@@ -263,6 +263,7 @@ class CylinderLabels(_FeatureBoundLayer, Labels):
 
 
 def _normalize_colormap(cmap) -> Colormap:
+    """Normalize the input to a napari Colormap object."""
     from napari.utils.colormaps import Colormap, ensure_colormap
 
     if isinstance(cmap, Colormap):
