@@ -357,14 +357,23 @@ class MoleculesMenu(ChildWidget):
             self,
             layer: MoleculesLayer,
             template_path: Path.Read[FileFilter.IMAGE],
-            scale: Annotated[nm, {"min": 0.1, "max": 10.0}] = 1.6,
+            scale: Annotated[nm, {"min": 0.1, "max": 10.0}] = 1.5,
         ):
             """
             Render molecules using the template image.
 
             This method is only for visualization purpose. Iso-surface will be calculated
-            using the input template image and mapped to every molecule position. The input
-            template image does not have to be the image used for subtomogram alignment.
+            using the input template image and mapped to every molecule position. Surfaces
+            will be colored as the input molecules layer.
+
+            Parameters
+            ----------
+            layer : MoleculesLayer
+                The layer used to render.
+            template_path : Path
+                Path to the template image.
+            scale : nm, default is 1.5
+                Scale to resize the template image.
             """
             from skimage.measure import marching_cubes
             from skimage.filters import threshold_yen

@@ -20,7 +20,8 @@ class Parameter(NamedTuple):
 
     def to_string(self, indent: int = 3) -> str:
         _indent1 = "    " * indent
-        return f"{self.name} : {self.type}\n{_indent1}{self.desc}"
+        desc = self.desc.replace("\n", f"\n{_indent1}")
+        return f"{self.name} : {self.type}\n{_indent1}{desc}"
 
 
 # fmt: off
@@ -29,7 +30,7 @@ _PARAMETERS = [
     Parameter(name="layers", type="list of MoleculesLayer", desc="All the points layers of molecules to be used."),
     Parameter(name="template_path", type="Path or str", desc="Path to template image."),
     Parameter(name="template_paths", type="list of Path or str", desc="Path to all the template images."),
-    Parameter(name="mask_params", type="str or (float, float), optional", desc="Mask image path or dilation/Gaussian blur parameters. If a path is given, image must in the same shape as the template."),
+    Parameter(name="mask_params", type="str or (float, float), optional", desc="Mask image path or dilation/Gaussian blur parameters.\nIf a path is given, image must in the same shape as the template."),
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),
     Parameter(name="max_shifts", type="int or tuple of int", desc="Maximum shift between subtomograms and template in nm. ZYX order."),
     Parameter(name="rotations", type="((float, float), (float, float), (float, float))", desc="Rotation in external degree around each axis."),
@@ -40,18 +41,18 @@ _PARAMETERS = [
     Parameter(name="spline", type="int", desc="Index of splines to be used."),
     Parameter(name="splines", type="list of int", desc="Indices of splines to be used."),
     Parameter(name="bin_size", type="int", desc="Bin size of multiscale image to be used. Set to >1 to boost performance."),
-    Parameter(name="interval", type="nm", desc="Interval (nm) between spline anchors. Please note that resetting interval will discard all the existing local properties."),
+    Parameter(name="interval", type="nm", desc="Interval (nm) between spline anchors. Please note that resetting interval will discard\nall the existing local properties."),
     Parameter(name="depth", type="nm", desc="Depth (length parallel to the spline tangent) of the subtomograms to be sampled."),
     Parameter(name="max_interval", type="nm", desc="Maximum interval (nm) between spline anchors."),
     Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules."),
-    Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the current spline orientation as is."),
+    Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the\ncurrent spline orientation as is."),
     Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),
-    Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself. Lowpass: butterworth low-pass filter. Gaussian: Gaussian blur. DoG: difference of Gaussian. LoG: Laplacian of Gaussian."),
+    Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself.\n- Lowpass: butterworth low-pass filter.\n- Gaussian: Gaussian blur.\n- DoG: difference of Gaussian.\n- LoG: Laplacian of Gaussian."),
     Parameter(name="inherit_source", type="bool", desc="If True and the input molecules layer has its spline source, the new layer will inherit it."),
     Parameter(name="color_by", type="str", desc="Name of the feature to paint by."),
     Parameter(name="cmap", type="colormap", desc="Colormap to be used for painting."),
     Parameter(name="limits", type="(float, float)", desc="Lower and upper limits of the colormap."),
-    Parameter(name="upsample_factor", type="int", desc="Upsampling factor of ZNCC landscape. Be careful not to set this parameter too large. Calculation will take much longer for larger ``upsample_factor``."),
+    Parameter(name="upsample_factor", type="int", desc="Upsampling factor of ZNCC landscape. Be careful not to set this parameter too large. \nCalculation will take much longer for larger ``upsample_factor``."),
     Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
     Parameter(name="random_seeds", type="iterable of int", desc="Random seed integers. Number of integers will be the number of trials."),
 ]
