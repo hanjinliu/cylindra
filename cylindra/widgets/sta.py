@@ -900,7 +900,7 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}
         """
         kwargs = locals()
-        kwargs = kwargs.setdefault("template_path", kwargs.pop("template_paths"))
+        kwargs.setdefault("template_path", kwargs.pop("template_paths"))
         kwargs.pop("self")
         t0 = timer("align_all_viterbi_multi_template")
         out = yield from self._align_all_viterbi(**kwargs)
@@ -989,7 +989,7 @@ class SubtomogramAveraging(MagicTemplate):
         {angle_max}{upsample_factor}{random_seeds}
         """
         kwargs = locals()
-        kwargs = kwargs.setdefault("template_path", kwargs.pop("template_paths"))
+        kwargs.setdefault("template_path", kwargs.pop("template_paths"))
         kwargs.pop("self")
         t0 = timer("align_all_annealing_multi_template")
         out = yield from self._align_all_annealing(**kwargs)

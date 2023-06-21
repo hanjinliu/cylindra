@@ -6,6 +6,7 @@ import numpy as np
 from macrokit import Head, parse, Symbol
 from macrokit.utils import check_call_args, check_attributes
 import matplotlib.pyplot as plt
+from acryo import pipe
 
 from magicclass import (
     do_not_record,
@@ -349,6 +350,69 @@ class MoleculesMenu(ChildWidget):
 
         paint_molecules = abstractapi()
         plot_molecule_feature = abstractapi()
+
+        @set_design(text="Render molecules")
+        @do_not_record
+        def render_molecules(
+            self,
+            layer: MoleculesLayer,
+            template_path: Path.Read[FileFilter.IMAGE],
+            scale: Annotated[nm, {"min": 0.1, "max": 10.0}] = 1.6,
+        ):
+            """
+            Render molecules using the template image.
+
+            This method is only for visualization purpose. Iso-surface will be calculated
+            using the input template image and mapped to every molecule position. The input
+            template image does not have to be the image used for subtomogram alignment.
+            """
+            from skimage.measure import marching_cubes
+            from skimage.filters import threshold_yen
+
+            template = pipe.from_file(template_path).provide(scale)
+            mole = layer.molecules
+            nmol = len(mole)
+
+            # create surface
+            verts, faces, _, _ = marching_cubes(
+                template,
+                level=threshold_yen(template),
+                step_size=1,
+                spacing=(scale,) * 3,
+            )
+
+            nverts = verts.shape[0]
+            all_verts = np.empty((nmol * nverts, 3), dtype=np.float32)
+            all_faces = np.concatenate(
+                [faces + i * nverts for i in range(nmol)], axis=0
+            )
+            center = np.array(template.shape) / 2 + 0.5
+
+            for i, v in enumerate(verts):
+                v_transformed = mole.rotator.apply(v - center * scale) + mole.pos
+                all_verts[i::nverts] = v_transformed
+
+            if layer.colormap_info is None:
+                colormap = None
+                contrast_limits = None
+                data = (all_verts, all_faces)
+            else:
+                color_by = layer.colormap_info.name
+                all_values = np.stack(
+                    [layer.features[color_by]] * nverts, axis=1
+                ).ravel()
+                colormap = layer.colormap_info.cmap
+                contrast_limits = layer.colormap_info.clim
+                data = (all_verts, all_faces, all_values)
+
+            self.parent_viewer.add_surface(
+                data=data,
+                colormap=colormap,
+                contrast_limits=contrast_limits,
+                shading="smooth",
+                name=f"Rendered {layer.name}",
+            )
+            return None
 
 
 @magicmenu
