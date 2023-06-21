@@ -996,7 +996,7 @@ class Spline(BaseComponent):
 
     def get_rotator(
         self,
-        positions: Sequence[float] = None,
+        positions: Sequence[float] | None = None,
         inverse: bool = False,
     ) -> Rotation:
         """
@@ -1161,7 +1161,7 @@ class Spline(BaseComponent):
         """
         return self._get_coords(_polar_coords_2d, r_range, s_range, scale)
 
-    def cartesian_to_world(self, coords: np.ndarray) -> np.ndarray:
+    def cartesian_to_world(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
         """
         Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
 
@@ -1176,22 +1176,17 @@ class Spline(BaseComponent):
             World coordinates.
         """
         ncoords = coords.shape[0]
-        positions = coords[:, 1] / self.length()
-        s = self.map(positions)
-        coords_ext = np.stack(
-            [
-                coords[:, 0],
-                np.zeros(ncoords, dtype=np.float32),
-                coords[:, 2],
-            ],
-            axis=1,
-        )
-        rot = self.get_rotator(positions)
-        out = rot.apply(coords_ext) + s
+        _rs = coords[:, 0]
+        _us = coords[:, 1] / self.length()
+        _as = coords[:, 2]
+        _zeros = np.zeros(ncoords, dtype=np.float32)
+        coords_ext = np.stack([_rs, _zeros, _as], axis=1)
+        rot = self.get_rotator(_us)
+        out = rot.apply(coords_ext) + self.map(_us)
 
         return out
 
-    def cylindrical_to_world(self, coords: np.ndarray) -> np.ndarray:
+    def cylindrical_to_world(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
         """
         Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
 
@@ -1217,9 +1212,9 @@ class Spline(BaseComponent):
 
     def world_to_y(
         self,
-        coords: np.ndarray,
+        coords: NDArray[np.float32],
         precision: nm = 0.2,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """
         Convert world coordinates into y-coordinate in spline coordinate system.
 

@@ -369,7 +369,8 @@ class CylinderModel:
         mesh2d = self._get_mesh(coords)
         return mesh2d.reshape(self._shape + (3,))
 
-    def _get_mesh(self, coords):
+    def _get_mesh(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
+        """Convert indices to oblique coordinates in (r, y, a)."""
         from cylindra._cylindra_ext import oblique_coordinates
 
         y_incr = -self._tilts[1] * self._shape[1] * self._intervals[0] / 2
@@ -383,6 +384,8 @@ class CylinderModel:
 
 
 class CylindricSliceConstructor:
+    """The indexer class for a cylindric boundary."""
+
     def __getitem__(self, key):
         if isinstance(key, tuple):
             return CylindricSlice(*key)
