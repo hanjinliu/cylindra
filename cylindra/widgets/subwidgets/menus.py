@@ -40,6 +40,7 @@ from .global_variables import GlobalVariablesMenu
 if TYPE_CHECKING:
     from cylindra.widgets import CylindraMainWidget
     from magicgui.widgets import FunctionGui
+    from magicclass._gui._macro import MacroEdit
 
 _Logger = getLogger("cylindra")
 
@@ -487,25 +488,40 @@ class Others(ChildWidget):
 
     @magicmenu(record=False)
     class Macro(ChildWidget):
+        def __init__(self):
+            self._macro_window: "MacroEdit | None" = None
+
+        def _get_macro_window(
+            self, text: str = "", tabname: "str | None" = None
+        ) -> "MacroEdit":
+            main = self._get_main()
+            if self._macro_window is None:
+                new = main.macro.widget.new_window(tabname=tabname)
+                self._macro_window = new
+                main._active_widgets.add(new)
+                new.textedit.value = text
+            else:
+                new = self._macro_window
+                new.new_tab(name=tabname, text=text)
+            return new
+
         @set_design(text="Show macro")
         @bind_key("Ctrl+Shift+M")
         def show_macro(self):
             """Create Python executable script of the current project."""
             main = self._get_main()
-            new = main.macro.widget.new_window()
-            new.textedit.value = str(main._format_macro()[main._macro_offset :])
+            text = str(main._format_macro()[main._macro_offset :])
+            new = self._get_macro_window(text)
             new.show()
-            main._active_widgets.add(new)
             return None
 
         @set_design(text="Show full macro")
         def show_full_macro(self):
             """Create Python executable script since the startup this time."""
             main = self._get_main()
-            new = main.macro.widget.new_window()
-            new.textedit.value = str(main._format_macro())
+            text = str(main._format_macro())
+            new = self._get_macro_window(text, tabname="Full macro")
             new.show()
-            main._active_widgets.add(new)
             return None
 
         @set_design(text="Show native macro")
