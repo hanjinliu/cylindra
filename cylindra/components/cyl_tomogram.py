@@ -1125,8 +1125,7 @@ class CylTomogram(Tomogram):
 
             axes = "zyx"
             transformed = ip.asarray(transformed, axes=axes)
-            transformed.set_scale({k: _scale for k in axes})
-            transformed.scale_unit = "nm"
+            transformed.set_scale({k: _scale for k in axes}, unit="nm")
 
         return transformed
 
@@ -1218,8 +1217,7 @@ class CylTomogram(Tomogram):
 
             axes = "rya"
             transformed = ip.asarray(transformed, axes=axes)
-            transformed.set_scale({k: _scale for k in axes})
-            transformed.scale_unit = "nm"
+            transformed.set_scale({k: _scale for k in axes}, unit="nm")
 
         return transformed
 

@@ -1070,8 +1070,8 @@ class Spline(BaseComponent):
 
         Parameters
         ----------
-        r_range : tuple[float, float]
-            Lower and upper bound of radius.
+        r_range : (float, float)
+            Lower and upper bound of radius in pixels.
         n_pixels : int
             Length of y axis in pixels.
         u : float
@@ -1241,9 +1241,7 @@ class Spline(BaseComponent):
         length = self.length()
         u = np.linspace(0, 1, ceilint(length / precision))
         sample_points = self.map(u)  # (N, 3)
-        vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(
-            1, -1, 3
-        )  # (S, N, 3)
+        vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3)
         dist2_map = np.sum(vector_map**2, axis=2)
         argmins = np.argmin(dist2_map, axis=0).tolist()
         return u[argmins]
@@ -1318,9 +1316,9 @@ class Spline(BaseComponent):
         cval: float = 0.0,
     ) -> NDArray[np.float32]:
         """Slice input array along the spline."""
-        _, coords = self._get_y_ax_coords(s_range)
         from scipy import ndimage as ndi
 
+        _, coords = self._get_y_ax_coords(s_range)
         return ndi.map_coordinates(
             array,
             coords.T,
@@ -1332,7 +1330,7 @@ class Spline(BaseComponent):
 
     def _get_coords(
         self,
-        map_func: Callable[[tuple], np.ndarray],
+        map_func: Callable[[tuple], NDArray[np.float32]],
         map_params: tuple,
         s_range: tuple[float, float],
         scale: nm,
@@ -1361,12 +1359,12 @@ class Spline(BaseComponent):
         return u, y
 
 
+_T = TypeVar("_T", bound=np.generic)
+
+
 @overload
 def _linear_conversion(u: float, start: float, stop: float) -> float:
     ...
-
-
-_T = TypeVar("_T", bound=np.generic)
 
 
 @overload
@@ -1378,7 +1376,9 @@ def _linear_conversion(u, start, stop):
     return (1 - u) * start + u * stop
 
 
-def _rot_with_vector(maps: np.ndarray, ax_coords: np.ndarray, vectors: np.ndarray):
+def _rot_with_vector(
+    maps: NDArray[_T], ax_coords: NDArray[_T], vectors: NDArray[_T]
+) -> NDArray[_T]:
     rot = axes_to_rotator(None, vectors)
     mat = rot.as_matrix()
     out = np.einsum("nij,vhj->vnhi", mat, maps)
@@ -1387,7 +1387,7 @@ def _rot_with_vector(maps: np.ndarray, ax_coords: np.ndarray, vectors: np.ndarra
 
 
 @lru_cache(maxsize=12)
-def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> np.ndarray:
+def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> NDArray[np.float32]:
     n_angle = roundint((r_start + r_stop) * np.pi)
     n_radius = roundint(r_stop - r_start)
     r_, ang_ = np.indices((n_radius, n_angle))
@@ -1417,7 +1417,7 @@ def _cartesian_coords_2d(lenv: int, lenh: int):
     return np.stack([v, h], axis=2)  # V, H, 2
 
 
-def _stack_coords(coords: np.ndarray):  # V, H, D
+def _stack_coords(coords: NDArray[_T]) -> NDArray[_T]:  # V, H, D
     shape = coords.shape[:-1]
     zeros = np.zeros(shape, dtype=np.float32)
     stacked = np.stack(
@@ -1433,7 +1433,7 @@ def _stack_coords(coords: np.ndarray):  # V, H, D
 
 def _construct_ramping_weight(
     norm_length: float, weight_min: float, size: int
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """
     Prepare an weight array with linear ramping flanking regions.
 

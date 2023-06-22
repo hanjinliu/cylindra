@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
 SELF = mk.Mock("self")
+SIMULATION_INFO_FILE_NAME = "simulation_info.txt"
 
 _TiltRange = Annotated[
     tuple[float, float],
@@ -582,7 +583,7 @@ class CylinderSimulator(MagicTemplate):
             "central_axis": "y",  # NOTE: may change in the future
             "ns_ratio": nsr_info,
         }
-        with open(save_dir / "simulation_info.json", "w") as f:
+        with open(save_dir / SIMULATION_INFO_FILE_NAME, "w") as f:
             json.dump(js, f, indent=4, separators=(", ", ": "))
         self._spline.to_json(save_dir / "spline.json")
         mole.to_csv(save_dir / "molecules.csv")
@@ -748,7 +749,7 @@ class CylinderSimulator(MagicTemplate):
             "central_axis": "y",  # NOTE: may change in the future
             "ns_ratio": nsr_info,
         }
-        with open(save_dir / "simulation_info.json", "w") as f:
+        with open(save_dir / SIMULATION_INFO_FILE_NAME, "w") as f:
             json.dump(js, f, indent=4, separators=(", ", ": "))
         self._spline.to_json(save_dir / "spline.json")
         mole.to_csv(save_dir / "molecules.csv")
