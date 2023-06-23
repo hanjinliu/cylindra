@@ -836,8 +836,16 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         layer_filt,
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(0.3, 0.8),
-        max_shifts=(1.2, 1.2, 1.2),
+        max_shifts=(2.3, 2.3, 2.3),
+        distance_range=(4, 4.5),
     )
+    mole: Molecules = ui.parent_viewer.layers[-1].molecules
+    for _, sub in mole.groupby("pf-id"):
+        dist = np.sqrt(np.sum((np.diff(sub.pos, axis=0)) ** 2, axis=1))
+        assert np.all((4 <= dist) & (dist <= 4.5))
+        assert np.all(sub.features["align-dx"].to_numpy() <= 2.3)
+        assert np.all(sub.features["align-dy"].to_numpy() <= 2.3)
+        assert np.all(sub.features["align-dz"].to_numpy() <= 2.3)
 
 
 def test_mesh_annealing(ui: CylindraMainWidget):
