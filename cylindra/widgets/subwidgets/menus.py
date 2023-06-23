@@ -710,6 +710,7 @@ class Others(ChildWidget):
 
 
 def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
+    workflow = workflow.replace("\t", "    ")
     expr = parse(workflow)
     # TODO: fix macro-kit to check this
     # check_call_args(expr, {"ui": ui})
