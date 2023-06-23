@@ -57,7 +57,7 @@ from cylindra.const import (
 )
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 from cylindra.types import get_monomer_layers
-from cylindra.project import CylindraProject, get_project_json
+from cylindra.project import CylindraProject, get_project_json, extract
 
 # widgets
 from cylindra.widgets import _shared_doc, subwidgets
@@ -1369,15 +1369,7 @@ class CylindraMainWidget(MagicTemplate):
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_json(get_project_json(path))
         macro_path = Path(project.macro)
-        macro_expr = mk.parse(macro_path.read_text())
-        if macro_expr.args[0].head is mk.Head.import_:
-            for line in macro_expr.args:
-                if (
-                    line.head is mk.Head.function
-                    and str(line.args[0].args[0]) == "main"
-                ):
-                    macro_expr = line.args[1]
-                    break
+        macro_expr = extract(macro_path.read_text())
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)
 
     @Analysis.wraps

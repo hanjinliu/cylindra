@@ -10,7 +10,8 @@ from cylindra.const import (
     MoleculesHeader as Mole,
     nm,
 )
-from ._base import BaseProject, PathLike, resolve_path
+from cylindra.project._base import BaseProject, PathLike, resolve_path
+from cylindra.project._utils import as_main_function
 
 if TYPE_CHECKING:
     from cylindra.widgets.batch import CylindraBatchWidget
@@ -134,8 +135,6 @@ class CylindraBatchProject(BaseProject):
 
         self = cls.from_gui(gui, json_path, results_dir)
 
-        macro_str = str(gui.macro)
-
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)  # create a directory if not exists.
 
@@ -143,14 +142,14 @@ class CylindraBatchProject(BaseProject):
         for lmodel, info in zip(self.loaders, gui._loaders):
             info.loader.molecules.to_csv(lmodel.molecule)
 
-        if macro_str:
-            fp = results_dir / str(self.macro)
-            fp.write_text(macro_str)
+        fp = results_dir / str(self.macro)
+        fp.write_text(as_main_function(gui.macro))
 
         # save objects
         self.to_json(json_path)
+        return None
 
-    def to_gui(self, gui: "CylindraBatchWidget"):
+    def to_gui(self, gui: "CylindraBatchWidget") -> None:
         import impy as ip
         from acryo import Molecules, BatchLoader
 
@@ -179,6 +178,7 @@ class CylindraBatchProject(BaseProject):
         gui.sta.params.template_path = self.template_image or ""
         gui.sta.params._set_mask_params(self.mask_parameters)
         gui.reset_choices()
+        return None
 
     @property
     def result_dir(self) -> Path:

@@ -8,6 +8,7 @@ import numpy as np
 
 from cylindra.const import IDName, PropertyNames as H, get_versions, cast_dataframe
 from cylindra.project._base import BaseProject, PathLike, resolve_path
+from cylindra.project._utils import extract, as_main_function
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -210,7 +211,9 @@ class CylindraProject(BaseProject):
 
         # save macro
         fp = results_dir / str(self.macro)
-        fp.write_text(_format_script_text(gui))
+        fp.write_text(
+            as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
+        )
 
         self.project_description = gui.GeneralInfo.project_desc.value
         self.to_json(json_path)
@@ -244,11 +247,7 @@ class CylindraProject(BaseProject):
                     gui.Others.GlobalVariables.load_variables(self.global_variables)
 
             # append macro
-            with open(self.macro) as f:
-                txt = f.read()
-
-            macro = mk.parse(txt)
-            gui.macro.extend(macro.args)
+            gui.macro.extend(extract(Path(self.macro).read_text()).args)
 
             # load subtomogram analyzer state
             gui.sta.params.template_path.value = self.template_image or ""
@@ -388,22 +387,3 @@ def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:
     if to_drop:
         return df.drop(to_drop)
     return df
-
-
-_MACRO_FORMAT = """
-from cylindra.widgets import CylindraMainWidget
-from cylindra import instance
-
-def main(ui: CylindraMainWidget):
-{}
-
-if __name__ == "__main__":
-    ui = instance(create=True)
-    main(ui)
-"""
-
-
-def _format_script_text(gui: "CylindraMainWidget"):
-    expr = gui._format_macro(gui.macro[gui._macro_offset :])
-    txt = "\n".join(f"    {line}" for line in expr.args)
-    return _MACRO_FORMAT.format(txt)
