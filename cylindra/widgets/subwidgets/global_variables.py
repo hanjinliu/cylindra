@@ -1,6 +1,5 @@
 import json
 from typing import Annotated, Literal
-import json
 
 from magicclass import (
     impl_preview,
@@ -85,9 +84,7 @@ class GlobalVariablesMenu(MagicTemplate):
         use_gpu : bool
             Use GPU if available.
         """
-        loc = locals()
-        loc.pop("self")
-        return GVar.update(loc)
+        return self.update_variables(**locals())
 
     @nogui
     def load_variables(self, path: "Path | str"):
@@ -117,6 +114,34 @@ class GlobalVariablesMenu(MagicTemplate):
         GVar.update(gvar)
         _Logger.print(f"Global variables are set to:\n{Path(path).as_posix()}")
         return None
+
+    @nogui
+    def update_variables(
+        self,
+        npf_min: "int | None" = None,
+        npf_max: "int | None" = None,
+        spline_degree: "int | None" = None,
+        spacing_min: "float | None" = None,
+        spacing_max: "float | None" = None,
+        skew_min: "float | None" = None,
+        skew_max: "float | None" = None,
+        min_curvature_radius: "float | None" = None,
+        clockwise: Literal["MinusToPlus", "PlusToMinus", None] = None,
+        thickness_inner: "float | None" = None,
+        thickness_outer: "float | None" = None,
+        fit_depth: "float | None" = None,
+        fit_width: "float | None" = None,
+        point_size: "float | None" = None,
+        dask_chunk: "tuple[int, int, int] | None" = None,
+        use_gpu: "bool | None" = None,
+    ):
+        loc = locals()
+        loc.pop("self")
+        for k, v in list(loc.items()):
+            if v is None:
+                loc.pop(k)
+        GVar.update(loc)
+        return GVar
 
     @set_design(text="Load variables")
     def load_variables_by_name(

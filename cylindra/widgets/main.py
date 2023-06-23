@@ -1370,6 +1370,14 @@ class CylindraMainWidget(MagicTemplate):
         project = CylindraProject.from_json(get_project_json(path))
         macro_path = Path(project.macro)
         macro_expr = mk.parse(macro_path.read_text())
+        if macro_expr.args[0].head is mk.Head.import_:
+            for line in macro_expr.args:
+                if (
+                    line.head is mk.Head.function
+                    and str(line.args[0].args[0]) == "main"
+                ):
+                    macro_expr = line.args[1]
+                    break
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)
 
     @Analysis.wraps
