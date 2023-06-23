@@ -172,7 +172,6 @@ class CylindraProject(BaseProject):
         from cylindra.types import MoleculesLayer
 
         self = cls.from_gui(gui, json_path, results_dir)
-        macro_str = str(gui._format_macro(gui.macro[gui._macro_offset :]))
 
         tomo = gui.tomogram
         localprops = tomo.collect_localprops(allow_none=True)
@@ -209,9 +208,9 @@ class CylindraProject(BaseProject):
 
         gui.global_variables.save_variables(results_dir / self.global_variables)
 
-        if macro_str:
-            fp = results_dir / str(self.macro)
-            fp.write_text(macro_str)
+        # save macro
+        fp = results_dir / str(self.macro)
+        fp.write_text(_format_script_text(gui))
 
         self.project_description = gui.GeneralInfo.project_desc.value
         self.to_json(json_path)
@@ -389,3 +388,22 @@ def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:
     if to_drop:
         return df.drop(to_drop)
     return df
+
+
+_MACRO_FORMAT = """
+from cylindra.widgets import CylindraMainWidget
+from cylindra import instance
+
+def main(ui: CylindraMainWidget):
+{}
+
+if __name__ == "__main__":
+    ui = instance(create=True)
+    main(ui)
+"""
+
+
+def _format_script_text(gui: "CylindraMainWidget"):
+    expr = gui._format_macro(gui.macro[gui._macro_offset :])
+    txt = "\n".join(f"    {line}" for line in expr.args)
+    return _MACRO_FORMAT.format(txt)
