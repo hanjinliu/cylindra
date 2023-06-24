@@ -125,9 +125,12 @@ def start(
     return ui
 
 
-def instance() -> CylindraMainWidget | None:
+def instance(create: bool = False) -> CylindraMainWidget | None:
     """Get the current CylindraMainWidget instance."""
-    return _CURRENT_INSTANCE
+    ins = _CURRENT_INSTANCE
+    if ins is None and create:
+        ins = start()
+    return ins
 
 
 def view_project(project_file: PathLike, run: bool = False):

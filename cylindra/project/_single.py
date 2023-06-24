@@ -8,6 +8,7 @@ import numpy as np
 
 from cylindra.const import IDName, PropertyNames as H, get_versions, cast_dataframe
 from cylindra.project._base import BaseProject, PathLike, resolve_path
+from cylindra.project._utils import extract, as_main_function
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -172,7 +173,6 @@ class CylindraProject(BaseProject):
         from cylindra.types import MoleculesLayer
 
         self = cls.from_gui(gui, json_path, results_dir)
-        macro_str = str(gui._format_macro(gui.macro[gui._macro_offset :]))
 
         tomo = gui.tomogram
         localprops = tomo.collect_localprops(allow_none=True)
@@ -209,9 +209,11 @@ class CylindraProject(BaseProject):
 
         gui.global_variables.save_variables(results_dir / self.global_variables)
 
-        if macro_str:
-            fp = results_dir / str(self.macro)
-            fp.write_text(macro_str)
+        # save macro
+        fp = results_dir / str(self.macro)
+        fp.write_text(
+            as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
+        )
 
         self.project_description = gui.GeneralInfo.project_desc.value
         self.to_json(json_path)
@@ -245,11 +247,7 @@ class CylindraProject(BaseProject):
                     gui.Others.GlobalVariables.load_variables(self.global_variables)
 
             # append macro
-            with open(self.macro) as f:
-                txt = f.read()
-
-            macro = mk.parse(txt)
-            gui.macro.extend(macro.args)
+            gui.macro.extend(extract(Path(self.macro).read_text()).args)
 
             # load subtomogram analyzer state
             gui.sta.params.template_path.value = self.template_image or ""

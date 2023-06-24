@@ -2,6 +2,8 @@
 
 `cylindra` is a GUI-integrated cryo-ET image analysis tool for cylindric periodic structures such as microtubules.
 
+![](resources/fig.png)
+
 ## Installation
 
 - From source
@@ -24,7 +26,7 @@ pip install -e .
 - Automatic/manual determination of polarity, protofilament number etc.
 - Monomer mapping along splines.
 - Classical subtomogram averaging and alignment.
-- Microtubule seam search without any binding proteins.
+- Microtubule seam search with or without binding proteins.
 - Subtomogram alignment with 1D constraint using Viterbi algorithm.
 - Subtomogram alignment with 2D constraint using simulated annealing optimization.
 - Tomogram simulation of cylindric structure.

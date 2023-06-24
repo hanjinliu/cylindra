@@ -78,7 +78,9 @@ def init_config(force: bool = False):  # pragma: no cover
             if not SETTINGS_DIR.exists():
                 SETTINGS_DIR.mkdir(parents=True)
 
-            settings_js = {DEFAULT_VARIABLES: "eukaryotic_MT"}
+            settings_js = {
+                DEFAULT_VARIABLES: "eukaryotic_MT",
+            }
             with open(USER_SETTINGS, mode="w") as f:
                 json.dump(settings_js, f, indent=4, separators=(", ", ": "))
         except Exception as e:
