@@ -67,7 +67,7 @@ class SplineControl(MagicTemplate):
     ).with_options(max=0)
     canvas = field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3)
 
-    @magicclass(layout="horizontal")
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class footer(MagicTemplate):
         highlight_area = vfield(False, record=False).with_options(
             text="Highlight subvolume",
@@ -84,10 +84,6 @@ class SplineControl(MagicTemplate):
         if not self.footer.highlight_area:
             if parent._layer_highlight in parent.parent_viewer.layers:
                 parent.parent_viewer.layers.remove(parent._layer_highlight)
-            return None
-
-        layer = parent._layer_paint
-        if layer is None:
             return None
 
         if parent._layer_highlight not in parent.parent_viewer.layers:
