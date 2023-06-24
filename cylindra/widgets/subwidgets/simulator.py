@@ -572,7 +572,6 @@ class CylinderSimulator(MagicTemplate):
             save_dir.mkdir()
             _Logger.print(f"Directory created at {save_dir}.")
 
-        nsr_info = {i: val for i, val in enumerate(nsr)}
         js = {
             "tilt_degree_min": tilt_range[0],
             "tilt_degree_max": tilt_range[1],
@@ -581,7 +580,7 @@ class CylinderSimulator(MagicTemplate):
             "random_seed": seed,
             "tomogram_shape": shape,
             "central_axis": "y",  # NOTE: may change in the future
-            "ns_ratio": nsr_info,
+            "ns_ratio": list(nsr),
         }
         with open(save_dir / SIMULATION_INFO_FILE_NAME, "w") as f:
             json.dump(js, f, indent=4, separators=(", ", ": "))
@@ -665,7 +664,7 @@ class CylinderSimulator(MagicTemplate):
         degrees = np.linspace(*tilt_range, n_tilt)
         sino, _ = self._prep_radon(template_path, degrees, scale, shape, interpolation)
 
-        yield _on_radon_finished(sino, degrees)
+        yield _on_radon_finished.with_args(sino, degrees)
 
         rng = ip.random.default_rng(seed)
         imax = sino.max()

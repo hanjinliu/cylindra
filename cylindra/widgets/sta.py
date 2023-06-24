@@ -1079,9 +1079,9 @@ class SubtomogramAveraging(MagicTemplate):
         yield
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         mole = layer.molecules
-        npf = mole.features[Mole.pf].max() + 1
+        npfs = mole.features[Mole.pf].unique(maintain_order=True)
 
-        slices = [(mole.features[Mole.pf] == i).to_numpy() for i in range(npf)]
+        slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
         viterbi_tasks = [
             delayed(landscape[sl].run_viterbi)(distance_range, angle_max)
             for sl in slices
