@@ -318,7 +318,7 @@ class CylinderSimulator(MagicTemplate):
         img[:, 0, :] = img[:, -1, :] = img[:, :, 0] = img[:, :, -1] = val / 2
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         parent._macro_offset = len(parent.macro)
-        return thread_worker.to_callback(parent._send_tomogram_to_viewer, tomo)
+        return parent._send_tomogram_to_viewer.with_args(tomo)
 
     def _get_current_index(self, *_) -> int:
         parent = self.parent_widget
@@ -565,7 +565,7 @@ class CylinderSimulator(MagicTemplate):
             template_path, degrees, scale, shape, interpolation
         )
 
-        yield _on_radon_finished(sino, degrees)
+        yield _on_radon_finished.with_args(sino, degrees)
 
         # add noise and save image
         if not save_dir.exists():
@@ -603,7 +603,7 @@ class CylinderSimulator(MagicTemplate):
                 height=shape[0],
                 order=interpolation,
             ).set_scale(zyx=scale, unit="nm")
-            yield _on_iradon_finished(rec.proj("z"), f"N/S = {nsr_val:.1f}")
+            yield _on_iradon_finished.with_args(rec.proj("z"), f"N/S = {nsr_val:.1f}")
 
             file_name = save_dir / f"image-{i}.mrc"
             rec.imsave(file_name)
@@ -678,13 +678,13 @@ class CylinderSimulator(MagicTemplate):
             height=shape[0],
             order=interpolation,
         ).set_scale(zyx=scale, unit="nm")
-        yield _on_iradon_finished(rec.proj("z"), f"N/S = {nsr:.1f}")
+        yield _on_iradon_finished.with_args(rec.proj("z"), f"N/S = {nsr:.1f}")
 
         rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
         )
-        return dask_thread_worker.to_callback(parent._send_tomogram_to_viewer, tomo)
+        return parent._send_tomogram_to_viewer.with_args(tomo)
 
     @SimulateMenu.wraps
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
@@ -841,7 +841,7 @@ class CylinderSimulator(MagicTemplate):
         self.show()
 
 
-@thread_worker.to_callback
+@thread_worker.callback
 def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
     n_tilt = len(degrees)
     if n_tilt < 3:
@@ -859,7 +859,7 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
     return None
 
 
-@thread_worker.to_callback
+@thread_worker.callback
 def _on_iradon_finished(rec: ip.ImgArray, title: str):
     with _Logger.set_plt():
         plt.imshow(rec, cmap="gray")

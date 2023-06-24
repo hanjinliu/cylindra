@@ -409,7 +409,7 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         self._macro_offset = len(self.macro)
-        return thread_worker.to_callback(self._send_tomogram_to_viewer, tomo, filter)
+        return self._send_tomogram_to_viewer.with_args(tomo, filter)
 
     @open_image.started.connect
     def _open_image_on_start(self):
@@ -446,9 +446,7 @@ class CylindraMainWidget(MagicTemplate):
         project = CylindraProject.from_json(project_path)
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
         self._project_dir = project_path.parent
-        return thread_worker.to_callback(
-            project.to_gui(self, filter=filter, paint=paint)
-        )
+        return thread_worker.callback(project.to_gui(self, filter=filter, paint=paint))
 
     @File.wraps
     @set_design(text="Save project")
@@ -576,7 +574,7 @@ class CylindraMainWidget(MagicTemplate):
 
         contrast_limits = np.percentile(img_filt, [1, 99.9])
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _filter_reference_image_on_return():
             self._layer_image.data = img_filt
             self._layer_image.contrast_limits = contrast_limits
@@ -606,7 +604,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         tomo.get_multiscale(binsize=bin_size, add=True)
         self._need_save = True
-        return thread_worker.to_callback(self.set_multiscale, bin_size)
+        return thread_worker.callback(self.set_multiscale).with_args(bin_size)
 
     @ImageMenu.wraps
     @set_design(text="Set multi-scale")
@@ -795,10 +793,10 @@ class CylindraMainWidget(MagicTemplate):
             spl.orientation = _new_orientations[i]
 
         if align_to is not None:
-            return thread_worker.to_callback(self.align_to_polarity, align_to)
+            return thread_worker.callback(self.align_to_polarity).with_args(align_to)
         else:
 
-            @thread_worker.to_callback
+            @thread_worker.callback
             def _on_return():
                 self._update_splines_in_images()
                 for i in range(len(tomo.splines)):
@@ -951,10 +949,10 @@ class CylindraMainWidget(MagicTemplate):
                     edge_sigma=edge_sigma,
                     max_shift=max_shift,
                 )
-                yield thread_worker.to_callback(self._update_splines_in_images)
+                yield thread_worker.callback(self._update_splines_in_images)
         self._need_save = True
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def out():
             self._init_widget_state()
             self._update_splines_in_images()
@@ -1039,11 +1037,11 @@ class CylindraMainWidget(MagicTemplate):
                     corr_allowed=corr_allowed,
                     binsize=bin_size,
                 )
-                yield thread_worker.to_callback(self._update_splines_in_images)
+                yield thread_worker.callback(self._update_splines_in_images)
 
         self._need_save = True
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def out():
             self._init_widget_state()
             self._update_splines_in_images()
@@ -1299,7 +1297,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         indices = normalize_spline_indices(splines, tomo)
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _local_ft_analysis_on_yield(i: int):
             if i == 0:
                 self.sample_subtomograms()
@@ -1313,7 +1311,7 @@ class CylindraMainWidget(MagicTemplate):
                 tomo.local_ft_params(
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
-                yield _local_ft_analysis_on_yield(i)
+                yield _local_ft_analysis_on_yield.with_args(i)
         self._need_save = True
         return tracker.as_undo_callback()
 
@@ -1354,7 +1352,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _global_ft_analysis_on_return():
             self.sample_subtomograms()
             _Logger.print_table(df, precision=3)
@@ -2110,7 +2108,7 @@ class CylindraMainWidget(MagicTemplate):
         if limits is None:
             limits = float(all_df[color_by].min()), float(all_df[color_by].max())
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _on_return():
             # Add labels layer
             if self._layer_paint is None:
@@ -2253,6 +2251,7 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(self._add_layers_future(layer))
         )
 
+    @thread_worker.callback
     def _send_tomogram_to_viewer(
         self, tomo: CylTomogram, filt: "ImageFilter | None" = None
     ):

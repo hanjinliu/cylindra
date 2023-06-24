@@ -409,6 +409,7 @@ class SubtomogramAveraging(MagicTemplate):
     def _set_mask_params(self, params):
         return self.params._set_mask_params(params)
 
+    @thread_worker.callback
     def _show_reconstruction(
         self, image: ip.ImgArray, name: str, store: bool = True
     ) -> "Image":
@@ -474,9 +475,7 @@ class SubtomogramAveraging(MagicTemplate):
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return thread_worker.to_callback(
-            self._show_reconstruction, img, f"[AVG]{layer.name}"
-        )
+        return self._show_reconstruction.with_args(img, f"[AVG]{layer.name}")
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average subset of molecules")
@@ -517,8 +516,8 @@ class SubtomogramAveraging(MagicTemplate):
         )
         img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
         t0.toc()
-        return thread_worker.to_callback(
-            self._show_reconstruction, img, f"[AVG(n={number})]{layer.name}"
+        return self._show_reconstruction.with_args(
+            img, f"[AVG(n={number})]{layer.name}"
         )
 
     @Subtomogram_analysis.wraps
@@ -553,9 +552,7 @@ class SubtomogramAveraging(MagicTemplate):
         img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
         img.set_scale(zyx=loader.scale)
         t0.toc()
-        return thread_worker.to_callback(
-            self._show_reconstruction, img, f"[Split]{layer.name}"
-        )
+        return self._show_reconstruction.with_args(img, f"[Split]{layer.name}")
 
     @Refinement.wraps
     @set_design(text="Align average to template")
@@ -585,7 +582,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         new_layers = list[MoleculesLayer]()
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _on_yield(
             mole_trans: Molecules,
             layer: MoleculesLayer,
@@ -653,7 +650,7 @@ class SubtomogramAveraging(MagicTemplate):
                     pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
                 )
 
-            yield _on_yield(_mole_trans, layer)
+            yield _on_yield.with_args(_mole_trans, layer)
 
             with _Logger.set_plt():
                 widget_utils.plot_projections(merge)
@@ -673,7 +670,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0.toc()
         parent._need_save = True
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _align_averaged_on_return():
             return (
                 undo_callback(parent._try_removing_layers)
@@ -727,7 +724,7 @@ class SubtomogramAveraging(MagicTemplate):
         molecules = combiner.split(aligned_loader.molecules)
         t0.toc()
         parent._need_save = True
-        return self._align_all_on_return(molecules, layers)
+        return self._align_all_on_return.with_args(molecules, layers)
 
     @Refinement.wraps
     @set_design(text="Align all (template-free)")
@@ -779,7 +776,7 @@ class SubtomogramAveraging(MagicTemplate):
         t0.toc()
         aligned_molecules = combiner.split(aligned_loader.molecules)
         parent._need_save = True
-        return self._align_all_on_return(aligned_molecules, layers)
+        return self._align_all_on_return.with_args(aligned_molecules, layers)
 
     @Refinement.wraps
     @set_design(text="Align all (multi-template)")
@@ -826,7 +823,7 @@ class SubtomogramAveraging(MagicTemplate):
         aligned_molecules = combiner.split(aligned_loader.molecules)
         t0.toc()
         parent._need_save = True
-        return self._align_all_on_return(aligned_molecules, layers)
+        return self._align_all_on_return.with_args(aligned_molecules, layers)
 
     @Refinement.wraps
     @set_design(text="Viterbi Alignment")
@@ -1096,7 +1093,7 @@ class SubtomogramAveraging(MagicTemplate):
             inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
         molecules_opt = landscape.transform_molecules(mole, inds)
         parent._need_save = True
-        return self._align_all_on_return([molecules_opt], [layer])
+        return self._align_all_on_return.with_args([molecules_opt], [layer])
 
     def _align_all_annealing(
         self,
@@ -1150,7 +1147,7 @@ class SubtomogramAveraging(MagicTemplate):
         results = sorted(results, key=lambda r: r.energies[-1])
         parent._need_save = True
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _on_return():
             if return_all:
                 point_layers = []
@@ -1290,7 +1287,7 @@ class SubtomogramAveraging(MagicTemplate):
         res0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
         t0.toc()
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _calculate_fsc_on_return():
             _Logger.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
             with _Logger.set_plt():
@@ -1344,6 +1341,8 @@ class SubtomogramAveraging(MagicTemplate):
         seed : int, default is 0
             Random seed.
         """
+        from cylindra.widgets.subwidgets import PcaViewer
+
         t0 = timer("classify_pca")
         parent = self._get_parent()
 
@@ -1374,10 +1373,8 @@ class SubtomogramAveraging(MagicTemplate):
         layer.molecules = out.molecules  # update features
         t0.toc()
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _on_return():
-            from cylindra.widgets.subwidgets import PcaViewer
-
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
@@ -1445,7 +1442,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         parent._need_save = True
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _seam_search_on_return():
             self._show_reconstruction(img_ave, layer.name, store=False)
 
@@ -1481,7 +1478,7 @@ class SubtomogramAveraging(MagicTemplate):
     def _show_subtomogram_averaging(self):
         return self.show()
 
-    @thread_worker.to_callback
+    @thread_worker.callback
     def _align_all_on_return(
         self, molecules: list[Molecules], old_layers: list[MoleculesLayer]
     ):

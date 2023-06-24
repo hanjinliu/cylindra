@@ -386,8 +386,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         )
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return thread_worker.to_callback(
-            self.params._show_reconstruction, img, f"[AVG]{loader_name}"
+        return thread_worker.callback(self.params._show_reconstruction).with_args(
+            img, f"[AVG]{loader_name}"
         )
 
     @BatchRefinement.wraps
@@ -510,7 +510,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             freq, fsc_mean, crit_0500, loader.scale
         )
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _calculate_fsc_on_return():
             t0.toc()
             _Logger.print_html(f"<b>Fourier Shell Correlation of {loader_name!r}</b>")
@@ -572,6 +572,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         seed : int, default is 0
             Random seed.
         """
+        from cylindra.widgets.subwidgets import PcaViewer
+
         t0 = timer("classify_pca (batch)")
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
@@ -601,12 +603,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
         ).set_scale(zyx=loader.scale, unit="nm")
 
         loader.molecules.features = out.molecules.features
+        t0.toc()
 
-        @thread_worker.to_callback
+        @thread_worker.callback
         def _on_return():
-            from cylindra.widgets.subwidgets import PcaViewer
-
-            t0.toc()
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
