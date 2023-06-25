@@ -1621,21 +1621,6 @@ class CylindraMainWidget(MagicTemplate):
         )
         return self._undo_callback_for_layer(layer)
 
-    def _get_selected_layer_choice(self, w: Widget) -> list[str]:
-        """When the selected layer is changed, update the list of features."""
-        # TODO: Using `parent` and `_magic_widget` is hacky.
-        # We should avoid using them.
-        try:
-            parent = w.parent.parent()
-            if parent is None:
-                return []
-            mgui = parent._magic_widget
-            if mgui is None or mgui.layer.value is None:
-                return []
-            return mgui.layer.value.features.columns
-        except Exception:
-            return []
-
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Split molecules by feature")
     def split_molecules(
@@ -1737,13 +1722,6 @@ class CylindraMainWidget(MagicTemplate):
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
 
         return self._undo_callback_for_layer(new)
-
-    def _get_paint_molecules_choice(self, w=None) -> list[str]:
-        # don't use get_function_gui. It causes RecursionError.
-        gui = self["paint_molecules"].mgui
-        if gui is None or gui.layer.value is None:
-            return []
-        return gui.layer.value.features.columns
 
     @MoleculesMenu.Visualize.wraps
     @set_design(text="Paint molecules by features")
@@ -2135,15 +2113,14 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_molecules(self, name: "str | None" = None) -> Molecules:
+    def get_molecules(self, name: str) -> Molecules:
         """
         Retrieve Molecules object from layer list.
 
         Parameters
         ----------
-        name : str, optional
-            Name of the molecules layer. If not given, the most recent molecules object
-            will be returned.
+        name : str
+            Name of the molecules layer.
 
         Returns
         -------
@@ -2181,7 +2158,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def get_loader(
         self,
-        name: "str | None" = None,
+        name: str,
         order: int = 1,
     ) -> SubtomogramLoader:
         """

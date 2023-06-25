@@ -626,18 +626,22 @@ class Others(ChildWidget):
         @set_options(call_button="Delete", labels=False)
         def delete_workflow(
             self,
-            filename: Annotated[list[str], {"choices": _get_workflow_names}],
+            filenames: Annotated[list[str], {"choices": _get_workflow_names}],
         ):
-            path = _config.workflow_path(filename)
-            if path.exists():
-                path.unlink()
-            else:
-                raise FileNotFoundError(f"Workflow file not found: {path.as_posix()}")
-            name = self._make_method_name(path)
-            for i, action in enumerate(self):
-                if action.name == name:
-                    del self[i]
-                    break
+            """Delete an existing workflow file."""
+            for filename in filenames:
+                path = _config.workflow_path(filename)
+                if path.exists():
+                    path.unlink()
+                else:
+                    raise FileNotFoundError(
+                        f"Workflow file not found: {path.as_posix()}"
+                    )
+                name = self._make_method_name(path)
+                for i, action in enumerate(self):
+                    if action.name == name:
+                        del self[i]
+                        break
             self.reset_choices()
             return None
 
@@ -768,19 +772,5 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
     @gui.filename.changed.connect
     def _on_name_change(filename: str):
         gui.workflow.value = _config.workflow_path(filename).read_text()
-
-    _on_name_change(gui.filename.value)
-
-
-@setup_function_gui(Others.Workflows.delete_workflow)
-def _(self: Others.Workflows, gui: "FunctionGui"):
-    code = CodeEdit()
-    code.syntax_highlight("python")
-    code.read_only = True
-    gui.insert(1, code)
-
-    @gui.filename.changed.connect
-    def _on_name_change(filename: str):
-        code.value = _config.workflow_path(filename).read_text()
 
     _on_name_change(gui.filename.value)

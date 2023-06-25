@@ -2,6 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 from typing import Callable
+from contextlib import contextmanager
 
 from appdirs import user_config_dir
 
@@ -21,6 +22,21 @@ def workflow_path(name: str | Path) -> Path:
     if out.suffix != ".py":
         out = out.with_suffix(".py")
     return out
+
+
+@contextmanager
+def patch_workflow_path(dir: str | Path):
+    """Temporarily change the workflow directory."""
+    global WORKFLOWS_DIR
+
+    dir = Path(dir)
+    assert dir.is_dir()
+    old_dir = WORKFLOWS_DIR
+    WORKFLOWS_DIR = dir
+    try:
+        yield
+    finally:
+        WORKFLOWS_DIR = old_dir
 
 
 def get_main_function(filename: str | Path) -> Callable:

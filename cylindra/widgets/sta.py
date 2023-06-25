@@ -61,6 +61,10 @@ if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
 
 # annotated types
+_MoleculeLayers = Annotated[
+    list[MoleculesLayer],
+    {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()},
+]
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _Rotations = Annotated[
     tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
@@ -559,7 +563,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: _MoleculeLayers,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
@@ -685,7 +689,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Alignment of {}"))
     def align_all(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
+        layers: _MoleculeLayers,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -731,7 +735,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(descs=_pdesc.align_template_free_fmt)
     def align_all_template_free(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
+        layers: _MoleculeLayers,
         mask_params: Bound[params._get_mask_params],
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -783,7 +787,7 @@ class SubtomogramAveraging(MagicTemplate):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Multi-template alignment of {}"))  # fmt: skip
     def align_all_multi_template(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()}],
+        layers: _MoleculeLayers,
         template_paths: _ImagePaths,
         mask_params: Bound[params._get_mask_params],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -853,7 +857,7 @@ class SubtomogramAveraging(MagicTemplate):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        distance_range : tuple of float, default is (3.9, 4.4)
+        distance_range : tuple of float
             Range of allowed distance between monomers.
         {angle_max}{upsample_factor}
         """
@@ -920,11 +924,9 @@ class SubtomogramAveraging(MagicTemplate):
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = range(5),
-        return_all: Annotated[
-            bool, {"label": "Return all the annealing results"}
-        ] = False,
-    ):
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
+    ):  # fmt: skip
         """
         2D-constrained subtomogram alignment using simulated annealing.
 
@@ -964,11 +966,9 @@ class SubtomogramAveraging(MagicTemplate):
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = range(5),
-        return_all: Annotated[
-            bool, {"label": "Return all the annealing results"}
-        ] = False,
-    ):  # fmt: off
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
+    ):  # fmt: skip
         """
         2D-constrained subtomogram alignment using simulated annealing.
 
@@ -1185,47 +1185,6 @@ class SubtomogramAveraging(MagicTemplate):
             return out
 
         return _on_return
-
-    @nogui
-    @do_not_record
-    def get_landscape(
-        self,
-        molecules: Molecules,
-        template,
-        mask=None,
-        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: float = 0.5,
-        interpolation: int = 3,
-        upsample_factor: int = 5,
-    ):
-        parent = self._get_parent()
-        loader = parent.tomogram.get_subtomogram_loader(molecules, order=interpolation)
-        model = alignment.ZNCCAlignment.with_params(
-            rotations=rotations,
-            cutoff=cutoff,
-            tilt_range=parent.tomogram.tilt_range,
-        )
-        if isinstance(template, (str, Path)):
-            template = pipe.from_file(template)
-            multi = False
-        elif isinstance(template, (list, tuple)) and isinstance(
-            next(iter(template), None), (str, Path)
-        ):
-            template = pipe.from_files(template)
-            multi = True
-        elif isinstance(template, np.ndarray):
-            multi = template.ndim == 4
-        else:
-            raise TypeError(f"Invalid type of template: {type(template)}")
-        score_dsk = loader.construct_landscape(
-            template,
-            mask=mask,
-            max_shifts=max_shifts,
-            upsample=upsample_factor,
-            alignment_model=model,
-        )
-        return _calc_landscape(model, score_dsk, multi_templates=multi)
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")

@@ -43,6 +43,9 @@ class ImageProcessor(MagicTemplate):
     suffix = vfield(Optional[str]).with_options(value="-output", text="Do not autofill")
     output_image = vfield(Path).with_options(filter=FileFilter.IMAGE, mode="w")
 
+    _InputPath = Annotated[Path, {"widget_type": "EmptyWidget", "bind": input_image}]
+    _OutputPath = Annotated[Path, {"widget_type": "EmptyWidget", "bind": output_image}]
+
     @input_image.connect
     @suffix.connect
     def _autofill_output_path(self):
@@ -62,48 +65,65 @@ class ImageProcessor(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Converting data type.")
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    def convert_dtype(self, dtype: Literal["int8", "uint8", "uint16", "float32"]):
+    def convert_dtype(
+        self,
+        input: _InputPath,
+        output: _OutputPath,
+        dtype: Literal["int8", "uint8", "uint16", "float32"],
+    ):
         """Convert data type of the input image."""
-        img = self._imread(self.input_image)
+        img = self._imread(input)
         out = img.as_img_type(dtype)
-        out.imsave(self.output_image)
+        out.imsave(output)
         return None
 
     @dask_thread_worker.with_progress(desc="Inverting image.")
     @set_design(text="Invert intensity")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    def invert(self):
+    def invert(
+        self,
+        input: _InputPath,
+        output: _OutputPath,
+    ):
         """Invert intensity of the input image."""
-        img = self._imread(self.input_image)
+        img = self._imread(input)
         out = -img
-        out.imsave(self.output_image)
+        out.imsave(output)
         return None
 
     @dask_thread_worker.with_progress(desc="Low-pass filtering.")
     @set_design(text="Low-pass filter")
-    @set_options(
-        cutoff={"min": 0.05, "max": 0.85, "step": 0.05, "value": 0.5},
-        order={"max": 20},
-    )
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    def lowpass_filter(self, cutoff: float, order: int = 2):
+    def lowpass_filter(
+        self,
+        input: _InputPath,
+        output: _OutputPath,
+        cutoff: Annotated[float, {"min": 0.05, "max": 0.85, "step": 0.05}] = 0.5,
+        order: Annotated[int, {"max": 20}] = 2,
+    ):
         """Apply Butterworth's tiled low-pass filter to the input image."""
-        img = self._imread(self.input_image)
-        out = img.tiled_lowpass_filter(cutoff, overlap=32, order=order)
-        out.imsave(self.output_image)
+        img = self._imread(input).as_float()
+        if isinstance(img, ip.ImgArray):
+            out = img.tiled(overlap=32).lowpass_filter(cutoff=cutoff, order=order)
+        else:
+            # tiled() is not implemented for LazyImgArray yet.
+            out = img.tiled_lowpass_filter(overlap=32, cutoff=cutoff, order=order)
+        out.imsave(output)
         return None
 
     @dask_thread_worker.with_progress(desc="Binning.")
     @set_design(text="Binning")
-    @set_options(
-        bin_size={"min": 2, "max": 16, "step": 1},
-    )
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
-    def binning(self, bin_size: int = 4):
+    def binning(
+        self,
+        input: _InputPath,
+        output: _OutputPath,
+        bin_size: Annotated[int, {"min": 2, "max": 16, "step": 1}] = 4,
+    ):
         """Bin image."""
-        img = self._imread(self.input_image)
+        img = self._imread(input)
         out = img.binning(bin_size, check_edges=False)
-        out.imsave(self.output_image)
+        out.imsave(output)
         return None
 
     @dask_thread_worker.with_progress(desc="Flipping image.")
@@ -111,21 +131,25 @@ class ImageProcessor(MagicTemplate):
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def flip(
         self,
-        axes: Annotated[
-            list[str], {"choices": ["x", "y", "z"], "widget_type": CheckBoxes}
-        ] = (),
-    ):
+        input: _InputPath,
+        output: _OutputPath,
+        axes: Annotated[list[str], {"choices": ["x", "y", "z"], "widget_type": CheckBoxes}] = (),
+    ):  # fmt: skip
         """Flip image by the given axes."""
-        img = self._imread(self.input_image)
+        img = self._imread(input)
         for a in axes:
             img = img[ip.slicer(a)[::-1]]
-        img.imsave(self.output_image)
+        img.imsave(output)
         return None
 
     @set_design(text="Preview input image")
-    def preview(self):
+    def preview(self, input: _InputPath):
         """Open a preview of the input image."""
-        view_image(self.input_image, self)
+        from cylindra.widgets import CylindraMainWidget
+
+        prev = view_image(input, self)
+        main = self.find_ancestor(CylindraMainWidget)
+        main._active_widgets.add(prev)
         return None
 
     def _imread(self, path, chunks=GVar.dask_chunk) -> ip.ImgArray | ip.LazyImgArray:

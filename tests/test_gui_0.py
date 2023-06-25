@@ -6,9 +6,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip
 from acryo import Molecules
-from magicclass import testing as mcls_testing
+import polars as pl
+from magicclass import testing as mcls_testing, get_function_gui
 
-from cylindra import view_project
+from cylindra import view_project, _config
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 import pytest
@@ -55,6 +56,11 @@ def test_tooltip(ui: CylindraMainWidget):
     mcls_testing.check_tooltip(ui)
 
 
+def test_misc_actions(ui: CylindraMainWidget):
+    ui.Others.cylindra_info()
+    ui.Others.open_command_palette()
+
+
 @pytest.mark.parametrize(
     "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]
 )
@@ -86,6 +92,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.show_splines()
     ui.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
+    ui.set_source_spline(ui.parent_viewer.layers["Mono-0"], 0)
 
 
 def test_io_with_different_data(ui: CylindraMainWidget):
@@ -198,6 +205,7 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    assert ui.get_loader("Mono-0").molecules is ui.get_molecules("Mono-0")
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0)
     ui.map_centers([0])
@@ -275,6 +283,9 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.num = 0
     ui.set_spline_props(spline=0, orientation="PlusToMinus")
     assert_orientation(ui, "PlusToMinus")
+    ui.macro.undo()
+    ui.macro.redo()
+    assert_orientation(ui, "PlusToMinus")
     ui.SplineControl.num = 1
     ui.set_spline_props(spline=1, orientation="MinusToPlus")
     assert_orientation(ui, "MinusToPlus")
@@ -283,6 +294,8 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.num = 1
     assert_orientation(ui, "MinusToPlus")
     assert_canvas(ui, [False, False, False])
+
+    ui.Splines.show_localprops()
 
     # Check align polarity.
     # Only spline 0 will get updated.
@@ -312,6 +325,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     )
 
     assert_canvas(ui, [False, False, False])
+    ui.copy_spline(0)
 
     ui.clear_all()
 
@@ -464,10 +478,17 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         interpolation=1,
         bin_size=bin_size,
     )
+    layer = ui.parent_viewer.layers[-1]
     ui.sta.align_all_template_free(
         layers=[ui.parent_viewer.layers["Mono-0"]],
         mask_params=(1, 1),
         size=12.0,
+        bin_size=bin_size,
+    )
+    ui.sta.align_all_multi_template(
+        layers=[ui.parent_viewer.layers["Mono-0"]],
+        template_paths=[template_path, template_path],
+        mask_params=(1, 1),
         bin_size=bin_size,
     )
     ui.sta.seam_search(
@@ -475,6 +496,10 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         template_path=template_path,
         mask_params=(1, 1),
     )
+    layer.molecules = layer.molecules.with_features(
+        (pl.col("score") > pl.col("score").mean()).cast(pl.UInt8).alias("score-label")
+    )
+    ui.seam_search_by_feature(layer, by="score-label")
 
 
 def test_classify_pca(ui: CylindraMainWidget):
@@ -599,23 +624,24 @@ def test_project_viewer():
     view_project(PROJECT_DIR_14PF).close()
 
 
-def test_show_orientation(ui: CylindraMainWidget):
+def test_molecules_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     ui.MoleculesMenu.show_orientation(ui.parent_viewer.layers["Mono-0"])
-
-
-def test_concate_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     layer0 = ui.parent_viewer.layers["Mono-0"]
     layer1 = ui.parent_viewer.layers["Mono-1"]
     ui.concatenate_molecules([layer0, layer1])
     last_layer = ui.parent_viewer.layers[-1]
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
-
-
-def test_split_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     ui.split_molecules(ui.parent_viewer.layers["Mono-0"], by=Mole.pf)
+    ui.MoleculesMenu.Visualize.render_molecules(
+        layer0,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+    )
+    ui.paint_molecules(layer0, color_by="pf-id", limits=(0, 12))
+    ui.MoleculesMenu.Visualize.render_molecules(
+        layer0,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+    )
 
 
 def test_translate_molecules(ui: CylindraMainWidget):
@@ -760,20 +786,15 @@ def test_calc_skews(ui: CylindraMainWidget):
     exc_group.raise_exceptions()
 
 
-def test_calc_radii(ui: CylindraMainWidget):
+def test_calc_misc(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.map_monomers(splines=[0])
     layer = ui.parent_viewer.layers[-1]
     ui.calculate_radii(layer=layer)
     assert layer.features["radius-nm"].std() < 0.1
     ui.plot_molecule_feature(layer, backend="qt")
-
-
-def test_calc_lateral_angles(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    ui.map_monomers(splines=[0])
-    layer = ui.parent_viewer.layers[-1]
     ui.calculate_lateral_angles(layer=layer)
+    ui.calculate_elevation_angles(layer=layer)
 
 
 def test_spline_fitter(ui: CylindraMainWidget):
@@ -785,6 +806,8 @@ def test_spline_fitter(ui: CylindraMainWidget):
         filter=None,
     )
     ui.register_path(coords=[[21.974, 117.148, 34.873], [21.974, 36.449, 58.084]])
+    ui.spline_clipper.load_spline(ui.SplineControl.num)
+    ui.spline_fitter.controller.pos.value = 1
     ui.spline_fitter.fit(
         shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
     )
@@ -839,6 +862,33 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         max_shifts=(2.3, 2.3, 2.3),
         distance_range=(4, 4.5),
     )
+
+    ui.sta.align_all_viterbi(
+        layer_filt,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        mask_params=(0.3, 0.8),
+        max_shifts=(1.2, 1.2, 1.2),
+        rotations=((0, 0), (5, 5), (0, 0)),
+        distance_range=(4, 4.5),
+    )
+
+    ui.sta.align_all_viterbi_multi_template(
+        layer_filt,
+        template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
+        mask_params=(0.3, 0.8),
+        max_shifts=(2.3, 2.3, 2.3),
+        distance_range=(4, 4.5),
+    )
+
+    ui.sta.align_all_viterbi_multi_template(
+        layer_filt,
+        template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
+        mask_params=(0.3, 0.8),
+        max_shifts=(1.2, 1.2, 1.2),
+        rotations=((0, 0), (5, 5), (0, 0)),
+        distance_range=(4, 4.5),
+    )
+
     mole: Molecules = ui.parent_viewer.layers[-1].molecules
     for _, sub in mole.groupby("pf-id"):
         dist = np.sqrt(np.sum((np.diff(sub.pos, axis=0)) ** 2, axis=1))
@@ -857,6 +907,14 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     dist_lon = np.sqrt(np.sum((mole.pos[0] - mole.pos[13]) ** 2))
     dist_lat = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))
     assert dist_lon == pytest.approx(4.09, abs=0.2)
+
+    # click preview
+    fgui = get_function_gui(ui.sta.align_all_annealing)
+    assert fgui[-2].widget_type == "PushButton" and fgui[-2] is not fgui.call_button
+    fgui[-2].clicked()
+    fgui = get_function_gui(ui.sta.align_all_annealing_multi_template)
+    assert fgui[-2].widget_type == "PushButton" and fgui[-2] is not fgui.call_button
+    fgui[-2].clicked()
 
     ui.sta.align_all_annealing(
         layer_filt,
@@ -935,3 +993,30 @@ def test_spectra_measurer(ui: CylindraMainWidget):
     ui.Analysis.open_spectra_inspector()
     ui.spectra_inspector.log_scale = True
     ui.spectra_inspector.log_scale = False
+
+
+def test_image_processor(ui: CylindraMainWidget):
+    input_path = TEST_DIR / "13pf_MT.tif"
+    ui.image_processor.input_image = input_path
+    with tempfile.TemporaryDirectory() as dirpath:
+        output_path = Path(dirpath) / "output.tif"
+        ui.image_processor.convert_dtype(input_path, output_path, dtype="float32")
+        ui.image_processor.invert(input_path, output_path)
+        ui.image_processor.lowpass_filter(input_path, output_path)
+        ui.image_processor.binning(input_path, output_path, bin_size=2)
+        ui.image_processor.flip(input_path, output_path, axes="z")
+        ui.image_processor.preview(input_path)
+
+
+def test_custom_workflows(ui: CylindraMainWidget):
+    name = "Test"
+    code = (
+        "import numpy as np\n"
+        "def main(ui):\n"
+        "    ui.load_project('path/to/project.json')\n"
+    )
+    with tempfile.TemporaryDirectory() as dirpath:
+        with _config.patch_workflow_path(dirpath):
+            ui.Others.Workflows.define_workflow(name, code)
+            ui.Others.Workflows.edit_workflow(name, code)
+            ui.Others.Workflows.delete_workflow([name])

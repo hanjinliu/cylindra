@@ -70,6 +70,8 @@ def test_chunked_straightening():
     tomo.make_anchors(n=3)
     tomo.set_radius()
 
+    tomo.straighten(i=0, chunk_length=200)
+    tomo.straighten(i=0, chunk_length=32)
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200)
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
 
@@ -105,11 +107,12 @@ def test_local_cft():
     tomo.fit()
     tomo.set_radius(radius=9)
     tomo.make_anchors(n=3)
-    tomo.local_cft(0)
-    tomo.local_cft(0, binsize=2)
+    tomo.local_cft(i=0)
+    tomo.local_cft(i=0, binsize=2)
+    tomo.local_cps(i=0)
 
 
-def test_global_cfg():
+def test_global_cft():
     path = TEST_DIR / "13pf_MT.tif"
     tomo = CylTomogram.imread(path, binsize=[1, 2])
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])

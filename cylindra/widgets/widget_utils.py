@@ -8,7 +8,6 @@ import inspect
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
-from scipy.spatial.transform import Rotation
 import polars as pl
 import matplotlib.pyplot as plt
 from magicclass.logging import getLogger
@@ -187,33 +186,6 @@ def plot_projections(merge: np.ndarray):
     axes[1].set_ylabel("Z")
     plt.tight_layout()
     plt.show()
-    return None
-
-
-def plot_forward_and_reverse(
-    template_fw, fit_fw, zncc_fw, template_rv, fit_rv, zncc_rv
-):
-    _, axes = plt.subplots(nrows=2, ncols=3)
-    template_proj_fw = np.max(template_fw, axis=1)
-    fit_proj_fw = np.max(fit_fw, axis=1)
-    merge_fw = utils.merge_images(fit_proj_fw, template_proj_fw)
-    template_proj_rv = np.max(template_rv, axis=1)
-    fit_proj_rv = np.max(fit_rv, axis=1)
-    merge_rv = utils.merge_images(fit_proj_rv, template_proj_rv)
-    axes[0][0].imshow(template_proj_fw, cmap="gray")
-    axes[0][1].imshow(fit_proj_fw, cmap="gray")
-    axes[0][2].imshow(merge_fw)
-    axes[0][0].text(0, 0, f"{zncc_fw:.3f}", va="top", fontsize=14)
-    axes[1][0].imshow(template_proj_rv, cmap="gray")
-    axes[1][1].imshow(fit_proj_rv, cmap="gray")
-    axes[1][2].imshow(merge_rv)
-    axes[1][0].text(0, 0, f"{zncc_rv:.3f}", va="top", fontsize=14)
-    axes[0][0].set_title("Template")
-    axes[0][1].set_title("Average")
-    axes[0][2].set_title("Merge")
-    axes[0][0].set_ylabel("Forward")
-    axes[1][0].set_ylabel("Reverse")
-
     return None
 
 
