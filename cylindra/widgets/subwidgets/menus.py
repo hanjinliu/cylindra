@@ -26,6 +26,8 @@ from magicclass.types import Path, Color
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
 
+from napari.utils.theme import get_theme
+
 from cylindra.widgets.widget_utils import FileFilter
 
 from cylindra._custom_layers import MoleculesLayer
@@ -732,10 +734,19 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     return workflow
 
 
+def get_code_theme(self: MagicTemplate) -> str:
+    """Get the theme for CodeEdit using the napari theme."""
+    try:
+        theme = get_theme(self.parent_viewer.theme, as_dict=True)["syntax_style"]
+    except Exception:
+        theme = "native"
+    return theme
+
+
 @setup_function_gui(Others.Workflows.run_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
     txt = CodeEdit()
-    txt.syntax_highlight("python")
+    txt.syntax_highlight("python", theme=get_code_theme(self))
     txt.read_only = True
     gui.insert(1, txt)
 
@@ -748,7 +759,7 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
 
 @setup_function_gui(Others.Workflows.define_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
-    gui.workflow.syntax_highlight("python")
+    gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
     gui.workflow.value = "\n".join(
         [
             "import numpy as np",
@@ -767,7 +778,7 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
 
 @setup_function_gui(Others.Workflows.edit_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
-    gui.workflow.syntax_highlight("python")
+    gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
 
     @gui.filename.changed.connect
     def _on_name_change(filename: str):
