@@ -3,8 +3,9 @@ pub mod viterbi;
 pub mod coordinates;
 pub mod cylindric;
 pub mod alleviate;
-pub mod oblique;
+pub mod array;
 pub mod annealing;
+pub mod filters;
 pub mod exceptions;
 
 /// A Python module implemented in Rust.
@@ -19,7 +20,9 @@ fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<cylindric::CylinderGeometry>()?;
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
+    m.add_class::<filters::CylindricArray>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;
-    m.add_function(pyo3::wrap_pyfunction!(oblique::oblique_coordinates, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(array::oblique_coordinates, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(array::indices_to_pyarray, m)?)?;
     Ok(())
 }

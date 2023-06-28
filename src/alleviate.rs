@@ -20,11 +20,10 @@ pub fn array_to_indices(array: &ArcArray2<isize>) -> HashSet<Index> {
     indices
 }
 
+#[pyfunction]
 /// Alleviate molecule displacements by iterative local-averaging algorithm.
 /// Molecule positions labeled by the argument `label` will not be moved. The other
-/// molecules will be averaged by the surroudning molecules. This procedure will be
-/// repeated `iterations` times.
-#[pyfunction]
+/// molecules will be averaged by the surroudning molecules.
 pub fn alleviate<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray3<f32>,
