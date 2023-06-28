@@ -139,6 +139,7 @@ def _(
         layer.molecules = out
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
+        layer.text = {"string": "{pf-id}"}
     layer.face_color = layer.edge_color = "crimson"
     is_active = False
     try:

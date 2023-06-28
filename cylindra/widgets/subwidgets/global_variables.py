@@ -84,7 +84,9 @@ class GlobalVariablesMenu(MagicTemplate):
         use_gpu : bool
             Use GPU if available.
         """
-        return self.update_variables(**locals())
+        loc = locals()
+        loc.pop("self")
+        return self.update_variables(**loc)
 
     @nogui
     def load_variables(self, path: "Path | str"):
