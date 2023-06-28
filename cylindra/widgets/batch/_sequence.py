@@ -200,11 +200,12 @@ class Project(MagicTemplate):
             scale=project.scale,
         )
 
-    def _get_loader_paths(self) -> tuple[Path, list[Path]]:
+    def _get_loader_paths(self) -> tuple[Path, list[Path], Path]:
         project = CylindraProject.from_json(self.path)
         img_path = Path(project.image)
+        prj_path = Path(self.path)
         mole_paths = [Path(mole.line.value) for mole in self.molecules if mole.check]
-        return img_path, mole_paths
+        return img_path, mole_paths, prj_path
 
     def _get_localprops(self) -> pl.DataFrame:
         project = CylindraProject.from_json(self.path)
@@ -241,7 +242,9 @@ class ProjectSequenceEdit(MagicTemplate):
     Attributes
     ----------
     filter_expression : str
-        A `polars` expression to filter molecules. e.g. `pl.col("score") > 0.5`
+        A `polars` expression to filter molecules. e.g. `pl.col("score") > 0.5`.
+        Spline global properties are also available during filtering, with suffix
+        "_glob". e.g. `pl.col("nPF_glob") == 13`
     """
 
     @magicmenu
