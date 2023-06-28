@@ -10,6 +10,7 @@ from typing import (
     Iterable,
     Iterator,
     MutableSequence,
+    Sequence,
     SupportsIndex,
     TypeVar,
     overload,
@@ -29,10 +30,11 @@ from cylindra.project._single import CylindraProject
 if TYPE_CHECKING:
     from typing_extensions import Self
     from cylindra.components import CylSpline
-    from acryo import BatchLoader
+    from acryo import BatchLoader, Molecules
 
 _V = TypeVar("_V")
 _Null = object()
+_SPLINE_FEATURES = [H.spacing, H.skew, H.nPF, H.start, H.rise, H.radius, H.orientation]
 
 
 class Validator(ABC, Generic[_V]):
@@ -306,6 +308,45 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             for i_spl in range(prj.nsplines):
                 spl = prj.load_spline(i_spl)
                 yield (i_prj, i_spl), spl
+
+    def iter_molecules(
+        self,
+        spline_props: str | Sequence[str] = (),
+        suffix: str = "",
+    ) -> Iterable[tuple[tuple[int, str], Molecules]]:
+        """
+        Iterate over all the molecules in all the projects.
+
+        Parameters
+        ----------
+        spline_props : str or sequence of str
+            Spline global properties to be concatenated to the molecules features.
+        suffix : str, default is ""
+            Suffix that will be added to the spline global property names.
+        """
+        if isinstance(spline_props, str):
+            spline_props = [spline_props]
+        for i_prj, prj in enumerate(self._projects):
+            for i_mole in range(prj.nmolecules):
+                name = prj.molecules[i_mole].stem
+                mole = prj.load_molecules(i_mole)
+                if (
+                    spline_props
+                    and prj.molecules_info is not None
+                    and (src := prj.molecules_info[i_mole].source) is not None
+                ):
+                    spl = prj.load_spline(src)
+                    features = list[pl.Expr]()
+                    for propname in spline_props:
+                        prop = spl.get_globalprops(propname, None)
+                        if prop is None:
+                            continue
+                        propname_glob = propname + suffix
+                        features.append(
+                            pl.repeat(prop, pl.count()).alias(propname_glob)
+                        )
+                    mole = mole.with_features(features)
+                yield (i_prj, name), mole
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """
