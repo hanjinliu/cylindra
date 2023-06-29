@@ -326,7 +326,9 @@ class MoleculesMenu(ChildWidget):
         sep1 = field(Separator)
         seam_search_by_feature = abstractapi()
         sep2 = field(Separator)
-        convolve_features = abstractapi()
+        convolve_feature = abstractapi()
+        binarize_feature = abstractapi()
+        label_feature_clusters = abstractapi()
 
     @magicmenu(name="Visualize")
     class Visualize(MagicTemplate):

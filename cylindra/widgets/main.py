@@ -115,13 +115,16 @@ _Interval = Annotated[
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
 
 
-def _choice_getter(method_name: str):
+def _choice_getter(method_name: str, dtype_kind: str = ""):
     def _get_choice(self: "CylindraMainWidget", w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self[method_name].mgui
         if gui is None or gui.layer.value is None:
             return []
-        return gui.layer.value.features.columns
+        features: pd.DataFrame = gui.layer.value.features
+        if dtype_kind == "":
+            return features.columns
+        return [c for c in features.columns if features[c].dtype.kind in dtype_kind]
 
     _get_choice.__qualname__ = "CylindraMainWidget._get_choice"
     return _get_choice
@@ -2027,31 +2030,57 @@ class CylindraMainWidget(MagicTemplate):
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Convolve feature")
-    def convolve_features(
+    def convolve_feature(
         self,
         layer: MoleculesLayer,
-        target: Annotated[str, {"choices": _choice_getter("convolve_features")}],
+        target: Annotated[str, {"choices": _choice_getter("convolve_feature", dtype_kind="uifb")}],
         method: Literal["mean", "max", "min", "median"],
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
     ):  # fmt: skip
         from cylindra import cylfilters
 
-        if method == "mean":
-            _filter_func = cylfilters.mean_filter
-        elif method == "max":
-            _filter_func = cylfilters.max_filter
-        elif method == "min":
-            _filter_func = cylfilters.min_filter
-        elif method == "median":
-            _filter_func = cylfilters.median_filter
-        else:
-            raise ValueError(f"Unknown method: {method!r}")
+        feat = layer.features
         nrise = layer.source_spline.nrise()
-        new_series = _filter_func(layer.molecules, footprint, target, nrise)
-        layer.molecules = layer.molecules.with_features(
-            new_series.alias(f"{target}_{method}")
+        out = cylfilters.run_filter(
+            layer.molecules.features, footprint, target, nrise, method
         )
-        return None
+        layer.molecules = layer.molecules.with_features(out.alias(f"{target}_{method}"))
+        self.reset_choices()
+        return undo_callback(_set_layer_feature_future(layer, feat))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Binarize feature by thresholding")
+    def binarize_feature(
+        self,
+        layer: MoleculesLayer,
+        target: Annotated[str, {"choices": _choice_getter("binarize_feature", dtype_kind="uif")}],
+        threshold: float = 0.0,
+        larger_true: bool = True,
+    ):  # fmt: skip
+        if larger_true:
+            expr = pl.col(target) >= threshold
+        else:
+            expr = pl.col(target) < threshold
+        feat = layer.features
+        layer.molecules = layer.molecules.with_features(expr)
+        self.reset_choices()
+        return undo_callback(_set_layer_feature_future(layer, feat))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Label feature clusters")
+    def label_feature_clusters(
+        self,
+        layer: MoleculesLayer,
+        target: Annotated[str, {"choices": _choice_getter("label_feature_clusters", dtype_kind="b")}],
+    ):  # fmt: skip
+        from cylindra import cylfilters
+
+        feat = layer.features
+        nrise = layer.source_spline.nrise()
+        out = cylfilters.label(layer.molecules.features, target, nrise)
+        layer.molecules = layer.molecules.with_features(out.alias(f"{target}_label"))
+        self.reset_choices()
+        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "pick_next.svg")

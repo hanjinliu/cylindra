@@ -73,8 +73,8 @@ impl CylindricArray {
         let nth = nth.as_array();
         let npf = npf.as_array();
         let values = values.as_array();
-        let nsize = nth.shape()[0];
-        if npf.shape()[0] != nsize || values.shape()[0] != nsize {
+        let nsize = nth.len();
+        if npf.len() != nsize || values.len() != nsize {
             return value_error!("nth, npf, and values must have the same length.");
         }
 
@@ -97,8 +97,8 @@ impl CylindricArray {
 
     pub fn as1d(&self, py: Python) -> Py<PyArray1<f32>> {
         let mut out = Array1::<f32>::zeros(self.ycoords.shape()[0]);
-        for (i, j) in self.ycoords.iter().zip(self.acoords.iter()) {
-            out[[*i as usize]] = self.array[[*i as usize, *j as usize]];
+        for i in 0..self.ycoords.len() {
+            out[[i]] = self.array[[self.ycoords[[i]], self.acoords[[i]]]];
         }
         out.into_pyarray(py).to_owned()
     }
@@ -386,7 +386,9 @@ fn norm_indices(index: &[isize; 2], shape: &[usize], nrise: isize) -> (isize, is
     }
 }
 
-pub fn unique_map<_D>(ar: &ArrayView1<_D>) -> HashMap<_D, usize> where _D: std::cmp::Eq + Copy + Hash + Ord {
+/// Construct a hashmap from an array.
+/// For example, unique_map of [1, 3, 6, 3] will return {1: 0, 3: 1, 6: 2}
+fn unique_map<_D>(ar: &ArrayView1<_D>) -> HashMap<_D, usize> where _D: std::cmp::Eq + Copy + Hash + Ord {
     let mut uniques = HashMap::new();
     let mut count = 0;
     for i in 0..ar.shape()[0] {

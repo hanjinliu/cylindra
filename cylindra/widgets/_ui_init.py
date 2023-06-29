@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
 from magicgui.widgets import FunctionGui
@@ -187,28 +187,20 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, translation, internal: bo
 
 @impl_preview(CylindraMainWidget.filter_molecules, auto_call=True)
 def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
-    mole = layer.molecules
-    viewer = self.parent_viewer
     try:
-        expr = eval(predicate, widget_utils.POLARS_NAMESPACE, {})
+        expr: pl.Expr = eval(predicate, widget_utils.POLARS_NAMESPACE, {})
     except Exception:
         yield
         return
-    out = mole.filter(expr)
-    if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.molecules = out
-    else:
-        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
-    # filtering changes the number of molecules. We need to update the colors.
-    layer.face_color = layer.edge_color = "crimson"
-    is_active = False
-    try:
-        is_active = yield
-    finally:
-        if not is_active and layer in viewer.layers:
-            viewer.layers.remove(layer)
-    return out
+    out = layer.molecules.features.select(expr)
+    out = out[out.columns[0]].to_numpy()
+    with _temp_layer_colors(layer):
+        face_color = layer.face_color
+        face_color_trans = face_color.copy()
+        face_color_trans[:, 3] *= 0.2
+        colors = np.where(out[:, np.newaxis], face_color, face_color_trans)
+        layer.face_color = layer.edge_color = colors
+        yield
 
 
 @impl_preview(CylindraMainWidget.paint_molecules, auto_call=True)
@@ -221,6 +213,63 @@ def _(
 ):
     with _temp_layer_colors(layer):
         self.paint_molecules(layer, cmap, color_by, limits)
+        yield
+
+
+@impl_preview(CylindraMainWidget.convolve_feature, auto_call=True)
+def _convolve_feature_preview(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    target: str,
+    method: Literal["mean", "max", "min", "median"],
+    footprint: Any,
+):
+    from cylindra import cylfilters
+
+    if layer.colormap_info is None:
+        yield
+        return
+    nrise = layer.source_spline.nrise()
+    df = layer.molecules.features
+    out = cylfilters.run_filter(df, footprint, target, nrise, method)
+    colors = layer.colormap_info.map(out.to_numpy())
+    with _temp_layer_colors(layer):
+        layer.face_color = layer.edge_color = colors
+        yield
+
+
+@impl_preview(CylindraMainWidget.binarize_feature, auto_call=True)
+def _binarize_feature_preview(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    target: str,
+    threshold: float,
+    larger_true: bool,
+):
+    if larger_true:
+        out = layer.molecules.features[target] >= threshold
+    else:
+        out = layer.molecules.features[target] < threshold
+    with _temp_layer_colors(layer):
+        layer.edge_color = "#00105B"
+        layer.face_color = np.where(out, "#FF0000", "#000000")
+        yield
+
+
+@impl_preview(CylindraMainWidget.label_feature_clusters, auto_call=True)
+def _label_feature_clusters_preview(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    target: str,
+):
+    from cylindra import cylfilters
+
+    nrise = layer.source_spline.nrise()
+    out = cylfilters.label(layer.molecules.features, target, nrise)
+    max_value = out.max()
+    with _temp_layer_colors(layer):
+        cmap = label_colormap(max_value, seed=0.9414)
+        layer.face_color = layer.edge_color = cmap.map(out.to_numpy() / max_value)
         yield
 
 
@@ -266,7 +315,9 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 
 @setup_function_gui(CylindraMainWidget.split_molecules)
 @setup_function_gui(CylindraMainWidget.seam_search_by_feature)
-@setup_function_gui(CylindraMainWidget.convolve_features)
+@setup_function_gui(CylindraMainWidget.convolve_feature)
+@setup_function_gui(CylindraMainWidget.binarize_feature)
+@setup_function_gui(CylindraMainWidget.label_feature_clusters)
 def _(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 

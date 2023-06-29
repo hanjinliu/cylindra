@@ -390,9 +390,12 @@ class KernelEdit(Container[Container[CheckBox]]):
             val = val > 0
         if val.ndim != 2 or val.dtype.kind not in "uifb":
             raise ValueError(f"Array must be 2D and numeric.")
-        if val.shape[0] > 7 or val.shape[1] > 7:
-            raise ValueError(f"Array must be 7x7 or smaller.")
-        for row, arr_row in zip(self, val):
+        ny, nx = val.shape
+        lim = 7
+        if ny > lim or nx > lim:
+            raise ValueError(f"Array must be {lim}x{lim} or smaller.")
+        val_pad = np.pad(val, [((lim - ny) // 2, (lim - nx) // 2)] * 2)
+        for row, arr_row in zip(self, val_pad):
             for item, val in zip(row, arr_row):
                 item.value = val
 
