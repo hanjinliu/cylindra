@@ -1,7 +1,5 @@
-import os
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
-import macrokit as mk
 from pydantic import BaseModel
 import polars as pl
 import numpy as np
@@ -194,8 +192,8 @@ class CylindraProject(BaseProject):
             mole = layer.molecules
             molecule_dataframes.append(mole.to_dataframe())
 
-        if not os.path.exists(results_dir):
-            os.mkdir(results_dir)  # create a directory if not exists.
+        if not results_dir.exists():
+            results_dir.mkdir()
         if localprops_path:
             localprops.write_csv(localprops_path)
         if globalprops_path:
