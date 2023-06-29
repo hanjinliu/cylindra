@@ -52,6 +52,7 @@ impl<_D> core::ops::Index<[isize; 2]> for Kernel<_D> {
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub struct CylindricArray {
     array: Array2<f32>,
     nrise: isize,
@@ -73,21 +74,11 @@ impl CylindricArray {
         let nth = nth.as_array();
         let npf = npf.as_array();
         let values = values.as_array();
-        let nsize = nth.len();
-        if npf.len() != nsize || values.len() != nsize {
-            return value_error!("nth, npf, and values must have the same length.");
-        }
+        Self::from_indices_(&nth, &npf, &values, nrise)
+    }
 
-        let nth_map = unique_map(&nth);
-        let npf_map = unique_map(&npf);
-
-        let mut arr = Array2::<f32>::from_elem((nth_map.len(), npf_map.len()), f32::NAN);
-        let nth_relabeled = nth.mapv(|x| nth_map[&x]);
-        let npf_relabeled = npf.mapv(|x| npf_map[&x]);
-        for i in 0..nsize {
-            arr[[nth_relabeled[i], npf_relabeled[i]]] = values[[i]];
-        }
-        Ok(Self { array: arr.to_owned(), nrise, ycoords: nth_relabeled, acoords: npf_relabeled })
+    pub fn nrise(&self) -> isize {
+        self.nrise
     }
 
     /// Convert the CylindricArray to a 2D numpy array.
@@ -173,7 +164,7 @@ impl CylindricArray {
                             continue;
                         }
                         if value > 0.5 && labels[[ni, nj]] < 0.5 {
-                            stack.push((ni, nj));
+                            stack.push(self.norm_indices(&[ni, nj]));
                         }
                     }
                 }
@@ -181,6 +172,10 @@ impl CylindricArray {
             }
         }
         labels
+    }
+
+    pub fn with_values(&self, value: PyReadonlyArray1<f32>) -> PyResult<Self> {
+        self.with_values_(&value.as_array())
     }
 }
 
@@ -199,6 +194,41 @@ impl CylindricArray {
 
     fn zeros_like(&self) -> Self {
         Self::zeros(self.array.shape(), self.nrise, self.ycoords.clone(), self.acoords.clone())
+    }
+
+    pub fn from_indices_(
+        nth: &ArrayView1<i32>,
+        npf: &ArrayView1<i32>,
+        values: &ArrayView1<f32>,
+        nrise: isize,
+    ) -> PyResult<Self> {
+        let nsize = nth.len();
+        if npf.len() != nsize || values.len() != nsize {
+            return value_error!("nth, npf, and values must have the same length.");
+        }
+
+        let nth_map = unique_map(&nth);
+        let npf_map = unique_map(&npf);
+
+        let mut arr = Array2::<f32>::from_elem((nth_map.len(), npf_map.len()), f32::NAN);
+        let nth_relabeled = nth.mapv(|x| nth_map[&x]);
+        let npf_relabeled = npf.mapv(|x| npf_map[&x]);
+        for i in 0..nsize {
+            arr[[nth_relabeled[i], npf_relabeled[i]]] = values[[i]];
+        }
+        Ok(Self { array: arr.to_owned(), nrise, ycoords: nth_relabeled, acoords: npf_relabeled })
+    }
+
+    fn with_values_(&self, values: &ArrayView1<f32>) -> PyResult<Self> {
+        let nsize = self.ycoords.len();
+        if values.len() != nsize {
+            return value_error!("values must have the same length as the array.");
+        }
+        let mut arr = self.array.clone();
+        for i in 0..nsize {
+            arr[[self.ycoords[i], self.acoords[i]]] = values[[i]];
+        }
+        Ok(Self { array: arr.to_owned(), nrise: self.nrise, ycoords: self.ycoords.clone(), acoords: self.acoords.clone() })
     }
 
     fn convolve_(&self, kernel: &Kernel<f32>) -> Array2<f32> {
@@ -343,13 +373,36 @@ impl CylindricArray {
         }
         out
     }
+
+    fn norm_indices(&self, index: &[isize; 2]) -> (isize, isize) {
+        let shape = self.array.shape();
+        let nrise = self.nrise;
+        let ny = shape[0] as isize;
+        let na = shape[1] as isize;
+        let (incr, i1n) = if index[1] < 0 {
+            (-nrise, index[1] + na)
+        } else if index[1] >= na {
+            (nrise, index[1] - na)
+        } else {
+            (0, index[1])
+        };
+        if i1n < 0 || i1n >= na {
+            panic!("index ({}, {}) out of bounds", index[0], index[1])
+        }
+        let i0n = index[0] + incr;
+        if i0n >= ny {
+            (-1, i1n)
+        } else {
+            (i0n, i1n)
+        }
+    }
 }
 
 impl core::ops::Index<[isize; 2]> for CylindricArray {
     type Output = f32;
 
     fn index(&self, index: [isize; 2]) -> &Self::Output {
-        let (i0n, i1n) = norm_indices(&index, &self.array.shape(), self.nrise);
+        let (i0n, i1n) = self.norm_indices(&index);
         if i0n < 0 {
             return &f32::NAN;
         }
@@ -360,29 +413,11 @@ impl core::ops::Index<[isize; 2]> for CylindricArray {
 // impl set item
 impl core::ops::IndexMut<[isize; 2]> for CylindricArray {
     fn index_mut(&mut self, index: [isize; 2]) -> &mut Self::Output {
-        let (i0n, i1n) = norm_indices(&index, &self.array.shape(), self.nrise);
+        let (i0n, i1n) = self.norm_indices(&index);
         if i0n < 0 {
-            panic!("index {} out of bounds", index[0])
+            panic!("index ({}, {}) out of bounds", index[0], index[1])
         }
         &mut self.array[[i0n as usize, i1n as usize]]
-    }
-}
-
-fn norm_indices(index: &[isize; 2], shape: &[usize], nrise: isize) -> (isize, isize) {
-    let ny = shape[0] as isize;
-    let na = shape[1] as isize;
-    let (incr, i1n) = if index[1] < 0 {
-        (-nrise, index[1] + na)
-    } else if index[1] >= na {
-        (nrise, index[1] - na)
-    } else {
-        (0, index[1])
-    };
-    let i0n = index[0] + incr;
-    if i0n >= ny {
-        (-1, i1n)
-    } else {
-        (i0n, i1n)
     }
 }
 

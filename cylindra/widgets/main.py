@@ -2064,12 +2064,13 @@ class CylindraMainWidget(MagicTemplate):
         threshold: Annotated[float, {"widget_type": "FloatSlider"}] = 0.0,
         larger_true: bool = True,
     ):  # fmt: skip
-        if larger_true:
-            expr = pl.col(target) >= threshold
-        else:
-            expr = pl.col(target) < threshold
+        from cylindra import cylfilters
+
         feat = layer.features
-        layer.molecules = layer.molecules.with_features(expr)
+        ser = cylfilters.binarize(layer.molecules.features, threshold, target)
+        if not larger_true:
+            ser = -ser
+        layer.molecules = layer.molecules.with_features(ser.alias(f"{target}_binarize"))
         self.reset_choices()
         return undo_callback(_set_layer_feature_future(layer, feat))
 
