@@ -1,10 +1,18 @@
+use std::{hash::Hash, collections::HashMap};
+
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
-    ndarray::Array2,
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
+    ndarray::{Array1, Array2, ArrayView1},
 };
-use crate::array::indices_to_array;
+use crate::value_error;
 
+/// A kernel array which is indexed by integer coordinates from the center.
+/// The center of a kernel
+/// [[0, 1, 0],
+///  [1, 1, 1],
+///  [0, 1, 0]]
+/// will be indexed by [0, 0]. To get the first value, [-1, -1] should be used.
 pub struct Kernel<_D> {
     kernel: Array2<_D>,
     center: (usize, usize),
@@ -37,8 +45,8 @@ impl<_D> core::ops::Index<[isize; 2]> for Kernel<_D> {
     type Output = _D;
 
     fn index(&self, index: [isize; 2]) -> &Self::Output {
-        let i0 = index[0] as usize + self.center.0;
-        let i1 = index[1] as usize + self.center.1;
+        let i0 = (index[0] + self.center.0 as isize) as usize;
+        let i1 = (index[1] + self.center.1 as isize) as usize;
         &self.kernel[[i0, i1]]
     }
 }
@@ -47,6 +55,8 @@ impl<_D> core::ops::Index<[isize; 2]> for Kernel<_D> {
 pub struct CylindricArray {
     array: Array2<f32>,
     nrise: isize,
+    ycoords: Array1<usize>,
+    acoords: Array1<usize>,
 }
 
 #[pymethods]
@@ -60,13 +70,37 @@ impl CylindricArray {
         values: PyReadonlyArray1<f32>,
         nrise: isize,
     ) -> PyResult<Self> {
-        let arr = indices_to_array(nth.as_array(), npf.as_array(), values.as_array())?;
-        Ok(Self { array: arr.to_owned(), nrise })
+        let nth = nth.as_array();
+        let npf = npf.as_array();
+        let values = values.as_array();
+        let nsize = nth.shape()[0];
+        if npf.shape()[0] != nsize || values.shape()[0] != nsize {
+            return value_error!("nth, npf, and values must have the same length.");
+        }
+
+        let nth_map = unique_map(&nth);
+        let npf_map = unique_map(&npf);
+
+        let mut arr = Array2::<f32>::from_elem((nth_map.len(), npf_map.len()), f32::NAN);
+        let nth_relabeled = nth.mapv(|x| nth_map[&x]);
+        let npf_relabeled = npf.mapv(|x| npf_map[&x]);
+        for i in 0..nsize {
+            arr[[nth_relabeled[i], npf_relabeled[i]]] = values[[i]];
+        }
+        Ok(Self { array: arr.to_owned(), nrise, ycoords: nth_relabeled, acoords: npf_relabeled })
     }
 
     /// Convert the CylindricArray to a 2D numpy array.
     pub fn asarray(&self, py: Python) -> Py<PyArray2<f32>> {
         self.array.clone().into_pyarray(py).to_owned()
+    }
+
+    pub fn as1d(&self, py: Python) -> Py<PyArray1<f32>> {
+        let mut out = Array1::<f32>::zeros(self.ycoords.shape()[0]);
+        for (i, j) in self.ycoords.iter().zip(self.acoords.iter()) {
+            out[[*i as usize]] = self.array[[*i as usize, *j as usize]];
+        }
+        out.into_pyarray(py).to_owned()
     }
 
     /// Convolution on the cylinder surface.
@@ -76,7 +110,17 @@ impl CylindricArray {
     ) -> PyResult<Self> {
         let kernel = Kernel::new(weight.as_array().to_owned());
         let out = self.convolve_(&kernel);
-        Ok(Self::new(out, self.nrise))
+        Ok(self.new_like(out))
+    }
+
+    /// Mean filter on the cylinder surface.
+    pub fn mean_filter(
+        &self,
+        footprint: PyReadonlyArray2<bool>,
+    ) -> PyResult<Self> {
+        let kernel = Kernel::new(footprint.as_array().to_owned());
+        let out = self.mean_filter_(&kernel);
+        Ok(self.new_like(out))
     }
 
     /// Maximum filter on the cylinder surface.
@@ -86,7 +130,7 @@ impl CylindricArray {
     ) -> PyResult<Self> {
         let kernel = Kernel::new(footprint.as_array().to_owned());
         let out = self.max_filter_(&kernel);
-        Ok(Self::new(out, self.nrise))
+        Ok(self.new_like(out))
     }
 
     /// Minimum filter on the cylinder surface.
@@ -96,7 +140,7 @@ impl CylindricArray {
     ) -> PyResult<Self> {
         let kernel = Kernel::new(footprint.as_array().to_owned());
         let out = self.min_filter_(&kernel);
-        Ok(Self::new(out, self.nrise))
+        Ok(self.new_like(out))
     }
 
     /// Median filter on the cylinder surface.
@@ -106,13 +150,13 @@ impl CylindricArray {
     ) -> PyResult<Self> {
         let kernel = Kernel::new(footprint.as_array().to_owned());
         let out = self.median_filter_(&kernel);
-        Ok(Self::new(out, self.nrise))
+        Ok(self.new_like(out))
     }
 
     /// Label boolean patterns on the cylinder surface.
     pub fn label(&self) -> Self {
         let shape = self.array.shape();
-        let mut labels = CylindricArray::zeros(shape, self.nrise);
+        let mut labels = self.zeros_like();
         let mut current_label = 1.0;
         for y in 0..shape[0] as isize {
             for x in 0..shape[1] as isize {
@@ -141,12 +185,20 @@ impl CylindricArray {
 }
 
 impl CylindricArray {
-    fn new(array: Array2<f32>, nrise: isize) -> Self {
-        Self { array, nrise }
+    fn new(array: Array2<f32>, nrise: isize, ycoords: Array1<usize>, acoords: Array1<usize>) -> Self {
+        Self { array, nrise, ycoords, acoords }
     }
 
-    fn zeros(shape: &[usize], nrize: isize) -> Self {
-        Self::new(Array2::<f32>::zeros((shape[0], shape[1])), nrize)
+    fn zeros(shape: &[usize], nrize: isize, ycoords: Array1<usize>, acoords: Array1<usize>) -> Self {
+        Self::new(Array2::<f32>::zeros((shape[0], shape[1])), nrize, ycoords, acoords)
+    }
+
+    fn new_like(&self, array: Array2<f32>) -> Self {
+        Self::new(array, self.nrise, self.ycoords.clone(), self.acoords.clone())
+    }
+
+    fn zeros_like(&self) -> Self {
+        Self::zeros(self.array.shape(), self.nrise, self.ycoords.clone(), self.acoords.clone())
     }
 
     fn convolve_(&self, kernel: &Kernel<f32>) -> Array2<f32> {
@@ -154,12 +206,15 @@ impl CylindricArray {
         let mut out = Array2::<f32>::zeros((ny, na));
         for i in 0..ny {
             for j in 0..na {
-                if self[[i as isize, j as isize]].is_nan() {
+                if self.array[[i, j]].is_nan() {
                     out[[i, j]] = f32::NAN;
                     continue;
                 }
                 let mut sum = 0.0;
                 for ind in kernel.iter_indices() {
+                    if kernel[ind] == 0.0 {
+                        continue;
+                    }
                     let value = self[[i as isize + ind[0], j as isize + ind[1]]];
                     if value.is_nan() {
                         continue;
@@ -167,6 +222,38 @@ impl CylindricArray {
                     sum += value * kernel[ind];
                 }
                 out[[i, j]] = sum;
+            }
+        }
+        out
+    }
+
+    fn mean_filter_(&self, kernel: &Kernel<bool>) -> Array2<f32> {
+        let (ny, na) = (self.array.shape()[0], self.array.shape()[1]);
+        let mut out = Array2::<f32>::zeros((ny, na));
+        for i in 0..ny {
+            for j in 0..na {
+                if self.array[[i, j]].is_nan() {
+                    out[[i, j]] = f32::NAN;
+                    continue;
+                }
+                let mut sum = 0.0;
+                let mut count = 0.0;
+                for ind in kernel.iter_indices() {
+                    if !kernel[ind] {
+                        continue;
+                    }
+                    let value = self[[i as isize + ind[0], j as isize + ind[1]]];
+                    if value.is_nan() {
+                        continue;
+                    }
+                    sum += value;
+                    count += 1.0;
+                }
+                out[[i, j]] = if count > 0.0 {
+                    sum / count
+                } else {
+                    f32::NAN
+                };
             }
         }
         out
@@ -297,4 +384,18 @@ fn norm_indices(index: &[isize; 2], shape: &[usize], nrise: isize) -> (isize, is
     } else {
         (i0n, i1n)
     }
+}
+
+pub fn unique_map<_D>(ar: &ArrayView1<_D>) -> HashMap<_D, usize> where _D: std::cmp::Eq + Copy + Hash + Ord {
+    let mut uniques = HashMap::new();
+    let mut count = 0;
+    for i in 0..ar.shape()[0] {
+        let val = ar[[i]];
+        if uniques.contains_key(&val) {
+            continue;
+        }
+        uniques.insert(val, count);
+        count += 1;
+    }
+    uniques
 }

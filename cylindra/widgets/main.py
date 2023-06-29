@@ -26,7 +26,6 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.types import (
-    Color,
     Colormap as ColormapType,
     Optional,
     Path,
@@ -2032,17 +2031,13 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         target: Annotated[str, {"choices": _choice_getter("convolve_features")}],
-        method: Literal["convolve", "max", "min", "median"],
-        kernel: Annotated[Any, {"widget_type": KernelEdit}] = [
-            [0, 1, 0],
-            [1, 1, 1],
-            [0, 1, 0],
-        ],
-    ):
+        method: Literal["mean", "max", "min", "median"],
+        footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
+    ):  # fmt: skip
         from cylindra import cylfilters
 
-        if method == "convolve":
-            _filter_func = cylfilters.convolve
+        if method == "mean":
+            _filter_func = cylfilters.mean_filter
         elif method == "max":
             _filter_func = cylfilters.max_filter
         elif method == "min":
@@ -2052,7 +2047,7 @@ class CylindraMainWidget(MagicTemplate):
         else:
             raise ValueError(f"Unknown method: {method!r}")
         nrise = layer.source_spline.nrise()
-        new_series = _filter_func(layer.molecules, kernel, target, nrise)
+        new_series = _filter_func(layer.molecules, footprint, target, nrise)
         layer.molecules = layer.molecules.with_features(
             new_series.alias(f"{target}_{method}")
         )

@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
-    ndarray::{Array2, ArrayView1},
+    IntoPyArray, PyArray2, PyReadonlyArray2,
+    ndarray::Array2,
 };
 use crate::value_error;
 
@@ -32,53 +32,4 @@ pub fn oblique_coordinates<'py>(
     }
     Ok(out.into_pyarray(py).to_owned())
 
-}
-
-pub fn indices_to_array(
-    nth: ArrayView1<i32>,
-    npf: ArrayView1<i32>,
-    values: ArrayView1<f32>,
-) -> PyResult<Array2<f32>> {
-    let nsize = nth.shape()[0];
-    if npf.shape()[0] != nsize || values.shape()[0] != nsize {
-        return value_error!("nth, npf, and values must have the same length.");
-    }
-
-    let (nth_min, nth_max) = extrema(&nth);
-    let (npf_min, npf_max) = extrema(&npf);
-    let nth_size = (nth_max - nth_min + 1) as usize;
-    let npf_size = (npf_max - npf_min + 1) as usize;
-    let mut out = Array2::<f32>::from_elem((nth_size, npf_size), f32::NAN);
-    for i in 0..nsize {
-        out[[nth[[i]] as usize, npf[[i]] as usize]] = values[[i]];
-    }
-    Ok(out)
-}
-
-#[pyfunction]
-pub fn indices_to_pyarray<'py>(
-    py: Python<'py>,
-    nth: PyReadonlyArray1<i32>,
-    npf: PyReadonlyArray1<i32>,
-    values: PyReadonlyArray1<f32>,
-) -> PyResult<Py<PyArray2<f32>>> {
-    let nth = nth.as_array();
-    let npf = npf.as_array();
-    let values = values.as_array();
-    let out = indices_to_array(nth, npf, values)?;
-    Ok(out.into_pyarray(py).to_owned())
-}
-
-pub fn extrema<_D>(ar: &ArrayView1<_D>) -> (_D, _D) where _D: std::cmp::PartialOrd + Copy {
-    let mut min = ar[[0]];
-    let mut max = ar[[0]];
-    for i in 1..ar.shape()[0] {
-        if ar[[i]] < min {
-            min = ar[[i]];
-        }
-        if ar[[i]] > max {
-            max = ar[[i]];
-        }
-    }
-    (min, max)
 }
