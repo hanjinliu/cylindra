@@ -115,6 +115,22 @@ class CylSpline(Spline):
             original.orientation = self.orientation
         return original
 
+    def nrise(self, **kwargs):
+        interv = kwargs.get(H.spacing, self.get_globalprops(H.spacing))
+        skew = kwargs.get(H.skew, self.get_globalprops(H.skew))
+        rise = -kwargs.get(H.rise, self.get_globalprops(H.rise))
+        radius = kwargs.get(H.radius, self.get_globalprops(H.radius))
+
+        perimeter = 2 * np.pi * radius
+        rise_rad = np.deg2rad(rise)
+        skew_rad = np.deg2rad(skew)
+
+        return roundint(
+            perimeter
+            * np.tan(rise_rad)
+            / (interv - radius * skew_rad * np.tan(rise_rad) / 2)
+        )
+
     def cylinder_model(
         self,
         offsets: tuple[float, float] = (0.0, 0.0),
@@ -134,24 +150,11 @@ class CylSpline(Spline):
             The cylinder model.
         """
         length = self.length()
-        interv = (
-            self.get_globalprops(H.spacing)
-            if H.spacing not in kwargs
-            else kwargs[H.spacing]
-        )
-        skew = self.get_globalprops(H.skew) if H.skew not in kwargs else kwargs[H.skew]
-        rise = -self.get_globalprops(H.rise) if H.rise not in kwargs else kwargs[H.rise]
-        npf = (
-            roundint(self.get_globalprops(H.nPF))
-            if H.nPF not in kwargs
-            else kwargs[H.nPF]
-        )
-        radius = (
-            self.get_globalprops(H.radius)
-            if H.radius not in kwargs
-            else kwargs[H.radius]
-        )
-
+        interv = kwargs.get(H.spacing, self.get_globalprops(H.spacing))
+        skew = kwargs.get(H.skew, self.get_globalprops(H.skew))
+        rise = -kwargs.get(H.rise, self.get_globalprops(H.rise))
+        radius = kwargs.get(H.radius, self.get_globalprops(H.radius))
+        npf = roundint(kwargs.get(H.nPF, self.get_globalprops(H.nPF)))
         perimeter = 2 * np.pi * radius
         rise_rad = np.deg2rad(rise)
         skew_rad = np.deg2rad(skew)

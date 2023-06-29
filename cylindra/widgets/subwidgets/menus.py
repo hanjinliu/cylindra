@@ -325,6 +325,8 @@ class MoleculesMenu(ChildWidget):
         calculate_lateral_angles = abstractapi()
         sep1 = field(Separator)
         seam_search_by_feature = abstractapi()
+        sep2 = field(Separator)
+        convolve_features = abstractapi()
 
     @magicmenu(name="Visualize")
     class Visualize(MagicTemplate):

@@ -3,7 +3,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Iterable
 import random
-from magicgui.widgets.bases._value_widget import ValueWidget
+import numpy as np
+import macrokit as mk
+import ast
 
 from qtpy import QtWidgets as QtW, QtCore, QtGui
 from qtpy.QtCore import Qt
@@ -19,10 +21,10 @@ from magicgui.widgets import (
     protocols,
     show_file_dialog,
 )
-from magicgui.widgets.bases import CategoricalWidget
+from magicgui.widgets.bases import CategoricalWidget, ValueWidget
 from magicgui.types import ChoicesType, Undefined
 from magicgui.backends._qtpy import widgets as backend_qtw
-from magicclass.widgets import ScrollableContainer
+from magicclass.widgets import ScrollableContainer, ConsoleTextEdit
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
@@ -345,6 +347,49 @@ class MultiFileEdit(Container):
         )
         if result:
             self._append_paths(result)
+
+
+class KernelEdit(ConsoleTextEdit):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_height = 80
+
+    @property
+    def value(self):
+        text = super().value
+        if text.strip() == "":
+            return None
+        expr = mk.parse(text)
+        if expr.head is mk.Head.list:
+            lst = ast.literal_eval(str(expr))
+        elif expr.head is mk.Head.block:
+            lst = list[list[float]]()
+            for line in expr.args:
+                if isinstance(line, mk.Expr) and line.head in (
+                    mk.Head.list,
+                    mk.Head.tuple,
+                ):
+                    lst.append(list(ast.literal_eval(str(line))))
+                else:
+                    raise ValueError(f"Invalid line: {line}")
+        else:
+            raise ValueError(f"Invalid expression: {expr}")
+        arr = np.array(lst, dtype=np.float32)
+        if arr.ndim != 2:
+            raise ValueError(f"Kernel array must be 2D")
+        return arr
+
+    @value.setter
+    def value(self, val):
+        if val is Undefined:
+            ConsoleTextEdit.value.fset(self, "")
+        val = np.asarray(val)
+        if val.ndim != 2 or val.dtype.kind not in "uif":
+            raise ValueError(f"Array must be 2D and numeric.")
+        lines = list[str]()
+        for line in val.tolist():
+            lines.append(", ".join(str(x) for x in line))
+        return ConsoleTextEdit.value.fset(self, "\n".join(lines))
 
 
 @contextmanager

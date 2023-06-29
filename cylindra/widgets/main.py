@@ -71,7 +71,12 @@ from cylindra.widgets.widget_utils import (
     POLARS_NAMESPACE,
 )
 
-from cylindra.widgets._widget_ext import ProtofilamentEdit, OffsetEdit, CheckBoxes
+from cylindra.widgets._widget_ext import (
+    ProtofilamentEdit,
+    OffsetEdit,
+    CheckBoxes,
+    KernelEdit,
+)
 from cylindra.widgets._main_utils import (
     SplineTracker,
     normalize_spline_indices,
@@ -2020,6 +2025,38 @@ class CylindraMainWidget(MagicTemplate):
             pl.Series(Mole.isotype, res % 2)
         )
         return undo_callback(_set_layer_feature_future(layer, feat))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Convolve feature")
+    def convolve_features(
+        self,
+        layer: MoleculesLayer,
+        target: Annotated[str, {"choices": _choice_getter("convolve_features")}],
+        method: Literal["convolve", "max", "min", "median"],
+        kernel: Annotated[Any, {"widget_type": KernelEdit}] = [
+            [0, 1, 0],
+            [1, 1, 1],
+            [0, 1, 0],
+        ],
+    ):
+        from cylindra import cylfilters
+
+        if method == "convolve":
+            _filter_func = cylfilters.convolve
+        elif method == "max":
+            _filter_func = cylfilters.max_filter
+        elif method == "min":
+            _filter_func = cylfilters.min_filter
+        elif method == "median":
+            _filter_func = cylfilters.median_filter
+        else:
+            raise ValueError(f"Unknown method: {method!r}")
+        nrise = layer.source_spline.nrise()
+        new_series = _filter_func(layer.molecules, kernel, target, nrise)
+        layer.molecules = layer.molecules.with_features(
+            new_series.alias(f"{target}_{method}")
+        )
+        return None
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "pick_next.svg")
