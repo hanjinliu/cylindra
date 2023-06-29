@@ -11,8 +11,9 @@ from cylindra.const import MoleculesHeader as Mole
 
 def convolve(mole: Molecules, kernel: ArrayLike, target: str, nrise: int) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
-    ar = CylindricArray(nth, pf, value, nrise)
-    out = ar.convolve(np.asarray(kernel, dtype=np.float32))
+    out = CylindricArray(nth, pf, value, nrise).convolve(
+        np.asarray(kernel, dtype=np.float32)
+    )
     return pl.Series(target, _as_series(out, nth, pf))
 
 
@@ -20,8 +21,9 @@ def max_filter(
     mole: Molecules, kernel: ArrayLike, target: str, nrise: int
 ) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
-    ar = CylindricArray(nth, pf, value, nrise)
-    out = ar.max_filter(np.asarray(kernel, dtype=np.bool_))
+    out = CylindricArray(nth, pf, value, nrise).max_filter(
+        np.asarray(kernel, dtype=np.bool_)
+    )
     return pl.Series(target, _as_series(out, nth, pf))
 
 
@@ -29,8 +31,9 @@ def min_filter(
     mole: Molecules, kernel: ArrayLike, target: str, nrise: int
 ) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
-    ar = CylindricArray(nth, pf, value, nrise)
-    out = ar.min_filter(np.asarray(kernel, dtype=np.bool_))
+    out = CylindricArray(nth, pf, value, nrise).min_filter(
+        np.asarray(kernel, dtype=np.bool_)
+    )
     return pl.Series(target, _as_series(out, nth, pf))
 
 
@@ -38,9 +41,16 @@ def median_filter(
     mole: Molecules, kernel: ArrayLike, target: str, nrise: int
 ) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
-    ar = CylindricArray(nth, pf, value, nrise)
-    out = ar.median_filter(np.asarray(kernel, dtype=np.bool_))
+    out = CylindricArray(nth, pf, value, nrise).median_filter(
+        np.asarray(kernel, dtype=np.bool_)
+    )
     return pl.Series(target, _as_series(out, nth, pf))
+
+
+def label(mole: Molecules, target: str, nrise: int) -> pl.Series:
+    nth, pf, value = _get_input(mole, target)
+    out = CylindricArray(nth, pf, value, nrise).label()
+    return pl.Series(target, _as_series(out, nth, pf)).cast(pl.UInt32)
 
 
 def _get_input(mole: Molecules, target: str):

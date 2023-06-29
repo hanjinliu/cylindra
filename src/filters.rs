@@ -26,7 +26,9 @@ impl<_D> Kernel<_D> where _D: Copy {
         let (i0_range, i1_range) = self.get_range();
         let (i0_min, i0_max) = i0_range;
         let (i1_min, i1_max) = i1_range;
-        (i0_min..=i0_max).flat_map(move |i0| (i1_min..=i1_max).map(move |i1| [i0, i1]))
+        (i0_min..=i0_max).flat_map(
+            move |i0| (i1_min..=i1_max).map(move |i1| [i0, i1])
+        )
     }
 }
 
@@ -50,6 +52,8 @@ pub struct CylindricArray {
 #[pymethods]
 impl CylindricArray {
     #[new]
+    /// Create a new CylindricArray from 1D arrays.
+    /// Input arrays are supposed to be the molecules features "nth", "pf-id" and any column.
     pub fn from_indices(
         nth: PyReadonlyArray1<i32>,
         npf: PyReadonlyArray1<i32>,
@@ -60,11 +64,13 @@ impl CylindricArray {
         Ok(Self { array: arr.to_owned(), nrise })
     }
 
+    /// Convert the CylindricArray to a 2D numpy array.
     pub fn asarray(&self, py: Python) -> Py<PyArray2<f32>> {
         self.array.clone().into_pyarray(py).to_owned()
     }
 
-    pub fn convolve<'py>(
+    /// Convolution on the cylinder surface.
+    pub fn convolve(
         &self,
         weight: PyReadonlyArray2<f32>,
     ) -> PyResult<Self> {
@@ -73,7 +79,8 @@ impl CylindricArray {
         Ok(Self::new(out, self.nrise))
     }
 
-    pub fn max_filter<'py>(
+    /// Maximum filter on the cylinder surface.
+    pub fn max_filter(
         &self,
         footprint: PyReadonlyArray2<bool>,
     ) -> PyResult<Self> {
@@ -82,7 +89,8 @@ impl CylindricArray {
         Ok(Self::new(out, self.nrise))
     }
 
-    pub fn min_filter<'py>(
+    /// Minimum filter on the cylinder surface.
+    pub fn min_filter(
         &self,
         footprint: PyReadonlyArray2<bool>,
     ) -> PyResult<Self> {
@@ -91,7 +99,8 @@ impl CylindricArray {
         Ok(Self::new(out, self.nrise))
     }
 
-    pub fn median_filter<'py>(
+    /// Median filter on the cylinder surface.
+    pub fn median_filter(
         &self,
         footprint: PyReadonlyArray2<bool>,
     ) -> PyResult<Self> {
@@ -100,11 +109,44 @@ impl CylindricArray {
         Ok(Self::new(out, self.nrise))
     }
 
+    /// Label boolean patterns on the cylinder surface.
+    pub fn label(&self) -> Self {
+        let shape = self.array.shape();
+        let mut labels = CylindricArray::zeros(shape, self.nrise);
+        let mut current_label = 1.0;
+        for y in 0..shape[0] as isize {
+            for x in 0..shape[1] as isize {
+                if labels[[y, x]] != 0.0 || self[[y as isize, x as isize]] == 0.0 {
+                    continue;
+                }
+                let mut stack = vec![(y, x)];
+                while let Some((i, j)) = stack.pop() {
+                    labels[[i, j]] = current_label;
+                    let neighbors = [(i - 1, j), (i, j - 1), (i, j + 1), (i + 1, j)];
+                    for &(ni, nj) in &neighbors {
+                        let value = self[[ni, nj]];
+                        if value.is_nan() {
+                            continue;
+                        }
+                        if value > 0.5 && labels[[ni, nj]] < 0.5 {
+                            stack.push((ni, nj));
+                        }
+                    }
+                }
+                current_label += 1.0;
+            }
+        }
+        labels
+    }
 }
 
 impl CylindricArray {
     fn new(array: Array2<f32>, nrise: isize) -> Self {
         Self { array, nrise }
+    }
+
+    fn zeros(shape: &[usize], nrize: isize) -> Self {
+        Self::new(Array2::<f32>::zeros((shape[0], shape[1])), nrize)
     }
 
     fn convolve_(&self, kernel: &Kernel<f32>) -> Array2<f32> {
@@ -140,6 +182,9 @@ impl CylindricArray {
                 }
                 let mut max = f32::NEG_INFINITY;
                 for ind in kernel.iter_indices() {
+                    if !kernel[ind] {
+                        continue
+                    }
                     let value = self[[i as isize + ind[0], j as isize + ind[1]]];
                     if value.is_nan() {
                         continue;
@@ -164,6 +209,9 @@ impl CylindricArray {
                 }
                 let mut min = f32::INFINITY;
                 for ind in kernel.iter_indices() {
+                    if !kernel[ind] {
+                        continue
+                    }
                     let value = self[[i as isize + ind[0], j as isize + ind[1]]];
                     if value.is_nan() {
                         continue;
@@ -188,6 +236,9 @@ impl CylindricArray {
                 }
                 let mut values = Vec::new();
                 for ind in kernel.iter_indices() {
+                    if !kernel[ind] {
+                        continue
+                    }
                     let value = self[[i as isize + ind[0], j as isize + ind[1]]];
                     if value.is_nan() {
                         continue;
@@ -211,19 +262,39 @@ impl core::ops::Index<[isize; 2]> for CylindricArray {
     type Output = f32;
 
     fn index(&self, index: [isize; 2]) -> &Self::Output {
-        let ny = self.array.shape()[0] as isize;
-        let na = self.array.shape()[1] as isize;
-        let (incr, i1n) = if index[1] < 0 {
-            (-1, index[1] + na)
-        } else if index[1] >= na {
-            (1, index[1] - na)
-        } else {
-            (0, index[1])
-        };
-        let i0n = index[0] + incr * self.nrise;
-        if i0n < 0 || i0n >= ny {
+        let (i0n, i1n) = norm_indices(&index, &self.array.shape(), self.nrise);
+        if i0n < 0 {
             return &f32::NAN;
         }
         &self.array[[i0n as usize, i1n as usize]]
+    }
+}
+
+// impl set item
+impl core::ops::IndexMut<[isize; 2]> for CylindricArray {
+    fn index_mut(&mut self, index: [isize; 2]) -> &mut Self::Output {
+        let (i0n, i1n) = norm_indices(&index, &self.array.shape(), self.nrise);
+        if i0n < 0 {
+            panic!("index {} out of bounds", index[0])
+        }
+        &mut self.array[[i0n as usize, i1n as usize]]
+    }
+}
+
+fn norm_indices(index: &[isize; 2], shape: &[usize], nrise: isize) -> (isize, isize) {
+    let ny = shape[0] as isize;
+    let na = shape[1] as isize;
+    let (incr, i1n) = if index[1] < 0 {
+        (-nrise, index[1] + na)
+    } else if index[1] >= na {
+        (nrise, index[1] - na)
+    } else {
+        (0, index[1])
+    };
+    let i0n = index[0] + incr;
+    if i0n >= ny {
+        (-1, i1n)
+    } else {
+        (i0n, i1n)
     }
 }
