@@ -24,7 +24,7 @@ from magicgui.widgets import (
 from magicgui.widgets.bases import CategoricalWidget, ValueWidget
 from magicgui.types import ChoicesType, Undefined
 from magicgui.backends._qtpy import widgets as backend_qtw
-from magicclass.widgets import ScrollableContainer, ConsoleTextEdit
+from magicclass.widgets import ScrollableContainer
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
@@ -349,47 +349,52 @@ class MultiFileEdit(Container):
             self._append_paths(result)
 
 
-class KernelEdit(ConsoleTextEdit):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.max_height = 80
+class KernelEdit(Container[Container[CheckBox]]):
+    def __init__(self, value=Undefined, nullable=False, **kwargs):
+        widgets = []
+        for _ in range(7):
+            cnt = Container(widgets=[CheckBox() for _ in range(7)], layout="horizontal")
+            cnt.margins = (0, 0, 0, 0)
+            widgets.append(cnt)
+        super().__init__(widgets=widgets, **kwargs)
+        for row in self:
+            for item in row:
+                item.changed.disconnect()
+                item.changed.connect(self._on_value_change)
+        self.value = value
+
+    def _on_value_change(self):
+        self.changed.emit(self.value)
 
     @property
     def value(self):
-        text = super().value
-        if text.strip() == "":
-            return None
-        expr = mk.parse(text)
-        if expr.head is mk.Head.list:
-            lst = ast.literal_eval(str(expr))
-        elif expr.head is mk.Head.block:
-            lst = list[list[float]]()
-            for line in expr.args:
-                if isinstance(line, mk.Expr) and line.head in (
-                    mk.Head.list,
-                    mk.Head.tuple,
-                ):
-                    lst.append(list(ast.literal_eval(str(line))))
-                else:
-                    raise ValueError(f"Invalid line: {line}")
-        else:
-            raise ValueError(f"Invalid expression: {expr}")
-        arr = np.array(lst, dtype=np.float32)
-        if arr.ndim != 2:
-            raise ValueError(f"Kernel array must be 2D")
-        return arr
+        arr = np.zeros((7, 7), dtype=np.bool_)
+        for i, row in enumerate(self):
+            for j, item in enumerate(row):
+                arr[i, j] = item.value
+
+        proj0 = np.where(arr.max(axis=0))[0]
+        proj1 = np.where(arr.max(axis=1))[0]
+        sl0 = slice(proj0.min(), proj0.max() + 1)
+        sl1 = slice(proj1.min(), proj1.max() + 1)
+        return arr[sl1, sl0].astype(np.uint8).tolist()
 
     @value.setter
     def value(self, val):
         if val is Undefined:
-            ConsoleTextEdit.value.fset(self, "")
-        val = np.asarray(val)
-        if val.ndim != 2 or val.dtype.kind not in "uif":
+            val = np.ones((3, 3), dtype=np.bool_)
+        else:
+            val = np.asarray(val)
+            if sorted(list(np.unique(val))) != [0, 1]:
+                raise ValueError(f"Array must contain only 0s and 1s.")
+            val = val > 0
+        if val.ndim != 2 or val.dtype.kind not in "uifb":
             raise ValueError(f"Array must be 2D and numeric.")
-        lines = list[str]()
-        for line in val.tolist():
-            lines.append(", ".join(str(x) for x in line))
-        return ConsoleTextEdit.value.fset(self, "\n".join(lines))
+        if val.shape[0] > 7 or val.shape[1] > 7:
+            raise ValueError(f"Array must be 7x7 or smaller.")
+        for row, arr_row in zip(self, val):
+            for item, val in zip(row, arr_row):
+                item.value = val
 
 
 @contextmanager

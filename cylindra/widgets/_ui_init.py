@@ -266,6 +266,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 
 @setup_function_gui(CylindraMainWidget.split_molecules)
 @setup_function_gui(CylindraMainWidget.seam_search_by_feature)
+@setup_function_gui(CylindraMainWidget.convolve_features)
 def _(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 

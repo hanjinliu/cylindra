@@ -23,6 +23,5 @@ fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<filters::CylindricArray>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(array::oblique_coordinates, m)?)?;
-    m.add_function(pyo3::wrap_pyfunction!(array::indices_to_pyarray, m)?)?;
     Ok(())
 }
