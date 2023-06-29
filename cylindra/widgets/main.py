@@ -436,6 +436,7 @@ class CylindraMainWidget(MagicTemplate):
         path: Path.Read[FileFilter.PROJECT],
         filter: Union[ImageFilter, None] = ImageFilter.DoG,
         paint: bool = True,
+        read_image: Annotated[bool, {"label": "Read image data"}] = True,
     ):
         """
         Load a project json file.
@@ -448,12 +449,18 @@ class CylindraMainWidget(MagicTemplate):
         {filter}
         paint : bool, default is True
             Whether to paint cylinder properties if available.
+        read_image : bool default is True
+            Whether to read image data from the project directory. If false, a dummy
+            image is created and only splines and molecules will be loaded, which is
+            useful to decrease loading time, or analyze data in other PC.
         """
         project_path = get_project_json(path)
         project = CylindraProject.from_json(project_path)
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
         self._project_dir = project_path.parent
-        return thread_worker.callback(project.to_gui(self, filter=filter, paint=paint))
+        return thread_worker.callback(
+            project.to_gui(self, filter=filter, paint=paint, read_image=read_image)
+        )
 
     @File.wraps
     @set_design(text="Save project")

@@ -6,6 +6,8 @@
 
 ## Installation
 
+In `cylindra`, computationally-intensive part is implemented in Rust. You have to install Rust first to run `cylindra`. See the [Rust installation guide](https://www.rust-lang.org/tools/install).
+
 - From source
 
 ```shell

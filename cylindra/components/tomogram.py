@@ -46,7 +46,9 @@ class Tomogram:
         scale = f"{self.scale:.4f}" if self._image is not None else "unknown"
         if source := self.metadata.get("source", None):
             source = Path(source).as_posix()
-        return f"{self.__class__.__name__}({shape=}, {scale=}, {source=})"
+        return (
+            f"{self.__class__.__name__}(shape={shape}, scale={scale}, source={source})"
+        )
 
     @property
     def scale(self) -> nm:

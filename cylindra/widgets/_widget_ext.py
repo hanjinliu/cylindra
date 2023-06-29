@@ -4,8 +4,6 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 import random
 import numpy as np
-import macrokit as mk
-import ast
 
 from qtpy import QtWidgets as QtW, QtCore, QtGui
 from qtpy.QtCore import Qt
@@ -18,6 +16,7 @@ from magicgui.widgets import (
     LineEdit,
     PushButton,
     CheckBox,
+    ComboBox,
     protocols,
     show_file_dialog,
 )
@@ -350,26 +349,57 @@ class MultiFileEdit(Container):
 
 
 class KernelEdit(Container[Container[CheckBox]]):
+    _SizeLim = 7
+
     def __init__(self, value=Undefined, nullable=False, **kwargs):
-        widgets = []
-        for _ in range(7):
-            cnt = Container(widgets=[CheckBox() for _ in range(7)], layout="horizontal")
+        widgets = list[Container[CheckBox]]()
+        for _ in range(self._SizeLim):
+            cnt = Container(
+                widgets=[CheckBox() for _ in range(self._SizeLim)], layout="horizontal"
+            )
             cnt.margins = (0, 0, 0, 0)
             widgets.append(cnt)
-        super().__init__(widgets=widgets, **kwargs)
-        for row in self:
+        self._cboxes = widgets
+        self._ysize = ComboBox(value=3, choices=[3, 5, 7], name="Y size")
+        self._xsize = ComboBox(value=3, choices=[3, 5, 7], name="X size")
+        self._size = Container(widgets=[self._ysize, self._xsize], layout="horizontal")
+        super().__init__(widgets=[self._size] + widgets, **kwargs)
+        for row in self._cboxes:
             for item in row:
                 item.changed.disconnect()
                 item.changed.connect(self._on_value_change)
+        self._size.changed.disconnect()
+        self._size.changed.connect(self._set_size)
         self.value = value
 
     def _on_value_change(self):
         self.changed.emit(self.value)
 
+    def _set_size(self):
+        """Disable check boxes that are out of range."""
+        ny = self._ysize.value
+        nx = self._xsize.value
+        nydrop = (self._SizeLim - ny) // 2
+        nxdrop = (self._SizeLim - nx) // 2
+        with self.changed.blocked():
+            for ir, row in enumerate(self._cboxes):
+                if ir < nydrop or self._SizeLim - nydrop <= ir:
+                    for item in row:
+                        item.value = False
+                    row.enabled = False
+                else:
+                    row.enabled = True
+                    for ic, item in enumerate(row):
+                        if ic < nxdrop or self._SizeLim - nxdrop <= ic:
+                            item.value = False
+                            item.enabled = False
+                        else:
+                            item.enabled = True
+
     @property
     def value(self):
-        arr = np.zeros((7, 7), dtype=np.bool_)
-        for i, row in enumerate(self):
+        arr = np.zeros((self._SizeLim, self._SizeLim), dtype=np.bool_)
+        for i, row in enumerate(self._cboxes):
             for j, item in enumerate(row):
                 arr[i, j] = item.value
 
@@ -391,13 +421,19 @@ class KernelEdit(Container[Container[CheckBox]]):
         if val.ndim != 2 or val.dtype.kind not in "uifb":
             raise ValueError(f"Array must be 2D and numeric.")
         ny, nx = val.shape
-        lim = 7
+        lim = self._SizeLim
         if ny > lim or nx > lim:
             raise ValueError(f"Array must be {lim}x{lim} or smaller.")
-        val_pad = np.pad(val, [((lim - ny) // 2, (lim - nx) // 2)] * 2)
-        for row, arr_row in zip(self, val_pad):
-            for item, val in zip(row, arr_row):
-                item.value = val
+        elif ny % 2 == 0 or nx % 2 == 0:
+            raise ValueError(f"Array must be odd in both dimensions, got {(ny, nx)}.")
+        yoffset, xoffset = (lim - ny) // 2, (lim - nx) // 2
+        with self.changed.blocked():
+            self._ysize.value, self._xsize.value = ny, nx
+            self._set_size()
+            for y in range(ny):
+                for x in range(nx):
+                    self._cboxes[y + yoffset][x + xoffset].value = val[y, x]
+        self.changed.emit(val.tolist())
 
 
 @contextmanager

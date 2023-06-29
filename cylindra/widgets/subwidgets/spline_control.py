@@ -14,7 +14,20 @@ from dask import delayed, array as da
 from cylindra.const import GlobalVariables as GVar, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 
-delayed_map_coordinates = delayed(map_coordinates)
+
+@delayed
+def delayed_map_coordinates(
+    input: ip.ImgArray | ip.LazyImgArray,
+    coordinates: np.ndarray,
+):
+    """Try to map coordinates. If failed (out-of-bound), return an zero array."""
+    try:
+        out = map_coordinates(
+            input, coordinates, order=1, mode=Mode.constant, cval=np.mean
+        )
+    except ValueError:
+        out = np.zeros(coordinates.shape[1:], dtype=input.dtype)
+    return out
 
 
 @magicclass(widget_type="groupbox", name="Spline Control")
@@ -166,9 +179,7 @@ class SplineControl(MagicTemplate):
         )
         projections = list[Projections]()
         for crds, npf in zip(coords, npf_list):
-            mapped = delayed_map_coordinates(
-                imgb, crds, order=1, mode=Mode.constant, cval=np.mean
-            )
+            mapped = delayed_map_coordinates(imgb, crds)
             vol = ip.LazyImgArray(
                 da.from_delayed(mapped, shape=loc_shape, dtype=imgb.dtype), axes="zyx"
             )
