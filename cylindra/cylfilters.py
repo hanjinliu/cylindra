@@ -30,7 +30,9 @@ def max_filter(
 ) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
     ker = np.asarray(kernel, dtype=np.bool_)
-    pl.Series(target, CylindricArray(nth, pf, value, nrise).max_filter(ker).as1d())
+    return pl.Series(
+        target, CylindricArray(nth, pf, value, nrise).max_filter(ker).as1d()
+    )
 
 
 def min_filter(
@@ -38,7 +40,9 @@ def min_filter(
 ) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
     ker = np.asarray(kernel, dtype=np.bool_)
-    pl.Series(target, CylindricArray(nth, pf, value, nrise).min_filter(ker).as1d())
+    return pl.Series(
+        target, CylindricArray(nth, pf, value, nrise).min_filter(ker).as1d()
+    )
 
 
 def median_filter(
@@ -46,7 +50,9 @@ def median_filter(
 ) -> pl.Series:
     nth, pf, value = _get_input(mole, target)
     ker = np.asarray(kernel, dtype=np.bool_)
-    pl.Series(target, CylindricArray(nth, pf, value, nrise).median_filter(ker).as1d())
+    return pl.Series(
+        target, CylindricArray(nth, pf, value, nrise).median_filter(ker).as1d()
+    )
 
 
 def label(mole: Molecules, target: str, nrise: int) -> pl.Series:
