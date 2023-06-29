@@ -2054,7 +2054,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayer,
         target: Annotated[str, {"choices": _choice_getter("binarize_feature", dtype_kind="uif")}],
-        threshold: float = 0.0,
+        threshold: Annotated[float, {"widget_type": "FloatSlider"}] = 0.0,
         larger_true: bool = True,
     ):  # fmt: skip
         if larger_true:

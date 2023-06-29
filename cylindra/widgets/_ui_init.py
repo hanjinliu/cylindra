@@ -252,7 +252,7 @@ def _binarize_feature_preview(
         out = layer.molecules.features[target] < threshold
     with _temp_layer_colors(layer):
         layer.edge_color = "#00105B"
-        layer.face_color = np.where(out, "#FF0000", "#000000")
+        layer.face_color = np.where(out, "#FF0000", "#A5A5A5")
         yield
 
 
@@ -316,10 +316,26 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 @setup_function_gui(CylindraMainWidget.split_molecules)
 @setup_function_gui(CylindraMainWidget.seam_search_by_feature)
 @setup_function_gui(CylindraMainWidget.convolve_feature)
-@setup_function_gui(CylindraMainWidget.binarize_feature)
 @setup_function_gui(CylindraMainWidget.label_feature_clusters)
 def _(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
+
+
+@setup_function_gui(CylindraMainWidget.binarize_feature)
+def _(self: CylindraMainWidget, gui: FunctionGui):
+    gui.layer.changed.connect(gui.target.reset_choices)
+
+    @gui.target.changed.connect
+    def _on_feature_change(target: str):
+        layer: MoleculesLayer = gui.layer.value
+        ser = layer.molecules.features[target]
+        low, high = ser.min(), ser.max()
+        gui.threshold.min, gui.threshold.max = low, high
+        gui.threshold.step = (high - low) / 200
+        gui.threshold.value = ser.median()
+
+    if (val := gui.target.value) is not None:
+        _on_feature_change(val)
 
 
 @setup_function_gui(CylindraMainWidget.map_monomers_with_extensions)

@@ -4,7 +4,6 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import ArrayLike
 import polars as pl
-from acryo import Molecules
 from cylindra._cylindra_ext import CylindricArray
 from cylindra.const import MoleculesHeader as Mole
 
