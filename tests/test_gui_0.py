@@ -12,6 +12,7 @@ from magicclass import testing as mcls_testing, get_function_gui
 from cylindra import view_project, _config
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
+from cylindra._custom_layers import MoleculesLayer
 import pytest
 from .utils import pytest_group, ExceptionGroup
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
@@ -346,6 +347,7 @@ def test_set_molecule_colormap(ui: CylindraMainWidget):
 
 def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    layer: MoleculesLayer = ui.parent_viewer.layers["Mono-0"]
     tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
@@ -364,9 +366,11 @@ def test_preview(ui: CylindraMainWidget):
     nlayer = len(ui.parent_viewer.layers)
     tester.update_parameters(predicate="pl.col('nth') < 4")
     tester.click_preview()
-    assert len(ui.parent_viewer.layers) == nlayer + 1
+    is_true = layer.face_color[:, 3] > 0.9
+    assert np.all(layer.features["nth"][is_true] < 4)
     tester.click_preview()
-    assert len(ui.parent_viewer.layers) == nlayer
+    is_true = layer.face_color[:, 3] > 0.9
+    assert is_true.sum() == layer.data.shape[0]
 
     tester = mcls_testing.FunctionGuiTester(ui.paint_molecules)
     nlayer = len(ui.parent_viewer.layers)
