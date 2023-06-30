@@ -51,3 +51,15 @@ def test_max_filter(nrise, ans):
         .reshape(data.shape),
         np.array(ans),
     )
+
+
+def test_binary_operation():
+    data = np.array(
+        [[0, 0, 0, 0], [1, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 2]]
+    )
+    df = _2d_array_to_input(data)
+    cyl = cylfilters.CylindricArray.from_dataframe(df, "value", 1)
+    assert np.sum(cyl > 0.5) == 3
+    assert np.sum(cyl < 0.5) == 17
+    assert np.sum(cyl == 1) == 2
+    assert np.sum(cyl != 1) == 18

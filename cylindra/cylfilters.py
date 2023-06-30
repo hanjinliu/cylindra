@@ -1,6 +1,8 @@
 """Filtering functions for cylindric structure, with `scipy.ndimage`-like API."""
 from __future__ import annotations
 
+import operator
+from typing import Any, Callable
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
@@ -21,26 +23,34 @@ class CylindricArray:
         """The number of rise of the cylindric structure."""
         return self._rust_obj.nrise()
 
-    def asarray(self) -> NDArray[np.float32]:
+    def asarray(self, dtype=None) -> NDArray[np.float32]:
         """As a 2D numpy array."""
-        return self._rust_obj.asarray()
+        out = self._rust_obj.asarray()
+        if dtype is not None:
+            out = out.astype(dtype, copy=False)
+        return out
 
-    def as1d(self) -> NDArray[np.float32]:
-        return self._rust_obj.as1d()
+    def as1d(self, dtype=None) -> NDArray[np.float32]:
+        out = self._rust_obj.as1d()
+        if dtype is not None:
+            out = out.astype(dtype, copy=False)
+        return out
 
-    def as_series(self, name: str = "") -> pl.Series:
-        return pl.Series(name, self.as1d())
+    def as_series(self, name: str = "", dtype=None) -> pl.Series:
+        if type(dtype) is type and dtype in pl.DataType:
+            pl_dtype = dtype
+            np_dtype = None
+        else:
+            pl_dtype = None
+            np_dtype = dtype
+        return pl.Series(name, self.as1d(np_dtype), dtype=pl_dtype)
 
     def with_values(self, values: ArrayLike) -> Self:
         return CylindricArray(
             self._rust_obj.with_values(np.asarray(values, dtype=np.float32))
         )
 
-    def __array__(self, dtype=None) -> NDArray[np.float32]:
-        out = self.asarray()
-        if dtype is not None:
-            out = out.astype(dtype)
-        return out
+    __array__ = asarray
 
     @classmethod
     def from_sequences(
@@ -84,11 +94,37 @@ class CylindricArray:
         new_value = value >= threshold
         return self.with_values(new_value)
 
+    def label(self) -> Self:
+        return CylindricArray(self._rust_obj.label())
+
     def __neg__(self) -> Self:
         return self.with_values(-self.as1d())
 
-    def label(self) -> Self:
-        return CylindricArray(self._rust_obj.label())
+    @staticmethod
+    def _make_operator(op) -> Callable[[CylindricArray, Any], CylindricArray]:
+        def _method(self: CylindricArray, value) -> CylindricArray:
+            if isinstance(value, CylindricArray):
+                value = value.as1d()
+            return self.with_values(op(self.as1d(), value))
+
+        _method.__name__ = op.__name__
+        _method.__qualname__ = f"CylindricArray.{op.__name__}"
+        return _method
+
+    __eq__ = _make_operator(operator.__eq__)
+    __ne__ = _make_operator(operator.__ne__)
+    __lt__ = _make_operator(operator.__lt__)
+    __le__ = _make_operator(operator.__le__)
+    __gt__ = _make_operator(operator.__gt__)
+    __ge__ = _make_operator(operator.__ge__)
+    __add__ = _make_operator(operator.__add__)
+    __sub__ = _make_operator(operator.__sub__)
+    __mul__ = _make_operator(operator.__mul__)
+    __truediv__ = _make_operator(operator.__truediv__)
+    __pow__ = _make_operator(operator.__pow__)
+    __and__ = _make_operator(operator.__and__)
+    __or__ = _make_operator(operator.__or__)
+    __xor__ = _make_operator(operator.__xor__)
 
 
 def convolve(df: pl.DataFrame, kernel: ArrayLike, target: str, nrise: int) -> pl.Series:
