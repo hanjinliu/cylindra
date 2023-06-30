@@ -1261,7 +1261,7 @@ class CylindraMainWidget(MagicTemplate):
             spl = layer.source_component
             if not isinstance(spl, CylSpline):
                 raise ValueError(f"Layer {layer.name} does not have spline source.")
-            if spl in _splines:
+            if any(spl is each for each in _splines):
                 _duplicated.append(spl)
             _splines.append(spl)
             mole = layer.molecules.copy()
@@ -1282,9 +1282,12 @@ class CylindraMainWidget(MagicTemplate):
                     lower, upper = pos - depth / 2, pos + depth / 2
                     pred = pl.col(Mole.position).is_between(lower, upper)
                     radii.append(mole.features.filter(pred)[Mole.radius].mean())
-                spl.update_localprops(
-                    [pl.Series(H.radius, radii, dtype=pl.Float32)], depth
-                )
+                newprop = pl.Series(H.radius, radii, dtype=pl.Float32)
+                if newprop.is_nan().any():
+                    _Logger.print_html(
+                        f"<b>Local radii of spline-{i} contains NaN.</b>"
+                    )
+                spl.update_localprops([newprop], depth)
         return tracker.as_undo_callback()
 
     @Analysis.wraps
