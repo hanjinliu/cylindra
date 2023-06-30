@@ -8,7 +8,6 @@ import macrokit as mk
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import pandas as pd
 from acryo import Molecules, SubtomogramLoader
 
 from magicgui.widgets import Widget
@@ -58,7 +57,6 @@ from cylindra._custom_layers import MoleculesLayer, CylinderLabels
 from cylindra.types import get_monomer_layers
 from cylindra.project import CylindraProject, get_project_json, extract
 
-# widgets
 from cylindra.widgets import _shared_doc, subwidgets
 from cylindra.widgets import widget_utils
 from cylindra.widgets.sta import SubtomogramAveraging
@@ -69,7 +67,6 @@ from cylindra.widgets.widget_utils import (
     change_viewer_focus,
     POLARS_NAMESPACE,
 )
-
 from cylindra.widgets._widget_ext import (
     ProtofilamentEdit,
     OffsetEdit,
@@ -121,7 +118,7 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
         gui = self[method_name].mgui
         if gui is None or gui.layer.value is None:
             return []
-        features: pd.DataFrame = gui.layer.value.features
+        features = gui.layer.value.features
         if dtype_kind == "":
             return features.columns
         return [c for c in features.columns if features[c].dtype.kind in dtype_kind]
@@ -2044,6 +2041,21 @@ class CylindraMainWidget(MagicTemplate):
         method: Literal["mean", "max", "min", "median"],
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
     ):  # fmt: skip
+        """
+        Run a convolution on the lattice.
+
+        The convolution is similar to that in the context of image analysis, except for
+        the cylindric boundary. During the convolution, the edges will not be considered,
+        i.e., NaN value will be ignored and convolution will be the convolution of valid
+        regions.
+
+        Parameters
+        ----------
+        {layer}
+        method : str
+            Convolution method.
+        {target}{footprint}
+        """
         from cylindra import cylfilters
 
         feat = layer.features
@@ -2064,6 +2076,17 @@ class CylindraMainWidget(MagicTemplate):
         threshold: Annotated[float, {"widget_type": "FloatSlider"}] = 0.0,
         larger_true: bool = True,
     ):  # fmt: skip
+        """
+        Add a binarization of a layer feature.
+
+        Parameters
+        ----------
+        {layer}{target}
+        threshold : float, optional
+            Threshold value used for binarization.
+        larger_true : bool, optional
+            If true, values larger than `threshold` will be True.
+        """
         from cylindra import cylfilters
 
         feat = layer.features
@@ -2081,6 +2104,16 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         target: Annotated[str, {"choices": _choice_getter("label_feature_clusters", dtype_kind="b")}],
     ):  # fmt: skip
+        """
+        Label a binarized feature column based on the molecules structure.
+
+        This method does the similar task as `scipy.ndimage.label`, where the isolated "islands"
+        of True values will be labeled by position integers.
+
+        Parameters
+        ----------
+        {layer}{target}
+        """
         from cylindra import cylfilters
 
         feat = layer.features
@@ -2148,10 +2181,9 @@ class CylindraMainWidget(MagicTemplate):
                 pl.col(H.spacing),
                 pl.col(H.skew),
             )
-            .to_pandas()
         )  # fmt: skip
-        back = pd.DataFrame({c: [np.nan] for c in columns})
-        props = pd.concat([back, df[columns]], ignore_index=True)
+        back = pl.DataFrame([pl.Series(_id, [None], dtype=pl.Utf8)])
+        props = pl.concat([back, df[columns]], how="diagonal")
         if limits is None:
             limits = float(all_df[color_by].min()), float(all_df[color_by].max())
 
@@ -2165,12 +2197,12 @@ class CylindraMainWidget(MagicTemplate):
                     translate=self._layer_image.translate,
                     opacity=0.33,
                     name="Cylinder properties",
-                    features=props,
+                    features=props.to_pandas(),
                 )
                 self._layer_paint = self.parent_viewer.add_layer(layer_paint)
             else:
                 self._layer_paint.data = lbl
-                self._layer_paint.features = props
+                self._layer_paint.features = props.to_pandas()
             self._layer_paint.set_colormap(color_by, limits, cmap)
             return undo_callback(lambda: None)  # TODO: undo paint
 
