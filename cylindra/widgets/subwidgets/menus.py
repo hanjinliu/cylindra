@@ -26,9 +26,7 @@ from magicclass.types import Path, Color
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
 
-from napari.utils.theme import get_theme
-
-from cylindra.widgets.widget_utils import FileFilter
+from cylindra.widgets.widget_utils import FileFilter, get_code_theme
 
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
@@ -736,15 +734,6 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     if not _main_function_found:
         raise ValueError("No main function found in workflow script.")
     return workflow
-
-
-def get_code_theme(self: MagicTemplate) -> str:
-    """Get the theme for CodeEdit using the napari theme."""
-    try:
-        theme = get_theme(self.parent_viewer.theme, as_dict=True)["syntax_style"]
-    except Exception:
-        theme = "native"
-    return theme
 
 
 @setup_function_gui(Others.Workflows.run_workflow)

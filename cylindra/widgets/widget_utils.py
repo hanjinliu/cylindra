@@ -12,6 +12,7 @@ import polars as pl
 import matplotlib.pyplot as plt
 from magicclass.logging import getLogger
 import napari
+from napari.utils.theme import get_theme
 
 from acryo import Molecules, TomogramSimulator
 from cylindra import utils
@@ -21,7 +22,7 @@ from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
     from cylindra.components import CylTomogram, CylSpline
-    from acryo import alignment
+    from magicclass import MagicTemplate
 
 
 # namespace used in predicate
@@ -332,3 +333,12 @@ class PaintDevice:
             yield
 
         return lbl
+
+
+def get_code_theme(self: MagicTemplate) -> str:
+    """Get the theme for CodeEdit using the napari theme."""
+    try:
+        theme = get_theme(self.parent_viewer.theme, as_dict=True)["syntax_style"]
+    except Exception:
+        theme = "native"
+    return theme

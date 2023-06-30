@@ -22,6 +22,10 @@ class TextInfo(MagicTemplate):
         macro_script = field(ConsoleTextEdit)
 
     def _from_project(self, project: "CylindraProject"):
+        from cylindra.widgets.widget_utils import get_code_theme
+
+        theme = get_code_theme(self)
+
         if path := project.project_path:
             with open(path) as f:
                 self.project_text.value = f.read()
@@ -33,19 +37,19 @@ class TextInfo(MagicTemplate):
             )
 
         self.project_text.read_only = True
-        self.project_text.syntax_highlight("json")
+        self.project_text.syntax_highlight("json", theme=theme)
 
         if path := project.global_variables:
             with open(path) as f:
                 self.Right.global_variables.value = f.read()
         self.Right.global_variables.read_only = True
-        self.Right.global_variables.syntax_highlight("json")
+        self.Right.global_variables.syntax_highlight("json", theme=theme)
 
         if path := project.macro:
             with open(path) as f:
                 self.Right.macro_script.value = f.read()
         self.Right.macro_script.read_only = True
-        self.Right.macro_script.syntax_highlight("python")
+        self.Right.macro_script.syntax_highlight("python", theme=theme)
 
 
 @magicclass(labels=False, layout="horizontal", record=False)
