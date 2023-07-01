@@ -1300,7 +1300,7 @@ class CylTomogram(Tomogram):
         self,
         i: int = None,
         *,
-        offsets: tuple[nm, float] = None,
+        offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
     ) -> Molecules:
         """
@@ -1335,7 +1335,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         coords: NDArray[np.int32] = (),
         *,
-        offsets: tuple[nm, float] = None,
+        offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
     ) -> Molecules:
         """
