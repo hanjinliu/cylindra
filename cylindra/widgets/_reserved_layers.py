@@ -12,6 +12,7 @@ from cylindra.const import (
     SPLINE_ID,
     WORKING_LAYER_NAME,
     SELECTION_LAYER_NAME,
+    Ori,
 )
 
 if TYPE_CHECKING:
@@ -36,27 +37,30 @@ class ReservedLayers:
         )
         self.highlight.interactive = False
 
-    def update_image(self, imgb: ip.ImgArray, bin_size: int, tr: float):
-        self.image.data = imgb
-        self.image.scale = imgb.scale
-        self.image.name = f"{imgb.name} (bin {bin_size})"
+    def update_image(self, img: ip.ImgArray, bin_size: int, tr: float):
+        """Update the reserved image layer"""
+        self.image.data = img
+        self.image.scale = img.scale
+        self.image.name = f"{img.name} (bin {bin_size})"
         self.image.translate = [tr] * 3
-        self.image.contrast_limits = [np.min(imgb), np.max(imgb)]
+        self.image.contrast_limits = [np.min(img), np.max(img)]
 
         if self.paint is not None:
             self.paint.scale = self.image.scale
             self.paint.translate = self.image.translate
 
-    def reset_image(self, imgb: ip.ImgArray, bin_size: int, tr: float):
+    def reset_image(self, img: ip.ImgArray, bin_size: int, tr: float):
+        """Reset the reserved image layer"""
         self.image = Image(
-            imgb,
-            scale=imgb.scale,
-            name=f"{imgb.name} (bin {bin_size})",
+            img,
+            scale=img.scale,
+            name=f"{img.name} (bin {bin_size})",
             translate=[tr, tr, tr],
-            contrast_limits=[np.min(imgb), np.max(imgb)],
+            contrast_limits=[np.min(img), np.max(img)],
         )
 
     def init_paint(self):
+        """Initialize the cylinder paint layer."""
         if self.paint is not None:
             self.paint.data = np.zeros_like(self.paint.data)
             if self.image is not None:
@@ -64,12 +68,14 @@ class ReservedLayers:
                 self.paint.translate = self.image.translate
 
     def highlight_spline(self, i: int):
+        """Highlight the current spline."""
         spec = self.prof.features[SPLINE_ID] == i
         self.prof.face_color = SplineColor.DEFAULT
         self.prof.face_color[spec] = SplineColor.SELECTED
         self.prof.refresh()
 
     def add_spline(self, i: int, spl: CylSpline):
+        """Add spline sample data to the layer."""
         interval = 15
         length = spl.length()
         n = max(int(length / interval) + 1, 2)
@@ -90,6 +96,7 @@ class ReservedLayers:
         return layer in (self.image, self.prof, self.work, self.paint)
 
     def add_paint(self, lbl, props: pl.DataFrame):
+        """Add cylinder paint layer"""
         if self.paint is None:
             self.paint = CylinderLabels(
                 lbl,
@@ -138,3 +145,33 @@ class ReservedLayers:
         )
 
         self.work.mode = "add"
+
+    def set_orientation(self, idx: int, orientation: Ori):
+        """Set the orientation marker text."""
+        layer = self.prof
+        spline_id = layer.features[SPLINE_ID]
+        spec = spline_id == idx
+        if layer.text.string.encoding_type == "ConstantStringEncoding":
+            # if text uses constant string encoding, update it to ManualStringEncoding
+            string_arr = np.zeros(len(layer.data), dtype="<U1")
+        else:
+            string_arr = np.asarray(layer.text.string.array, dtype="<U1")
+
+        str_of_interest = string_arr[spec]
+
+        if orientation is Ori.none:
+            str_of_interest[:] = ""
+        elif orientation is Ori.MinusToPlus:
+            str_of_interest[0], str_of_interest[-1] = "-", "+"
+        elif orientation is Ori.PlusToMinus:
+            str_of_interest[0], str_of_interest[-1] = "+", "-"
+        else:
+            raise RuntimeError(orientation)
+
+        # update
+        string_arr[spec] = str_of_interest
+        layer.text.string = list(string_arr)
+
+        layer.text.string = list(string_arr)
+        layer.refresh()
+        return None

@@ -35,16 +35,13 @@ from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
 
-from napari.layers import Image, Layer, Points
+from napari.layers import Layer
 from napari.utils.colormaps import Colormap
 
 from cylindra import utils, _config
 from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
-    SELECTION_LAYER_NAME,
-    WORKING_LAYER_NAME,
-    SPLINE_ID,
     GlobalVariables as GVar,
     IDName,
     PropertyNames as H,
@@ -54,7 +51,7 @@ from cylindra.const import (
     SplineColor,
     ImageFilter,
 )
-from cylindra._custom_layers import MoleculesLayer, CylinderLabels
+from cylindra._custom_layers import MoleculesLayer
 from cylindra.types import get_monomer_layers
 from cylindra.project import CylindraProject, get_project_json, extract
 
@@ -2228,11 +2225,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_loader(
-        self,
-        name: str,
-        order: int = 1,
-    ) -> SubtomogramLoader:
+    def get_loader(self, name: str, order: int = 1) -> SubtomogramLoader:
         """
         Create a subtomogram loader using current tomogram and a molecules layer.
 
@@ -2480,9 +2473,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _set_orientation_marker(self, idx: int):
         spl = self.tomogram.splines[idx]
-        return _set_orientation_to_layer(
-            self._reserved_layers.prof, idx, spl.orientation
-        )
+        return self._reserved_layers.set_orientation(idx, spl.orientation)
 
     def _update_splines_in_images(self, _=None):
         """Refresh splines in overview canvas and napari canvas."""
@@ -2617,38 +2608,3 @@ def _set_layer_feature_future(layer: MoleculesLayer, features):
         layer.features = features
 
     return _wrapper
-
-
-def _set_orientation_to_layer(layer: Points, idx: int, orientation: Ori):
-    """
-    Set orientation to a napari Points layer.
-
-    For the given layer, set the points corresponding to the idx-th spline to
-    the given orientation.
-    """
-    spline_id = layer.features[SPLINE_ID]
-    spec = spline_id == idx
-    if layer.text.string.encoding_type == "ConstantStringEncoding":
-        # if text uses constant string encoding, update it to ManualStringEncoding
-        string_arr = np.zeros(len(layer.data), dtype="<U1")
-    else:
-        string_arr = np.asarray(layer.text.string.array, dtype="<U1")
-
-    str_of_interest = string_arr[spec]
-
-    if orientation is Ori.none:
-        str_of_interest[:] = ""
-    elif orientation is Ori.MinusToPlus:
-        str_of_interest[0], str_of_interest[-1] = "-", "+"
-    elif orientation is Ori.PlusToMinus:
-        str_of_interest[0], str_of_interest[-1] = "+", "-"
-    else:
-        raise RuntimeError(orientation)
-
-    # update
-    string_arr[spec] = str_of_interest
-    layer.text.string = list(string_arr)
-
-    layer.text.string = list(string_arr)
-    layer.refresh()
-    return None
