@@ -271,10 +271,10 @@ class Spline(BaseComponent):
         t0, c0, k0 = self._tck
         t1, c1, k1 = other._tck
         return (
-            np.allclose(t0, t1)
-            and all(np.allclose(x, y) for x, y in zip(c0, c1))
+            _array_equal(t0, t1)
+            and all(_array_equal(x, y) for x, y in zip(c0, c1))
             and k0 == k1
-            and np.allclose(self._u, other._u)
+            and _array_equal(self._u, other._u)
             and np.allclose(self._lims, other._lims)
         )
 
@@ -1495,3 +1495,7 @@ def _pos_float(x: Any) -> float:
     if out < 0:
         raise ValueError("Value must be positive.")
     return out
+
+
+def _array_equal(a: np.ndarray, b: np.ndarray):
+    return a.shape == b.shape and np.allclose(a, b)

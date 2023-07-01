@@ -99,7 +99,7 @@ class CylindraBatchWidget(MagicTemplate):
                 predicate = eval(predicate, POLARS_NAMESPACE, {})
             loader = loader.filter(predicate)
         new = loader.replace(
-            molecules=loader.molecules.drop_features(*to_drop),
+            molecules=loader.molecules.drop_features(to_drop),
             scale=self.constructor.scale.value,
         )
         self._add_loader(new, name, image_paths)

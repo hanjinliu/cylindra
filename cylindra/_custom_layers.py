@@ -22,7 +22,7 @@ class ColormapInfo(NamedTuple):
     clim: tuple[float, float]
     name: str
 
-    def map(self, x):
+    def map(self, x: np.ndarray) -> np.ndarray:
         l, h = self.clim
         return self.cmap.map((x - l) / (h - l))
 

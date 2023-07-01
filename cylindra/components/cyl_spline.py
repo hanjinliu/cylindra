@@ -116,10 +116,10 @@ class CylSpline(Spline):
         return original
 
     def nrise(self, **kwargs):
-        interv = kwargs.get(H.spacing, self.get_globalprops(H.spacing))
-        skew = kwargs.get(H.skew, self.get_globalprops(H.skew))
-        rise = -kwargs.get(H.rise, self.get_globalprops(H.rise))
-        radius = kwargs.get(H.radius, self.get_globalprops(H.radius))
+        interv = _get_globalprops(self, kwargs, H.spacing)
+        skew = _get_globalprops(self, kwargs, H.skew)
+        rise = -_get_globalprops(self, kwargs, H.rise)
+        radius = _get_globalprops(self, kwargs, H.radius)
 
         perimeter = 2 * np.pi * radius
         rise_rad = np.deg2rad(rise)
@@ -150,11 +150,11 @@ class CylSpline(Spline):
             The cylinder model.
         """
         length = self.length()
-        interv = kwargs.get(H.spacing, self.get_globalprops(H.spacing))
-        skew = kwargs.get(H.skew, self.get_globalprops(H.skew))
-        rise = -kwargs.get(H.rise, self.get_globalprops(H.rise))
-        radius = kwargs.get(H.radius, self.get_globalprops(H.radius))
-        npf = roundint(kwargs.get(H.nPF, self.get_globalprops(H.nPF)))
+        interv = _get_globalprops(self, kwargs, H.spacing)
+        skew = _get_globalprops(self, kwargs, H.skew)
+        rise = -_get_globalprops(self, kwargs, H.rise)
+        radius = _get_globalprops(self, kwargs, H.radius)
+        npf = roundint(_get_globalprops(self, kwargs, H.nPF))
         perimeter = 2 * np.pi * radius
         rise_rad = np.deg2rad(rise)
         skew_rad = np.deg2rad(skew)
@@ -269,3 +269,9 @@ def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
     """Convert rise angle to start number."""
     tan_rise = np.tan(rise)
     return perimeter / space / (np.tan(skew) * tan_rise + 1) * tan_rise
+
+
+def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):
+    if name in kwargs:
+        return kwargs[name]
+    return spl.get_globalprops(name)

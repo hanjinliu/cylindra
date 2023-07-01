@@ -498,8 +498,8 @@ class Others(ChildWidget):
         def _get_macro_window(
             self, text: str = "", tabname: "str | None" = None
         ) -> "MacroEdit":
-            main = self._get_main()
-            if self._macro_window is None:
+            if self._macro_window is None or not self._macro_window.visible:
+                main = self._get_main()
                 new = main.macro.widget.new_window(tabname=tabname)
                 self._macro_window = new
                 main._active_widgets.add(new)
@@ -515,18 +515,14 @@ class Others(ChildWidget):
             """Create Python executable script of the current project."""
             main = self._get_main()
             text = str(main._format_macro()[main._macro_offset :])
-            new = self._get_macro_window(text)
-            new.show()
-            return None
+            return self._get_macro_window(text).show()
 
         @set_design(text="Show full macro")
         def show_full_macro(self):
             """Create Python executable script since the startup this time."""
             main = self._get_main()
             text = str(main._format_macro())
-            new = self._get_macro_window(text, tabname="Full macro")
-            new.show()
-            return None
+            return self._get_macro_window(text, tabname="Full macro").show()
 
         @set_design(text="Show native macro")
         def show_native_macro(self):
