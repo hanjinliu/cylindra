@@ -94,20 +94,21 @@ class SplineControl(MagicTemplate):
         parent = self._get_parent()
         if parent.parent_viewer is None:
             return None
+        highlight = parent._reserved_layers.highlight
         if not self.footer.highlight_area:
-            if parent._layer_highlight in parent.parent_viewer.layers:
-                parent.parent_viewer.layers.remove(parent._layer_highlight)
+            if highlight in parent.parent_viewer.layers:
+                parent.parent_viewer.layers.remove(highlight)
             return None
 
-        if parent._layer_highlight not in parent.parent_viewer.layers:
-            parent.parent_viewer.add_layer(parent._layer_highlight)
+        if highlight not in parent.parent_viewer.layers:
+            parent.parent_viewer.add_layer(highlight)
 
         tomo = parent.tomogram
         spl = tomo.splines[self.num]
         anc = spl.anchors[self.pos]
-        parent._layer_highlight.data = spl.map(anc)
-        scale = parent._layer_image.scale[-1]
-        parent._layer_highlight.size = GVar.fit_width / scale * 2
+        highlight.data = spl.map(anc)
+        scale = parent._reserved_layers.scale
+        highlight.size = GVar.fit_width / scale * 2
 
         return None
 

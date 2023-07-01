@@ -13,6 +13,7 @@ WORKING_LAYER_NAME = "Working Layer"
 SELECTION_LAYER_NAME = "Splines"
 ALN_SUFFIX = "ALN"
 PREVIEW_LAYER_NAME = "<Preview>"
+SPLINE_ID = "spline-id"
 
 
 class strEnum(Enum):

@@ -57,7 +57,7 @@ class SplineFitter(MagicTemplate):
 
     def _get_binsize(self) -> int:
         parent = self._get_parent()
-        return roundint(parent._layer_image.scale[0] / parent.tomogram.scale)
+        return roundint(parent._reserved_layers.scale / parent.tomogram.scale)
 
     def _get_max_interval(self, _=None):
         return self._max_interval
@@ -187,7 +187,7 @@ class SplineFitter(MagicTemplate):
         i: int = self.controller.num.value
         self.controller.pos.value = 0
         parent = self._get_parent()
-        imgb = parent._layer_image.data
+        imgb = parent._reserved_layers.image_data
         tomo = parent.tomogram
 
         spl = tomo.splines[i]

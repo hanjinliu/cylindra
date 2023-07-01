@@ -450,7 +450,7 @@ class Analysis(ChildWidget):
         """Open the spectra measurer widget to determine cylindric parameters."""
         main = self._get_main()
         if main.tomogram is not None and main.tomogram.n_splines > 0:
-            binsize = roundint(main._layer_image.scale[0] / main.tomogram.scale)
+            binsize = roundint(main._reserved_layers.scale / main.tomogram.scale)
             main.spectra_inspector.load_spline(main.SplineControl.num, binsize)
         return main.spectra_inspector.show()
 

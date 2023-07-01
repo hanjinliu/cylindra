@@ -148,7 +148,7 @@ class Runner(MagicTemplate):
     ):
         """Run workflow."""
         parent = self._get_parent()
-        if parent._layer_work.data.size > 0:
+        if parent._reserved_layers.work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
         if parent.tomogram.n_splines == 0:
             raise ValueError("No spline is added to the viewer canvas.")
