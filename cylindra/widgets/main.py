@@ -212,6 +212,7 @@ class CylindraMainWidget(MagicTemplate):
         self._layer_highlight.interactive = False
 
         self._macro_offset: int = 1
+        self._macro_image_load_offset: int = 1
         self._need_save: bool = False
         self._batch: "CylindraBatchWidget | None" = None
         self._project_dir: "Path | None" = None
@@ -323,6 +324,7 @@ class CylindraMainWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "clear_all.svg")
     @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
+    @do_not_record
     def clear_all(self):
         """Clear all the splines and results."""
         self.macro.clear_undo_stack()
@@ -331,6 +333,7 @@ class CylindraMainWidget(MagicTemplate):
         self._init_widget_state()
         self._init_layers()
         self._need_save = False
+        del self.macro[self._macro_image_load_offset + 1 :]
         self.reset_choices()
         return None
 
@@ -1393,8 +1396,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         _ui_sym = mk.symbol(self)
         macro = _filter_macro_for_reanalysis(
-            self._format_macro()[self._macro_offset :], _ui_sym
+            self._format_macro()[self._macro_image_load_offset + 1 :], _ui_sym
         )
+        self.clear_all()
         macro.eval({_ui_sym: self})
         self.macro.clear_undo_stack()
         return None
@@ -2400,6 +2404,7 @@ class CylindraMainWidget(MagicTemplate):
             self.filter_reference_image(method=filt)
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
+        self._macro_image_load_offset = len(self.macro)
 
     def _on_layer_removing(self, event):
         # NOTE: To make recorded macro completely reproducible, removing molecules
