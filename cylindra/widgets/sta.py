@@ -639,6 +639,7 @@ class SubtomogramAveraging(MagicTemplate):
             merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
 
             # write offsets to spline globalprops if available
+            # TODO: Undo cannot catch this change. Need to fix.
             if spl := layer.source_spline:
                 if spl.radius is None:
                     _radius: nm = utils.with_radius(mole, spl)[Mole.radius].mean()
@@ -649,6 +650,10 @@ class SubtomogramAveraging(MagicTemplate):
                 if spl.orientation is Ori.PlusToMinus:
                     _offset_y = -_offset_y
                     _offset_a = -_offset_a
+                if spl.has_globalprops(H.offset_axial):
+                    _offset_y += spl.get_globalprops(H.offset_axial)
+                if spl.has_globalprops(H.offset_angular):
+                    _offset_a += spl.get_globalprops(H.offset_angular)
                 spl.globalprops = spl.globalprops.with_columns(
                     pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
                     pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
@@ -700,7 +705,7 @@ class SubtomogramAveraging(MagicTemplate):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
-        Align all the molecules for subtomogram averaging.
+        Align the input template image to all the molecules.
 
         Parameters
         ----------
@@ -746,7 +751,7 @@ class SubtomogramAveraging(MagicTemplate):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
-        Align all the molecules for subtomogram averaging.
+        Calculate the subtomogram average and use it as the template for the alignment.
 
         Parameters
         ----------
@@ -798,7 +803,7 @@ class SubtomogramAveraging(MagicTemplate):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
-        Align all the molecules for subtomogram averaging.
+        Align all the input template images to all the molecules.
 
         Parameters
         ----------
@@ -1520,26 +1525,6 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
     else:
         raise ValueError(f"method {method!r} not supported.")
     return sl
-
-
-def _calc_landscape(
-    model: "alignment._base.ParametrizedModel",
-    score_dsk: "da.Array",
-    multi_templates: bool = False,
-) -> "tuple[NDArray[np.float32], NDArray[np.int32] | None]":
-    from dask import array as da
-
-    if not model.has_rotation:
-        score = score_dsk.compute()
-        if multi_templates:
-            score = np.max(score, axis=1)
-        argmax = None
-    else:
-        tasks = da.max(score_dsk, axis=1)
-        argmax = da.argmax(score_dsk, axis=1)
-        # NOTE: argmax.shape[0] == n_templates * len(model.quaternion)
-        score, argmax = da.compute(tasks, argmax)
-    return score, argmax
 
 
 class MoleculesCombiner:

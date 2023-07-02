@@ -83,6 +83,7 @@ class PropertyNames(SimpleNamespace):
     nPF = "nPF"
     radius = "radius"
     orientation = "orientation"  # global only
+    offset_radial = "offset_radial"  # global only
     offset_axial = "offset_axial"  # global only
     offset_angular = "offset_angular"  # global only
     start = "start"
