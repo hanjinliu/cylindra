@@ -1302,6 +1302,7 @@ class CylTomogram(Tomogram):
         *,
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
+        **kwargs,
     ) -> Molecules:
         """
         Map monomers in a regular cylinder shape.
@@ -1320,7 +1321,7 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, offsets=offsets)
+        model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
         yy, aa = np.indices(model.shape, dtype=np.int32)
         coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
@@ -1337,6 +1338,7 @@ class CylTomogram(Tomogram):
         *,
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
+        **kwargs,
     ) -> Molecules:
         """
         Map monomers in a regular cylinder shape.
@@ -1357,7 +1359,7 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, offsets=offsets)
+        model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
         coords = np.asarray(coords, dtype=np.int32)
         spl = self.splines[i]
         mole = model.locate_molecules(spl, coords)

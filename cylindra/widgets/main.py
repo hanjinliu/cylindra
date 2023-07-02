@@ -1426,6 +1426,7 @@ class CylindraMainWidget(MagicTemplate):
                 i=i,
                 orientation=orientation,
                 offsets=normalize_offsets(offsets, spl),
+                radius=spl.radius + spl.get_globalprops(H.offset_radial, 0.0),
             )
 
             _name = f"Mono-{i}"
@@ -1466,6 +1467,7 @@ class CylindraMainWidget(MagicTemplate):
             coords=coords,
             orientation=orientation,
             offsets=normalize_offsets(offsets, spl),
+            radius=spl.radius + spl.get_globalprops(H.offset_radial, 0.0),
         )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
 

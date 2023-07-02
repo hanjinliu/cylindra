@@ -87,7 +87,7 @@ class OffsetEdit(Container[FloatSpinBox]):
     def __init__(self, value=Undefined, *, nullable=False, **kwargs):
         # fmt: off
         self._offset_y = FloatSpinBox(value=0.0, label="axial (nm)", min=-100, max=100, step=0.1, tooltip="Offset in the axial direction.")
-        self._offset_a = FloatSpinBox(value=0.0, label="angular (deg)", min=-180, max=180, step=0.1, tooltip="Offset in the angular direction.")
+        self._offset_a = FloatSpinBox(value=0.0, label="angular (rad)", min=-180, max=180, step=0.1, tooltip="Offset in the angular direction.")
         super().__init__(widgets=[self._offset_y, self._offset_a], labels=True, **kwargs)
         # fmt: on
         self.changed.disconnect()

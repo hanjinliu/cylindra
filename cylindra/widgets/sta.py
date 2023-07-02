@@ -645,8 +645,8 @@ class SubtomogramAveraging(MagicTemplate):
                     _radius: nm = utils.with_radius(mole, spl)[Mole.radius].mean()
                 else:
                     _radius = spl.radius
-                _offset_y = svec[1]
-                _offset_a = np.arctan2(svec[2], svec[0] + _radius)
+                _offset_r, _offset_y, _dx = svec
+                _offset_a = np.arctan2(_dx, _offset_r + _radius)
                 if spl.orientation is Ori.PlusToMinus:
                     _offset_y = -_offset_y
                     _offset_a = -_offset_a
@@ -654,9 +654,12 @@ class SubtomogramAveraging(MagicTemplate):
                     _offset_y += spl.get_globalprops(H.offset_axial)
                 if spl.has_globalprops(H.offset_angular):
                     _offset_a += spl.get_globalprops(H.offset_angular)
+                if spl.has_globalprops(H.offset_radial):
+                    _offset_r += spl.get_globalprops(H.offset_radial)
                 spl.globalprops = spl.globalprops.with_columns(
                     pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
                     pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
+                    pl.Series(H.offset_radial, [_offset_r], dtype=pl.Float32),
                 )
 
             yield _on_yield.with_args(_mole_trans, layer)
