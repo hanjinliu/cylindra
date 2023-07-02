@@ -57,6 +57,7 @@ class ReservedLayers:
             name=f"{img.name} (bin {bin_size})",
             translate=[tr, tr, tr],
             contrast_limits=[np.min(img), np.max(img)],
+            blending="translucent_no_depth",
         )
 
     def init_paint(self):

@@ -1,8 +1,11 @@
 from typing import NamedTuple
 import numpy as np
+import warnings
+
+from acryo import Molecules
+
 from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra._custom_layers import MoleculesLayer
-from acryo import Molecules
 
 from magicgui import magicgui
 from magicclass.ext.pyqtgraph import plot_api as plt
@@ -24,8 +27,12 @@ def mesh_annealing_demo(
     interpolation: int = 3,
     distance_range_long: tuple[float, float] = (3.9, 4.4),
     distance_range_lat: tuple[float, float] = (4.7, 5.3),
-    upsample_factor: int = 3,
+    angle_max: float = 5.0,
+    upsample_factor: int = 5,
+    batch_size: int | None = None,
+    **kwargs,
 ):
+    assert isinstance(self, SubtomogramAveraging)
     parent = self._get_parent()
     molecules = layer.molecules
 
@@ -39,14 +46,21 @@ def mesh_annealing_demo(
         upsample_factor=upsample_factor,
     )
     spl = layer.source_spline
-    annealing = landscape.annealing_model(spl, distance_range_long, distance_range_lat)
+    annealing = landscape.annealing_model(
+        spl,
+        distance_range_long,
+        distance_range_lat,
+        angle_max=angle_max,
+    )
     _model = annealing.with_seed(seed=0)
     energies = [_model.energy()]
 
     all_molecules = [molecules]
     temps = []
+    if batch_size is None:
+        batch_size = np.prod(landscape.energy_array.shape) // 25
     for _ in range(1000):
-        _model.simulate(10000)
+        _model.simulate(batch_size)
         energies.append(_model.energy())
 
         offset = landscape.offset
@@ -74,11 +88,21 @@ def mesh_annealing_demo(
     viewer.window.add_dock_widget(pltw, area="right", name="Energy")
     viewer.window.add_dock_widget(plt_temp, area="right", name="Temperature")
 
+    mole_layer: MoleculesLayer = viewer.layers[-1]
+    mole_layer.shading = "none"
+
     @magicgui(auto_call=True, x={"max": 1000, "widget_type": "Slider"})
     def fn(x: int):
-        layer0.pos = (x, 0)
-        layer1.pos = (x, 0)
-        viewer.layers[-1].molecules = result.molecules[x]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            layer0.pos = (x, 0)
+            layer1.pos = (x, 0)
+            mole_layer.molecules = result.molecules[x]
+            parent.calculate_intervals(mole_layer)
+            parent.paint_molecules(
+                mole_layer, color_by="interval-nm", limits=(3.95, 4.28)
+            )
+            mole_layer.edge_color = "black"
 
     viewer.window.add_dock_widget(fn, area="right")
     return result
