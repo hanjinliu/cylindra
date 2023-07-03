@@ -153,6 +153,16 @@ class SplineProps:
             self._window_size.update({c: ws for c in df.columns})
         return self
 
+    def update_glob(self, props: Any) -> Self:
+        if not isinstance(props, pl.DataFrame):
+            df = pl.DataFrame(props)
+        else:
+            df = props
+        if df.shape[0] > 1:
+            raise ValueError("Global properties must be a single row.")
+        self._glob = self._glob.with_columns(df)
+        return self
+
     def drop_loc(self, keys: str | Iterable[str]) -> Self:
         """Drop local properties."""
         if isinstance(keys, str):
@@ -162,9 +172,20 @@ class SplineProps:
             self._window_size.pop(key, None)
         return self
 
+    def drop_glob(self, keys: str | Iterable[str]) -> Self:
+        """Drop global propperties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        self._glob = self._glob.drop(keys)
+        return self
+
     def clear_loc(self) -> Self:
         self._loc = pl.DataFrame([])
         self._window_size.clear()
+        return self
+
+    def clear_glob(self) -> Self:
+        self._glob = pl.DataFrame([])
         return self
 
     def get_loc(self, key: str, default=_void) -> pl.Series:
@@ -184,19 +205,6 @@ class SplineProps:
             raise KeyError(f"Key {key!r} not found in localprops.")
         return default
 
-    def has_loc(self, keys: str | Iterable[str]) -> bool:
-        """Check if *all* the keys are in local properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        return all(key in self.loc.columns for key in keys)
-
-    def drop_glob(self, keys: str | Iterable[str]) -> Self:
-        """Drop global propperties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        self._glob = self._glob.drop(keys)
-        return self
-
     def get_glob(self, key: str, default=_void) -> Any:
         """
         Get a global property of the spline, similar to ``dict.get`` method.
@@ -213,6 +221,12 @@ class SplineProps:
         elif default is _void:
             raise KeyError(f"Key {key!r} not found in globalprops.")
         return default
+
+    def has_loc(self, keys: str | Iterable[str]) -> bool:
+        """Check if *all* the keys are in local properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        return all(key in self.loc.columns for key in keys)
 
     def has_glob(self, keys: str | Iterable[str]) -> bool:
         """Check if *all* the keys are in global properties."""
@@ -1093,7 +1107,7 @@ class Spline(BaseComponent):
         n_pixels: int,
         u: float | Sequence[float] = None,
         scale: nm = 1.0,
-    ):
+    ) -> NDArray[np.float32]:
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -1125,7 +1139,7 @@ class Spline(BaseComponent):
         n_pixels: int,
         u: float = None,
         scale: nm = 1.0,
-    ):
+    ) -> NDArray[np.float32]:
         """
         Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -1168,7 +1182,7 @@ class Spline(BaseComponent):
         shape: tuple[int, int],
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """
         Generate a Cartesian coordinate system along spline that can be used for
         ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
@@ -1198,7 +1212,7 @@ class Spline(BaseComponent):
         r_range: tuple[float, float],
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """
         Generate a cylindrical coordinate system along spline that can be used for
         ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
