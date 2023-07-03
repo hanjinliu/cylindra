@@ -70,8 +70,16 @@ class SplineProps:
         self._window_size = dict[str, nm]()
 
     def __repr__(self) -> str:
-        ws = pl.DataFrame({k: [v] for k, v in self.window_size.items()})
-        return f"SplineProps(\nlocal=\n{self.loc!r}\nwindow_size=\n{ws!r}\nglobal=\n{self.glob!r}\n)"
+        loc = self.loc
+        ws = self.window_size
+        mapping = dict[str, str]()
+        for k in loc.columns:
+            if k in ws:
+                mapping[k] = f"{k}\n({ws[k]:.2f} nm)"
+            else:
+                mapping[k] = f"{k}\n(-- nm)"
+        loc = loc.rename(mapping)
+        return f"SplineProps(\nlocal=\n{loc!r}\nglobal=\n{self.glob!r}\n)"
 
     @property
     def loc(self) -> pl.DataFrame:
