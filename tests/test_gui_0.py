@@ -261,7 +261,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     # check results
     spl = ui.tomogram.splines[0]
     ypitch_mean = spl.localprops[H.spacing].mean()
-    ypitch_glob = spl.get_globalprops(H.spacing)
+    ypitch_glob = spl.props.get_glob(H.spacing)
     # GDP-bound microtubule has lattice spacing in this range
     assert 4.08 < ypitch_glob < 4.11
     assert ypitch_glob == pytest.approx(ypitch_mean, abs=0.015)
@@ -310,7 +310,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().get_globalprops(H.spacing):.2f} nm"
+        == f" {ui.get_spline().props.get_glob(H.spacing):.2f} nm"
     )
 
     ui.SplineControl.num = 1
@@ -322,7 +322,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().get_globalprops(H.spacing):.2f} nm"
+        == f" {ui.get_spline().props.get_glob(H.spacing):.2f} nm"
     )
 
     assert_canvas(ui, [False, False, False])
@@ -753,8 +753,8 @@ def test_calc_intervals(ui: CylindraMainWidget):
         [True, False],
     ):
         ui.load_project(path, filter=None, paint=False)
-        spacing = ui.tomogram.splines[0].get_globalprops(H.spacing)
-        npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
+        spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
+        npf = ui.tomogram.splines[0].props.get_glob(H.nPF)
         if invert:
             ui.invert_spline(spline=0)
         ui.map_monomers(splines=[0], orientation=orientation)
@@ -776,8 +776,8 @@ def test_calc_skews(ui: CylindraMainWidget):
         [True, False],
     ):
         ui.load_project(path, filter=None, paint=False)
-        skew_angle = ui.tomogram.splines[0].get_globalprops(H.skew)
-        npf = ui.tomogram.splines[0].get_globalprops(H.nPF)
+        skew_angle = ui.tomogram.splines[0].props.get_glob(H.skew)
+        npf = ui.tomogram.splines[0].props.get_glob(H.nPF)
         if invert:
             ui.invert_spline(spline=0)
         ui.map_monomers(splines=[0], orientation=orientation)

@@ -303,8 +303,8 @@ class CylindraProject(BaseProject):
         for c in [IDName.spline, IDName.pos]:
             if c in _loc.columns:
                 _loc = _loc.drop(c)
-        spl._localprops = cast_dataframe(_loc)
-        spl._globalprops = cast_dataframe(_glob)
+        spl.props.loc = cast_dataframe(_loc)
+        spl.props.glob = cast_dataframe(_glob)
 
         return spl
 

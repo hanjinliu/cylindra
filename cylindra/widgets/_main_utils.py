@@ -99,7 +99,7 @@ def normalize_offsets(
 ) -> tuple[float, float]:
     if offsets is None:
         offsets = (
-            spl.get_globalprops(H.offset_axial, 0.0),
-            spl.get_globalprops(H.offset_angular, 0.0),
+            spl.props.get_glob(H.offset_axial, 0.0),
+            spl.props.get_glob(H.offset_angular, 0.0),
         )
     return offsets

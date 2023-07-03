@@ -1257,7 +1257,7 @@ class CylindraMainWidget(MagicTemplate):
                     _Logger.print_html(
                         f"<b>Local radii of spline-{i} contains NaN.</b>"
                     )
-                spl.update_localprops([newprop], depth)
+                spl.props.update_loc([newprop], depth)
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1426,7 +1426,7 @@ class CylindraMainWidget(MagicTemplate):
                 i=i,
                 orientation=orientation,
                 offsets=normalize_offsets(offsets, spl),
-                radius=spl.radius + spl.get_globalprops(H.offset_radial, 0.0),
+                radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
             )
 
             _name = f"Mono-{i}"
@@ -1467,7 +1467,7 @@ class CylindraMainWidget(MagicTemplate):
             coords=coords,
             orientation=orientation,
             offsets=normalize_offsets(offsets, spl),
-            radius=spl.radius + spl.get_globalprops(H.offset_radial, 0.0),
+            radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
         )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
 
@@ -2435,7 +2435,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         spl = self.tomogram.splines[i]
         headers = [H.spacing, H.skew, H.nPF, H.start, H.radius, H.orientation]
-        if spl.has_globalprops(headers):
+        if spl.props.has_glob(headers):
             itv, skew, npf, start, rad, ori = spl.globalprops.select(headers).row(0)
             self.GlobalProperties._set_text(itv, skew, npf, start, rad, ori)
         else:
@@ -2450,7 +2450,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.has_localprops([H.spacing, H.skew, H.nPF, H.start]):
+        if spl.props.has_loc([H.spacing, H.skew, H.nPF, H.start]):
             pitch, skew, npf, start = spl.localprops.select(
                 [H.spacing, H.skew, H.nPF, H.start]
             ).row(j)

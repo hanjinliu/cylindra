@@ -46,7 +46,7 @@ def test_run_all(coords, npf, rise, skew_range):
 
     spl = tomo.splines[0]
     spacing_mean = spl.localprops[H.spacing].mean()
-    spacing_glob = spl.get_globalprops(H.spacing)
+    spacing_glob = spl.props.get_glob(H.spacing)
 
     # GDP-bound microtubule has pitch length in this range
     assert 4.08 < spacing_glob < 4.11
@@ -54,7 +54,7 @@ def test_run_all(coords, npf, rise, skew_range):
     assert all(spl.localprops[H.nPF] == npf)
     assert all(spl.localprops[H.rise] > rise)
     skew_min, skew_max = skew_range
-    assert skew_min < spl.get_globalprops(H.skew) < skew_max
+    assert skew_min < spl.props.get_glob(H.skew) < skew_max
 
 
 def test_chunked_straightening():

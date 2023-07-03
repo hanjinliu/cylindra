@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable, Any, TYPE_CHECKING
+from typing import Any
 import numpy as np
-from numpy.typing import ArrayLike
 import polars as pl
 
 from .spline import Spline
@@ -14,9 +13,6 @@ from cylindra.const import (
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
 
-if TYPE_CHECKING:
-    Degenerative = Callable[[ArrayLike], Any]
-
 
 class CylSpline(Spline):
     """A spline object with cylindrical structure."""
@@ -24,22 +20,22 @@ class CylSpline(Spline):
     @property
     def radius(self) -> nm | None:
         """Average radius of the cylinder."""
-        return self.get_globalprops(H.radius, None)
+        return self.props.get_glob(H.radius, None)
 
     @radius.setter
     def radius(self, value: nm | None):
         if value is None:
             if H.radius in self.globalprops.columns:
-                self.drop_globalprops(H.radius)
+                self.props.drop_glob(H.radius)
             return None
         col = pl.Series(H.radius, [value]).cast(pl.Float32)
-        self._globalprops = self.globalprops.with_columns(col)
+        self.props.glob = self.props.glob.with_columns(col)
         return None
 
     @property
     def orientation(self) -> Ori:
         """Orientation of the spline."""
-        return Ori(str(self.get_globalprops(H.orientation, "none")))
+        return Ori(str(self.props.get_glob(H.orientation, "none")))
 
     @orientation.setter
     def orientation(self, value: Ori | str | None):
@@ -48,7 +44,7 @@ class CylSpline(Spline):
         else:
             value = Ori(value)
         col = pl.Series(H.orientation, [str(value)])
-        self._globalprops = self.globalprops.with_columns(col)
+        self.props.glob = self.props.glob.with_columns(col)
         return None
 
     def invert(self) -> CylSpline:
@@ -62,11 +58,9 @@ class CylSpline(Spline):
         """
         # NOTE: invert() calls clip() internally.
         # We don't have to invert the orientation here.
-        return (
-            super()
-            .invert()
-            .update_localprops(self.localprops[::-1], self.localprops_window_size)
-        )
+        new = super().invert()
+        new.props.update_loc(self.props.loc[::-1], self.props.window_size)
+        return new
 
     def clip(self, start: float, stop: float) -> CylSpline:
         """
@@ -91,7 +85,7 @@ class CylSpline(Spline):
         """
         clipped = super().clip(start, stop)
 
-        clipped._globalprops = self.globalprops.clone()
+        clipped.props.glob = self.props.glob.clone()
         if start > stop:
             clipped.orientation = Ori.invert(self.orientation)
         else:
@@ -227,7 +221,7 @@ class CylSpline(Spline):
         # update H.start
         if rise is not None:
             r = radius if radius is not None else self.radius
-            if r is not None and self.has_localprops([H.rise, H.spacing, H.skew]):
+            if r is not None and self.props.has_loc([H.rise, H.spacing, H.skew]):
                 _start_loc = rise_to_start(
                     rise=np.deg2rad(ldf[H.rise].to_numpy()),
                     space=ldf[H.spacing].to_numpy(),
@@ -237,7 +231,7 @@ class CylSpline(Spline):
                 ldf = ldf.with_columns(
                     pl.Series(_start_loc).cast(pl.Float32).alias(H.start)
                 )
-            if r is not None and self.has_globalprops([H.rise, H.spacing, H.skew]):
+            if r is not None and self.props.has_glob([H.rise, H.spacing, H.skew]):
                 _start_glob = rise_to_start(
                     rise=np.deg2rad(gdf[H.rise].to_numpy()),
                     space=gdf[H.spacing].to_numpy(),
@@ -248,8 +242,8 @@ class CylSpline(Spline):
                     pl.Series(_start_glob).cast(pl.Float32).alias(H.start)
                 )
 
-        self._localprops = ldf
-        self._globalprops = gdf
+        self.props.loc = ldf
+        self.props.glob = gdf
         return self
 
     def _need_rotation(self, orientation: Ori | str | None) -> bool:
@@ -274,4 +268,4 @@ def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
 def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):
     if name in kwargs:
         return kwargs[name]
-    return spl.get_globalprops(name)
+    return spl.props.get_glob(name)

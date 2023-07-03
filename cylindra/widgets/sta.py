@@ -650,12 +650,12 @@ class SubtomogramAveraging(MagicTemplate):
                 if spl.orientation is Ori.PlusToMinus:
                     _offset_y = -_offset_y
                     _offset_a = -_offset_a
-                if spl.has_globalprops(H.offset_axial):
-                    _offset_y += spl.get_globalprops(H.offset_axial)
-                if spl.has_globalprops(H.offset_angular):
-                    _offset_a += spl.get_globalprops(H.offset_angular)
-                if spl.has_globalprops(H.offset_radial):
-                    _offset_r += spl.get_globalprops(H.offset_radial)
+                if spl.props.has_glob(H.offset_axial):
+                    _offset_y += spl.props.get_glob(H.offset_axial)
+                if spl.props.has_glob(H.offset_angular):
+                    _offset_a += spl.props.get_glob(H.offset_angular)
+                if spl.props.has_glob(H.offset_radial):
+                    _offset_r += spl.props.get_glob(H.offset_radial)
                 spl.globalprops = spl.globalprops.with_columns(
                     pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
                     pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
