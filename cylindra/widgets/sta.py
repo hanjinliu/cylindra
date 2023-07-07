@@ -328,10 +328,9 @@ class StaParameters(MagicTemplate):
         self._viewer.scale_bar.unit = "nm"
         if store:
             self._last_average = image
-        input_image = utils.normalize_image(image)
-        thr = threshold_yen(input_image.value)
+        thr = threshold_yen(image.value)
         layer = self._viewer.add_image(
-            input_image,
+            image,
             scale=image.scale,
             name=name,
             rendering="iso",
