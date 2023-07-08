@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 import weakref
@@ -120,6 +121,8 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self._molecules = data
         self._colormap_info: ColormapInfo | None = None
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
+        self._old_name: str | None = None  # for undo/redo
+        self._undo_renaming = False
         super().__init__(data.pos, **kwargs)
         features = data.features
         if features is not None and len(features) > 0:
@@ -152,6 +155,33 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self._molecules.features = df
 
     @property
+    def name(self) -> str:
+        return super().name
+
+    @name.setter
+    def name(self, name: str) -> None:
+        if self.name == name:
+            return None
+        self._old_name = self.name
+        if not name:
+            name = self._basename()
+        self._name = str(name)
+        self.events.name()
+
+    @contextmanager
+    def _undo_context(self):
+        was_renaming = self._undo_renaming
+        self._undo_renaming = True
+        try:
+            yield
+        finally:
+            self._undo_renaming = was_renaming
+
+    def _rename(self, name: str):
+        with self._undo_context():
+            self.name = name
+
+    @property
     def source_component(self) -> BaseComponent | None:
         """The source tomographic component object."""
         if self._source_component is None:
@@ -171,6 +201,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
 
     @property
     def source_spline(self) -> CylSpline | None:
+        """The source component but limited to splines."""
         from cylindra.components import CylSpline
 
         src = self.source_component

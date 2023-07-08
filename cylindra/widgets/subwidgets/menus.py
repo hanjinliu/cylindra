@@ -287,8 +287,6 @@ class MoleculesMenu(ChildWidget):
 
         vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
 
-        # TODO: edge color not considered
-
         layer = main.parent_viewer.add_vectors(
             vector_data,
             edge_width=0.3,
