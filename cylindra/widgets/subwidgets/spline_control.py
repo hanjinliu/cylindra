@@ -157,9 +157,9 @@ class SplineControl(MagicTemplate):
         parent.LocalProperties._plot_properties(spl)
 
         # calculate projection
-        if (npfs := spl.get_localprops(H.nPF, None)) is not None:
+        if (npfs := spl.props.get_loc(H.nPF, None)) is not None:
             npf_list = npfs
-        elif (npf := spl.get_globalprops(H.nPF, None)) is not None:
+        elif (npf := spl.props.get_glob(H.nPF, None)) is not None:
             npf_list = [npf] * spl.anchors.size
         else:
             npf_list = [0] * spl.anchors.size
@@ -218,18 +218,18 @@ class SplineControl(MagicTemplate):
         self.canvas[0].text_overlay.text = f"{i}-{j}"
         self.canvas[0].text_overlay.color = "lime"
 
-        if spl.has_localprops(H.radius):
-            radii = spl.get_localprops(H.radius)
+        if spl.props.has_loc(H.radius):
+            radii = spl.props.get_loc(H.radius)
             if len(radii) != self["pos"].max + 1:
                 return None
             r0 = radii[j]
-        elif spl.has_globalprops(H.radius):
-            r0 = spl.get_globalprops(H.radius)
+        elif spl.props.has_glob(H.radius):
+            r0 = spl.props.get_glob(H.radius)
         else:
             return None
         lz, ly, lx = np.array(proj.shape)
 
-        depths = list(spl.localprops_window_size.values())
+        depths = list(spl.props.window_size.values())
         depth0 = depths[0] if len(depths) > 0 else None
         if depth0 is None:
             ylen = 25 / binsize / tomo.scale
@@ -258,7 +258,7 @@ class SplineControl(MagicTemplate):
             self.canvas[1].add_text(*center, "-", **kw)
 
         # update pyqtgraph
-        if (xs := spl.get_localprops(H.splDist, None)) is not None:
+        if (xs := spl.props.get_loc(H.splDist, None)) is not None:
             parent.LocalProperties._plot_spline_position(xs[j])
         else:
             parent.LocalProperties._init_plot()

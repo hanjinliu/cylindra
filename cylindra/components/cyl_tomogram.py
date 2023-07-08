@@ -519,7 +519,7 @@ class CylTomogram(Tomogram):
             self.set_radius(i=i, binsize=binsize)
 
         _required = [H.spacing, H.skew, H.nPF]
-        if not spl.has_globalprops(_required):
+        if not spl.props.has_glob(_required):
             self.global_ft_params(i=i, binsize=binsize)
 
         spl.make_anchors(max_interval=max_interval)
@@ -529,9 +529,9 @@ class CylTomogram(Tomogram):
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        interv = spl.get_globalprops(H.spacing) * 2
-        skew = spl.get_globalprops(H.skew)
-        npf = roundint(spl.get_globalprops(H.nPF))
+        interv = spl.props.get_glob(H.spacing) * 2
+        skew = spl.props.get_glob(H.skew)
+        npf = roundint(spl.props.get_glob(H.nPF))
 
         LOGGER.info(
             f" >> Parameters: spacing = {interv/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}"
@@ -754,7 +754,7 @@ class CylTomogram(Tomogram):
             r_peak_sub = (imax_sub + 0.5) / nbin * r_max
             radii.append(r_peak_sub)
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
-        spl.update_localprops([out], size)
+        spl.props.update_loc([out], size)
         return out
 
     @batch_process
@@ -814,8 +814,7 @@ class CylTomogram(Tomogram):
             pl.Series(H.splPos, spl.anchors, dtype=pl.Float32),
             pl.Series(H.splDist, spl.distances(), dtype=pl.Float32),
         )
-
-        spl.update_localprops(lprops, ft_size)
+        spl.props.update_loc(lprops, ft_size)
 
         return lprops
 
@@ -1017,7 +1016,7 @@ class CylTomogram(Tomogram):
             polar = mask_spectra(polar)
         img_flat = polar.proj("y")
 
-        if (npf := spl.get_globalprops(H.nPF, None)) is None:
+        if (npf := spl.props.get_glob(H.nPF, None)) is None:
             # if the global properties are already calculated, use it
             # otherwise, calculate the number of PFs from the power spectrum
             ft = img_flat.fft(shift=False, dims="ra")
@@ -1245,11 +1244,11 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        if spl.has_globalprops([H.spacing, H.skew]):
+        if spl.props.has_glob([H.spacing, H.skew]):
             self.global_ft_params(i=i)
 
-        interv = spl.get_globalprops(H.spacing) * 2
-        skew = spl.get_globalprops(H.skew)
+        interv = spl.props.get_glob(H.spacing) * 2
+        skew = spl.props.get_glob(H.skew)
 
         # Set interval to the dimer length by default.
         if interval is None:
@@ -1291,7 +1290,7 @@ class CylTomogram(Tomogram):
         spl = self.splines[i]
         _required = [H.spacing, H.skew, H.rise, H.nPF]
         _missing = [k for k in _required if k not in kwargs]
-        if not spl.has_globalprops(_missing):
+        if not spl.props.has_glob(_missing):
             self.global_ft_params(i=i)
         return spl.cylinder_model(offsets=offsets, **kwargs)
 
@@ -1302,6 +1301,7 @@ class CylTomogram(Tomogram):
         *,
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
+        **kwargs,
     ) -> Molecules:
         """
         Map monomers in a regular cylinder shape.
@@ -1320,7 +1320,7 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, offsets=offsets)
+        model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
         yy, aa = np.indices(model.shape, dtype=np.int32)
         coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
@@ -1337,6 +1337,7 @@ class CylTomogram(Tomogram):
         *,
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
+        **kwargs,
     ) -> Molecules:
         """
         Map monomers in a regular cylinder shape.
@@ -1357,7 +1358,7 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, offsets=offsets)
+        model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
         coords = np.asarray(coords, dtype=np.int32)
         spl = self.splines[i]
         mole = model.locate_molecules(spl, coords)
@@ -1394,10 +1395,10 @@ class CylTomogram(Tomogram):
             Object that represents protofilament positions and angles.
         """
         spl = self.splines[i]
-        if not spl.has_globalprops([H.spacing, H.skew]):
+        if not spl.props.has_glob([H.spacing, H.skew]):
             self.global_ft_params(i=i)
-        interv = spl.get_globalprops(H.spacing) * 2
-        skew = spl.get_globalprops(H.skew)
+        interv = spl.props.get_glob(H.spacing) * 2
+        skew = spl.props.get_glob(H.skew)
 
         if interval is None:
             interval = interv
@@ -1555,7 +1556,7 @@ def _prepare_radii(
                 raise ValueError("Global radius is not measured yet.")
             radii = np.full(spl.anchors.size, spl.radius, dtype=np.float32)
         elif radius == "local":
-            if not spl.has_localprops(H.radius):
+            if not spl.props.has_loc(H.radius):
                 raise ValueError("Local radii is not measured yet.")
             radii = spl.localprops[H.radius].to_numpy()
         else:

@@ -287,14 +287,15 @@ class MoleculesMenu(ChildWidget):
 
         vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
 
-        # TODO: edge color not considered
         layer = main.parent_viewer.add_vectors(
             vector_data,
             edge_width=0.3,
-            edge_color=[z_color] * nmol + [y_color] * nmol + [x_color] * nmol,
+            edge_color="direction",
+            edge_color_cycle=[z_color, y_color, x_color],
             features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
             length=GVar.point_size * 0.8,
             name=name,
+            vector_style="arrow",
         )
         return main._undo_callback_for_layer(layer)
 

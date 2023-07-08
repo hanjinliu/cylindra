@@ -80,7 +80,8 @@ from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets import _progress_desc as _pdesc
 
 if TYPE_CHECKING:
-    from .batch import CylindraBatchWidget
+    from cylindra.widgets.batch import CylindraBatchWidget
+    from napari.utils.events import Event
     from cylindra.components._base import BaseComponent
 
 ICON_DIR = Path(__file__).parent / "icons"
@@ -1257,7 +1258,7 @@ class CylindraMainWidget(MagicTemplate):
                     _Logger.print_html(
                         f"<b>Local radii of spline-{i} contains NaN.</b>"
                     )
-                spl.update_localprops([newprop], depth)
+                spl.props.update_loc([newprop], depth)
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1426,6 +1427,7 @@ class CylindraMainWidget(MagicTemplate):
                 i=i,
                 orientation=orientation,
                 offsets=normalize_offsets(offsets, spl),
+                radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
             )
 
             _name = f"Mono-{i}"
@@ -1466,6 +1468,7 @@ class CylindraMainWidget(MagicTemplate):
             coords=coords,
             orientation=orientation,
             offsets=normalize_offsets(offsets, spl),
+            radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
         )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
 
@@ -2352,7 +2355,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
 
-    def _on_layer_removing(self, event):
+    def _on_layer_removing(self, event: "Event"):
         # NOTE: To make recorded macro completely reproducible, removing molecules
         # from the viewer layer list must always be monitored.
         layer: Layer = self.parent_viewer.layers[event.index]
@@ -2366,16 +2369,33 @@ class CylindraMainWidget(MagicTemplate):
             self.macro.append_with_undo(mk.Expr("del", [expr]), undo)
         return
 
-    def _on_layer_removed(self, event):
+    def _on_layer_removed(self, event: "Event"):
         idx: int = event.index
         layer: Layer = event.value
         if self._reserved_layers.contains(layer):
             self.parent_viewer.layers.insert(idx, layer)
             warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
 
-    def _on_layer_inserted(self, event):
+    def _on_molecules_layer_renamed(self, event: "Event"):
+        layer: MoleculesLayer = event.source
+        if layer._undo_renaming:
+            return
+        old_name = layer._old_name
+        new_name = layer.name
+        assert old_name is not None
+        viewer_ = mk.Mock(mk.symbol(self)).parent_viewer
+        expr = mk.Expr(mk.Head.assign, [viewer_.layers[old_name].name.expr, layer.name])
+        return self.macro.append_with_undo(
+            expr,
+            undo=lambda: layer._rename(old_name),
+            redo=lambda: layer._rename(new_name),
+        )
+
+    def _on_layer_inserted(self, event: "Event"):
         layer: Layer = event.value
         layer.events.name.connect(self.reset_choices)
+        if isinstance(layer, MoleculesLayer):
+            layer.events.name.connect(self._on_molecules_layer_renamed)
 
     def _disconnect_layerlist_events(self):
         viewer = self.parent_viewer
@@ -2433,7 +2453,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         spl = self.tomogram.splines[i]
         headers = [H.spacing, H.skew, H.nPF, H.start, H.radius, H.orientation]
-        if spl.has_globalprops(headers):
+        if spl.props.has_glob(headers):
             itv, skew, npf, start, rad, ori = spl.globalprops.select(headers).row(0)
             self.GlobalProperties._set_text(itv, skew, npf, start, rad, ori)
         else:
@@ -2448,7 +2468,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.has_localprops([H.spacing, H.skew, H.nPF, H.start]):
+        if spl.props.has_loc([H.spacing, H.skew, H.nPF, H.start]):
             pitch, skew, npf, start = spl.localprops.select(
                 [H.spacing, H.skew, H.nPF, H.start]
             ).row(j)

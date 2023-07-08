@@ -338,7 +338,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     spl = prj.load_spline(src)
                     features = list[pl.Expr]()
                     for propname in spline_props:
-                        prop = spl.get_globalprops(propname, None)
+                        prop = spl.props.get_glob(propname, None)
                         if prop is None:
                             continue
                         propname_glob = propname + suffix

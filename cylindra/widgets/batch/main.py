@@ -83,7 +83,7 @@ class CylindraBatchWidget(MagicTemplate):
                 features = [pl.repeat(mole_path.stem, pl.count()).alias(Mole.id)]
                 if spl is not None:
                     for propname in _SPLINE_FEATURES:
-                        prop = spl.get_globalprops(propname, None)
+                        prop = spl.props.get_glob(propname, None)
                         if prop is None:
                             continue
                         propname_glob = propname + "_glob"

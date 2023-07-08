@@ -35,7 +35,8 @@ class ReservedLayers:
             out_of_slice_display=True,
             blending="translucent_no_depth",
         )
-        self.highlight.interactive = False
+        self.highlight.mouse_pan = False
+        self.highlight.mouse_zoom = False
 
     def update_image(self, img: ip.ImgArray, bin_size: int, tr: float):
         """Update the reserved image layer"""

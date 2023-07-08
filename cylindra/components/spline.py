@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from types import MappingProxyType
 from typing import (
     Any,
     Callable,
     Iterable,
+    Mapping,
     Sequence,
     TypeVar,
     TypedDict,
@@ -15,7 +17,6 @@ import warnings
 import logging
 
 import numpy as np
-from numpy.typing import NDArray
 from scipy.interpolate import splprep, splev
 from scipy.spatial.transform import Rotation
 
@@ -30,7 +31,7 @@ from cylindra.components._base import BaseComponent
 
 if TYPE_CHECKING:
     from typing_extensions import Self
-    from numpy.typing import ArrayLike
+    from numpy.typing import ArrayLike, NDArray
 
 logger = logging.getLogger("cylindra")
 
@@ -60,6 +61,188 @@ _TCK = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
 _void = object()
 
 
+class SplineProps:
+    """Class for spline properties."""
+
+    def __init__(self) -> None:
+        self._loc = pl.DataFrame([])
+        self._glob = pl.DataFrame([])
+        self._window_size = dict[str, nm]()
+
+    def __repr__(self) -> str:
+        loc = self.loc
+        ws = self.window_size
+        mapping = dict[str, str]()
+        for k in loc.columns:
+            if k in ws:
+                mapping[k] = f"{k}\n({ws[k]:.2f} nm)"
+            else:
+                mapping[k] = f"{k}\n(-- nm)"
+        loc = loc.rename(mapping)
+        return f"SplineProps(\nlocal=\n{loc!r}\nglobal=\n{self.glob!r}\n)"
+
+    @property
+    def loc(self) -> pl.DataFrame:
+        """Return the local properties"""
+        return self._loc
+
+    @loc.setter
+    def loc(self, df: pl.DataFrame):
+        if not isinstance(df, pl.DataFrame):
+            df = pl.DataFrame(df)
+        self._loc = df
+
+    @property
+    def glob(self) -> pl.DataFrame:
+        """Return the global properties"""
+        return self._glob
+
+    @glob.setter
+    def glob(self, df: pl.DataFrame):
+        if not isinstance(df, pl.DataFrame):
+            df = pl.DataFrame(df)
+        if df.shape[0] > 1:
+            raise ValueError("Global properties must be a single row.")
+        self._glob = df
+
+    @property
+    def window_size(self) -> MappingProxyType[str, nm]:
+        """Return the window size dict of the local properties"""
+        return MappingProxyType(self._window_size)
+
+    def copy(self) -> Self:
+        """Copy this object"""
+        new = self.__class__()
+        new._loc = self._loc.clone()
+        new._glob = self._glob.clone()
+        new._window_size = self._window_size.copy()
+        return new
+
+    def __getitem__(self, key) -> Self:
+        new = SplineProps()
+        new._loc = self._loc[key]
+        new._glob = self._glob[key]
+        new._window_size = {key: self._window_size[key]}
+        return new
+
+    def select(self, keys: str | Iterable[str]) -> Self:
+        """Select local properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        new = SplineProps()
+        new._loc = self._loc.select(keys)
+        new._glob = self._glob.select(keys)
+        new._window_size = {k: self._window_size[k] for k in keys}
+        return new
+
+    def update_loc(self, props: Any, window_size: nm | Mapping[str, nm]) -> Self:
+        """
+        Set local properties of given window size.
+
+        Parameters
+        ----------
+        props : DataFrame-like object
+            Local properties.
+        window_size : nm, optional
+            Window size of local properties in nm.
+        """
+        if not isinstance(props, pl.DataFrame):
+            df = pl.DataFrame(props)
+        else:
+            df = props
+
+        self._loc = self._loc.with_columns(df)
+        if isinstance(window_size, Mapping):
+            self._window_size.update(
+                {c: _pos_float(window_size[c]) for c in df.columns}
+            )
+        else:
+            ws = _pos_float(window_size)
+            self._window_size.update({c: ws for c in df.columns})
+        return self
+
+    def update_glob(self, props: Any) -> Self:
+        if not isinstance(props, pl.DataFrame):
+            df = pl.DataFrame(props)
+        else:
+            df = props
+        if df.shape[0] > 1:
+            raise ValueError("Global properties must be a single row.")
+        self._glob = self._glob.with_columns(df)
+        return self
+
+    def drop_loc(self, keys: str | Iterable[str]) -> Self:
+        """Drop local properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        self._loc = self._loc.drop(keys)
+        for key in keys:
+            self._window_size.pop(key, None)
+        return self
+
+    def drop_glob(self, keys: str | Iterable[str]) -> Self:
+        """Drop global propperties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        self._glob = self._glob.drop(keys)
+        return self
+
+    def clear_loc(self) -> Self:
+        self._loc = pl.DataFrame([])
+        self._window_size.clear()
+        return self
+
+    def clear_glob(self) -> Self:
+        self._glob = pl.DataFrame([])
+        return self
+
+    def get_loc(self, key: str, default=_void) -> pl.Series:
+        """
+        Get a local property of the spline, similar to ``dict.get`` method.
+
+        Parameters
+        ----------
+        key : str
+            Local property key.
+        default : any, optional
+            Default value to return if key is not found, raise error by default.
+        """
+        if key in self.loc.columns:
+            return self.loc[key]
+        elif default is _void:
+            raise KeyError(f"Key {key!r} not found in localprops.")
+        return default
+
+    def get_glob(self, key: str, default=_void) -> Any:
+        """
+        Get a global property of the spline, similar to ``dict.get`` method.
+
+        Parameters
+        ----------
+        key : str
+            Global property key.
+        default : any, optional
+            Default value to return if key is not found, raise error by default.
+        """
+        if key in self.glob.columns:
+            return self.glob[key][0]
+        elif default is _void:
+            raise KeyError(f"Key {key!r} not found in globalprops.")
+        return default
+
+    def has_loc(self, keys: str | Iterable[str]) -> bool:
+        """Check if *all* the keys are in local properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        return all(key in self.loc.columns for key in keys)
+
+    def has_glob(self, keys: str | Iterable[str]) -> bool:
+        """Check if *all* the keys are in global properties."""
+        if isinstance(keys, str):
+            keys = [keys]
+        return all(key in self.glob.columns for key in keys)
+
+
 class Spline(BaseComponent):
     """
     3D spline curve model with coordinate system.
@@ -87,124 +270,30 @@ class Spline(BaseComponent):
         self._extrapolate = ExtrapolationMode(extrapolate)
 
         self._lims = lims
-        self._localprops_window_size = dict[str, nm]()
-        self._localprops = pl.DataFrame([])
-        self._globalprops = pl.DataFrame([])
+        self._props = SplineProps()
+
+    @property
+    def props(self) -> SplineProps:
+        """Return the spline properties"""
+        return self._props
 
     @property
     def localprops(self) -> pl.DataFrame:
         """Local properties of the spline."""
-        return self._localprops
-
-    @property
-    def localprops_window_size(self) -> dict[str, nm]:
-        """Window size of local properties in nm."""
-        return self._localprops_window_size
-
-    def update_localprops(self, props: Any, window_size: nm | dict[str, nm]) -> Self:
-        """
-        Set local properties of given window size.
-
-        Parameters
-        ----------
-        props : DataFrame-like object
-            Local properties.
-        window_size : nm, optional
-            Window size of local properties in nm.
-        """
-        if not isinstance(props, pl.DataFrame):
-            df = pl.DataFrame(props)
-        else:
-            df = props
-
-        self._localprops = self._localprops.with_columns(df)
-        if isinstance(window_size, dict):
-            self._localprops_window_size.update(
-                {c: _pos_float(window_size[c]) for c in df.columns}
-            )
-        else:
-            ws = _pos_float(window_size)
-            self._localprops_window_size.update({c: ws for c in df.columns})
-        return self
-
-    def drop_localprops(self, keys: str | Iterable[str]) -> Self:
-        """Drop local properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        self._localprops = self._localprops.drop(keys)
-        for key in keys:
-            self._localprops_window_size.pop(key, None)
-        return self
+        return self.props.loc
 
     @property
     def globalprops(self) -> pl.DataFrame:
         """Global properties of the spline."""
-        return self._globalprops
+        return self.props.glob
 
     @globalprops.setter
     def globalprops(self, df: pl.DataFrame):
-        if not isinstance(df, pl.DataFrame):
-            df = pl.DataFrame(df)
-        if df.shape[0] > 1:
-            raise ValueError("Global properties must be a single row.")
-        self._globalprops = df
-
-    def drop_globalprops(self, keys: str | Iterable[str]) -> Self:
-        """Drop global properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        self._globalprops = self._globalprops.drop(keys)
-        return self
-
-    def get_localprops(self, key: str, default=_void) -> pl.Series:
-        """
-        Get a local property of the spline, similar to ``dict.get`` method.
-
-        Parameters
-        ----------
-        key : str
-            Local property key.
-        default : any, optional
-            Default value to return if key is not found, raise error by default.
-        """
-        if key in self._localprops.columns:
-            return self._localprops[key]
-        elif default is _void:
-            raise KeyError(f"Key {key!r} not found in localprops.")
-        return default
-
-    def has_localprops(self, keys: str | Iterable[str]) -> bool:
-        """Check if *all* the keys are in local properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        return all(key in self._localprops.columns for key in keys)
-
-    def get_globalprops(self, key: str, default=_void) -> Any:
-        """
-        Get a global property of the spline, similar to ``dict.get`` method.
-
-        Parameters
-        ----------
-        key : str
-            Global property key.
-        default : any, optional
-            Default value to return if key is not found, raise error by default.
-        """
-        if key in self._globalprops.columns:
-            return self._globalprops[key][0]
-        elif default is _void:
-            raise KeyError(f"Key {key!r} not found in globalprops.")
-        return default
-
-    def has_globalprops(self, keys: str | Iterable[str]) -> bool:
-        """Check if *all* the keys are in global properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        return all(key in self._globalprops.columns for key in keys)
+        self.props.glob = df
 
     def has_props(self) -> bool:
         """True if there are any properties."""
-        return len(self._localprops) > 0 or len(self._globalprops) > 0
+        return len(self.props.loc) > 0 or len(self.props.glob) > 0
 
     def copy(self, copy_props: bool = True) -> Self:
         """
@@ -226,10 +315,7 @@ class Spline(BaseComponent):
         new._anchors = self._anchors
 
         if copy_props:
-            new._localprops = self.localprops.clone()
-            new._globalprops = self.globalprops.clone()
-            new._localprops_window_size = self.localprops_window_size.copy()
-
+            new._props = self.props.copy()
         return new
 
     __copy__ = copy
@@ -330,15 +416,13 @@ class Spline(BaseComponent):
             )
             warnings.warn(msg, UserWarning)
         self._anchors = positions
-        self._localprops = pl.DataFrame([])  # clear anchor specific properties
-        self._localprops_window_size.clear()
+        self.props.clear_loc()
         return None
 
     @anchors.deleter
     def anchors(self) -> None:
         self._anchors = None
-        self._localprops = pl.DataFrame([])  # clear anchor specific properties
-        self._localprops_window_size.clear()
+        self.props.clear_loc()
         return None
 
     @property
@@ -894,7 +978,7 @@ class Spline(BaseComponent):
             "k": k,
             "u": u.tolist(),
             "lims": self._lims,
-            "localprops_window_size": self._localprops_window_size,
+            "localprops_window_size": dict(self.props.window_size),
             "extrapolate": self._extrapolate.name,
         }
 
@@ -923,7 +1007,7 @@ class Spline(BaseComponent):
         k = roundint(d["k"])
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
-        self._localprops_window_size = d.get("localprops_window_size", {})
+        self.props._window_size = d.get("localprops_window_size", {})
         return self
 
     def affine_matrix(
@@ -1031,7 +1115,7 @@ class Spline(BaseComponent):
         n_pixels: int,
         u: float | Sequence[float] = None,
         scale: nm = 1.0,
-    ):
+    ) -> NDArray[np.float32]:
         """
         Generate local Cartesian coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -1063,7 +1147,7 @@ class Spline(BaseComponent):
         n_pixels: int,
         u: float = None,
         scale: nm = 1.0,
-    ):
+    ) -> NDArray[np.float32]:
         """
         Generate local cylindrical coordinate systems that can be used for ``ndi.map_coordinates``.
         The result coordinate systems are flat, i.e., not distorted by the curvature of spline.
@@ -1106,7 +1190,7 @@ class Spline(BaseComponent):
         shape: tuple[int, int],
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """
         Generate a Cartesian coordinate system along spline that can be used for
         ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
@@ -1136,7 +1220,7 @@ class Spline(BaseComponent):
         r_range: tuple[float, float],
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """
         Generate a cylindrical coordinate system along spline that can be used for
         ``ndi.map_coordinate``. Note that this coordinate system is distorted, thus
