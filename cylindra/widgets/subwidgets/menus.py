@@ -328,6 +328,7 @@ class MoleculesMenu(ChildWidget):
         convolve_feature = abstractapi()
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()
+        regionprops_features = abstractapi()
 
     @magicmenu(name="Visualize")
     class Visualize(MagicTemplate):
