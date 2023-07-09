@@ -2377,6 +2377,7 @@ class CylindraMainWidget(MagicTemplate):
             warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
 
     def _on_molecules_layer_renamed(self, event: "Event"):
+        """When layer name is renamed, record `ui.parent_viewer["old"].name = "new"`"""
         layer: MoleculesLayer = event.source
         if layer._undo_renaming:
             return
@@ -2454,8 +2455,8 @@ class CylindraMainWidget(MagicTemplate):
         spl = self.tomogram.splines[i]
         headers = [H.spacing, H.skew, H.nPF, H.start, H.radius, H.orientation]
         if spl.props.has_glob(headers):
-            itv, skew, npf, start, rad, ori = spl.globalprops.select(headers).row(0)
-            self.GlobalProperties._set_text(itv, skew, npf, start, rad, ori)
+            row = spl.globalprops.select(headers).row(0)
+            self.GlobalProperties._set_text(*row)
         else:
             self.GlobalProperties._init_text()
 
