@@ -1,8 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use pyo3::{prelude::*, Python, Py};
-use numpy::{PyArray1, PyReadonlyArray2, ndarray::{Array1, Array2}, IntoPyArray};
+use pyo3::{prelude::*, Python, Py, types::PyType};
+use numpy::{
+    PyArray1, PyReadonlyArray1, PyReadonlyArray2, IntoPyArray,
+    ndarray::{Array1, Array2},
+};
 use crate::value_error;
+use super::filters::unique_map;
 
 struct Region {
     indices: Vec<(usize, usize)>,
@@ -161,6 +165,43 @@ pub struct RegionProfiler {
 }
 
 impl RegionProfiler {
+    fn new(
+        image: Array2<f32>,
+        label_image: &Array2<u32>,
+        nrise: isize,
+    ) -> PyResult<Self> {
+        if image.shape() != label_image.shape() {
+            return value_error!("image and label_image must have the same shape");
+        }
+        let mut indices_map: HashMap<u32, Vec<(u32, u32)>> = HashMap::new();
+        let per = image.shape()[1];
+        let (ny, nx) = label_image.dim();
+        for y in 0..ny {
+            for x in 0..nx {
+                let v = label_image[[y, x]];
+                if v == 0 {
+                    // zero is background
+                    continue;
+                }
+                if !indices_map.contains_key(&v) {
+                    indices_map.insert(v, Vec::new());
+                }
+                indices_map.get_mut(&v).unwrap().push((y as u32, x as u32));
+            }
+        }
+        let mut keys_sorted: Vec<&u32> = indices_map.keys().collect();
+        keys_sorted.sort();
+        let mut labels = Vec::new();
+        for key in keys_sorted {
+            let mut indices = Vec::new();
+            for val in indices_map.get(key).unwrap().iter() {
+                indices.push((val.0 as usize, val.1 as usize));
+            }
+            labels.push(Region { indices, per, nrise});
+        }
+        Ok(Self { image, labels })
+    }
+
     fn area(&self) -> Vec<usize> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -220,41 +261,53 @@ impl RegionProfiler {
 
 #[pymethods]
 impl RegionProfiler {
-    #[new]
-    fn new(
+    #[classmethod]
+    fn from_arrays(
+        _: &PyType,
         image: PyReadonlyArray2<f32>,
         label_image: PyReadonlyArray2<u32>,
         nrise: isize,
-    ) -> Self {
+    ) -> PyResult<Self> {
         let image = image.as_array().to_owned();
-        let label_image = label_image.as_array();
-        let mut indices_map: HashMap<u32, Vec<(u32, u32)>> = HashMap::new();
-        let per = image.shape()[1];
-        let (ny, nx) = label_image.dim();
-        for y in 0..ny {
-            for x in 0..nx {
-                let v = label_image[[y, x]];
-                if v == 0 {
-                    // zero is background
-                    continue;
-                }
-                if !indices_map.contains_key(&v) {
-                    indices_map.insert(v, Vec::new());
-                }
-                indices_map.get_mut(&v).unwrap().push((y as u32, x as u32));
-            }
+        let label_image = label_image.as_array().to_owned();
+        Self::new(image, &label_image, nrise)
+    }
+
+    #[classmethod]
+    fn from_features(
+        _: &PyType,
+        nth: PyReadonlyArray1<i32>,
+        npf: PyReadonlyArray1<i32>,
+        values: PyReadonlyArray1<f32>,
+        labels: PyReadonlyArray1<u32>,
+        per: usize,
+        nrise: isize,
+    ) -> PyResult<Self> {
+
+        let nth = nth.as_array();
+        let npf = npf.as_array();
+        let values = values.as_array();
+        let labels = labels.as_array();
+        let nsize = nth.len();
+        if npf.len() != nsize || values.len() != nsize || labels.len() != nsize {
+            return value_error!("All arrays must have the same length");
         }
-        let mut keys_sorted: Vec<&u32> = indices_map.keys().collect();
-        keys_sorted.sort();
-        let mut labels = Vec::new();
-        for key in keys_sorted {
-            let mut indices = Vec::new();
-            for val in indices_map.get(key).unwrap().iter() {
-                indices.push((val.0 as usize, val.1 as usize));
-            }
-            labels.push(Region { indices, per, nrise});
+
+        let nth_map = unique_map(&nth);
+        let npf_map = unique_map(&npf);
+        if npf_map.keys().len() != per {
+            return value_error!("npf must have length equal to per");
         }
-        Self { image, labels }
+
+        let mut image = Array2::<f32>::from_elem((nth_map.len(), npf_map.len()), f32::NAN);
+        let mut label_image = Array2::<u32>::from_elem((nth_map.len(), npf_map.len()), 0);
+        let nth_relabeled = nth.mapv(|x| nth_map[&x]);
+        let npf_relabeled = npf.mapv(|x| npf_map[&x]);
+        for i in 0..nsize {
+            image[[nth_relabeled[i], npf_relabeled[i]]] = values[[i]];
+            label_image[[nth_relabeled[i], npf_relabeled[i]]] = labels[[i]];
+        }
+        Self::new(image, &label_image, nrise)
     }
 
     fn calculate<'py>(&self, py: Python<'py>, props: Vec<String>) -> PyResult<HashMap<String, Py<PyArray1<f32>>>> {
