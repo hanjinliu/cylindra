@@ -21,7 +21,7 @@ from magicclass import (
     bind_key,
     abstractapi,
 )
-from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
+from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit, OneLineRunner
 from magicclass.types import Path, Color
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
@@ -659,6 +659,23 @@ class Others(ChildWidget):
         from magicclass.command_palette import exec_command_palette
 
         return exec_command_palette(self._get_main(), alignment="screen")
+
+    @set_design(text="Open one-line runner")
+    @do_not_record
+    def open_one_line_runner(self):
+        """Open the one-line runner widget."""
+        from IPython import get_ipython
+
+        ipy = get_ipython()
+
+        def _injector():
+            return ipy.kernel.shell.user_ns
+
+        wdt = OneLineRunner(injector=_injector)
+        self.parent_viewer.window.add_dock_widget(
+            wdt, name="One-line runner", area="right"
+        )
+        return None
 
     GlobalVariables = GlobalVariablesMenu
 
