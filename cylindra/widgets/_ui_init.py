@@ -266,7 +266,7 @@ def _label_feature_clusters_preview(
 
     nrise = layer.source_spline.nrise()
     out = cylfilters.label(layer.molecules.features, target, nrise)
-    max_value = out.max()
+    max_value = int(out.max())
     with _temp_layer_colors(layer):
         cmap = label_colormap(max_value, seed=0.9414)
         layer.face_color = layer.edge_color = cmap.map(out.to_numpy() / max_value)

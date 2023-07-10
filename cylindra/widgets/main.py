@@ -91,6 +91,17 @@ DEFAULT_COLORMAP = {
     0.68: "#FF0000",  # red
     1.00: "#FFFF00",  # yellow
 }
+REGIONPROPS_CHOICES = [
+    "area",
+    "length",
+    "width",
+    "sum",
+    "mean",
+    "median",
+    "max",
+    "min",
+    "std",
+]
 _Logger = getLogger("cylindra")  # The GUI logger
 
 # annotated types
@@ -2070,7 +2081,9 @@ class CylindraMainWidget(MagicTemplate):
         if not larger_true:
             ser = -ser
         feature_name = f"{target}_binarize"
-        layer.molecules = layer.molecules.with_features(ser.alias(feature_name))
+        layer.molecules = layer.molecules.with_features(
+            ser.alias(feature_name).cast(pl.Boolean)
+        )
         self.reset_choices()
         layer.set_colormap(feature_name, (0, 1), {0: "#A5A5A5", 1: "#FF0000"})
         return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
@@ -2097,11 +2110,11 @@ class CylindraMainWidget(MagicTemplate):
 
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = layer.source_spline.nrise()
-        out = cylfilters.label(layer.molecules.features, target, nrise)
+        out = cylfilters.label(layer.molecules.features, target, nrise).cast(pl.UInt32)
         feature_name = f"{target}_label"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
-        label_max = out.max()
+        label_max = int(out.max())
         cmap = label_colormap(label_max, seed=0.9414)
         layer.set_colormap(feature_name, (0, label_max), cmap)
         return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
@@ -2111,21 +2124,32 @@ class CylindraMainWidget(MagicTemplate):
     def regionprops_features(
         self,
         layer: MoleculesLayer,
-        target: Annotated[
-            str, {"choices": _choice_getter("regionprops_features", dtype_kind="uif")}
-        ],
-        label: Annotated[
-            str, {"choices": _choice_getter("regionprops_features", dtype_kind="uib")}
-        ],
-    ):
+        target: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="uif")}],
+        label: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="ui")}],
+        properties: Annotated[list[str], {"choices": REGIONPROPS_CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
+    ):  # fmt: skip
         """
         Analyze region properties using another feature column as the labels.
 
-        For instance, if the
+        For instance, if the ...
         """
         from cylindra._cylindra_ext import RegionProfiler
+        from magicclass.ext.polars import DataFrameView
 
-        ...
+        feat = layer.molecules.features
+        nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
+        pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
+        values = feat[target].cast(pl.Float32).to_numpy()
+        labels = feat[label].cast(pl.UInt32).to_numpy()
+        nrise = layer.source_spline.nrise()
+        npf = layer.source_spline.props.get_glob(H.nPF)
+
+        reg = RegionProfiler.from_features(nth, pf, values, labels, npf, nrise)
+        df = pl.DataFrame(reg.calculate(properties))
+        view = DataFrameView(value=df)
+        dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
+        dock.setFloating(True)
+        return undo_callback(dock.close).with_redo(dock.show)
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "pick_next.svg")

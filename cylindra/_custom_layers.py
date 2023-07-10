@@ -245,9 +245,10 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             self.face_colormap = self.edge_colormap = cmap
             self.face_contrast_limits = self.edge_contrast_limits = clim
         elif column.dtype is pl.Boolean:
-            self.face_color = self.edge_color = column.name
-            self.face_colormap = self.edge_colormap = cmap
-            self.face_contrast_limits = self.edge_contrast_limits = clim
+            cfalse, ctrue = cmap.map([0, 1])
+            column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
+            col = np.where(column2d, ctrue, cfalse)
+            self.face_color = self.edge_color = col
         else:
             raise ValueError(
                 f"Cannot paint by feature {column.name} of type {column.dtype}."
