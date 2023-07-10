@@ -423,7 +423,7 @@ impl core::ops::IndexMut<[isize; 2]> for CylindricArray {
 
 /// Construct a hashmap from an array.
 /// For example, unique_map of [1, 3, 6, 3] will return {1: 0, 3: 1, 6: 2}
-fn unique_map<_D>(ar: &ArrayView1<_D>) -> HashMap<_D, usize> where _D: std::cmp::Eq + Copy + Hash + Ord {
+pub fn unique_map<_D>(ar: &ArrayView1<_D>) -> HashMap<_D, usize> where _D: std::cmp::Eq + Copy + Hash + Ord {
     let mut uniques = HashMap::new();
     let mut count = 0;
     for i in 0..ar.shape()[0] {

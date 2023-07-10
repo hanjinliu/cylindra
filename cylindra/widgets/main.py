@@ -51,12 +51,11 @@ from cylindra.const import (
     SplineColor,
     ImageFilter,
 )
-from cylindra._custom_layers import MoleculesLayer
+from cylindra._custom_layers import MoleculesLayer, ColormapInfo
 from cylindra.types import get_monomer_layers
 from cylindra.project import CylindraProject, get_project_json, extract
 
-from cylindra.widgets import _shared_doc, subwidgets
-from cylindra.widgets import widget_utils
+from cylindra.widgets import _shared_doc, subwidgets, widget_utils
 from cylindra.widgets.sta import SubtomogramAveraging
 
 from cylindra.widgets.widget_utils import (
@@ -92,6 +91,17 @@ DEFAULT_COLORMAP = {
     0.68: "#FF0000",  # red
     1.00: "#FFFF00",  # yellow
 }
+REGIONPROPS_CHOICES = [
+    "area",
+    "length",
+    "width",
+    "sum",
+    "mean",
+    "median",
+    "max",
+    "min",
+    "std",
+]
 _Logger = getLogger("cylindra")  # The GUI logger
 
 # annotated types
@@ -352,10 +362,7 @@ class CylindraMainWidget(MagicTemplate):
     @_image_loader.wraps
     @set_design(text="Open")
     @dask_thread_worker.with_progress(desc="Reading image")
-    @confirm(
-        text="You may have unsaved data. Open a new tomogram?",
-        condition=SELF._need_save,
-    )
+    @confirm(text="You may have unsaved data. Open a new tomogram?", condition=SELF._need_save)  # fmt: skip
     def open_image(
         self,
         path: Bound[_image_loader.path],
@@ -410,10 +417,7 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_design(text="Load project")
     @dask_thread_worker.with_progress(desc="Reading project")
-    @confirm(
-        text="You may have unsaved data. Open a new project?",
-        condition=SELF._need_save,
-    )
+    @confirm(text="You may have unsaved data. Open a new project?", condition=SELF._need_save)  # fmt: skip
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+P")
     def load_project(
@@ -1838,7 +1842,9 @@ class CylindraMainWidget(MagicTemplate):
             new_feat = feat.with_columns(pl.Series(column_name, pl_expr))
         layer.features = new_feat
         self.reset_choices()  # choices regarding of features need update
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        return undo_callback(
+            _set_layer_feature_future(layer, feat, layer.colormap_info)
+        )
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate intervals")
@@ -1857,7 +1863,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
-        feat = layer.molecules.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_interval(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
 
@@ -1865,7 +1871,7 @@ class CylindraMainWidget(MagicTemplate):
         _clim = [GVar.spacing_min, GVar.spacing_max]
         layer.set_colormap(Mole.interval, _clim, DEFAULT_COLORMAP)
         self._need_save = True
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate elevation angles")
@@ -1883,7 +1889,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
-        feat = layer.molecules.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_elevation_angle(
             layer.molecules, layer.source_component
         )
@@ -1892,11 +1898,9 @@ class CylindraMainWidget(MagicTemplate):
         # Set colormap
         extreme = np.max(np.abs(layer.features[Mole.elev_angle]))
         _clim = [-extreme, extreme]
-        layer.set_colormap(
-            Mole.elev_angle, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
-        )
+        layer.set_colormap(Mole.elev_angle, _clim, ["#2659FF", "#FFDBFE", "#FF6C6C"])
         self._need_save = True
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate skews")
@@ -1916,18 +1920,16 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
-        feat = layer.molecules.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_skew(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
 
         # Set colormap
         extreme = np.max(np.abs(layer.features[Mole.skew]))
         _clim = [-extreme, extreme]
-        layer.set_colormap(
-            Mole.skew, _clim, Colormap(["#2659FF", "#FFDBFE", "#FF6C6C"])
-        )
+        layer.set_colormap(Mole.skew, _clim, ["#2659FF", "#FFDBFE", "#FF6C6C"])
         self._need_save = True
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate radii")
@@ -1945,7 +1947,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
-        feat = layer.molecules.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_radius(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
 
@@ -1954,7 +1956,7 @@ class CylindraMainWidget(MagicTemplate):
         _clim = [float(val.min()), float(val.max())]
         layer.set_colormap(Mole.radius, _clim, DEFAULT_COLORMAP)
         self._need_save = True
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate lateral angles")
@@ -1973,7 +1975,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         if layer.source_component is None:
             raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
-        feat = layer.molecules.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         model = self.sta._get_simple_annealing_model(layer)
         angles = np.rad2deg(model.lateral_angles())
         angles[angles < 0] = -1.0
@@ -1982,7 +1984,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         layer.set_colormap(Mole.lateral_angle, [0, 180], DEFAULT_COLORMAP)
         self._need_save = True
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Seam search by feature")
@@ -2007,10 +2009,11 @@ class CylindraMainWidget(MagicTemplate):
         seam = utils.infer_seam_from_labels(feat[by], npf=npf)
         _id = np.arange(len(feat))
         res = (_id - seam) // npf
-        layer.features = layer.molecules.features.with_columns(
-            pl.Series(Mole.isotype, res % 2)
+        new_feat = pl.Series(Mole.isotype, res % 2)
+        layer.features = layer.molecules.features.with_columns(new_feat)
+        return undo_callback(
+            _set_layer_feature_future(layer, feat, layer.colormap_info)
         )
-        return undo_callback(_set_layer_feature_future(layer, feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Convolve feature")
@@ -2038,14 +2041,18 @@ class CylindraMainWidget(MagicTemplate):
         """
         from cylindra import cylfilters
 
-        feat = layer.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = layer.source_spline.nrise()
         out = cylfilters.run_filter(
             layer.molecules.features, footprint, target, nrise, method
         )
-        layer.molecules = layer.molecules.with_features(out.alias(f"{target}_{method}"))
+        feature_name = f"{target}_{method}"
+        layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        layer.set_colormap(
+            feature_name, layer.colormap_info.clim, layer.colormap_info.cmap
+        )
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Binarize feature by thresholding")
@@ -2069,13 +2076,17 @@ class CylindraMainWidget(MagicTemplate):
         """
         from cylindra import cylfilters
 
-        feat = layer.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         ser = cylfilters.binarize(layer.molecules.features, threshold, target)
         if not larger_true:
             ser = -ser
-        layer.molecules = layer.molecules.with_features(ser.alias(f"{target}_binarize"))
+        feature_name = f"{target}_binarize"
+        layer.molecules = layer.molecules.with_features(
+            ser.alias(feature_name).cast(pl.Boolean)
+        )
         self.reset_choices()
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        layer.set_colormap(feature_name, (0, 1), {0: "#A5A5A5", 1: "#FF0000"})
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Label feature clusters")
@@ -2095,13 +2106,50 @@ class CylindraMainWidget(MagicTemplate):
         {layer}{target}
         """
         from cylindra import cylfilters
+        from napari.utils.colormaps import label_colormap
 
-        feat = layer.features
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = layer.source_spline.nrise()
-        out = cylfilters.label(layer.molecules.features, target, nrise)
-        layer.molecules = layer.molecules.with_features(out.alias(f"{target}_label"))
+        out = cylfilters.label(layer.molecules.features, target, nrise).cast(pl.UInt32)
+        feature_name = f"{target}_label"
+        layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
-        return undo_callback(_set_layer_feature_future(layer, feat))
+        label_max = int(out.max())
+        cmap = label_colormap(label_max, seed=0.9414)
+        layer.set_colormap(feature_name, (0, label_max), cmap)
+        return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Analyze region properties")
+    def regionprops_features(
+        self,
+        layer: MoleculesLayer,
+        target: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="uif")}],
+        label: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="ui")}],
+        properties: Annotated[list[str], {"choices": REGIONPROPS_CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
+    ):  # fmt: skip
+        """
+        Analyze region properties using another feature column as the labels.
+
+        For instance, if the ...
+        """
+        from cylindra._cylindra_ext import RegionProfiler
+        from magicclass.ext.polars import DataFrameView
+
+        feat = layer.molecules.features
+        nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
+        pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
+        values = feat[target].cast(pl.Float32).to_numpy()
+        labels = feat[label].cast(pl.UInt32).to_numpy()
+        nrise = layer.source_spline.nrise()
+        npf = layer.source_spline.props.get_glob(H.nPF)
+
+        reg = RegionProfiler.from_features(nth, pf, values, labels, npf, nrise)
+        df = pl.DataFrame(reg.calculate(properties))
+        view = DataFrameView(value=df)
+        dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
+        dock.setFloating(True)
+        return undo_callback(dock.close).with_redo(dock.show)
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "pick_next.svg")
@@ -2175,7 +2223,10 @@ class CylindraMainWidget(MagicTemplate):
             if self._reserved_layers.paint not in self.parent_viewer.layers:
                 self.parent_viewer.add_layer(self._reserved_layers.paint)
             self._reserved_layers.paint.set_colormap(color_by, limits, cmap)
-            return undo_callback(lambda: None)  # TODO: undo paint
+            # TODO: undo paint
+            return undo_callback(
+                lambda: _Logger.print("undoing paint_cylinders do nothing.")
+            )
 
         return _on_return
 
@@ -2377,6 +2428,7 @@ class CylindraMainWidget(MagicTemplate):
             warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
 
     def _on_molecules_layer_renamed(self, event: "Event"):
+        """When layer name is renamed, record `ui.parent_viewer["old"].name = "new"`"""
         layer: MoleculesLayer = event.source
         if layer._undo_renaming:
             return
@@ -2454,8 +2506,8 @@ class CylindraMainWidget(MagicTemplate):
         spl = self.tomogram.splines[i]
         headers = [H.spacing, H.skew, H.nPF, H.start, H.radius, H.orientation]
         if spl.props.has_glob(headers):
-            itv, skew, npf, start, rad, ori = spl.globalprops.select(headers).row(0)
-            self.GlobalProperties._set_text(itv, skew, npf, start, rad, ori)
+            row = spl.globalprops.select(headers).row(0)
+            self.GlobalProperties._set_text(*row)
         else:
             self.GlobalProperties._init_text()
 
@@ -2623,8 +2675,18 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     return mk.Expr(mk.Head.block, exprs)
 
 
-def _set_layer_feature_future(layer: MoleculesLayer, features):
+def _set_layer_feature_future(
+    layer: MoleculesLayer,
+    features: pl.DataFrame,
+    cmap_info: "ColormapInfo | None" = None,
+):
     def _wrapper():
-        layer.features = features
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            layer.features = features
+        if cmap_info is not None:
+            layer.set_colormap(cmap_info.name, cmap_info.clim, cmap_info.cmap)
+        else:
+            layer.face_color = layer.edge_color = "lime"
 
     return _wrapper

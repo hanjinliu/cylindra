@@ -106,3 +106,29 @@ def oblique_coordinates(
     intervals: tuple[float, float],
     offsets: tuple[float, float],
 ) -> NDArray[np.float32]: ...
+
+class RegionProfiler:
+    def __init__(
+        self,
+        image: NDArray[np.float32],
+        label_image: NDArray[np.uint32],
+        nrise: int,
+    ) -> None: ...
+    @classmethod
+    def from_arrays(
+        cls,
+        image: NDArray[np.float32],
+        label_image: NDArray[np.uint32],
+        nrise: int,
+    ) -> RegionProfiler: ...
+    @classmethod
+    def from_features(
+        cls,
+        nth: NDArray[np.int32],
+        npf: NDArray[np.int32],
+        values: NDArray[np.float32],
+        labels: NDArray[np.uint32],
+        per: int,
+        nrise: int,
+    ) -> RegionProfiler: ...
+    def calculate(self, props: list[str]) -> dict[str, NDArray[np.float32]]: ...

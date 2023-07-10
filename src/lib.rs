@@ -7,6 +7,7 @@ pub mod array;
 pub mod annealing;
 pub mod filters;
 pub mod exceptions;
+pub mod regionprops;
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -21,6 +22,7 @@ fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
     m.add_class::<filters::CylindricArray>()?;
+    m.add_class::<regionprops::RegionProfiler>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(array::oblique_coordinates, m)?)?;
     Ok(())
