@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
+from cylindra.utils import ceilint, floorint
 import numpy as np
 import impy as ip
 
@@ -13,8 +14,8 @@ class PeakDetector:
 
     def get_peak(
         self,
-        range_y: tuple[int, int],
-        range_a: tuple[int, int],
+        range_y: tuple[float, float],
+        range_a: tuple[float, float],
         up_y: int = 1,
         up_a: int = 1,
     ):
@@ -26,9 +27,9 @@ class PeakDetector:
 
         Parameters
         ----------
-        range_y : (int, int)
+        range_y : (float, float)
             Range of power spectrum analysis in y-direction.
-        range_a : (int, int)
+        range_a : (float, float)
             Range of power spectrum analysis in a-direction.
         up_y : int, default is 1
             Upsampling factor in y-direction.
@@ -42,19 +43,32 @@ class PeakDetector:
         """
         y0, y1 = range_y
         a0, a1 = range_a
-        y1 = max(y1, y0 + 1)
-        a1 = max(a1, a0 + 1)
+        y0i, y1i = floorint(y0), ceilint(y1)
+        a0i, a1i = floorint(a0), ceilint(a1)
+        y1i = max(y1i, y0i + 1)
+        a1i = max(a1i, a0i + 1)
         power = self._img.local_power_spectra(
-            key=ip.slicer.y[y0:y1].a[a0:a1],
+            key=ip.slicer.y[y0i:y1i].a[a0i:a1i],
             upsample_factor=[1, up_y, up_a],
             dims="rya",
         ).proj("r")
 
-        ymax, amax = np.unravel_index(np.argmax(power), shape=power.shape)
+        # these should be >0
+        y_pad0 = ceilint((y0 - y0i) * up_y)
+        y_pad1 = floorint((y1i - y1) * up_y)
+        a_pad0 = ceilint((a0 - a0i) * up_a)
+        a_pad1 = floorint((a1i - a1) * up_a)
+
+        ymax, amax = np.unravel_index(
+            np.argmax(
+                power[y_pad0 : power.shape.y - y_pad1, a_pad0 : power.shape.a - a_pad1]
+            ),
+            shape=power.shape,
+        )
 
         return PeakInfo(
-            ymax + y0 * up_y,
-            amax + a0 * up_a,
+            ymax + y0i * up_y + y_pad0,
+            amax + a0i * up_a + a_pad0,
             (self._img.shape.y, self._img.shape.a),
             (up_y, up_a),
         )

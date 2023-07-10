@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import numpy as np
 import impy as ip
 from typing import TypeVar, Callable
@@ -12,7 +13,11 @@ def roundint(a: float):
 
 
 def ceilint(a: float):
-    return int(np.ceil(a))
+    return int(math.ceil(a))
+
+
+def floorint(a: float):
+    return int(math.floor(a))
 
 
 @contextmanager

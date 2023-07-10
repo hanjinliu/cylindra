@@ -37,9 +37,8 @@ class LocalParams(NamedTuple):
 
 
 def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
+    """Detect the peak position and calculate the local lattice parameters."""
     perimeter: nm = 2 * np.pi * radius
-    npfmin = GVar.npf_min
-    npfmax = GVar.npf_max
     img = img - img.mean()  # normalize.
 
     peak_det = PeakDetector(img)
@@ -53,10 +52,12 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
     # +--------------------> a-axis
 
     # First transform around the expected length of y-pitch.
-    npfrange = ceilint(npfmax / 2)
-
+    npfrange = ceilint(GVar.npf_max / 2)
     peakv = peak_det.get_peak(
-        range_y=get_yrange(img),
+        range_y=(
+            img.shape.y * img.scale.y / GVar.spacing_max,
+            img.shape.y * img.scale.y / GVar.spacing_min,
+        ),
         range_a=(-npfrange, npfrange + 1),
         up_y=max(int(6000 / img.shape.y), 1),
         up_a=20,
@@ -68,11 +69,14 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
     # Second, transform around 13 pf lateral periodicity.
     # This analysis measures skew angle and protofilament number.
     y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
+    tan_min = np.tan(np.deg2rad(GVar.skew_min))
+    tan_max = np.tan(np.deg2rad(GVar.skew_max))
+    npf_arr = np.array([GVar.npf_min, GVar.npf_max])
 
     peakh = peak_det.get_peak(
         range_y=(
-            ceilint(np.tan(np.deg2rad(GVar.skew_min)) * y_factor * npfmin) - 1,
-            ceilint(np.tan(np.deg2rad(GVar.skew_max)) * y_factor * npfmax),
+            np.min(tan_min * y_factor * npf_arr),
+            np.max(tan_max * y_factor * npf_arr),
         ),
         range_a=get_arange(img),
         up_y=max(int(21600 / img.shape.y), 1),
