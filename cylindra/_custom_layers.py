@@ -306,7 +306,8 @@ def _normalize_colormap(cmap) -> Colormap:
         return cmap
     if isinstance(cmap, str):
         return ensure_colormap(cmap)
-
+    if isinstance(cmap, list):
+        return Colormap(cmap)
     cmap = dict(cmap)
     if 0.0 not in cmap:
         cmap[0.0] = cmap[min(cmap.keys())]

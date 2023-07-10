@@ -2049,9 +2049,10 @@ class CylindraMainWidget(MagicTemplate):
         feature_name = f"{target}_{method}"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
-        layer.set_colormap(
-            feature_name, layer.colormap_info.clim, layer.colormap_info.cmap
-        )
+        if layer.colormap_info is not None:
+            layer.set_colormap(
+                feature_name, layer.colormap_info.clim, layer.colormap_info.cmap
+            )
         return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
