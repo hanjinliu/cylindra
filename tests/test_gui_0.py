@@ -221,6 +221,13 @@ def test_map_molecules(ui: CylindraMainWidget):
 def test_napari_operations(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     name = ui.parent_viewer.layers[-1].name
+    ui.parent_viewer.layers[name].name = "new-name"
+    assert str(ui.macro[-1]) == f"ui.parent_viewer.layers[{name!r}].name = 'new-name'"
+    assert ui.parent_viewer.layers[-1].name == "new-name"
+    ui.macro.undo()
+    assert not str(ui.macro[-1]).endswith("'new-name'")
+    assert ui.parent_viewer.layers[-1].name == name
+
     del ui.parent_viewer.layers[-1]
     assert str(ui.macro[-1]) == f"del ui.parent_viewer.layers[{name!r}]"
     ui.macro.undo()
@@ -417,6 +424,11 @@ def test_preview(ui: CylindraMainWidget):
     tester.update_parameters(var_name="TMV")
     tester.click_preview()
 
+    tester = mcls_testing.FunctionGuiTester(ui.convolve_feature)
+    tester.click_preview()
+    tester = mcls_testing.FunctionGuiTester(ui.binarize_feature)
+    tester.click_preview()
+
 
 def test_slicer(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False, paint=False)
@@ -432,6 +444,8 @@ def test_slicer(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
+    from cylindra.widgets.sta import MASK_CHOICES
+
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
@@ -462,6 +476,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         ui.sta.save_last_average(dirpath)
 
     template_path = TEST_DIR / "beta-tubulin.mrc"
+    ui.sta.params.template_path.value = template_path
+    ui.sta.params.mask_choice = MASK_CHOICES[2]
+    ui.sta.params.mask_choice = MASK_CHOICES[1]
+    ui.sta.show_template()
+    ui.sta.show_mask()
     ui.sta.align_averaged(
         layers=[ui.parent_viewer.layers["Mono-0"]],
         template_path=template_path,
@@ -587,19 +606,21 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
         offsets=(0.0, 0.0),
     )
 
+    kwargs = dict(
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        tilt_range=(-60.0, 60.0),
+        n_tilt=11,
+        interpolation=1,
+        seed=0,
+    )
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
         ui.cylinder_simulator.simulate_tomogram(
-            template_path=TEST_DIR / "beta-tubulin.mrc",
-            save_dir=dirpath,
-            nsr=[0.5, 2.0],
-            tilt_range=(-60.0, 60.0),
-            n_tilt=11,
-            interpolation=1,
-            seed=0,
+            **kwargs, nsr=[0.5, 2.0], save_dir=dirpath
         )
         assert len(list(dirpath.glob("*.mrc"))) == 2
+    ui.cylinder_simulator.simulate_tomogram_and_open(**kwargs, nsr=1.2)
     ui.cylinder_simulator.close()
 
 
@@ -967,6 +988,8 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         random_seeds=[0, 1],
         return_all=True,
     )
+    ui.macro.undo()
+    ui.macro.redo()
 
 
 def test_regionprops(ui: CylindraMainWidget):

@@ -1181,7 +1181,7 @@ class SubtomogramAveraging(MagicTemplate):
 
             @undo_callback
             def out():
-                parent._try_removing_layer(point_layers)
+                parent._try_removing_layers(point_layers)
                 layer.visible = True
 
             @out.with_redo

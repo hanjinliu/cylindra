@@ -131,7 +131,7 @@ class Volume(MagicTemplate):
             if os.path.exists(fp):
                 raise FileExistsError
             os.mkdir(fp)
-            imgs: ip.ImgArray = img.reshape(-1, *img.sizesof("zyx"))
+            imgs = img.reshape(-1, *img.sizesof("zyx"))
             imgs.axes = "pzyx"
             for i, img0 in enumerate(imgs):
                 img0.imsave(os.path.join(fp, f"image-{i}.mrc"))

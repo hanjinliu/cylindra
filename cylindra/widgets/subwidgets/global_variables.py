@@ -79,7 +79,7 @@ class GlobalVariablesMenu(MagicTemplate):
             Width in nm of image that will be used for spline fitting.
         point_size : float
             Default size of points layer in nm.
-        dask_chunk : tuple[int, int, int]
+        dask_chunk : (int, int, int)
             Chunk size for dask array.
         use_gpu : bool
             Use GPU if available.
@@ -113,7 +113,7 @@ class GlobalVariablesMenu(MagicTemplate):
                 parent=self.native,
             )
 
-        GVar.update(gvar)
+        self.set_variables(**gvar)
         _Logger.print(f"Global variables are set to:\n{Path(path).as_posix()}")
         return None
 

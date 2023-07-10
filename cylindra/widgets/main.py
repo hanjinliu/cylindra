@@ -2251,14 +2251,6 @@ class CylindraMainWidget(MagicTemplate):
         Molecules
             The ``Molecules`` object.
         """
-        if name is None:
-            # Return the most recent molecules object
-            for layer in reversed(self.parent_viewer.layers):
-                if isinstance(layer, MoleculesLayer):
-                    name = layer.name
-                    break
-            else:
-                raise ValueError("No molecules found in the layer list.")
         layer = self.parent_viewer.layers[name]
         if not isinstance(layer, MoleculesLayer):
             raise ValueError(f"Layer {name!r} is not a molecules layer.")
