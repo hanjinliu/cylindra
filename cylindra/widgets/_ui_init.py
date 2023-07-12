@@ -289,6 +289,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
         layer: MoleculesLayer = gui.layer.value
         series = layer.molecules.features[color_by]
         if series.dtype in pl.NUMERIC_DTYPES:
+            series = series.filter(~series.is_infinite())
             min_, max_ = series.min(), series.max()
             offset_ = (max_ - min_) / 2
             gui.limits[0].min = gui.limits[1].min = min_ - offset_
@@ -329,6 +330,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
     def _on_feature_change(target: str):
         layer: MoleculesLayer = gui.layer.value
         ser = layer.molecules.features[target]
+        ser = ser.filter(~ser.is_infinite())
         low, high = ser.min(), ser.max()
         gui.threshold.min, gui.threshold.max = low, high
         gui.threshold.step = (high - low) / 200

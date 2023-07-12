@@ -301,4 +301,9 @@ def _normalize_colormap(cmap) -> Colormap:
         cmap[0.0] = cmap[min(cmap.keys())]
     if 1.0 not in cmap:
         cmap[1.0] = cmap[max(cmap.keys())]
+    colors = list[Any]()
+    controls = list[float]()
+    for cont, col in sorted(cmap.items(), key=lambda x: x[0]):
+        controls.append(cont)
+        colors.append(col)
     return Colormap(list(cmap.values()), controls=list(cmap.keys()))

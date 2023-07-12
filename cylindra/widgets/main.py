@@ -91,6 +91,12 @@ DEFAULT_COLORMAP = {
     0.68: "#FF0000",  # red
     1.00: "#FFFF00",  # yellow
 }
+TWO_WAY_COLORMAP = {
+    0.00: "#000000",  # black
+    0.25: "#2659FF",  # blue
+    0.50: "#FFDBFE",  # white
+    1.00: "#FF6C6C",  # red
+}
 REGIONPROPS_CHOICES = [
     "area",
     "length",
@@ -1863,8 +1869,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
-        if layer.source_component is None:
-            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_interval(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
@@ -1889,18 +1894,13 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
-        if layer.source_component is None:
-            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_elevation_angle(
             layer.molecules, layer.source_component
         )
         self.reset_choices()  # choices regarding of features need update
-
-        # Set colormap
-        extreme = np.max(np.abs(layer.features[Mole.elev_angle]))
-        _clim = [-extreme, extreme]
-        layer.set_colormap(Mole.elev_angle, _clim, ["#2659FF", "#FFDBFE", "#FF6C6C"])
+        _set_angle_colormap(layer, Mole.elev_angle)
         self._need_save = True
         return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
@@ -1920,16 +1920,11 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
-        if layer.source_component is None:
-            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_skew(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
-
-        # Set colormap
-        extreme = np.max(np.abs(layer.features[Mole.skew]))
-        _clim = [-extreme, extreme]
-        layer.set_colormap(Mole.skew, _clim, ["#2659FF", "#FFDBFE", "#FF6C6C"])
+        _set_angle_colormap(layer, Mole.skew)
         self._need_save = True
         return undo_callback(_set_layer_feature_future(layer, feat, cmap_info))
 
@@ -1947,8 +1942,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
-        if layer.source_component is None:
-            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         layer.features = utils.with_radius(layer.molecules, layer.source_component)
         self.reset_choices()  # choices regarding of features need update
@@ -1975,12 +1969,10 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}
         """
-        if layer.source_component is None:
-            raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+        _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         model = self.sta._get_simple_annealing_model(layer)
         angles = np.rad2deg(model.lateral_angles())
-        angles[angles < 0] = -1.0
         layer.features = layer.molecules.features.with_columns(
             pl.Series(Mole.lateral_angle, angles)
         )
@@ -2694,3 +2686,20 @@ def _set_layer_feature_future(
             layer.face_color = layer.edge_color = "lime"
 
     return _wrapper
+
+
+def _assert_source_spline_exists(layer: MoleculesLayer) -> None:
+    if layer.source_spline is None:
+        raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
+    return None
+
+
+def _set_angle_colormap(layer: MoleculesLayer, name: str) -> None:
+    ser = layer.molecules.features[name]
+    ser = ser.filter(~ser.is_infinite())
+    if len(ser) == 0:
+        raise ValueError("All the values are invalid.")
+    extreme = ser.abs().max()
+    _clim = [-extreme * 2, extreme * 2]
+    layer.set_colormap(name, _clim, TWO_WAY_COLORMAP)
+    return None
