@@ -96,8 +96,6 @@ class Runner(MagicTemplate):
             parent = self._get_parent()
         except Exception:
             return [1]
-        if parent.tomogram is None:
-            return [1]
         out = [x[0] for x in parent.tomogram.multiscaled]
         if 1 not in out:
             out = [1] + out
@@ -113,7 +111,7 @@ class Runner(MagicTemplate):
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties")
     infer_polarity = vfield(True, label="Infer polarity")
-    map_monomers = vfield(True, label="Map monomers")
+    map_monomers = vfield(False, label="Map monomers")
 
     @fit.connect
     def _toggle_fit_params(self, visible: bool):

@@ -81,6 +81,7 @@ exclude_lines = [
     "@overload",
     "except ImportError",
     "except ImportError*",
+    "except PackageNotFoundError",
     "raise NotImplementedError",
     "pass",
 ]

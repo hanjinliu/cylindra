@@ -376,19 +376,14 @@ class SubtomogramAveraging(MagicTemplate):
     @property
     def template(self) -> "ip.ImgArray | None":
         """Template image."""
-        if self._get_parent().tomogram is None:
-            raise RuntimeError("Cannot create template before loading a tomogram.")
-        else:
-            loader = self._get_loader(binsize=1, molecules=Molecules.empty())
-            template, _ = loader.normalize_input(self.params._get_template())
-            scale = loader.scale
+        loader = self._get_loader(binsize=1, molecules=Molecules.empty())
+        template, _ = loader.normalize_input(self.params._get_template())
+        scale = loader.scale
         return ip.asarray(template, axes="zyx").set_scale(zyx=scale, unit="nm")
 
     @property
     def mask(self) -> "ip.ImgArray | None":
         """Mask image."""
-        if self._get_parent().tomogram is None:
-            raise RuntimeError("Cannot create mask before loading a tomogram.")
         loader = self._get_loader(binsize=1, molecules=Molecules.empty())
         _, mask = loader.normalize_input(
             self.params._get_template(allow_none=True), self.params._get_mask()
@@ -443,8 +438,6 @@ class SubtomogramAveraging(MagicTemplate):
 
     def _get_available_binsize(self, _=None) -> list[int]:
         parent = self._get_parent()
-        if parent.tomogram is None:
-            return [1]
         out = [x[0] for x in parent.tomogram.multiscaled]
         if 1 not in out:
             out = [1] + out

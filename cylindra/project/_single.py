@@ -341,17 +341,12 @@ class CylindraProject(BaseProject):
     def load_dummy_tomogram(self) -> "CylTomogram":
         """Load a tomogram object without actually reading the image file."""
         from cylindra.components import CylTomogram
-        import impy as ip
 
-        dummy = ip.zeros((24, 24, 24), dtype=np.float32, axes="zyx")
-        dummy[0, 0, 0] = 1.0
-        tomo = CylTomogram.from_image(
-            dummy,
+        tomo = CylTomogram.dummy(
             scale=self.scale,
             tilt_range=self.tilt_range,
             binsize=self.multiscales,
         )
-
         splines_list = [self.load_spline(i) for i in range(self.nsplines)]
         tomo.splines.extend(splines_list)
 

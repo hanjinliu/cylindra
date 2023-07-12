@@ -225,6 +225,27 @@ class CylTomogram(Tomogram):
         """List of splines."""
         return self._splines
 
+    @classmethod
+    def dummy(
+        cls,
+        *,
+        scale: float = 1.0,
+        tilt_range: tuple[float, float] | None = None,
+        binsize: int | Iterable[int] = (),
+    ) -> Self:
+        """Create a dummy tomogram."""
+
+        dummy = ip.zeros((24, 24, 24), dtype=np.float32, axes="zyx")
+        dummy[0, 0, 0] = 1.0
+        tomo = cls.from_image(
+            dummy,
+            scale=scale,
+            tilt_range=tilt_range,
+            binsize=binsize,
+        )
+
+        return tomo
+
     @property
     def n_splines(self) -> int:
         """Number of spline paths."""

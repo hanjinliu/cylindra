@@ -257,18 +257,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self.refresh()
         return None
 
-    def to_coordinates(self, npf: int | None = None) -> ip.ImgArray:
-        """Convert point coordinates of a Points layer into a structured array."""
-        import impy as ip
-
-        if npf is None:
-            npf = self.molecules.features[Mole.pf].max() + 1
-        data = self.data.reshape(-1, npf, 3)
-
-        data = ip.asarray(data, name=self.name, axes=["L", "PF", "dim"])
-        data.axes["dim"].labels = ("z", "y", "x")
-        return data
-
 
 class CylinderLabels(_FeatureBoundLayer, Labels):
     _type_string = "labels"

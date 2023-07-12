@@ -1,7 +1,6 @@
 from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
 import numpy as np
-import polars as pl
 import pytest
 from ._const import TEST_DIR
 
@@ -55,6 +54,16 @@ def test_run_all(coords, npf, rise, skew_range):
     assert all(spl.localprops[H.rise] > rise)
     skew_min, skew_max = skew_range
     assert skew_min < spl.props.get_glob(H.skew) < skew_max
+
+    repr(tomo.splines[0].props)
+    tomo.splines[0].props[H.spacing]
+    tomo.splines[0].props.select([H.spacing])
+    tomo.splines[0].props.update_glob({H.spacing: 4.0})
+    tomo.splines[0].props.drop_glob(H.spacing)
+    tomo.splines[0].props.drop_loc(H.spacing)
+    tomo.splines[0].props.clear_loc()
+    tomo.splines[0].props.clear_glob()
+    del tomo.splines[0].anchors
 
 
 def test_chunked_straightening():

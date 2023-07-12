@@ -202,7 +202,7 @@ class CylindraMainWidget(MagicTemplate):
     ### methods ###
 
     def __init__(self):
-        self._tomogram: CylTomogram = None
+        self._tomogram = CylTomogram.dummy(binsize=[1])
         self._tilt_range: "tuple[float, float] | None" = None
         self._reserved_layers = ReservedLayers()
 
@@ -249,8 +249,6 @@ class CylindraMainWidget(MagicTemplate):
         return np.round(coords, 3)
 
     def _get_available_binsize(self, _=None) -> list[int]:
-        if self.tomogram is None:
-            return [1]
         out = [x[0] for x in self.tomogram.multiscaled]
         if 1 not in out:
             out = [1] + out
