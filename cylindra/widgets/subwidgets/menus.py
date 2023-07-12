@@ -26,14 +26,14 @@ from magicclass.types import Path, Color
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
 
-from cylindra.widgets.widget_utils import FileFilter, get_code_theme
-
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, GlobalVariables as GVar
 from cylindra.project import CylindraProject
+from cylindra.widgets.widget_utils import FileFilter, get_code_theme
+from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra import _config
 from .global_variables import GlobalVariablesMenu
 
@@ -628,12 +628,20 @@ class Others(ChildWidget):
         @set_options(call_button="Delete", labels=False)
         def delete_workflow(
             self,
-            filenames: Annotated[list[str], {"choices": _get_workflow_names}],
+            filenames: Annotated[
+                list[str],
+                {
+                    "choices": _get_workflow_names,
+                    "widget_type": CheckBoxes,
+                    "value": (),
+                },
+            ],
         ):
             """Delete an existing workflow file."""
             for filename in filenames:
                 path = _config.workflow_path(filename)
                 if path.exists():
+                    assert path.suffix == ".py"
                     path.unlink()
                 else:
                     raise FileNotFoundError(
@@ -692,19 +700,8 @@ class Others(ChildWidget):
 
     @magicmenu
     class Help(MagicTemplate):
-        open_help = abstractapi()
         cylindra_info = abstractapi()
         report_issues = abstractapi()
-
-    @Help.wraps
-    @set_design(text="Open help")
-    @do_not_record
-    def open_help(self):
-        """Open a help window."""
-        from magicclass import build_help
-
-        help = build_help(self._get_main())
-        return help.show()
 
     @Help.wraps
     @set_design(text="Info")
@@ -735,9 +732,12 @@ class Others(ChildWidget):
 def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     workflow = workflow.replace("\t", "    ")
     expr = parse(workflow)
-    # TODO: fix macro-kit to check this
-    # check_call_args(expr, {"ui": ui})
-    check_attributes(expr, {"ui": ui})
+    if errors := check_call_args(expr, {"ui": ui}):
+        msg = "".join(map(lambda s: f"\n - {s}", errors))
+        raise ValueError(f"Method errors found in workflow script: {msg}")
+    if errors := check_attributes(expr, {"ui": ui}):
+        msg = "".join(map(lambda s: f"\n - {s}", errors))
+        raise ValueError(f"Attribute errors found in workflow script: {msg}")
     _main_function_found = False
     for line in expr.args:
         if isinstance(line, Symbol):

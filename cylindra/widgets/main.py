@@ -2132,7 +2132,17 @@ class CylindraMainWidget(MagicTemplate):
         """
         Analyze region properties using another feature column as the labels.
 
-        For instance, if the ...
+        For instance, if the target data is [0, 1, 2, 3, 4] and the labels are [0, 1, 1, 2, 2],
+        the the property "mean" will be [1.5, 3.5]. For some properties such as "length" and
+        "width", the monomer connection will be considered.
+
+        Parameters
+        ----------
+        {layer}{target}
+        label: str
+            The feature name that will be used as the labels.
+        properties : list of str
+            Properties to calculate.
         """
         from cylindra._cylindra_ext import RegionProfiler
         from magicclass.ext.polars import DataFrameView

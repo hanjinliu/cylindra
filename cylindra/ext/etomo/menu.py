@@ -18,10 +18,8 @@ class PEET(MagicTemplate):
         self,
         mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
-        shift_mol: Annotated[
-            bool, {"label": "Apply shifts to monomers if offsets are available."}
-        ] = True,
-    ):
+        shift_mol: Annotated[bool, {"label": "Apply shifts to monomers if offsets are available."}] = True,
+    ):  # fmt: skip
         """
         Read monomer coordinates and angles from IMOD .mod files.
 
