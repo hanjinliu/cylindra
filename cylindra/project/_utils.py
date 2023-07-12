@@ -4,8 +4,7 @@ from pathlib import Path
 from macrokit import parse, Head, Expr
 
 
-_MACRO_FORMAT = """
-import polars as pl
+_MACRO_FORMAT = """import polars as pl
 from cylindra.widgets import CylindraMainWidget
 from cylindra import instance
 
