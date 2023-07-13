@@ -449,11 +449,13 @@ class CylindraMainWidget(MagicTemplate):
         """
         if isinstance(path, CylindraProject):
             project = path
+            project_path = project.project_path
         else:
             project_path = get_project_json(path)
             project = CylindraProject.from_json(project_path)
-        _Logger.print(f"Project loaded: {project_path.as_posix()}")
-        self._project_dir = project_path.parent
+        if project_path is not None:
+            _Logger.print(f"Project loaded: {project_path.as_posix()}")
+            self._project_dir = project_path.parent
         return thread_worker.callback(
             project.to_gui(self, filter=filter, paint=paint, read_image=read_image)
         )
@@ -2306,6 +2308,7 @@ class CylindraMainWidget(MagicTemplate):
         """Initialize widget state of spline control and local properties for new plot."""
         self.SplineControl.pos = 0
         self.SplineControl["pos"].max = 0
+        self.SplineControl.footer.highlight_subvolume = False
         self.LocalProperties._init_text()
 
         for i in range(3):

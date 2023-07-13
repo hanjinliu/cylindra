@@ -2,17 +2,23 @@ import numpy as np
 import impy as ip
 
 from magicclass import (
+    abstractapi,
     magicclass,
     MagicTemplate,
     field,
+    set_design,
     vfield,
 )
-from magicclass.types import OneOf
+from magicclass.logging import getLogger
+from magicclass.types import OneOf, Path
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from dask import delayed, array as da
 
 from cylindra.const import GlobalVariables as GVar, PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
+from cylindra.widgets.widget_utils import FileFilter
+
+_Logger = getLogger("cylindra")
 
 
 @delayed
@@ -30,7 +36,7 @@ def delayed_map_coordinates(
     return out
 
 
-@magicclass(widget_type="groupbox", name="Spline Control")
+@magicclass(widget_type="groupbox", name="Spline Control", record=False)
 class SplineControl(MagicTemplate):
     """
     Control and visualization along splines
@@ -74,28 +80,48 @@ class SplineControl(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
-    num = vfield(OneOf[_get_splines], label="Spline No.", record=False)
-    pos = vfield(
-        int, widget_type="Slider", label="Position", record=False
-    ).with_options(max=0)
+    num = vfield(OneOf[_get_splines], label="Spline No.")
+    pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
     canvas = field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3)
 
-    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
-        highlight_area = vfield(False, record=False).with_options(
-            text="Highlight subvolume",
-        )
+        highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
+        save_screenshot = abstractapi()
+        log_screenshot = abstractapi()
+
+    @footer.wraps
+    @set_design(width=30, text="Scr")
+    def save_screenshot(self, path: Path.Save[FileFilter.PNG]):
+        """Take a screenshot of the projections."""
+        from skimage.io import imsave
+
+        img = self.canvas.render()
+        imsave(path, img)
+
+    @footer.wraps
+    @set_design(width=30, text="Log")
+    def log_screenshot(self):
+        """Take a screenshot of the projections and show in the logger."""
+        import matplotlib.pyplot as plt
+
+        img = self.canvas.render()
+        with _Logger.set_plt():
+            plt.imshow(img)
+            plt.axis("off")
+            plt.show()
+        return None
 
     @num.connect
     @pos.connect
-    @footer.highlight_area.connect
+    @footer.highlight_subvolume.connect
     def _highlight(self):
         """Change camera focus to the position of current spline fragment."""
         parent = self._get_parent()
         if parent.parent_viewer is None:
             return None
         highlight = parent._reserved_layers.highlight
-        if not self.footer.highlight_area:
+        if not self.footer.highlight_subvolume:
             if highlight in parent.parent_viewer.layers:
                 parent.parent_viewer.layers.remove(highlight)
             return None

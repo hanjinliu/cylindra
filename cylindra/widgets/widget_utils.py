@@ -40,6 +40,7 @@ class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
 
     IMAGE = "Tomograms (*.mrc;*.rec;*.tif;*.tiff;*.map);;All files (*)"
+    PNG = "PNG (*.png;*.jpg);;All files (*)"
     JSON = "JSON(*.json;*.txt);;All files (*)"
     PROJECT = "Project file (project.json);;JSON (*.json;*.txt);;All files (*)"
     CSV = "CSV (*.csv;*.txt;*.dat);;All files (*)"
