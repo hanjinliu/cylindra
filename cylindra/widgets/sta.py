@@ -118,6 +118,7 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
+AVG_CHOICES = [None, "Raw", "Filtered"]
 _Logger = getLogger("cylindra")
 
 
@@ -637,8 +638,9 @@ class SubtomogramAveraging(MagicTemplate):
                     _radius: nm = utils.with_radius(mole, spl)[Mole.radius].mean()
                 else:
                     _radius = spl.radius
-                _offset_r, _offset_y, _dx = svec
-                _offset_a = np.arctan2(_dx, _offset_r + _radius)
+                _dz, _offset_y, _dx = rotator.apply(svec)
+                _offset_r = np.sqrt((_dz + _radius) ** 2 + _dx**2) - _radius
+                _offset_a = np.arctan2(_dx, _dz + _radius)
                 if spl.orientation is Ori.PlusToMinus:
                     _offset_y = -_offset_y
                     _offset_a = -_offset_a
@@ -1212,7 +1214,7 @@ class SubtomogramAveraging(MagicTemplate):
         n_set : int, default is 1
             How many sets of image pairs will be generated to average FSC.
         show_average : bool, default is True
-            If true, subtomogram averaging will be shown after FSC calculation.
+            If true, subtomogram average will be shown after FSC calculation.
         dfreq : float, default is 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
@@ -1352,6 +1354,9 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
+        show_average: Annotated[
+            str, {"label": "Show averages as", "choices": AVG_CHOICES}
+        ] = AVG_CHOICES[2],
         cutoff: _CutoffFreq = 0.25,
     ):
         """
@@ -1366,6 +1371,8 @@ class SubtomogramAveraging(MagicTemplate):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the
             corresponding spline will be used.
+        show_average : bool, default is True
+            If true, all the subtomogram averages will be shown.
         {cutoff}
         """
         t0 = timer("seam_search")
@@ -1403,18 +1410,21 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.callback
         def _seam_search_on_return():
-            self._show_reconstruction(img_ave, layer.name, store=False)
+            if show_average is not None:
+                if show_average == AVG_CHOICES[2]:
+                    sigma = 0.25 / loader.scale
+                    img_ave.gaussian_filter(sigma=sigma, update=True)
+                self._show_reconstruction(img_ave, layer.name, store=False)
+                self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
+                self.sub_viewer.layers[-1].metadata["Score"] = score
 
             # plot all the correlation
             t0.toc()
-            _Logger.print_html("<code>Seam_search</code>")
+            _Logger.print_html("<code>seam_search</code>")
             with _Logger.set_plt():
                 _Logger.print(f"layer = {layer.name!r}")
                 _Logger.print(f"template = {str(template_path)!r}")
                 widget_utils.plot_seam_search_result(score, npf)
-
-            self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
-            self.sub_viewer.layers[-1].metadata["Score"] = score
 
         return _seam_search_on_return
 
