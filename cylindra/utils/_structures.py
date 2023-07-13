@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
+from scipy.ndimage import uniform_filter1d
 import polars as pl
 import impy as ip
 from dask import array as da
@@ -144,13 +145,15 @@ def angle_corr(
     return angle
 
 
-def molecules_to_spline(mole: Molecules):
+def molecules_to_spline(mole: Molecules, window_size: int = 1):
     """Convert well aligned molecule positions into a spline."""
     from cylindra.components import CylSpline
 
     spl = CylSpline(degree=GVar.spline_degree)
     all_coords = _reshaped_positions(mole)
-    mean_coords = np.mean(all_coords, axis=1)
+    mean_coords = np.mean(all_coords, axis=1)  # (N, ndim)
+    if window_size > 1:
+        mean_coords = uniform_filter1d(mean_coords, window_size, mode="nearest", axis=0)
     return spl.fit_coa(mean_coords, min_radius=GVar.min_curvature_radius)
 
 
@@ -182,7 +185,7 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _u = sub.features[Mole.position] / _spl_len
         _spl_vec_norm = _norm(spl.map(_u, der=1))
         _y_interv = np.abs(_dot(_interv_vec, _spl_vec_norm))
-        _y_interv[-1] = -1.0  # fill invalid values with -1
+        _y_interv[-1] = -np.inf  # fill invalid values with -inf
         subsets.append(
             sub.with_features(pl.Series(Mole.interval, _y_interv, dtype=pl.Float32))
         )
@@ -215,7 +218,7 @@ def with_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
                 f"Cosine values must be in range [-1, 1] but got:\n{_cos!r}"
             )
         _deg = np.rad2deg(np.arccos(_cos))
-        _deg[-1] = 0.0  # fill invalid values with 0
+        _deg[-1] = -np.inf  # fill invalid values with 0
         subsets.append(
             sub.with_features(pl.Series(Mole.elev_angle, _deg, dtype=pl.Float32))
         )
@@ -252,7 +255,7 @@ def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
         _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
 
         _skew = np.rad2deg(2 * spacing * _skew_sin / _radius)
-        _skew[-1] = 0
+        _skew[-1] = -np.inf
         subsets.append(sub.with_features(pl.Series(Mole.skew, _skew, dtype=pl.Float32)))
 
     return (
