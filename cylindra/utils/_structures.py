@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
-from scipy.ndimage import uniform_filter1d
 import polars as pl
 import impy as ip
 from dask import array as da
@@ -145,15 +144,13 @@ def angle_corr(
     return angle
 
 
-def molecules_to_spline(mole: Molecules, window_size: int = 1):
+def molecules_to_spline(mole: Molecules):
     """Convert well aligned molecule positions into a spline."""
     from cylindra.components import CylSpline
 
     spl = CylSpline(degree=GVar.spline_degree)
     all_coords = _reshaped_positions(mole)
     mean_coords = np.mean(all_coords, axis=1)  # (N, ndim)
-    if window_size > 1:
-        mean_coords = uniform_filter1d(mean_coords, window_size, mode="nearest", axis=0)
     return spl.fit_coa(mean_coords, min_radius=GVar.min_curvature_radius)
 
 

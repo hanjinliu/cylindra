@@ -1111,7 +1111,6 @@ class CylindraMainWidget(MagicTemplate):
     def molecules_to_spline(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
-        window_size: Annotated[int, {"min": 1}] = 1,
         delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
         inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
         missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
@@ -1129,9 +1128,6 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layers}
-        window_size : int, default is 1
-            Window size of uniform filter to be used during calculation of spline sample
-            points from molecules.
         delete_old : bool, default is True
             If True, delete the old spline if the molecules has one. For instance, if
             "Mono-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
@@ -1160,7 +1156,7 @@ class CylindraMainWidget(MagicTemplate):
 
         for layer in layers:
             mole = layer.molecules
-            spl = utils.molecules_to_spline(mole, window_size)
+            spl = utils.molecules_to_spline(mole)
             try:
                 idx = tomo.splines.index(layer.source_component)
             except ValueError:
