@@ -36,7 +36,6 @@ from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
 
 from napari.layers import Layer
-from napari.utils.colormaps import Colormap
 
 from cylindra import utils, _config
 from cylindra.components import CylSpline, CylTomogram
