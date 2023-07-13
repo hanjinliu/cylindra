@@ -430,9 +430,9 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        path : Path
+        path : path-like or CylindraProject
             Path to the project json file, or the project directory that contains
-            "project.json".
+            "project.json", or a CylindraProject object.
         {filter}
         paint : bool, default is True
             Whether to paint cylinder properties if available.
@@ -441,8 +441,11 @@ class CylindraMainWidget(MagicTemplate):
             image is created and only splines and molecules will be loaded, which is
             useful to decrease loading time, or analyze data in other PC.
         """
-        project_path = get_project_json(path)
-        project = CylindraProject.from_json(project_path)
+        if isinstance(path, CylindraProject):
+            project = path
+        else:
+            project_path = get_project_json(path)
+            project = CylindraProject.from_json(project_path)
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
         self._project_dir = project_path.parent
         return thread_worker.callback(
