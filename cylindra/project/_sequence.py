@@ -93,20 +93,6 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             )
         return f"{type(self).__name__} (empty)"
 
-    @classmethod
-    def glob(cls, path: str | Path, check_scale: bool = True) -> Self:
-        """
-        Glob a path and add all projects found.
-
-        >>> ProjectCollection.glob("path/to/projects/*.json")
-        """
-        from glob import glob
-
-        self = cls(check_scale=check_scale)
-        for path in glob(str(path)):
-            self.add(path)
-        return self
-
     @overload
     def __getitem__(self, key: int) -> CylindraProject:
         ...
@@ -190,7 +176,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return col
 
     def collect_localprops(
-        self, allow_none: bool = True, id: _IDTYPE = "path"
+        self, allow_none: bool = True, id: _IDTYPE = "int"
     ) -> pl.DataFrame:
         """
         Collect all localprops into a single dataframe.
@@ -200,6 +186,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         allow_none : bool, default is True
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
+        id : str, default is "int"
+            How to describe the source tomogram. If "int", each tomogram will
+            be labeled with ascending integers. If "path", each tomogram will
+            be labeled with the name of the project directory.
 
         Returns
         -------
@@ -225,7 +215,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return self._normalize_id(out, id)
 
     def collect_globalprops(
-        self, allow_none: bool = True, suffix: str = "", id: _IDTYPE = "path"
+        self,
+        allow_none: bool = True,
+        suffix: str = "",
+        id: _IDTYPE = "int",
     ) -> pl.DataFrame:
         """
         Collect all globalprops into a single dataframe.
@@ -238,6 +231,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         suffix : str, default is ""
             Suffix to add to the column names that may be collide with the local
             properties.
+        id : str, default is "int"
+            How to describe the source tomogram. If "int", each tomogram will
+            be labeled with ascending integers. If "path", each tomogram will
+            be labeled with the name of the project directory.
 
         Returns
         -------
@@ -263,7 +260,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return self._normalize_id(out, id)
 
     def collect_joinedprops(
-        self, allow_none: bool = True, id: _IDTYPE = "path"
+        self, allow_none: bool = True, id: _IDTYPE = "int"
     ) -> pl.DataFrame:
         """
         Collect all the local and global properties into a single dataframe.
@@ -278,7 +275,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             ┌───────────┬──────────────┐
             │ spacing   ┆ spacing_glob │
             │ ---       ┆ ---          │
-            │ f64       ┆ f64          │
+            │ f32       ┆ f32          │
             ╞═══════════╪══════════════╡
             │ 4.093385  ┆ 4.1024575    │
             │ 4.0987015 ┆ 4.1024575    │
@@ -293,6 +290,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         allow_none : bool, default is True
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
+        id : str, default is "int"
+            How to describe the source tomogram. If "int", each tomogram will
+            be labeled with ascending integers. If "path", each tomogram will
+            be labeled with the name of the project directory.
 
         Returns
         -------

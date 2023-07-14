@@ -994,12 +994,13 @@ def test_mesh_annealing(ui: CylindraMainWidget):
 
 def test_regionprops(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    ui.convolve_feature(
-        layer=ui.parent_viewer.layers["Mono-0"],
-        target="nth",
-        method="mean",
-        footprint=[[0, 1, 0], [1, 1, 1], [1, 1, 1]],
-    )
+    for meth in ["mean", "median", "min", "max"]:
+        ui.convolve_feature(
+            layer=ui.parent_viewer.layers["Mono-0"],
+            target="nth",
+            method=meth,
+            footprint=[[0, 1, 0], [1, 1, 1], [1, 1, 1]],
+        )
     ui.binarize_feature(
         layer=ui.parent_viewer.layers["Mono-0"],
         target="pf-id",
