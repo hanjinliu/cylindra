@@ -49,7 +49,8 @@ from cylindra.widgets._widget_ext import (
     RandomSeedEdit,
     MultiFileEdit,
 )
-from cylindra.components import Landscape, ViterbiResult
+from cylindra.components.landscape import Landscape, ViterbiResult
+from cylindra.components.seam_search import CorrelationSeamSearcher
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
@@ -1387,24 +1388,18 @@ class SubtomogramAveraging(MagicTemplate):
             mask=self.params._get_mask(params=mask_params),
         )
 
-        corrs, img_ave, all_labels = utils.try_all_seams(
-            loader=loader.replace(output_shape=template.shape),
-            npf=npf,
+        seam_searcher = CorrelationSeamSearcher(npf)
+        result = seam_searcher.search(
+            loader=loader,
             template=ip.asarray(template, axes="zyx"),
             mask=mask,
             cutoff=cutoff,
         )
 
-        # calculate score and the best PF position
-        corr1, corr2 = corrs[:npf], corrs[npf:]
-        score = np.empty_like(corrs)
-        score[:npf] = corr1 - corr2
-        score[npf:] = corr2 - corr1
-        imax = np.argmax(score)
         layer.features = layer.molecules.features.with_columns(
-            pl.Series(Mole.isotype, all_labels[imax].astype(np.uint8))
+            pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
         )
-        layer.metadata["seam-search-score"] = score
+        layer.metadata["seam-search-score"] = result.scores
 
         parent._need_save = True
 
@@ -1413,10 +1408,9 @@ class SubtomogramAveraging(MagicTemplate):
             if show_average is not None:
                 if show_average == AVG_CHOICES[2]:
                     sigma = 0.25 / loader.scale
-                    img_ave.gaussian_filter(sigma=sigma, update=True)
-                self._show_reconstruction(img_ave, layer.name, store=False)
-                self.sub_viewer.layers[-1].metadata["Correlation"] = corrs
-                self.sub_viewer.layers[-1].metadata["Score"] = score
+                    result.averages.gaussian_filter(sigma=sigma, update=True)
+                self._show_reconstruction(result.averages, layer.name, store=False)
+                self.sub_viewer.layers[-1].metadata["Score"] = result.scores
 
             # plot all the correlation
             t0.toc()
@@ -1424,7 +1418,7 @@ class SubtomogramAveraging(MagicTemplate):
             with _Logger.set_plt():
                 _Logger.print(f"layer = {layer.name!r}")
                 _Logger.print(f"template = {str(template_path)!r}")
-                widget_utils.plot_seam_search_result(score, npf)
+                widget_utils.plot_seam_search_result(result.scores, npf)
 
         return _seam_search_on_return
 

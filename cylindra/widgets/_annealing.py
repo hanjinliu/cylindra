@@ -11,11 +11,11 @@ import numpy as np
 
 from cylindra.types import MoleculesLayer
 from cylindra.const import MoleculesHeader as Mole, nm
-from cylindra.components import AnnealingResult
 
 if TYPE_CHECKING:
     from cylindra._cylindra_ext import CylindricAnnealingModel
-    from .sta import SubtomogramAveraging
+    from cylindra.widgets.sta import SubtomogramAveraging
+    from cylindra.components.landscape import AnnealingResult
 
 
 def get_annealing_model(

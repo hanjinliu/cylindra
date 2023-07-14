@@ -21,65 +21,6 @@ if TYPE_CHECKING:
     from cylindra.components import CylSpline
 
 
-def try_all_seams(
-    loader: SubtomogramLoader,
-    npf: int,
-    template: ip.ImgArray,
-    mask: NDArray[np.float32] | None = None,
-    cutoff: float = 0.5,
-) -> tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]:
-    """
-    Try all the possible seam positions and compare correlations.
-
-    Parameters
-    ----------
-    loader : SubtomogramLoader
-        An aligned ``acryo.SubtomogramLoader`` object.
-    npf : int
-        Number of protofilament.
-    template : ip.ImgArray
-        Template image.
-    mask : ip.ImgArray, optional
-        Mask image.
-    cutoff : float, default is 0.5
-        Cutoff frequency applied before calculating correlations.
-
-    Returns
-    -------
-    tuple[np.ndarray, ip.ImgArray, list[np.ndarray]]
-        Correlation, average and boolean array correspond to each seam position.
-    """
-    corrs = list[float]()
-    labels = list[np.ndarray]()  # list of boolean arrays
-
-    if mask is None:
-        mask = 1
-
-    masked_template = (template * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
-    _id = np.arange(len(loader.molecules))
-    assert _id.size % npf == 0
-
-    # prepare all the labels in advance (only takes up ~0.5 MB at most)
-    for pf in range(2 * npf):
-        res = (_id - pf) // npf
-        sl = res % 2 == 0
-        labels.append(sl)
-
-    # here, dask_array is (N, Z, Y, X) array where dask_array[i] is i-th subtomogram.
-    dask_array = loader.construct_dask(output_shape=template.shape)
-    averaged_images = da.compute([da.mean(dask_array[sl], axis=0) for sl in labels])[0]
-    averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
-    averaged_images.set_scale(zyx=loader.scale)
-
-    corrs = list[float]()
-    for avg in averaged_images:
-        avg: ip.ImgArray
-        corr = ip.zncc((avg * mask).lowpass_filter(cutoff=cutoff), masked_template)
-        corrs.append(corr)
-
-    return np.array(corrs), averaged_images, labels
-
-
 def centering(
     img: ip.ImgArray,
     point: np.ndarray,
@@ -282,32 +223,6 @@ def _norm(vec):
 def _dot(a, b):
     """Vectorized dot product."""
     return np.sum(a * b, axis=1)
-
-
-def infer_seam_from_labels(label: np.ndarray, npf: int) -> int:
-    label = np.asarray(label)
-    nmole = label.size
-    unique_values = np.unique(label)
-    if len(unique_values) != 2:
-        raise ValueError(
-            f"Label must have exactly two unique values, but got {unique_values}"
-        )
-
-    def _binarize(x: NDArray[np.bool_]) -> NDArray[np.int8]:
-        return np.where(x, 1, -1)
-
-    bin_label = _binarize(label == unique_values[0])
-
-    _id = np.arange(nmole)
-    assert _id.size % npf == 0
-
-    scores = list[int]()
-    for pf in range(npf):
-        res = (_id - pf) // npf
-        sl = _binarize(res % 2 == 0)
-        score = abs(np.sum(bin_label * sl))
-        scores.append(score)
-    return np.argmax(scores)
 
 
 def infer_geometry_from_molecules(mole: Molecules) -> tuple[int, int, int]:

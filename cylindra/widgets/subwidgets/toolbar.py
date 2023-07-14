@@ -12,7 +12,7 @@ from magicclass import (
 )
 from magicclass.widgets import Separator
 from magicclass.logging import getLogger
-from cylindra.components import AutoCorrelationPicker
+from cylindra.components.picker import AutoCorrelationPicker
 
 ICON_DIR = Path(__file__).parent.parent / "icons"
 

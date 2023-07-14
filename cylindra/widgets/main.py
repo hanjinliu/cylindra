@@ -39,6 +39,7 @@ from napari.layers import Layer
 
 from cylindra import utils, _config
 from cylindra.components import CylSpline, CylTomogram
+from cylindra.components.seam_search import BooleanSeamSearcher
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
     GlobalVariables as GVar,
@@ -2002,10 +2003,11 @@ class CylindraMainWidget(MagicTemplate):
         if by not in feat.columns:
             raise ValueError(f"Column {by} does not exist.")
         npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
-        seam = utils.infer_seam_from_labels(feat[by], npf=npf)
-        _id = np.arange(len(feat))
-        res = (_id - seam) // npf
-        new_feat = pl.Series(Mole.isotype, res % 2)
+        seam_searcher = BooleanSeamSearcher(npf)
+        result = seam_searcher.search(feat[by])
+        new_feat = pl.Series(
+            Mole.isotype, result.get_label(feat.shape[0]), dtype=pl.Int8
+        )
         layer.features = layer.molecules.features.with_columns(new_feat)
         return undo_callback(
             _set_layer_feature_future(layer, feat, layer.colormap_info)
