@@ -1,6 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 from types import SimpleNamespace
+from typing import Literal
 
 from psygnal import EventedModel
 import polars as pl
@@ -75,12 +76,12 @@ class ExtrapolationMode(strEnum):
 class PropertyNames(SimpleNamespace):
     """Header names for result table of local properties."""
 
-    splDist = "splDistance"
-    splPos = "splPosition"
-    rise = "riseAngle"
+    spl_dist = "spl_dist"
+    spl_pos = "spl_pos"
+    rise = "rise_angle"
     spacing = "spacing"
-    skew = "skewAngle"
-    nPF = "nPF"
+    skew = "skew_angle"
+    npf = "npf"
     radius = "radius"
     orientation = "orientation"  # global only
     offset_radial = "offset_radial"  # global only
@@ -169,8 +170,9 @@ class GlobalVariableModel(EventedModel):
     spacing_max: nm = 4.3
     skew_min: float = -1.0
     skew_max: float = 1.0
+    rise_sign: Literal[-1, 1] = -1
     min_curvature_radius: nm = 400.0
-    clockwise: str = "MinusToPlus"
+    clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
     thickness_inner: float = 2.0
     thickness_outer: float = 3.0
     fit_depth: nm = 48.0
@@ -189,6 +191,8 @@ class GlobalVariableModel(EventedModel):
                 raise ValueError("spacing_min > spacing_max must be satisfied.")
             if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
                 raise ValueError("skew_min > skew_max must be satisfied.")
+            if values.get("rise_sign", 1) not in (-1, 1):
+                raise ValueError("rise_sign must be either -1 or 1.")
         # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
         # by one). This is not desirable because min/max values should be updated at
         # the same time. Therefore, we block the events and emit the signal manually.
@@ -239,7 +243,7 @@ class ImageFilter(Enum):
 
 
 _POLARS_DTYPES = {
-    PropertyNames.nPF: pl.UInt8,
+    PropertyNames.npf: pl.UInt8,
     PropertyNames.orientation: pl.Utf8,
     IDName.spline: pl.UInt16,
     MoleculesHeader.image: pl.UInt16,

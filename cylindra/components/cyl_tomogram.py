@@ -539,7 +539,7 @@ class CylTomogram(Tomogram):
             spl.make_anchors(n=3)
             self.set_radius(i=i, binsize=binsize)
 
-        _required = [H.spacing, H.skew, H.nPF]
+        _required = [H.spacing, H.skew, H.npf]
         if not spl.props.has_glob(_required):
             self.global_ft_params(i=i, binsize=binsize)
 
@@ -552,7 +552,7 @@ class CylTomogram(Tomogram):
         # angles are used, considering missing wedge effect.
         interv = spl.props.get_glob(H.spacing) * 2
         skew = spl.props.get_glob(H.skew)
-        npf = roundint(spl.props.get_glob(H.nPF))
+        npf = roundint(spl.props.get_glob(H.npf))
 
         LOGGER.info(
             f" >> Parameters: spacing = {interv/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}"
@@ -832,8 +832,8 @@ class CylTomogram(Tomogram):
             da.compute(*tasks),
             schema=LocalParams.polars_schema(),
         ).with_columns(
-            pl.Series(H.splPos, spl.anchors, dtype=pl.Float32),
-            pl.Series(H.splDist, spl.distances(), dtype=pl.Float32),
+            pl.Series(H.spl_pos, spl.anchors, dtype=pl.Float32),
+            pl.Series(H.spl_dist, spl.distances(), dtype=pl.Float32),
         )
         spl.props.update_loc(lprops, ft_size)
 
@@ -1037,7 +1037,7 @@ class CylTomogram(Tomogram):
             polar = mask_spectra(polar)
         img_flat = polar.proj("y")
 
-        if (npf := spl.props.get_glob(H.nPF, None)) is None:
+        if (npf := spl.props.get_glob(H.npf, None)) is None:
             # if the global properties are already calculated, use it
             # otherwise, calculate the number of PFs from the power spectrum
             ft = img_flat.fft(shift=False, dims="ra")
@@ -1309,7 +1309,7 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
-        _required = [H.spacing, H.skew, H.rise, H.nPF]
+        _required = [H.spacing, H.skew, H.rise, H.npf]
         _missing = [k for k in _required if k not in kwargs]
         if not spl.props.has_glob(_missing):
             self.global_ft_params(i=i)

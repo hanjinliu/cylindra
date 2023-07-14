@@ -298,8 +298,8 @@ class CylindraProject(BaseProject):
         else:
             _glob = pl.DataFrame([])
 
-        if all((c in _loc.columns) for c in [H.splDist, H.splPos]):
-            spl._anchors = np.asarray(_loc[H.splPos])
+        if all((c in _loc.columns) for c in [H.spl_dist, H.spl_pos]):
+            spl._anchors = np.asarray(_loc[H.spl_pos])
         for c in [IDName.spline, IDName.pos]:
             if c in _loc.columns:
                 _loc = _loc.drop(c)

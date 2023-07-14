@@ -9,6 +9,7 @@ from cylindra.const import (
     nm,
     Ori,
     PropertyNames as H,
+    GlobalVariables as GVar,
 )
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
@@ -112,7 +113,7 @@ class CylSpline(Spline):
     def nrise(self, **kwargs):
         interv = _get_globalprops(self, kwargs, H.spacing)
         skew = _get_globalprops(self, kwargs, H.skew)
-        rise = -_get_globalprops(self, kwargs, H.rise)
+        rise = _get_globalprops(self, kwargs, H.rise) * GVar.rise_sign
         radius = _get_globalprops(self, kwargs, H.radius)
 
         perimeter = 2 * np.pi * radius
@@ -146,9 +147,9 @@ class CylSpline(Spline):
         length = self.length()
         interv = _get_globalprops(self, kwargs, H.spacing)
         skew = _get_globalprops(self, kwargs, H.skew)
-        rise = -_get_globalprops(self, kwargs, H.rise)
+        rise = _get_globalprops(self, kwargs, H.rise) * GVar.rise_sign
         radius = _get_globalprops(self, kwargs, H.radius)
-        npf = roundint(_get_globalprops(self, kwargs, H.nPF))
+        npf = roundint(_get_globalprops(self, kwargs, H.npf))
         perimeter = 2 * np.pi * radius
         rise_rad = np.deg2rad(rise)
         skew_rad = np.deg2rad(skew)
@@ -206,8 +207,8 @@ class CylSpline(Spline):
             loc.append(pl.repeat(rise, pl.count()).cast(pl.Float32).alias(H.rise))
             glob.append(pl.Series([rise]).cast(pl.Float32).alias(H.rise))
         if npf is not None:
-            loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.nPF))
-            glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.nPF))
+            loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.npf))
+            glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.npf))
         if radius is not None:
             glob.append(pl.Series([radius]).cast(pl.Float32).alias(H.radius))
         if orientation is not None:

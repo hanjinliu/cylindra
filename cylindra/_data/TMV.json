@@ -6,6 +6,7 @@
     "spacing_max": 2.5,
     "skew_min": -20.0,
     "skew_max": -10.0,
+    "rise_sign": -1,
     "min_curvature_radius": 10000.0,
     "clockwise": "MinusToPlus",
     "thickness_inner": 3.0,

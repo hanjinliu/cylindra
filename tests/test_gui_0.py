@@ -274,7 +274,7 @@ def test_spline_switch(ui: CylindraMainWidget):
     # GDP-bound microtubule has lattice spacing in this range
     assert 4.08 < ypitch_glob < 4.11
     assert ypitch_glob == pytest.approx(ypitch_mean, abs=0.015)
-    assert all(spl.localprops[H.nPF] == 13)
+    assert all(spl.localprops[H.npf] == 13)
     assert all(spl.localprops[H.rise] > 8.3)
 
     # check canvas again
@@ -780,7 +780,7 @@ def test_calc_intervals(ui: CylindraMainWidget):
     ):
         ui.load_project(path, filter=None, paint=False)
         spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
-        npf = ui.tomogram.splines[0].props.get_glob(H.nPF)
+        npf = ui.tomogram.splines[0].props.get_glob(H.npf)
         if invert:
             ui.invert_spline(spline=0)
         ui.map_monomers(splines=[0], orientation=orientation)
@@ -803,7 +803,7 @@ def test_calc_skews(ui: CylindraMainWidget):
     ):
         ui.load_project(path, filter=None, paint=False)
         skew_angle = ui.tomogram.splines[0].props.get_glob(H.skew)
-        npf = ui.tomogram.splines[0].props.get_glob(H.nPF)
+        npf = ui.tomogram.splines[0].props.get_glob(H.npf)
         if invert:
             ui.invert_spline(spline=0)
         ui.map_monomers(splines=[0], orientation=orientation)
