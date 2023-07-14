@@ -91,16 +91,16 @@ class SplineControl(MagicTemplate):
         log_screenshot = abstractapi()
 
     @footer.wraps
-    @set_design(width=30, text="Scr")
+    @set_design(max_width=40, text="Scr")
     def save_screenshot(self, path: Path.Save[FileFilter.PNG]):
         """Take a screenshot of the projections."""
         from skimage.io import imsave
 
         img = self.canvas.render()
-        imsave(path, img)
+        return imsave(path, img)
 
     @footer.wraps
-    @set_design(width=30, text="Log")
+    @set_design(max_width=40, text="Log")
     def log_screenshot(self):
         """Take a screenshot of the projections and show in the logger."""
         import matplotlib.pyplot as plt
@@ -126,10 +126,12 @@ class SplineControl(MagicTemplate):
                 parent.parent_viewer.layers.remove(highlight)
             return None
 
+        tomo = parent.tomogram
+        if len(tomo.splines) == 0:
+            return None
         if highlight not in parent.parent_viewer.layers:
             parent.parent_viewer.add_layer(highlight)
 
-        tomo = parent.tomogram
         spl = tomo.splines[self.num]
         anc = spl.anchors[self.pos]
         highlight.data = spl.map(anc)

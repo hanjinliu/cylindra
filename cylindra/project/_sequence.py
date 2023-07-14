@@ -9,6 +9,7 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    Literal,
     MutableSequence,
     Sequence,
     SupportsIndex,
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 
 _V = TypeVar("_V")
 _Null = object()
-_SPLINE_FEATURES = [H.spacing, H.skew, H.nPF, H.start, H.rise, H.radius, H.orientation]
+_IDTYPE = Literal["int", "path"]
 
 
 class Validator(ABC, Generic[_V]):
@@ -188,7 +189,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
 
-    def collect_localprops(self, allow_none: bool = True) -> pl.DataFrame:
+    def collect_localprops(
+        self, allow_none: bool = True, id: _IDTYPE = "path"
+    ) -> pl.DataFrame:
         """
         Collect all localprops into a single dataframe.
 
@@ -218,10 +221,11 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         pl.col(IDName.spline).cast(pl.UInt16),
                     )
                 )
-        return cast_dataframe(pl.concat(dataframes, how="diagonal"))
+        out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
+        return self._normalize_id(out, id)
 
     def collect_globalprops(
-        self, allow_none: bool = True, suffix: str = ""
+        self, allow_none: bool = True, suffix: str = "", id: _IDTYPE = "path"
     ) -> pl.DataFrame:
         """
         Collect all globalprops into a single dataframe.
@@ -256,9 +260,11 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             out = out.rename(
                 {col: col + suffix for col in need_rename if col in out.columns}
             )
-        return out
+        return self._normalize_id(out, id)
 
-    def collect_joinedprops(self, allow_none: bool = True) -> pl.DataFrame:
+    def collect_joinedprops(
+        self, allow_none: bool = True, id: _IDTYPE = "path"
+    ) -> pl.DataFrame:
         """
         Collect all the local and global properties into a single dataframe.
 
@@ -293,10 +299,11 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         pl.DataFrame
             Dataframe with all the properties.
         """
-        loc = self.collect_localprops(allow_none=allow_none)
-        glb = self.collect_globalprops(allow_none=allow_none)
+        loc = self.collect_localprops(allow_none=allow_none, id="int")
+        glb = self.collect_globalprops(allow_none=allow_none, id="int")
         key = [IDName.spline, Mole.image]
-        return loc.join(glb, on=key, suffix="_glob")
+        out = loc.join(glb, on=key, suffix="_glob")
+        return self._normalize_id(out, id)
 
     localprops = collect_localprops  # alias for backward compatibility
     globalprops = collect_globalprops  # alias for backward compatibility
@@ -384,3 +391,36 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 )
             dfs.append(df)
         return pl.concat(dfs, how="vertical")
+
+    def _normalize_id(self, out: pl.DataFrame, id: _IDTYPE) -> pl.DataFrame:
+        if id == "int":
+            pass
+        elif id == "path":
+            _map = dict[int, str]()
+            _appeared = set[str]()
+            for i, prj in enumerate(self._projects):
+                path = prj.project_path
+                if path is None:
+                    raise ValueError(
+                        f"The {i}-th project {prj!r} does not have a path."
+                    )
+                label = _make_unique_label(Path(path).parent.name, _appeared)
+                _map[i] = label
+                _appeared.add(label)
+            out = out.with_columns(
+                pl.col(Mole.image).map_dict(_map, return_dtype=pl.Categorical)
+            )
+        else:
+            raise ValueError(f"Invalid id type {id!r}.")
+        return out
+
+
+def _make_unique_label(label: str, appeared: set[str]) -> str:
+    if label not in appeared:
+        return label
+    i = 0
+    while True:
+        new_label = f"{label}_{i}"
+        if new_label not in appeared:
+            return new_label
+        i += 1
