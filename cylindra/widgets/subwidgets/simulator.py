@@ -365,14 +365,14 @@ class CylinderSimulator(MagicTemplate):
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
 
-        if not spl.props.has_glob([H.spacing, H.skew, H.rise, H.nPF, H.radius]):
+        if not spl.props.has_glob([H.spacing, H.skew, H.rise, H.npf, H.radius]):
             raise ValueError("Global property is not calculated yet.")
 
         self.parameters.update(
             interval=spl.props.get_glob(H.spacing),
             skew=spl.props.get_glob(H.skew),
             rise=spl.props.get_glob(H.rise),
-            npf=spl.props.get_glob(H.nPF),
+            npf=spl.props.get_glob(H.npf),
             radius=spl.props.get_glob(H.radius),
         )
         return None
@@ -471,7 +471,12 @@ class CylinderSimulator(MagicTemplate):
             offsets=offsets,
         )
         # NOTE: these parameters are hard-coded for microtubule for now.
-        kwargs = {H.spacing: spacing, H.skew: skew, H.rise: -rise, H.nPF: npf}
+        kwargs = {
+            H.spacing: spacing,
+            H.skew: skew,
+            H.rise: rise * GVar.rise_sign,
+            H.npf: npf,
+        }
         model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
         self.model = model
 

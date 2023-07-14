@@ -1779,7 +1779,9 @@ class CylindraMainWidget(MagicTemplate):
             props = spl.globalprops
             spacing = props[H.spacing][0]
             rise = np.deg2rad(props[H.rise][0])
-            tan = np.tan(-rise) / spacing * (2 * np.pi * spl.radius / npf)
+            tan = (
+                np.tan(rise) / spacing * (2 * np.pi * spl.radius / npf) * GVar.rise_sign
+            )
         else:
             _, _, nrise = utils.infer_geometry_from_molecules(mole)
             tan = nrise / npf
@@ -2147,7 +2149,7 @@ class CylindraMainWidget(MagicTemplate):
         values = feat[target].cast(pl.Float32).to_numpy()
         labels = feat[label].cast(pl.UInt32).to_numpy()
         nrise = layer.source_spline.nrise()
-        npf = layer.source_spline.props.get_glob(H.nPF)
+        npf = layer.source_spline.props.get_glob(H.npf)
 
         reg = RegionProfiler.from_features(nth, pf, values, labels, npf, nrise)
         df = pl.DataFrame(reg.calculate(properties))
@@ -2179,7 +2181,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Paint cylinders")
     def paint_cylinders(
         self,
-        color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.rise, H.nPF]}] = H.spacing,
+        color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.rise, H.npf]}] = H.spacing,
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Optional[tuple[float, float]] = (GVar.spacing_min, GVar.spacing_max),
     ):  # fmt: skip
@@ -2206,10 +2208,10 @@ class CylindraMainWidget(MagicTemplate):
         _str = "structure"
         columns = [_id, H.rise, H.spacing, H.skew, _str]
         df = (
-            all_df.select([IDName.spline, IDName.pos, H.rise, H.spacing, H.skew, H.nPF, H.start])
+            all_df.select([IDName.spline, IDName.pos, H.rise, H.spacing, H.skew, H.npf, H.start])
             .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
-                pl.format("{}_{}", pl.col(H.nPF), pl.col(H.start).round(1)).alias(_str),
+                pl.format("{}_{}", pl.col(H.npf), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.rise),
                 pl.col(H.spacing),
                 pl.col(H.skew),
@@ -2501,7 +2503,7 @@ class CylindraMainWidget(MagicTemplate):
         if i is None:
             return
         spl = self.tomogram.splines[i]
-        headers = [H.spacing, H.skew, H.nPF, H.start, H.radius, H.orientation]
+        headers = [H.spacing, H.skew, H.npf, H.start, H.radius, H.orientation]
         if spl.props.has_glob(headers):
             row = spl.globalprops.select(headers).row(0)
             self.GlobalProperties._set_text(*row)
@@ -2517,9 +2519,9 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.props.has_loc([H.spacing, H.skew, H.nPF, H.start]):
+        if spl.props.has_loc([H.spacing, H.skew, H.npf, H.start]):
             pitch, skew, npf, start = spl.localprops.select(
-                [H.spacing, H.skew, H.nPF, H.start]
+                [H.spacing, H.skew, H.npf, H.start]
             ).row(j)
             self.LocalProperties._set_text(pitch, skew, npf, start)
         else:

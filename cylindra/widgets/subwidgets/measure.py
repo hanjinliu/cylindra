@@ -17,6 +17,7 @@ import numpy as np
 
 from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
+from cylindra.const import GlobalVariables as GVar
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -269,7 +270,7 @@ class SpectraInspector(MagicTemplate):
 
         if self.mode == MeasureMode.axial:
             self.parameters.spacing = abs(1.0 / yfreq * scale) * self._get_binsize()
-            self.parameters.rise = np.rad2deg(np.arctan(-afreq / yfreq))
+            self.parameters.rise = np.rad2deg(np.arctan(afreq / yfreq)) * GVar.rise_sign
 
             if self._layer_axial in self.canvas.layers:
                 self.canvas.layers.remove(self._layer_axial)

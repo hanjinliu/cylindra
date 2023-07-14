@@ -75,7 +75,7 @@ class LocalPropertiesWidget(MagicTemplate):
         return None
 
     def _plot_properties(self, spl: "CylSpline"):
-        if (x := spl.props.get_loc(H.splDist, None)) is None:
+        if (x := spl.props.get_loc(H.spl_dist, None)) is None:
             return None
         if x[0] > x[-1]:
             x = x[::-1]

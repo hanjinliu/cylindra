@@ -325,5 +325,5 @@ def infer_geometry_from_molecules(mole: Molecules) -> tuple[int, int, int]:
     spl_pos = mole.features[Mole.position].to_numpy().reshape(ny, npf)
     dy = np.abs(np.mean(np.diff(spl_pos, axis=0)))
     drise = np.mean(np.diff(spl_pos, axis=1))
-    nrise = int(np.round(drise * npf / dy))
+    nrise = -int(np.round(drise * npf / dy)) * GVar.rise_sign
     return ny, npf, nrise

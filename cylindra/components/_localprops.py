@@ -31,7 +31,7 @@ class LocalParams(NamedTuple):
             (H.rise, pl.Float32),
             (H.spacing, pl.Float32),
             (H.skew, pl.Float32),
-            (H.nPF, pl.UInt8),
+            (H.npf, pl.UInt8),
             (H.start, pl.Float32),
         ]
 
@@ -63,7 +63,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         up_a=20,
     )
 
-    rise = np.arctan(-peakv.afreq / peakv.yfreq)
+    rise = np.arctan(peakv.afreq / peakv.yfreq) * GVar.rise_sign
     yspace = 1.0 / peakv.yfreq * img.scale.y
 
     # Second, transform around 13 pf lateral periodicity.

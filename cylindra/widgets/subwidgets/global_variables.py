@@ -8,7 +8,6 @@ from magicclass import (
     MagicTemplate,
     nogui,
 )
-from magicclass.utils import show_messagebox
 from magicclass.types import Path
 from magicclass.logging import getLogger
 from cylindra.widgets.widget_utils import FileFilter
@@ -36,6 +35,7 @@ class GlobalVariablesMenu(MagicTemplate):
         spacing_max: Annotated[nm, {"step": 0.1}] = 2,
         skew_min: Annotated[float, {"min": -90, "max": 90}] = -1,
         skew_max: Annotated[float, {"min": -90, "max": 90}] = 1,
+        rise_sign: Literal[-1, 1] = -1,
         min_curvature_radius: Annotated[float, {"max": 1e4}] = 100,
         clockwise: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"step": 0.1}] = 1.0,
@@ -65,6 +65,8 @@ class GlobalVariablesMenu(MagicTemplate):
             Minimum skew angle for estimation.
         skew_max : float
             Maximum skew angle for estimation.
+        rise_sign : -1 or 1
+            Sign of rise angle.
         min_curvature_radius : nm
             Minimum curvature radius of spline.
         clockwise : str
@@ -103,16 +105,10 @@ class GlobalVariablesMenu(MagicTemplate):
         if _undef:
             for k in _undef:
                 gvar.pop(k)
-            show_messagebox(
-                mode="warn",
-                title="Warning",
-                text=(
-                    "Could not load following variables, maybe due to version "
-                    f"incompatibility: {_undef!r}"
-                ),
-                parent=self.native,
+            _Logger.warning(
+                "Could not load following variables, maybe due to version "
+                f"incompatibility: {_undef!r}"
             )
-
         self.set_variables(**gvar)
         _Logger.print(f"Global variables are set to:\n{Path(path).as_posix()}")
         return None
@@ -127,6 +123,7 @@ class GlobalVariablesMenu(MagicTemplate):
         spacing_max: "float | None" = None,
         skew_min: "float | None" = None,
         skew_max: "float | None" = None,
+        rise_sign: Literal[-1, 1] = -1,
         min_curvature_radius: "float | None" = None,
         clockwise: Literal["MinusToPlus", "PlusToMinus", None] = None,
         thickness_inner: "float | None" = None,

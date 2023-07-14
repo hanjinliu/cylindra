@@ -185,9 +185,9 @@ class SplineControl(MagicTemplate):
         parent.LocalProperties._plot_properties(spl)
 
         # calculate projection
-        if (npfs := spl.props.get_loc(H.nPF, None)) is not None:
+        if (npfs := spl.props.get_loc(H.npf, None)) is not None:
             npf_list = npfs
-        elif (npf := spl.props.get_glob(H.nPF, None)) is not None:
+        elif (npf := spl.props.get_glob(H.npf, None)) is not None:
             npf_list = [npf] * spl.anchors.size
         else:
             npf_list = [0] * spl.anchors.size
@@ -286,7 +286,7 @@ class SplineControl(MagicTemplate):
             self.canvas[1].add_text(*center, "-", **kw)
 
         # update pyqtgraph
-        if (xs := spl.props.get_loc(H.splDist, None)) is not None:
+        if (xs := spl.props.get_loc(H.spl_dist, None)) is not None:
             parent.LocalProperties._plot_spline_position(xs[j])
         else:
             parent.LocalProperties._init_plot()

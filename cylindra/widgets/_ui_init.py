@@ -346,7 +346,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
     def _on_spline_change(spline: int | None):
         if spline is None:
             return None
-        npf = self.get_spline(spline).props.get_glob(H.nPF, None)
+        npf = self.get_spline(spline).props.get_glob(H.npf, None)
         if npf is None:
             value = {}
         else:
