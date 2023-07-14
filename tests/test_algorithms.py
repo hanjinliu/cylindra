@@ -14,6 +14,7 @@ params = [(coords_13pf, 13, 8.3, (-0.1, 0.1)), (coords_14pf, 14, 7.5, (-0.5, -0.
 def test_run_all(coords, npf, rise, skew_range):
     path = TEST_DIR / f"{npf}pf_MT.tif"
     tomo = CylTomogram.imread(path)
+    repr(tomo)
 
     assert tomo.scale == pytest.approx(1.052, abs=1e-6)
 
@@ -54,6 +55,10 @@ def test_run_all(coords, npf, rise, skew_range):
     assert all(spl.localprops[H.rise] > rise)
     skew_min, skew_max = skew_range
     assert skew_min < spl.props.get_glob(H.skew) < skew_max
+
+    tomo.local_radii()
+    tomo.local_ft_params(radius="local")
+    tomo.local_ft_params(radius=10.2)
 
     repr(tomo.splines[0].props)
     tomo.splines[0].props[H.spacing]

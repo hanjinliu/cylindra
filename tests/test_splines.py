@@ -221,6 +221,8 @@ def test_extrapolate_map(mode):
     for der in [0, 1, 2]:
         assert_allclose(spl.map(sl0, der=der)[1:4], spl.map(sl1, der=der))
         assert_allclose(spl.map(0.3, der=der), spl.map(0.3, der=der))
+        spl.map(-0.5, der=der)
+        spl.map(1.5, der=der)
 
 
 def test_update_props():

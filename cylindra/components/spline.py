@@ -833,12 +833,12 @@ class Spline(BaseComponent):
             elif self.extrapolate is ExtrapolationMode.linear:
                 if der == 0:
                     if u_tr < 0:
-                        der0 = splev(0, self._tck, der=0)
-                        der1 = splev(0, self._tck, der=1)
+                        der0 = splev([0], self._tck, der=0)
+                        der1 = splev([0], self._tck, der=1)
                         dr = u_tr
                     else:
-                        der0 = splev(1, self._tck, der=0)
-                        der1 = splev(1, self._tck, der=1)
+                        der0 = splev([1], self._tck, der=0)
+                        der1 = splev([1], self._tck, der=1)
                         dr = u_tr - 1
                     coord = [a0 + a1 * dr for a0, a1 in zip(der0, der1)]
                 elif der == 1:
@@ -847,7 +847,7 @@ class Spline(BaseComponent):
                     else:
                         coord = splev([1], self._tck, der=1)
                 else:
-                    coord = [0, 0, 0]
+                    coord = [[0], [0], [0]]
             else:
                 raise ValueError(f"Invalid extrapolation mode: {self.extrapolate!r}.")
             out = np.concatenate(coord).astype(np.float32)
@@ -1293,42 +1293,6 @@ class Spline(BaseComponent):
         )
 
         return self.cartesian_to_world(cart_coords)
-
-    def world_to_y(
-        self,
-        coords: NDArray[np.float32],
-        precision: nm = 0.2,
-    ) -> NDArray[np.float32]:
-        """
-        Convert world coordinates into y-coordinate in spline coordinate system.
-
-        .. warning::
-
-            This conversion is not well-defined mathematically. Results only make
-            sence when spline has low-curvature and all the coordinates are near
-            the spline.
-
-        Parameters
-        ----------
-        coords : (3,) or (N, 3) array
-            World coordinates.
-        precision : nm, default is 0.2
-            Precision of y coordinate in nm.
-
-        Returns
-        -------
-        np.ndarray
-            Corresponding y-coordinates in spline coordinate system
-        """
-        if coords.ndim == 1:
-            coords = coords[np.newaxis]
-        length = self.length()
-        u = np.linspace(0, 1, ceilint(length / precision))
-        sample_points = self.map(u)  # (N, 3)
-        vector_map = sample_points.reshape(-1, 1, 3) - coords.reshape(1, -1, 3)
-        dist2_map = np.sum(vector_map**2, axis=2)
-        argmins = np.argmin(dist2_map, axis=0).tolist()
-        return u[argmins]
 
     def anchors_to_molecules(
         self,

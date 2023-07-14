@@ -27,6 +27,18 @@ def test_cylindric_model_construction():
     assert model.replace(offsets=(1.0, 1.0)).offsets == (1.0, 1.0)
 
 
+def test_repr():
+    model = CylinderModel(
+        shape=(10, 10),
+        tilts=(0.1, 0.1),
+        intervals=(2.0, 2 * np.pi / 10),
+        radius=1.2,
+        offsets=(3.0, 5.0),
+    )
+    repr(model)
+    repr(Idx[10:20, 3:7])
+
+
 def test_monomer_creation():
     model = CylinderModel(
         shape=(10, 8),

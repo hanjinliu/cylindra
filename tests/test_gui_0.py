@@ -118,6 +118,8 @@ def test_io_with_different_data(ui: CylindraMainWidget):
                 ui.load_project(tmpdir, filter="DoG")
     exc_group.raise_exceptions()
 
+    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False, read_image=False)
+
 
 def test_picking_splines(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
@@ -427,6 +429,9 @@ def test_preview(ui: CylindraMainWidget):
     tester = mcls_testing.FunctionGuiTester(ui.convolve_feature)
     tester.click_preview()
     tester = mcls_testing.FunctionGuiTester(ui.binarize_feature)
+    tester.click_preview()
+    ui.binarize_feature(ui.parent_viewer.layers["Mono-0"], "nth", threshold=3)
+    tester = mcls_testing.FunctionGuiTester(ui.label_feature_clusters)
     tester.click_preview()
 
 
