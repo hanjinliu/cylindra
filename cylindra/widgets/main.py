@@ -2277,7 +2277,12 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_loader(self, name: str, order: int = 1) -> SubtomogramLoader:
+    def get_loader(
+        self,
+        name: str,
+        output_shape: "tuple[nm, nm, nm] | None" = None,
+        order: int = 1,
+    ) -> SubtomogramLoader:
         """
         Create a subtomogram loader using current tomogram and a molecules layer.
 
@@ -2289,8 +2294,7 @@ class CylindraMainWidget(MagicTemplate):
             Interpolation order of the subtomogram loader.
         """
         mole = self.get_molecules(name)
-        shape = self.sta._get_shape_in_nm()
-        return self.tomogram.get_subtomogram_loader(mole, shape, order=order)
+        return self.tomogram.get_subtomogram_loader(mole, output_shape, order=order)
 
     @nogui
     @do_not_record

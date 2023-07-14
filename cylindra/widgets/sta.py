@@ -429,7 +429,7 @@ class SubtomogramAveraging(MagicTemplate):
             molecules,
             binsize=binsize,
             order=order,
-            shape=shape,
+            output_shape=shape,
         )
 
     def _get_parent(self) -> "CylindraMainWidget":

@@ -291,7 +291,7 @@ class Tomogram:
     def get_subtomogram_loader(
         self,
         mole: Molecules,
-        shape: tuple[nm, nm, nm] | None = None,
+        output_shape: tuple[nm, nm, nm] | None = None,
         binsize: int = 1,
         order: int = 1,
     ) -> SubtomogramLoader:
@@ -312,8 +312,8 @@ class Tomogram:
             order=order,
             scale=self.scale * binsize,
         )
-        if shape is not None:
-            kwargs["output_shape"] = tuple(self.nm2pixel(shape, binsize=binsize))
+        if output_shape is not None:
+            kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
         return SubtomogramLoader(
             img.value,
             mole,
