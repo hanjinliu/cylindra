@@ -11,6 +11,7 @@ from magicclass import testing as mcls_testing, get_function_gui
 
 from cylindra import view_project, _config
 from cylindra.widgets import CylindraMainWidget
+from cylindra.widgets.sta import MASK_CHOICES
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 from cylindra._custom_layers import MoleculesLayer
 import pytest
@@ -449,8 +450,6 @@ def test_slicer(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
-    from cylindra.widgets.sta import MASK_CHOICES
-
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
@@ -506,7 +505,6 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         interpolation=1,
         bin_size=bin_size,
     )
-    layer = ui.parent_viewer.layers[-1]
     ui.sta.align_all_template_free(
         layers=[ui.parent_viewer.layers["Mono-0"]],
         mask_params=(1, 1),
@@ -519,15 +517,26 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         mask_params=(1, 1),
         bin_size=bin_size,
     )
+
+
+def test_seam_search(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.filter_molecules(
+        ui.parent_viewer.layers["Mono-0"], predicate="pl.col('nth') < 5"
+    )
+    ui.sta.params.template_path.value = TEST_DIR / "beta-tubulin.mrc"
+    ui.sta.params.mask_choice = MASK_CHOICES[1]
+    layer: MoleculesLayer = ui.parent_viewer.layers[-1]
     ui.sta.seam_search(
-        layer=ui.parent_viewer.layers["Mono-0"],
-        template_path=template_path,
+        layer=layer,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(1, 1),
     )
+    ui.sta.seam_search_by_fiducials(layer, mask_params=(1, 1))
     layer.molecules = layer.molecules.with_features(
-        (pl.col("score") > pl.col("score").mean()).cast(pl.UInt8).alias("score-label")
+        (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
     )
-    ui.seam_search_by_feature(layer, by="score-label")
+    ui.seam_search_by_feature(layer, by="seam-label")
 
 
 def test_classify_pca(ui: CylindraMainWidget):
@@ -1088,3 +1097,17 @@ def test_custom_workflows(ui: CylindraMainWidget):
             ui.Others.Workflows.define_workflow(name, code)
             ui.Others.Workflows.edit_workflow(name, code)
             ui.Others.Workflows.delete_workflow([name])
+
+
+def test_stash(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    with tempfile.TemporaryDirectory() as dirpath:
+        with _config.patch_stash_dir(dirpath):
+            ui.File.Stash.stash_project()
+            name0 = _config.get_stash_list()[0]
+            ui.File.Stash.load_stash_project(name0, filter=None)
+            ui.File.Stash.pop_stash_project(name0, filter=None)
+            ui.File.Stash.stash_project()
+            name1 = _config.get_stash_list()[0]
+            ui.File.Stash.delete_stash_project(name1)
+            ui.File.Stash.clear_stash_projects()

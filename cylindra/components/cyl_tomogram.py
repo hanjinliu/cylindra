@@ -1476,7 +1476,7 @@ class CylTomogram(Tomogram):
             props.append(
                 prop.with_columns(
                     pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
-                    pl.arange(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
+                    pl.int_range(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
                 )
             )
 

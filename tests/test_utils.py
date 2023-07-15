@@ -1,4 +1,5 @@
 from cylindra import utils
+from cylindra.components.seam_search import BooleanSeamSearcher
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
@@ -163,4 +164,5 @@ def test_rotated_auto_zncc():
     ],
 )
 def test_infer_seam(label, expected: int):
-    assert utils.infer_seam_from_labels(label, npf=4) == expected
+    searcher = BooleanSeamSearcher(npf=4)
+    searcher.search(label).seam_pos == expected

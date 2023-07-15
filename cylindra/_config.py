@@ -167,7 +167,7 @@ def set_template_path_hist(paths: list[str]):
     return None
 
 
-def get_stash_list() -> list[Path]:
+def get_stash_list() -> list[str]:
     if STASH_DIR.exists():
         return [path.name for path in STASH_DIR.glob("*")]
     return []

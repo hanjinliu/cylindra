@@ -114,7 +114,7 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
 def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     """Add a column that indicates the interval of each molecule to the next one."""
     _index_column_key = "._index_column"
-    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in mole0.groupby(Mole.pf):
@@ -138,7 +138,7 @@ def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
 def with_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     """Add a column that indicates the elevation angle."""
     _index_column_key = "._index_column"
-    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in mole0.groupby(Mole.pf):
@@ -171,7 +171,7 @@ def with_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
 def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
     """Add a column that indicates the skew of each molecule to the next one."""
     _index_column_key = "._index_column"
-    mole0 = mole.with_features([pl.arange(0, pl.count()).alias(_index_column_key)])
+    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_index_column_key)])
     _spl_len = spl.length()
     subsets = list[Molecules]()
     spacing = spl.props.get_glob(H.spacing)

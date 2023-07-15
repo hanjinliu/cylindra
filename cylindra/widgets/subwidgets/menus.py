@@ -851,7 +851,9 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
     gui.insert(1, txt)
 
     @gui.filename.changed.connect
-    def _on_name_change(filename: str):
+    def _on_name_change(filename: str | None):
+        if filename is None:
+            return
         txt.value = _config.workflow_path(filename).read_text()
 
     _on_name_change(gui.filename.value)
@@ -881,7 +883,9 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
     gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
 
     @gui.filename.changed.connect
-    def _on_name_change(filename: str):
+    def _on_name_change(filename: str | None):
+        if filename is None:
+            return
         gui.workflow.value = _config.workflow_path(filename).read_text()
 
     _on_name_change(gui.filename.value)
