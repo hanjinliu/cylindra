@@ -10,6 +10,7 @@ from appdirs import user_config_dir
 VAR_PATH = Path(user_config_dir("variables", "cylindra"))
 SETTINGS_DIR = Path(user_config_dir("settings", "cylindra"))
 WORKFLOWS_DIR = Path(user_config_dir("workflows", "cylindra"))
+STASH_DIR = Path(user_config_dir("stash", "cylindra"))
 TEMPLATE_PATH_HIST = "template_path_hist.txt"
 DEFAULT_VARIABLES = "default_variables"
 
@@ -37,6 +38,21 @@ def patch_workflow_path(dir: str | Path):
         yield
     finally:
         WORKFLOWS_DIR = old_dir
+
+
+@contextmanager
+def patch_stash_dir(dir: str | Path):
+    """Temporarily change the stash directory."""
+    global STASH_DIR
+
+    dir = Path(dir)
+    assert dir.is_dir()
+    old_dir = STASH_DIR
+    STASH_DIR = dir
+    try:
+        yield
+    finally:
+        STASH_DIR = old_dir
 
 
 def get_main_function(filename: str | Path) -> Callable:
@@ -149,3 +165,15 @@ def set_template_path_hist(paths: list[str]):
     except Exception:
         pass
     return None
+
+
+def get_stash_list() -> list[Path]:
+    if STASH_DIR.exists():
+        return [path.name for path in STASH_DIR.glob("*")]
+    return []
+
+
+def get_stash_dir() -> Path:
+    if not STASH_DIR.exists():
+        STASH_DIR.mkdir(parents=True)
+    return STASH_DIR

@@ -33,7 +33,7 @@ class SeamSearcher(ABC):
 
     def calc_averages(self, loader: SubtomogramLoader) -> ip.ImgArray:
         # prepare all the labels in advance
-        labels = self.label_with_seam(loader.molecules.size)
+        labels = self.label_with_seam(loader.molecules.count())
 
         # here, dask_array is (N, Z, Y, X) array where dask_array[i] is i-th subtomogram.
         dask_array = loader.construct_dask()
@@ -128,3 +128,17 @@ class BooleanSeamSearcher(SeamSearcher):
     @staticmethod
     def _binarize(x: NDArray[np.bool_]) -> NDArray[np.int8]:
         return np.where(x, 1, -1)
+
+
+class FiducialSeamSearcher(SeamSearcher):
+    def search(
+        self,
+        loader: SubtomogramLoader,
+        weight: NDArray[np.float32],
+    ) -> SeamSearchResult:
+        averaged_images = self.calc_averages(loader.replace(output_shape=weight.shape))
+
+        scores = list[float]()
+        for img in averaged_images:
+            scores.append(np.mean(img * weight))
+        return SeamSearchResult(np.array(scores), averaged_images)

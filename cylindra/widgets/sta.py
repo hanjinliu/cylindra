@@ -50,7 +50,10 @@ from cylindra.widgets._widget_ext import (
     MultiFileEdit,
 )
 from cylindra.components.landscape import Landscape, ViterbiResult
-from cylindra.components.seam_search import CorrelationSeamSearcher
+from cylindra.components.seam_search import (
+    CorrelationSeamSearcher,
+    FiducialSeamSearcher,
+)
 
 from .widget_utils import FileFilter, timer
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
@@ -182,6 +185,7 @@ class SubtomogramAnalysis(MagicTemplate):
     classify_pca = abstractapi()
     sep1 = field(Separator)
     seam_search = abstractapi()
+    seam_search_by_fiducials = abstractapi()
     sep2 = field(Separator)
     save_last_average = abstractapi()
 
@@ -1355,11 +1359,9 @@ class SubtomogramAveraging(MagicTemplate):
         mask_params: Bound[params._get_mask_params],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        show_average: Annotated[
-            str, {"label": "Show averages as", "choices": AVG_CHOICES}
-        ] = AVG_CHOICES[2],
+        show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
         cutoff: _CutoffFreq = 0.25,
-    ):
+    ):  # fmt: skip
         """
         Search for the best seam position.
 
@@ -1377,12 +1379,7 @@ class SubtomogramAveraging(MagicTemplate):
         {cutoff}
         """
         t0 = timer("seam_search")
-        parent = self._get_parent()
-        mole = layer.molecules
-        loader = parent.tomogram.get_subtomogram_loader(mole, order=interpolation)
-        if npf is None:
-            npf = mole.features[Mole.pf].max() + 1
-
+        loader, npf = self._seam_search_input(layer, npf, interpolation)
         template, mask = loader.normalize_input(
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
@@ -1401,7 +1398,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
         layer.metadata["seam-search-score"] = result.scores
 
-        parent._need_save = True
+        t0.toc()
 
         @thread_worker.callback
         def _seam_search_on_return():
@@ -1413,7 +1410,6 @@ class SubtomogramAveraging(MagicTemplate):
                 self.sub_viewer.layers[-1].metadata["Score"] = result.scores
 
             # plot all the correlation
-            t0.toc()
             _Logger.print_html("<code>seam_search</code>")
             with _Logger.set_plt():
                 _Logger.print(f"layer = {layer.name!r}")
@@ -1421,6 +1417,63 @@ class SubtomogramAveraging(MagicTemplate):
                 widget_utils.plot_seam_search_result(result.scores, npf)
 
         return _seam_search_on_return
+
+    @Subtomogram_analysis.wraps
+    @set_design(text="Seam search (by fiducials)")
+    @dask_worker.with_progress(
+        desc=_pdesc.fmt_layer("Seam search (by fiducials) of {!r}")
+    )
+    def seam_search_by_fiducials(
+        self,
+        layer: MoleculesLayer,
+        mask_params: Bound[params._get_mask_params],
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
+        show_average: Annotated[
+            str, {"label": "Show averages as", "choices": AVG_CHOICES}
+        ] = AVG_CHOICES[2],
+    ):
+        t0 = timer("seam_search_by_fiducials")
+        loader, npf = self._seam_search_input(layer, npf, interpolation)
+        seam_searcher = FiducialSeamSearcher(npf)
+        weight = self.mask
+        if weight is None:
+            raise ValueError("Mask is required for seam search by fiducials.")
+        result = seam_searcher.search(loader=loader, weight=weight)
+        layer.features = layer.molecules.features.with_columns(
+            pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
+        )
+        layer.metadata["seam-search-score"] = result.scores
+
+        t0.toc()
+
+        @thread_worker.callback
+        def _seam_search_on_return():
+            if show_average is not None:
+                if show_average == AVG_CHOICES[2]:
+                    sigma = 0.25 / loader.scale
+                    result.averages.gaussian_filter(sigma=sigma, update=True)
+                self._show_reconstruction(result.averages, layer.name, store=False)
+                self.sub_viewer.layers[-1].metadata["Score"] = result.scores
+
+            # plot all the correlation
+            _Logger.print_html("<code>seam_search_by_fiducials</code>")
+            with _Logger.set_plt():
+                _Logger.print(f"layer = {layer.name!r}")
+                widget_utils.plot_seam_search_result(result.scores, npf)
+
+        return _seam_search_on_return
+
+    def _seam_search_input(
+        self, layer: MoleculesLayer, npf: int, order: int
+    ) -> tuple[SubtomogramLoader, int]:
+        parent = self._get_parent()
+        mole = layer.molecules
+        loader = parent.tomogram.get_subtomogram_loader(mole, order=order)
+        if npf is None:
+            npf = mole.features[Mole.pf].unique().len()
+        parent._need_save = True
+        return loader, npf
 
     @Subtomogram_analysis.wraps
     @set_design(text="Save last average")

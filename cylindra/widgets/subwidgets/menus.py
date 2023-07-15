@@ -1,6 +1,8 @@
 from functools import partial
 import inspect
 from typing import Annotated, TYPE_CHECKING, Literal
+from datetime import datetime
+import shutil
 
 import numpy as np
 from macrokit import Head, parse, Symbol
@@ -19,18 +21,20 @@ from magicclass import (
     set_options,
     set_design,
     bind_key,
+    confirm,
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit, OneLineRunner
 from magicclass.types import Path, Color
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
+from magicclass.ext.dask import dask_thread_worker
 
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
-from cylindra.const import nm, get_versions, GlobalVariables as GVar
+from cylindra.const import nm, get_versions, GlobalVariables as GVar, ImageFilter
 from cylindra.project import CylindraProject
 from cylindra.widgets.widget_utils import FileFilter, get_code_theme
 from cylindra.widgets._widget_ext import CheckBoxes
@@ -72,6 +76,94 @@ class File(ChildWidget):
     save_spline = abstractapi()
     save_molecules = abstractapi()
     sep1 = field(Separator)
+
+    @magicmenu(record=False)
+    class Stash(ChildWidget):
+        """Stashing projects for later use."""
+
+        def _get_stashed_names(self, w=None) -> list[str]:
+            return _config.get_stash_list()
+
+        def _need_save(self):
+            return self._get_main()._need_save
+
+        @set_design(text="Stash current project")
+        def stash_project(self):
+            """
+            Stash current project in the user directory.
+
+            This method simply saves the current project in the user directory. Stashing project
+            is useful when you want to temporarily save the current project for later use, without
+            thinking of the name, where to put it etc. Stashed projects can be easily loaded or
+            cleared using other methods in this menu.
+            """
+            root = _config.get_stash_dir()
+            path = root / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            return self._get_main().save_project(path)
+
+        @set_design(text="Load stashed project")
+        @confirm(text="You may have unsaved data. Open a new project?", condition=_need_save)  # fmt: skip
+        def load_stash_project(
+            self,
+            name: Annotated[str, {"choices": _get_stashed_names}],
+            filter: ImageFilter | None = ImageFilter.DoG,
+        ):
+            """
+            Load a stashed project.
+
+            Parameters
+            ----------
+            name : str
+                Name of the stashed project.
+            filter : ImageFilter, default is ImageFilter.DoG
+                Image filter to apply to the loaded images.
+            """
+            return self._get_main().load_project(
+                _config.get_stash_dir() / name, filter=filter
+            )
+
+        @set_design(text="Pop stashed project")
+        @confirm(text="You may have unsaved data. Open a new project?", condition=_need_save)  # fmt: skip
+        def pop_stash_project(
+            self,
+            name: Annotated[str, {"choices": _get_stashed_names}],
+            filter: ImageFilter | None = ImageFilter.DoG,
+        ):
+            """
+            Load a stashed project and delete it from the stash list.
+
+            Parameters
+            ----------
+            name : str
+                Name of the stashed project.
+            filter : ImageFilter, default is ImageFilter.DoG
+                Image filter to apply to the loaded images.
+            """
+            self.load_stash_project(name, filter=filter)
+            return self.delete_stash_project(name)
+
+        @set_design(text="Delete stashed project")
+        def delete_stash_project(
+            self, name: Annotated[str, {"choices": _get_stashed_names}]
+        ):
+            """
+            Delete a stashed project.
+
+            Parameters
+            ----------
+            name : str
+                Name of the stashed project to be deleted.
+            """
+            path = _config.get_stash_dir() / name
+            shutil.rmtree(path)
+            return None
+
+        @set_design(text="Clear stashed projects")
+        def clear_stash_projects(self):
+            """Clear all the stashed projects."""
+            for name in self._get_stashed_names():
+                self.delete_stash_project(name)
+            return None
 
     @set_design(text="Process images")
     @do_not_record
