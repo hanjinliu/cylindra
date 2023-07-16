@@ -56,7 +56,8 @@ _PARAMETERS = [
     Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
     Parameter(name="random_seeds", type="iterable of int", desc="Random seed integers. Number of integers will be the number of trials."),
     Parameter(name="target", type="str", desc="Target column name on which calculation will run."),
-    Parameter(name="footprint", type="array-like", desc="2D binary array that define the convolution kernel structure.")
+    Parameter(name="footprint", type="array-like", desc="2D binary array that define the convolution kernel structure."),
+    Parameter(name="projective", type="bool", desc="If true, only the vector components parallel to the cylinder surface will be considered."),
 ]
 # fmt: on
 

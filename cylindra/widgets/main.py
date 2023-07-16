@@ -1156,16 +1156,16 @@ class CylindraMainWidget(MagicTemplate):
         # first check missing_ok=False case
         if not missing_ok:
             for layer in layers:
-                # NOTE: The source spline may not exist in the spline list if
-                # `molecules_to_spline` is called twice.
-                if _src := layer.source_component:
-                    tomo.splines.index(_src)
+                if (
+                    _s := layer.source_spline
+                ):  # NOTE: The source spline may not exist in
+                    tomo.splines.index(_s)  # the spline list.
 
         for layer in layers:
             mole = layer.molecules
             spl = utils.molecules_to_spline(mole)
             try:
-                idx = tomo.splines.index(layer.source_component)
+                idx = tomo.splines.index(layer.source_spline)
             except ValueError:
                 tomo.splines.append(spl)
             else:
@@ -1216,9 +1216,7 @@ class CylindraMainWidget(MagicTemplate):
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_radii(i=i, size=depth, binsize=bin_size)
                 yield
-
         self._need_save = True
-
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1256,7 +1254,7 @@ class CylindraMainWidget(MagicTemplate):
                 _duplicated.append(spl)
             _splines.append(spl)
             mole = layer.molecules.copy()
-            mole.features = utils.with_radius(mole, spl)
+            mole.features = cylstructure.with_radius(mole, spl)
             _molecules.append(mole)
 
         if _duplicated:
@@ -1866,16 +1864,11 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Calculate intervals")
     def calculate_intervals(self, layer: MoleculesLayer, projective: bool = True):
         """
-        Calculate projective intervals (in nm) between adjacent molecules.
-
-        The "projective interval" is defined by the component of the vector of
-        adjacent molecules parallel to the vector of the spline curve corresponding
-        to the position of the molecule. Please note that this quantity does not
-        consider the orientation of each molecule.
+        Calculate intervals (in nm) between adjacent molecules.
 
         Parameters
         ----------
-        {layer}
+        {layer}{projective}
         """
         _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
@@ -1900,7 +1893,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layer}
+        {layer}{projective}
         """
         _assert_source_spline_exists(layer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info

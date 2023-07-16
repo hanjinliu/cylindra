@@ -106,20 +106,18 @@ def with_radius(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
 
 
 def with_rise_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
+    """Add a column of rise angles of each molecule."""
     _spl_len = spl.length()
     subsets = list[Molecules]()
     _nrise = int(round(spl.props.get_glob(H.start))) * GVar.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
+    nth_dtype = mole.features[Mole.nth].dtype
+    pf_dtype = mole.features[Mole.pf].dtype
     mole_ext = (
         mole.filter(pl.col(Mole.pf) == 0)
         .with_features(
-            pl.int_range(0, pl.count(), dtype=mole.features[Mole.nth].dtype).alias(
-                Mole.nth
-            )
-            - _nrise,
-            pl.repeat(new_pf_id, pl.count(), dtype=mole.features[Mole.pf].dtype).alias(
-                Mole.pf
-            ),
+            pl.int_range(0, pl.count(), dtype=nth_dtype).alias(Mole.nth) - _nrise,
+            pl.repeat(new_pf_id, pl.count(), dtype=pf_dtype).alias(Mole.pf),
         )
         .filter(pl.col(Mole.nth).is_between(0, mole.count() - 1))
     )
@@ -154,16 +152,13 @@ def with_lateral_interval(
     subsets = list[Molecules]()
     _nrise = int(round(spl.props.get_glob(H.start))) * GVar.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
+    nth_dtype = mole.features[Mole.nth].dtype
+    pf_dtype = mole.features[Mole.pf].dtype
     mole_ext = (
         mole.filter(pl.col(Mole.pf) == 0)
         .with_features(
-            pl.int_range(0, pl.count(), dtype=mole.features[Mole.nth].dtype).alias(
-                Mole.nth
-            )
-            - _nrise,
-            pl.repeat(new_pf_id, pl.count(), dtype=mole.features[Mole.pf].dtype).alias(
-                Mole.pf
-            ),
+            pl.int_range(0, pl.count(), dtype=nth_dtype).alias(Mole.nth) - _nrise,
+            pl.repeat(new_pf_id, pl.count(), dtype=pf_dtype).alias(Mole.pf),
         )
         .filter(pl.col(Mole.nth).is_between(0, mole.count() - 1))
     )
@@ -208,7 +203,6 @@ def _cancel_component(
     other_norm = _norm(other)
     to_cancel = _dot(vec, other_norm)[:, np.newaxis] * other_norm
     out = vec - to_cancel
-    print(_dot(out, other))
     return out
 
 
