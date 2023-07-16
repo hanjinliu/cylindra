@@ -15,6 +15,7 @@ from cylindra.const import PropertyNames as H, PREVIEW_LAYER_NAME
 from cylindra.project import CylindraProject, get_project_json
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
+from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets._previews import view_tables
 from cylindra.widgets._main_utils import normalize_offsets
 from napari.utils.colormaps import label_colormap
@@ -315,7 +316,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 
 
 @setup_function_gui(CylindraMainWidget.split_molecules)
-@setup_function_gui(CylindraMainWidget.seam_search_by_feature)
+@setup_function_gui(SubtomogramAveraging.seam_search_by_feature)
 @setup_function_gui(CylindraMainWidget.convolve_feature)
 @setup_function_gui(CylindraMainWidget.label_feature_clusters)
 def _(self: CylindraMainWidget, gui: FunctionGui):

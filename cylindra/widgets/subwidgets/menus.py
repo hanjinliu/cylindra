@@ -345,52 +345,6 @@ class MoleculesMenu(ChildWidget):
         map_centers = abstractapi()
         map_along_pf = abstractapi()
 
-    @set_design(text="Show orientation")
-    @do_not_record
-    def show_orientation(
-        self,
-        layer: MoleculesLayer,
-        x_color: Color = "orange",
-        y_color: Color = "cyan",
-        z_color: Color = "crimson",
-    ):
-        """
-        Show molecule orientations with a vectors layer.
-
-        Parameters
-        ----------
-        layer : MolecularLayer
-            The layer to show the orientation of.
-        x_color : Color, default is "crimson"
-            Vector color of the x direction.
-        y_color : Color, default is "cyan"
-            Vector color of the y direction.
-        z_color : Color, default is "orange"
-            Vector color of the z direction.
-        """
-        main = self._get_main()
-        mol = layer.molecules
-        nmol = len(mol)
-        name = f"Axes of {layer.name}"
-
-        zvec = np.stack([mol.pos, mol.z], axis=1)
-        yvec = np.stack([mol.pos, mol.y], axis=1)
-        xvec = np.stack([mol.pos, mol.x], axis=1)
-
-        vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
-
-        layer = main.parent_viewer.add_vectors(
-            vector_data,
-            edge_width=0.3,
-            edge_color="direction",
-            edge_color_cycle=[z_color, y_color, x_color],
-            features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
-            length=GVar.point_size * 0.8,
-            name=name,
-            vector_style="arrow",
-        )
-        return main._undo_callback_for_layer(layer)
-
     set_source_spline = abstractapi()
     translate_molecules = abstractapi()
 
@@ -410,21 +364,67 @@ class MoleculesMenu(ChildWidget):
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
         calculate_intervals = abstractapi()
+        calculate_lateral_intervals = abstractapi()
         calculate_skews = abstractapi()
+        calculate_rise_angles = abstractapi()
         calculate_radii = abstractapi()
         calculate_elevation_angles = abstractapi()
         calculate_lateral_angles = abstractapi()
-        sep1 = field(Separator)
-        seam_search_by_feature = abstractapi()
         sep2 = field(Separator)
         convolve_feature = abstractapi()
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
 
-    @magicmenu(name="Visualize")
-    class Visualize(MagicTemplate):
-        """Visualize molecules analysis results."""
+    @magicmenu(name="View")
+    class View(ChildWidget):
+        """Visualize molecule features."""
+
+        @set_design(text="Show orientation")
+        @do_not_record
+        def show_orientation(
+            self,
+            layer: MoleculesLayer,
+            x_color: Color = "orange",
+            y_color: Color = "cyan",
+            z_color: Color = "crimson",
+        ):
+            """
+            Show molecule orientations with a vectors layer.
+
+            Parameters
+            ----------
+            layer : MolecularLayer
+                The layer to show the orientation of.
+            x_color : Color, default is "crimson"
+                Vector color of the x direction.
+            y_color : Color, default is "cyan"
+                Vector color of the y direction.
+            z_color : Color, default is "orange"
+                Vector color of the z direction.
+            """
+            main = self._get_main()
+            mol = layer.molecules
+            nmol = len(mol)
+            name = f"Axes of {layer.name}"
+
+            zvec = np.stack([mol.pos, mol.z], axis=1)
+            yvec = np.stack([mol.pos, mol.y], axis=1)
+            xvec = np.stack([mol.pos, mol.x], axis=1)
+
+            vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
+
+            layer = main.parent_viewer.add_vectors(
+                vector_data,
+                edge_width=0.3,
+                edge_color="direction",
+                edge_color_cycle=[z_color, y_color, x_color],
+                features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
+                length=GVar.point_size * 0.8,
+                name=name,
+                vector_style="arrow",
+            )
+            return main._undo_callback_for_layer(layer)
 
         @set_design(text="Show molecule features")
         @do_not_record

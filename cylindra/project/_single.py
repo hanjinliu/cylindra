@@ -346,6 +346,7 @@ class CylindraProject(BaseProject):
             scale=self.scale,
             tilt_range=self.tilt_range,
             binsize=self.multiscales,
+            source=self.image,
         )
         splines_list = [self.load_spline(i) for i in range(self.nsplines)]
         tomo.splines.extend(splines_list)

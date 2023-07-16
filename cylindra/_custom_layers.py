@@ -1,14 +1,15 @@
 from __future__ import annotations
-from contextlib import contextmanager
 
+from contextlib import contextmanager
+import warnings
 from typing import TYPE_CHECKING, Any, NamedTuple
 import weakref
+
 import polars as pl
 import numpy as np
 from acryo import Molecules
 from napari.layers import Points, Labels
 from napari.utils.status_messages import generate_layer_coords_status
-from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import impy as ip
@@ -217,8 +218,8 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
     def set_colormap(
         self,
         name: str,
-        clim: tuple[float, float],
-        cmap_input: Any,
+        clim: tuple[float, float] | None = None,
+        cmap_input: Any | None = None,
     ):
         """
         Set colormap to a molecules layer.
@@ -228,12 +229,18 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         name : str
             Feature name from which colormap will be generated.
         clim : (float, float)
-            Colormap contrast limits.
+            Colormap contrast limits. Use min/max by default.
         cmap_input : Any
             Any object that can be converted to a Colormap object.
         """
         column = self.molecules.features[name]
-        clim = tuple(clim)
+        if clim is None:
+            seq = column.filter(~column.is_infinite())
+            clim = (seq.min(), seq.max())
+        else:
+            clim = tuple(clim)
+        if cmap_input is None:
+            cmap_input = {0: "black", 1: "white"}
         cmap = _normalize_colormap(cmap_input)
         if column.dtype in pl.INTEGER_DTYPES:
             cmin, cmax = clim
@@ -256,6 +263,20 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self._colormap_info = ColormapInfo(cmap, clim, name)
         self.refresh()
         return None
+
+    def feature_setter(
+        self, features: pl.DataFrame, cmap_info: ColormapInfo | None = None
+    ):
+        def _wrapper():
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                self.features = features
+            if cmap_info is not None:
+                self.set_colormap(cmap_info.name, cmap_info.clim, cmap_info.cmap)
+            else:
+                self.face_color = self.edge_color = "lime"
+
+        return _wrapper
 
 
 class CylinderLabels(_FeatureBoundLayer, Labels):

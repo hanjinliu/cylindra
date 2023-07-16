@@ -5,8 +5,7 @@ import numpy as np
 from numpy.typing import NDArray
 import polars as pl
 import impy as ip
-from dask import array as da
-from acryo import Molecules, SubtomogramLoader
+from acryo import Molecules
 
 from cylindra.const import (
     Mode,
@@ -109,120 +108,6 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
             f"feature. Original error is\n{type(e).__name__}: {e}"
         ) from e
     return pos
-
-
-def with_interval(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
-    """Add a column that indicates the interval of each molecule to the next one."""
-    _index_column_key = "._index_column"
-    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_index_column_key)])
-    _spl_len = spl.length()
-    subsets = list[Molecules]()
-    for _, sub in mole0.groupby(Mole.pf):
-        _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_vec_norm = _norm(spl.map(_u, der=1))
-        _y_interv = np.abs(_dot(_interv_vec, _spl_vec_norm))
-        _y_interv[-1] = -np.inf  # fill invalid values with -inf
-        subsets.append(
-            sub.with_features(pl.Series(Mole.interval, _y_interv, dtype=pl.Float32))
-        )
-    return (
-        Molecules.concat(subsets)
-        .sort(_index_column_key)
-        .drop_features(_index_column_key)
-        .features
-    )
-
-
-def with_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
-    """Add a column that indicates the elevation angle."""
-    _index_column_key = "._index_column"
-    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_index_column_key)])
-    _spl_len = spl.length()
-    subsets = list[Molecules]()
-    for _, sub in mole0.groupby(Mole.pf):
-        _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_vec = spl.map(_u, der=1)
-
-        _cos = _dot(_interv_vec, _spl_vec) / (
-            np.linalg.norm(_interv_vec, axis=1) * np.linalg.norm(_spl_vec, axis=1)
-        )
-        if not np.all((-1 <= _cos) & (_cos <= 1)):
-            raise ValueError(
-                f"Cosine values must be in range [-1, 1] but got:\n{_cos!r}"
-            )
-        _deg = np.rad2deg(np.arccos(_cos))
-        _deg[-1] = -np.inf  # fill invalid values with 0
-        subsets.append(
-            sub.with_features(pl.Series(Mole.elev_angle, _deg, dtype=pl.Float32))
-        )
-    return (
-        Molecules.concat(subsets)
-        .sort(_index_column_key)
-        .drop_features(_index_column_key)
-        .features
-    )
-
-
-def with_skew(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
-    """Add a column that indicates the skew of each molecule to the next one."""
-    _index_column_key = "._index_column"
-    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_index_column_key)])
-    _spl_len = spl.length()
-    subsets = list[Molecules]()
-    spacing = spl.props.get_glob(H.spacing)
-    for _, sub in mole0.groupby(Mole.pf):
-        _pos = sub.pos
-        _interv_vec_norm = _norm(np.diff(_pos, axis=0, append=0))
-
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_pos = spl.map(_u, der=0)
-        _spl_vec = spl.map(_u, der=1)
-
-        _mole_to_spl_vec = _spl_pos - _pos
-        _radius = np.linalg.norm(_mole_to_spl_vec, axis=1)
-
-        _spl_vec_norm = _norm(_spl_vec)
-
-        _skew_cross = np.cross(_interv_vec_norm, _spl_vec_norm, axis=1)  # cross product
-        _inner = _dot(_skew_cross, _mole_to_spl_vec)
-        _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
-
-        _skew = np.rad2deg(2 * spacing * _skew_sin / _radius)
-        _skew[-1] = -np.inf
-        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew, dtype=pl.Float32)))
-
-    return (
-        Molecules.concat(subsets)
-        .sort(_index_column_key)
-        .drop_features(_index_column_key)
-        .features
-    )
-
-
-def with_radius(mole: Molecules, spl: CylSpline) -> pl.DataFrame:
-    """Add a column that indicates the radius of each molecule."""
-    _u = mole.features[Mole.position] / spl.length()
-    _spl_pos = spl.map(_u, der=0)
-    _spl_vec = spl.map(_u, der=1)
-    _spl_vec_norm = _norm(_spl_vec)
-    _radius_vec = _spl_pos - mole.pos
-    result = np.sqrt(_dot(_radius_vec, _radius_vec) - _dot(_radius_vec, _spl_vec_norm))
-    return mole.with_features(pl.Series(Mole.radius, result, dtype=pl.Float32)).features
-
-
-def _norm(vec):
-    vec_len = np.linalg.norm(vec, axis=1)
-    return vec / vec_len[:, np.newaxis]
-
-
-def _dot(a, b):
-    """Vectorized dot product."""
-    return np.sum(a * b, axis=1)
 
 
 def infer_geometry_from_molecules(mole: Molecules) -> tuple[int, int, int]:

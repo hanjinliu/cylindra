@@ -53,6 +53,7 @@ from cylindra.components.landscape import Landscape, ViterbiResult
 from cylindra.components.seam_search import (
     CorrelationSeamSearcher,
     FiducialSeamSearcher,
+    BooleanSeamSearcher,
 )
 
 from .widget_utils import FileFilter, timer
@@ -136,6 +137,21 @@ def _get_alignment(method: str):
 
 
 MASK_CHOICES = ("No mask", "Blur template", "From file")
+
+
+def _choice_getter(method_name: str, dtype_kind: str = ""):
+    def _get_choice(self: "SubtomogramAveraging", w=None) -> list[str]:
+        # don't use get_function_gui. It causes RecursionError.
+        gui = self[method_name].mgui
+        if gui is None or gui.layer.value is None:
+            return []
+        features = gui.layer.value.features
+        if dtype_kind == "":
+            return features.columns
+        return [c for c in features.columns if features[c].dtype.kind in dtype_kind]
+
+    _get_choice.__qualname__ = "SubtomogramAveraging._get_choice"
+    return _get_choice
 
 
 @magicclass(
@@ -1463,6 +1479,33 @@ class SubtomogramAveraging(MagicTemplate):
                 widget_utils.plot_seam_search_result(result.scores, npf)
 
         return _seam_search_on_return
+
+    @set_design(text="Seam search by feature")
+    def seam_search_by_feature(
+        self,
+        layer: MoleculesLayer,
+        by: Annotated[str, {"choices": _choice_getter("seam_search_by_feature")}],
+    ):
+        """
+        Search for seams by a feature.
+
+        Parameters
+        ----------
+        {layer}
+        by : str
+            Name of the feature that will be used for seam search.
+        """
+        feat = layer.features
+        if by not in feat.columns:
+            raise ValueError(f"Column {by} does not exist.")
+        npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
+        seam_searcher = BooleanSeamSearcher(npf)
+        result = seam_searcher.search(feat[by])
+        new_feat = pl.Series(
+            Mole.isotype, result.get_label(feat.shape[0]), dtype=pl.Int8
+        )
+        layer.features = layer.molecules.features.with_columns(new_feat)
+        return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     def _seam_search_input(
         self, layer: MoleculesLayer, npf: int, order: int

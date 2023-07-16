@@ -38,6 +38,7 @@ class LocalPropertiesWidget(MagicTemplate):
 
         spacing = LabeledText("spacing")
         skew = LabeledText("skew angle")
+        rise = LabeledText("rise angle")
         structure = LabeledText("structure")
 
     plot = field(QtMultiPlotCanvas, name="Plot").with_options(
@@ -60,13 +61,17 @@ class LocalPropertiesWidget(MagicTemplate):
     def _init_text(self):
         self.params.spacing.txt = " -- nm"
         self.params.skew.txt = " -- °"
+        self.params.rise.txt = " -- °"
         self.params.structure.txt = " -- "
         return None
 
-    def _set_text(self, pitch, skew, npf, start):
-        self.params.spacing.txt = f" {pitch:.2f} nm"
-        self.params.skew.txt = f" {skew:.2f}°"
-        self.params.structure.txt = f" {int(npf)}_{start:.1f}"
+    def _set_text(self, spl: "CylSpline", i: int):
+        self.params.spacing.txt = f" {spl.props.get_loc(H.spacing)[i]:.2f} nm"
+        self.params.skew.txt = f" {spl.props.get_loc(H.skew)[i]:.2f}°"
+        self.params.rise.txt = f" {spl.props.get_loc(H.rise)[i]:.2f}°"
+        npf = int(spl.props.get_loc(H.npf)[i])
+        start = spl.props.get_loc(H.start)[i]
+        self.params.structure.txt = f" {npf}_{start:.1f}"
         return None
 
     def _init_plot(self):
@@ -125,13 +130,18 @@ class GlobalPropertiesWidget(MagicTemplate):
         properties={"margins": (0, 0, 0, 0)},
     )
     class params(MagicTemplate):
-        @magicclass(layout="horizontal", labels=False)
+        @magicclass(
+            layout="horizontal", labels=False, properties={"margins": (0, 0, 0, 0)}
+        )
         class params1(MagicTemplate):
             spacing = LabeledText("spacing")
             skew = LabeledText("skew angle")
+            rise = LabeledText("rise angle")
             structure = LabeledText("structure")
 
-        @magicclass(layout="horizontal", labels=False)
+        @magicclass(
+            layout="horizontal", labels=False, properties={"margins": (0, 0, 0, 0)}
+        )
         class params2(MagicTemplate):
             radius = LabeledText("radius")
             polarity = LabeledText("polarity")
@@ -139,17 +149,22 @@ class GlobalPropertiesWidget(MagicTemplate):
     def _init_text(self):
         self.params.params1.spacing.txt = " -- nm"
         self.params.params1.skew.txt = " -- °"
+        self.params.params1.rise.txt = " -- °"
         self.params.params1.structure.txt = " -- "
         self.params.params2.radius.txt = " -- nm"
         self.params.params2.polarity.txt = " -- "
         return None
 
-    def _set_text(self, pitch, skew, npf, start, radius, orientation):
-        self.params.params1.spacing.txt = f" {pitch:.2f} nm"
-        self.params.params1.skew.txt = f" {skew:.2f}°"
-        self.params.params1.structure.txt = f" {int(npf)}_{start:.1f}"
-        self.params.params2.radius.txt = (
-            f" {radius:.2f} nm" if radius is not None else " -- nm"
-        )
-        self.params.params2.polarity.txt = orientation
+    def _set_text(self, spl: "CylSpline"):
+        self.params.params1.spacing.txt = f" {spl.props.get_glob(H.spacing):.2f} nm"
+        self.params.params1.skew.txt = f" {spl.props.get_glob(H.skew):.2f}°"
+        self.params.params1.rise.txt = f" {spl.props.get_glob(H.rise):.2f}°"
+        npf = int(spl.props.get_glob(H.npf))
+        start = spl.props.get_glob(H.start)
+        self.params.params1.structure.txt = f" {npf}_{start:.1f}"
+        if spl.radius is not None:
+            self.params.params2.radius.txt = f" {spl.radius:.2f} nm"
+        else:
+            self.params.params2.radius.txt = " -- nm"
+        self.params.params2.polarity.txt = spl.orientation
         return None

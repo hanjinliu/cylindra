@@ -116,7 +116,9 @@ class MoleculesHeader(SimpleNamespace):
     isotype = "isotype-id"
     score = "score"  # alignment score
     interval = "interval-nm"  # interval between two molecules
+    lateral_interval = "lateral-interval-nm"  # lateral interval between two molecules
     skew = "skew-deg"  # skew angle between two molecules
+    rise = "rise-angle-deg"  # rise angle between two molecules
     radius = "radius-nm"  # distance between the molecule and the spline
     lateral_angle = "lateral-angle-deg"  # lateral angle between molecules
     elev_angle = "elevation-angle-deg"  # elevation angle between molecules
@@ -233,7 +235,7 @@ class SplineColor(SimpleNamespace):
     SELECTED = [0.8, 0.0, 0.5, 1.0]
 
 
-class ImageFilter(Enum):
+class ImageFilter(strEnum):
     """Available filters for the reference image."""
 
     Lowpass = "Lowpass"

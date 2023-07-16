@@ -536,7 +536,7 @@ def test_seam_search(ui: CylindraMainWidget):
     layer.molecules = layer.molecules.with_features(
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
     )
-    ui.seam_search_by_feature(layer, by="seam-label")
+    ui.sta.seam_search_by_feature(layer, by="seam-label")
 
 
 def test_classify_pca(ui: CylindraMainWidget):
@@ -665,19 +665,19 @@ def test_project_viewer():
 
 def test_molecules_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    ui.MoleculesMenu.show_orientation(ui.parent_viewer.layers["Mono-0"])
+    ui.MoleculesMenu.View.show_orientation(ui.parent_viewer.layers["Mono-0"])
     layer0 = ui.parent_viewer.layers["Mono-0"]
     layer1 = ui.parent_viewer.layers["Mono-1"]
     ui.concatenate_molecules([layer0, layer1])
     last_layer = ui.parent_viewer.layers[-1]
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
     ui.split_molecules(ui.parent_viewer.layers["Mono-0"], by=Mole.pf)
-    ui.MoleculesMenu.Visualize.render_molecules(
+    ui.MoleculesMenu.View.render_molecules(
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",
     )
     ui.paint_molecules(layer0, color_by="pf-id", limits=(0, 12))
-    ui.MoleculesMenu.Visualize.render_molecules(
+    ui.MoleculesMenu.View.render_molecules(
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",
     )
@@ -724,7 +724,7 @@ def test_molecule_features(ui: CylindraMainWidget):
     import polars as pl
 
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    ui.MoleculesMenu.Visualize.show_molecule_features()
+    ui.MoleculesMenu.View.show_molecule_features()
     layer = ui.parent_viewer.layers["Mono-0"]
     ui.filter_molecules(layer, predicate='pl.col("position-nm") < 9.2')
     assert ui.parent_viewer.layers[-1].features["position-nm"].max() < 9.2
@@ -834,6 +834,8 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.plot_molecule_feature(layer, backend="qt")
     ui.calculate_lateral_angles(layer=layer)
     ui.calculate_elevation_angles(layer=layer)
+    ui.calculate_rise_angles(layer=layer)
+    ui.calculate_lateral_intervals(layer=layer)
 
 
 def test_spline_fitter(ui: CylindraMainWidget):

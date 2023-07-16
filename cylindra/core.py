@@ -5,7 +5,6 @@ from pathlib import Path
 from weakref import WeakSet
 from typing import TYPE_CHECKING, Iterable, Sequence, Union
 from contextlib import suppress
-from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     import napari
