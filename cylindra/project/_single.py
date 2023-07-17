@@ -237,6 +237,7 @@ class CylindraProject(BaseProject):
 
         def _load_project_on_return():
             gui._send_tomogram_to_viewer(tomogram, filt=filter)
+            gui._reserved_layers.image.bounding_box.visible = not read_image
 
             if len(tomogram.splines) > 0:
                 gui._update_splines_in_images()
@@ -246,7 +247,7 @@ class CylindraProject(BaseProject):
             # load global variables
             if self.global_variables:
                 with gui.macro.blocked():
-                    gui.Others.GlobalVariables.load_variables(self.global_variables)
+                    gui.global_variables.load_variables(self.global_variables)
 
             # append macro
             gui.macro.extend(extract(Path(self.macro).read_text()).args)

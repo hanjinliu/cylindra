@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class LabeledText(FieldGroup):
-    lbl = field("pitch", widget_type="Label")
+    lbl = field("", widget_type="Label")
     txt = vfield("").with_options(enabled=False)
 
     def __init__(self, label_text: str):
@@ -41,20 +41,31 @@ class LocalPropertiesWidget(MagicTemplate):
         rise = LabeledText("rise angle")
         structure = LabeledText("structure")
 
-    plot = field(QtMultiPlotCanvas, name="Plot").with_options(
-        nrows=2, ncols=1, sharex=True, tooltip="Plot of local properties"
+    @magicclass(
+        widget_type="collapsible", name="Plot", properties={"margins": (0, 0, 0, 0)}
     )
+    class plots(MagicTemplate):
+        plot = field(QtMultiPlotCanvas, name="Plot").with_options(
+            nrows=3, ncols=1, sharex=True, tooltip="Plot of local properties"
+        )
+
+    @property
+    def plot(self) -> "QtMultiPlotCanvas":
+        return self.plots.plot
 
     def __post_init__(self):
         # Initialize multi-plot canvas
-        self.plot.min_height = 240
+        self.plot.min_height = 300
         self.plot[0].ylabel = "spacing (nm)"
         self.plot[0].legend.visible = False
         self.plot[0].border = [1, 1, 1, 0.2]
-        self.plot[1].xlabel = "position (nm)"
         self.plot[1].ylabel = "skew (deg)"
         self.plot[1].legend.visible = False
         self.plot[1].border = [1, 1, 1, 0.2]
+        self.plot[2].xlabel = "position (nm)"
+        self.plot[2].ylabel = "rise (deg)"
+        self.plot[2].legend.visible = False
+        self.plot[2].border = [1, 1, 1, 0.2]
 
         self._init_text()
 
@@ -77,6 +88,7 @@ class LocalPropertiesWidget(MagicTemplate):
     def _init_plot(self):
         self.plot[0].layers.clear()
         self.plot[1].layers.clear()
+        self.plot[2].layers.clear()
         return None
 
     def _plot_properties(self, spl: "CylSpline"):
@@ -84,31 +96,28 @@ class LocalPropertiesWidget(MagicTemplate):
             return None
         if x[0] > x[-1]:
             x = x[::-1]
-        pitch_color = "lime"
-        skew_color = "gold"
 
         self._init_plot()
 
         if (_interv := spl.props.get_loc(H.spacing, None)) is not None:
-            self.plot[0].add_curve(x, _interv, color=pitch_color)
+            self.plot[0].add_curve(x, _interv, color="lime")
         if (_skew := spl.props.get_loc(H.skew, None)) is not None:
-            self.plot[1].add_curve(x, _skew, color=skew_color)
+            self.plot[1].add_curve(x, _skew, color="gold")
+        if (_rise := spl.props.get_loc(H.rise, None)) is not None:
+            self.plot[2].add_curve(x, _rise, color="cyan")
 
         self.plot[0].xlim = (x[0] - 2, x[-1] + 2)
-        self.plot[0].add_infline(
-            pos=[x[0], 0], degree=90, color=[1.0, 0.0, 0.0, 0.3], lw=2
-        )
-        self.plot[1].add_infline(
-            pos=[x[0], 0], degree=90, color=[1.0, 0.0, 0.0, 0.3], lw=2
-        )
+        kw = dict(pos=[x[0], 0], degree=90, color=[1.0, 0.0, 0.0, 0.3], lw=2)
+        self.plot[0].add_infline(**kw)
+        self.plot[1].add_infline(**kw)
+        self.plot[2].add_infline(**kw)
         self._plot_spline_position(x[0])
         return None
 
     def _plot_spline_position(self, x: float):
-        if len(self.plot[0].layers) > 0:
-            self.plot[0].layers[-1].pos = [x, 0]
-        if len(self.plot[1].layers) > 0:
-            self.plot[1].layers[-1].pos = [x, 0]
+        for i in range(3):  # update current position indicator
+            if len(self.plot[i].layers) > 0:
+                self.plot[i].layers[-1].pos = [x, 0]
         xmin, xmax = self.plot[0].xlim
         if x < xmin or xmax < x:
             dx = xmax - xmin

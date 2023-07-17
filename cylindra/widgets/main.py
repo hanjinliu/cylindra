@@ -561,9 +561,7 @@ class CylindraMainWidget(MagicTemplate):
         save_path : Path
             Where to save the molecules.
         """
-        mole = layer.molecules
-        mole.to_csv(save_path)
-        return None
+        return layer.molecules.to_csv(save_path)
 
     @ImageMenu.wraps
     @set_design(text="Filter reference image")

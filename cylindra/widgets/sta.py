@@ -34,7 +34,7 @@ import impy as ip
 import polars as pl
 import napari
 
-from cylindra import utils, _config
+from cylindra import utils, _config, cylstructure
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.const import (
     ALN_SUFFIX,
@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from dask import array as da
     from napari.layers import Image
+    from cylindra.components import CylSpline
     from cylindra.widgets.main import CylindraMainWidget
 
 # annotated types
@@ -202,6 +203,7 @@ class SubtomogramAnalysis(MagicTemplate):
     sep1 = field(Separator)
     seam_search = abstractapi()
     seam_search_by_fiducials = abstractapi()
+    seam_search_by_feature = abstractapi()
     sep2 = field(Separator)
     save_last_average = abstractapi()
 
@@ -601,10 +603,7 @@ class SubtomogramAveraging(MagicTemplate):
         new_layers = list[MoleculesLayer]()
 
         @thread_worker.callback
-        def _on_yield(
-            mole_trans: Molecules,
-            layer: MoleculesLayer,
-        ):
+        def _on_yield(mole_trans: Molecules, layer: MoleculesLayer):
             points = parent.add_molecules(
                 mole_trans,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
@@ -656,7 +655,9 @@ class SubtomogramAveraging(MagicTemplate):
             # TODO: Undo cannot catch this change. Need to fix.
             if spl := layer.source_spline:
                 if spl.radius is None:
-                    _radius: nm = utils.with_radius(mole, spl)[Mole.radius].mean()
+                    _radius: nm = cylstructure.with_radius(mole, spl)[
+                        Mole.radius
+                    ].mean()
                 else:
                     _radius = spl.radius
                 _dz, _offset_y, _dx = rotator.apply(svec)
@@ -748,7 +749,7 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=_get_alignment(method),
             tilt_range=parent.tomogram.tilt_range,
         )
-        molecules = combiner.split(aligned_loader.molecules)
+        molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
         parent._need_save = True
         return self._align_all_on_return.with_args(molecules, layers)
@@ -799,11 +800,10 @@ class SubtomogramAveraging(MagicTemplate):
                 tilt_range=parent.tomogram.tilt_range,
             )
         )
-
+        molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
-        aligned_molecules = combiner.split(aligned_loader.molecules)
         parent._need_save = True
-        return self._align_all_on_return.with_args(aligned_molecules, layers)
+        return self._align_all_on_return.with_args(molecules, layers)
 
     @Refinement.wraps
     @set_design(text="Align all (multi-template)")
@@ -847,10 +847,10 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=_get_alignment(method),
             tilt_range=parent.tomogram.tilt_range,
         )
-        aligned_molecules = combiner.split(aligned_loader.molecules)
+        molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
         parent._need_save = True
-        return self._align_all_on_return.with_args(aligned_molecules, layers)
+        return self._align_all_on_return.with_args(molecules, layers)
 
     @Refinement.wraps
     @set_design(text="Viterbi Alignment")
@@ -1115,6 +1115,8 @@ class SubtomogramAveraging(MagicTemplate):
         for i, result in enumerate(vit_out):
             inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
         molecules_opt = landscape.transform_molecules(mole, inds)
+        if spl := layer.source_spline:
+            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
         parent._need_save = True
         return self._align_all_on_return.with_args([molecules_opt], [layer])
 
@@ -1175,17 +1177,26 @@ class SubtomogramAveraging(MagicTemplate):
             if return_all:
                 point_layers = []
                 for i, result in enumerate(results):
+                    mole_opt = landscape.transform_molecules(
+                        layer.molecules, result.indices
+                    )
+                    if spl := layer.source_spline:
+                        mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
                     points = parent.add_molecules(
-                        landscape.transform_molecules(layer.molecules, result.indices),
-                        name=_coerce_aligned_name(layer.name, self.parent_viewer)
-                        + f" [{i}]",
+                        mole_opt,
+                        name=f"{_coerce_aligned_name(layer.name, self.parent_viewer)} [{i}]",
                         source=layer.source_component,
                         metadata={"annealing-result": result},
                     )
                     point_layers.append(points)
             else:
+                mole_opt = landscape.transform_molecules(
+                    layer.molecules, results[0].indices
+                )
+                if spl := layer.source_spline:
+                    mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
                 points = parent.add_molecules(
-                    landscape.transform_molecules(layer.molecules, results[0].indices),
+                    mole_opt,
                     name=_coerce_aligned_name(layer.name, self.parent_viewer),
                     source=layer.source_component,
                     metadata={"annealing-result": results[0]},
@@ -1452,15 +1463,18 @@ class SubtomogramAveraging(MagicTemplate):
         t0 = timer("seam_search_by_fiducials")
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         seam_searcher = FiducialSeamSearcher(npf)
-        weight = self.mask
+        _, weight = loader.normalize_input(
+            self.params._get_template(allow_none=True),
+            self.params._get_mask(mask_params),
+        )
         if weight is None:
             raise ValueError("Mask is required for seam search by fiducials.")
+        weight = ip.asarray(weight, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
         result = seam_searcher.search(loader=loader, weight=weight)
         layer.features = layer.molecules.features.with_columns(
             pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
         )
         layer.metadata["seam-search-score"] = result.scores
-
         t0.toc()
 
         @thread_worker.callback
@@ -1480,6 +1494,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         return _seam_search_on_return
 
+    @Subtomogram_analysis.wraps
     @set_design(text="Seam search by feature")
     def seam_search_by_feature(
         self,
@@ -1622,6 +1637,23 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
     return sl
 
 
+def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:
+    """
+    Update the "position-nm" feature of molecules.
+
+    Feature "position-nm" is the coordinate of molecules along the source spline.
+    After alignment, this feature should be updated accordingly. This fucntion
+    will do this.
+    """
+    new_pos = new.pos
+    old_pos = old.pos
+    _u = old.features[Mole.position] / spl.length()
+    vec = spl.map(_u, der=1)
+    vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
+    dy = np.sum((new_pos - old_pos) * vec_norm, axis=1)
+    return new.with_features(pl.col(Mole.position) + dy)
+
+
 class MoleculesCombiner:
     """Class to split/combine molecules for batch analysis."""
 
@@ -1640,12 +1672,18 @@ class MoleculesCombiner:
             )
         return Molecules.concat(inputs)
 
-    def split(self, molecules: Molecules) -> list[Molecules]:
+    def split(
+        self, molecules: Molecules, layers: list[MoleculesLayer]
+    ) -> list[Molecules]:
         if self._identifier not in molecules.features.columns:
             return molecules
         out = list[Molecules]()
-        for _, mole in molecules.groupby(self._identifier):
-            out.append(mole.drop_features(self._identifier))
+        for i, (_, mole) in enumerate(molecules.groupby(self._identifier)):
+            mole0 = mole.drop_features(self._identifier)
+            layer = layers[i]
+            if spl := layer.source_spline:
+                mole0 = _update_mole_pos(mole0, layer.molecules, spl)
+            out.append(mole0)
         return out
 
 
