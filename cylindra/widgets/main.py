@@ -317,7 +317,6 @@ class CylindraMainWidget(MagicTemplate):
             self._reserved_layers.work.data = []
         else:
             self.delete_spline(self.SplineControl.num)
-
         return None
 
     @toolbar.wraps
@@ -410,7 +409,6 @@ class CylindraMainWidget(MagicTemplate):
             binsize=bin_size,
             eager=eager,
         )
-
         self._macro_offset = len(self.macro)
         return self._send_tomogram_to_viewer.with_args(tomo, filter)
 
@@ -466,6 +464,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Save project")
+    @do_not_record
     @bind_key("Ctrl+K, Ctrl+S")
     def save_project(self, save_dir: Path.Save):
         """
@@ -494,9 +493,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Overwrite project")
-    @do_not_record(recursive=False)
+    @do_not_record
     @bind_key("Ctrl+K, Ctrl+Shift+S")
     def overwrite_project(self):
+        """Overwrite currently opened project."""
         if self._project_dir is None:
             raise ValueError(
                 "No project is loaded. You can use `Save project` "
@@ -536,6 +536,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @File.wraps
+    @do_not_record
     @set_design(text="Save spline")
     def save_spline(
         self,
@@ -548,6 +549,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @File.wraps
+    @do_not_record
     @set_design(text="Save molecules")
     def save_molecules(
         self, layer: MoleculesLayer, save_path: Path.Save[FileFilter.CSV]

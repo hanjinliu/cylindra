@@ -81,6 +81,7 @@ class PropertyNames(SimpleNamespace):
     rise = "rise_angle"
     spacing = "spacing"
     skew = "skew_angle"
+    skew_tilt = "skew_tilt_angle"
     npf = "npf"
     radius = "radius"
     orientation = "orientation"  # global only

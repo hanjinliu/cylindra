@@ -16,6 +16,7 @@ class LocalParams(NamedTuple):
 
     rise: float
     spacing: nm
+    skew_tilt: float
     skew: float
     npf: int
     start: float
@@ -30,6 +31,7 @@ class LocalParams(NamedTuple):
         return [
             (H.rise, pl.Float32),
             (H.spacing, pl.Float32),
+            (H.skew_tilt, pl.Float32),
             (H.skew, pl.Float32),
             (H.npf, pl.UInt8),
             (H.start, pl.Float32),
@@ -83,13 +85,15 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         up_a=20,
     )
 
-    skew = np.arctan(peakh.yfreq / peakh.afreq * 2 * yspace / radius)
+    skew_tilt = np.arctan(peakh.yfreq / peakh.afreq)
+    skew = skew_tilt * 2 * yspace / radius
     start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
     npf = peakh.a
 
     return LocalParams(
         rise=np.rad2deg(rise),
         spacing=yspace,
+        skew_tilt=np.rad2deg(skew_tilt),
         skew=np.rad2deg(skew),
         npf=roundint(npf),
         start=start,
