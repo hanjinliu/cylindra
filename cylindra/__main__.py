@@ -5,6 +5,7 @@ class Namespace(argparse.Namespace):
     project: str
     view: str
     globals: str
+    init_config: bool
     debug: bool
 
 
@@ -17,6 +18,7 @@ class Args(argparse.ArgumentParser):
         self.add_argument("--view", type=str, default="None")
         self.add_argument("--globals", type=str, default="None")
         self.add_argument("--debug", action="store_true")
+        self.add_argument("--init-config", action="store_true")
         self.add_argument(
             "-v",
             "--version",
@@ -37,6 +39,11 @@ def main(viewer=None):  # "viewer" is used for testing only
     project_file = None if args.project == "None" else args.project
     view_file = None if args.view == "None" else args.view
     globals_file = None if args.globals == "None" else args.globals
+
+    if args.init_config:
+        from cylindra import init_config
+
+        return init_config(force=True)
 
     if view_file:
         from cylindra import view_project

@@ -82,8 +82,6 @@ def init_config(force: bool = False):  # pragma: no cover
             shutil.rmtree(VAR_PATH)
         if SETTINGS_DIR.exists():
             shutil.rmtree(SETTINGS_DIR)
-        if WORKFLOWS_DIR.exists():
-            shutil.rmtree(WORKFLOWS_DIR)
 
     if not VAR_PATH.exists() or _is_empty(VAR_PATH):
         try:

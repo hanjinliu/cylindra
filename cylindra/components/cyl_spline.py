@@ -161,14 +161,13 @@ class CylSpline(Spline):
         )
         if nrise == 0:
             tan_rise = 0
-            tan_skew = radius * skew_rad / interv / 2
+            tan_skew_tilt = radius * skew_rad / interv / 2
             skew_incr = 0
         else:
             space_incr = nrise * interv
             skew_incr = radius * skew_rad * nrise / 2
-
             tan_rise = space_incr / (perimeter + skew_incr)
-            tan_skew = skew_incr / space_incr
+            tan_skew_tilt = skew_incr / space_incr
 
         factor = interv / (perimeter / npf)
 
@@ -179,7 +178,7 @@ class CylSpline(Spline):
 
         return CylinderModel(
             shape=(ny, npf),
-            tilts=(tan_skew * factor, tan_rise / factor),
+            tilts=(tan_skew_tilt * factor, tan_rise / factor),
             intervals=(interv, (perimeter + skew_incr) / perimeter * np.pi * 2 / npf),
             radius=radius,
             offsets=offsets,

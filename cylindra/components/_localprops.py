@@ -46,33 +46,18 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
     peak_det = PeakDetector(img)
 
     # y-axis
-    # ^           + <- peak0
+    # ^           + <- peakv
     # |
-    # |  +      +      + <- peak1
+    # |  +      +      + <- peakh
     # |
     # |       +
     # +--------------------> a-axis
 
-    # First transform around the expected length of y-pitch.
-    npfrange = ceilint(GVar.npf_max / 2)
-    peakv = peak_det.get_peak(
-        range_y=(
-            img.shape.y * img.scale.y / GVar.spacing_max,
-            img.shape.y * img.scale.y / GVar.spacing_min,
-        ),
-        range_a=(-npfrange, npfrange + 1),
-        up_y=max(int(6000 / img.shape.y), 1),
-        up_a=20,
-    )
-
-    rise = np.arctan(peakv.afreq / peakv.yfreq) * GVar.rise_sign
-    yspace = 1.0 / peakv.yfreq * img.scale.y
-
-    # Second, transform around 13 pf lateral periodicity.
+    # Transformation around `peakh``.
     # This analysis measures skew angle and protofilament number.
-    y_factor = abs(radius / yspace / img.shape.a * img.shape.y / 2)
-    tan_min = np.tan(np.deg2rad(GVar.skew_min))
-    tan_max = np.tan(np.deg2rad(GVar.skew_max))
+    spacing_arr = np.array([GVar.spacing_min, GVar.spacing_max])[np.newaxis]
+    y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
+    tan_min, tan_max = np.tan(np.deg2rad([GVar.skew_min, GVar.skew_max]))
     npf_arr = np.array([GVar.npf_min, GVar.npf_max])
 
     peakh = peak_det.get_peak(
@@ -84,11 +69,23 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         up_y=max(int(21600 / img.shape.y), 1),
         up_a=20,
     )
+    npf = peakh.a
 
+    # Transformation around the expected length of y-pitch.
+    peakv = peak_det.get_peak(
+        range_y=(
+            img.shape.y * img.scale.y / GVar.spacing_max,
+            img.shape.y * img.scale.y / GVar.spacing_min,
+        ),
+        range_a=(-ceilint(npf / 2), ceilint(npf / 2) + 1),
+        up_y=max(int(6000 / img.shape.y), 1),
+        up_a=20,
+    )
+    rise = np.arctan(peakv.afreq / peakv.yfreq) * GVar.rise_sign
+    yspace = 1.0 / peakv.yfreq * img.scale.y
     skew_tilt = np.arctan(peakh.yfreq / peakh.afreq)
     skew = skew_tilt * 2 * yspace / radius
     start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
-    npf = peakh.a
 
     return LocalParams(
         rise=np.rad2deg(rise),

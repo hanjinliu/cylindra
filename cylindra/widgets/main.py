@@ -345,7 +345,6 @@ class CylindraMainWidget(MagicTemplate):
     @nogui
     def load_macro_file(self, path: Path.Read[FileFilter.PY]):
         """Load a Python script file to a new macro window."""
-
         with open(path) as f:
             txt = f.read()
         macro = self._format_macro(mk.parse(txt))
@@ -400,8 +399,7 @@ class CylindraMainWidget(MagicTemplate):
         elif len(bin_size) == 0:
             raise ValueError("You must specify at least one bin size.")
         else:
-            bin_size = list(bin_size)
-        bin_size = list(set(bin_size))  # delete duplication
+            bin_size = list(set(bin_size))  # delete duplication
         tomo = CylTomogram.imread(
             path=path,
             scale=scale,
