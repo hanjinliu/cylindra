@@ -450,7 +450,7 @@ class CylindraMainWidget(MagicTemplate):
             project_path = get_project_json(path)
             project = CylindraProject.from_json(project_path)
         _Logger.print_html(
-            f"<code>ui.load_project('{Path(path).as_posix()}', "
+            f"<code>ui.load_project('{Path(project_path).as_posix()}', "
             f"filter={filter}, {paint=}, {read_image=})</code>"
         )
         if project_path is not None:
