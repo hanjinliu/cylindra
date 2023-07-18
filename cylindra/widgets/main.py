@@ -424,7 +424,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Path.Read[FileFilter.PROJECT],
         filter: Union[ImageFilter, None] = ImageFilter.DoG,
-        paint: bool = True,
+        paint: bool = False,
         read_image: Annotated[bool, {"label": "Read image data"}] = True,
     ):
         """
@@ -436,7 +436,7 @@ class CylindraMainWidget(MagicTemplate):
             Path to the project json file, or the project directory that contains
             "project.json", or a CylindraProject object.
         {filter}
-        paint : bool, default is True
+        paint : bool, default is False
             Whether to paint cylinder properties if available.
         read_image : bool default is True
             Whether to read image data from the project directory. If false, a dummy
