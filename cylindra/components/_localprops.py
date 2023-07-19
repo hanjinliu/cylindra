@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 import numpy as np
+from numpy.typing import NDArray
 import impy as ip
 import polars as pl
 from cylindra.const import nm, PropertyNames as H, GlobalVariables as GVar, Mode
@@ -98,13 +99,13 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
 
 
 def ft_params(
-    img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, radius: nm
+    img: ip.ImgArray | ip.LazyImgArray, coords: NDArray[np.float32], radius: nm
 ) -> LocalParams:
     return polar_ft_params(get_polar_image(img, coords), radius)
 
 
 def get_polar_image(
-    img: ip.ImgArray | ip.LazyImgArray, coords: np.ndarray, order: int = 3
+    img: ip.ImgArray | ip.LazyImgArray, coords: NDArray[np.float32], order: int = 3
 ):
     polar = map_coordinates(img, coords, order=order, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle

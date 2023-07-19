@@ -371,7 +371,7 @@ class CylindraMainWidget(MagicTemplate):
         scale: Bound[_image_loader.scale.scale_value] = None,
         tilt_range: Bound[_image_loader.tilt_range.range] = None,
         bin_size: Bound[_image_loader.bin_size] = [1],
-        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.DoG,
+        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.LoG,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip
         """
@@ -423,7 +423,7 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(
         self,
         path: Path.Read[FileFilter.PROJECT],
-        filter: Union[ImageFilter, None] = ImageFilter.DoG,
+        filter: Union[ImageFilter, None] = ImageFilter.LoG,
         paint: bool = True,
         read_image: Annotated[bool, {"label": "Read image data"}] = True,
     ):
@@ -569,7 +569,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def filter_reference_image(
         self,
-        method: ImageFilter = ImageFilter.DoG,
+        method: ImageFilter = ImageFilter.LoG,
     ):
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)

@@ -114,12 +114,12 @@ class Runner(MagicTemplate):
     map_monomers = vfield(False, label="Map monomers")
 
     @fit.connect
-    def _toggle_fit_params(self, visible: bool):
-        self.params1.visible = visible
+    def _toggle_fit_params(self, val: bool):
+        self.params1.enabled = val
 
     @local_props.connect
-    def _toggle_localprops_params(self, visible: bool):
-        self.params2.visible = visible
+    def _toggle_localprops_params(self, val: bool):
+        self.params2.enabled = val
 
     def _get_max_shift(self, w=None):
         if self.fit:

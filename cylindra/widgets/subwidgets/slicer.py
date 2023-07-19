@@ -43,6 +43,9 @@ class SplineSlicer(MagicTemplate):
             and/or Fourier transformation.
         """
 
+        def __init__(self):
+            self._old_binsize = 1
+
         def _get_available_binsize(self, widget=None) -> "list[int]":
             from cylindra.widgets.main import CylindraMainWidget
 
@@ -133,6 +136,7 @@ class SplineSlicer(MagicTemplate):
     def _on_widget_state_changed(self):
         if self.visible:
             self._update_canvas()
+            self.params._old_binsize = self.params.binsize
         return None
 
     def _update_canvas(self):
@@ -163,6 +167,12 @@ class SplineSlicer(MagicTemplate):
             raise RuntimeError
         self.canvas.image = img
         self.canvas.text_overlay.visible = False
+        factor = self.params._old_binsize / self.params.binsize
+        if factor != 1:
+            xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
+            ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
+            self.canvas.xlim = xlim
+            self.canvas.ylim = ylim
         return None
 
     def _show_overlay_text(self, txt):

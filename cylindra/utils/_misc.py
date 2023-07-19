@@ -129,6 +129,7 @@ def map_coordinates(
     order: int = 3,
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
+    prefilter: bool | None = None,
 ) -> np.ndarray:
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
@@ -154,6 +155,7 @@ def map_coordinates(
         coordinates=coordinates,
         order=order,
         mode=mode,
+        prefilter=prefilter,
         cval=cval,
     )
 

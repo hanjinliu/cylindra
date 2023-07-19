@@ -70,7 +70,7 @@ class ImageLoader(MagicTemplate):
         )
 
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
-    filter = vfield(Union[ImageFilter, None]).with_options(value=ImageFilter.DoG)
+    filter = vfield(Union[ImageFilter, None]).with_options(value=ImageFilter.LoG)
     eager = vfield(False, label="Load the entire image into memory")
 
     @scale.wraps
