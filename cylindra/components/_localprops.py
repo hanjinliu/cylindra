@@ -68,11 +68,11 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         ),
         range_a=get_arange(img),
         up_y=max(int(21600 / img.shape.y), 1),
-        up_a=20,
+        up_a=40,
     )
     npf = peakh.a
 
-    # Transformation around the expected length of y-pitch.
+    # Transformation around `peakv`.
     peakv = peak_det.get_peak(
         range_y=(
             img.shape.y * img.scale.y / GVar.spacing_max,
@@ -80,7 +80,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         ),
         range_a=(-ceilint(npf / 2), ceilint(npf / 2) + 1),
         up_y=max(int(6000 / img.shape.y), 1),
-        up_a=20,
+        up_a=40,
     )
     rise = np.arctan(peakv.afreq / peakv.yfreq) * GVar.rise_sign
     yspace = 1.0 / peakv.yfreq * img.scale.y

@@ -87,6 +87,7 @@ class SplineControl(MagicTemplate):
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
         highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
+        canvas_visible = vfield(True).with_options(text="Projections")
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
@@ -110,6 +111,11 @@ class SplineControl(MagicTemplate):
             plt.imshow(img)
             plt.axis("off")
             plt.show()
+        return None
+
+    @footer.canvas_visible.connect
+    def _toggle_canvas(self, vis: bool):
+        self.canvas.visible = vis
         return None
 
     @num.connect
