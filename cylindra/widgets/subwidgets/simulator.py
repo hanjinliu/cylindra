@@ -474,7 +474,7 @@ class CylinderSimulator(MagicTemplate):
         kwargs = {
             H.spacing: spacing,
             H.skew: skew,
-            H.rise: rise * GVar.rise_sign,
+            H.rise: rise,
             H.npf: npf,
         }
         model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
