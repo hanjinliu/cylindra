@@ -65,6 +65,36 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     return _concat_groups(subsets).features[Mole.elev_angle]
 
 
+def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
+    """Add a column that indicates the skew of each molecule to the next one."""
+    _spl_len = spl.length()
+    subsets = list[Molecules]()
+    for _, sub in _groupby_with_index(mole, Mole.pf):
+        _pos = sub.pos
+        _interv_vec = np.diff(_pos, axis=0, append=0)
+
+        _u = sub.features[Mole.position] / _spl_len
+        _spl_pos = spl.map(_u, der=0)
+        _spl_vec = spl.map(_u, der=1)
+
+        _mole_to_spl_vec = _spl_pos - _pos
+        _interv_proj_norm = _norm(_cancel_component(_interv_vec, _mole_to_spl_vec))
+
+        _spl_vec_norm = _norm(_spl_vec)
+
+        _skew_cross = np.cross(_interv_proj_norm, _spl_vec_norm, axis=1)
+        _inner = _dot(_skew_cross, _mole_to_spl_vec)
+        _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
+
+        _skew = np.rad2deg(np.arcsin(_skew_sin))
+        _skew[-1] = -np.inf
+        subsets.append(
+            sub.with_features(pl.Series(Mole.skew_tilt, _skew).cast(pl.Float32))
+        )
+
+    return _concat_groups(subsets).features[Mole.skew_tilt]
+
+
 def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column that indicates the skew of each molecule to the next one."""
     _spl_len = spl.length()
@@ -196,6 +226,7 @@ class LatticeParameters(Enum):
     interv: LatticeParameters = "interv"
     elev_angle = "elev_angle"
     skew = "skew"
+    skew_tilt = "skew_tilt"
     radius = "radius"
     rise = "rise"
     lat_interv = "lat_interv"
@@ -207,6 +238,8 @@ class LatticeParameters(Enum):
             return calc_elevation_angle(mole, spl)
         elif self is LatticeParameters.skew:
             return calc_skew(mole, spl)
+        elif self is LatticeParameters.skew_tilt:
+            return calc_skew_tilt(mole, spl)
         elif self is LatticeParameters.radius:
             return calc_radius(mole, spl)
         elif self is LatticeParameters.rise:
