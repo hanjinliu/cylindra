@@ -9,7 +9,7 @@ from acryo import Molecules
 import polars as pl
 from magicclass import testing as mcls_testing, get_function_gui
 
-from cylindra import view_project, _config
+from cylindra import view_project, _config, cylstructure
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MASK_CHOICES
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
@@ -794,7 +794,8 @@ def test_calc_intervals(ui: CylindraMainWidget):
             ui.invert_spline(spline=0)
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.parent_viewer.layers[-1]
-        ui.calculate_intervals(layer=layer)
+        assert isinstance(layer, MoleculesLayer)
+        ui.calculate_lattice_structure(layer=layer, props=["interv_projective"])
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
             interval = layer.features["interval-nm"][:-npf]
             # individial intervals must be almost equal to the global spacing
@@ -817,7 +818,8 @@ def test_calc_skews(ui: CylindraMainWidget):
             ui.invert_spline(spline=0)
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.parent_viewer.layers[-1]
-        ui.calculate_skews(layer=layer)
+        assert isinstance(layer, MoleculesLayer)
+        ui.calculate_lattice_structure(layer=layer, props=["skew"])
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
             each_skew = layer.features["skew-deg"][:-npf]
             # individial skews must be almost equal to the global skew angle
@@ -829,13 +831,12 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.map_monomers(splines=[0])
     layer = ui.parent_viewer.layers[-1]
-    ui.calculate_radii(layer=layer)
+    assert isinstance(layer, MoleculesLayer)
+    all_props = cylstructure.LatticeParameters.choices()
+    ui.calculate_lattice_structure(layer=layer, props=all_props)
     assert layer.features["radius-nm"].std() < 0.1
+    ui.paint_molecules(layer, color_by="radius-nm", limits=(8, 10))
     ui.plot_molecule_feature(layer, backend="qt")
-    ui.calculate_lateral_angles(layer=layer)
-    ui.calculate_elevation_angles(layer=layer)
-    ui.calculate_rise_angles(layer=layer)
-    ui.calculate_lateral_intervals(layer=layer)
 
 
 def test_spline_fitter(ui: CylindraMainWidget):
