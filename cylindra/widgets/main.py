@@ -39,7 +39,6 @@ from napari.layers import Layer
 
 from cylindra import utils, _config, cylstructure
 from cylindra.components import CylSpline, CylTomogram
-from cylindra.components.seam_search import BooleanSeamSearcher
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
     GlobalVariables as GVar,
@@ -51,7 +50,7 @@ from cylindra.const import (
     SplineColor,
     ImageFilter,
 )
-from cylindra._custom_layers import MoleculesLayer, ColormapInfo
+from cylindra._custom_layers import MoleculesLayer
 from cylindra.types import get_monomer_layers
 from cylindra.project import CylindraProject, get_project_json, extract
 
@@ -424,7 +423,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Path.Read[FileFilter.PROJECT],
         filter: Union[ImageFilter, None] = ImageFilter.LoG,
-        paint: bool = True,
+        paint: bool = False,
         read_image: Annotated[bool, {"label": "Read image data"}] = True,
     ):
         """
@@ -436,7 +435,7 @@ class CylindraMainWidget(MagicTemplate):
             Path to the project json file, or the project directory that contains
             "project.json", or a CylindraProject object.
         {filter}
-        paint : bool, default is True
+        paint : bool, default is False
             Whether to paint cylinder properties if available.
         read_image : bool default is True
             Whether to read image data from the project directory. If false, a dummy
@@ -1251,9 +1250,8 @@ class CylindraMainWidget(MagicTemplate):
             if any(spl is each for each in _splines):
                 _duplicated.append(spl)
             _splines.append(spl)
-            mole = layer.molecules.copy()
-            mole.features = cylstructure.with_radius(mole, spl)
-            _molecules.append(mole)
+            mole = layer.molecules
+            _molecules.append(mole.with_features(cylstructure.calc_radius(mole, spl)))
 
         if _duplicated:
             _layer_names = ", ".join(repr(l.name) for l in layers)
@@ -1859,173 +1857,33 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate intervals")
-    def calculate_intervals(self, layer: MoleculesLayer, projective: bool = True):
+    @set_design(text="Calculate lattice structure")
+    def calculate_lattice_structure(
+        self,
+        layer: MoleculesLayer,
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("interv",),
+    ):  # fmt: skip
         """
-        Calculate intervals (in nm) between adjacent molecules.
-
-        Parameters
-        ----------
-        {layer}{projective}
-        """
-        _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        layer.features = cylstructure.with_interval(
-            layer.molecules, layer.source_component, projective
-        )
-        self.reset_choices()  # choices regarding of features need update
-
-        # Set colormap
-        _clim = [GVar.spacing_min, GVar.spacing_max]
-        layer.set_colormap(Mole.interval, _clim, DEFAULT_COLORMAP)
-        self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
-
-    @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate lateral intervals")
-    def calculate_lateral_intervals(
-        self, layer: MoleculesLayer, projective: bool = True
-    ):
-        """
-        Calculate lateral intervals (in nm) between adjacent molecules.
-
-        Parameters
-        ----------
-        {layer}{projective}
-        """
-        _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        layer.features = cylstructure.with_lateral_interval(
-            layer.molecules, layer.source_component, projective
-        )
-        self.reset_choices()  # choices regarding of features need update
-
-        # Set colormap
-        layer.set_colormap(Mole.lateral_interval, cmap_input=DEFAULT_COLORMAP)
-        self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
-
-    @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate elevation angles")
-    def calculate_elevation_angles(self, layer: MoleculesLayer):
-        """
-        Calculate elevation angles (in degree) between adjacent molecules.
-
-        The "elevation angles" is defined by the angle between the vector of two
-        adjacent molecules and the vector of the spline curve corresponding to one of
-        the molecules.
+        Calculate lattice structures and store the results as new feature columns.
 
         Parameters
         ----------
         {layer}
+        props : list of str, optional
+            Properties to calculate.
         """
         _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        layer.features = cylstructure.with_elevation_angle(
-            layer.molecules, layer.source_component
-        )
+        feat = layer.molecules.features
+
+        def _calculate(p: str):
+            return cylstructure.LatticeParameters(p).calculate(
+                layer.molecules, layer.source_spline
+            )
+
+        layer.molecules = layer.molecules.with_features([_calculate(p) for p in props])
         self.reset_choices()  # choices regarding of features need update
-        _set_angle_colormap(layer, Mole.elev_angle)
         self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
-
-    @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate skew angles")
-    def calculate_skews(self, layer: MoleculesLayer):
-        """
-        Calculate projective skew angles (in degree) between adjacent molecules.
-
-        The "projective angle" is defined by the component of the vector of
-        adjacent molecules perpendicular to the vector from the spline curve to
-        the molecule, and also perpendicular to the vector of the spline curve
-        corresponding to the position of the molecule. Please note that this
-        quantity does not consider the orientation of each molecule.
-
-        Parameters
-        ----------
-        {layer}
-        """
-        _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        layer.features = cylstructure.with_skew(layer.molecules, layer.source_component)
-        self.reset_choices()  # choices regarding of features need update
-        _set_angle_colormap(layer, Mole.skew)
-        self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
-
-    @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate rise angles")
-    def calculate_rise_angles(self, layer: MoleculesLayer):
-        """
-        Calculate projective rise angles (in degree) between adjacent molecules.
-
-        Parameters
-        ----------
-        {layer}
-        """
-        _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        layer.features = cylstructure.with_rise_angle(
-            layer.molecules, layer.source_component
-        )
-        self.reset_choices()  # choices regarding of features need update
-        _set_angle_colormap(layer, Mole.rise)
-        self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
-
-    @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate radii")
-    def calculate_radii(self, layer: MoleculesLayer):
-        """
-        Calculate radius for each molecule.
-
-        The "radius" is defined by the distance between a molecule and the direction
-        vector of the source spline. It is calculated by taking the inner product of
-        these two.
-
-        Parameters
-        ----------
-        {layer}
-        """
-        _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        layer.features = cylstructure.with_radius(
-            layer.molecules, layer.source_component
-        )
-        self.reset_choices()  # choices regarding of features need update
-
-        # Set colormap
-        val = layer.features[Mole.radius]
-        _clim = [float(val.min()), float(val.max())]
-        layer.set_colormap(Mole.radius, _clim, DEFAULT_COLORMAP)
-        self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
-
-    @MoleculesMenu.MoleculeFeatures.wraps
-    @set_design(text="Calculate lateral angles")
-    def calculate_lateral_angles(self, layer: MoleculesLayer):
-        """
-        Calculate lateral angles for each molecule.
-
-        The "lateral angle" of a molecule is defined by its two lateral neighbors.
-        By definition of arc cosine, the lateral angle is in the range of [0, 180].
-        If the molecule does not have two lateral neighbors (at the edges), those
-        angles are filled with -1.
-
-        Parameters
-        ----------
-        {layer}
-        """
-        _assert_source_spline_exists(layer)
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
-        model = self.sta._get_simple_annealing_model(layer)
-        angles = np.rad2deg(model.lateral_angles())
-        layer.features = layer.molecules.features.with_columns(
-            pl.Series(Mole.lateral_angle, angles)
-        )
-        layer.set_colormap(Mole.lateral_angle, [0, 180], DEFAULT_COLORMAP)
-        self._need_save = True
-        return undo_callback(layer.feature_setter(feat, cmap_info))
+        return undo_callback(layer.feature_setter(feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Convolve feature")

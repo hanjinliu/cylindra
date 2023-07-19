@@ -655,9 +655,7 @@ class SubtomogramAveraging(MagicTemplate):
             # TODO: Undo cannot catch this change. Need to fix.
             if spl := layer.source_spline:
                 if spl.radius is None:
-                    _radius: nm = cylstructure.with_radius(mole, spl)[
-                        Mole.radius
-                    ].mean()
+                    _radius: nm = cylstructure.calc_radius(mole, spl).mean()
                 else:
                     _radius = spl.radius
                 _dz, _offset_y, _dx = rotator.apply(svec)
