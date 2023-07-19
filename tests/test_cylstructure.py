@@ -15,6 +15,3 @@ def test_interval():
 
     result = LatticeParameters("interv").calculate(mole, spl)
     assert_allclose(result[:-4], ans.ravel()[:-4], rtol=1e-6)
-
-    result = LatticeParameters("interv_projective").calculate(mole, spl)
-    assert_allclose(result[:-4], ans.ravel()[:-4], rtol=1e-6)

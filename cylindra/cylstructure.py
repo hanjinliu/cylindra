@@ -194,19 +194,15 @@ def calc_lateral_interval(
 
 class LatticeParameters(Enum):
     interv: LatticeParameters = "interv"
-    interv_projective = "interv_projective"
     elev_angle = "elev_angle"
     skew = "skew"
     radius = "radius"
     rise = "rise"
     lat_interv = "lat_interv"
-    lat_interv_projective = "lat_interv_projective"
 
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
         if self is LatticeParameters.interv:
-            return calc_interval(mole, spl, projective=False)
-        elif self is LatticeParameters.interv_projective:
-            return calc_interval(mole, spl, projective=True)
+            return calc_interval(mole, spl)
         elif self is LatticeParameters.elev_angle:
             return calc_elevation_angle(mole, spl)
         elif self is LatticeParameters.skew:
@@ -216,9 +212,7 @@ class LatticeParameters(Enum):
         elif self is LatticeParameters.rise:
             return calc_rise_angle(mole, spl)
         elif self is LatticeParameters.lat_interv:
-            return calc_lateral_interval(mole, spl, projective=False)
-        elif self is LatticeParameters.lat_interv_projective:
-            return calc_lateral_interval(mole, spl, projective=True)
+            return calc_lateral_interval(mole, spl)
         else:
             raise ValueError(f"Unknown lattice parameter {self!r}.")
 

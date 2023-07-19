@@ -795,7 +795,7 @@ def test_calc_intervals(ui: CylindraMainWidget):
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.parent_viewer.layers[-1]
         assert isinstance(layer, MoleculesLayer)
-        ui.calculate_lattice_structure(layer=layer, props=["interv_projective"])
+        ui.calculate_lattice_structure(layer=layer, props=["interv"])
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
             interval = layer.features["interval-nm"][:-npf]
             # individial intervals must be almost equal to the global spacing

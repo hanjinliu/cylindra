@@ -1250,9 +1250,8 @@ class CylindraMainWidget(MagicTemplate):
             if any(spl is each for each in _splines):
                 _duplicated.append(spl)
             _splines.append(spl)
-            mole = layer.molecules.copy()
-            mole.features = cylstructure.with_radius(mole, spl)
-            _molecules.append(mole)
+            mole = layer.molecules
+            _molecules.append(mole.with_features(cylstructure.calc_radius(mole, spl)))
 
         if _duplicated:
             _layer_names = ", ".join(repr(l.name) for l in layers)
@@ -1862,7 +1861,7 @@ class CylindraMainWidget(MagicTemplate):
     def calculate_lattice_structure(
         self,
         layer: MoleculesLayer,
-        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("interv_projective",),
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("interv",),
     ):  # fmt: skip
         """
         Calculate lattice structures and store the results as new feature columns.
