@@ -406,16 +406,16 @@ class Spline(BaseComponent):
 
     @anchors.setter
     def anchors(self, positions: float | Sequence[float]) -> None:
-        positions: np.ndarray = np.atleast_1d(np.asarray(positions, dtype=np.float32))
-        if positions.ndim != 1:
+        _anc = np.atleast_1d(np.asarray(positions, dtype=np.float32))
+        if _anc.ndim != 1:
             raise TypeError(f"Could not convert positions into 1D array.")
-        elif positions.min() < 0 or positions.max() > 1:
+        elif _anc.min() < 0 or _anc.max() > 1:
             msg = (
                 f"Anchor positions should be set between 0 and 1. Otherwise spline "
                 f"curve does not fit well."
             )
             warnings.warn(msg, UserWarning)
-        self._anchors = positions
+        self._anchors = _anc
         self.props.clear_loc()
         return None
 
@@ -1171,13 +1171,10 @@ class Spline(BaseComponent):
         """
         if u is None:
             u = self.anchors
-        ds = self.map(u, 1)
-        len_ds = np.sqrt(sum(ds**2))
-        dy = (
-            ds.reshape(-1, 1)
-            / len_ds
-            * np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
-        )
+        ds = self.map(u, der=1)
+        ds_norm: NDArray[np.float32] = ds.reshape(-1, 1) / np.sqrt(sum(ds**2))
+        grid = np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
+        dy = ds_norm * grid
         y_ax_coords = (self.map(u) / scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds] * n_pixels, axis=0)
         map_ = _polar_coords_2d(*r_range)

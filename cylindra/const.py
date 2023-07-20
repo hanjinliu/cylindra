@@ -94,8 +94,8 @@ class PropertyNames(SimpleNamespace):
 class IDName(SimpleNamespace):
     """ID names used in local properties."""
 
-    spline = "SplineID"
-    pos = "PosID"
+    spline = "spline-id"
+    pos = "pos-id"
 
 
 class Mode(SimpleNamespace):

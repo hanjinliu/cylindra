@@ -44,6 +44,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
     perimeter: nm = 2 * np.pi * radius
     img = img - img.mean()  # normalize.
 
+    up_a = 40
     peak_det = PeakDetector(img)
 
     # y-axis
@@ -68,7 +69,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         ),
         range_a=get_arange(img),
         up_y=max(int(21600 / img.shape.y), 1),
-        up_a=40,
+        up_a=up_a,
     )
     npf = peakh.a
 
@@ -80,7 +81,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
         ),
         range_a=(-ceilint(npf / 2), ceilint(npf / 2) + 1),
         up_y=max(int(6000 / img.shape.y), 1),
-        up_a=40,
+        up_a=up_a,
     )
     rise = np.arctan(peakv.afreq / peakv.yfreq) * GVar.rise_sign
     yspace = 1.0 / peakv.yfreq * img.scale.y

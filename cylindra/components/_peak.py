@@ -59,10 +59,9 @@ class PeakDetector:
         a_pad0 = ceilint((a0 - a0i) * up_a)
         a_pad1 = floorint((a1i - a1) * up_a)
 
+        ylen, alen = power.shape.y, power.shape.a
         ymax, amax = np.unravel_index(
-            np.argmax(
-                power[y_pad0 : power.shape.y - y_pad1, a_pad0 : power.shape.a - a_pad1]
-            ),
+            np.argmax(power[y_pad0 : ylen - y_pad1, a_pad0 : alen - a_pad1]),
             shape=power.shape,
         )
 

@@ -1210,7 +1210,6 @@ class CylTomogram(Tomogram):
                 binsize=binsize,
                 filt_func=filt_func,
             )
-
         else:
             input_img = self._get_multiscale_or_original(binsize)
             if filt_func is not None:
@@ -1219,7 +1218,6 @@ class CylTomogram(Tomogram):
             if radii is None:
                 inner_radius = _non_neg(spl.radius - GVar.thickness_inner) / _scale
                 outer_radius = (spl.radius + GVar.thickness_outer) / _scale
-
             else:
                 inner_radius, outer_radius = radii / _scale
 
