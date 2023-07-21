@@ -543,7 +543,7 @@ class CylTomogram(Tomogram):
 
         _required = [H.spacing, H.skew, H.npf]
         if not spl.props.has_glob(_required):
-            self.global_ft_params(i=i, binsize=binsize)
+            self.global_ft_params(i=i, binsize=binsize, nsamples=1)
 
         spl.make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
@@ -788,6 +788,7 @@ class CylTomogram(Tomogram):
         ft_size: nm = 32.0,
         binsize: int = 1,
         radius: nm | Literal["local", "global"] = "global",
+        nsamples: int = 8,
     ) -> pl.DataFrame:
         """
         Calculate local structural parameters from cylindrical Fourier space.
@@ -806,6 +807,11 @@ class CylTomogram(Tomogram):
         radius : str, default is "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius. If a float, use the given radius.
+        nsamples : int, default is 8
+            Number of cylindrical coordinate samplings for Fourier transformation. Multiple
+            samplings are needed because up-sampled discrete Fourier transformation does not
+            return exactly the same power spectra with shifted inputs, unlike FFT. Larger
+            ``nsamples`` reduces the error but is slower.
 
         Returns
         -------
@@ -828,7 +834,7 @@ class CylTomogram(Tomogram):
         lazy_ft_params = delayed(ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-            tasks.append(lazy_ft_params(input_img, coords, r0))
+            tasks.append(lazy_ft_params(input_img, coords, r0, nsamples=nsamples))
 
         lprops = pl.DataFrame(
             da.compute(*tasks),
@@ -932,6 +938,7 @@ class CylTomogram(Tomogram):
         *,
         i: int = None,
         binsize: int = 1,
+        nsamples: int = 8,
     ) -> pl.DataFrame:
         """
         Calculate global structural parameters.
@@ -946,6 +953,11 @@ class CylTomogram(Tomogram):
             Spline ID that you want to analyze.
         binsize : int, default is 1
             Multiscale bin size used for calculation.
+        nsamples : int, default is 8
+            Number of cylindrical coordinate samplings for Fourier transformation. Multiple
+            samplings are needed because up-sampled discrete Fourier transformation does not
+            return exactly the same power spectra with shifted inputs, unlike FFT. Larger
+            ``nsamples`` reduces the error but is slower.
 
         Returns
         -------
@@ -955,7 +967,7 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self.splines[i]
         img_st = self.straighten_cylindric(i, binsize=binsize)
-        out = polar_ft_params(img_st, spl.radius).to_polars()
+        out = polar_ft_params(img_st, spl.radius, nsamples=nsamples).to_polars()
         spl.globalprops = spl.globalprops.with_columns(out)
         return out
 
@@ -1309,10 +1321,6 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
-        _required = [H.spacing, H.skew, H.rise, H.npf]
-        _missing = [k for k in _required if k not in kwargs]
-        if not spl.props.has_glob(_missing):
-            self.global_ft_params(i=i)
         return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process
@@ -1417,7 +1425,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         if not spl.props.has_glob([H.spacing, H.skew]):
-            self.global_ft_params(i=i)
+            self.global_ft_params(i=i, nsamples=1)
         interv = spl.props.get_glob(H.spacing) * 2
         skew = spl.props.get_glob(H.skew)
 

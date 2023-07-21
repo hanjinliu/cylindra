@@ -39,13 +39,13 @@ class LocalParams(NamedTuple):
         ]
 
 
-def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
+def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LocalParams:
     """Detect the peak position and calculate the local lattice parameters."""
     perimeter: nm = 2 * np.pi * radius
     img = img - img.mean()  # normalize.
 
     up_a = 40
-    peak_det = PeakDetector(img)
+    peak_det = PeakDetector(img, nsamples=nsamples)
 
     # y-axis
     # ^           + <- peakv
@@ -100,9 +100,13 @@ def polar_ft_params(img: ip.ImgArray, radius: nm) -> LocalParams:
 
 
 def ft_params(
-    img: ip.ImgArray | ip.LazyImgArray, coords: NDArray[np.float32], radius: nm
+    img: ip.ImgArray | ip.LazyImgArray,
+    coords: NDArray[np.float32],
+    radius: nm,
+    nsamples: int = 8,
 ) -> LocalParams:
-    return polar_ft_params(get_polar_image(img, coords), radius)
+    """Calculate the local lattice parameters from a Cartesian input."""
+    return polar_ft_params(get_polar_image(img, coords), radius, nsamples)
 
 
 def get_polar_image(

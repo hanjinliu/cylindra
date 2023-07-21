@@ -425,8 +425,7 @@ class Spline(BaseComponent):
         self.props.clear_loc()
         return None
 
-    @property
-    def inverted(self) -> bool:
+    def is_inverted(self) -> bool:
         """Return true if spline is inverted."""
         return self._lims[0] > self._lims[1]
 
@@ -587,7 +586,7 @@ class Spline(BaseComponent):
             k = npoints - 1
         else:
             k = self.degree
-        if self.inverted:
+        if self.is_inverted():
             coords = coords[::-1]
 
         # weight
@@ -678,7 +677,7 @@ class Spline(BaseComponent):
         # weight
         weight = _normalize_weight(weight, weight_ramp, coords)
 
-        if self.inverted:
+        if self.is_inverted():
             coords = coords[::-1]
         _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
         return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(

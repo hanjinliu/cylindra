@@ -6,11 +6,34 @@ import numpy as np
 import impy as ip
 
 
+def int_translate(img: ip.ImgArray, shift: int, axis="a") -> ip.ImgArray:
+    if shift == 0:
+        return img
+    sl = ip.slicer(axis)
+    img0 = img[sl[shift:]]
+    img1 = img[sl[:shift]]
+    return np.concatenate([img0, img1], axis=-1)
+
+
 class PeakDetector:
     """A power spectrum peak detector for a given image."""
 
-    def __init__(self, img: ip.ImgArray):
+    def __init__(self, img: ip.ImgArray, nsamples: int = 8):
         self._img = img
+        self._nsamples = nsamples
+
+    def dft(self, key, upsample_factor) -> ip.ImgArray:
+        power_spectra = []
+        sample_slope = self._img.shape.a / self._nsamples
+        for i in range(self._nsamples):
+            img = int_translate(self._img, int(sample_slope * i))
+            pw = img.local_power_spectra(
+                key=key,
+                upsample_factor=upsample_factor,
+                dims="rya",
+            ).proj("r")
+            power_spectra.append(pw)
+        return np.stack(power_spectra, axis=0).mean(axis=0)
 
     def get_peak(
         self,
@@ -47,11 +70,10 @@ class PeakDetector:
         a0i, a1i = floorint(a0), ceilint(a1)
         y1i = max(y1i, y0i + 1)
         a1i = max(a1i, a0i + 1)
-        power = self._img.local_power_spectra(
+        power = self.dft(
             key=ip.slicer.y[y0i:y1i].a[a0i:a1i],
             upsample_factor=[1, up_y, up_a],
-            dims="rya",
-        ).proj("r")
+        )
 
         # these should be >0
         y_pad0 = ceilint((y0 - y0i) * up_y)
