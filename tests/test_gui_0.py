@@ -451,16 +451,18 @@ def test_slicer(ui: CylindraMainWidget):
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    ui.sta.average_all(ui.parent_viewer.layers["Mono-0"], size=12.0, bin_size=bin_size)
+    mono0 = ui.parent_viewer.layers["Mono-0"]
+    ui.sta.average_all(mono0, size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
-            ui.parent_viewer.layers["Mono-0"],
+            mono0,
             size=12.0,
             method=method,
             bin_size=bin_size,
         )
+    ui.sta.average_groups(mono0, size=12.0, bin_size=bin_size, by=pl.col("pf-id"))
     ui.sta.calculate_fsc(
-        ui.parent_viewer.layers["Mono-0"],
+        mono0,
         mask_params=None,
         size=8.0,
         seed=0,
@@ -470,7 +472,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         molepath = dirpath / "monomers.txt"
-        ui.save_molecules(layer=ui.parent_viewer.layers["Mono-0"], save_path=molepath)
+        ui.save_molecules(layer=mono0, save_path=molepath)
         ui.save_spline(0, dirpath / "spline-x.json")
         mole = ui.get_molecules("Mono-0")
         ui.load_molecules(molepath)
@@ -486,18 +488,14 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.sta.show_template()
     ui.sta.show_mask()
     ui.sta.align_averaged(
-        layers=[ui.parent_viewer.layers["Mono-0"]],
+        layers=[mono0],
         template_path=template_path,
         mask_params=(1, 1),
         bin_size=bin_size,
     )
-    ui.sta.split_and_average(
-        layer=ui.parent_viewer.layers["Mono-0"],
-        size=12.0,
-        bin_size=bin_size,
-    )
+    ui.sta.split_and_average(layer=mono0, size=12.0, bin_size=bin_size)
     ui.sta.align_all(
-        layers=[ui.parent_viewer.layers["Mono-0"]],
+        layers=[mono0],
         template_path=template_path,
         mask_params=(1, 1),
         max_shifts=(1.0, 1.1, 1.0),
@@ -506,13 +504,13 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         bin_size=bin_size,
     )
     ui.sta.align_all_template_free(
-        layers=[ui.parent_viewer.layers["Mono-0"]],
+        layers=[mono0],
         mask_params=(1, 1),
         size=12.0,
         bin_size=bin_size,
     )
     ui.sta.align_all_multi_template(
-        layers=[ui.parent_viewer.layers["Mono-0"]],
+        layers=[mono0],
         template_paths=[template_path, template_path],
         mask_params=(1, 1),
         bin_size=bin_size,

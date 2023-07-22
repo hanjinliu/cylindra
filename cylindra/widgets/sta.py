@@ -21,7 +21,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import Optional, Path, Bound
+from magicclass.types import Optional, Path, Bound, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -56,7 +56,7 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
 )
 
-from .widget_utils import FileFilter, timer
+from .widget_utils import FileFilter, timer, POLARS_NAMESPACE
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
@@ -196,6 +196,7 @@ class SubtomogramAnalysis(MagicTemplate):
 
     average_all = abstractapi()
     average_subset = abstractapi()
+    average_groups = abstractapi()
     split_and_average = abstractapi()
     sep0 = field(Separator)
     calculate_fsc = abstractapi()
@@ -249,7 +250,7 @@ class StaParameters(MagicTemplate):
 
     def __post_init__(self):
         self._template: ip.ImgArray = None
-        self._viewer: Union[napari.Viewer, None] = None
+        self._viewer: "napari.Viewer | None" = None
         self.mask_choice = MASK_CHOICES[0]
 
         # load history
@@ -486,11 +487,10 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = timer("average_all")
         parent = self._get_parent()
-        molecules = layer.molecules
         tomo = parent.tomogram
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
-            molecules, shape, binsize=bin_size, order=interpolation
+            layer.molecules, shape, binsize=bin_size, order=interpolation
         )
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
@@ -538,6 +538,50 @@ class SubtomogramAveraging(MagicTemplate):
         t0.toc()
         return self._show_reconstruction.with_args(
             img, f"[AVG(n={number})]{layer.name}"
+        )
+
+    @Subtomogram_analysis.wraps
+    @set_design(text="Average group-wise")
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Grouped subtomogram averaging of {!r}"))  # fmt: skip
+    def average_groups(
+        self,
+        layer: MoleculesLayer,
+        size: _SubVolumeSize = None,
+        by: ExprStr.In[POLARS_NAMESPACE] = "pl.col('pf-id')",
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+    ):
+        """
+        Group-wise subtomogram averaging using molecules grouped by the given expression.
+
+        This method first group molecules by its features, and then average each group.
+        This method is useful for such as get average of each protofilament and segmented
+        subtomogram averaging.
+
+        Parameters
+        ----------
+        {layer}{size}
+        by : str or polars expression
+            Expression to group molecules.
+        {interpolation}{bin_size}
+        """
+        t0 = timer("average_groups")
+        if isinstance(by, pl.Expr):
+            expr = by
+        else:
+            expr = ExprStr(by, POLARS_NAMESPACE).eval()
+        parent = self._get_parent()
+        tomo = parent.tomogram
+        shape = self._get_shape_in_nm(size)
+        loader = tomo.get_subtomogram_loader(
+            layer.molecules, shape, binsize=bin_size, order=interpolation
+        )
+        avgs = np.stack(list(loader.groupby(expr).average().values()), axis=0)
+        img = ip.asarray(avgs, axes="pzyx")
+        img.set_scale(zyx=loader.scale, unit="nm")
+        t0.toc()
+        return self._show_reconstruction.with_args(
+            img, f"[AVG]{layer.name}", store=False
         )
 
     @Subtomogram_analysis.wraps
