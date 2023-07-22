@@ -266,17 +266,17 @@ def test_spline_switch(ui: CylindraMainWidget):
     ui.SplineControl.pos = 0
     assert_canvas(ui, [False, False, True])
 
-    ui._runner.run(interval=32.0)
+    ui._runner.run(interval=32.64)
 
     # check results
-    spl = ui.tomogram.splines[0]
-    ypitch_mean = spl.localprops[H.spacing].mean()
-    ypitch_glob = spl.props.get_glob(H.spacing)
-    # GDP-bound microtubule has lattice spacing in this range
-    assert 4.08 < ypitch_glob < 4.11
-    assert ypitch_glob == pytest.approx(ypitch_mean, abs=0.015)
-    assert all(spl.localprops[H.npf] == 13)
-    assert all(spl.localprops[H.rise] > 8.3)
+    for spl in ui.tomogram.splines:
+        spacing_mean = spl.localprops[H.spacing].mean()
+        spacing_glob = spl.props.get_glob(H.spacing)
+        # GDP-bound microtubule has lattice spacing in this range
+        assert 4.08 < spacing_glob < 4.11
+        assert spacing_glob == pytest.approx(spacing_mean, abs=0.02)
+        assert all(spl.localprops[H.npf] == 13)
+        assert all(spl.localprops[H.rise] > 8.3)
 
     # check canvas again
     assert_canvas(ui, [False, False, False])

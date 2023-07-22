@@ -789,6 +789,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         radius: nm | Literal["local", "global"] = "global",
         nsamples: int = 8,
+        update: bool = True,
     ) -> pl.DataFrame:
         """
         Calculate local structural parameters from cylindrical Fourier space.
@@ -843,7 +844,8 @@ class CylTomogram(Tomogram):
             pl.Series(H.spl_pos, spl.anchors, dtype=pl.Float32),
             pl.Series(H.spl_dist, spl.distances(), dtype=pl.Float32),
         )
-        spl.props.update_loc(lprops, ft_size)
+        if update:
+            spl.props.update_loc(lprops, ft_size)
 
         return lprops
 
@@ -939,6 +941,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         binsize: int = 1,
         nsamples: int = 8,
+        update: bool = True,
     ) -> pl.DataFrame:
         """
         Calculate global structural parameters.
@@ -968,7 +971,8 @@ class CylTomogram(Tomogram):
         spl = self.splines[i]
         img_st = self.straighten_cylindric(i, binsize=binsize)
         out = polar_ft_params(img_st, spl.radius, nsamples=nsamples).to_polars()
-        spl.globalprops = spl.globalprops.with_columns(out)
+        if update:
+            spl.globalprops = spl.globalprops.with_columns(out)
         return out
 
     @batch_process
@@ -1321,6 +1325,12 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
+        _required = [H.spacing, H.skew, H.rise, H.npf]
+        _missing = [k for k in _required if k not in kwargs]
+        if not spl.props.has_glob(_missing):
+            gprops = self.global_ft_params(i=i, update=False)
+            for k in _missing:
+                kwargs.setdefault(k, gprops[k][0])
         return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process

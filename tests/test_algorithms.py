@@ -108,7 +108,7 @@ def test_mapping(orientation):
     tomo.set_radius(radius=9)
     assert tomo.splines[0].radius == 9
     tomo.splines[0].orientation = "PlusToMinus"
-
+    tomo.global_ft_params(nsamples=2)
     tomo.map_monomers(orientation=orientation)
     tomo.map_centers(orientation=orientation)
     tomo.map_pf_line(orientation=orientation)
