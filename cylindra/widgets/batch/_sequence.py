@@ -194,7 +194,7 @@ class Project(MagicTemplate):
         project = CylindraProject.from_json(self.path)
         molecules = [mole._get_molecules() for mole in self.molecules if mole.check]
         return SubtomogramLoader(
-            ip.lazy_imread(project.image, chunks=GVar.dask_chunk).value,
+            ip.lazy.imread(project.image, chunks=GVar.dask_chunk).value,
             molecules=Molecules.concat(molecules),
             order=order,
             scale=project.scale,

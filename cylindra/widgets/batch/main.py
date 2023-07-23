@@ -70,7 +70,7 @@ class CylindraBatchWidget(MagicTemplate):
         to_drop = set[str]()
         for img_id, _path_info in enumerate(paths):
             path_info = PathInfo(*_path_info)
-            img = ip.lazy_imread(path_info.image, chunks=GVar.dask_chunk)
+            img = ip.lazy.imread(path_info.image, chunks=GVar.dask_chunk)
             image_paths[img_id] = Path(path_info.image)
             if path_info.project is not None:
                 _converter = _molecule_to_spline_converter(path_info.project)

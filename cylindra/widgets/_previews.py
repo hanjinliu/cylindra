@@ -47,7 +47,7 @@ class ImagePreview(MagicTemplate):
     def _load_image(self, path: str):
         if self.canvas.image is not None:
             del self.canvas.image
-        img = ip.lazy_imread(path, chunks=(4, "auto", "auto"))
+        img = ip.lazy.imread(path, chunks=(4, "auto", "auto"))
         if img.ndim != 3:
             raise ValueError("Cannot only preview 3D image.")
         self._img = img
@@ -62,8 +62,8 @@ class ImagePreview(MagicTemplate):
     def _update_canvas(self):
         img_slice = self._img[self.sl.value].compute()
         if self.Fft.apply_filter:
-            img_slice = img_slice.tiled_lowpass_filter(
-                cutoff=self.Fft.cutoff, chunks=(496, 496)
+            img_slice = img_slice.tiled(chunks=(496, 496)).lowpass_filter(
+                cutoff=self.Fft.cutoff
             )
         self.canvas.image = np.asarray(img_slice)
 

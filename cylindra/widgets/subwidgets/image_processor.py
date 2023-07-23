@@ -103,11 +103,7 @@ class ImageProcessor(MagicTemplate):
     ):
         """Apply Butterworth's tiled low-pass filter to the input image."""
         img = self._imread(input).as_float()
-        if isinstance(img, ip.ImgArray):
-            out = img.tiled(overlap=32).lowpass_filter(cutoff=cutoff, order=order)
-        else:
-            # tiled() is not implemented for LazyImgArray yet.
-            out = img.tiled_lowpass_filter(overlap=32, cutoff=cutoff, order=order)
+        out = img.tiled(overlap=32).lowpass_filter(cutoff=cutoff, order=order)
         out.imsave(output)
         return None
 
@@ -153,7 +149,7 @@ class ImageProcessor(MagicTemplate):
         return None
 
     def _imread(self, path, chunks=GVar.dask_chunk) -> ip.ImgArray | ip.LazyImgArray:
-        img = ip.lazy_imread(path, chunks=chunks)
+        img = ip.lazy.imread(path, chunks=chunks)
         if img.gb < self.max_gb:
             img = img.compute()
         return img

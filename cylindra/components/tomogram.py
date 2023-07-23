@@ -164,7 +164,7 @@ class Tomogram:
         Tomogram
             Tomogram object with the image that has just been read and multi-scales.
         """
-        img = ip.lazy_imread(path, chunks=GVar.dask_chunk, name="tomogram").as_float()
+        img = ip.lazy.imread(path, chunks=GVar.dask_chunk, name="tomogram").as_float()
         if eager:
             img = img.compute()
         return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
@@ -187,7 +187,9 @@ class Tomogram:
         elif isinstance(img, np.ndarray):
             if img.ndim != 3:
                 raise ValueError("Can only set 3-D image.")
-            _img = ip.aslazy(img, dtype=np.float32, axes="zyx", chunks=GVar.dask_chunk)
+            _img = ip.lazy.asarray(
+                img, dtype=np.float32, axes="zyx", chunks=GVar.dask_chunk
+            )
             if isinstance(img, ip.ImgArray):
                 _img.set_scale(img)
         else:
@@ -279,13 +281,6 @@ class Tomogram:
         self._set_image(img_inv)
         for i, (_b, _img) in enumerate(self._multiscaled):
             self._multiscaled[i] = (_b, -_img)
-        return self
-
-    def lowpass_filter(self, cutoff: float) -> Self:
-        """Low-pass filtering the original image **in-place**"""
-        if 0 < cutoff < 0.866:
-            self.image.tiled_lowpass_filter(cutoff, update=True, overlap=32)
-            self.image.release()
         return self
 
     def get_subtomogram_loader(

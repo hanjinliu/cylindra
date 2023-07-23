@@ -74,13 +74,13 @@ class ImageLoader(MagicTemplate):
     eager = vfield(False, label="Load the entire image into memory")
 
     @scale.wraps
-    @set_design(max_width=90)
+    @set_design(text="Read header", max_width=90)
     def read_header(self):
         """Read scale from image header."""
         path = self.path
         if not os.path.exists(path) or not os.path.isfile(path):
             return
-        img = ip.lazy_imread(path, chunks=GVar.dask_chunk)
+        img = ip.lazy.imread(path, chunks=GVar.dask_chunk)
         scale = img.scale.x
         self.scale.scale_value = f"{scale:.4f}"
         if len(self.bin_size) < 2:

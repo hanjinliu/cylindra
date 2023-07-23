@@ -387,7 +387,7 @@ class CylindraMainWidget(MagicTemplate):
             You can use both binned and non-binned image for analysis.
         {filter}
         """
-        img = ip.lazy_imread(path, chunks=GVar.dask_chunk)
+        img = ip.lazy.imread(path, chunks=GVar.dask_chunk)
         if scale is not None:
             scale = float(scale)
             img.scale.x = img.scale.y = img.scale.z = scale

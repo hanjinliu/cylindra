@@ -94,7 +94,7 @@ class ComponentsViewer(MagicTemplate):
             self.components._add_layer(layer)
 
         # draw edge
-        img = ip.lazy_imread(project.image)
+        img = ip.lazy.imread(project.image)
         nz, ny, nx = img.shape
         for z in [0, nz]:
             arr = (
