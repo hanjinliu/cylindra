@@ -25,7 +25,7 @@ def test_run_all(coords, npf, rise, skew_range):
     tomo.make_anchors(n=3)
     assert tomo.collect_localprops() is None
     assert tomo.collect_globalprops() is None
-    tomo.set_radius()
+    tomo.measure_radius()
     assert tomo.collect_localprops() is None
     assert H.radius in tomo.collect_globalprops(allow_none=False).columns
 
@@ -82,7 +82,7 @@ def test_chunked_straightening():
     tomo.fit()
     tomo.refine()
     tomo.make_anchors(n=3)
-    tomo.set_radius()
+    tomo.measure_radius()
 
     tomo.straighten(i=0, chunk_length=200)
     tomo.straighten(i=0, chunk_length=32)
@@ -105,8 +105,7 @@ def test_mapping(orientation):
     tomo = CylTomogram.imread(path)
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
     tomo.fit()
-    tomo.set_radius(radius=9)
-    assert tomo.splines[0].radius == 9
+    tomo.splines[0].radius = 9
     tomo.splines[0].orientation = "PlusToMinus"
     tomo.global_ft_params(nsamples=2)
     tomo.map_monomers(orientation=orientation)
@@ -119,7 +118,7 @@ def test_local_cft():
     tomo = CylTomogram.imread(path, binsize=[1, 2])
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
     tomo.fit()
-    tomo.set_radius(radius=9)
+    tomo.splines[0].radius = 9
     tomo.make_anchors(n=3)
     tomo.local_cft(i=0)
     tomo.local_cft(i=0, binsize=2)
@@ -131,7 +130,7 @@ def test_global_cft():
     tomo = CylTomogram.imread(path, binsize=[1, 2])
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
     tomo.fit()
-    tomo.set_radius(radius=9)
+    tomo.splines[0].radius = 9
     tomo.make_anchors(n=3)
     tomo.global_cft(0)
     tomo.global_cft(0, binsize=2)

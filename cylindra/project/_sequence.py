@@ -205,12 +205,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 )
             else:
                 df = pl.read_csv(path)
-                dataframes.append(
-                    df.with_columns(
-                        pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image),
-                        pl.col(IDName.spline).cast(pl.UInt16),
-                    )
-                )
+                columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
+                if IDName.spline in df.columns:
+                    columns.append(pl.col(IDName.spline).cast(pl.UInt16))
+                dataframes.append(df.with_columns(columns))
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         return self._normalize_id(out, id)
 

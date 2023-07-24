@@ -18,6 +18,7 @@ from typing_extensions import ParamSpec, Concatenate
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
+from pytest import mark
 from scipy import ndimage as ndi
 from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
@@ -539,7 +540,7 @@ class CylTomogram(Tomogram):
         spl = self.splines[i]
         if spl.radius is None:
             spl.make_anchors(n=3)
-            self.set_radius(i=i, binsize=binsize)
+            self.measure_radius(i=i, binsize=binsize)
 
         _required = [H.spacing, H.skew, H.npf]
         if not spl.props.has_glob(_required):
@@ -648,12 +649,12 @@ class CylTomogram(Tomogram):
         return result
 
     @batch_process
-    def set_radius(
+    def measure_radius(
         self,
         i: int = None,
         *,
-        radius: nm | None = None,
         binsize: int = 1,
+        positions: NDArray[np.float32] | Literal["auto", "anchor"] = "auto",
     ) -> nm:
         """
         Set radius or measure radius using radial profile from the center.
@@ -664,7 +665,8 @@ class CylTomogram(Tomogram):
             Spline ID that you want to measure.
         binsize : int, default is 1
             Multiscale bin size used for radius calculation.
-
+        positions : array-like or "auto" or "anchor", default is "auto"
+            Sampling positions (between 0 and 1) to calculate radius.
         Returns
         -------
         float (nm)
@@ -673,12 +675,13 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.set_radius, i={i}")
         spl = self.splines[i]
 
-        if radius is not None:
-            spl.radius = float(radius)
-            return spl.radius
-
-        if not spl.has_anchors:
-            spl.make_anchors(n=3)
+        if positions == "auto":
+            nanchor = 3
+            pos = 1 / nanchor * np.arange(nanchor) + 0.5 / nanchor
+        elif positions == "anchor":
+            pos = spl.anchors
+        else:
+            pos = np.asarray(positions, dtype=np.float32)
 
         input_img = self._get_multiscale_or_original(binsize)
 
@@ -686,14 +689,14 @@ class CylTomogram(Tomogram):
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
         scale = self.scale * binsize
 
-        mole = spl.anchors_to_molecules()
+        mole = spl.anchors_to_molecules(pos)
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
 
         loader = SubtomogramLoader(
             input_img.value,
             mole,
-            order=1,
+            order=3,
             scale=scale,
             output_shape=(width_px, depth_px, width_px),
             corner_safe=True,

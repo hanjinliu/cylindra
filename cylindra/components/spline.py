@@ -11,6 +11,7 @@ from typing import (
     TypeVar,
     TypedDict,
     TYPE_CHECKING,
+    Union,
     overload,
 )
 import warnings
@@ -57,7 +58,7 @@ class SplineInfo(TypedDict, total=False):
 
 
 _TCK = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
-
+_DataFrameLike = Union[pl.DataFrame, Mapping[str, Any], Sequence["pl.Series | pl.Expr"]]
 _void = object()
 
 
@@ -135,7 +136,11 @@ class SplineProps:
         new._window_size = {k: self._window_size[k] for k in keys}
         return new
 
-    def update_loc(self, props: Any, window_size: nm | Mapping[str, nm]) -> Self:
+    def update_loc(
+        self,
+        props: _DataFrameLike,
+        window_size: nm | Mapping[str, nm],
+    ) -> Self:
         """
         Set local properties of given window size.
 
@@ -161,7 +166,7 @@ class SplineProps:
             self._window_size.update({c: ws for c in df.columns})
         return self
 
-    def update_glob(self, props: Any) -> Self:
+    def update_glob(self, props: _DataFrameLike) -> Self:
         if not isinstance(props, pl.DataFrame):
             df = pl.DataFrame(props)
         else:

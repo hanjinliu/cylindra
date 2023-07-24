@@ -984,30 +984,6 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save = True
         return tracker.as_undo_callback()
 
-    @Analysis.wraps
-    @set_design(text="Measure radius")
-    @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
-    def measure_radius(
-        self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-    ):  # fmt: skip
-        """
-        Measure cylinder radius for each spline curve.
-
-        Parameters
-        ----------
-        {splines}{bin_size}
-        """
-        indices = normalize_spline_indices(splines, self.tomogram)
-        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
-            for i in indices:
-                self.tomogram.set_radius(i, binsize=bin_size)
-                yield
-
-        self._need_save = True
-        return tracker.as_undo_callback()
-
     @Splines.wraps
     @set_design(text="Refine splines")
     @thread_worker.with_progress(desc="Refining splines", total="len(splines)")
@@ -1189,6 +1165,30 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @Analysis.wraps
+    @set_design(text="Measure radius")
+    @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
+    def measure_radius(
+        self,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+    ):  # fmt: skip
+        """
+        Measure cylinder radius for each spline curve.
+
+        Parameters
+        ----------
+        {splines}{bin_size}
+        """
+        indices = normalize_spline_indices(splines, self.tomogram)
+        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
+            for i in indices:
+                self.tomogram.measure_radius(i, binsize=bin_size)
+                yield
+
+        self._need_save = True
+        return tracker.as_undo_callback()
+
+    @Analysis.wraps
     @set_design(text="Measure local radius")
     @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
     def measure_local_radius(
@@ -1225,7 +1225,7 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
     ):  # fmt: skip
         """
-        Measure radius for each local region along splines, using molecules.
+        Measure local and global radius for each layer.
 
         Please note that the radius defined by the peak of the radial profile is not always
         the same as the radius measured by this method. If the molecules are aligned using
@@ -1241,7 +1241,7 @@ class CylindraMainWidget(MagicTemplate):
 
         # check duplicated spline sources
         _splines = list[CylSpline]()
-        _molecules = list[Molecules]()
+        _radius_df = list[pl.DataFrame]()
         _duplicated = list[CylSpline]()
         for layer in layers:
             spl = layer.source_component
@@ -1251,7 +1251,8 @@ class CylindraMainWidget(MagicTemplate):
                 _duplicated.append(spl)
             _splines.append(spl)
             mole = layer.molecules
-            _molecules.append(mole.with_features(cylstructure.calc_radius(mole, spl)))
+            df = mole.features
+            _radius_df.append(df.with_columns(cylstructure.calc_radius(mole, spl)))
 
         if _duplicated:
             _layer_names = ", ".join(repr(l.name) for l in layers)
@@ -1259,20 +1260,22 @@ class CylindraMainWidget(MagicTemplate):
 
         indices = [self.tomogram.splines.index(spl) for spl in _splines]
         with SplineTracker(widget=self, indices=indices) as tracker:
-            for i, spl, mole in zip(indices, _splines, _molecules):
+            for i, spl, df in zip(indices, _splines, _radius_df):
                 if interval is not None:
                     self.tomogram.make_anchors(i=i, interval=interval)
                 radii = list[float]()
                 for pos in spl.anchors * spl.length():
                     lower, upper = pos - depth / 2, pos + depth / 2
                     pred = pl.col(Mole.position).is_between(lower, upper)
-                    radii.append(mole.features.filter(pred)[Mole.radius].mean())
-                newprop = pl.Series(H.radius, radii, dtype=pl.Float32)
-                if newprop.is_nan().any():
+                    radii.append(df.filter(pred)[Mole.radius].mean())
+                radii = pl.Series(H.radius, radii, dtype=pl.Float32)
+                if radii.is_nan().any():
                     _Logger.print_html(
                         f"<b>Local radii of spline-{i} contains NaN.</b>"
                     )
-                spl.props.update_loc([newprop], depth)
+                spl.props.update_loc([radii], depth)
+                spl.radius = df[Mole.radius].mean()
+
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1339,7 +1342,7 @@ class CylindraMainWidget(MagicTemplate):
             for i in indices:
                 spl = tomo.splines[i]
                 if spl.radius is None:
-                    tomo.set_radius(i=i)
+                    tomo.measure_radius(i=i)
                 tomo.global_ft_params(i=i, binsize=bin_size)
                 yield
 

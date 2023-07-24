@@ -29,8 +29,7 @@ class CylSpline(Spline):
             if H.radius in self.globalprops.columns:
                 self.props.drop_glob(H.radius)
             return None
-        col = pl.Series(H.radius, [value]).cast(pl.Float32)
-        self.props.glob = self.props.glob.with_columns(col)
+        self.props.update_glob([pl.Series(H.radius, [value], dtype=pl.Float32)])
         return None
 
     @property
@@ -44,8 +43,7 @@ class CylSpline(Spline):
             value = Ori.none
         else:
             value = Ori(value)
-        col = pl.Series(H.orientation, [str(value)])
-        self.props.glob = self.props.glob.with_columns(col)
+        self.props.update_glob([pl.Series(H.orientation, [str(value)])])
         return None
 
     def invert(self) -> CylSpline:

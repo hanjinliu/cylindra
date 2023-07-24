@@ -41,9 +41,7 @@ class LocalParams(NamedTuple):
 
 def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LocalParams:
     """Detect the peak position and calculate the local lattice parameters."""
-    perimeter: nm = 2 * np.pi * radius
     img = img - img.mean()  # normalize.
-
     up_a = 40
     peak_det = PeakDetector(img, nsamples=nsamples)
 
@@ -87,7 +85,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LocalPar
     yspace = 1.0 / peakv.yfreq * img.scale.y
     skew_tilt = np.arctan(peakh.yfreq / peakh.afreq)
     skew = skew_tilt * 2 * yspace / radius
-    start = rise_to_start(rise, yspace, skew=skew, perimeter=perimeter)
+    start = rise_to_start(rise, yspace, skew=skew, perimeter=2 * np.pi * radius)
 
     return LocalParams(
         rise=np.rad2deg(rise),
