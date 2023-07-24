@@ -444,6 +444,26 @@ class Spline(BaseComponent):
         self._u = u
         return self
 
+    def prep_anchor_positions(
+        self,
+        interval: nm | None = None,
+        n: int | None = None,
+        max_interval: nm | None = None,
+    ) -> NDArray[np.float32]:
+        length = self.length()
+        if interval is not None:
+            stop, n_segs = interval_divmod(length, interval)
+            end = stop / length
+            n = n_segs + 1
+        elif n is not None:
+            end = 1
+        elif max_interval is not None:
+            n = max(ceilint(length / max_interval), self.degree) + 1
+            end = 1
+        else:
+            raise ValueError("Either 'interval' or 'n' must be specified.")
+        return np.linspace(0, end, n)
+
     def make_anchors(
         self,
         interval: nm | None = None,
@@ -465,20 +485,7 @@ class Spline(BaseComponent):
             will not be larger than this. The number of anchors are also guaranteed to be larger
             than spline order.
         """
-        length = self.length()
-        if interval is not None:
-            stop, n_segs = interval_divmod(length, interval)
-            end = stop / length
-            n = n_segs + 1
-        elif n is not None:
-            end = 1
-        elif max_interval is not None:
-            n = max(ceilint(length / max_interval), self.degree) + 1
-            end = 1
-        else:
-            raise ValueError("Either 'interval' or 'n' must be specified.")
-
-        self.anchors = np.linspace(0, end, n)
+        self.anchors = self.prep_anchor_positions(interval, n, max_interval)
         return self
 
     def __repr__(self) -> str:
@@ -1453,7 +1460,6 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> NDArray[np.f
     coords = coords.reshape(n_radius, n_angle, 2)  # V, H, 2
 
     # Here, the first coordinate should be theta=0, and theta moves anti-clockwise
-    # coords[:] = np.flip(coords, axis=0)  # flip around y=0
     coords[:] = np.flip(coords, axis=2)  # flip y, x
     return coords
 

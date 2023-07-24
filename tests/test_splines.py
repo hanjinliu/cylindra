@@ -64,33 +64,33 @@ def test_coordinate_transformation(mode):
     # Cylindrical
     img = ip.zeros((5, 4, 5), dtype=np.float32, axes="zyx")
     img["z=2;y=2;x=3"] = 1
-    img["z=3;y=2;x=1"] = -1
+    img["z=4;y=2;x=0"] = -1
 
-    # 0  0  0  0  0  z
-    # 0 -1  0  0  0  ^
-    # 0  0  0 +1  0  |
-    # 0  0  0  0  0
-    # 0  0  0  0  0 -> x
+    # -1  0  0  0  0  z
+    #  0  0  0  0  0  ^
+    #  0  0  * +1  0  |
+    #  0  0  0  0  0
+    #  0  0  0  0  0 -> x
 
-    crds = spl.cylindrical((1, 3))
+    crds = spl.cylindrical((1, 4))
     img_tr = map_coordinates(img, crds)
     img_tr = ip.asarray(img_tr, axes="rya")
     rmax, ymax, amax = np.unravel_index(np.argmax(img_tr), img_tr.shape)
     rmin, ymin, amin = np.unravel_index(np.argmin(img_tr), img_tr.shape)
-    assert amax == 0
-    assert ymax == 1
-    assert rmax == 1
-    assert amin < img_tr.shape[-1] / 2
+    assert (amax, ymax, rmax) == (0, 1, 0)
+    assert 1 < amin < img_tr.shape[-1] / 2
+    assert ymin == 1
+    assert rmin == 1
 
-    crds = spl.local_cylindrical((1, 3), 4, u=0.5)
+    crds = spl.local_cylindrical((1, 4), 4, u=0.5)
     img_tr = map_coordinates(img, crds)
     img_tr = ip.asarray(img_tr, axes="rya")
     rmax, ymax, amax = np.unravel_index(np.argmax(img_tr), img_tr.shape)
     rmin, ymin, amin = np.unravel_index(np.argmin(img_tr), img_tr.shape)
-    assert amax == 0
-    assert ymax == 1
-    assert rmax == 1
-    assert amin < img_tr.shape[-1] / 2
+    assert (amax, ymax, rmax) == (0, 1, 0)
+    assert 1 < amin < img_tr.shape[-1] / 2
+    assert ymin == 1
+    assert rmin == 1
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])

@@ -1044,7 +1044,7 @@ class CylTomogram(Tomogram):
             dims="ra",
         ).proj("a", method=np.max)
         r_argmax = np.argmax(pw_peak)
-        clkwise = r_argmax - (pw_peak.size + 1) // 2 > 0
+        clkwise = r_argmax - (pw_peak.size + 1) // 2 <= 0
         ori = ori_clockwise if clkwise else ori_counterclockwise
 
         # logging

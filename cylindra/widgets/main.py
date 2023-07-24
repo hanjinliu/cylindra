@@ -1262,11 +1262,13 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=indices) as tracker:
             for i, spl, df in zip(indices, _splines, _radius_df):
                 if interval is not None:
-                    self.tomogram.make_anchors(i=i, interval=interval)
+                    positions = spl.prep_anchor_positions(interval=interval)
+                else:
+                    positions = spl.anchors
                 radii = list[float]()
-                for pos in spl.anchors * spl.length():
+                for pos in positions * spl.length():
                     lower, upper = pos - depth / 2, pos + depth / 2
-                    pred = pl.col(Mole.position).is_between(lower, upper)
+                    pred = pl.col(Mole.position).is_between(lower, upper, closed="left")
                     radii.append(df.filter(pred)[Mole.radius].mean())
                 radii = pl.Series(H.radius, radii, dtype=pl.Float32)
                 if radii.is_nan().any():
@@ -1312,6 +1314,11 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
             for i in indices:
                 if interval is not None:
+                    if radius == "local":
+                        raise ValueError(
+                            "With `interval`, local radius values will be dropped. Please set "
+                            "`radius='global'` or `interval=None`."
+                        )
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_ft_params(
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
