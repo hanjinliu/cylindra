@@ -18,7 +18,6 @@ from typing_extensions import ParamSpec, Concatenate
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
-from pytest import mark
 from scipy import ndimage as ndi
 from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
@@ -30,10 +29,10 @@ import impy as ip
 
 from cylindra.components.cyl_spline import CylSpline
 from cylindra.components.tomogram import Tomogram
-from cylindra.components._localprops import (
+from cylindra.components._ftprops import (
     ft_params,
     polar_ft_params,
-    LocalParams,
+    LatticeParams,
     get_polar_image,
     mask_spectra,
 )
@@ -54,6 +53,7 @@ from cylindra.utils import (
     set_gpu,
     mirror_zncc,
     angle_corr,
+    ceilint,
 )
 
 if TYPE_CHECKING:
@@ -667,6 +667,7 @@ class CylTomogram(Tomogram):
             Multiscale bin size used for radius calculation.
         positions : array-like or "auto" or "anchor", default is "auto"
             Sampling positions (between 0 and 1) to calculate radius.
+
         Returns
         -------
         float (nm)
@@ -675,10 +676,10 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.set_radius, i={i}")
         spl = self.splines[i]
 
-        if positions == "auto":
+        if isinstance(positions, str) and positions == "auto":
             nanchor = 3
             pos = 1 / nanchor * np.arange(nanchor) + 0.5 / nanchor
-        elif positions == "anchor":
+        elif isinstance(positions, str) and positions == "anchor":
             pos = spl.anchors
         else:
             pos = np.asarray(positions, dtype=np.float32)
@@ -687,36 +688,23 @@ class CylTomogram(Tomogram):
 
         depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
-        scale = self.scale * binsize
+        _scale = input_img.scale.x
+        thick_inner_px = GVar.thickness_inner / _scale
+        thick_outer_px = GVar.thickness_outer / _scale
 
-        mole = spl.anchors_to_molecules(pos)
-        if binsize > 1:
-            mole = mole.translate(-self.multiscale_translation(binsize))
-
-        loader = SubtomogramLoader(
-            input_img.value,
-            mole,
-            order=3,
-            scale=scale,
-            output_shape=(width_px, depth_px, width_px),
-            corner_safe=True,
-        )
-        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
-        subtomograms[:] -= subtomograms.mean()  # normalize
-        subtomograms.set_scale(input_img)
-
-        r_max = GVar.fit_width / 2
-        nbin = roundint(r_max / scale / 2)
-        img2d = subtomograms.proj("py")
-        prof = img2d.radial_profile(nbin=nbin, r_max=r_max)
-        imax = np.nanargmax(prof)
-        imax_sub = centroid(prof, imax - 5, imax + 5)
-
-        # prof[0] is radial profile at r=0.5 (not r=0.0)
-        r_peak_sub = (imax_sub + 0.5) / nbin * r_max
-        spl.radius = r_peak_sub
-        LOGGER.info(f" >> Radius = {r_peak_sub:.3f} nm")
-        return r_peak_sub
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        profs = list[float]()
+        for anc in pos:
+            coords = spl_trans.local_cylindrical(
+                (0.5, width_px / 2), depth_px, anc, scale=_scale
+            )
+            profs.append(np.mean(map_coordinates(input_img, coords), axis=(1, 2)))
+        prof = np.stack(profs, axis=0).mean(axis=0)
+        imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
+        radius = (imax_sub + 0.5) * _scale
+        spl.radius = radius
+        LOGGER.info(f" >> Radius = {radius:.3f} nm")
+        return radius
 
     @batch_process
     def local_radii(
@@ -750,35 +738,20 @@ class CylTomogram(Tomogram):
 
         depth_px = self.nm2pixel(size, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
-        scale = self.scale * binsize
-
-        mole = spl.anchors_to_molecules()
-        if binsize > 1:
-            mole = mole.translate(-self.multiscale_translation(binsize))
-
-        loader = SubtomogramLoader(
-            input_img.value,
-            mole,
-            order=1,
-            scale=scale,
-            output_shape=(width_px, depth_px, width_px),
-            corner_safe=True,
-        )
-        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
-        subtomograms[:] -= subtomograms.mean()  # normalize
-        subtomograms.set_scale(input_img)
-
-        r_max = GVar.fit_width / 2
-        nbin = roundint(r_max / scale / 2)
-        imgs2d = subtomograms.proj("y")
-        prof = imgs2d.radial_profile(nbin=nbin, r_max=r_max)  # axes: pa
+        _scale = input_img.scale.x
+        thick_inner_px = GVar.thickness_inner / _scale
+        thick_outer_px = GVar.thickness_outer / _scale
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
 
         radii = list[float]()
-        for each in prof:
-            imax = np.nanargmax(each)
-            imax_sub = centroid(each, imax - 5, imax + 5)
-            r_peak_sub = (imax_sub + 0.5) / nbin * r_max
-            radii.append(r_peak_sub)
+        for anc in spl_trans.anchors:
+            coords = spl_trans.local_cylindrical(
+                (0.5, width_px / 2), depth_px, anc, scale=_scale
+            )
+            prof = np.mean(map_coordinates(input_img, coords), axis=(1, 2))
+            imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
+            radii.append((imax_sub + 0.5) * _scale)
+
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
         spl.props.update_loc([out], size)
         return out
@@ -830,19 +803,18 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
-        rmax = (spl.radius + GVar.thickness_outer) / _scale
         tasks = []
-        LOGGER.info(f" >> Rmin = {rmin * _scale:.2f} nm, Rmax = {rmax * _scale:.2f} nm")
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         lazy_ft_params = delayed(ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
+            rmin = _non_neg(r0 - GVar.thickness_inner) / _scale
+            rmax = (r0 + GVar.thickness_outer) / _scale
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
             tasks.append(lazy_ft_params(input_img, coords, r0, nsamples=nsamples))
 
         lprops = pl.DataFrame(
             da.compute(*tasks),
-            schema=LocalParams.polars_schema(),
+            schema=LatticeParams.polars_schema(),
         ).with_columns(
             pl.Series(H.spl_pos, spl.anchors, dtype=pl.Float32),
             pl.Series(H.spl_dist, spl.distances(), dtype=pl.Float32),
@@ -900,7 +872,7 @@ class CylTomogram(Tomogram):
                 coords = spl_trans.local_cylindrical(
                     (rmin, rmax), ylen, anc, scale=_scale
                 )
-                polar = get_polar_image(input_img, coords)
+                polar = get_polar_image(input_img, coords, spl.radius)
                 polar[:] -= np.mean(polar)
                 out.append(polar.fft(dims="rya"))
 
@@ -1053,7 +1025,7 @@ class CylTomogram(Tomogram):
             )
         point = 0.5  # the sampling point
         coords = spl.local_cylindrical(r_range, depth_px, point, scale=current_scale)
-        polar = get_polar_image(imgb, coords, order=1)
+        polar = get_polar_image(imgb, coords, spl.radius, order=1)
         if mask_freq:
             polar = mask_spectra(polar)
         img_flat = polar.proj("y")
@@ -1637,3 +1609,15 @@ def _non_neg(rmin: nm, warns: bool = True) -> nm:
             LOGGER.warning(f"Radius (={rmin} nm) is too small. Set to 0.0 nm.")
         rmin = 0.0
     return rmin
+
+
+def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -> float:
+    imax = np.nanargmax(prof)
+    imax_sub = -1
+    count = 0
+    while imax != imax_sub:
+        imax_sub = centroid(prof, ceilint(imax - inner), int(imax + outer) + 1)
+        count += 1
+        if count > 100:
+            break
+    return imax_sub

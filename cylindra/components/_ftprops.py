@@ -12,8 +12,8 @@ from cylindra.components.cyl_spline import rise_to_start
 from cylindra.utils import map_coordinates, ceilint, roundint
 
 
-class LocalParams(NamedTuple):
-    """Local lattice parameters."""
+class LatticeParams(NamedTuple):
+    """Lattice parameters."""
 
     rise: float
     spacing: nm
@@ -39,11 +39,12 @@ class LocalParams(NamedTuple):
         ]
 
 
-def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LocalParams:
+def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeParams:
     """Detect the peak position and calculate the local lattice parameters."""
     img = img - img.mean()  # normalize.
     up_a = 40
     peak_det = PeakDetector(img, nsamples=nsamples)
+    ya_scale_ratio = img.scale.y / img.scale.a
 
     # y-axis
     # ^           + <- peakv
@@ -81,13 +82,13 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LocalPar
         up_y=max(int(6000 / img.shape.y), 1),
         up_a=up_a,
     )
-    rise = np.arctan(peakv.afreq / peakv.yfreq) * GVar.rise_sign
+    rise = np.arctan(peakv.afreq / peakv.yfreq / ya_scale_ratio) * GVar.rise_sign
     yspace = 1.0 / peakv.yfreq * img.scale.y
-    skew_tilt = np.arctan(peakh.yfreq / peakh.afreq)
+    skew_tilt = np.arctan(peakh.yfreq / peakh.afreq * ya_scale_ratio)
     skew = skew_tilt * 2 * yspace / radius
     start = rise_to_start(rise, yspace, skew=skew, perimeter=2 * np.pi * radius)
 
-    return LocalParams(
+    return LatticeParams(
         rise=np.rad2deg(rise),
         spacing=yspace,
         skew_tilt=np.rad2deg(skew_tilt),
@@ -102,18 +103,21 @@ def ft_params(
     coords: NDArray[np.float32],
     radius: nm,
     nsamples: int = 8,
-) -> LocalParams:
+) -> LatticeParams:
     """Calculate the local lattice parameters from a Cartesian input."""
-    return polar_ft_params(get_polar_image(img, coords), radius, nsamples)
+    return polar_ft_params(get_polar_image(img, coords, radius), radius, nsamples)
 
 
 def get_polar_image(
-    img: ip.ImgArray | ip.LazyImgArray, coords: NDArray[np.float32], order: int = 3
+    img: ip.ImgArray | ip.LazyImgArray,
+    coords: NDArray[np.float32],
+    radius: nm,
+    order: int = 3,
 ):
     polar = map_coordinates(img, coords, order=order, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
-    polar.set_scale(r=img.scale.x, y=img.scale.x, a=img.scale.x, unit=img.scale_unit)
-    return polar
+    a_scale = 2 * np.pi * radius / polar.shape.a
+    return polar.set_scale(r=img.scale.x, y=img.scale.x, a=a_scale, unit=img.scale_unit)
 
 
 def get_yrange(img: ip.ImgArray) -> tuple[int, int]:

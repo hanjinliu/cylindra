@@ -89,7 +89,7 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200)
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
 
-    from cylindra.components._localprops import polar_ft_params
+    from cylindra.components._ftprops import polar_ft_params
 
     spl = tomo.splines[0]
     prop0 = polar_ft_params(st0, spl.radius)

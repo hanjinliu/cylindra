@@ -177,8 +177,8 @@ class GlobalVariableModel(EventedModel):
     rise_sign: Literal[-1, 1] = -1
     min_curvature_radius: nm = 400.0
     clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
-    thickness_inner: float = 2.0
-    thickness_outer: float = 3.0
+    thickness_inner: nm = 2.0
+    thickness_outer: nm = 3.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
     dask_chunk: tuple[int, int, int] = (256, 256, 256)

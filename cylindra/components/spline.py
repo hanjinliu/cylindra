@@ -1453,8 +1453,8 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> NDArray[np.f
     coords = coords.reshape(n_radius, n_angle, 2)  # V, H, 2
 
     # Here, the first coordinate should be theta=0, and theta moves anti-clockwise
-    coords[:] = np.flip(coords, axis=0)  # flip around y=0
-    coords[:] = np.flip(coords, axis=2)  # flip around y=x
+    # coords[:] = np.flip(coords, axis=0)  # flip around y=0
+    coords[:] = np.flip(coords, axis=2)  # flip y, x
     return coords
 
 
