@@ -96,7 +96,7 @@ def test_chunked_straightening():
     prop1 = polar_ft_params(st1, spl.radius)
 
     assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
-    assert prop0.skew == pytest.approx(prop1.skew, abs=1e-6)
+    assert prop0.skew_angle == pytest.approx(prop1.skew_angle, abs=1e-6)
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])

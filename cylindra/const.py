@@ -79,6 +79,7 @@ class PropertyNames(SimpleNamespace):
     spl_dist = "spl_dist"
     spl_pos = "spl_pos"
     rise = "rise_angle"
+    rise_length = "rise_length"
     spacing = "spacing"
     skew = "skew_angle"
     skew_tilt = "skew_tilt_angle"

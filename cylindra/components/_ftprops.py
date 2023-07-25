@@ -7,18 +7,17 @@ import impy as ip
 import polars as pl
 from cylindra.const import nm, PropertyNames as H, GlobalVariables as GVar, Mode
 from cylindra.components._peak import PeakDetector
-from cylindra.components.cyl_spline import rise_to_start
-
 from cylindra.utils import map_coordinates, ceilint, roundint
 
 
 class LatticeParams(NamedTuple):
     """Lattice parameters."""
 
-    rise: float
+    rise_angle: float
+    rise_length: nm
     spacing: nm
     skew_tilt: float
-    skew: float
+    skew_angle: float
     npf: int
     start: float
 
@@ -31,6 +30,7 @@ class LatticeParams(NamedTuple):
         """Return the schema of the polars DataFrame."""
         return [
             (H.rise, pl.Float32),
+            (H.rise_length, pl.Float32),
             (H.spacing, pl.Float32),
             (H.skew_tilt, pl.Float32),
             (H.skew, pl.Float32),
@@ -70,7 +70,8 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
         up_y=max(int(21600 / img.shape.y), 1),
         up_a=up_a,
     )
-    npf = peakh.a
+    npf_f = peakh.a
+    npf = roundint(npf_f)
 
     # Transformation around `peakv`.
     peakv = peak_det.get_peak(
@@ -78,22 +79,30 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
             img.shape.y * img.scale.y / GVar.spacing_max,
             img.shape.y * img.scale.y / GVar.spacing_min,
         ),
-        range_a=(-ceilint(npf / 2), ceilint(npf / 2) + 1),
+        range_a=(-ceilint(npf_f / 2), ceilint(npf_f / 2) + 1),
         up_y=max(int(6000 / img.shape.y), 1),
         up_a=up_a,
     )
-    rise = np.arctan(peakv.afreq / peakv.yfreq / ya_scale_ratio) * GVar.rise_sign
+
+    tan_rise = peakv.afreq / peakv.yfreq / ya_scale_ratio * GVar.rise_sign
+    tan_skew_tilt = peakh.yfreq / peakh.afreq * ya_scale_ratio
+
+    # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
+    # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
+    rise = np.arctan(tan_rise)  # f(r)
+    rise_len = tan_rise * 2 * np.pi * radius / npf
     yspace = 1.0 / peakv.yfreq * img.scale.y
-    skew_tilt = np.arctan(peakh.yfreq / peakh.afreq * ya_scale_ratio)
-    skew = skew_tilt * 2 * yspace / radius
-    start = rise_to_start(rise, yspace, skew=skew, perimeter=2 * np.pi * radius)
+    skew_tilt = np.arctan(tan_skew_tilt)  # f(r)
+    skew = tan_skew_tilt * 2 * yspace / radius
+    start = rise_len * npf / yspace
 
     return LatticeParams(
-        rise=np.rad2deg(rise),
+        rise_angle=np.rad2deg(rise),
+        rise_length=rise_len,
         spacing=yspace,
         skew_tilt=np.rad2deg(skew_tilt),
-        skew=np.rad2deg(skew),
-        npf=roundint(npf),
+        skew_angle=np.rad2deg(skew),
+        npf=npf,
         start=start,
     )
 
