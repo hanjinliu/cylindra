@@ -144,28 +144,16 @@ class CylSpline(Spline):
         """
         length = self.length()
         interv = _get_globalprops(self, kwargs, H.spacing)
-        skew = _get_globalprops(self, kwargs, H.skew)
-        rise = _get_globalprops(self, kwargs, H.rise) * GVar.rise_sign
+        skew_tilt = _get_globalprops(self, kwargs, H.skew_tilt)
         radius = _get_globalprops(self, kwargs, H.radius)
         npf = roundint(_get_globalprops(self, kwargs, H.npf))
+        start = roundint(_get_globalprops(self, kwargs, H.start) * GVar.rise_sign)
         perimeter = 2 * np.pi * radius
-        rise_rad = np.deg2rad(rise)
-        skew_rad = np.deg2rad(skew)
 
-        nrise = roundint(
-            perimeter
-            * np.tan(rise_rad)
-            / (interv - radius * skew_rad * np.tan(rise_rad) / 2)
-        )
-        if nrise == 0:
-            tan_rise = 0
-            tan_skew_tilt = radius * skew_rad / interv / 2
-            skew_incr = 0
-        else:
-            space_incr = nrise * interv
-            skew_incr = radius * skew_rad * nrise / 2
-            tan_rise = space_incr / (perimeter + skew_incr)
-            tan_skew_tilt = skew_incr / space_incr
+        tan_skew_tilt = np.tan(np.deg2rad(skew_tilt))
+        rise_len_fixed = start * interv / npf
+        tan_rise = rise_len_fixed / perimeter * npf
+        skew_incr = start * interv * tan_skew_tilt
 
         factor = interv / (perimeter / npf)
 
