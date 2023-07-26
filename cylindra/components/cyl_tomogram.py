@@ -655,6 +655,8 @@ class CylTomogram(Tomogram):
         *,
         binsize: int = 1,
         positions: NDArray[np.float32] | Literal["auto", "anchor"] = "auto",
+        min_radius: nm = 1.0,
+        update: bool = True,
     ) -> nm:
         """
         Set radius or measure radius using radial profile from the center.
@@ -667,6 +669,10 @@ class CylTomogram(Tomogram):
             Multiscale bin size used for radius calculation.
         positions : array-like or "auto" or "anchor", default is "auto"
             Sampling positions (between 0 and 1) to calculate radius.
+        min_radius : nm, default is 1.0
+            Minimum radius of the cylinder.
+        update : bool, default is True
+            If True, global radius property will be updated.
 
         Returns
         -------
@@ -689,6 +695,8 @@ class CylTomogram(Tomogram):
         depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
         _scale = input_img.scale.x
+        min_radius_px = min_radius / _scale
+        max_radius_px = width_px / 2
         thick_inner_px = GVar.thickness_inner / _scale
         thick_outer_px = GVar.thickness_outer / _scale
 
@@ -696,13 +704,15 @@ class CylTomogram(Tomogram):
         profs = list[float]()
         for anc in pos:
             coords = spl_trans.local_cylindrical(
-                (0.5, width_px / 2), depth_px, anc, scale=_scale
+                (min_radius_px, max_radius_px), depth_px, anc, scale=_scale
             )
             profs.append(np.mean(map_coordinates(input_img, coords), axis=(1, 2)))
         prof = np.stack(profs, axis=0).mean(axis=0)
         imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
-        radius = (imax_sub + 0.5) * _scale
-        spl.radius = radius
+        offset_px = _get_radius_offset(min_radius_px, max_radius_px)
+        radius = (imax_sub + offset_px) * _scale
+        if update:
+            spl.radius = radius
         LOGGER.info(f" >> Radius = {radius:.3f} nm")
         return radius
 
@@ -713,6 +723,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         size: nm = 32.0,
         binsize: int = 1,
+        min_radius: nm = 1.0,
     ) -> pl.Series:
         """
         Measure the local radii along the splines.
@@ -739,18 +750,20 @@ class CylTomogram(Tomogram):
         depth_px = self.nm2pixel(size, binsize=binsize)
         width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
         _scale = input_img.scale.x
+        min_radius_px = min_radius / _scale
+        max_radius_px = width_px / 2
+        offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         thick_inner_px = GVar.thickness_inner / _scale
         thick_outer_px = GVar.thickness_outer / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-
         radii = list[float]()
         for anc in spl_trans.anchors:
             coords = spl_trans.local_cylindrical(
-                (0.5, width_px / 2), depth_px, anc, scale=_scale
+                (min_radius_px, max_radius_px), depth_px, anc, scale=_scale
             )
             prof = np.mean(map_coordinates(input_img, coords), axis=(1, 2))
             imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
-            radii.append((imax_sub + 0.5) * _scale)
+            radii.append((imax_sub + offset_px) * _scale)
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
         spl.props.update_loc([out], size)
@@ -1621,3 +1634,8 @@ def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -
         if count > 100:
             break
     return imax_sub
+
+
+def _get_radius_offset(min_radius_px, max_radius_px) -> nm:
+    n_radius = roundint(max_radius_px - min_radius_px)
+    return (min_radius_px + max_radius_px - n_radius + 1) / 2

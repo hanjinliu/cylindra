@@ -1171,6 +1171,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
     ):  # fmt: skip
         """
         Measure cylinder radius for each spline curve.
@@ -1178,11 +1179,13 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{bin_size}
+        min_radius : nm, default is 1.0
+            Minimum possible radius in nm.
         """
         indices = normalize_spline_indices(splines, self.tomogram)
         with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
             for i in indices:
-                self.tomogram.measure_radius(i, binsize=bin_size)
+                self.tomogram.measure_radius(i, binsize=bin_size, min_radius=min_radius)
                 yield
 
         self._need_save = True
@@ -1262,11 +1265,9 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=indices) as tracker:
             for i, spl, df in zip(indices, _splines, _radius_df):
                 if interval is not None:
-                    positions = spl.prep_anchor_positions(interval=interval)
-                else:
-                    positions = spl.anchors
+                    self.tomogram.make_anchors(i=i, interval=interval)
                 radii = list[float]()
-                for pos in positions * spl.length():
+                for pos in spl.anchors * spl.length():
                     lower, upper = pos - depth / 2, pos + depth / 2
                     pred = pl.col(Mole.position).is_between(lower, upper, closed="left")
                     radii.append(df.filter(pred)[Mole.radius].mean())
