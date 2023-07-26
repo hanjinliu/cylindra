@@ -659,7 +659,7 @@ class CylTomogram(Tomogram):
         update: bool = True,
     ) -> nm:
         """
-        Set radius or measure radius using radial profile from the center.
+        Measure radius using radial profile from the center.
 
         Parameters
         ----------
@@ -668,7 +668,9 @@ class CylTomogram(Tomogram):
         binsize : int, default is 1
             Multiscale bin size used for radius calculation.
         positions : array-like or "auto" or "anchor", default is "auto"
-            Sampling positions (between 0 and 1) to calculate radius.
+            Sampling positions (between 0 and 1) to calculate radius. If "anchor"
+            is given, anchors of the spline will be used. If "auto" is given,
+            three positions along the spline will be used.
         min_radius : nm, default is 1.0
             Minimum radius of the cylinder.
         update : bool, default is True
@@ -679,7 +681,7 @@ class CylTomogram(Tomogram):
         float (nm)
             Cylinder radius.
         """
-        LOGGER.info(f"Running: {self.__class__.__name__}.set_radius, i={i}")
+        LOGGER.info(f"Running: {self.__class__.__name__}.measure_radius, i={i}")
         spl = self.splines[i]
 
         if isinstance(positions, str) and positions == "auto":
