@@ -344,11 +344,8 @@ class CylindraMainWidget(MagicTemplate):
     @nogui
     def load_macro_file(self, path: Path.Read[FileFilter.PY]):
         """Load a Python script file to a new macro window."""
-        with open(path) as f:
-            txt = f.read()
-        macro = self._format_macro(mk.parse(txt))
         edit = self.macro.widget.new_window(path.name)
-        edit.textedit.value = str(macro)
+        edit.textedit.value = str(extract(Path(path).read_text()))
         self._active_widgets.add(edit)
         return None
 
@@ -407,6 +404,7 @@ class CylindraMainWidget(MagicTemplate):
             eager=eager,
         )
         self._macro_offset = len(self.macro)
+        self._project_dir = None
         return self._send_tomogram_to_viewer.with_args(tomo, filter)
 
     @open_image.started.connect

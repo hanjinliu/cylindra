@@ -630,7 +630,7 @@ class Others(ChildWidget):
         def load_macro_file(self, path: Path.Read[FileFilter.PY]):
             """Load a Python script file to a new macro window."""
             main = self._get_main()
-            return main.load_macro_file(path)
+            return main.load_macro_file(Path(path))
 
     @magicmenu(record=False)
     class Workflows(ChildWidget):

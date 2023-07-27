@@ -227,7 +227,8 @@ def collect_projects(
         files = [get_project_json(f) for f in files]
     else:
         raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
-
+    if len(files) == 0:
+        raise ValueError(f"No project files found. Please check the input paths.")
     seq = ProjectSequence.from_paths(files, skip_exc=skip_exc)
     return seq
 
