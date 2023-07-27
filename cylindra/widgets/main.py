@@ -340,15 +340,6 @@ class CylindraMainWidget(MagicTemplate):
         v = mk.Expr("getattr", [mk.symbol(self), "parent_viewer"])
         return macro.format([(mk.symbol(self.parent_viewer), v)])
 
-    @do_not_record
-    @nogui
-    def load_macro_file(self, path: Path.Read[FileFilter.PY]):
-        """Load a Python script file to a new macro window."""
-        edit = self.macro.widget.new_window(path.name)
-        edit.textedit.value = str(extract(Path(path).read_text()))
-        self._active_widgets.add(edit)
-        return None
-
     @do_not_record(recursive=False)
     @nogui
     def run_workflow(self, filename: str, *args, **kwargs):
@@ -1028,7 +1019,6 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Set spline parameters")
-    @bind_key("Ctrl+K, Ctrl+@")
     def set_spline_props(
         self,
         spline: Annotated[int, {"bind": SplineControl.num}],

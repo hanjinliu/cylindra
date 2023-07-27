@@ -242,7 +242,7 @@ def test_load_macro(ui: CylindraMainWidget):
     with tempfile.TemporaryDirectory() as tmpdir:
         fp = Path(tmpdir) / "test_macro.py"
         fp.write_text("print(0)")
-        ui.load_macro_file(fp)
+        ui.Others.Macro.load_macro_file(fp)
 
 
 def test_spline_switch(ui: CylindraMainWidget):

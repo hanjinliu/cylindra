@@ -35,7 +35,7 @@ from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, GlobalVariables as GVar, ImageFilter
-from cylindra.project import CylindraProject
+from cylindra.project import CylindraProject, extract
 from cylindra.widgets.widget_utils import FileFilter, get_code_theme
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra import _config
@@ -630,7 +630,11 @@ class Others(ChildWidget):
         def load_macro_file(self, path: Path.Read[FileFilter.PY]):
             """Load a Python script file to a new macro window."""
             main = self._get_main()
-            return main.load_macro_file(Path(path))
+
+            edit = main.macro.widget.new_window(path.name)
+            edit.textedit.value = str(extract(Path(path).read_text()))
+            main._active_widgets.add(edit)
+            return None
 
     @magicmenu(record=False)
     class Workflows(ChildWidget):

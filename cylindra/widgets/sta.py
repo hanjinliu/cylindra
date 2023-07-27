@@ -486,6 +486,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layer}{size}{interpolation}{bin_size}
         """
         t0 = timer("average_all")
+        layer = _assert_layer(layer, self.parent_viewer)
         parent = self._get_parent()
         tomo = parent.tomogram
         shape = self._get_shape_in_nm(size)
@@ -525,6 +526,7 @@ class SubtomogramAveraging(MagicTemplate):
         {bin_size}
         """
         t0 = timer("average_subset")
+        layer = _assert_layer(layer, self.parent_viewer)
         parent = self._get_parent()
         molecules = layer.molecules
         nmole = len(molecules)
@@ -566,6 +568,7 @@ class SubtomogramAveraging(MagicTemplate):
         {interpolation}{bin_size}
         """
         t0 = timer("average_groups")
+        layer = _assert_layer(layer, self.parent_viewer)
         if isinstance(by, pl.Expr):
             expr = by
         else:
@@ -606,6 +609,7 @@ class SubtomogramAveraging(MagicTemplate):
         {size}{interpolation}{bin_size}
         """
         t0 = timer("split_and_average")
+        layer = _assert_layer(layer, self.parent_viewer)
         parent = self._get_parent()
         molecules = layer.molecules
         shape = self._get_shape_in_nm(size)
@@ -641,7 +645,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layers}{template_path}{mask_params}{rotations}{bin_size}{method}
         """
         t0 = timer("align_averaged")
-        layers = _assert_list_of_layers(layers)
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_parent()
 
         new_layers = list[MoleculesLayer]()
@@ -773,7 +777,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all")
-        layers = _assert_list_of_layers(layers)
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_parent()
 
         combiner = MoleculesCombiner()
@@ -819,7 +823,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_template_free")
-        layers = _assert_list_of_layers(layers)
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_parent()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
@@ -870,7 +874,7 @@ class SubtomogramAveraging(MagicTemplate):
         {layers}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_multi_template")
-        layers = _assert_list_of_layers(layers)
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_parent()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
@@ -1099,6 +1103,7 @@ class SubtomogramAveraging(MagicTemplate):
             The landscape instance.
         """
         parent = self._get_parent()
+        layer = _assert_layer(layer, self.parent_viewer)
         return Landscape.from_loader(
             loader=parent.tomogram.get_subtomogram_loader(
                 layer.molecules, order=interpolation
@@ -1294,6 +1299,7 @@ class SubtomogramAveraging(MagicTemplate):
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer("calculate_fsc")
+        layer = _assert_layer(layer, self.parent_viewer)
         parent = self._get_parent()
         mole = layer.molecules
 
@@ -1379,6 +1385,7 @@ class SubtomogramAveraging(MagicTemplate):
         from cylindra.widgets.subwidgets import PcaViewer
 
         t0 = timer("classify_pca")
+        layer = _assert_layer(layer, self.parent_viewer)
         parent = self._get_parent()
 
         loader = self._get_loader(
@@ -1448,6 +1455,7 @@ class SubtomogramAveraging(MagicTemplate):
         {cutoff}
         """
         t0 = timer("seam_search")
+        layer = _assert_layer(layer, self.parent_viewer)
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         template, mask = loader.normalize_input(
             template=self.params._get_template(path=template_path),
@@ -1489,20 +1497,17 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Seam search (by fiducials)")
-    @dask_worker.with_progress(
-        desc=_pdesc.fmt_layer("Seam search (by fiducials) of {!r}")
-    )
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search (by fiducials) of {!r}"))  # fmt: skip
     def seam_search_by_fiducials(
         self,
         layer: MoleculesLayer,
         mask_params: Bound[params._get_mask_params],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        show_average: Annotated[
-            str, {"label": "Show averages as", "choices": AVG_CHOICES}
-        ] = AVG_CHOICES[2],
-    ):
+        show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
+    ):  # fmt: skip
         t0 = timer("seam_search_by_fiducials")
+        layer = _assert_layer(layer, self.parent_viewer)
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         seam_searcher = FiducialSeamSearcher(npf)
         _, weight = loader.normalize_input(
@@ -1537,7 +1542,7 @@ class SubtomogramAveraging(MagicTemplate):
         return _seam_search_on_return
 
     @Subtomogram_analysis.wraps
-    @set_design(text="Seam search by feature")
+    @set_design(text="Seam search (by feature)")
     def seam_search_by_feature(
         self,
         layer: MoleculesLayer,
@@ -1552,6 +1557,7 @@ class SubtomogramAveraging(MagicTemplate):
         by : str
             Name of the feature that will be used for seam search.
         """
+        layer = _assert_layer(layer, self.parent_viewer)
         feat = layer.features
         if by not in feat.columns:
             raise ValueError(f"Column {by} does not exist.")
@@ -1649,15 +1655,31 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     return name + f"-{ALN_SUFFIX}{num}"
 
 
-def _assert_list_of_layers(layers: "MoleculesLayer | list[MoleculesLayer]"):
+def _assert_list_of_layers(
+    layers: Any, viewer: "napari.Viewer"
+) -> list[MoleculesLayer]:
     if len(layers) == 0:
         raise ValueError("No layer selected.")
-    if isinstance(layers, MoleculesLayer):
+    if isinstance(layers, (MoleculesLayer, str)):
         layers = [layers]
+    layer_normed: list[MoleculesLayer] = []
     for layer in layers:
-        if not isinstance(layer, MoleculesLayer):
-            raise TypeError(f"Layer {layer.name!r} is not a MoleculesLayer.")
-    return layers
+        if isinstance(layer, str):
+            layer_normed.append(viewer.layers[layer])
+        elif isinstance(layer, MoleculesLayer):
+            layer_normed.append(layer)
+        else:
+            raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")
+    return layer_normed
+
+
+def _assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
+    if isinstance(layer, str):
+        return viewer.layers[layer]
+    elif isinstance(layer, MoleculesLayer):
+        return layer
+    else:
+        raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")
 
 
 def _get_slice_for_average_subset(method: str, nmole: int, number: int):
