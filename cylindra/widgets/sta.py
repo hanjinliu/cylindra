@@ -742,7 +742,6 @@ class SubtomogramAveraging(MagicTemplate):
             )
 
         t0.toc()
-        parent._need_save = True
 
         @thread_worker.callback
         def _align_averaged_on_return():
@@ -797,7 +796,6 @@ class SubtomogramAveraging(MagicTemplate):
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
-        parent._need_save = True
         return self._align_all_on_return.with_args(molecules, layers)
 
     @Refinement.wraps
@@ -848,7 +846,6 @@ class SubtomogramAveraging(MagicTemplate):
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
-        parent._need_save = True
         return self._align_all_on_return.with_args(molecules, layers)
 
     @Refinement.wraps
@@ -895,7 +892,6 @@ class SubtomogramAveraging(MagicTemplate):
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
-        parent._need_save = True
         return self._align_all_on_return.with_args(molecules, layers)
 
     @Refinement.wraps
@@ -1164,7 +1160,6 @@ class SubtomogramAveraging(MagicTemplate):
         molecules_opt = landscape.transform_molecules(mole, inds)
         if spl := layer.source_spline:
             molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
-        parent._need_save = True
         return self._align_all_on_return.with_args([molecules_opt], [layer])
 
     def _align_all_annealing(
@@ -1217,7 +1212,6 @@ class SubtomogramAveraging(MagicTemplate):
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
-        parent._need_save = True
 
         @thread_worker.callback
         def _on_return():
@@ -1578,7 +1572,6 @@ class SubtomogramAveraging(MagicTemplate):
         loader = parent.tomogram.get_subtomogram_loader(mole, order=order)
         if npf is None:
             npf = mole.features[Mole.pf].unique().len()
-        parent._need_save = True
         return loader, npf
 
     @Subtomogram_analysis.wraps

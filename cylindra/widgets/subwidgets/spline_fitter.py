@@ -24,6 +24,10 @@ class SplineFitter(MagicTemplate):
 
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
+    def __init__(self) -> None:
+        self._max_interval: nm = None
+        self.subtomograms: ip.ImgArray = None
+
     @magicclass(layout="horizontal", record=False)
     class controller(MagicTemplate):
         """
@@ -89,7 +93,6 @@ class SplineFitter(MagicTemplate):
         parent.tomogram.splines[i] = new_spl
         self._cylinder_changed()
         parent._update_splines_in_images()
-        parent._need_save = True
 
         @undo_callback
         def out():

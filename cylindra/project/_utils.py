@@ -25,7 +25,7 @@ def as_main_function(expr: Expr) -> str:
 def extract(text: str) -> Expr:
     """Extract the content of main function."""
 
-    macro_expr = parse(text)
+    macro_expr = parse(text, squeeze=False)
     if macro_expr.args[0].head is Head.import_:
         for line in macro_expr.args:
             if line.head is Head.function and str(line.args[0].args[0]) == "main":

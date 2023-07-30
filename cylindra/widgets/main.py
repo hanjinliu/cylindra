@@ -234,6 +234,17 @@ class CylindraMainWidget(MagicTemplate):
                 self.Others.Workflows.append_workflow(file)
             except Exception as e:
                 _Logger.exception(f"Failed to load workflow {file.stem}: {e}")
+
+        @self.macro.on_appended.append
+        def _on_appended(expr: mk.Expr):
+            self._need_save = not str(expr).startswith("ui.open_image(")
+
+        @self.macro.on_popped.append
+        def _on_popped(*_):
+            self._need_save = len(self.macro) >= self._macro_offset and not str(
+                self.macro[-1]
+            ).startswith("ui.open_image(")
+
         return None
 
     @property
@@ -329,8 +340,8 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.splines.clear()
         self._init_widget_state()
         self._init_layers()
-        self._need_save = False
         del self.macro[self._macro_image_load_offset + 1 :]
+        self._need_save = False
         self.reset_choices()
         return None
 
@@ -608,7 +619,6 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         tomo.get_multiscale(binsize=bin_size, add=True)
-        self._need_save = True
         return thread_worker.callback(self.set_multiscale).with_args(bin_size)
 
     @ImageMenu.wraps
@@ -722,7 +732,6 @@ class CylindraMainWidget(MagicTemplate):
         if need_resample:
             self.sample_subtomograms()
         self._set_orientation_marker(spline)
-        self._need_save = True
         return undo_callback(self.invert_spline).with_args(spline)
 
     @Splines.Orientation.wraps
@@ -749,8 +758,6 @@ class CylindraMainWidget(MagicTemplate):
         for i in range(len(self.tomogram.splines)):
             self._set_orientation_marker(i)
         _new_orientations = [spl.orientation for spl in self.tomogram.splines]
-        self._need_save = True
-
         return (
             undo_callback(self._set_orientations)
             .with_args(_old_orientations, need_resample)
@@ -848,7 +855,6 @@ class CylindraMainWidget(MagicTemplate):
         start, stop = np.array(lengths) / length
         self.tomogram.splines[spline] = spl.clip(start, 1 - stop)
         self._update_splines_in_images()
-        self._need_save = True
         # current layer will be removed. Select another layer.
         self.parent_viewer.layers.selection = {self._reserved_layers.work}
 
@@ -879,7 +885,6 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         if self.SplineControl.need_resample and len(self.tomogram.splines) > 0:
             self.sample_subtomograms()
-        self._need_save = True
 
         @undo_callback
         def out():
@@ -941,7 +946,6 @@ class CylindraMainWidget(MagicTemplate):
                     max_shift=max_shift,
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
-        self._need_save = True
 
         @thread_worker.callback
         def out():
@@ -970,7 +974,6 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=indices) as tracker:
             tomo.make_anchors(indices, interval=interval)
         self._update_splines_in_images()
-        self._need_save = True
         return tracker.as_undo_callback()
 
     @Splines.wraps
@@ -1005,8 +1008,6 @@ class CylindraMainWidget(MagicTemplate):
                     binsize=bin_size,
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
-
-        self._need_save = True
 
         @thread_worker.callback
         def out():
@@ -1176,7 +1177,6 @@ class CylindraMainWidget(MagicTemplate):
                 self.tomogram.measure_radius(i, binsize=bin_size, min_radius=min_radius)
                 yield
 
-        self._need_save = True
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1204,7 +1204,6 @@ class CylindraMainWidget(MagicTemplate):
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_radii(i=i, size=depth, binsize=bin_size)
                 yield
-        self._need_save = True
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1313,7 +1312,6 @@ class CylindraMainWidget(MagicTemplate):
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
                 yield _local_ft_analysis_on_yield.with_args(i)
-        self._need_save = True
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1341,8 +1339,6 @@ class CylindraMainWidget(MagicTemplate):
                     tomo.measure_radius(i=i)
                 tomo.global_ft_params(i=i, binsize=bin_size)
                 yield
-
-        self._need_save = True
 
         # show all in a table
         df = (
@@ -1448,7 +1444,6 @@ class CylindraMainWidget(MagicTemplate):
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
 
-        self._need_save = True
         return self._undo_callback_for_layer(_added_layers)
 
     @MoleculesMenu.Mapping.wraps
@@ -1484,8 +1479,6 @@ class CylindraMainWidget(MagicTemplate):
             radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
         )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
-
-        self._need_save = True
         return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.Mapping.wraps
@@ -1516,7 +1509,6 @@ class CylindraMainWidget(MagicTemplate):
             layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
-        self._need_save = True
         return self._undo_callback_for_layer(_added_layers)
 
     @MoleculesMenu.Mapping.wraps
@@ -1546,7 +1538,6 @@ class CylindraMainWidget(MagicTemplate):
         _name = f"PF line-{spline}"
         layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
         _Logger.print(f"{_name!r}: n = {len(mol)}")
-        self._need_save = True
         return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.wraps
@@ -1881,7 +1872,6 @@ class CylindraMainWidget(MagicTemplate):
 
         layer.molecules = layer.molecules.with_features([_calculate(p) for p in props])
         self.reset_choices()  # choices regarding of features need update
-        self._need_save = True
         return undo_callback(layer.feature_setter(feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
