@@ -46,18 +46,27 @@ class SplineTracker(ContextManager):
         tb: TracebackType | None,
         /,
     ) -> bool | None:
-        self._spline_new = self._get_spline_dict()
+        if exc_type is None:
+            self._spline_new = self._get_spline_dict()
+        else:
+            assert value is not None
+            tomo = self._get_main().tomogram
+            for i, spl in self._spline_old.items():
+                tomo.splines[i] = spl
+            raise value
 
-    def _get_spline_dict(self) -> dict[int, CylSpline]:
+    def _get_main(self) -> CylindraMainWidget:
         main = self._widget()
         if main is None:
             raise RuntimeError("Tomogram has been deleted")
+        return main
+
+    def _get_spline_dict(self) -> dict[int, CylSpline]:
+        main = self._get_main()
         return {i: main.tomogram.splines[i].copy() for i in self._indices}
 
     def as_undo_callback(self):
-        main = self._widget()
-        if main is None:
-            raise RuntimeError("Tomogram has been deleted")
+        main = self._get_main()
         tomo = main.tomogram
 
         @undo_callback

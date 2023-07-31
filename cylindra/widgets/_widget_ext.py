@@ -432,7 +432,7 @@ class KernelEdit(Container[Container[CheckBox]]):
             self._set_size()
             for y in range(ny):
                 for x in range(nx):
-                    self._cboxes[y + yoffset][x + xoffset].value = val[y, x]
+                    self._cboxes[y + yoffset][x + xoffset].value = bool(val[y, x])
         self.changed.emit(val.tolist())
 
 
