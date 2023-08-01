@@ -57,7 +57,6 @@ def start(
 
     ui = CylindraMainWidget()
     ui.macro.options.max_undo = 16
-    ui.macro.options.syntax_highlight = True
     _ACTIVE_WIDGETS.add(ui)
 
     # set logger
@@ -80,6 +79,7 @@ def start(
     )
     dock.setMinimumHeight(300)
     viewer.window.add_dock_widget(logger.widget, name="Log")
+    ui.macro.options.syntax_highlight = True
 
     if project_file is not None:
         ui.load_project(project_file)
