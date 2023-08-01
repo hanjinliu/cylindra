@@ -2132,10 +2132,16 @@ class CylindraMainWidget(MagicTemplate):
         name: "str | None" = None,
         source: "BaseComponent | None" = None,
         metadata: "dict[str, Any]" = {},
+        visible: bool = True,
     ) -> MoleculesLayer:
         """Add molecules as a points layer to the viewer."""
         return add_molecules(
-            self.parent_viewer, molecules, name, source=source, metadata=metadata
+            self.parent_viewer,
+            molecules,
+            name,
+            source=source,
+            metadata=metadata,
+            visible=visible,
         )
 
     @nogui
@@ -2226,7 +2232,7 @@ class CylindraMainWidget(MagicTemplate):
         # update image layer
         if self._reserved_layers.image not in viewer.layers:
             self._reserved_layers.reset_image(imgb, bin_size, tr)
-            viewer.add_layer(self._reserved_layers.image)
+            viewer.add_layer(self._reserved_layers.image)  # TODO: <-- tomogram sampled
         else:
             self._reserved_layers.update_image(imgb, bin_size, tr)
         if self._reserved_layers.highlight in viewer.layers:
