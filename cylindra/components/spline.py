@@ -1448,6 +1448,7 @@ def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> NDArray[np.f
     n_radius = roundint(r_stop - r_start)
     r_, ang_ = np.indices((n_radius, n_angle))
     r_ = r_ + (r_start + r_stop - n_radius + 1) / 2
+    # NOTE: r_.mean() is always (r_start + r_stop) / 2
     output_coords = np.column_stack([r_.ravel(), ang_.ravel()])
     if center is None:
         center = [0, 0]

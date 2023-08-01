@@ -822,10 +822,11 @@ class CylTomogram(Tomogram):
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         lazy_ft_params = delayed(ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
-            rmin = _non_neg(r0 - GVar.thickness_inner) / _scale
+            rmin: float = _non_neg(r0 - GVar.thickness_inner) / _scale
             rmax = (r0 + GVar.thickness_outer) / _scale
+            rc = (rmin + rmax) / 2 * _scale
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-            tasks.append(lazy_ft_params(input_img, coords, r0, nsamples=nsamples))
+            tasks.append(lazy_ft_params(input_img, coords, rc, nsamples=nsamples))
 
         lprops = pl.DataFrame(
             da.compute(*tasks),
@@ -887,7 +888,8 @@ class CylTomogram(Tomogram):
                 coords = spl_trans.local_cylindrical(
                     (rmin, rmax), ylen, anc, scale=_scale
                 )
-                polar = get_polar_image(input_img, coords, spl.radius)
+                rc = (rmin + rmax) / 2 * _scale
+                polar = get_polar_image(input_img, coords, rc)
                 polar[:] -= np.mean(polar)
                 out.append(polar.fft(dims="rya"))
 
@@ -959,8 +961,11 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self.splines[i]
-        img_st = self.straighten_cylindric(i, binsize=binsize)
-        out = polar_ft_params(img_st, spl.radius, nsamples=nsamples).to_polars()
+        rmin = _non_neg(spl.radius - GVar.thickness_inner)
+        rmax = spl.radius + GVar.thickness_outer
+        img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
+        rc = (rmin + rmax) / 2
+        out = polar_ft_params(img_st, rc, nsamples=nsamples).to_polars()
         if update:
             spl.globalprops = spl.globalprops.with_columns(out)
         return out
@@ -1162,7 +1167,7 @@ class CylTomogram(Tomogram):
         self,
         i: int = None,
         *,
-        radii: tuple[nm, nm] = None,
+        radii: tuple[nm, nm] | None = None,
         range_: tuple[float, float] = (0.0, 1.0),
         chunk_length: nm | None = None,
         binsize: int = 1,
@@ -1222,28 +1227,23 @@ class CylTomogram(Tomogram):
                 input_img = filt_func(input_img)
             _scale = input_img.scale.x
             if radii is None:
-                inner_radius = _non_neg(spl.radius - GVar.thickness_inner) / _scale
-                outer_radius = (spl.radius + GVar.thickness_outer) / _scale
+                rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
+                rmax = (spl.radius + GVar.thickness_outer) / _scale
             else:
-                inner_radius, outer_radius = radii / _scale
+                rmin, rmax = np.asarray(radii) / _scale
 
-            if outer_radius <= inner_radius:
-                raise ValueError(
-                    "For cylindrical straightening, 'radius' must be (rmin, rmax)"
-                )
+            if rmax <= rmin:
+                raise ValueError("radii[0] < radii[1] must be satisfied.")
             spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
             coords = spl_trans.cylindrical(
-                r_range=(inner_radius, outer_radius),
+                r_range=(rmin, rmax),
                 s_range=range_,
                 scale=_scale,
             )
 
             with set_gpu():
-                transformed = map_coordinates(input_img, coords, order=3)
-
-            axes = "rya"
-            transformed = ip.asarray(transformed, axes=axes)
-            transformed.set_scale({k: _scale for k in axes}, unit="nm")
+                rc = (rmin + rmax) / 2 * _scale
+                transformed = get_polar_image(input_img, coords, radius=rc)
 
         return transformed
 
