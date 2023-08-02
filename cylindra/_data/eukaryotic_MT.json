@@ -7,6 +7,8 @@
     "skew_min": -1.0,
     "skew_max": 1.0,
     "rise_sign": -1,
+    "rise_min": 0.0,
+    "rise_max": 45.0,
     "min_curvature_radius": 400.0,
     "clockwise": "MinusToPlus",
     "thickness_inner": 2.0,

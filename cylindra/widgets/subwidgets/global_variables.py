@@ -36,6 +36,8 @@ class GlobalVariablesMenu(MagicTemplate):
         skew_min: Annotated[float, {"min": -90, "max": 90}] = -1,
         skew_max: Annotated[float, {"min": -90, "max": 90}] = 1,
         rise_sign: Literal[-1, 1] = -1,
+        rise_min: Annotated[float, {"min": -45, "max": 45}] = 0,
+        rise_max: Annotated[float, {"min": -45, "max": 45}] = 45,
         min_curvature_radius: Annotated[float, {"max": 1e4}] = 100,
         clockwise: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"step": 0.1}] = 1.0,
@@ -62,11 +64,15 @@ class GlobalVariablesMenu(MagicTemplate):
         spacing_max : nm
             Maximum pitch length for estimation.
         skew_min : float
-            Minimum skew angle for estimation.
+            Minimum skew angle in degree for estimation.
         skew_max : float
-            Maximum skew angle for estimation.
+            Maximum skew angle in degree for estimation.
         rise_sign : -1 or 1
             Sign of rise angle.
+        rise_min : float
+            Minimum rise angle in degree for estimation.
+        rise_max : float
+            Maximum rise angle in degree for estimation.
         min_curvature_radius : nm
             Minimum curvature radius of spline.
         clockwise : str
@@ -124,6 +130,8 @@ class GlobalVariablesMenu(MagicTemplate):
         skew_min: "float | None" = None,
         skew_max: "float | None" = None,
         rise_sign: Literal[-1, 1] = -1,
+        rise_min: Annotated[float, {"min": -45, "max": 45}] = 0,
+        rise_max: Annotated[float, {"min": -45, "max": 45}] = 45,
         min_curvature_radius: "float | None" = None,
         clockwise: Literal["MinusToPlus", "PlusToMinus", None] = None,
         thickness_inner: "float | None" = None,

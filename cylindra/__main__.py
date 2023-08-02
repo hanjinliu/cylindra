@@ -41,7 +41,7 @@ def main(viewer=None):  # "viewer" is used for testing only
     globals_file = None if args.globals == "None" else args.globals
 
     if args.init_config:
-        from cylindra import init_config
+        from cylindra._config import init_config
 
         return init_config(force=True)
 

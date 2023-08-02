@@ -176,6 +176,8 @@ class GlobalVariableModel(EventedModel):
     skew_min: float = -1.0
     skew_max: float = 1.0
     rise_sign: Literal[-1, 1] = -1
+    rise_min: float = 0.0
+    rise_max: float = 45.0
     min_curvature_radius: nm = 400.0
     clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
     thickness_inner: nm = 2.0
@@ -196,6 +198,8 @@ class GlobalVariableModel(EventedModel):
                 raise ValueError("spacing_min > spacing_max must be satisfied.")
             if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
                 raise ValueError("skew_min > skew_max must be satisfied.")
+            if values.get("rise_min", -Inf) >= values.get("rise_max", Inf):
+                raise ValueError("rise_min > rise_max must be satisfied.")
             if values.get("rise_sign", 1) not in (-1, 1):
                 raise ValueError("rise_sign must be either -1 or 1.")
         # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one

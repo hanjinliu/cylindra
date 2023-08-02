@@ -7,7 +7,7 @@ import impy as ip
 import polars as pl
 from cylindra.const import nm, PropertyNames as H, GlobalVariables as GVar, Mode
 from cylindra.components._peak import PeakDetector
-from cylindra.utils import map_coordinates, ceilint, roundint
+from cylindra.utils import map_coordinates, ceilint, roundint, floorint
 
 
 class LatticeParams(NamedTuple):
@@ -58,13 +58,14 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
     # This analysis measures skew angle and protofilament number.
     spacing_arr = np.array([GVar.spacing_min, GVar.spacing_max])[np.newaxis]
     y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
-    tan_min, tan_max = np.tan(np.deg2rad([GVar.skew_min, GVar.skew_max]))
-    npf_arr = np.array([GVar.npf_min, GVar.npf_max])
+    tan_skew_min, tan_skew_max = np.tan(np.deg2rad([GVar.skew_min, GVar.skew_max]))
+    tan_rise_min, tan_rise_max = np.tan(np.deg2rad([GVar.rise_min, GVar.rise_max]))
+    npf_min_max = np.array([GVar.npf_min, GVar.npf_max])
 
     peakh = peak_det.get_peak(
         range_y=(
-            np.min(tan_min * y_factor * npf_arr),
-            np.max(tan_max * y_factor * npf_arr),
+            np.min(tan_skew_min * y_factor * npf_min_max),
+            np.max(tan_skew_max * y_factor * npf_min_max),
         ),
         range_a=get_arange(img),
         up_y=max(int(21600 / img.shape.y), 1),
@@ -74,12 +75,17 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
     npf = roundint(npf_f)
 
     # Transformation around `peakv`.
+    _y_min = img.shape.y * img.scale.y / GVar.spacing_max
+    _y_max = img.shape.y * img.scale.y / GVar.spacing_min
+    _a_min = _y_max * tan_rise_min * img.shape.a / img.shape.y / ya_scale_ratio
+    _a_max = _y_min * tan_rise_max * img.shape.a / img.shape.y / ya_scale_ratio
+    _a_min, _a_max = np.sort([_a_min * GVar.rise_sign, _a_max * GVar.rise_sign])
     peakv = peak_det.get_peak(
-        range_y=(
-            img.shape.y * img.scale.y / GVar.spacing_max,
-            img.shape.y * img.scale.y / GVar.spacing_min,
+        range_y=(_y_min, _y_max),
+        range_a=(
+            floorint(max(-npf_f / 2, _a_min)),
+            ceilint(min(npf_f / 2, _a_max)) + 1,
         ),
-        range_a=(-ceilint(npf_f / 2), ceilint(npf_f / 2) + 1),
         up_y=max(int(6000 / img.shape.y), 1),
         up_a=up_a,
     )
@@ -91,7 +97,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
     # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
     rise = np.arctan(tan_rise)  # f(r)
     rise_len = tan_rise * 2 * np.pi * radius / npf
-    yspace = 1.0 / peakv.yfreq * img.scale.y
+    yspace = img.scale.y / peakv.yfreq
     skew_tilt = np.arctan(tan_skew_tilt)  # f(r)
     skew = tan_skew_tilt * 2 * yspace / radius
     start = rise_len * npf / yspace
