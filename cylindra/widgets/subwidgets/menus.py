@@ -595,6 +595,7 @@ class Others(ChildWidget):
             else:
                 new = self._macro_window
                 new.new_tab(name=tabname, text=text)
+            new.textedit.syntax_highlight(lang="python", theme=get_code_theme(self))
             return new
 
         @set_design(text="Show macro")

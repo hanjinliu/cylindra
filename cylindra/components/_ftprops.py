@@ -100,7 +100,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
     yspace = img.scale.y / peakv.yfreq
     skew_tilt = np.arctan(tan_skew_tilt)  # f(r)
     skew = tan_skew_tilt * 2 * yspace / radius
-    start = rise_len * npf / yspace
+    start = 2 * np.pi * radius * tan_rise / (yspace * (1 + tan_rise * tan_skew_tilt))
 
     return LatticeParams(
         rise_angle=np.rad2deg(rise),

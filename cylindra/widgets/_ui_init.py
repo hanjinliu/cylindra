@@ -77,7 +77,7 @@ def _(self: CylindraMainWidget, spline: int, lengths: tuple[float, float]):
 def _(self: CylindraMainWidget, path: Path):
     macro = self._get_reanalysis_macro(path)
     w = ConsoleTextEdit(value=str(macro))
-    w.syntax_highlight("python")
+    w.syntax_highlight("python", theme=widget_utils.get_code_theme(self))
     w.read_only = True
     w.native.setParent(self.native, w.native.windowFlags())
     w.show()

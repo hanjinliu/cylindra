@@ -273,11 +273,8 @@ class CylindraProject(BaseProject):
                     visible = _info.visible
                 else:
                     visible = True
-                _fpath = self.molecules[idx]
-
-                layer = gui.add_molecules(mole, name=Path(_fpath).stem, source=_src)
-                if not visible:
-                    layer.visible = False
+                name = Path(self.molecules[idx]).stem
+                gui.add_molecules(mole, name=name, source=_src, visible=visible)
 
             # update project description widget
             gui.GeneralInfo.project_desc.value = self.project_description

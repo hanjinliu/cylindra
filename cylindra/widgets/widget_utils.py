@@ -67,6 +67,7 @@ def add_molecules(
     name: str,
     source: BaseComponent | None = None,
     metadata: dict[str, Any] = {},
+    visible: bool = True,
 ) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
     layer = MoleculesLayer(
@@ -77,6 +78,7 @@ def add_molecules(
         out_of_slice_display=True,
         name=name,
         metadata=metadata.copy(),
+        visible=visible,
     )
     if source is not None:
         layer.source_component = source
