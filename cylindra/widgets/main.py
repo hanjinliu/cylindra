@@ -2185,7 +2185,7 @@ class CylindraMainWidget(MagicTemplate):
             del self.SplineControl.canvas[i].image
             self.SplineControl.canvas[i].layers.clear()
             self.SplineControl.canvas[i].text_overlay.text = ""
-        for i in range(2):
+        for i in range(3):
             self.LocalProperties.plot[i].layers.clear()
         return None
 
