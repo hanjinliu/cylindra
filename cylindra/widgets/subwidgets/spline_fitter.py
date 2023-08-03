@@ -197,7 +197,7 @@ class SplineFitter(MagicTemplate):
             return
         npos = spl.anchors.size
         if self.shifts is None:
-            self.shifts = [None] * (tomo.splines)
+            self.shifts = [None] * len(tomo.splines)
 
         self.shifts[i] = np.zeros((npos, 2))
 
