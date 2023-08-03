@@ -194,6 +194,8 @@ class SplineFitter(MagicTemplate):
         tomo = parent.tomogram
 
         spl = tomo.splines[i]
+        if not spl.has_anchors:
+            return
         npos = spl.anchors.size
         if self.shifts is None:
             self.shifts = [None] * tomo.n_splines
