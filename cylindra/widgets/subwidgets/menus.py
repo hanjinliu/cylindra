@@ -298,7 +298,7 @@ class Splines(ChildWidget):
         """Open the spline clipper widget to precisely clip spines."""
         main = self._get_main()
         main.spline_clipper.show()
-        if main.tomogram.n_splines > 0:
+        if len(main.tomogram.splines) > 0:
             main.spline_clipper.load_spline(main.SplineControl.num)
         return None
 
@@ -537,7 +537,7 @@ class Analysis(ChildWidget):
     def open_spectra_inspector(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
         main = self._get_main()
-        if main.tomogram.n_splines > 0:
+        if len(main.tomogram.splines) > 0:
             binsize = roundint(main._reserved_layers.scale / main.tomogram.scale)
             main.spectra_inspector.load_spline(main.SplineControl.num, binsize)
         return main.spectra_inspector.show()

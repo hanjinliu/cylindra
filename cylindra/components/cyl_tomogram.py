@@ -116,15 +116,15 @@ def batch_process(
 
         # Determine along which spline function will be executed.
         if i is None:
-            i_list = range(self.n_splines)
+            i_list = range(len(self.splines))
         elif not hasattr(i, "__iter__"):
             raise TypeError("'i' must be int or iterable of int if specified")
         else:
             i_list = []
             for i_ in i:
-                if -self.n_splines <= i_ < 0:
-                    i_list.append(i_ + self.n_splines)
-                elif 0 <= i_ < self.n_splines:
+                if -len(self.splines) <= i_ < 0:
+                    i_list.append(i_ + len(self.splines))
+                elif 0 <= i_ < len(self.splines):
                     i_list.append(i_)
                 else:
                     raise ValueError(f"Index {i_} is out of bound")
@@ -1450,7 +1450,7 @@ class CylTomogram(Tomogram):
 
     def iter_anchor_coords(self) -> Iterable[NDArray[np.float32]]:
         """Iterate over anchor coordinates of all splines."""
-        for i in range(self.n_splines):
+        for i in range(len(self.splines)):
             coords = self.splines[i].map()
             yield from coords
 
@@ -1471,7 +1471,7 @@ class CylTomogram(Tomogram):
             Concatenated data frame.
         """
         if i is None:
-            i = range(self.n_splines)
+            i = range(len(self.splines))
         elif isinstance(i, int):
             i = [i]
         props = list[pl.DataFrame]()
@@ -1510,7 +1510,7 @@ class CylTomogram(Tomogram):
             Concatenated data frame.
         """
         if i is None:
-            i = range(self.n_splines)
+            i = range(len(self.splines))
         elif isinstance(i, int):
             i = [i]
         props = list[pl.DataFrame]()

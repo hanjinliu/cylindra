@@ -175,12 +175,11 @@ class SplineFitter(MagicTemplate):
         self._max_interval = max_interval
         parent = self._get_parent()
         tomo = parent.tomogram
-        for i in range(tomo.n_splines):
-            spl = tomo.splines[i]
+        for spl in tomo.splines:
             spl.make_anchors(max_interval=self._max_interval)
 
-        self.shifts = [None] * tomo.n_splines
-        self.controller.num.max = tomo.n_splines - 1
+        self.shifts = [None] * len(tomo.splines)
+        self.controller.num.max = len(tomo.splines) - 1
         self.controller.num.min = 0
         self.controller.num.value = 0
         self._cylinder_changed()
@@ -198,7 +197,7 @@ class SplineFitter(MagicTemplate):
             return
         npos = spl.anchors.size
         if self.shifts is None:
-            self.shifts = [None] * tomo.n_splines
+            self.shifts = [None] * (tomo.splines)
 
         self.shifts[i] = np.zeros((npos, 2))
 

@@ -288,11 +288,11 @@ class CylindraMainWidget(MagicTemplate):
         spl = tomo.splines[-1]
 
         # draw path
-        self._add_spline_to_images(spl, tomo.n_splines - 1)
+        self._add_spline_to_images(spl, len(tomo.splines) - 1)
         self._reserved_layers.work.data = []
         self._reserved_layers.prof.selected_data = set()
         self.reset_choices()
-        self.SplineControl.num = tomo.n_splines - 1
+        self.SplineControl.num = len(tomo.splines) - 1
 
         return undo_callback(self.delete_spline).with_args(-1)
 
