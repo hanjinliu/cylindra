@@ -25,8 +25,12 @@ class SplineFitter(MagicTemplate):
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     def __init__(self) -> None:
-        self._max_interval: nm = None
-        self.subtomograms: ip.ImgArray = None
+        self._max_interval: nm = 50.0
+        self.subtomograms: "ip.ImgArray | None" = None
+
+    @bind_key("Esc")
+    def _close(self):
+        return self.close()
 
     @magicclass(layout="horizontal", record=False)
     class controller(MagicTemplate):
@@ -146,10 +150,13 @@ class SplineFitter(MagicTemplate):
         itemh = self.canvas.layers[1]
         item_circ_inner = self.canvas.layers[2]
         item_circ_outer = self.canvas.layers[3]
-        itemv.pos = [x, z]
-        itemh.pos = [x, z]
 
         tomo = self._get_parent().tomogram
+        lz, lx = self.subtomograms.sizesof("zx")
+        if not (0 <= x < lx and 0 <= z < lz):
+            return
+        itemv.pos = [x, z]
+        itemh.pos = [x, z]
         r_max: nm = GVar.fit_width / 2
         nbin = max(roundint(r_max / tomo.scale / binsize / 2), 8)
         prof = self.subtomograms[j].radial_profile(
@@ -167,7 +174,6 @@ class SplineFitter(MagicTemplate):
         item_circ_outer.xdata = r_outer * np.cos(theta) + x
         item_circ_outer.ydata = r_outer * np.sin(theta) + z
 
-        lz, lx = self.subtomograms.sizesof("zx")
         self.shifts[i][j, :] = z - lz / 2 + 0.5, x - lx / 2 + 0.5
         return None
 
@@ -183,6 +189,8 @@ class SplineFitter(MagicTemplate):
         self.controller.num.min = 0
         self.controller.num.value = 0
         self._cylinder_changed()
+        self.canvas.contrast_limits = np.percentile(self.subtomograms, [1, 99.9])
+        return None
 
     @controller.num.connect
     def _cylinder_changed(self):
