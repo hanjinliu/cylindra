@@ -192,6 +192,8 @@ class SplineFitter(MagicTemplate):
         imgb = parent._reserved_layers.image_data
         tomo = parent.tomogram
 
+        if i >= len(tomo.splines):
+            return
         spl = tomo.splines[i]
         if not spl.has_anchors:
             return
