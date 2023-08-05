@@ -246,7 +246,6 @@ class CylTomogram(Tomogram):
             tilt_range=tilt_range,
             binsize=binsize,
         )
-
         return tomo
 
     @property

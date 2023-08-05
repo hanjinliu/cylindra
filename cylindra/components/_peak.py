@@ -117,13 +117,13 @@ class PeakInfo:
         return self._a_abs / self._upsampling[1]
 
     @cached_property
-    def yfreq(self):
+    def yfreq(self) -> float:
         """The y peak frequency."""
         size = self._shape[0] * self._upsampling[0]
         return np.fft.fftfreq(size)[self._y_abs]
 
     @cached_property
-    def afreq(self):
+    def afreq(self) -> float:
         """The a peak frequency."""
         size = self._shape[1] * self._upsampling[1]
         return np.fft.fftfreq(size)[self._a_abs]

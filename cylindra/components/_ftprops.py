@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import NamedTuple
+import math
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
@@ -41,7 +42,7 @@ class LatticeParams(NamedTuple):
 
 def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeParams:
     """Detect the peak position and calculate the local lattice parameters."""
-    img = img - img.mean()  # normalize.
+    img = img - float(img.mean())  # normalize.
     up_a = 40
     peak_det = PeakDetector(img, nsamples=nsamples)
     ya_scale_ratio = img.scale.y / img.scale.a
@@ -58,8 +59,10 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
     # This analysis measures skew angle and protofilament number.
     spacing_arr = np.array([GVar.spacing_min, GVar.spacing_max])[np.newaxis]
     y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
-    tan_skew_min, tan_skew_max = np.tan(np.deg2rad([GVar.skew_min, GVar.skew_max]))
-    tan_rise_min, tan_rise_max = np.tan(np.deg2rad([GVar.rise_min, GVar.rise_max]))
+    tan_skew_min, tan_skew_max, tan_rise_min, tan_rise_max = (
+        math.tan(math.radians(s))
+        for s in [GVar.skew_min, GVar.skew_max, GVar.rise_min, GVar.rise_max]
+    )
     npf_min_max = np.array([GVar.npf_min, GVar.npf_max])
 
     peakh = peak_det.get_peak(
@@ -79,7 +82,7 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
     _y_max = img.shape.y * img.scale.y / GVar.spacing_min
     _a_min = _y_max * tan_rise_min * img.shape.a / img.shape.y / ya_scale_ratio
     _a_max = _y_min * tan_rise_max * img.shape.a / img.shape.y / ya_scale_ratio
-    _a_min, _a_max = np.sort([_a_min * GVar.rise_sign, _a_max * GVar.rise_sign])
+    _a_min, _a_max = sorted([_a_min * GVar.rise_sign, _a_max * GVar.rise_sign])
     peakv = peak_det.get_peak(
         range_y=(_y_min, _y_max),
         range_a=(
@@ -90,24 +93,25 @@ def polar_ft_params(img: ip.ImgArray, radius: nm, nsamples: int = 8) -> LatticeP
         up_a=up_a,
     )
 
-    tan_rise = peakv.afreq / peakv.yfreq / ya_scale_ratio * GVar.rise_sign
-    tan_skew_tilt = peakh.yfreq / peakh.afreq * ya_scale_ratio
+    tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio * GVar.rise_sign
+    tan_skew_tilt = peakh.yfreq / peakh.afreq / ya_scale_ratio
 
     # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
     # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
-    rise = np.arctan(tan_rise)  # f(r)
-    rise_len = tan_rise * 2 * np.pi * radius / npf
+    perimeter = 2 * np.pi * radius
+    rise = math.atan(tan_rise)  # f(r)
+    rise_len = tan_rise * perimeter / npf
     yspace = img.scale.y / peakv.yfreq
-    skew_tilt = np.arctan(tan_skew_tilt)  # f(r)
+    skew_tilt = math.atan(tan_skew_tilt)  # f(r)
     skew = tan_skew_tilt * 2 * yspace / radius
-    start = 2 * np.pi * radius * tan_rise / (yspace * (1 + tan_rise * tan_skew_tilt))
+    start = perimeter * tan_rise / (yspace * (1 + tan_rise * tan_skew_tilt))
 
     return LatticeParams(
-        rise_angle=np.rad2deg(rise),
+        rise_angle=math.degrees(rise),
         rise_length=rise_len,
         spacing=yspace,
-        skew_tilt=np.rad2deg(skew_tilt),
-        skew_angle=np.rad2deg(skew),
+        skew_tilt=math.degrees(skew_tilt),
+        skew_angle=math.degrees(skew),
         npf=npf,
         start=start,
     )
@@ -129,6 +133,7 @@ def get_polar_image(
     radius: nm,
     order: int = 3,
 ):
+    """Convert the input image into a polar image."""
     polar = map_coordinates(img, coords, order=order, mode=Mode.constant, cval=np.mean)
     polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
     a_scale = 2 * np.pi * radius / polar.shape.a
