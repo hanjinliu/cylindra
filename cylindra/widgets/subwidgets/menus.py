@@ -757,7 +757,24 @@ class Others(ChildWidget):
         """Open the command palette widget."""
         from magicclass.command_palette import exec_command_palette
 
-        return exec_command_palette(self._get_main(), alignment="screen")
+        def _title_fmt(parent, widget):
+            qn = type(parent).__qualname__
+            if qn.startswith("CylindraMainWidget."):
+                return qn[len("CylindraMainWidget.") :]
+            return qn
+
+        def _filter(parent, widget):
+            qn = type(parent).__qualname__
+            if qn.startswith("_") or "._" in qn:
+                return False
+            return True
+
+        return exec_command_palette(
+            self._get_main(),
+            alignment="screen",
+            title=_title_fmt,
+            filter=_filter,
+        )
 
     @set_design(text="Open one-line runner")
     @do_not_record

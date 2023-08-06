@@ -8,6 +8,7 @@ from magicclass import (
     field,
     set_design,
     vfield,
+    box,
 )
 from magicclass.logging import getLogger
 from magicclass.types import OneOf, Path
@@ -82,12 +83,14 @@ class SplineControl(MagicTemplate):
 
     num = vfield(OneOf[_get_splines], label="Spline No.")
     pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
-    canvas = field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3)
+    canvas = box.resizable(
+        field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3),
+        x_enabled=False,
+    )
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
         highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
-        canvas_visible = vfield(True).with_options(text="Projections")
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
@@ -111,11 +114,6 @@ class SplineControl(MagicTemplate):
             plt.imshow(img)
             plt.axis("off")
             plt.show()
-        return None
-
-    @footer.canvas_visible.connect
-    def _toggle_canvas(self, vis: bool):
-        self.canvas.visible = vis
         return None
 
     @num.connect
