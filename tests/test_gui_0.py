@@ -592,7 +592,7 @@ def test_simulator(ui: CylindraMainWidget):
     ui.cylinder_simulator.update_model(
         spacing=4.1,
         skew=-0.30,
-        rise=11.0,
+        start=3,
         npf=14,
         radius=9.14,
         offsets=(0.0, 0.18),
@@ -612,7 +612,7 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.cylinder_simulator.update_model(
         spacing=4.06,
         skew=-0.31,
-        rise=10.5,
+        start=3,
         npf=14,
         radius=9.14,
         offsets=(0.0, 0.0),

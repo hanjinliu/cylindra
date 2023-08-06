@@ -13,6 +13,7 @@ from cylindra.const import (
 )
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
+from cylindra.components._boundary import solve_cylinder
 
 
 class CylSpline(Spline):
@@ -109,20 +110,17 @@ class CylSpline(Spline):
         return original
 
     def nrise(self, **kwargs):
-        interv = _get_globalprops(self, kwargs, H.spacing)
-        skew = _get_globalprops(self, kwargs, H.skew)
-        rise = _get_globalprops(self, kwargs, H.rise) * GVar.rise_sign
-        radius = _get_globalprops(self, kwargs, H.radius)
-
-        perimeter = 2 * np.pi * radius
-        rise_rad = np.deg2rad(rise)
-        skew_rad = np.deg2rad(skew)
-
-        return roundint(
-            perimeter
-            * np.tan(rise_rad)
-            / (interv - radius * skew_rad * np.tan(rise_rad) / 2)
-        )
+        return solve_cylinder(
+            spacing=_get_globalprops(self, kwargs, H.spacing),
+            skew_angle=_get_globalprops(self, kwargs, H.skew),
+            skew_tilt_angle=_get_globalprops(self, kwargs, H.skew),
+            rise_angle=_get_globalprops(self, kwargs, H.rise) * GVar.rise_sign,
+            radius=_get_globalprops(self, kwargs, H.radius),
+            npf=roundint(_get_globalprops(self, kwargs, H.npf)),
+            start=_get_globalprops(self, kwargs, H.start),
+            allow_duplicate=True,
+            rise_sign=GVar.rise_sign,
+        ).start
 
     def cylinder_model(
         self,
@@ -143,42 +141,30 @@ class CylSpline(Spline):
             The cylinder model.
         """
         length = self.length()
-        interv = _get_globalprops(self, kwargs, H.spacing)
-        skew = _get_globalprops(self, kwargs, H.skew)
-        rise = _get_globalprops(self, kwargs, H.rise) * GVar.rise_sign
-        radius = _get_globalprops(self, kwargs, H.radius)
-        npf = roundint(_get_globalprops(self, kwargs, H.npf))
-        perimeter = 2 * np.pi * radius
-        rise_rad = np.deg2rad(rise)
-        skew_rad = np.deg2rad(skew)
-
-        nrise = roundint(
-            perimeter
-            * np.tan(rise_rad)
-            / (interv - radius * skew_rad * np.tan(rise_rad) / 2)
+        cp = solve_cylinder(
+            spacing=_get_globalprops(self, kwargs, H.spacing),
+            skew_angle=_get_globalprops(self, kwargs, H.skew),
+            skew_tilt_angle=_get_globalprops(self, kwargs, H.skew),
+            rise_angle=_get_globalprops(self, kwargs, H.rise),
+            radius=_get_globalprops(self, kwargs, H.radius),
+            npf=_get_globalprops(self, kwargs, H.npf),
+            start=_get_globalprops(self, kwargs, H.start),
+            allow_duplicate=True,
+            rise_sign=GVar.rise_sign,
         )
-        if nrise == 0:
-            tan_rise = 0
-            tan_skew_tilt = radius * skew_rad / interv / 2
-            skew_incr = 0
-        else:
-            space_incr = nrise * interv
-            skew_incr = radius * skew_rad * nrise / 2
-            tan_rise = space_incr / (perimeter + skew_incr)
-            tan_skew_tilt = skew_incr / space_incr
 
-        factor = interv / (perimeter / npf)
-
-        ny = roundint(length / interv) + 1  # number of monomers in y-direction
+        factor = cp.spacing / (cp.perimeter / cp.npf)
+        ny = roundint(length / cp.spacing) + 1  # number of monomers in y-direction
 
         if offsets is None:
             offsets = (0.0, 0.0)
 
+        skew_incr = cp.radius * cp.skew_angle_rad * cp.start / 2 * GVar.rise_sign
         return CylinderModel(
-            shape=(ny, npf),
-            tilts=(tan_skew_tilt * factor, tan_rise / factor),
-            intervals=(interv, (perimeter + skew_incr) / perimeter * np.pi * 2 / npf),
-            radius=radius,
+            shape=(ny, cp.npf),
+            tilts=(cp.tan_skew_tilt * factor, cp.tan_rise / factor * GVar.rise_sign),
+            intervals=(cp.spacing, (cp.perimeter + skew_incr) / cp.radius / cp.npf),
+            radius=cp.radius,
             offsets=offsets,
         )
 
@@ -266,4 +252,4 @@ def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
 def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):
     if name in kwargs:
         return kwargs[name]
-    return spl.props.get_glob(name)
+    return spl.props.get_glob(name, None)

@@ -13,6 +13,7 @@ from magicclass import (
     vfield,
     impl_preview,
     confirm,
+    box,
 )
 from magicgui.widgets import RangeSlider
 from magicclass.types import Optional, Path
@@ -42,7 +43,6 @@ if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
 
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
-SELF = mk.Mock("self")
 SIMULATION_INFO_FILE_NAME = "simulation_info.txt"
 
 _TiltRange = Annotated[
@@ -56,12 +56,10 @@ _TiltRange = Annotated[
 ]
 
 _NSRatio = Annotated[float, {"label": "N/S ratio", "min": 0.0, "max": 4.0, "step": 0.1}]
-
 _NSRatios = Annotated[
     list[float],
     {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
 ]
-
 _ImageSize = Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}]
 
 _Logger = getLogger("cylindra")
@@ -79,7 +77,7 @@ class CylinderParameters:
 
     spacing: nm = 1.0
     skew: float = 0.0
-    rise: float = 0.0
+    start: int = 0
     npf: int = 1
     radius: nm = 10.0
     offsets: "tuple[nm, float]" = (0.0, 0.0)
@@ -96,7 +94,7 @@ class CylinderParameters:
         return {
             "spacing": self.spacing,
             "skew": self.skew,
-            "rise": self.rise,
+            "start": self.start,
             "npf": self.npf,
             "radius": self.radius,
             "offsets": self.offsets,
@@ -261,7 +259,7 @@ class CylinderSimulator(MagicTemplate):
             return shift, Idx[ysl, asl]
 
     # the 3D viewer of the cylinder model
-    canvas = field(Vispy3DCanvas)
+    canvas = box.resizable(field(Vispy3DCanvas))
 
     @property
     def parent_widget(self):
@@ -283,8 +281,8 @@ class CylinderSimulator(MagicTemplate):
     @thread_worker.with_progress(desc="Creating an image")
     @set_design(text="Create an empty image")
     @confirm(
-        text="You may have unsaved data. Continue?",
-        condition=SELF.parent_widget._need_save,
+        text="You have an opened image. Run anyway?",
+        condition="self.parent_widget.tomogram is not None",
     )
     def create_empty_image(
         self,
@@ -365,13 +363,13 @@ class CylinderSimulator(MagicTemplate):
         tomo = self.parent_widget.tomogram
         spl = tomo.splines[idx]
 
-        if not spl.props.has_glob([H.spacing, H.skew, H.rise, H.npf, H.radius]):
+        if not spl.props.has_glob([H.spacing, H.skew, H.start, H.npf, H.radius]):
             raise ValueError("Global property is not calculated yet.")
 
         self.parameters.update(
             interval=spl.props.get_glob(H.spacing),
             skew=spl.props.get_glob(H.skew),
-            rise=spl.props.get_glob(H.rise),
+            start=spl.props.get_glob(H.start),
             npf=spl.props.get_glob(H.npf),
             radius=spl.props.get_glob(H.radius),
         )
@@ -436,7 +434,7 @@ class CylinderSimulator(MagicTemplate):
         self,
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
         skew: Annotated[float, {"min": -45.0, "max": 45.0, "label": "skew (deg)"}] = 0.0,
-        rise: Annotated[float, {"min": -90.0, "max": 90.0, "step": 0.5, "label": "rise (deg)"}] = 0.0,
+        start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 1,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
         offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = CylinderParameters.offsets,
@@ -453,8 +451,8 @@ class CylinderSimulator(MagicTemplate):
             Axial spacing between molecules.
         skew : float
             Skew angle.
-        rise : float
-            Rise angle.
+        start : int
+            The start number.
         npf : int
             Number of protofilaments.
         radius : nm
@@ -465,7 +463,7 @@ class CylinderSimulator(MagicTemplate):
         self.parameters.update(
             spacing=spacing,
             skew=skew,
-            rise=rise,
+            start=start,
             npf=npf,
             radius=radius,
             offsets=offsets,
@@ -474,7 +472,7 @@ class CylinderSimulator(MagicTemplate):
         kwargs = {
             H.spacing: spacing,
             H.skew: skew,
-            H.rise: rise,
+            H.start: start,
             H.npf: npf,
         }
         model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
@@ -619,8 +617,8 @@ class CylinderSimulator(MagicTemplate):
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
     @set_design(text="Simulate tomogram and open")
     @confirm(
-        text="You may have unsaved data. Run anyway?",
-        condition=SELF.parent_widget._need_save,
+        text="You have an opened image. Run anyway?",
+        condition="self.parent_widget.tomogram is not None",
     )
     def simulate_tomogram_and_open(
         self,
