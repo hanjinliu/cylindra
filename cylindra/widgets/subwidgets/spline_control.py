@@ -91,8 +91,15 @@ class SplineControl(MagicTemplate):
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
         highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
+        copy_screenshot = abstractapi()
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
+
+    @footer.wraps
+    @set_design(max_width=40, text="Copy")
+    def copy_screenshot(self):
+        """Copy a screenshot of the projections to clipboard."""
+        return self.canvas.to_clipboard()
 
     @footer.wraps
     @set_design(max_width=40, text="Scr")

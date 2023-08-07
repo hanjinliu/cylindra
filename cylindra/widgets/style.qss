@@ -7,3 +7,9 @@ QCommandList {
     font-family: "Arial";
     font-size: 15px;
 }
+
+QSizeGrip {
+    image: url(./cylindra/widgets/icons/grip.svg);
+    width: 10px;
+    height: 10px;
+}

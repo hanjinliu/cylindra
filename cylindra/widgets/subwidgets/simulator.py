@@ -1,8 +1,7 @@
 from typing import Any, TYPE_CHECKING, Annotated
 import json
-import matplotlib.pyplot as plt
 
-import macrokit as mk
+import matplotlib.pyplot as plt
 from magicclass import (
     abstractapi,
     magicclass,
@@ -35,6 +34,7 @@ from cylindra.components import (
     CylSpline,
     indexer as Idx,
 )
+from cylindra.components._boundary import solve_cylinder
 from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
 from cylindra.utils import roundint, ceilint
 from cylindra.widgets.widget_utils import FileFilter
@@ -261,8 +261,7 @@ class CylinderSimulator(MagicTemplate):
     # the 3D viewer of the cylinder model
     canvas = box.resizable(field(Vispy3DCanvas))
 
-    @property
-    def parent_widget(self):
+    def _get_main(self):
         from cylindra.widgets.main import CylindraMainWidget
 
         return self.find_ancestor(CylindraMainWidget, cache=True)
@@ -282,7 +281,7 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Create an empty image")
     @confirm(
         text="You have an opened image. Run anyway?",
-        condition="self.parent_widget.tomogram is not None",
+        condition="self._get_main().tomogram is not None",
     )
     def create_empty_image(
         self,
@@ -299,7 +298,7 @@ class CylinderSimulator(MagicTemplate):
         scale : nm, default is 0.25
             Pixel size of the image.
         """
-        parent = self.parent_widget
+        parent = self._get_main()
         shape = tuple(roundint(s / scale) for s in size)
 
         # update simulation parameters
@@ -319,8 +318,7 @@ class CylinderSimulator(MagicTemplate):
         return parent._send_tomogram_to_viewer.with_args(tomo)
 
     def _get_current_index(self, *_) -> int:
-        parent = self.parent_widget
-        return parent.SplineControl.num
+        return self._get_main().SplineControl.num
 
     def _get_shape(self, *_) -> tuple[int, int, int]:
         return self._simulate_shape
@@ -354,13 +352,13 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Set current spline")
     def set_current_spline(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Use the current parameters and the spline to construct a model and molecules."""
-        return self._set_spline(self.parent_widget.tomogram.splines[idx])
+        return self._set_spline(self._get_main().tomogram.splines[idx])
 
     @CreateMenu.wraps
     @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Copy the spline parameters in the viewer."""
-        tomo = self.parent_widget.tomogram
+        tomo = self._get_main().tomogram
         spl = tomo.splines[idx]
 
         if not spl.props.has_glob([H.spacing, H.skew, H.start, H.npf, H.radius]):
@@ -424,7 +422,7 @@ class CylinderSimulator(MagicTemplate):
         mole = self._molecules
         if mole is None:
             raise ValueError("Molecules are not generated yet.")
-        self.parent_widget.add_molecules(mole, name="Simulated", source=self._spline)
+        self._get_main().add_molecules(mole, name="Simulated", source=self._spline)
         return None
 
     @TransformMenu.wraps
@@ -437,7 +435,7 @@ class CylinderSimulator(MagicTemplate):
         start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 1,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
-        offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = CylinderParameters.offsets,
+        offsets: Annotated[tuple[float, float], {"options": {"min": -30.0, "max": 30.0}, "label": "offsets (nm, rad)"}] = (0, 0),
     ):  # fmt: skip
         """
         Update cylinder model with new parameters.
@@ -562,7 +560,7 @@ class CylinderSimulator(MagicTemplate):
 
         save_dir = Path(save_dir)
         nsr = list(round(float(_nsr), 4) for _nsr in nsr)
-        parent = self.parent_widget
+        parent = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         sino, mole = self._prep_radon(
             template_path, degrees, scale, shape, interpolation
@@ -618,7 +616,7 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Simulate tomogram and open")
     @confirm(
         text="You have an opened image. Run anyway?",
-        condition="self.parent_widget.tomogram is not None",
+        condition="self._get_main().tomogram is not None",
     )
     def simulate_tomogram_and_open(
         self,
@@ -663,7 +661,7 @@ class CylinderSimulator(MagicTemplate):
             shape = self._get_shape()
 
         nsr = round(float(nsr), 4)
-        parent = self.parent_widget
+        parent = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         sino, _ = self._prep_radon(template_path, degrees, scale, shape, interpolation)
 
@@ -730,7 +728,7 @@ class CylinderSimulator(MagicTemplate):
             scale = self._get_scale()
         if shape is None:
             shape = self._get_shape()
-        parent = self.parent_widget
+        parent = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         sino, mole = self._prep_radon(
             template_path, degrees, scale, shape, interpolation
