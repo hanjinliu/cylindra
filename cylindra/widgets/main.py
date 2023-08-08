@@ -1198,12 +1198,21 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         indices = normalize_spline_indices(splines, tomo)
+
+        @thread_worker.callback
+        def _on_yield():
+            self._update_local_properties_in_widget(replot=True)
+
         with SplineTracker(widget=self, indices=indices) as tracker:
             for i in indices:
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_radii(i=i, size=depth, binsize=bin_size)
-                yield
+                if i == indices[-1]:
+                    yield _on_yield
+                else:
+                    yield
+
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -1265,7 +1274,7 @@ class CylindraMainWidget(MagicTemplate):
                     )
                 spl.props.update_loc([radii], depth)
                 spl.radius = df[Mole.radius].mean()
-
+        self._update_local_properties_in_widget(replot=True)
         return tracker.as_undo_callback()
 
     @Analysis.wraps
@@ -2371,6 +2380,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @SplineControl.num.connect
     def _update_global_properties_in_widget(self, _=None):
+        """Show global property values in widgets."""
         i = self.SplineControl.num
         if i is None:
             return
@@ -2383,7 +2393,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @SplineControl.num.connect
     @SplineControl.pos.connect
-    def _update_local_properties_in_widget(self):
+    def _update_local_properties_in_widget(self, _=None, *, replot: bool = False):
         i = self.SplineControl.num
         tomo = self.tomogram
         if i is None or i >= len(tomo.splines):
@@ -2395,6 +2405,8 @@ class CylindraMainWidget(MagicTemplate):
         else:
             self.LocalProperties._init_plot()
             self.LocalProperties._init_text()
+        if replot:
+            self.LocalProperties._plot_properties(spl)
         return None
 
     def _add_spline_to_images(self, spl: CylSpline, i: int):
