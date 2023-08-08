@@ -48,6 +48,9 @@ def test_view(ui: CylindraMainWidget):
 def test_average(ui: CylindraMainWidget, binsize: int):
     _load(ui)
     ui.batch.sta.average_all("Loader", size=6.0, bin_size=binsize)
+    ui.batch.sta.average_groups(
+        "Loader", size=6.0, bin_size=binsize, by="pl.col('pf-id')"
+    )
     ui.batch.show_macro()
     ui.batch.show_native_macro()
 

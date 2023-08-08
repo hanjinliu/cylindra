@@ -377,14 +377,63 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
-        loader = loader.replace(output_shape=shape, order=interpolation)
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
             .binning(bin_size, compute=False)
             .average(),
             axes="zyx",
+        ).set_scale(zyx=loader.scale * bin_size, unit="nm")
+        t0.toc()
+        return thread_worker.callback(self.params._show_reconstruction).with_args(
+            img, f"[AVG]{loader_name}"
         )
-        img.set_scale(zyx=loader.scale, unit="nm")
+
+    @BatchSubtomogramAnalysis.wraps
+    @set_design(text="Average group-wise")
+    @dask_thread_worker.with_progress(desc="Grouped subtomogram averaging")
+    def average_groups(
+        self,
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
+        size: _SubVolumeSize = None,
+        by: ExprStr.In[POLARS_NAMESPACE] = "pl.col('pf-id')",
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: _BINSIZE = 1,
+    ):
+        """
+        Group-wise subtomogram averaging using molecules grouped by the given expression.
+
+        This method first group molecules by its features, and then average each group.
+        This method is useful for such as get average of each protofilament and segmented
+        subtomogram averaging.
+
+        Parameters
+        ----------
+        {layer}{size}
+        by : str or polars expression
+            Expression to group molecules.
+        {interpolation}{bin_size}
+        """
+        t0 = timer("average_groups")
+        if isinstance(by, pl.Expr):
+            expr = by
+        else:
+            expr = ExprStr(by, POLARS_NAMESPACE).eval()
+        loaderlist = self._get_parent()._loaders
+        loader = loaderlist[loader_name].loader
+        shape = self._get_shape_in_px(size, loader)
+        img = ip.asarray(
+            np.stack(
+                list(
+                    loader.replace(output_shape=shape, order=interpolation)
+                    .binning(bin_size)
+                    .groupby(expr)
+                    .average()
+                    .values()
+                ),
+                axis=0,
+            ),
+            axes="pzyx",
+        ).set_scale(zyx=loader.scale * bin_size, unit="nm")
         t0.toc()
         return thread_worker.callback(self.params._show_reconstruction).with_args(
             img, f"[AVG]{loader_name}"
