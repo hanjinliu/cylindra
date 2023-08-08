@@ -25,10 +25,9 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit, OneLineRunner
-from magicclass.types import Path, Color
+from magicclass.types import Path, Color, Optional
 from magicclass.logging import getLogger
 from magicclass.ext.polars import DataFrameView
-from magicclass.ext.dask import dask_thread_worker
 
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
@@ -810,6 +809,28 @@ class Others(ChildWidget):
     class Help(MagicTemplate):
         cylindra_info = abstractapi()
         report_issues = abstractapi()
+
+    @do_not_record
+    @set_design(text="Configure dask")
+    def configure_dask(
+        self,
+        num_workers: Optional[Annotated[int, {"min": 1}]] = None,
+        scheduler: Literal["single-threaded", "threads", "synchronous", "processes"] = "threads",
+    ):  # fmt: skip
+        """
+        Configure dask parallel computation.
+
+        Parameters
+        ----------
+        num_workers : int, optional
+            Number of workers to use. If not specified, the maximum number of workers
+            will be used.
+        scheduler : str, default is 'threads'
+            The scheduler to use.
+        """
+        import dask.config
+
+        return dask.config.set(num_workers=num_workers, scheduler=scheduler)
 
     @Help.wraps
     @set_design(text="Info")

@@ -7,6 +7,7 @@ from typing import (
     Annotated,
 )
 import re
+import math
 from scipy.spatial.transform import Rotation
 from magicclass import (
     do_not_record,
@@ -630,6 +631,7 @@ class SubtomogramAveraging(MagicTemplate):
         layers: _MoleculeLayers,
         template_path: Bound[params.template_path],
         mask_params: Bound[params._get_mask_params],
+        max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
@@ -642,7 +644,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{rotations}{bin_size}{method}
+        {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
         """
         t0 = timer("align_averaged")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
@@ -671,9 +673,8 @@ class SubtomogramAveraging(MagicTemplate):
 
         _scale = parent.tomogram.scale * bin_size
 
-        npf = mole.features[Mole.pf].max() + 1
-        dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
-        dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
+        if max_shifts is None:
+            max_shifts = _default_align_averaged_shifts(mole)
 
         model = _get_alignment(method)(
             template,
@@ -686,7 +687,7 @@ class SubtomogramAveraging(MagicTemplate):
             loader = self._get_loader(bin_size, mole, order=1)
             _img_trans, result = model.fit(
                 loader.average(template.shape),
-                max_shifts=tuple(np.array([dy, dy, dx]) / _scale * 0.6),
+                max_shifts=tuple(max_shifts / _scale),
             )
 
             rotator = Rotation.from_quat(result.quat)
@@ -1692,6 +1693,13 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
     else:
         raise ValueError(f"method {method!r} not supported.")
     return sl
+
+
+def _default_align_averaged_shifts(mole: Molecules) -> np.ndarray:
+    npf = mole.features[Mole.pf].max() + 1
+    dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
+    dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
+    return np.array([dy, dy, dx]) * 0.6
 
 
 def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:
