@@ -1299,10 +1299,9 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.callback
         def _local_ft_analysis_on_yield(i: int):
-            if i == 0:
-                self.sample_subtomograms()
             self._update_splines_in_images()
-            self._update_local_properties_in_widget()
+            if i == self.SplineControl.num:
+                self._update_local_properties_in_widget(replot=True)
 
         with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
             for i in indices:
@@ -1317,6 +1316,7 @@ class CylindraMainWidget(MagicTemplate):
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
                 yield _local_ft_analysis_on_yield.with_args(i)
+        self.sample_subtomograms()
         return tracker.as_undo_callback()
 
     @Analysis.wraps
