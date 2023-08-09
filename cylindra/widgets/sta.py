@@ -1699,7 +1699,7 @@ def _default_align_averaged_shifts(mole: Molecules) -> np.ndarray:
     npf = mole.features[Mole.pf].max() + 1
     dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
     dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
-    return (dy, dy * 0.6, dx * 0.6)
+    return (dy * 0.6, dy * 0.6, dx * 0.6)
 
 
 def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:

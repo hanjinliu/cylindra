@@ -1118,9 +1118,8 @@ class CylindraMainWidget(MagicTemplate):
         # first check missing_ok=False case
         if not missing_ok:
             for layer in layers:
-                if (
-                    _s := layer.source_spline
-                ):  # NOTE: The source spline may not exist in
+                # NOTE: The source spline may not exist in
+                if _s := layer.source_spline:
                     tomo.splines.index(_s)  # the spline list.
 
         for layer in layers:
@@ -1235,17 +1234,14 @@ class CylindraMainWidget(MagicTemplate):
         {layers}{interval}{depth}
         """
         if isinstance(layers, MoleculesLayer):
-            # allow single layer input.
-            layers = [layers]
+            layers = [layers]  # allow single layer input.
 
         # check duplicated spline sources
         _splines = list[CylSpline]()
         _radius_df = list[pl.DataFrame]()
         _duplicated = list[CylSpline]()
         for layer in layers:
-            spl = layer.source_component
-            if not isinstance(spl, CylSpline):
-                raise ValueError(f"Layer {layer.name} does not have spline source.")
+            spl = _assert_source_spline_exists(layer)
             if any(spl is each for each in _splines):
                 _duplicated.append(spl)
             _splines.append(spl)
@@ -1856,6 +1852,55 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Interpolate spline properties")
+    def interpolate_spline_properties(
+        self, layer: MoleculesLayer, interpolation: int = 3, suffix: str = "_spl"
+    ):
+        """
+        Add new features by interpolating spline local properties.
+
+        Parameters
+        ----------
+        {layer}{interpolation}
+        suffix : str, default is "_spl"
+            Suffix of the new feature column names.
+
+        Returns
+        -------
+        _type_
+            _description_
+
+        Raises
+        ------
+        ValueError
+            _description_
+        """
+        from scipy.interpolate import interp1d
+
+        if interpolation == 0:
+            kind = "nearest"
+        elif interpolation == 1:
+            kind = "linear"
+        elif interpolation == 3:
+            kind = "cubic"
+        else:
+            raise ValueError(f"`interpolation` must be 0, 1 or 3. Got {interpolation}.")
+
+        spl = _assert_source_spline_exists(layer)
+        feat = layer.molecules.features
+        anc = spl.anchors
+        interp = interp1d(anc, spl.props.loc.to_numpy(), kind=kind, axis=0)
+        pos_nm = feat[Mole.position].to_numpy()
+        values = interp((pos_nm / spl.length()).clip(anc.min(), anc.max()))
+        layer.molecules = layer.molecules.with_features(
+            [
+                pl.Series(f"{c}{suffix}", values[:, i])
+                for i, c in enumerate(spl.props.loc.columns)
+            ]
+        )
+        return undo_callback(layer.feature_setter(feat, layer.colormap_info))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate lattice structure")
     def calculate_lattice_structure(
         self,
@@ -1871,13 +1916,12 @@ class CylindraMainWidget(MagicTemplate):
         props : list of str, optional
             Properties to calculate.
         """
-        _assert_source_spline_exists(layer)
-        feat = layer.molecules.features
+        spl = _assert_source_spline_exists(layer)
+        mole = layer.molecules
+        feat = mole.features
 
         def _calculate(p: str):
-            return cylstructure.LatticeParameters(p).calculate(
-                layer.molecules, layer.source_spline
-            )
+            return cylstructure.LatticeParameters(p).calculate(mole, spl)
 
         layer.molecules = layer.molecules.with_features([_calculate(p) for p in props])
         self.reset_choices()  # choices regarding of features need update
@@ -1910,7 +1954,7 @@ class CylindraMainWidget(MagicTemplate):
         from cylindra import cylfilters
 
         feat, cmap_info = layer.molecules.features, layer.colormap_info
-        nrise = layer.source_spline.nrise()
+        nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.run_filter(
             layer.molecules.features, footprint, target, nrise, method
         )
@@ -1978,7 +2022,7 @@ class CylindraMainWidget(MagicTemplate):
         from napari.utils.colormaps import label_colormap
 
         feat, cmap_info = layer.molecules.features, layer.colormap_info
-        nrise = layer.source_spline.nrise()
+        nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.label(layer.molecules.features, target, nrise).cast(pl.UInt32)
         feature_name = f"{target}_label"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
@@ -2020,8 +2064,8 @@ class CylindraMainWidget(MagicTemplate):
         pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
         values = feat[target].cast(pl.Float32).to_numpy()
         labels = feat[label].cast(pl.UInt32).to_numpy()
-        nrise = layer.source_spline.nrise()
-        npf = layer.source_spline.props.get_glob(H.npf)
+        nrise = _assert_source_spline_exists(layer).nrise()
+        npf = _assert_source_spline_exists(layer).props.get_glob(H.npf)
 
         reg = RegionProfiler.from_features(nth, pf, values, labels, npf, nrise)
         df = pl.DataFrame(reg.calculate(properties))
@@ -2554,18 +2598,7 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     return mk.Expr(mk.Head.block, exprs)
 
 
-def _assert_source_spline_exists(layer: MoleculesLayer) -> None:
-    if layer.source_spline is None:
+def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
+    if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
-    return None
-
-
-def _set_angle_colormap(layer: MoleculesLayer, name: str) -> None:
-    ser = layer.molecules.features[name]
-    ser = ser.filter(~ser.is_infinite())
-    if len(ser) == 0:
-        raise ValueError("All the values are invalid.")
-    extreme = ser.abs().max()
-    _clim = [-extreme * 2, extreme * 2]
-    layer.set_colormap(name, _clim, TWO_WAY_COLORMAP)
-    return None
+    return spl

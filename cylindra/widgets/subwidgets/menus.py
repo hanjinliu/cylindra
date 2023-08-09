@@ -362,6 +362,7 @@ class MoleculesMenu(ChildWidget):
         split_molecules = abstractapi()
         sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
+        interpolate_spline_properties = abstractapi()
         calculate_lattice_structure = abstractapi()
         sep2 = field(Separator)
         convolve_feature = abstractapi()
