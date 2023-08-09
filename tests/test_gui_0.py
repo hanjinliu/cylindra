@@ -571,7 +571,7 @@ def test_clip_spline(ui: CylindraMainWidget):
     assert length_old - 4 == pytest.approx(length_new, abs=1e-2)
 
 
-def test_local_radii_by_molecules(ui: CylindraMainWidget):
+def test_radius_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     mole = ui.get_molecules("Mono-0")
     shifts = np.zeros((mole.count(), 3), dtype=np.float32)
@@ -583,6 +583,14 @@ def test_local_radii_by_molecules(ui: CylindraMainWidget):
     ui.measure_radius_by_molecules([layer], interval=8, depth=12)
     radii = ui.get_spline(0).localprops[H.radius]
     assert all(np.diff(radii) > 0)
+
+    spl = ui.tomogram.splines[0]
+    ui.set_radius([0], 11.2)
+    assert spl.radius == pytest.approx(11.2, abs=1e-6)
+    ui.set_radius([0], "10.4")
+    assert spl.radius == pytest.approx(10.4, abs=1e-6)
+    ui.set_radius([0], "pl.col('npf') * 0.9")
+    assert spl.radius == pytest.approx(spl.props.get_glob("npf") * 0.9, abs=1e-6)
 
 
 def test_simulator(ui: CylindraMainWidget):
@@ -670,6 +678,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
     last_layer = ui.parent_viewer.layers[-1]
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
     ui.split_molecules(ui.parent_viewer.layers["Mono-0"], by=Mole.pf)
+    ui.interpolate_spline_properties(ui.parent_viewer.layers["Mono-0"], interpolation=1)
     ui.MoleculesMenu.View.render_molecules(
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",

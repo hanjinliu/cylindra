@@ -1179,6 +1179,42 @@ class CylindraMainWidget(MagicTemplate):
         return tracker.as_undo_callback()
 
     @Analysis.wraps
+    @set_design(text="Set radius")
+    def set_radius(
+        self,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        radius: ExprStr.In[POLARS_NAMESPACE] = 10.0,
+    ):  # fmt: skip
+        """
+        Set radius of the splines.
+
+        Parameters
+        ----------
+        {splines}
+        radius : float or str expression
+            Radius of the spline. If a string expression is given, it will be evaluated to get
+            the polars.Expr object. The returned expression will be evaluated with the global
+            properties of the spline as the context.
+        """
+        if isinstance(radius, pl.Expr):
+            radius_expr: "pl.Expr | float" = radius
+        elif isinstance(radius, str):
+            radius_expr = ExprStr(radius, POLARS_NAMESPACE).eval()
+            if not isinstance(radius_expr, pl.Expr):
+                radius_expr = float(radius_expr)
+        else:
+            radius_expr = float(radius)
+        indices = normalize_spline_indices(splines, self.tomogram)
+        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
+            for i in indices:
+                spl = self.tomogram.splines[i]
+                if isinstance(radius_expr, pl.Expr):
+                    spl.radius = spl.props.glob.select(radius_expr).to_numpy()[0, 0]
+                else:
+                    spl.radius = radius_expr
+        return tracker.as_undo_callback()
+
+    @Analysis.wraps
     @set_design(text="Measure local radius")
     @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
     def measure_local_radius(
@@ -1301,7 +1337,7 @@ class CylindraMainWidget(MagicTemplate):
         def _local_ft_analysis_on_yield(i: int):
             self._update_splines_in_images()
             if i == self.SplineControl.num:
-                self._update_local_properties_in_widget(replot=True)
+                self.sample_subtomograms()
 
         with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
             for i in indices:
@@ -1316,7 +1352,6 @@ class CylindraMainWidget(MagicTemplate):
                     i=i, ft_size=depth, binsize=bin_size, radius=radius
                 )
                 yield _local_ft_analysis_on_yield.with_args(i)
-        self.sample_subtomograms()
         return tracker.as_undo_callback()
 
     @Analysis.wraps

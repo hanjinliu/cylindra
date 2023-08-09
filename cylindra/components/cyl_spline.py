@@ -30,6 +30,8 @@ class CylSpline(Spline):
             if H.radius in self.globalprops.columns:
                 self.props.drop_glob(H.radius)
             return None
+        if value <= 0:
+            raise ValueError("Radius must be positive.")
         self.props.update_glob([pl.Series(H.radius, [value], dtype=pl.Float32)])
         return None
 

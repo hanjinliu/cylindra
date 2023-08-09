@@ -522,6 +522,7 @@ class Analysis(ChildWidget):
     """Analysis of tomograms."""
 
     measure_radius = abstractapi()
+    set_radius = abstractapi()
     measure_local_radius = abstractapi()
     measure_radius_by_molecules = abstractapi()
     sep0 = field(Separator)
@@ -676,6 +677,7 @@ class Others(ChildWidget):
                 pass
             return self.append(fn)
 
+        @set_options(call_button="Save workflow")
         @set_design(text="Define workflow")
         @bind_key("Ctrl+K, Ctrl+Shift+D")
         def define_workflow(
