@@ -11,7 +11,7 @@
     "rise_max": 13.0,
     "min_curvature_radius": 400.0,
     "clockwise": "MinusToPlus",
-    "thickness_inner": 2.0,
+    "thickness_inner": 2.8,
     "thickness_outer": 2.8,
     "fit_depth": 48.0,
     "fit_width": 44.0,

@@ -748,6 +748,7 @@ class Others(ChildWidget):
 
         sep0 = field(Separator)
 
+    GlobalVariables = GlobalVariablesMenu
     sep0 = field(Separator)
 
     @set_design(text="Command palette")
@@ -792,8 +793,6 @@ class Others(ChildWidget):
             wdt, name="One-line runner", area="right"
         )
         return None
-
-    GlobalVariables = GlobalVariablesMenu
 
     @set_design(text="Open logger")
     @do_not_record
