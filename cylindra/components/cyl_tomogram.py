@@ -24,7 +24,7 @@ from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
 from acryo import Molecules, SubtomogramLoader
-from acryo.alignment import ZNCCAlignment
+from acryo.tilt import single_axis, no_wedge, TiltSeriesModel
 import impy as ip
 
 from cylindra.components.cyl_spline import CylSpline
@@ -624,13 +624,14 @@ class CylTomogram(Tomogram):
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
-            zncc = ZNCCAlignment(subtomograms[0].value, tilt_range=self.tilt_range)
+            tilt_model = single_axis(self.tilt_range, axis="y")
+
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
             quat = mole.quaternion()
             for _j in range(npoints):
                 img = inputs[_j]
-                tmp = _mask_missing_wedge(template, zncc, quat[_j])
+                tmp = _mask_missing_wedge(template, tilt_model, quat[_j])
                 shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
 
                 rad = np.deg2rad(skew_angles[_j])
@@ -1605,14 +1606,13 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
 
 def _mask_missing_wedge(
     img: ip.ImgArray,
-    zncc: ZNCCAlignment,
+    tilt_model: TiltSeriesModel,
     quat: NDArray[np.float32],
 ) -> ip.ImgArray:
     """Mask the missing wedge of the image and return the real image."""
-    if zncc._tilt_range is None:
-        return img
-    mask3d = zncc.get_missing_wedge_mask(quat)
+    shape = (img.shape[0], 1, img.shape[1])
     # central slice theorem
+    mask3d = tilt_model.create_mask(Rotation(quat), shape)
     mask = mask3d[:, 0, :]
     return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
 

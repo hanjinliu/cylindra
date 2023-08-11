@@ -2,6 +2,7 @@ from typing import Annotated, Union
 
 import re
 from acryo import BatchLoader, pipe
+from acryo.tilt import single_axis
 
 from magicgui.widgets import Container
 from magicclass import (
@@ -422,16 +423,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
         img = ip.asarray(
-            np.stack(
-                list(
-                    loader.replace(output_shape=shape, order=interpolation)
-                    .binning(bin_size)
-                    .groupby(expr)
-                    .average()
-                    .values()
-                ),
-                axis=0,
-            ),
+            loader.replace(output_shape=shape, order=interpolation)
+            .binning(bin_size, compute=False)
+            .groupby(expr)
+            .average()
+            .value_stack(axis=0),
             axes="pzyx",
         ).set_scale(zyx=loader.scale * bin_size, unit="nm")
         t0.toc()
@@ -473,7 +469,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
-                tilt_range=tilt_range,
+                tilt=single_axis(tilt_range, axis="y"),
             )
         )
         loaderlist.append(
@@ -646,9 +642,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
             )
         )
 
-        avgs_dict = out.groupby("cluster").average()
         avgs = ip.asarray(
-            np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
+            out.groupby("cluster").average().value_stack(axis=0),
+            axes=["cluster", "z", "y", "x"],
         ).set_scale(zyx=loader.scale, unit="nm")
 
         loader.molecules.features = out.molecules.features

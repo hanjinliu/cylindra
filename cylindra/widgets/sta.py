@@ -29,6 +29,7 @@ from magicclass.undo import undo_callback
 from magicclass.ext.dask import dask_thread_worker as dask_worker
 
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
+from acryo.tilt import single_axis
 
 import numpy as np
 import impy as ip
@@ -680,7 +681,7 @@ class SubtomogramAveraging(MagicTemplate):
             template,
             mask,
             rotations=rotations,
-            tilt_range=None,  # NOTE: because input is an average
+            tilt=None,  # NOTE: because input is an average
         )
         for layer in layers:
             mole = layer.molecules
@@ -793,7 +794,7 @@ class SubtomogramAveraging(MagicTemplate):
             rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt_range=parent.tomogram.tilt_range,
+            tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
@@ -842,7 +843,7 @@ class SubtomogramAveraging(MagicTemplate):
                 rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
-                tilt_range=parent.tomogram.tilt_range,
+                tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
             )
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
@@ -889,7 +890,7 @@ class SubtomogramAveraging(MagicTemplate):
             rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt_range=parent.tomogram.tilt_range,
+            tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
@@ -1112,7 +1113,7 @@ class SubtomogramAveraging(MagicTemplate):
             alignment_model=alignment.ZNCCAlignment.with_params(
                 rotations=rotations,
                 cutoff=cutoff,
-                tilt_range=parent.tomogram.tilt_range,
+                tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
             ),
         )
 
