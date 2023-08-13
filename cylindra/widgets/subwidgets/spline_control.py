@@ -254,7 +254,11 @@ class SplineControl(MagicTemplate):
             del self.canvas[2].image
 
         # Update text overlay
-        self.canvas[0].text_overlay.text = f"{i}-{j}"
+        if spl.has_anchors and j < len(spl.anchors):
+            len_nm = f"{spl.length(0, spl.anchors[j]):.2f}"
+        else:
+            len_nm = "NA"
+        self.canvas[0].text_overlay.text = f"{i}-{j} ({len_nm} nm)"
         self.canvas[0].text_overlay.color = "lime"
 
         if spl.props.has_loc(H.radius):

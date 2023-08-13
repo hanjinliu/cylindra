@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from cylindra.components._base import BaseComponent
 
 ICON_DIR = Path(__file__).parent / "icons"
-SELF = mk.Mock("self")
 DEFAULT_COLORMAP = {
     0.00: "#0B0000",  # black
     0.30: "#872D9D",  # purple
@@ -362,7 +361,7 @@ class CylindraMainWidget(MagicTemplate):
     @_image_loader.wraps
     @set_design(text="Open")
     @dask_thread_worker.with_progress(desc="Reading image")
-    @confirm(text="You may have unsaved data. Open a new tomogram?", condition=SELF._need_save)  # fmt: skip
+    @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")  # fmt: skip
     def open_image(
         self,
         path: Bound[_image_loader.path],
@@ -416,7 +415,7 @@ class CylindraMainWidget(MagicTemplate):
     @File.wraps
     @set_design(text="Load project")
     @dask_thread_worker.with_progress(desc="Reading project")
-    @confirm(text="You may have unsaved data. Open a new project?", condition=SELF._need_save)  # fmt: skip
+    @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")  # fmt: skip
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+P")
     def load_project(
@@ -602,9 +601,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @ImageMenu.wraps
     @set_design(text="Add multi-scale")
-    @dask_thread_worker.with_progress(
-        desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})"
-    )
+    @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")  # fmt: skip
     def add_multiscale(
         self,
         bin_size: Annotated[int, {"choices": list(range(2, 17))}] = 4,
@@ -623,9 +620,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @ImageMenu.wraps
     @set_design(text="Set multi-scale")
-    def set_multiscale(
-        self, bin_size: Annotated[int, {"choices": _get_available_binsize}]
-    ):
+    def set_multiscale(self, bin_size: Annotated[int, {"choices": _get_available_binsize}]):  # fmt: skip
         """
         Set multiscale used for image display.
 
@@ -2119,11 +2114,10 @@ class CylindraMainWidget(MagicTemplate):
         points = self._reserved_layers.work.data
         if len(points) < 2:
             raise IndexError("Auto picking needs at least two points.")
-        imgb = self._reserved_layers.image_data
+        imgb = max(self.tomogram.multiscaled, key=lambda x: x[0])[1]
         scale = imgb.scale.x
         next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
         self._reserved_layers.work.add(next_point)
-
         change_viewer_focus(self.parent_viewer, next_point / scale, scale)
         return None
 

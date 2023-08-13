@@ -1,7 +1,7 @@
 import os
 from typing import Union
+from qtpy.QtCore import Qt
 from magicgui.widgets import TextEdit
-
 
 from magicclass import (
     magicclass,
@@ -13,7 +13,6 @@ from magicclass import (
 )
 from magicclass.widgets import ConsoleTextEdit
 from magicclass.types import Optional, Path
-from magicclass.logging import getLogger
 import impy as ip
 
 from cylindra.widgets.widget_utils import FileFilter
@@ -109,6 +108,9 @@ class GeneralInfo(MagicTemplate):
 
     def __post_init__(self):
         self.image_info.read_only = True
+        self.image_info.native.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
 
     def _refer_tomogram(self, tomo: CylTomogram):
         img = tomo.image

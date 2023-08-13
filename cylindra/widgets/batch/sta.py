@@ -210,7 +210,7 @@ class StaParameters(MagicTemplate):
         from cylindra import instance
 
         ui = instance()
-        return ui.sta._show_reconstruction(image, name, store)
+        return ui.sta._show_rec(image, name, store)
 
 
 @magicclass(name="Batch Subtomogram Analysis")
@@ -385,9 +385,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             axes="zyx",
         ).set_scale(zyx=loader.scale * bin_size, unit="nm")
         t0.toc()
-        return thread_worker.callback(self.params._show_reconstruction).with_args(
-            img, f"[AVG]{loader_name}"
-        )
+        return self._show_rec.with_args(img, f"[AVG]{loader_name}")
 
     @BatchSubtomogramAnalysis.wraps
     @set_design(text="Average group-wise")
@@ -431,9 +429,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             axes="pzyx",
         ).set_scale(zyx=loader.scale * bin_size, unit="nm")
         t0.toc()
-        return thread_worker.callback(self.params._show_reconstruction).with_args(
-            img, f"[AVG]{loader_name}"
-        )
+        return self._show_rec.with_args(img, f"[AVG]{loader_name}")
 
     @BatchRefinement.wraps
     @set_design(text="Align all molecules")
@@ -572,10 +568,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             )
 
             if img_avg is not None:
-                _rec_layer = self.params._show_reconstruction(
-                    img_avg,
-                    name=f"[AVG]{loader_name}",
-                )
+                _rec_layer = self._show_rec(img_avg, name=f"[AVG]{loader_name}")
                 _rec_layer.metadata["fsc"] = widget_utils.FscResult(
                     freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
                 )
@@ -589,21 +582,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         mask_params: Bound[params._get_mask_params],
-        size: Annotated[
-            Optional[nm],
-            {
-                "text": "Use mask shape",
-                "options": {"value": 12.0, "max": 100.0},
-                "label": "size (nm)",
-            },
-        ] = None,
+        size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         bin_size: _BINSIZE = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-    ):
+    ):  # fmt: skip
         """
         Classify molecules in a layer using PCA and K-means clustering.
 
@@ -655,9 +641,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
-            self.params._show_reconstruction(
-                avgs, name=f"[PCA]{loader_name}", store=False
-            )
+            self._show_rec(avgs, name=f"[PCA]{loader_name}", store=False)
 
             CylindraMainWidget._active_widgets.add(pca_viewer)
 
@@ -673,16 +657,18 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
-        self.params._show_reconstruction(
-            self.template, name="Template image", store=False
-        )
+        self._show_rec(self.template, name="Template image", store=False)
 
     @Buttons.wraps
     @set_design(text="Show mask")
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        self.params._show_reconstruction(self.mask, name="Mask image", store=False)
+        self._show_rec(self.mask, name="Mask image", store=False)
+
+    @thread_worker.callback
+    def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
+        return self.params._show_reconstruction(img, name, store)
 
     @property
     def template(self) -> "ip.ImgArray | None":

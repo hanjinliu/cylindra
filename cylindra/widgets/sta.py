@@ -391,14 +391,14 @@ class SubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
-        self._show_reconstruction(self.template, name="Template image", store=False)
+        self._show_rec(self.template, name="Template image", store=False)
 
     @Buttons.wraps
     @set_design(text="Show mask")
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        self._show_reconstruction(self.mask, name="Mask image", store=False)
+        self._show_rec(self.mask, name="Mask image", store=False)
 
     @property
     def template(self) -> "ip.ImgArray | None":
@@ -435,10 +435,8 @@ class SubtomogramAveraging(MagicTemplate):
         return self.params._set_mask_params(params)
 
     @thread_worker.callback
-    def _show_reconstruction(
-        self, image: ip.ImgArray, name: str, store: bool = True
-    ) -> "Image":
-        return self.params._show_reconstruction(image, name, store)
+    def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
+        return self.params._show_reconstruction(img, name, store)
 
     def _get_loader(
         self,
@@ -498,7 +496,7 @@ class SubtomogramAveraging(MagicTemplate):
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return self._show_reconstruction.with_args(img, f"[AVG]{layer.name}")
+        return self._show_rec.with_args(img, f"[AVG]{layer.name}")
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average subset of molecules")
@@ -540,9 +538,7 @@ class SubtomogramAveraging(MagicTemplate):
         )
         img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
         t0.toc()
-        return self._show_reconstruction.with_args(
-            img, f"[AVG(n={number})]{layer.name}"
-        )
+        return self._show_rec.with_args(img, f"[AVG(n={number})]{layer.name}")
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average group-wise")
@@ -585,9 +581,7 @@ class SubtomogramAveraging(MagicTemplate):
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return self._show_reconstruction.with_args(
-            img, f"[AVG]{layer.name}", store=False
-        )
+        return self._show_rec.with_args(img, f"[AVG]{layer.name}", store=False)
 
     @Subtomogram_analysis.wraps
     @set_design(text="Split molecules and average")
@@ -622,7 +616,7 @@ class SubtomogramAveraging(MagicTemplate):
         img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
         img.set_scale(zyx=loader.scale)
         t0.toc()
-        return self._show_reconstruction.with_args(img, f"[Split]{layer.name}")
+        return self._show_rec.with_args(img, f"[Split]{layer.name}")
 
     @Refinement.wraps
     @set_design(text="Align average to template")
@@ -1340,7 +1334,7 @@ class SubtomogramAveraging(MagicTemplate):
             _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{res0143:.3f} nm</b>")
 
             if img_avg is not None:
-                _rec_layer: "Image" = self._show_reconstruction(
+                _rec_layer: "Image" = self._show_rec(
                     img_avg,
                     name=f"[AVG]{layer.name}",
                 )
@@ -1416,7 +1410,7 @@ class SubtomogramAveraging(MagicTemplate):
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
-            self._show_reconstruction(avgs, name=f"[PCA]{layer.name}", store=False)
+            self._show_rec(avgs, name=f"[PCA]{layer.name}", store=False)
             parent._active_widgets.add(pca_viewer)
 
         return _on_return
@@ -1479,7 +1473,7 @@ class SubtomogramAveraging(MagicTemplate):
                 if show_average == AVG_CHOICES[2]:
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
-                self._show_reconstruction(result.averages, layer.name, store=False)
+                self._show_rec(result.averages, layer.name, store=False)
                 self.sub_viewer.layers[-1].metadata["Score"] = result.scores
 
             # plot all the correlation
@@ -1526,7 +1520,7 @@ class SubtomogramAveraging(MagicTemplate):
                 if show_average == AVG_CHOICES[2]:
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
-                self._show_reconstruction(result.averages, layer.name, store=False)
+                self._show_rec(result.averages, layer.name, store=False)
                 self.sub_viewer.layers[-1].metadata["Score"] = result.scores
 
             # plot all the correlation

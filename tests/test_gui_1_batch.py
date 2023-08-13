@@ -48,9 +48,11 @@ def test_view(ui: CylindraMainWidget):
 def test_average(ui: CylindraMainWidget, binsize: int):
     _load(ui)
     ui.batch.sta.average_all("Loader", size=6.0, bin_size=binsize)
+    assert len(ui.sta.sub_viewer.layers) == 1
     ui.batch.sta.average_groups(
         "Loader", size=6.0, bin_size=binsize, by="pl.col('pf-id')"
     )
+    assert len(ui.sta.sub_viewer.layers) == 2
     ui.batch.show_macro()
     ui.batch.show_native_macro()
 
@@ -70,6 +72,7 @@ def test_align(ui: CylindraMainWidget, binsize: int):
 def test_calculate_fsc(ui: CylindraMainWidget):
     _load(ui)
     ui.batch.sta.calculate_fsc("Loader", mask_params=None, size=6.0)
+    assert len(ui.sta.sub_viewer.layers) == 1
 
 
 @pytest_group("batch.classify")
@@ -79,6 +82,7 @@ def test_classify_pca(ui: CylindraMainWidget, binsize: int):
     ui.batch.sta.classify_pca(
         "Loader", mask_params=None, size=6.0, interpolation=1, bin_size=binsize
     )
+    assert len(ui.sta.sub_viewer.layers) == 1
 
 
 def test_filter(ui: CylindraMainWidget):
