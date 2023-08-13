@@ -956,6 +956,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
+        how: Literal["pack", "equal"] = "pack",
     ):  # fmt: skip
         """
         Add anchors to splines.
@@ -963,11 +964,21 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{interval}
+        how : str, default is "pack"
+            How to add anchors.
+            - "pack": (x---x---x--) Pack anchors from the starting point of splines.
+            - "equal": (x--x--x--x) Equally distribute anchors between the starting point
+              and the end point of splines. Actual intervals will be smaller.
         """
         tomo = self.tomogram
         indices = normalize_spline_indices(splines, tomo)
         with SplineTracker(widget=self, indices=indices) as tracker:
-            tomo.make_anchors(indices, interval=interval)
+            if how == "pack":
+                tomo.make_anchors(indices, interval=interval)
+            elif how == "equal":
+                tomo.make_anchors(indices, max_interval=interval)
+            else:
+                raise ValueError(f"Unknown method: {how}")
         self._update_splines_in_images()
         return tracker.as_undo_callback()
 
@@ -1310,8 +1321,8 @@ class CylindraMainWidget(MagicTemplate):
     def local_ft_analysis(
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
-        interval: _Interval = 32.0,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
+        interval: _Interval = None,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
     ):  # fmt: skip

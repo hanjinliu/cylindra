@@ -246,7 +246,12 @@ class CylTomogram(Tomogram):
             tilt_range=tilt_range,
             binsize=binsize,
         )
+        tomo.metadata["is_dummy"] = True
         return tomo
+
+    @property
+    def is_dummy(self) -> bool:
+        return self.metadata.get("is_dummy", False)
 
     @property
     def n_splines(self) -> int:

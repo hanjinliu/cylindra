@@ -159,7 +159,7 @@ class LocalPropertiesWidget(MagicTemplate):
     @set_design(text="Edit plots")
     def edit_props(
         self,
-        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.skew)
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.skew, H.rise)
     ):  # fmt: skip
         from cylindra.widgets.main import CylindraMainWidget
 

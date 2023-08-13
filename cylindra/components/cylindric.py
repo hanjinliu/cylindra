@@ -307,6 +307,14 @@ class CylinderModel:
         if not isinstance(sl, CylindricSlice):
             sl = indexer[sl]
 
+        # check out-of-bound
+        if (
+            sl.y.start < 0
+            or sl.y.stop > self.shape[0]
+            or sl.a.start < 0
+            or sl.a.stop > self.shape[1]
+        ):
+            raise ValueError(f"{sl} is out of bound of cylinder of shape {self.shape}.")
         displace = self._displace.copy()
         for _y, _a in sl.resolve(self.shape, self.nrise):
             _ny = _y.stop - _y.start

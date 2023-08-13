@@ -293,7 +293,7 @@ class CylinderSimulator(MagicTemplate):
 
         Parameters
         ----------
-        size : tuple[nm, nm, nm], default is (100., 200., 100.)
+        size : (nm, nm, nm), default is (100., 200., 100.)
             Size of the image in nm, of (Z, Y, X).
         scale : nm, default is 0.25
             Pixel size of the image.
@@ -327,6 +327,8 @@ class CylinderSimulator(MagicTemplate):
         return self._simulate_scale
 
     def _select_molecules(self, yrange: tuple[int, int], arange: tuple[int, int]):
+        if not self.Operator.show_selection:
+            return None
         points = self._points.data
         npf = self.parameters.npf
         ysl = slice(*yrange)
@@ -380,13 +382,9 @@ class CylinderSimulator(MagicTemplate):
         length: nm = 150.0,
         size: _ImageSize = (60.0, 200.0, 60.0),
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
-        yxrotation: Annotated[
-            float, {"max": 90, "step": 1, "label": "Rotation in YX plane (deg)"}
-        ] = 0.0,
-        zxrotation: Annotated[
-            float, {"max": 90, "step": 1, "label": "Rotation in ZX plane (deg)"}
-        ] = 0.0,
-    ):  # fmt: off
+        yxrotation: Annotated[float, {"max": 90, "step": 1, "label": "Rotation in YX plane (deg)"}] = 0.0,
+        zxrotation: Annotated[float, {"max": 90, "step": 1, "label": "Rotation in ZX plane (deg)"}] = 0.0,
+    ):  # fmt: skip
         """
         Create a straight line as a cylinder spline.
 
@@ -616,7 +614,7 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Simulate tomogram and open")
     @confirm(
         text="You have an opened image. Run anyway?",
-        condition="self._get_main().tomogram is not None",
+        condition="not self._get_main().tomogram.is_dummy",
     )
     def simulate_tomogram_and_open(
         self,
