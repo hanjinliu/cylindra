@@ -23,7 +23,7 @@ _ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
 def start(
     project_file: str | None = None,
     globals_file: str | None = None,
-    viewer: napari.Viewer = None,
+    viewer: napari.Viewer | None = None,
     *,
     log_level: int | str = "INFO",
 ) -> CylindraMainWidget:
@@ -45,15 +45,15 @@ def start(
     import polars as pl
     import matplotlib.pyplot as plt
     from magicclass import logging
-
+    import napari
     from IPython import get_ipython
 
     global _CURRENT_INSTANCE
 
     if viewer is None:
-        import napari
-
         viewer = napari.Viewer()
+    elif not isinstance(viewer, napari.Viewer):
+        raise TypeError(f"viewer must be a napari.Viewer object, got {type(viewer)}")
 
     ui = CylindraMainWidget()
     ui.macro.options.max_undo = 16

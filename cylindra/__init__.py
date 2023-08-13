@@ -1,12 +1,26 @@
 import sys
 
-if sys.platform == "darwin":
+
+def dont_use_native_menu_bar():
     # cylindra has menu bars in sub widgets.
     from qtpy.QtCore import QCoreApplication, Qt
 
     QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeMenuBar)
+    return None
 
-    del QCoreApplication, Qt
+
+def share_opengl_contexts():
+    # Docking vispy widget in napari viewer requires this.
+    from qtpy import QtCore, QtWidgets as QtW
+
+    QtW.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    return None
+
+
+if sys.platform == "darwin":
+    dont_use_native_menu_bar()
+
+share_opengl_contexts()
 
 from cylindra.core import (
     start,
@@ -38,7 +52,7 @@ from cylindra._config import init_config
 
 init_config()
 
-del import_metadata, init_config
+del import_metadata, init_config, dont_use_native_menu_bar, share_opengl_contexts
 
 __all__ = [
     "start",
