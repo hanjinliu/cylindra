@@ -1,4 +1,4 @@
-from typing import Annotated, NamedTuple
+from typing import Annotated, NamedTuple, Union, Any
 import impy as ip
 import polars as pl
 
@@ -12,7 +12,7 @@ from magicclass import (
     MagicTemplate,
     field,
 )
-from magicclass.types import Bound, Path
+from magicclass.types import Path
 
 from cylindra.const import (
     GlobalVariables as GVar,
@@ -50,10 +50,10 @@ class CylindraBatchWidget(MagicTemplate):
     @constructor.wraps
     def construct_loader(
         self,
-        paths: Bound[constructor._get_loader_paths],
-        predicate: Bound[constructor._get_expression],
+        paths: Annotated[Any, {"bind": constructor._get_loader_paths}],
+        predicate: Annotated[Union[str, pl.Expr, None], {"bind": constructor._get_expression}],
         name: Annotated[str, {"bind": constructor.seq_name}],
-    ):
+    ):  # fmt: skip
         """
         Construct a batch loader object from the given paths and predicate.
 

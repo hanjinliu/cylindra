@@ -10,7 +10,6 @@ from magicclass import (
     set_design,
     abstractapi,
 )
-from magicclass.types import Bound
 from magicclass.undo import undo_callback
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
@@ -74,9 +73,9 @@ class SplineFitter(MagicTemplate):
     @set_design(text="Fit")
     def fit(
         self,
-        shifts: Bound[_get_shifts],
+        shifts: Annotated[nm, {"bind": _get_shifts}],
         i: Annotated[int, {"bind": controller.num}],
-        max_interval: Bound[_get_max_interval] = 50.0,
+        max_interval: Annotated[nm, {"bind": _get_max_interval}] = 50.0,
     ):
         """Fit current spline."""
         shifts = np.asarray(shifts)

@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, TYPE_CHECKING, Literal, Union, Any
+from typing import Annotated, TYPE_CHECKING, Literal, Union, Any, Sequence
 import warnings
 from weakref import WeakSet
 
@@ -29,7 +29,6 @@ from magicclass.types import (
     Optional,
     Path,
     ExprStr,
-    Bound,
 )
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
@@ -272,7 +271,9 @@ class CylindraMainWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
     @bind_key("F1")
-    def register_path(self, coords: Bound[_get_spline_coordinates] = None):
+    def register_path(
+        self, coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None
+    ):
         """Register current selected points as a spline path."""
         if coords is None:
             _coords = self._reserved_layers.work.data
@@ -364,10 +365,10 @@ class CylindraMainWidget(MagicTemplate):
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")  # fmt: skip
     def open_image(
         self,
-        path: Bound[_image_loader.path],
-        scale: Bound[_image_loader.scale.scale_value] = None,
-        tilt_range: Bound[_image_loader.tilt_range.range] = None,
-        bin_size: Bound[_image_loader.bin_size] = [1],
+        path: Annotated[Union[str, Path], {"bind": _image_loader.path}],
+        scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
+        tilt_range: Annotated[Any, {"bind": _image_loader.tilt_range.range}] = None,
+        bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.LoG,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip

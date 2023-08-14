@@ -1001,7 +1001,7 @@ class Spline(BaseComponent):
         self,
         r_range: tuple[float, float],
         n_pixels: int,
-        u: float = None,
+        u: float | None = None,
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
         """
