@@ -590,8 +590,8 @@ class Spline(BaseComponent):
         Spline
             Spline fit to given coordinates.
         """
-        coords = np.asarray(coords, dtype=np.float32)
-        npoints = coords.shape[0]
+        crds = np.asarray(coords, dtype=np.float32)
+        npoints = crds.shape[0]
         if npoints < 2:
             raise ValueError("npoins must be > 1.")
         if npoints <= self.degree:
@@ -599,32 +599,33 @@ class Spline(BaseComponent):
         else:
             k = self.degree
         if self.is_inverted():
-            coords = coords[::-1]
+            crds = crds[::-1]
 
         # weight
-        weight = _normalize_weight(weight, weight_ramp, coords)
+        weight = _normalize_weight(weight, weight_ramp, crds)
 
         # initialize
         s = 0.0
-        smax = float(np.sum(np.var(coords, axis=0))) * npoints
+        smax = float(np.sum(np.var(crds, axis=0))) * npoints
         u = np.linspace(0, 1, n)
         niter = 0
 
         if k == 1:
             # curvature is not defined for a linear spline curve
-            _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
+            _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
 
         else:
             # repeatitively fit same points with splines, with different smoothing factors
             while True:
                 niter += 1
-                _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
+                _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
                 curvature = (
                     Spline(degree=k, extrapolate=self.extrapolate)
                     ._set_params(_tck, _u)
                     .curvature(u)
                 )
                 ratio = np.max(curvature) * min_radius
+                # print(s, smax, ratio)
                 if ratio < 1.0 - tol:  # curvature too small = underfit
                     smax = s
                     s /= 2

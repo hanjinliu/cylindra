@@ -4,9 +4,11 @@ import json
 import matplotlib.pyplot as plt
 from magicclass import (
     abstractapi,
+    do_not_record,
     magicclass,
     magicmenu,
     MagicTemplate,
+    nogui,
     set_design,
     field,
     vfield,
@@ -280,7 +282,7 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Create an empty image")
     @confirm(
         text="You have an opened image. Run anyway?",
-        condition="self._get_main().tomogram is not None",
+        condition="not self._get_main().tomogram.is_dummy",
     )
     def create_empty_image(
         self,
@@ -340,7 +342,10 @@ class CylinderSimulator(MagicTemplate):
             pass
         self._selections.visible = True
 
-    def _set_spline(self, spl: CylSpline) -> None:
+    @do_not_record
+    @nogui
+    def set_spline(self, spl: CylSpline) -> None:
+        """Set spline for the cylinder creation."""
         self._spline = spl
         self.canvas.layers.clear()
         self._points = None
@@ -353,7 +358,7 @@ class CylinderSimulator(MagicTemplate):
     @set_design(text="Set current spline")
     def set_current_spline(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Use the current parameters and the spline to construct a model and molecules."""
-        return self._set_spline(self._get_main().tomogram.splines[idx])
+        return self.set_spline(self._get_main().tomogram.splines[idx])
 
     @CreateMenu.wraps
     @set_design(text="Load spline parameters")
@@ -408,7 +413,7 @@ class CylinderSimulator(MagicTemplate):
         shape = tuple(roundint(s / scale) for s in size)
         spl = CylSpline.line(start_shift + center, end_shift + center)
         self._set_shape_and_scale(shape, scale)
-        self._set_spline(spl)
+        self.set_spline(spl)
         self.show()
         return None
 
