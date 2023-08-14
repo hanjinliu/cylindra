@@ -285,13 +285,20 @@ class SplineControl(MagicTemplate):
         r_outer = (r0 + GVar.thickness_outer) / tomo.scale / binsize
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
         self.canvas[0].add_curve(
-            [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color="lime"
+            [xmin, xmin, xmax, xmax, xmin],
+            [ymin, ymax, ymax, ymin, ymin],
+            color="lime",
+            antialias=True,
         )
 
         # draw two circles in ZX-view
         center = (lx / 2 - 0.5, lz / 2 - 0.5)
-        self.canvas[1].add_curve(*_circle(r_inner, center=center), color="lime")
-        self.canvas[1].add_curve(*_circle(r_outer, center=center), color="lime")
+        self.canvas[1].add_curve(
+            *_circle(r_inner, center=center), color="lime", antialias=True
+        )
+        self.canvas[1].add_curve(
+            *_circle(r_outer, center=center), color="lime", antialias=True
+        )
 
         # draw polarity
         kw = dict(size=16, color="lime", anchor=(0.5, 0.5))

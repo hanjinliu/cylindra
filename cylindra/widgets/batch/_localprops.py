@@ -51,6 +51,7 @@ class LocalPropsViewer(MagicTemplate):
                 df[col].to_numpy(),
                 color="blue",
                 lw=2,
+                antialias=True,
             )
 
     @column.connect

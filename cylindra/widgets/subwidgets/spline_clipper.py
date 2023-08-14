@@ -44,18 +44,15 @@ class SplineClipper(MagicTemplate):
         self.canvas[0, 1].lock_contrast_limits = True
         self.canvas[1, 1].lock_contrast_limits = True
         self.canvas.enabled = False
-
-        self._xy_line = self.xy_canvas.add_curve([0, 0], [0, 1], color="lime", lw=4)
-        self._xy_ref = self.xy_canvas.add_infline(
-            pos=[0, 0], degree=0, color="lime", lw=1, ls=":"
-        )
-        self._yz_line = self.yz_canvas.add_curve([0, 1], [0, 0], color="lime", lw=4)
-        self._yz_ref = self.yz_canvas.add_infline(
-            pos=[0, 0], degree=90, color="lime", lw=1, ls=":"
-        )
+        curve_kw = dict(color="lime", lw=4, antialias=True)
+        line_kw = dict(color="lime", lw=1, ls=":")
+        self._xy_line = self.xy_canvas.add_curve([0, 0], [0, 1], **curve_kw)
+        self._xy_ref = self.xy_canvas.add_infline(pos=[0, 0], degree=0, **line_kw)
+        self._yz_line = self.yz_canvas.add_curve([0, 1], [0, 0], **curve_kw)
+        self._yz_ref = self.yz_canvas.add_infline(pos=[0, 0], degree=90, **line_kw)
         self._xz_cross = (
-            self.xz_canvas.add_infline((0, 0), 0, color="lime", lw=1, ls=":"),
-            self.xz_canvas.add_infline((0, 0), 90, color="lime", lw=1, ls=":"),
+            self.xz_canvas.add_infline((0, 0), 0, **line_kw),
+            self.xz_canvas.add_infline((0, 0), 90, **line_kw),
         )
 
     def _parent_widget(self):

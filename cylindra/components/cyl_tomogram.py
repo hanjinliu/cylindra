@@ -1634,11 +1634,14 @@ def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -
     imax = np.nanargmax(prof)
     imax_sub = -1
     count = 0
-    while imax != imax_sub:
+    while abs(imax - imax_sub) > 1e-2:
+        imax = imax_sub
         imax_sub = centroid(prof, ceilint(imax - inner), int(imax + outer) + 1)
         count += 1
         if count > 100:
             break
+        if imax_sub is float("nan"):
+            raise ValueError(f"Centroid encountered NaN in the {count}-th trial.")
     return imax_sub
 
 

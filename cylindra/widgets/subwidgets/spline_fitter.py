@@ -123,8 +123,9 @@ class SplineFitter(MagicTemplate):
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
         cos = np.cos(theta)
         sin = np.sin(theta)
-        self.canvas.add_curve(cos, sin, color="lime", lw=2, ls="--")
-        self.canvas.add_curve(2 * cos, 2 * sin, color="lime", lw=2, ls="--")
+        kwargs = dict(color="lime", lw=2, ls="--")
+        self.canvas.add_curve(cos, sin, **kwargs, antialias=True)
+        self.canvas.add_curve(2 * cos, 2 * sin, **kwargs, antialias=True)
         self.controller.max_height = 50
         self.controller.height = 50
 

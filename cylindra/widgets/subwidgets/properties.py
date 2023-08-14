@@ -130,7 +130,8 @@ class LocalPropertiesWidget(MagicTemplate):
         kw = dict(pos=[x[0], 0], degree=90, color=[1.0, 0.0, 0.0, 0.3], lw=2)
         for prop, _plot in zip(self._props_to_plot, self.plot):
             if (_interv := spl.props.get_loc(prop, None)) is not None:
-                _plot.add_curve(x, _interv, color=_PlotInfo[prop][1])
+                color = _PlotInfo[prop][1]
+                _plot.add_curve(x, _interv, color=color, antialias=True)
             _plot.add_infline(**kw)
         if len(self.plot) > 0:
             self.plot[0].xlim = (x[0] - 2, x[-1] + 2)

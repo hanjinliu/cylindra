@@ -35,6 +35,8 @@ POLARS_NAMESPACE = {
     "__builtins__": {},
 }
 
+_Logger = getLogger("cylindra")
+
 
 class FileFilter(SimpleNamespace):
     """File dialog filter strings"""
@@ -55,10 +57,12 @@ class timer:
         self.name = name
         self.start = default_timer()
 
-    def toc(self):
-        getLogger("cylindra").print_html(
-            f"<code>{self.name}</code> ({default_timer() - self.start:.1f} sec)"
-        )
+    def toc(self, log: bool = True):
+        dt = default_timer() - self.start
+        if log:
+            _Logger.print_html(f"<code>{self.name}</code> ({dt:.1f} sec)")
+        else:
+            print(f"{self.name} ({dt:.1f} sec)")
 
 
 def add_molecules(

@@ -2502,6 +2502,7 @@ class CylindraMainWidget(MagicTemplate):
             color=SplineColor.DEFAULT,
             lw=2,
             name=f"spline-{i}",
+            antialias=True,
         )
         self._set_orientation_marker(i)
         return None

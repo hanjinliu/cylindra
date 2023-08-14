@@ -80,7 +80,7 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
     xmax = min(xmax, arr.size)
     x = np.arange(xmin, xmax)
     input_arr = arr[xmin:xmax] - np.min(arr[xmin:xmax])
-    return np.sum(input_arr * x) / np.sum(input_arr)
+    return float(np.sum(input_arr * x) / np.sum(input_arr))
 
 
 def rotational_average(img: ip.ImgArray, fold: int = 13):
