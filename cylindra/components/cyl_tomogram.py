@@ -281,9 +281,7 @@ class CylTomogram(Tomogram):
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """
         coords = np.asarray(coords)
-        spl = CylSpline(degree=GVar.spline_degree).fit_coa(
-            coords, min_radius=GVar.min_curvature_radius
-        )
+        spl = CylSpline(degree=GVar.spline_degree).fit(coords, std=GVar.spline_std)
         interval: nm = 30.0
         length = spl.length()
 
@@ -492,10 +490,7 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
-        min_cr = GVar.min_curvature_radius
-        self.splines[i] = spl.fit_coa(
-            coords, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5)
-        )
+        self.splines[i] = spl.fit(coords, std=GVar.spline_std, weight_ramp=(50, 0.5))
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -645,9 +640,8 @@ class CylTomogram(Tomogram):
                 shifts[_j] = shift @ zxrot
 
         # Update spline parameters
-        min_cr = GVar.min_curvature_radius
-        self.splines[i] = spl.shift_coa(
-            shifts=shifts * scale, min_radius=min_cr, weight_ramp=(min_cr / 10, 0.5)
+        self.splines[i] = spl.shift(
+            shifts=shifts * scale, std=GVar.spline_std, weight_ramp=(50, 0.5)
         )
         result = FitResult.from_residual(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")

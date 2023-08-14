@@ -59,7 +59,7 @@ class SplineFitter(MagicTemplate):
 
     def _get_shifts(self, _=None):
         if self.shifts is None:
-            return np.zeros(3)
+            return np.zeros((1, 2))
         i = self.controller.num.value
         return np.round(self.shifts[i], 3)
 
@@ -67,7 +67,7 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         return roundint(parent._reserved_layers.scale / parent.tomogram.scale)
 
-    def _get_max_interval(self, _=None):
+    def _get_max_interval(self, _=None) -> nm:
         return self._max_interval
 
     @controller.wraps
@@ -83,18 +83,15 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         _scale = parent.tomogram.scale
         old_spl = parent.tomogram.splines[i]
-
-        min_cr = GVar.min_curvature_radius
-        new_spl = (
+        parent.tomogram.splines[i] = new_spl = (
             old_spl.make_anchors(max_interval=max_interval)
-            .shift_coa(
+            .shift(
                 shifts=shifts * self._get_binsize() * _scale,
-                min_radius=min_cr,
-                weight_ramp=(min_cr / 10, 0.5),
+                std=GVar.spline_std,
+                weight_ramp=(50, 0.5),
             )
             .make_anchors(max_interval=max_interval)
         )
-        parent.tomogram.splines[i] = new_spl
         self._cylinder_changed()
         parent._update_splines_in_images()
 

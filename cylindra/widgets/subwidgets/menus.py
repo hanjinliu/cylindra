@@ -105,7 +105,7 @@ class File(ChildWidget):
         def load_stash_project(
             self,
             name: Annotated[str, {"choices": _get_stashed_names}],
-            filter: ImageFilter | None = ImageFilter.DoG,
+            filter: ImageFilter | None = ImageFilter.LoG,
         ):
             """
             Load a stashed project.

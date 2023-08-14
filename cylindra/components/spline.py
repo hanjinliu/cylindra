@@ -18,7 +18,7 @@ import warnings
 import logging
 
 import numpy as np
-from scipy.interpolate import splprep, splev
+from scipy.interpolate import splprep, splev, UnivariateSpline
 from scipy.spatial.transform import Rotation
 
 from acryo import Molecules
@@ -388,7 +388,7 @@ class Spline(BaseComponent):
         """
         spl = cls()
         coords = np.stack([start, end], axis=0)
-        return spl.fit_voa(coords)
+        return spl.fit(coords)
 
     def translate(self, shift: tuple[nm, nm, nm]):
         """Translate the spline by given shift vectors."""
@@ -532,7 +532,7 @@ class Spline(BaseComponent):
             degree=self.degree, lims=(0, 1), extrapolate=self.extrapolate
         )._set_params(self._tck, self._u)
 
-    def resample(self, max_interval: nm = 1.0, variance: float | None = 0.0) -> Self:
+    def resample(self, max_interval: nm = 1.0, std: float | None = 0.0) -> Self:
         """
         Resample a new spline along the original spline.
 
@@ -550,115 +550,20 @@ class Spline(BaseComponent):
         """
         l = self.length()
         points = self.map(np.linspace(0, 1, ceilint(l / max_interval)))
-        return self.fit_voa(points, variance=variance)
+        return self.fit(points, std=std)
 
-    def fit_coa(
-        self,
-        coords: ArrayLike,
-        *,
-        weight: ArrayLike = None,
-        weight_ramp: tuple[float, float] | None = None,
-        n: int = 256,
-        min_radius: nm = 1.0,
-        tol: float = 1e-2,
-        max_iter: int = 100,
-    ) -> Self:
-        """
-        Fit spline model to coordinates by "Curvature-Oriented Approximation".
-
-        Parameters
-        ----------
-        coords : np.ndarray
-            Coordinates. Must be (N, 3).
-        weight : np.ndarray, optional
-            Weight of each coordinate.
-        weight_ramp : tuple[float, float], optional
-            Weight ramp parameters, length (nm) and edge weight.
-        n : int, default is 256
-            Number of partition for curvature sampling.
-        min_radius : nm, default is 1.0
-            Minimum allowed curvature radius. Fitting iteration continues until curvature
-            radii are larger at any sampled points.
-        tol : float, default is 1e-2
-            Tolerance of fitting. Fitting iteration continues until ratio of maximum
-            curvature to curvature upper limit is larger than 1 - tol.
-        max_iter : int, default is 100
-            Maximum number of iteration. Fitting stops when exceeded.
-
-        Returns
-        -------
-        Spline
-            Spline fit to given coordinates.
-        """
-        crds = np.asarray(coords, dtype=np.float32)
-        npoints = crds.shape[0]
-        if npoints < 2:
-            raise ValueError("npoins must be > 1.")
-        if npoints <= self.degree:
-            k = npoints - 1
-        else:
-            k = self.degree
-        if self.is_inverted():
-            crds = crds[::-1]
-
-        # weight
-        weight = _normalize_weight(weight, weight_ramp, crds)
-
-        # initialize
-        s = 0.0
-        smax = float(np.sum(np.var(crds, axis=0))) * npoints
-        u = np.linspace(0, 1, n)
-        niter = 0
-
-        if k == 1:
-            # curvature is not defined for a linear spline curve
-            _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
-
-        else:
-            # repeatitively fit same points with splines, with different smoothing factors
-            while True:
-                niter += 1
-                _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
-                curvature = (
-                    Spline(degree=k, extrapolate=self.extrapolate)
-                    ._set_params(_tck, _u)
-                    .curvature(u)
-                )
-                ratio = np.max(curvature) * min_radius
-                # print(s, smax, ratio)
-                if ratio < 1.0 - tol:  # curvature too small = underfit
-                    smax = s
-                    s /= 2
-                elif 1.0 < ratio:  # curvature too large = overfit
-                    s = s / 2 + smax / 2
-                else:
-                    logger.debug(f"`fit_coa` converged in {niter} iterations.")
-                    break
-                if niter > max_iter:
-                    logger.debug(
-                        f"`fit_coa` did not converge in {max_iter} iterations."
-                    )
-                    break
-
-        return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(
-            _tck, _u
-        )
-
-    def fit_voa(
+    def fit(
         self,
         coords: ArrayLike,
         *,
         weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
-        variance: float | None = None,
+        std: float | None = None,
     ) -> Self:
         """
-        Fit spline model to coordinates by "Variance-Oriented Approximation".
+        Fit spline model to coordinates.
 
-        This method conduct variance-based fitting, which is well-formulated by the
-        function ``scipy.interpolate.splprep``. The fitting result confirms that
-        total variance between spline and given coordinates does not exceed the
-        value ``variance``.
+        This method uses ``scipy.interpolate.splprep`` to fit given coordinates to a spline.
 
         Parameters
         ----------
@@ -666,8 +571,8 @@ class Spline(BaseComponent):
             Coordinates. Must be (N, 3).
         weight : np.ndarray, optional
             Weight of each coordinate.
-        variance : float, optional
-            Total variation.
+        std : float, optional
+            Standard deviation allowed for smoothing.
 
         Returns
         -------
@@ -682,10 +587,10 @@ class Spline(BaseComponent):
             k = npoints - 1
         else:
             k = self.degree
-        if variance is None:
+        if std is None:
             s = None
         else:
-            s = variance * npoints
+            s = std**2 * npoints
 
         # weight
         weight = _normalize_weight(weight, weight_ramp, coords)
@@ -693,76 +598,17 @@ class Spline(BaseComponent):
         if self.is_inverted():
             coords = coords[::-1]
         _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
-        return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(
-            _tck, _u
-        )
+        new = self.__class__(degree=k, extrapolate=self.extrapolate)
+        return new._set_params(_tck, _u)
 
-    def shift_coa(
+    def shift(
         self,
         positions: Sequence[float] | None = None,
-        shifts: np.ndarray | None = None,
+        shifts: NDArray[np.floating] | None = None,
         *,
         weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
-        n: int = 256,
-        min_radius: nm = 1.0,
-        tol: float = 1e-2,
-        max_iter: int = 100,
-    ):
-        """
-        Shift spline model by "Curvature-Oriented Approximation".
-
-        Parameters
-        ----------
-        positions : sequence of float, optional
-            Positions. Between 0 and 1. If not given, anchors are used instead.
-        shifts : np.ndarray
-            Shift from center in nm. Must be (N, 2).
-        weight : np.ndarray, optional
-            Weight of each coordinate.
-        weight_ramp : tuple[float, float], optional
-            Weight ramp parameters, length (nm) and edge weight.
-        n : int, default is 256
-            Number of partition for curvature sampling.
-        min_radius : nm, default is 1.0
-            Minimum allowed curvature radius. Fitting iteration continues until curvature
-            radii are larger at any sampled points.
-        tol : float, default is 1e-2
-            Tolerance of fitting. Fitting iteration continues until ratio of maximum
-            curvature to curvature upper limit is larger than 1 - tol.
-        max_iter : int, default is 100
-            Maximum number of iteration. Fitting stops when exceeded.
-
-        Returns
-        -------
-        Spline
-            Updated spline instance.
-        """
-        if shifts is None:
-            raise ValueError("Shifts must be given.")
-        coords = self.map(positions)
-        rot = self.get_rotator(positions)
-        # insert 0 in y coordinates.
-        shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
-        coords += rot.apply(shifts)
-        return self.fit_coa(
-            coords,
-            n=n,
-            min_radius=min_radius,
-            tol=tol,
-            max_iter=max_iter,
-            weight=weight,
-            weight_ramp=weight_ramp,
-        )
-
-    def shift_voa(
-        self,
-        positions: Sequence[float] | None = None,
-        shifts: np.ndarray | None = None,
-        *,
-        weight: ArrayLike | None = None,
-        weight_ramp: tuple[float, float] | None = None,
-        variance: float | None = None,
+        std: float | None = None,
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -773,8 +619,8 @@ class Spline(BaseComponent):
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
-        variance : float, optional
-            Total variation, by default None
+        std : float, optional
+            Standard deviation allowed for smoothing.
 
         Returns
         -------
@@ -788,9 +634,7 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        return self.fit_voa(
-            coords, variance=variance, weight=weight, weight_ramp=weight_ramp
-        )
+        return self.fit(coords, std=std, weight=weight, weight_ramp=weight_ramp)
 
     def distances(
         self, positions: Sequence[float] | None = None
@@ -1504,11 +1348,9 @@ def _construct_ramping_weight(
     size : int
         Size of the output array.
     """
-    if norm_length < 0:
-        raise ValueError("length parameter must be non-negative.")
+    assert norm_length > 0
+    assert 0 <= weight_min < 1
     norm_length = min(norm_length, 0.5)
-    if weight_min < 0 or weight_min >= 1:
-        raise ValueError("weight_min parameter must be between 0 and 1.")
 
     u = np.linspace(0, 1, size)
     weight = np.ones(size, dtype=np.float64)
@@ -1527,7 +1369,9 @@ def _construct_ramping_weight(
     return weight
 
 
-def _normalize_weight(weight, weight_ramp, coords: np.ndarray) -> np.ndarray | None:
+def _normalize_weight(
+    weight, weight_ramp: float, coords: np.ndarray
+) -> np.ndarray | None:
     if weight_ramp is not None:
         if weight is not None:
             raise TypeError("Cannot specify both 'weight' and 'weight_ramp'.")

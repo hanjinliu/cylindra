@@ -31,6 +31,7 @@ class GlobalVariablesMenu(MagicTemplate):
         npf_min: Annotated[int, {"min": 1}] = 1,
         npf_max: Annotated[int, {"min": 1}] = 1,
         spline_degree: Annotated[int, {"min": 1, "max": 5}] = 3,
+        spline_std: Annotated[nm, {"min": 0.0, "max": 100.0}] = 0.1,
         spacing_min: Annotated[nm, {"step": 0.1}] = 1,
         spacing_max: Annotated[nm, {"step": 0.1}] = 2,
         skew_min: Annotated[float, {"min": -90, "max": 90}] = -1,
@@ -38,7 +39,6 @@ class GlobalVariablesMenu(MagicTemplate):
         rise_sign: Literal[-1, 1] = -1,
         rise_min: Annotated[float, {"min": -45, "max": 45}] = 0,
         rise_max: Annotated[float, {"min": -45, "max": 45}] = 45,
-        min_curvature_radius: Annotated[float, {"max": 1e4}] = 100,
         clockwise: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"step": 0.1}] = 1.0,
         thickness_outer: Annotated[nm, {"step": 0.1}] = 1.0,
@@ -59,6 +59,8 @@ class GlobalVariablesMenu(MagicTemplate):
             Maximum protofilament numbers.
         spline_degree : int
             Maximum order of spline curve.
+        spline_std : nm
+            Standard deviation of spline fitting.
         spacing_min : nm
             Minimum pitch length for estimation.
         spacing_max : nm
@@ -73,8 +75,6 @@ class GlobalVariablesMenu(MagicTemplate):
             Minimum rise angle in degree for estimation.
         rise_max : float
             Maximum rise angle in degree for estimation.
-        min_curvature_radius : nm
-            Minimum curvature radius of spline.
         clockwise : str
             Orientation to which clockwise rotation of the cylinder corresponds.
         thickness_inner : float
@@ -125,6 +125,7 @@ class GlobalVariablesMenu(MagicTemplate):
         npf_min: "int | None" = None,
         npf_max: "int | None" = None,
         spline_degree: "int | None" = None,
+        spline_std: Annotated[nm, {"min": 0.0, "max": 100.0}] = 0.1,
         spacing_min: "float | None" = None,
         spacing_max: "float | None" = None,
         skew_min: "float | None" = None,
@@ -132,7 +133,6 @@ class GlobalVariablesMenu(MagicTemplate):
         rise_sign: Literal[-1, 1] = -1,
         rise_min: Annotated[float, {"min": -45, "max": 45}] = 0,
         rise_max: Annotated[float, {"min": -45, "max": 45}] = 45,
-        min_curvature_radius: "float | None" = None,
         clockwise: Literal["MinusToPlus", "PlusToMinus", None] = None,
         thickness_inner: "float | None" = None,
         thickness_outer: "float | None" = None,

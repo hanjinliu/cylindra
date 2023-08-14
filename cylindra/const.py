@@ -171,6 +171,7 @@ class GlobalVariableModel(EventedModel):
     npf_min: int = 11
     npf_max: int = 17
     spline_degree: int = 3
+    spline_std: nm = 0.1
     spacing_min: nm = 3.9
     spacing_max: nm = 4.3
     skew_min: float = -1.0
@@ -178,7 +179,6 @@ class GlobalVariableModel(EventedModel):
     rise_sign: Literal[-1, 1] = -1
     rise_min: float = 0.0
     rise_max: float = 45.0
-    min_curvature_radius: nm = 400.0
     clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
     thickness_inner: nm = 2.0
     thickness_outer: nm = 3.0
@@ -202,6 +202,8 @@ class GlobalVariableModel(EventedModel):
                 raise ValueError("rise_min > rise_max must be satisfied.")
             if values.get("rise_sign", 1) not in (-1, 1):
                 raise ValueError("rise_sign must be either -1 or 1.")
+            if values.get("spline_std", 1) < 0:
+                raise ValueError("spline_std must be non-negative.")
         # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
         # by one). This is not desirable because min/max values should be updated at
         # the same time. Therefore, we block the events and emit the signal manually.

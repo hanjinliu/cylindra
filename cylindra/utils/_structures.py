@@ -91,7 +91,7 @@ def molecules_to_spline(mole: Molecules):
     spl = CylSpline(degree=GVar.spline_degree)
     all_coords = _reshaped_positions(mole)
     mean_coords = np.mean(all_coords, axis=1)  # (N, ndim)
-    return spl.fit_coa(mean_coords, min_radius=GVar.min_curvature_radius)
+    return spl.fit(mean_coords, std=GVar.spline_std, weight_ramp=(50, 0.5))
 
 
 def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
