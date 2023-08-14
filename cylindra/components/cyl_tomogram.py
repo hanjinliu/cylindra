@@ -1632,15 +1632,16 @@ def _non_neg(rmin: nm, warns: bool = True) -> nm:
 
 def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -> float:
     imax = np.nanargmax(prof)
-    imax_sub = -1
+    imax_sub = -1.0
     count = 0
     while abs(imax - imax_sub) > 1e-2:
-        imax = imax_sub
+        if imax_sub > 0:
+            imax = imax_sub
         imax_sub = centroid(prof, ceilint(imax - inner), int(imax + outer) + 1)
         count += 1
         if count > 100:
             break
-        if imax_sub is float("nan"):
+        if imax_sub != imax_sub:
             raise ValueError(f"Centroid encountered NaN in the {count}-th trial.")
     return imax_sub
 
