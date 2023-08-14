@@ -309,10 +309,10 @@ class CylinderModel:
 
         # check out-of-bound
         if (
-            sl.y.start < 0
-            or sl.y.stop > self.shape[0]
-            or sl.a.start < 0
-            or sl.a.stop > self.shape[1]
+            (sl.y.start is not None and sl.y.start < 0)
+            or (sl.y.stop is not None and sl.y.stop > self.shape[0])
+            or (sl.a.start is not None and sl.a.start < 0)
+            or (sl.a.stop is not None and sl.a.stop > self.shape[1])
         ):
             raise ValueError(f"{sl} is out of bound of cylinder of shape {self.shape}.")
         displace = self._displace.copy()

@@ -34,7 +34,6 @@ from cylindra.components import (
     CylSpline,
     indexer as Idx,
 )
-from cylindra.components._boundary import solve_cylinder
 from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
 from cylindra.utils import roundint, ceilint
 from cylindra.widgets.widget_utils import FileFilter
@@ -661,7 +660,9 @@ class CylinderSimulator(MagicTemplate):
         nsr = round(float(nsr), 4)
         parent = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
-        sino, _ = self._prep_radon(template_path, degrees, scale, shape, interpolation)
+        sino, mole = self._prep_radon(
+            template_path, degrees, scale, shape, interpolation
+        )
 
         yield _on_radon_finished.with_args(sino, degrees)
 
@@ -682,7 +683,13 @@ class CylinderSimulator(MagicTemplate):
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
         )
-        return parent._send_tomogram_to_viewer.with_args(tomo)
+
+        @thread_worker.callback
+        def _on_return():
+            parent._send_tomogram_to_viewer(tomo)
+            parent.add_molecules(mole, name="molecules")
+
+        return _on_return
 
     @SimulateMenu.wraps
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
