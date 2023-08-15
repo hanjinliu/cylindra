@@ -1,7 +1,9 @@
 from __future__ import annotations
+import json
 
 from typing import Any, Generic, Literal, Sequence, TypeVar
 from dataclasses import dataclass
+import warnings
 from cylindra.const import nm
 
 _T = TypeVar("_T")
@@ -26,6 +28,9 @@ class Range(Generic[_T]):
 
     def astuple(self) -> tuple[_T, _T]:
         return (self.min, self.max)
+
+    def astuple_rounded(self, ndigits: int = 2):
+        return (round(self.min, ndigits), round(self.max, ndigits))
 
     @property
     def center(self) -> _T:
@@ -54,6 +59,9 @@ class WeightRamp:
     def astuple(self) -> tuple[nm, float]:
         return (self.ramp_length, self.tip_ratio)
 
+    def astuple_rounded(self):
+        return (round(self.ramp_length, 1), round(self.tip_ratio, 3))
+
 
 def _norm_range(x: Range[_T] | Sequence[_T] | tuple[_T, _T]) -> Range[_T]:
     if isinstance(x, Range):
@@ -67,7 +75,7 @@ def _norm_weight_ramp(x: WeightRamp | Sequence[float] | tuple[nm, float]) -> Wei
     return WeightRamp(*x)
 
 
-@dataclass
+@dataclass(frozen=True)
 class SplineConfig:
     """Class for spline configuration."""
 
@@ -83,13 +91,6 @@ class SplineConfig:
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
     weight_ramp: WeightRamp = WeightRamp()
-
-    def __post_init__(self):
-        self.npf_range = _norm_range(self.npf_range)
-        self.spacing_range = _norm_range(self.spacing_range)
-        self.skew_range = _norm_range(self.skew_range)
-        self.rise_range = _norm_range(self.rise_range)
-        self.weight_ramp = _norm_weight_ramp(self.weight_ramp)
 
     def copy(self) -> SplineConfig:
         return SplineConfig(
@@ -111,14 +112,92 @@ class SplineConfig:
         return {
             "std": self.std,
             "npf_range": self.npf_range.astuple(),
-            "spacing_range": self.spacing_range.astuple(),
-            "skew_range": self.skew_range.astuple(),
-            "rise_range": self.rise_range.astuple(),
+            "spacing_range": self.spacing_range.astuple_rounded(),
+            "skew_range": self.skew_range.astuple_rounded(),
+            "rise_range": self.rise_range.astuple_rounded(),
             "rise_sign": self.rise_sign,
             "clockwise": self.clockwise,
             "thickness_inner": self.thickness_inner,
             "thickness_outer": self.thickness_outer,
             "fit_depth": self.fit_depth,
             "fit_width": self.fit_width,
-            "weight_ramp": self.weight_ramp.astuple(),
+            "weight_ramp": self.weight_ramp.astuple_rounded(),
         }
+
+    @classmethod
+    def construct(cls, **kwargs) -> SplineConfig:
+        """Construct a SplineConfig with argument check."""
+        return SplineConfig().updated(**kwargs)
+
+    @classmethod
+    def from_dict(
+        cls,
+        cfg: dict[str, Any],
+        unknown: Literal["warn", "error", "ignore"] = "warn",
+    ) -> SplineConfig:
+        # for version compatibility
+        _undef = {}
+        cfg_input = {}
+        for k, v in cfg.items():
+            if k not in SplineConfig.__annotations__:
+                _undef[k] = v
+            else:
+                cfg_input[k] = v
+
+        if _undef:
+            msg = f"Unknown keys, maybe due to version incompatibility: {_undef!r}"
+            if unknown == "error":
+                raise ValueError(msg)
+            elif unknown == "warn":
+                warnings.warn(msg, RuntimeWarning)
+            else:
+                pass
+        return SplineConfig().updated(**cfg_input)
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str,
+        unknown: Literal["warn", "error", "ignore"] = "warn",
+    ) -> SplineConfig:
+        with open(path) as f:
+            cfg: dict = json.load(f)
+        return SplineConfig.from_dict(cfg, unknown=unknown)
+
+    def updated(
+        self,
+        std: nm | None = None,
+        npf_range: tuple[int, int] | None = None,
+        spacing_range: tuple[nm, nm] | None = None,
+        skew_range: tuple[float, float] | None = None,
+        rise_range: tuple[float, float] | None = None,
+        rise_sign: Literal[-1, 1] | None = None,
+        clockwise: Literal["PlusToMinus", "MinusToPlus"] | None = None,
+        thickness_inner: nm | None = None,
+        thickness_outer: nm | None = None,
+        fit_depth: nm | None = None,
+        fit_width: nm | None = None,
+        weight_ramp: tuple[float, float] | None = None,
+    ) -> SplineConfig:
+        kwargs = locals()
+        kwargs.pop("self")
+        for k, v in kwargs.items():
+            if v is None:
+                kwargs[k] = getattr(self, k)
+        for rng in ["npf_range", "spacing_range", "skew_range", "rise_range"]:
+            kwargs[rng] = _norm_range(kwargs[rng])
+        kwargs["weight_ramp"] = _norm_weight_ramp(kwargs["weight_ramp"])
+        if kwargs["rise_sign"] not in [-1, 1]:
+            raise ValueError("rise_sign must be -1 or 1")
+        if kwargs["clockwise"] not in ["PlusToMinus", "MinusToPlus"]:
+            raise ValueError("clockwise must be PlusToMinus or MinusToPlus")
+        for n in [
+            "thickness_inner",
+            "thickness_outer",
+            "fit_depth",
+            "fit_width",
+            "std",
+        ]:
+            if kwargs[n] < 0:
+                raise ValueError("thickness_inner must be non-negative")
+        return SplineConfig(**kwargs)

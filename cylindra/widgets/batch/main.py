@@ -15,14 +15,13 @@ from magicclass import (
 from magicclass.types import Path
 
 from cylindra.const import (
-    GlobalVariables as GVar,
     MoleculesHeader as Mole,
     PropertyNames as H,
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter, POLARS_NAMESPACE
 from cylindra.project import CylindraProject, CylindraBatchProject, get_project_json
-
+from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit
 from ._loaderlist import LoaderList, LoaderInfo
@@ -70,7 +69,7 @@ class CylindraBatchWidget(MagicTemplate):
         to_drop = set[str]()
         for img_id, _path_info in enumerate(paths):
             path_info = PathInfo(*_path_info)
-            img = ip.lazy.imread(path_info.image, chunks=GVar.dask_chunk)
+            img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
             image_paths[img_id] = Path(path_info.image)
             if path_info.project is not None:
                 _converter = _molecule_to_spline_converter(path_info.project)

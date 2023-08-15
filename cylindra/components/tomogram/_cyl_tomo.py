@@ -27,13 +27,7 @@ import impy as ip
 
 from cylindra.components.spline import CylSpline
 from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
-from cylindra.const import (
-    nm,
-    PropertyNames as H,
-    Ori,
-    Mode,
-    IDName,
-)
+from cylindra.const import nm, PropertyNames as H, Ori, Mode, IDName, ExtrapolationMode
 from cylindra.utils import (
     crop_tomogram,
     centroid,
@@ -48,7 +42,6 @@ from cylindra.utils import (
 
 from ._tomo_base import Tomogram
 from ._spline_list import SplineList
-from ._config import TomogramConfig
 
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
@@ -158,17 +151,11 @@ class CylTomogram(Tomogram):
     def __init__(self):
         super().__init__()
         self._splines = SplineList()
-        self._config = TomogramConfig()
 
     @property
     def splines(self) -> SplineList:
         """List of splines."""
         return self._splines
-
-    @property
-    def config(self) -> TomogramConfig:
-        """Configuration."""
-        return self._config
 
     @classmethod
     def dummy(
@@ -219,9 +206,9 @@ class CylTomogram(Tomogram):
         self,
         coords: ArrayLike,
         *,
-        order: int | None = None,
-        extrapolate: str | None = None,
-        config: SplineConfig | dict[str, Any] | None = None,
+        order: int = 3,
+        extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
+        config: SplineConfig | dict[str, Any] = {},
     ) -> None:
         """
         Add spline path to tomogram.
@@ -230,12 +217,14 @@ class CylTomogram(Tomogram):
         ----------
         coords : array-like
             (N, 3) array of coordinates. A spline curve that fit it well is added.
+        order : int, optional
+            Order of spline curve.
+        extrapolate : str, optional
+            Extrapolation mode of the spline.
+        config : SplineConfig or dict, optional
+            Configuration for spline fitting.
         """
         coords = np.asarray(coords)
-        cfg = self.config
-        order = order if order is not None else cfg.spline_order
-        extrapolate = extrapolate if extrapolate is not None else cfg.spline_extrapolate
-        config = config if config is not None else cfg.spline_config
         spl = CylSpline(
             order=order,
             config=config,

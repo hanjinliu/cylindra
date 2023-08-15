@@ -1,6 +1,6 @@
 from .cylindric import CylinderModel, indexer
 from .spline import Spline, CylSpline, SplineConfig
-from .tomogram import Tomogram, CylTomogram, TomogramConfig
+from .tomogram import Tomogram, CylTomogram
 from ._base import BaseComponent
 
 __all__ = [
@@ -12,5 +12,4 @@ __all__ = [
     "SplineConfig",
     "Tomogram",
     "CylTomogram",
-    "TomogramConfig",
 ]

@@ -20,13 +20,13 @@ from typing import (
 import polars as pl
 
 from cylindra.const import (
-    GlobalVariables,
     MoleculesHeader as Mole,
     IDName,
     PropertyNames as H,
     cast_dataframe,
 )
 from cylindra.project._single import CylindraProject
+from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -165,7 +165,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
-            tomo = ip.lazy.imread(prj.image, chunks=GlobalVariables.dask_chunk)
+            tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
             for fp in prj.molecules:
                 fp = Path(fp)
                 mole = Molecules.from_csv(fp)

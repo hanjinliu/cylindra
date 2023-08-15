@@ -33,13 +33,12 @@ from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
-from cylindra.const import nm, get_versions, GlobalVariables as GVar, ImageFilter
+from cylindra.const import nm, get_versions, ImageFilter
 from cylindra.project import CylindraProject, extract
 from cylindra.widgets.widget_utils import FileFilter, get_code_theme
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.components.spline import SplineConfig
 from cylindra import _config
-from .global_variables import GlobalVariablesMenu
 
 if TYPE_CHECKING:
     from cylindra.widgets import CylindraMainWidget
@@ -337,8 +336,6 @@ class Splines(ChildWidget):
     @bind_key("Ctrl+K, Ctrl+[")
     def update_default_config(
         self,
-        order: Literal[1, 3, 5] = 3,
-        extrapolate: Literal["linear", "default"] = "linear",
         std: Annotated[nm, {"step": 0.1}] = 0.1,
         npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
         spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
@@ -353,7 +350,7 @@ class Splines(ChildWidget):
         weight_ramp: tuple[float, float] = (50.0, 0.5),
     ):  # fmt: skip
         main = self._get_main()
-        cfg = SplineConfig(
+        main.default_config = SplineConfig(
             std=std,
             npf_range=npf_range,
             spacing_range=spacing_range,
@@ -367,10 +364,7 @@ class Splines(ChildWidget):
             fit_width=fit_width,
             weight_ramp=weight_ramp,
         )
-        main.tomogram.config.update(
-            spline_config=cfg, spline_order=order, spline_extrapolate=extrapolate
-        )
-        return main._refer_tomogram_config(main.tomogram.config)
+        return None
 
 
 @magicmenu(name="Molecules")
@@ -456,7 +450,7 @@ class MoleculesMenu(ChildWidget):
                 edge_color="direction",
                 edge_color_cycle=[z_color, y_color, x_color],
                 features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
-                length=GVar.point_size * 0.8,
+                length=_config.get_config().point_size * 0.8,
                 name=name,
                 vector_style="arrow",
             )
@@ -792,7 +786,6 @@ class Others(ChildWidget):
 
         sep0 = field(Separator)
 
-    GlobalVariables = GlobalVariablesMenu
     sep0 = field(Separator)
 
     @set_design(text="Command palette")

@@ -36,9 +36,10 @@ from cylindra.components import (
     CylSpline,
     indexer as Idx,
 )
-from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
+from cylindra.const import nm, PropertyNames as H
 from cylindra.utils import roundint, ceilint
 from cylindra.widgets.widget_utils import FileFilter
+from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
@@ -159,11 +160,14 @@ class CylinderSimulator(MagicTemplate):
         if self._points is None:
             self.canvas.layers.clear()
             self._points = self.canvas.add_points(
-                mole.pos, size=GVar.point_size, face_color="lime", edge_color="lime"
+                mole.pos,
+                size=get_config().point_size,
+                face_color="lime",
+                edge_color="lime",
             )
             self._selections = self.canvas.add_points(
                 [[0, 0, 0]],
-                size=GVar.point_size,
+                size=get_config().point_size,
                 face_color=[0, 0, 0, 0],
                 edge_color="cyan",
                 edge_width=1.5,

@@ -16,9 +16,10 @@ from napari.utils.theme import get_theme
 
 from acryo import Molecules, TomogramSimulator
 from cylindra import utils
-from cylindra.const import nm, GlobalVariables as GVar, PropertyNames as H
+from cylindra.const import nm, PropertyNames as H
 from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
+from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from cylindra.components import CylTomogram, CylSpline
@@ -76,7 +77,7 @@ def add_molecules(
     """Add Molecules object as a point layer."""
     layer = MoleculesLayer(
         mol,
-        size=GVar.point_size,
+        size=get_config().point_size,
         face_color="lime",
         edge_color="lime",
         out_of_slice_display=True,

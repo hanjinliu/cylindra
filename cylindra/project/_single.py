@@ -1,5 +1,6 @@
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
+import json
 from pydantic import BaseModel
 import polars as pl
 import numpy as np
@@ -39,7 +40,7 @@ class CylindraProject(BaseProject):
     globalprops: Union[PathLike, None]
     molecules: list[PathLike]
     molecules_info: Union[list[MoleculesInfo], None] = None
-    global_variables: PathLike
+    default_spline_config: PathLike
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, tuple[float, float], PathLike]
     tilt_range: Union[tuple[float, float], None]
@@ -61,7 +62,7 @@ class CylindraProject(BaseProject):
         self.template_image = resolve_path(self.template_image, file_dir, default=None)
         if isinstance(self.mask_parameters, (Path, str)):
             self.mask_parameters = resolve_path(self.mask_parameters, file_dir)
-        self.global_variables = resolve_path(self.global_variables, file_dir)
+        self.default_spline_config = resolve_path(self.default_spline_config, file_dir)
         self.splines = [resolve_path(p, file_dir) for p in self.splines]
         self.molecules = [resolve_path(p, file_dir) for p in self.molecules]
         self.macro = resolve_path(self.macro, file_dir)
@@ -114,7 +115,7 @@ class CylindraProject(BaseProject):
             molecules_info.append(MoleculesInfo(source=_src, visible=layer.visible))
 
         # Save path of  global variables
-        gvar_path = results_dir / "global_variables.json"
+        tomo_cfg_path = results_dir / "default_spline_config.json"
 
         # Save path of macro
         macro_path = results_dir / "script.py"
@@ -141,7 +142,7 @@ class CylindraProject(BaseProject):
             globalprops=as_relative(globalprops_path),
             molecules=[as_relative(p) for p in molecules_paths],
             molecules_info=molecules_info,
-            global_variables=as_relative(gvar_path),
+            default_spline_config=as_relative(tomo_cfg_path),
             template_image=as_relative(gui.sta.params.template_path.value),
             mask_parameters=gui.sta.params._get_mask_params(),
             tilt_range=tomo.tilt_range,
@@ -205,7 +206,9 @@ class CylindraProject(BaseProject):
             for df, path in zip(molecule_dataframes, self.molecules):
                 df.write_csv(results_dir / path)
 
-        gui.global_variables.save_variables(results_dir / self.global_variables)
+        with open(results_dir / self.default_spline_config, mode="w") as f:
+            js = gui.tomogram.config.asdict()
+            json.dump(js, f, indent=4, separators=(", ", ": "))
 
         # save macro
         fp = results_dir / str(self.macro)
@@ -225,6 +228,8 @@ class CylindraProject(BaseProject):
         read_image: bool = True,
     ):
         """Update CylindraMainWidget state based on the project model."""
+        from cylindra.components import SplineConfig
+
         gui = _get_instance(gui)
         if read_image:
             tomogram = self.load_tomogram()
@@ -245,10 +250,12 @@ class CylindraProject(BaseProject):
                 with gui.macro.blocked():
                     gui.sample_subtomograms()
 
-            # load global variables
-            if self.global_variables:
+            # load tomogram configurations
+            if self.default_spline_config:
                 with gui.macro.blocked():
-                    gui.global_variables.load_variables(self.global_variables)
+                    gui.default_config = SplineConfig.from_file(
+                        self.default_spline_config
+                    )
 
             # append macro
             gui.macro.extend(extract(Path(self.macro).read_text()).args)

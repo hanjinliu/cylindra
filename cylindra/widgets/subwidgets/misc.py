@@ -20,8 +20,9 @@ from cylindra.widgets._previews import view_image
 
 from cylindra.utils import ceilint
 from cylindra.components import CylTomogram
-from cylindra.const import GlobalVariables as GVar, ImageFilter
+from cylindra.const import ImageFilter
 from cylindra.project import CylindraProject
+from cylindra._config import get_config
 
 
 @magicclass(name="_Open image", record=False)
@@ -79,7 +80,7 @@ class ImageLoader(MagicTemplate):
         path = self.path
         if not os.path.exists(path) or not os.path.isfile(path):
             return
-        img = ip.lazy.imread(path, chunks=GVar.dask_chunk)
+        img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
         scale = img.scale.x
         self.scale.scale_value = f"{scale:.4f}"
         if len(self.bin_size) < 2:

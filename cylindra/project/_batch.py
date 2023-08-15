@@ -6,12 +6,12 @@ from pydantic import BaseModel
 
 from cylindra.const import (
     get_versions,
-    GlobalVariables as GVar,
     MoleculesHeader as Mole,
     nm,
 )
 from cylindra.project._base import BaseProject, PathLike, resolve_path
 from cylindra.project._utils import as_main_function
+from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from cylindra.widgets.batch import CylindraBatchWidget
@@ -158,7 +158,7 @@ class CylindraBatchProject(BaseProject):
             mole_dict = dict(Molecules.from_csv(lmodel.molecule).groupby(Mole.image))
             for imginfo in lmodel.images:
                 loader.add_tomogram(
-                    image=ip.lazy.imread(imginfo.image, chunks=GVar.dask_chunk)
+                    image=ip.lazy.imread(imginfo.image, chunks=get_config().dask_chunk)
                     .set_scale(zyx=imginfo.scale)
                     .value,
                     molecules=mole_dict[imginfo.id],

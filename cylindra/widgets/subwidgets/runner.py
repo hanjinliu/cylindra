@@ -180,8 +180,8 @@ class Runner(MagicTemplate):
             cfg = parent.tomogram.splines[splines[0]].config
             parent.paint_cylinders(limits=cfg.spacing_range.astuple())
         if map_monomers:
-            _plus_idx = []
-            _minus_idx = []
+            _plus_idx = list[int]()
+            _minus_idx = list[int]()
             for idx in splines:
                 if parent.tomogram.splines[idx].config.clockwise == "PlusToMinus":
                     _plus_idx.append(idx)

@@ -1,3 +1,4 @@
+from math import e
 import os
 from typing import Annotated, TYPE_CHECKING, Literal, Union, Any, Sequence
 import warnings
@@ -37,10 +38,9 @@ from magicclass.undo import undo_callback
 from napari.layers import Layer
 
 from cylindra import utils, _config, cylstructure
-from cylindra.components import CylSpline, CylTomogram, TomogramConfig
+from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
-    GlobalVariables as GVar,
     IDName,
     PropertyNames as H,
     MoleculesHeader as Mole,
@@ -182,12 +182,6 @@ class CylindraMainWidget(MagicTemplate):
     Analysis = field(subwidgets.Analysis)
     Others = field(subwidgets.Others)
 
-    # Menu for global variables
-    @property
-    def global_variables(self):
-        """Return the global variable widget."""
-        return self.Others.GlobalVariables
-
     # Toolbar
     toolbar = subwidgets.CylindraToolbar
 
@@ -208,7 +202,9 @@ class CylindraMainWidget(MagicTemplate):
         self._tomogram = CylTomogram.dummy(binsize=[1])
         self._tilt_range: "tuple[float, float] | None" = None
         self._reserved_layers = ReservedLayers()
-
+        self._default_cfg = SplineConfig.from_file(
+            _config.get_config().spline_config_path
+        )
         self._macro_offset: int = 1
         self._macro_image_load_offset: int = 1
         self._need_save: bool = False
@@ -222,7 +218,6 @@ class CylindraMainWidget(MagicTemplate):
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.overview.min_height = 300
-        self.global_variables.load_default()
 
         # load all the workflows
         for file in _config.WORKFLOWS_DIR.glob("*.py"):
@@ -248,6 +243,18 @@ class CylindraMainWidget(MagicTemplate):
         """The current tomogram instance."""
         return self._tomogram
 
+    @property
+    def default_config(self) -> SplineConfig:
+        """Default spline configuration."""
+        return self._default_cfg
+
+    @default_config.setter
+    def default_config(self, cfg: SplineConfig | dict[str, Any]):
+        if not isinstance(cfg, SplineConfig):
+            cfg = SplineConfig.from_dict(cfg, unknown="error")
+        self._default_cfg = cfg
+        self._refer_spline_config(cfg)
+
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         tomo = self.tomogram
@@ -260,6 +267,9 @@ class CylindraMainWidget(MagicTemplate):
         coords = self._reserved_layers.work.data
         return np.round(coords, 3)
 
+    def _get_add_spline_config(self, w=None):
+        return self._default_cfg.asdict()
+
     def _get_available_binsize(self, _=None) -> list[int]:
         out = [x[0] for x in self.tomogram.multiscaled]
         if 1 not in out:
@@ -270,7 +280,9 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(icon=ICON_DIR / "add_spline.svg")
     @bind_key("F1")
     def register_path(
-        self, coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None
+        self,
+        coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None,
+        config: Annotated[dict[str, Any], {"bind": _get_add_spline_config}] = {},
     ):
         """Register current selected points as a spline path."""
         if coords is None:
@@ -282,7 +294,7 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("No points are given.")
 
         tomo = self.tomogram
-        tomo.add_spline(_coords)
+        tomo.add_spline(_coords, config=config)
         spl = tomo.splines[-1]
 
         # draw path
@@ -384,7 +396,7 @@ class CylindraMainWidget(MagicTemplate):
             You can use both binned and non-binned image for analysis.
         {filter}
         """
-        img = ip.lazy.imread(path, chunks=GVar.dask_chunk)
+        img = ip.lazy.imread(path, chunks=_config.get_config().dask_chunk)
         if scale is not None:
             scale = float(scale)
             img.scale.x = img.scale.y = img.scale.z = scale
@@ -2541,28 +2553,27 @@ class CylindraMainWidget(MagicTemplate):
         self._highlight_spline()
         return None
 
-    def _refer_tomogram_config(self, config: TomogramConfig):
+    def _refer_spline_config(self, cfg: SplineConfig):
         """Update GUI states that are related to global variables."""
-        spl_cfg = config.spline_config
         fgui = get_function_gui(self.set_spline_props)
-        fgui.spacing.min, fgui.spacing.max = spl_cfg.spacing_range.astuple()
+        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         None  # NOTE: setting to not-a-None value to update the inner widget.
-        fgui.spacing.value = spl_cfg.spacing_range.center
+        fgui.spacing.value = cfg.spacing_range.center
         fgui.spacing.value = None
-        fgui.skew.min, fgui.skew.max = spl_cfg.skew_range.astuple()
-        fgui.skew.value = spl_cfg.skew_range.center
+        fgui.skew.min, fgui.skew.max = cfg.skew_range.astuple()
+        fgui.skew.value = cfg.skew_range.center
         fgui.skew.value = None
-        fgui.npf.min, fgui.npf.max = spl_cfg.npf_range.astuple()
-        fgui.npf.value = int(spl_cfg.npf_range.center)
+        fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
+        fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
 
         fgui = get_function_gui(self.cylinder_simulator.update_model)
-        fgui.spacing.min, fgui.spacing.max = spl_cfg.spacing_range.astuple()
-        fgui.spacing.value = spl_cfg.spacing_range.center
-        fgui.skew.min, fgui.skew.max = spl_cfg.skew_range.astuple()
-        fgui.skew.value = spl_cfg.skew_range.center
-        fgui.npf.min, fgui.npf.max = spl_cfg.npf_range.astuple()
-        fgui.npf.value = int(spl_cfg.npf_range.center)
+        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
+        fgui.spacing.value = cfg.spacing_range.center
+        fgui.skew.min, fgui.skew.max = cfg.skew_range.astuple()
+        fgui.skew.value = cfg.skew_range.center
+        fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
+        fgui.npf.value = int(cfg.npf_range.center)
 
         self.cylinder_simulator.parameters.update(
             spacing=fgui.spacing.value,
@@ -2571,10 +2582,10 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         fgui = get_function_gui(self.paint_cylinders)
-        fgui.limits.value = spl_cfg.spacing_range.astuple()
+        fgui.limits.value = cfg.spacing_range.astuple()
 
         for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
-            get_function_gui(method)["orientation"].value = spl_cfg.clockwise
+            get_function_gui(method)["orientation"].value = cfg.clockwise
 
 
 ############################################################################################

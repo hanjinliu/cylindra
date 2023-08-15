@@ -423,10 +423,6 @@ def test_preview(ui: CylindraMainWidget):
     tester.update_parameters(lengths=(-3, -2))  # extend
     tester.click_preview()
 
-    tester = mcls_testing.FunctionGuiTester(ui.global_variables.load_variables_by_name)
-    tester.update_parameters(var_name="TMV")
-    tester.click_preview()
-
     tester = mcls_testing.FunctionGuiTester(ui.convolve_feature)
     tester.click_preview()
     tester = mcls_testing.FunctionGuiTester(ui.binarize_feature)

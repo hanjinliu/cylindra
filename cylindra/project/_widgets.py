@@ -39,7 +39,7 @@ class TextInfo(MagicTemplate):
         self.project_text.read_only = True
         self.project_text.syntax_highlight("json", theme=theme)
 
-        if path := project.global_variables:
+        if path := project.tomogram_config:
             with open(path) as f:
                 self.Right.global_variables.value = f.read()
         self.Right.global_variables.read_only = True

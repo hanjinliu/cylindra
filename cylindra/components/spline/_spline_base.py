@@ -91,7 +91,7 @@ class Spline(BaseComponent):
         if isinstance(config, SplineConfig):
             self._config = config
         else:
-            self._config = SplineConfig(**config)
+            self._config = SplineConfig.construct(**config)
 
     @property
     def props(self) -> SplineProps:
@@ -158,7 +158,7 @@ class Spline(BaseComponent):
         """Return a copy of the spline with a new config."""
         new = self.copy(copy_config=False)
         if not isinstance(config, SplineConfig):
-            config = SplineConfig(**config)
+            config = SplineConfig.construct(**config)
         new._config = config
         return new
 
@@ -681,7 +681,7 @@ class Spline(BaseComponent):
         self._u = np.asarray(d["u"])
         self.props._window_size = d.get("localprops_window_size", {})
         if cfg := d.get("config", None):
-            self._config = SplineConfig(**cfg)
+            self._config = SplineConfig.from_dict(cfg)
         return self
 
     def affine_matrix(

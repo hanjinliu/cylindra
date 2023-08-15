@@ -162,30 +162,6 @@ class EulerAxes(strEnum):
     ZYZ = "ZYZ"
 
 
-class GlobalVariableModel:
-    """
-    Global variables used in this module.
-
-    These parameters should not affect the result of the analysis.
-    """
-
-    dask_chunk: tuple[int, int, int] = (256, 256, 256)
-    point_size: float = 4.2
-    use_gpu: bool = True
-
-    def update(self, dask_chunk=None, point_size=None, use_gpu=None) -> None:
-        if dask_chunk is not None:
-            self.dask_chunk = dask_chunk
-        if point_size is not None:
-            self.point_size = point_size
-        if use_gpu is not None:
-            self.use_gpu = use_gpu
-        return None
-
-
-GlobalVariables = GlobalVariableModel()
-
-
 def get_versions() -> dict[str, str]:
     """Return version info of relevant libraries."""
     import napari

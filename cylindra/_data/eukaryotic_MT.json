@@ -1,21 +1,14 @@
 {
-    "npf_min": 11,
-    "npf_max": 17,
-    "spline_degree": 3,
-    "spline_std": 0.1,
-    "spacing_min": 3.9,
-    "spacing_max": 4.3,
-    "skew_min": -2.5,
-    "skew_max": 2.5,
+    "std": 0.1,
+    "npf_range": [11, 17],
+    "spacing_range": [3.9, 4.3],
+    "skew_range": [-1.0, 1.0],
+    "rise_range": [5.0, 13.0],
     "rise_sign": -1,
-    "rise_min": 5.0,
-    "rise_max": 13.0,
     "clockwise": "MinusToPlus",
     "thickness_inner": 2.8,
     "thickness_outer": 2.8,
     "fit_depth": 48.0,
     "fit_width": 44.0,
-    "dask_chunk": [256, 256, 256],
-    "point_size": 4.2,
-    "use_gpu": true
+    "weight_ramp": [50.0, 0.5]
 }
