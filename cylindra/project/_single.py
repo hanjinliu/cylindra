@@ -40,7 +40,7 @@ class CylindraProject(BaseProject):
     globalprops: Union[PathLike, None]
     molecules: list[PathLike]
     molecules_info: Union[list[MoleculesInfo], None] = None
-    default_spline_config: PathLike
+    default_spline_config: Union[PathLike, None] = None
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, tuple[float, float], PathLike]
     tilt_range: Union[tuple[float, float], None]
