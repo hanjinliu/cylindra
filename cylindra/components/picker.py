@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 import weakref
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
 
 from cylindra import utils
-from cylindra.const import nm, GlobalVariables as GVar
+from cylindra.const import nm
+
+if TYPE_CHECKING:
+    from cylindra.components.spline import SplineConfig
 
 
 class PickerIterator:
@@ -55,11 +59,8 @@ class Picker(ABC):
         self, img: ip.ImgArray, point: NDArray[np.float32]
     ) -> Exception | None:
         imgshape_nm = np.array(img.shape) * img.scale.x
-        box_size = (GVar.fit_width,) + ((GVar.fit_width + GVar.fit_depth) / 1.41,) * 2
 
-        if not all(
-            r / 4 <= p < s - r / 4 for p, s, r in zip(point, imgshape_nm, box_size)
-        ):
+        if not all(0 <= p < s for p, s in zip(point, imgshape_nm)):
             # outside image
             return StopIteration("Outside boundary.")
         return None
@@ -80,11 +81,13 @@ class AutoCorrelationPicker(Picker):
         angle_step: float,
         max_angle: float,
         max_shifts: nm,
+        config: SplineConfig,
     ):
         self._interval = interval
         self._angle_step = angle_step
         self._max_angle = max_angle
         self._max_shifts = max_shifts
+        self._config = config
 
     def pick_next(
         self,
@@ -102,8 +105,8 @@ class AutoCorrelationPicker(Picker):
         point0: np.ndarray = prevprev / scale  # unit: pixel
         point1: np.ndarray = prev / scale
 
-        length_px = utils.roundint(GVar.fit_depth / scale)
-        width_px = utils.roundint(GVar.fit_width / scale)
+        length_px = utils.roundint(self._config.fit_depth / scale)
+        width_px = utils.roundint(self._config.fit_width / scale)
 
         shape = (width_px,) + (utils.roundint((width_px + length_px) / 1.41),) * 2
 

@@ -109,7 +109,7 @@ class local_orientation(Simulator):
         )
 
         coords = np.cumsum(vecs, axis=1)
-        spl = CylSpline().fit_voa(coords, variance=1e-8)
+        spl = CylSpline().fit(coords, variance=1e-8)
         self.ui.cylinder_simulator.create_empty_image(
             size=(60, 210, 128), scale=self.scale
         )

@@ -1,9 +1,6 @@
 from __future__ import annotations
 from enum import Enum
 from types import SimpleNamespace
-from typing import Literal
-
-from psygnal import EventedModel
 import polars as pl
 
 nm = float  # type alias for nanometer
@@ -163,55 +160,6 @@ class EulerAxes(strEnum):
     YZY = "YZY"
     ZXZ = "ZXZ"
     ZYZ = "ZYZ"
-
-
-class GlobalVariableModel(EventedModel):
-    """Global variables used in this module."""
-
-    npf_min: int = 11
-    npf_max: int = 17
-    spline_degree: int = 3
-    spacing_min: nm = 3.9
-    spacing_max: nm = 4.3
-    skew_min: float = -1.0
-    skew_max: float = 1.0
-    rise_sign: Literal[-1, 1] = -1
-    rise_min: float = 0.0
-    rise_max: float = 45.0
-    min_curvature_radius: nm = 400.0
-    clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
-    thickness_inner: nm = 2.0
-    thickness_outer: nm = 3.0
-    fit_depth: nm = 48.0
-    fit_width: nm = 44.0
-    dask_chunk: tuple[int, int, int] = (256, 256, 256)
-    point_size: float = 4.2
-    use_gpu: bool = True
-
-    def update(self, values: EventedModel | dict, recurse: bool = True) -> None:
-        # validate values
-        Inf = float("inf")
-        if isinstance(values, dict):
-            if values.get("npf_min", -Inf) >= values.get("npf_max", Inf):
-                raise ValueError("npf_min > npf_max must be satisfied.")
-            if values.get("spacing_min", -Inf) >= values.get("spacing_max", Inf):
-                raise ValueError("spacing_min > spacing_max must be satisfied.")
-            if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
-                raise ValueError("skew_min > skew_max must be satisfied.")
-            if values.get("rise_min", -Inf) >= values.get("rise_max", Inf):
-                raise ValueError("rise_min > rise_max must be satisfied.")
-            if values.get("rise_sign", 1) not in (-1, 1):
-                raise ValueError("rise_sign must be either -1 or 1.")
-        # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
-        # by one). This is not desirable because min/max values should be updated at
-        # the same time. Therefore, we block the events and emit the signal manually.
-        with self.events.blocked():
-            super().update(values, recurse)
-        self.events.emit(self.dict())
-        return None
-
-
-GlobalVariables = GlobalVariableModel()
 
 
 def get_versions() -> dict[str, str]:

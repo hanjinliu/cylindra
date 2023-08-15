@@ -7,7 +7,8 @@ import numpy as np
 from numpy.typing import NDArray
 import impy as ip
 
-from cylindra.const import nm, GlobalVariables as GVar
+from cylindra.const import nm
+from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -164,7 +165,9 @@ class Tomogram:
         Tomogram
             Tomogram object with the image that has just been read and multi-scales.
         """
-        img = ip.lazy.imread(path, chunks=GVar.dask_chunk, name="tomogram").as_float()
+        img = ip.lazy.imread(
+            path, chunks=get_config().dask_chunk, name="tomogram"
+        ).as_float()
         if eager:
             img = img.compute()
         return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
@@ -188,7 +191,7 @@ class Tomogram:
             if img.ndim != 3:
                 raise ValueError("Can only set 3-D image.")
             _img = ip.lazy.asarray(
-                img, dtype=np.float32, axes="zyx", chunks=GVar.dask_chunk
+                img, dtype=np.float32, axes="zyx", chunks=get_config().dask_chunk
             )
             if isinstance(img, ip.ImgArray):
                 _img.set_scale(img)

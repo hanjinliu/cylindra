@@ -1,5 +1,4 @@
 from .function_menu import Volume
-from .global_variables import GlobalVariablesMenu
 from .image_processor import ImageProcessor
 from .measure import SpectraInspector
 from .misc import ImageLoader, GeneralInfo
@@ -23,7 +22,6 @@ from .toolbar import CylindraToolbar
 
 __all__ = [
     "Volume",
-    "GlobalVariablesMenu",
     "ImageProcessor",
     "SpectraInspector",
     "PcaViewer",

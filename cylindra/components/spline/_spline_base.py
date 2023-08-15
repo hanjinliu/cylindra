@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from types import MappingProxyType
 from typing import (
     Any,
     Callable,
-    Iterable,
-    Mapping,
     Sequence,
     TypeVar,
     TypedDict,
     TYPE_CHECKING,
-    Union,
     overload,
 )
 import warnings
@@ -29,6 +25,8 @@ import polars as pl
 from cylindra.utils import ceilint, interval_divmod, roundint
 from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
+from ._props import SplineProps
+from ._config import SplineConfig
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -55,197 +53,10 @@ class SplineInfo(TypedDict, total=False):
     lims: tuple[float, float]
     localprops_window_size: dict[str, nm]
     extrapolate: str
+    config: dict[str, Any]
 
 
 _TCK = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
-_DataFrameLike = Union[pl.DataFrame, Mapping[str, Any], Sequence["pl.Series | pl.Expr"]]
-_void = object()
-
-
-class SplineProps:
-    """Class for spline properties."""
-
-    def __init__(self) -> None:
-        self._loc = pl.DataFrame([])
-        self._glob = pl.DataFrame([])
-        self._window_size = dict[str, nm]()
-
-    def __repr__(self) -> str:
-        loc = self.loc
-        ws = self.window_size
-        mapping = dict[str, str]()
-        for k in loc.columns:
-            if k in ws:
-                mapping[k] = f"{k}\n({ws[k]:.2f} nm)"
-            else:
-                mapping[k] = f"{k}\n(-- nm)"
-        loc = loc.rename(mapping)
-        return f"SplineProps(\nlocal=\n{loc!r}\nglobal=\n{self.glob!r}\n)"
-
-    @property
-    def loc(self) -> pl.DataFrame:
-        """Return the local properties"""
-        return self._loc
-
-    @loc.setter
-    def loc(self, df: pl.DataFrame):
-        if not isinstance(df, pl.DataFrame):
-            df = pl.DataFrame(df)
-        self._loc = df
-
-    @property
-    def glob(self) -> pl.DataFrame:
-        """Return the global properties"""
-        return self._glob
-
-    @glob.setter
-    def glob(self, df: pl.DataFrame):
-        if not isinstance(df, pl.DataFrame):
-            df = pl.DataFrame(df)
-        if df.shape[0] > 1:
-            raise ValueError("Global properties must be a single row.")
-        self._glob = df
-
-    @property
-    def window_size(self) -> MappingProxyType[str, nm]:
-        """Return the window size dict of the local properties"""
-        return MappingProxyType(self._window_size)
-
-    def copy(self) -> Self:
-        """Copy this object"""
-        new = self.__class__()
-        new._loc = self._loc.clone()
-        new._glob = self._glob.clone()
-        new._window_size = self._window_size.copy()
-        return new
-
-    def __getitem__(self, key) -> Self:
-        new = SplineProps()
-        new._loc = self._loc[key]
-        new._glob = self._glob[key]
-        new._window_size = {key: self._window_size[key]}
-        return new
-
-    def select(self, keys: str | Iterable[str]) -> Self:
-        """Select local properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        new = SplineProps()
-        new._loc = self._loc.select(keys)
-        new._glob = self._glob.select(keys)
-        new._window_size = {k: self._window_size[k] for k in keys}
-        return new
-
-    def update_loc(
-        self,
-        props: _DataFrameLike,
-        window_size: nm | Mapping[str, nm],
-    ) -> Self:
-        """
-        Set local properties of given window size.
-
-        Parameters
-        ----------
-        props : DataFrame-like object
-            Local properties.
-        window_size : nm, optional
-            Window size of local properties in nm.
-        """
-        if not isinstance(props, pl.DataFrame):
-            df = pl.DataFrame(props)
-        else:
-            df = props
-
-        self._loc = self._loc.with_columns(df)
-        if isinstance(window_size, Mapping):
-            self._window_size.update(
-                {c: _pos_float(window_size[c]) for c in df.columns}
-            )
-        else:
-            ws = _pos_float(window_size)
-            self._window_size.update({c: ws for c in df.columns})
-        return self
-
-    def update_glob(self, props: _DataFrameLike) -> Self:
-        if not isinstance(props, pl.DataFrame):
-            df = pl.DataFrame(props)
-        else:
-            df = props
-        if df.shape[0] > 1:
-            raise ValueError("Global properties must be a single row.")
-        self._glob = self._glob.with_columns(df)
-        return self
-
-    def drop_loc(self, keys: str | Iterable[str]) -> Self:
-        """Drop local properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        self._loc = self._loc.drop(keys)
-        for key in keys:
-            self._window_size.pop(key, None)
-        return self
-
-    def drop_glob(self, keys: str | Iterable[str]) -> Self:
-        """Drop global propperties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        self._glob = self._glob.drop(keys)
-        return self
-
-    def clear_loc(self) -> Self:
-        self._loc = pl.DataFrame([])
-        self._window_size.clear()
-        return self
-
-    def clear_glob(self) -> Self:
-        self._glob = pl.DataFrame([])
-        return self
-
-    def get_loc(self, key: str, default=_void) -> pl.Series:
-        """
-        Get a local property of the spline, similar to ``dict.get`` method.
-
-        Parameters
-        ----------
-        key : str
-            Local property key.
-        default : any, optional
-            Default value to return if key is not found, raise error by default.
-        """
-        if key in self.loc.columns:
-            return self.loc[key]
-        elif default is _void:
-            raise KeyError(f"Key {key!r} not found in localprops.")
-        return default
-
-    def get_glob(self, key: str, default=_void) -> Any:
-        """
-        Get a global property of the spline, similar to ``dict.get`` method.
-
-        Parameters
-        ----------
-        key : str
-            Global property key.
-        default : any, optional
-            Default value to return if key is not found, raise error by default.
-        """
-        if key in self.glob.columns:
-            return self.glob[key][0]
-        elif default is _void:
-            raise KeyError(f"Key {key!r} not found in globalprops.")
-        return default
-
-    def has_loc(self, keys: str | Iterable[str]) -> bool:
-        """Check if *all* the keys are in local properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        return all(key in self.loc.columns for key in keys)
-
-    def has_glob(self, keys: str | Iterable[str]) -> bool:
-        """Check if *all* the keys are in global properties."""
-        if isinstance(keys, str):
-            keys = [keys]
-        return all(key in self.glob.columns for key in keys)
 
 
 class Spline(BaseComponent):
@@ -264,23 +75,33 @@ class Spline(BaseComponent):
 
     def __init__(
         self,
-        degree: int = 3,
+        order: int = 3,
         *,
         lims: tuple[float, float] = (0.0, 1.0),
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
+        config: dict[str, Any] | SplineConfig = {},
     ):
-        self._tck: _TCK = (None, None, degree)
+        self._tck: _TCK = (None, None, order)
         self._u: NDArray[np.float32] | None = None
         self._anchors = None
         self._extrapolate = ExtrapolationMode(extrapolate)
 
         self._lims = lims
         self._props = SplineProps()
+        if isinstance(config, SplineConfig):
+            self._config = config
+        else:
+            self._config = SplineConfig.construct(**config)
 
     @property
     def props(self) -> SplineProps:
         """Return the spline properties"""
         return self._props
+
+    @property
+    def config(self) -> SplineConfig:
+        """Return the spline configuration"""
+        return self._config
 
     @property
     def localprops(self) -> pl.DataFrame:
@@ -300,7 +121,7 @@ class Spline(BaseComponent):
         """True if there are any properties."""
         return len(self.props.loc) > 0 or len(self.props.glob) > 0
 
-    def copy(self, copy_props: bool = True) -> Self:
+    def copy(self, copy_props: bool = True, copy_config: bool = True) -> Self:
         """
         Copy Spline object.
 
@@ -314,13 +135,15 @@ class Spline(BaseComponent):
         Spline
             Copied object.
         """
-        new = self.__class__(degree=self.degree, lims=self._lims)
+        new = self.__class__(order=self.order, lims=self._lims)
         new._tck = self._tck
         new._u = self._u
         new._anchors = self._anchors
 
         if copy_props:
             new._props = self.props.copy()
+        if copy_config:
+            new._config = self.config.copy()
         return new
 
     __copy__ = copy
@@ -329,6 +152,14 @@ class Spline(BaseComponent):
         """Return a copy of the spline with a new extrapolation mode."""
         new = self.copy()
         new._extrapolate = ExtrapolationMode(extrapolate)
+        return new
+
+    def with_config(self, config: dict[str, Any] | SplineConfig) -> Self:
+        """Return a copy of the spline with a new config."""
+        new = self.copy(copy_config=False)
+        if not isinstance(config, SplineConfig):
+            config = SplineConfig.construct(**config)
+        new._config = config
         return new
 
     @property
@@ -342,8 +173,8 @@ class Spline(BaseComponent):
         return self._tck[1]
 
     @property
-    def degree(self) -> int:
-        """Spline degree."""
+    def order(self) -> int:
+        """Spline order."""
         return self._tck[2]
 
     @property
@@ -355,19 +186,6 @@ class Spline(BaseComponent):
     def params(self) -> np.ndarray:
         """Spline parameters."""
         return self._u
-
-    def __eq__(self: Self, other: Self) -> bool:
-        if not isinstance(other, self.__class__):
-            return False
-        t0, c0, k0 = self._tck
-        t1, c1, k1 = other._tck
-        return (
-            _array_equal(t0, t1)
-            and all(_array_equal(x, y) for x, y in zip(c0, c1))
-            and k0 == k1
-            and _array_equal(self._u, other._u)
-            and np.allclose(self._lims, other._lims)
-        )
 
     @classmethod
     def line(cls, start: ArrayLike, end: ArrayLike) -> Self:
@@ -388,13 +206,13 @@ class Spline(BaseComponent):
         """
         spl = cls()
         coords = np.stack([start, end], axis=0)
-        return spl.fit_voa(coords)
+        return spl.fit(coords)
 
     def translate(self, shift: tuple[nm, nm, nm]):
         """Translate the spline by given shift vectors."""
         new = self.copy()
         c = [x + s for x, s in zip(self.coeff, shift)]
-        new._tck = (self.knots, c, self.degree)
+        new._tck = (self.knots, c, self.order)
         return new
 
     @property
@@ -458,7 +276,7 @@ class Spline(BaseComponent):
         elif n is not None:
             end = 1
         elif max_interval is not None:
-            n = max(ceilint(length / max_interval), self.degree) + 1
+            n = max(ceilint(length / max_interval), self.order) + 1
             end = 1
         else:
             raise ValueError("Either 'interval' or 'n' must be specified.")
@@ -515,7 +333,7 @@ class Spline(BaseComponent):
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        return self.__class__(degree=self.degree, lims=(u0, u1))._set_params(
+        return self.__class__(order=self.order, lims=(u0, u1))._set_params(
             self._tck, self._u
         )
 
@@ -529,10 +347,10 @@ class Spline(BaseComponent):
             Copy of the original spline.
         """
         return self.__class__(
-            degree=self.degree, lims=(0, 1), extrapolate=self.extrapolate
+            order=self.order, lims=(0, 1), extrapolate=self.extrapolate
         )._set_params(self._tck, self._u)
 
-    def resample(self, max_interval: nm = 1.0, variance: float | None = 0.0) -> Self:
+    def resample(self, max_interval: nm = 1.0, std: float | None = 0.0) -> Self:
         """
         Resample a new spline along the original spline.
 
@@ -550,124 +368,26 @@ class Spline(BaseComponent):
         """
         l = self.length()
         points = self.map(np.linspace(0, 1, ceilint(l / max_interval)))
-        return self.fit_voa(points, variance=variance)
+        return self.fit(points, std=std)
 
-    def fit_coa(
+    def fit(
         self,
         coords: ArrayLike,
         *,
-        weight: ArrayLike = None,
         weight_ramp: tuple[float, float] | None = None,
-        n: int = 256,
-        min_radius: nm = 1.0,
-        tol: float = 1e-2,
-        max_iter: int = 100,
+        std: float | None = None,
     ) -> Self:
         """
-        Fit spline model to coordinates by "Curvature-Oriented Approximation".
+        Fit spline model to coordinates.
+
+        This method uses ``scipy.interpolate.splprep`` to fit given coordinates to a spline.
 
         Parameters
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
-        weight : np.ndarray, optional
-            Weight of each coordinate.
-        weight_ramp : tuple[float, float], optional
-            Weight ramp parameters, length (nm) and edge weight.
-        n : int, default is 256
-            Number of partition for curvature sampling.
-        min_radius : nm, default is 1.0
-            Minimum allowed curvature radius. Fitting iteration continues until curvature
-            radii are larger at any sampled points.
-        tol : float, default is 1e-2
-            Tolerance of fitting. Fitting iteration continues until ratio of maximum
-            curvature to curvature upper limit is larger than 1 - tol.
-        max_iter : int, default is 100
-            Maximum number of iteration. Fitting stops when exceeded.
-
-        Returns
-        -------
-        Spline
-            Spline fit to given coordinates.
-        """
-        crds = np.asarray(coords, dtype=np.float32)
-        npoints = crds.shape[0]
-        if npoints < 2:
-            raise ValueError("npoins must be > 1.")
-        if npoints <= self.degree:
-            k = npoints - 1
-        else:
-            k = self.degree
-        if self.is_inverted():
-            crds = crds[::-1]
-
-        # weight
-        weight = _normalize_weight(weight, weight_ramp, crds)
-
-        # initialize
-        s = 0.0
-        smax = float(np.sum(np.var(crds, axis=0))) * npoints
-        u = np.linspace(0, 1, n)
-        niter = 0
-
-        if k == 1:
-            # curvature is not defined for a linear spline curve
-            _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
-
-        else:
-            # repeatitively fit same points with splines, with different smoothing factors
-            while True:
-                niter += 1
-                _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
-                curvature = (
-                    Spline(degree=k, extrapolate=self.extrapolate)
-                    ._set_params(_tck, _u)
-                    .curvature(u)
-                )
-                ratio = np.max(curvature) * min_radius
-                # print(s, smax, ratio)
-                if ratio < 1.0 - tol:  # curvature too small = underfit
-                    smax = s
-                    s /= 2
-                elif 1.0 < ratio:  # curvature too large = overfit
-                    s = s / 2 + smax / 2
-                else:
-                    logger.debug(f"`fit_coa` converged in {niter} iterations.")
-                    break
-                if niter > max_iter:
-                    logger.debug(
-                        f"`fit_coa` did not converge in {max_iter} iterations."
-                    )
-                    break
-
-        return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(
-            _tck, _u
-        )
-
-    def fit_voa(
-        self,
-        coords: ArrayLike,
-        *,
-        weight: ArrayLike | None = None,
-        weight_ramp: tuple[float, float] | None = None,
-        variance: float | None = None,
-    ) -> Self:
-        """
-        Fit spline model to coordinates by "Variance-Oriented Approximation".
-
-        This method conduct variance-based fitting, which is well-formulated by the
-        function ``scipy.interpolate.splprep``. The fitting result confirms that
-        total variance between spline and given coordinates does not exceed the
-        value ``variance``.
-
-        Parameters
-        ----------
-        coords : np.ndarray
-            Coordinates. Must be (N, 3).
-        weight : np.ndarray, optional
-            Weight of each coordinate.
-        variance : float, optional
-            Total variation.
+        std : float, optional
+            Standard deviation allowed for smoothing.
 
         Returns
         -------
@@ -678,91 +398,32 @@ class Spline(BaseComponent):
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("Number of input coordinates must be > 1.")
-        if npoints <= self.degree:
+        if npoints <= self.order:
             k = npoints - 1
         else:
-            k = self.degree
-        if variance is None:
-            s = None
-        else:
-            s = variance * npoints
+            k = self.order
+        if std is None:
+            std = self.config.std
+        s = std**2 * npoints
 
         # weight
-        weight = _normalize_weight(weight, weight_ramp, coords)
+        if weight_ramp is None:
+            weight_ramp = self.config.weight_ramp.astuple()
+        weight = _normalize_weight(weight_ramp, coords)
 
         if self.is_inverted():
             coords = coords[::-1]
         _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
-        return self.__class__(degree=k, extrapolate=self.extrapolate)._set_params(
-            _tck, _u
-        )
+        new = self.__class__(order=k, extrapolate=self.extrapolate)
+        return new._set_params(_tck, _u)
 
-    def shift_coa(
+    def shift(
         self,
         positions: Sequence[float] | None = None,
-        shifts: np.ndarray | None = None,
+        shifts: NDArray[np.floating] | None = None,
         *,
-        weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
-        n: int = 256,
-        min_radius: nm = 1.0,
-        tol: float = 1e-2,
-        max_iter: int = 100,
-    ):
-        """
-        Shift spline model by "Curvature-Oriented Approximation".
-
-        Parameters
-        ----------
-        positions : sequence of float, optional
-            Positions. Between 0 and 1. If not given, anchors are used instead.
-        shifts : np.ndarray
-            Shift from center in nm. Must be (N, 2).
-        weight : np.ndarray, optional
-            Weight of each coordinate.
-        weight_ramp : tuple[float, float], optional
-            Weight ramp parameters, length (nm) and edge weight.
-        n : int, default is 256
-            Number of partition for curvature sampling.
-        min_radius : nm, default is 1.0
-            Minimum allowed curvature radius. Fitting iteration continues until curvature
-            radii are larger at any sampled points.
-        tol : float, default is 1e-2
-            Tolerance of fitting. Fitting iteration continues until ratio of maximum
-            curvature to curvature upper limit is larger than 1 - tol.
-        max_iter : int, default is 100
-            Maximum number of iteration. Fitting stops when exceeded.
-
-        Returns
-        -------
-        Spline
-            Updated spline instance.
-        """
-        if shifts is None:
-            raise ValueError("Shifts must be given.")
-        coords = self.map(positions)
-        rot = self.get_rotator(positions)
-        # insert 0 in y coordinates.
-        shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
-        coords += rot.apply(shifts)
-        return self.fit_coa(
-            coords,
-            n=n,
-            min_radius=min_radius,
-            tol=tol,
-            max_iter=max_iter,
-            weight=weight,
-            weight_ramp=weight_ramp,
-        )
-
-    def shift_voa(
-        self,
-        positions: Sequence[float] | None = None,
-        shifts: np.ndarray | None = None,
-        *,
-        weight: ArrayLike | None = None,
-        weight_ramp: tuple[float, float] | None = None,
-        variance: float | None = None,
+        std: float | None = None,
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -773,8 +434,8 @@ class Spline(BaseComponent):
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
-        variance : float, optional
-            Total variation, by default None
+        std : float, optional
+            Standard deviation allowed for smoothing.
 
         Returns
         -------
@@ -788,9 +449,7 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        return self.fit_voa(
-            coords, variance=variance, weight=weight, weight_ramp=weight_ramp
-        )
+        return self.fit(coords, std=std, weight_ramp=weight_ramp)
 
     def distances(
         self, positions: Sequence[float] | None = None
@@ -992,6 +651,7 @@ class Spline(BaseComponent):
             "lims": self._lims,
             "localprops_window_size": dict(self.props.window_size),
             "extrapolate": self._extrapolate.name,
+            "config": self.config.asdict(),
         }
 
     @classmethod
@@ -1020,6 +680,8 @@ class Spline(BaseComponent):
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
         self.props._window_size = d.get("localprops_window_size", {})
+        if cfg := d.get("config", None):
+            self._config = SplineConfig.from_dict(cfg)
         return self
 
     def affine_matrix(
@@ -1157,7 +819,7 @@ class Spline(BaseComponent):
         self,
         r_range: tuple[float, float],
         n_pixels: int,
-        u: float = None,
+        u: float | None = None,
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
         """
@@ -1504,11 +1166,9 @@ def _construct_ramping_weight(
     size : int
         Size of the output array.
     """
-    if norm_length < 0:
-        raise ValueError("length parameter must be non-negative.")
+    assert norm_length > 0
+    assert 0 <= weight_min < 1
     norm_length = min(norm_length, 0.5)
-    if weight_min < 0 or weight_min >= 1:
-        raise ValueError("weight_min parameter must be between 0 and 1.")
 
     u = np.linspace(0, 1, size)
     weight = np.ones(size, dtype=np.float64)
@@ -1527,15 +1187,14 @@ def _construct_ramping_weight(
     return weight
 
 
-def _normalize_weight(weight, weight_ramp, coords: np.ndarray) -> np.ndarray | None:
-    if weight_ramp is not None:
-        if weight is not None:
-            raise TypeError("Cannot specify both 'weight' and 'weight_ramp'.")
-        _edge_length, _weight_min = weight_ramp
-        length = np.sum(np.sqrt(np.sum(np.diff(coords, axis=0) ** 2, axis=1)))
-        weight = _construct_ramping_weight(
-            _edge_length / length, _weight_min, coords.shape[0]
-        )
+def _normalize_weight(
+    weight_ramp: tuple[float, float], coords: np.ndarray
+) -> np.ndarray:
+    _edge_length, _weight_min = weight_ramp
+    length = np.sum(np.sqrt(np.sum(np.diff(coords, axis=0) ** 2, axis=1)))
+    weight = _construct_ramping_weight(
+        _edge_length / length, _weight_min, coords.shape[0]
+    )
     return weight
 
 
@@ -1545,14 +1204,3 @@ def _linear_polar_mapping(output_coords, k_angle, k_radius, center):
     cc = ((output_coords[:, 0] / k_radius) * np.cos(angle)) + center[1]
     coords = np.column_stack((cc, rr))
     return coords
-
-
-def _pos_float(x: Any) -> float:
-    out = float(x)
-    if out < 0:
-        raise ValueError("Value must be positive.")
-    return out
-
-
-def _array_equal(a: np.ndarray, b: np.ndarray):
-    return a.shape == b.shape and np.allclose(a, b)

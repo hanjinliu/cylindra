@@ -1,5 +1,6 @@
+from math import e
 import os
-from typing import Annotated, TYPE_CHECKING, Literal, Union, Any
+from typing import Annotated, TYPE_CHECKING, Literal, Union, Any, Sequence
 import warnings
 from weakref import WeakSet
 
@@ -29,7 +30,6 @@ from magicclass.types import (
     Optional,
     Path,
     ExprStr,
-    Bound,
 )
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
@@ -38,10 +38,9 @@ from magicclass.undo import undo_callback
 from napari.layers import Layer
 
 from cylindra import utils, _config, cylstructure
-from cylindra.components import CylSpline, CylTomogram
+from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
-    GlobalVariables as GVar,
     IDName,
     PropertyNames as H,
     MoleculesHeader as Mole,
@@ -183,12 +182,6 @@ class CylindraMainWidget(MagicTemplate):
     Analysis = field(subwidgets.Analysis)
     Others = field(subwidgets.Others)
 
-    # Menu for global variables
-    @property
-    def global_variables(self):
-        """Return the global variable widget."""
-        return self.Others.GlobalVariables
-
     # Toolbar
     toolbar = subwidgets.CylindraToolbar
 
@@ -209,7 +202,9 @@ class CylindraMainWidget(MagicTemplate):
         self._tomogram = CylTomogram.dummy(binsize=[1])
         self._tilt_range: "tuple[float, float] | None" = None
         self._reserved_layers = ReservedLayers()
-
+        self._default_cfg = SplineConfig.from_file(
+            _config.get_config().default_spline_config_path
+        )
         self._macro_offset: int = 1
         self._macro_image_load_offset: int = 1
         self._need_save: bool = False
@@ -218,14 +213,11 @@ class CylindraMainWidget(MagicTemplate):
         self._current_binsize: int = 1
         self.objectName()  # load napari types
 
-        GVar.events.connect(self._global_variable_updated)
-
     def __post_init__(self):
         self.min_width = 400
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.overview.min_height = 300
-        self.global_variables.load_default()
 
         # load all the workflows
         for file in _config.WORKFLOWS_DIR.glob("*.py"):
@@ -251,6 +243,18 @@ class CylindraMainWidget(MagicTemplate):
         """The current tomogram instance."""
         return self._tomogram
 
+    @property
+    def default_config(self) -> SplineConfig:
+        """Default spline configuration."""
+        return self._default_cfg
+
+    @default_config.setter
+    def default_config(self, cfg: SplineConfig | dict[str, Any]):
+        if not isinstance(cfg, SplineConfig):
+            cfg = SplineConfig.from_dict(cfg, unknown="error")
+        self._default_cfg = cfg
+        self._refer_spline_config(cfg)
+
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         tomo = self.tomogram
@@ -263,6 +267,9 @@ class CylindraMainWidget(MagicTemplate):
         coords = self._reserved_layers.work.data
         return np.round(coords, 3)
 
+    def _get_add_spline_config(self, w=None):
+        return self._default_cfg.asdict()
+
     def _get_available_binsize(self, _=None) -> list[int]:
         out = [x[0] for x in self.tomogram.multiscaled]
         if 1 not in out:
@@ -272,7 +279,11 @@ class CylindraMainWidget(MagicTemplate):
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
     @bind_key("F1")
-    def register_path(self, coords: Bound[_get_spline_coordinates] = None):
+    def register_path(
+        self,
+        coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None,
+        config: Annotated[dict[str, Any], {"bind": _get_add_spline_config}] = None,
+    ):
         """Register current selected points as a spline path."""
         if coords is None:
             _coords = self._reserved_layers.work.data
@@ -283,7 +294,9 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("No points are given.")
 
         tomo = self.tomogram
-        tomo.add_spline(_coords)
+        if config is None:
+            config = self.default_config
+        tomo.add_spline(_coords, config=config)
         spl = tomo.splines[-1]
 
         # draw path
@@ -364,10 +377,10 @@ class CylindraMainWidget(MagicTemplate):
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")  # fmt: skip
     def open_image(
         self,
-        path: Bound[_image_loader.path],
-        scale: Bound[_image_loader.scale.scale_value] = None,
-        tilt_range: Bound[_image_loader.tilt_range.range] = None,
-        bin_size: Bound[_image_loader.bin_size] = [1],
+        path: Annotated[Union[str, Path], {"bind": _image_loader.path}],
+        scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
+        tilt_range: Annotated[Any, {"bind": _image_loader.tilt_range.range}] = None,
+        bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.LoG,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip
@@ -385,7 +398,7 @@ class CylindraMainWidget(MagicTemplate):
             You can use both binned and non-binned image for analysis.
         {filter}
         """
-        img = ip.lazy.imread(path, chunks=GVar.dask_chunk)
+        img = ip.lazy.imread(path, chunks=_config.get_config().dask_chunk)
         if scale is not None:
             scale = float(scale)
             img.scale.x = img.scale.y = img.scale.z = scale
@@ -424,6 +437,7 @@ class CylindraMainWidget(MagicTemplate):
         filter: Union[ImageFilter, None] = ImageFilter.LoG,
         paint: bool = False,
         read_image: Annotated[bool, {"label": "Read image data"}] = True,
+        update_config: bool = True,
     ):
         """
         Load a project json file.
@@ -436,10 +450,11 @@ class CylindraMainWidget(MagicTemplate):
         {filter}
         paint : bool, default is False
             Whether to paint cylinder properties if available.
-        read_image : bool default is True
+        read_image : bool, default is True
             Whether to read image data from the project directory. If false, a dummy
             image is created and only splines and molecules will be loaded, which is
             useful to decrease loading time, or analyze data in other PC.
+        update_config : bool, default is True
         """
         if isinstance(path, CylindraProject):
             project = path
@@ -449,13 +464,19 @@ class CylindraMainWidget(MagicTemplate):
             project = CylindraProject.from_json(project_path)
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
-            f"filter={filter}, {paint=}, {read_image=})</code>"
+            f"filter={filter}, {paint=}, {read_image=}, {update_config=}</code>"
         )
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
             self._project_dir = project_path.parent
         return thread_worker.callback(
-            project.to_gui(self, filter=filter, paint=paint, read_image=read_image)
+            project.to_gui(
+                self,
+                filter=filter,
+                paint=paint,
+                read_image=read_image,
+                update_config=update_config,
+            )
         )
 
     @File.wraps
@@ -1124,13 +1145,21 @@ class CylindraMainWidget(MagicTemplate):
         # first check missing_ok=False case
         if not missing_ok:
             for layer in layers:
-                # NOTE: The source spline may not exist in
+                # NOTE: The source spline may not exist in the list
                 if _s := layer.source_spline:
-                    tomo.splines.index(_s)  # the spline list.
+                    tomo.splines.index(_s)  # raise error here if not found
 
         for layer in layers:
             mole = layer.molecules
-            spl = utils.molecules_to_spline(mole)
+            if _s := layer.source_spline:
+                _config = _s.config
+                _order = _s.order
+                _extrapolate = _s.extrapolate
+            else:
+                _config = self.tomogram.config.spline_config
+                _order = self.tomogram.config.spline_order
+                _extrapolate = self.tomogram.config.spline_extrapolate
+            spl = utils.molecules_to_spline(mole, _order, _extrapolate, _config)
             try:
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:
@@ -1814,15 +1843,16 @@ class CylindraMainWidget(MagicTemplate):
         pf = mole.features[Mole.pf].to_numpy()
         npf = int(pf.max() + 1)
         if spl := layer.source_spline:
-            props = spl.globalprops
-            spacing = props[H.spacing][0]
-            rise = np.deg2rad(props[H.rise][0])
+            spacing = spl.props.get_glob(H.spacing)
+            rise = np.deg2rad(spl.props.get_glob(H.rise))
             tan = (
-                np.tan(rise) / spacing * (2 * np.pi * spl.radius / npf) * GVar.rise_sign
+                np.tan(rise)
+                / spacing
+                * (2 * np.pi * spl.radius / npf)
+                * spl.config.rise_sign
             )
         else:
-            _, _, nrise = utils.infer_geometry_from_molecules(mole)
-            tan = nrise / npf
+            tan = utils.infer_start_from_molecules(mole) / npf
         y = nth + tan * pf
 
         face_color = layer.face_color
@@ -2139,7 +2169,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.rise, H.npf]}] = H.spacing,
         cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Optional[tuple[float, float]] = (GVar.spacing_min, GVar.spacing_max),
+        limits: Optional[tuple[float, float]] = (3.95, 4.28),
     ):  # fmt: skip
         """
         Paint cylinder fragments by its local properties.
@@ -2533,30 +2563,27 @@ class CylindraMainWidget(MagicTemplate):
         self._highlight_spline()
         return None
 
-    def _global_variable_updated(self):
+    def _refer_spline_config(self, cfg: SplineConfig):
         """Update GUI states that are related to global variables."""
-        get_function_gui(self.global_variables.set_variables).update(GVar.dict())
-
         fgui = get_function_gui(self.set_spline_props)
-        fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
-        fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
-        fgui.spacing.value = (
-            None  # NOTE: setting to not-a-None value to update the inner widget.
-        )
-        fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
-        fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
+        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
+        None  # NOTE: setting to not-a-None value to update the inner widget.
+        fgui.spacing.value = cfg.spacing_range.center
+        fgui.spacing.value = None
+        fgui.skew.min, fgui.skew.max = cfg.skew_range.astuple()
+        fgui.skew.value = cfg.skew_range.center
         fgui.skew.value = None
-        fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
-        fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
+        fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
+        fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
 
         fgui = get_function_gui(self.cylinder_simulator.update_model)
-        fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
-        fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
-        fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
-        fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
-        fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
-        fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
+        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
+        fgui.spacing.value = cfg.spacing_range.center
+        fgui.skew.min, fgui.skew.max = cfg.skew_range.astuple()
+        fgui.skew.value = cfg.skew_range.center
+        fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
+        fgui.npf.value = int(cfg.npf_range.center)
 
         self.cylinder_simulator.parameters.update(
             spacing=fgui.spacing.value,
@@ -2565,36 +2592,10 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         fgui = get_function_gui(self.paint_cylinders)
-        fgui.limits.value = (GVar.spacing_min, GVar.spacing_max)
+        fgui.limits.value = cfg.spacing_range.astuple()
 
-        get_function_gui(self.map_monomers)["orientation"].value = GVar.clockwise
-        get_function_gui(self.map_monomers_with_extensions)[
-            "orientation"
-        ].value = GVar.clockwise
-        get_function_gui(self.map_along_pf)["orientation"].value = GVar.clockwise
-        get_function_gui(self.map_centers)["orientation"].value = GVar.clockwise
-
-        try:
-            if self._global_variable_change_may_affect() and self.parent_viewer:
-                msg_color = "yellow" if self.parent_viewer.theme == "dark" else "red"
-                _Logger.print_html(
-                    f'<font color="{msg_color}"><b>'
-                    "WARNING: Global variables changed in the process."
-                    "</b></font>"
-                )
-        except RuntimeError:
-            # Event emission may fail during testing, due to GC.
-            pass
-
-    def _global_variable_change_may_affect(self) -> bool:
-        """Return true if global variable change may affect the analysis."""
-        if self._macro_offset >= len(self.macro):
-            return False
-        _cur_macro = self.macro[-self._macro_offset :]
-        _filt_macro = _filter_macro_for_reanalysis(_cur_macro, mk.symbol(self))
-        if _filt_macro.args[-1].head is mk.Head.comment:
-            return True
-        return False
+        for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
+            get_function_gui(method)["orientation"].value = cfg.clockwise
 
 
 ############################################################################################

@@ -10,12 +10,11 @@ from magicclass import (
     set_design,
     abstractapi,
 )
-from magicclass.types import Bound
 from magicclass.undo import undo_callback
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 from cylindra.utils import roundint, centroid, map_coordinates
-from cylindra.const import nm, GlobalVariables as GVar, Mode
+from cylindra.const import nm, Mode
 
 
 @magicclass
@@ -59,7 +58,7 @@ class SplineFitter(MagicTemplate):
 
     def _get_shifts(self, _=None):
         if self.shifts is None:
-            return np.zeros(3)
+            return np.zeros((1, 2))
         i = self.controller.num.value
         return np.round(self.shifts[i], 3)
 
@@ -67,34 +66,29 @@ class SplineFitter(MagicTemplate):
         parent = self._get_parent()
         return roundint(parent._reserved_layers.scale / parent.tomogram.scale)
 
-    def _get_max_interval(self, _=None):
+    def _get_max_interval(self, _=None) -> nm:
         return self._max_interval
 
     @controller.wraps
     @set_design(text="Fit")
     def fit(
         self,
-        shifts: Bound[_get_shifts],
+        shifts: Annotated[nm, {"bind": _get_shifts}],
         i: Annotated[int, {"bind": controller.num}],
-        max_interval: Bound[_get_max_interval] = 50.0,
+        max_interval: Annotated[nm, {"bind": _get_max_interval}] = 50.0,
     ):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         parent = self._get_parent()
         _scale = parent.tomogram.scale
         old_spl = parent.tomogram.splines[i]
-
-        min_cr = GVar.min_curvature_radius
-        new_spl = (
+        parent.tomogram.splines[i] = new_spl = (
             old_spl.make_anchors(max_interval=max_interval)
-            .shift_coa(
+            .shift(
                 shifts=shifts * self._get_binsize() * _scale,
-                min_radius=min_cr,
-                weight_ramp=(min_cr / 10, 0.5),
             )
             .make_anchors(max_interval=max_interval)
         )
-        parent.tomogram.splines[i] = new_spl
         self._cylinder_changed()
         parent._update_splines_in_images()
 
@@ -158,7 +152,8 @@ class SplineFitter(MagicTemplate):
             return
         itemv.pos = [x, z]
         itemh.pos = [x, z]
-        r_max: nm = GVar.fit_width / 2
+        spl = tomo.splines[i]
+        r_max: nm = spl.config.fit_width / 2
         nbin = max(roundint(r_max / tomo.scale / binsize / 2), 8)
         prof = self.subtomograms[j].radial_profile(
             center=[z, x], nbin=nbin, r_max=r_max
@@ -166,8 +161,8 @@ class SplineFitter(MagicTemplate):
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax - 5, imax + 5)
         r_peak = (imax_sub + 0.5) / nbin * r_max
-        r_inner = max(r_peak - GVar.thickness_inner, 0) / tomo.scale / binsize
-        r_outer = (r_peak + GVar.thickness_outer) / tomo.scale / binsize
+        r_inner = max(r_peak - spl.config.thickness_inner, 0) / tomo.scale / binsize
+        r_outer = (r_peak + spl.config.thickness_outer) / tomo.scale / binsize
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
         item_circ_inner.xdata = r_inner * np.cos(theta) + x
@@ -213,8 +208,8 @@ class SplineFitter(MagicTemplate):
         self.shifts[i] = np.zeros((npos, 2))
 
         binsize = self._get_binsize()
-        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
+        length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules()
         coords = mole.local_coordinates(

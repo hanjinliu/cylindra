@@ -24,9 +24,10 @@ import impy as ip
 import polars as pl
 
 from cylindra.project import CylindraProject, get_project_json
-from cylindra.const import GlobalVariables as GVar, MoleculesHeader as Mole
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter
+from cylindra._config import get_config
 from ._localprops import LocalPropsViewer
 
 
@@ -194,7 +195,7 @@ class Project(MagicTemplate):
         project = CylindraProject.from_json(self.path)
         molecules = [mole._get_molecules() for mole in self.molecules if mole.check]
         return SubtomogramLoader(
-            ip.lazy.imread(project.image, chunks=GVar.dask_chunk).value,
+            ip.lazy.imread(project.image, chunks=get_config().dask_chunk).value,
             molecules=Molecules.concat(molecules),
             order=order,
             scale=project.scale,

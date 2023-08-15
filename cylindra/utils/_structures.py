@@ -3,15 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
-import polars as pl
 import impy as ip
 from acryo import Molecules
 
 from cylindra.const import (
     Mode,
     MoleculesHeader as Mole,
-    GlobalVariables as GVar,
-    PropertyNames as H,
 )
 
 from ._correlation import mirror_zncc
@@ -84,14 +81,16 @@ def angle_corr(
     return angle
 
 
-def molecules_to_spline(mole: Molecules):
+def molecules_to_spline(
+    mole: Molecules, order: int, extrapolate: str, config
+) -> CylSpline:
     """Convert well aligned molecule positions into a spline."""
     from cylindra.components import CylSpline
 
-    spl = CylSpline(degree=GVar.spline_degree)
     all_coords = _reshaped_positions(mole)
     mean_coords = np.mean(all_coords, axis=1)  # (N, ndim)
-    return spl.fit_coa(mean_coords, min_radius=GVar.min_curvature_radius)
+    spl = CylSpline(order=order, extrapolate=extrapolate, config=config)
+    return spl.fit(mean_coords)
 
 
 def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
@@ -110,7 +109,7 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
     return pos
 
 
-def infer_geometry_from_molecules(mole: Molecules) -> tuple[int, int, int]:
+def infer_start_from_molecules(mole: Molecules) -> int:
     """Infer cylinder geometry (ny, npf, nrise) from molecules."""
     columns = mole.features.columns
     if not (Mole.pf in columns and Mole.position in columns):
@@ -125,5 +124,4 @@ def infer_geometry_from_molecules(mole: Molecules) -> tuple[int, int, int]:
     spl_pos = mole.features[Mole.position].to_numpy().reshape(ny, npf)
     dy = np.abs(np.mean(np.diff(spl_pos, axis=0)))
     drise = np.mean(np.diff(spl_pos, axis=1))
-    nrise = -int(np.round(drise * npf / dy)) * GVar.rise_sign
-    return ny, npf, nrise
+    return int(np.round(drise * npf / dy))

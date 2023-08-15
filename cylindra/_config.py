@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 from pathlib import Path
 import json
 from typing import Callable
+from dataclasses import dataclass, asdict
 from contextlib import contextmanager
 
 from appdirs import user_config_dir
@@ -12,9 +14,39 @@ SETTINGS_DIR = Path(user_config_dir("settings", "cylindra"))
 WORKFLOWS_DIR = Path(user_config_dir("workflows", "cylindra"))
 STASH_DIR = Path(user_config_dir("stash", "cylindra"))
 TEMPLATE_PATH_HIST = "template_path_hist.txt"
-DEFAULT_VARIABLES = "default_variables"
+DEFAULT_SPLINE_CONFIG = "default_spline_config"
 
 USER_SETTINGS = SETTINGS_DIR / "user-settings.json"
+
+
+@dataclass
+class AppConfig:
+    """Application configuration."""
+
+    default_spline_config: str = "eukaryotic_MT"
+    dask_chunk: tuple[int, int, int] = (256, 256, 256)
+    point_size: float = 4.2
+    use_gpu: bool = True
+
+    @property
+    def default_spline_config_path(self) -> Path:
+        return self.spline_config_path(self.default_spline_config)
+
+    def spline_config_path(self, name: str) -> Path:
+        return VAR_PATH / f"{name}.json"
+
+    def list_config_paths(self) -> list[Path]:
+        return list(VAR_PATH.glob("*.json"))
+
+
+_APP_CONFIG = AppConfig()
+
+
+def get_config() -> AppConfig:
+    global _APP_CONFIG
+    if _APP_CONFIG is None:
+        _APP_CONFIG = AppConfig()
+    return _APP_CONFIG
 
 
 def workflow_path(name: str | Path) -> Path:
@@ -108,11 +140,9 @@ def init_config(force: bool = False):  # pragma: no cover
             if not SETTINGS_DIR.exists():
                 SETTINGS_DIR.mkdir(parents=True)
 
-            settings_js = {
-                DEFAULT_VARIABLES: "eukaryotic_MT",
-            }
+            cfg = AppConfig()
             with open(USER_SETTINGS, mode="w") as f:
-                json.dump(settings_js, f, indent=4, separators=(", ", ": "))
+                json.dump(asdict(cfg), f, indent=4, separators=(", ", ": "))
         except Exception as e:
             print("Failed to initialize settings directory.")
             print(e)

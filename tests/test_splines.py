@@ -10,7 +10,7 @@ import impy as ip
 def test_inverse_mapping(mode):
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
     coords = np.array([[1, 1.5, 0], [0, 1.5, 1], [-1, 1.5, 0], [2, 1.5, 3]])
 
     crds_spl = spl.cartesian_to_world(coords)
@@ -48,7 +48,7 @@ def test_inverse_mapping(mode):
 def test_coordinate_transformation(mode):
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[2, 1, 2], [2, 2, 2], [2, 3, 2], [2, 4, 2]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
 
     # Cartesian
     img = ip.array(np.arange(5 * 6 * 5).reshape(5, 6, 5), dtype=np.float32, axes="zyx")
@@ -98,7 +98,7 @@ def test_invert(mode):
     spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
     spl.make_anchors(n=5)
     spl.orientation = "PlusToMinus"
 
@@ -127,7 +127,7 @@ def test_clip(mode):
     spl.orientation = "PlusToMinus"
 
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [4, 3, 2]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
     spl.orientation = "PlusToMinus"
 
     spl0 = spl.clip(0.2, 0.7)
@@ -147,7 +147,7 @@ def test_clip(mode):
 def test_extend(mode):
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[0, 0, 0], [2, 1, 0], [5, 2, 3], [6, 3, 4]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
     spl.orientation = "PlusToMinus"
 
     spl0 = spl.clip(-0.8, 1.2)  # relative length = 2.0
@@ -162,9 +162,9 @@ def test_shift_fit(mode):
     spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
     spl.make_anchors(n=4)
-    spl = spl.shift_voa(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
+    spl = spl.shift(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
     spl.make_anchors(n=4)
     assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
 
@@ -174,7 +174,7 @@ def test_dict(mode):
     spl = CylSpline(extrapolate=mode)
 
     coords = np.array([[0, 0, 0], [0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    spl = spl.fit_voa(coords)
+    spl = spl.fit(coords)
     spl.orientation = "PlusToMinus"
     spl = spl.clip(0.2, 0.8)
 
@@ -189,7 +189,7 @@ def test_curvature(radius, mode):
     spl = CylSpline(extrapolate=mode)
     u = np.linspace(0, 2 * np.pi, 100)
     coords = np.stack([np.zeros(100), radius * np.sin(u), radius * np.cos(u)], axis=1)
-    spl = spl.fit_voa(coords, variance=0)
+    spl = spl.fit(coords, variance=0)
     spl.make_anchors(n=100)
     cr = spl.curvature_radii()
     cr_mean = np.mean(cr)
@@ -200,7 +200,7 @@ def test_curvature(radius, mode):
 @pytest.mark.parametrize("mode", ["linear", "default"])
 def test_translate(mode):
     spl = CylSpline(extrapolate=mode)
-    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     ds = np.array([3, 1, -2])
     spl_trans = spl.translate(ds)
     assert_allclose(
@@ -214,7 +214,7 @@ def test_translate(mode):
 @pytest.mark.parametrize("mode", ["linear", "default"])
 def test_extrapolate_map(mode):
     spl = CylSpline(extrapolate=mode)
-    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     sl0 = [-0.5, 0, 0.5, 1, 1.5]
     sl1 = [0, 0.5, 1]
 
@@ -227,7 +227,7 @@ def test_extrapolate_map(mode):
 
 def test_update_props():
     spl = CylSpline()
-    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     spl.update_props(
         spacing=4.1, skew=0.1, rise=9.6, npf=13, radius=9.4, orientation="PlusToMinus"
     )
@@ -235,6 +235,6 @@ def test_update_props():
 
 def test_resample():
     spl = CylSpline()
-    spl = spl.fit_voa([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]]).clip(0.1, 0.9)
+    spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]]).clip(0.1, 0.9)
     spl0 = spl.resample(0.3)
     assert spl.length() == pytest.approx(spl0.length(), rel=1e-2)

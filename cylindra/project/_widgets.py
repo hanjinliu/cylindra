@@ -18,7 +18,7 @@ class TextInfo(MagicTemplate):
 
     @magicclass(labels=False, record=False, widget_type="split")
     class Right(MagicTemplate):
-        global_variables = field(ConsoleTextEdit)
+        config = field(ConsoleTextEdit)
         macro_script = field(ConsoleTextEdit)
 
     def _from_project(self, project: "CylindraProject"):
@@ -39,11 +39,11 @@ class TextInfo(MagicTemplate):
         self.project_text.read_only = True
         self.project_text.syntax_highlight("json", theme=theme)
 
-        if path := project.global_variables:
+        if path := project.default_spline_config:
             with open(path) as f:
-                self.Right.global_variables.value = f.read()
-        self.Right.global_variables.read_only = True
-        self.Right.global_variables.syntax_highlight("json", theme=theme)
+                self.Right.config.value = f.read()
+        self.Right.config.read_only = True
+        self.Right.config.syntax_highlight("json", theme=theme)
 
         if path := project.macro:
             with open(path) as f:

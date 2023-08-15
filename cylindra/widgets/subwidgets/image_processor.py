@@ -4,7 +4,6 @@ from pathlib import Path
 from magicclass import (
     magicclass,
     MagicTemplate,
-    set_options,
     vfield,
     confirm,
     set_design,
@@ -15,7 +14,7 @@ import impy as ip
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra.widgets._previews import view_image
 from cylindra.widgets._widget_ext import CheckBoxes
-from cylindra.const import GlobalVariables as GVar
+from cylindra._config import get_config
 
 
 @magicclass(record=False)
@@ -148,8 +147,8 @@ class ImageProcessor(MagicTemplate):
         main._active_widgets.add(prev)
         return None
 
-    def _imread(self, path, chunks=GVar.dask_chunk) -> ip.ImgArray | ip.LazyImgArray:
-        img = ip.lazy.imread(path, chunks=chunks)
+    def _imread(self, path) -> ip.ImgArray | ip.LazyImgArray:
+        img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
         if img.gb < self.max_gb:
             img = img.compute()
         return img

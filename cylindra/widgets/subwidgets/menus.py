@@ -33,12 +33,12 @@ from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
-from cylindra.const import nm, get_versions, GlobalVariables as GVar, ImageFilter
+from cylindra.const import nm, get_versions, ImageFilter
 from cylindra.project import CylindraProject, extract
 from cylindra.widgets.widget_utils import FileFilter, get_code_theme
 from cylindra.widgets._widget_ext import CheckBoxes
+from cylindra.components.spline import SplineConfig
 from cylindra import _config
-from .global_variables import GlobalVariablesMenu
 
 if TYPE_CHECKING:
     from cylindra.widgets import CylindraMainWidget
@@ -105,7 +105,7 @@ class File(ChildWidget):
         def load_stash_project(
             self,
             name: Annotated[str, {"choices": _get_stashed_names}],
-            filter: ImageFilter | None = ImageFilter.DoG,
+            filter: ImageFilter | None = ImageFilter.LoG,
         ):
             """
             Load a stashed project.
@@ -330,6 +330,61 @@ class Splines(ChildWidget):
     set_spline_props = abstractapi()
     molecules_to_spline = abstractapi()
 
+    sep3 = field(Separator)
+
+    @magicmenu(record=False)
+    class Config(ChildWidget):
+        def _get_saved_config_files(self, w=None) -> list[str]:
+            return [path.stem for path in _config.get_config().list_config_paths()]
+
+        @set_design(text="Update default config")
+        @bind_key("Ctrl+K, Ctrl+[")
+        def update_default_config(
+            self,
+            std: Annotated[nm, {"step": 0.1}] = 0.1,
+            npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
+            spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
+            skew_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+            rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
+            rise_sign: Literal[-1, 1] = -1,
+            clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
+            thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.0,
+            thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 3.0,
+            fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
+            fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
+            weight_ramp: tuple[float, float] = (50.0, 0.5),
+        ):  # fmt: skip
+            self._get_main().default_config = SplineConfig(
+                std=std,
+                npf_range=npf_range,
+                spacing_range=spacing_range,
+                skew_range=skew_range,
+                rise_range=rise_range,
+                rise_sign=rise_sign,
+                clockwise=clockwise,
+                thickness_inner=thickness_inner,
+                thickness_outer=thickness_outer,
+                fit_depth=fit_depth,
+                fit_width=fit_width,
+                weight_ramp=weight_ramp,
+            )
+            return None
+
+        @set_design(text="Load config")
+        def load_config(
+            self, name: Annotated[str, {"choices": _get_saved_config_files}]
+        ):
+            path = _config.get_config().spline_config_path(name)
+            self._get_main().default_config = SplineConfig.from_file(path)
+            return None
+
+        @set_design(text="Save config")
+        def save_config(self, name: str):
+            path = _config.get_config().spline_config_path(name)
+            if path.exists():
+                raise FileExistsError(f"Config file {path} already exists.")
+            return self._get_main().default_config.to_file(path)
+
 
 @magicmenu(name="Molecules")
 class MoleculesMenu(ChildWidget):
@@ -414,7 +469,7 @@ class MoleculesMenu(ChildWidget):
                 edge_color="direction",
                 edge_color_cycle=[z_color, y_color, x_color],
                 features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
-                length=GVar.point_size * 0.8,
+                length=_config.get_config().point_size * 0.8,
                 name=name,
                 vector_style="arrow",
             )
@@ -750,7 +805,6 @@ class Others(ChildWidget):
 
         sep0 = field(Separator)
 
-    GlobalVariables = GlobalVariablesMenu
     sep0 = field(Separator)
 
     @set_design(text="Command palette")

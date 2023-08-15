@@ -1,4 +1,4 @@
-from typing import Annotated, Union
+from typing import Annotated, Union, Any
 
 import re
 from acryo import BatchLoader, pipe
@@ -16,7 +16,7 @@ from magicclass import (
     abstractapi,
     setup_function_gui,
 )
-from magicclass.types import OneOf, Optional, Bound, ExprStr, Path
+from magicclass.types import OneOf, Optional, ExprStr, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit, HistoryFileEdit
@@ -437,16 +437,16 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def align_all(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params],
-        tilt_range: Bound[params.tilt_range] = None,
+        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        tilt_range: Annotated[Any, {"bind": params.tilt_range}] = None,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
         method: OneOf[METHOD_CHOICES] = "zncc",
         bin_size: _BINSIZE = 1,
-    ):
+    ):  # fmt: skip
         t0 = timer("align_all (batch)")
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
@@ -484,7 +484,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def calculate_fsc(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -581,7 +581,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def classify_pca(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,

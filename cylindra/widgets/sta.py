@@ -7,7 +7,6 @@ from typing import (
     Annotated,
 )
 import re
-import math
 from scipy.spatial.transform import Rotation
 from magicclass import (
     do_not_record,
@@ -22,7 +21,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import Optional, Path, Bound, ExprStr
+from magicclass.types import Optional, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -624,8 +623,8 @@ class SubtomogramAveraging(MagicTemplate):
     def align_averaged(
         self,
         layers: _MoleculeLayers,
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params],
+        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -755,8 +754,8 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all(
         self,
         layers: _MoleculeLayers,
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params],
+        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -800,7 +799,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_template_free(
         self,
         layers: _MoleculeLayers,
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -851,7 +850,7 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layers: _MoleculeLayers,
         template_paths: _ImagePaths,
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -896,8 +895,8 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_viterbi(
         self,
         layer: MoleculesLayer,
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params] = None,
+        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -936,7 +935,7 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         template_paths: _ImagePaths,
-        mask_params: Bound[params._get_mask_params] = None,
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -975,8 +974,8 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_annealing(
         self,
         layer: MoleculesLayer,
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params] = None,
+        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -1018,7 +1017,7 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         template_paths: _ImagePaths,
-        mask_params: Bound[params._get_mask_params] = None,
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -1060,7 +1059,7 @@ class SubtomogramAveraging(MagicTemplate):
         self,
         layer: MoleculesLayer,
         template_path: Any,
-        mask_params: Bound[params._get_mask_params] = None,
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: float = 0.5,
@@ -1263,7 +1262,7 @@ class SubtomogramAveraging(MagicTemplate):
     def calculate_fsc(
         self,
         layer: MoleculesLayer,
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -1350,7 +1349,7 @@ class SubtomogramAveraging(MagicTemplate):
     def classify_pca(
         self,
         layer: MoleculesLayer,
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1421,8 +1420,8 @@ class SubtomogramAveraging(MagicTemplate):
     def seam_search(
         self,
         layer: MoleculesLayer,
-        template_path: Bound[params.template_path],
-        mask_params: Bound[params._get_mask_params],
+        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
@@ -1491,7 +1490,7 @@ class SubtomogramAveraging(MagicTemplate):
     def seam_search_by_fiducials(
         self,
         layer: MoleculesLayer,
-        mask_params: Bound[params._get_mask_params],
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
