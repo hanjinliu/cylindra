@@ -217,8 +217,6 @@ class CylindraMainWidget(MagicTemplate):
         self._current_binsize: int = 1
         self.objectName()  # load napari types
 
-        GVar.events.connect(self._global_variable_updated)
-
     def __post_init__(self):
         self.min_width = 400
         self.LocalProperties.collapsed = False
@@ -1823,9 +1821,8 @@ class CylindraMainWidget(MagicTemplate):
         pf = mole.features[Mole.pf].to_numpy()
         npf = int(pf.max() + 1)
         if spl := layer.source_spline:
-            props = spl.globalprops
-            spacing = props[H.spacing][0]
-            rise = np.deg2rad(props[H.rise][0])
+            spacing = spl.props.get_glob(H.spacing)
+            rise = np.deg2rad(spl.props.get_glob(H.rise))
             tan = (
                 np.tan(rise)
                 / spacing
@@ -1833,8 +1830,7 @@ class CylindraMainWidget(MagicTemplate):
                 * spl.config.rise_sign
             )
         else:
-            _, _, nrise = utils.infer_geometry_from_molecules(mole)
-            tan = nrise / npf
+            tan = utils.infer_start_from_molecules(mole) / npf
         y = nth + tan * pf
 
         face_color = layer.face_color

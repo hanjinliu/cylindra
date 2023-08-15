@@ -1,9 +1,6 @@
 from __future__ import annotations
 from enum import Enum
 from types import SimpleNamespace
-from typing import Literal
-
-from psygnal import EventedModel
 import polars as pl
 
 nm = float  # type alias for nanometer
@@ -165,34 +162,24 @@ class EulerAxes(strEnum):
     ZYZ = "ZYZ"
 
 
-class SplineConfigModel(EventedModel):
-    std: nm = 0.1
-    npf_range: tuple[int, int] = tuple(11, 17)
-    spacing_range: tuple[nm, nm] = tuple(3.9, 4.3)
-    skew_range: tuple[float, float] = tuple(-1.0, 1.0)
-    rise_range: tuple[float, float] = tuple(0.0, 45.0)
-    rise_sign: Literal[-1, 1] = -1
-    clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
-    thickness_inner: nm = 2.0
-    thickness_outer: nm = 3.0
-    fit_depth: nm = 48.0
-    fit_width: nm = 44.0
+class GlobalVariableModel:
+    """
+    Global variables used in this module.
 
-
-class GlobalVariableModel(EventedModel):
-    """Global variables used in this module."""
+    These parameters should not affect the result of the analysis.
+    """
 
     dask_chunk: tuple[int, int, int] = (256, 256, 256)
     point_size: float = 4.2
     use_gpu: bool = True
 
-    def update(self, values: EventedModel | dict, recurse: bool = True) -> None:
-        # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
-        # by one). This is not desirable because min/max values should be updated at
-        # the same time. Therefore, we block the events and emit the signal manually.
-        with self.events.blocked():
-            super().update(values, recurse)
-        self.events.emit(self.dict())
+    def update(self, dask_chunk=None, point_size=None, use_gpu=None) -> None:
+        if dask_chunk is not None:
+            self.dask_chunk = dask_chunk
+        if point_size is not None:
+            self.point_size = point_size
+        if use_gpu is not None:
+            self.use_gpu = use_gpu
         return None
 
 
