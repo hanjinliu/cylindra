@@ -268,7 +268,7 @@ class CylindraMainWidget(MagicTemplate):
         return np.round(coords, 3)
 
     def _get_add_spline_config(self, w=None):
-        return self._default_cfg.asdict()
+        return self.default_config.asdict()
 
     def _get_available_binsize(self, _=None) -> list[int]:
         out = [x[0] for x in self.tomogram.multiscaled]
