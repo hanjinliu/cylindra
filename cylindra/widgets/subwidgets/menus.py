@@ -354,6 +354,36 @@ class Splines(ChildWidget):
             fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
             weight_ramp: tuple[float, float] = (50.0, 0.5),
         ):  # fmt: skip
+            """
+            Update the default spline config.
+
+            Parameters
+            ----------
+            std : float, default is 0.1
+                Standard deviation allowed for spline fitting.
+            npf_range : (int, int), default is (11, 17)
+                Range of protofilament number.
+            spacing_range : (float, float), default is (3.9, 4.3)
+                Range of longitudinal lattice spacing.
+            skew_range : (float, float), default is (-1.0, 1.0)
+                Range of skew angle in degree.
+            rise_range : (float, float), default is (0.0, 45.0)
+                Range of rise angle in degree.
+            rise_sign : -1 or 1, default is -1
+                Sign of the rise angle.
+            clockwise : "PlusToMinus" or "MinusToPlus", default is "MinusToPlus"
+                Closewise rotation of the y-project corresponds to which orientation.
+            thickness_inner : float, default is 2.0
+                Cylinder thickness inside the radial peak.
+            thickness_outer : float, default is 3.0
+                Cylinder thickness outside the radial peak.
+            fit_depth : float, default is 48.0
+                Depth in nm used during spline fitting.
+            fit_width : float, default is 44.0
+                Width in nm used during spline fitting.
+            weight_ramp : (float, float), default is (50.0, 0.5)
+                Weight ramp length and tip ratio.
+            """
             self._get_main().default_config = SplineConfig(
                 std=std,
                 npf_range=npf_range,
@@ -374,12 +404,14 @@ class Splines(ChildWidget):
         def load_config(
             self, name: Annotated[str, {"choices": _get_saved_config_files}]
         ):
+            """Load a saved config file."""
             path = _config.get_config().spline_config_path(name)
             self._get_main().default_config = SplineConfig.from_file(path)
             return None
 
         @set_design(text="Save config")
         def save_config(self, name: str):
+            """Save current config."""
             path = _config.get_config().spline_config_path(name)
             if path.exists():
                 raise FileExistsError(f"Config file {path} already exists.")

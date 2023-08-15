@@ -269,8 +269,8 @@ class CylindraMainWidget(MagicTemplate):
         coords = self._reserved_layers.work.data
         return np.round(coords, 3)
 
-    def _get_add_spline_config(self, w=None):
-        return self.default_config.asdict()
+    def _get_add_spline_config(self, w=None) -> SplineConfig:
+        return self.default_config
 
     def _get_available_binsize(self, _=None) -> list[int]:
         out = [x[0] for x in self.tomogram.multiscaled]
@@ -280,13 +280,16 @@ class CylindraMainWidget(MagicTemplate):
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
+    @do_not_record(recursive=False)
     @bind_key("F1")
     def register_path(
         self,
         coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None,
-        config: Annotated[dict[str, Any], {"bind": _get_add_spline_config}] = None,
+        config: Annotated[
+            Union[dict[str, Any], SplineConfig], {"bind": _get_add_spline_config}
+        ] = {},
     ):
-        """Register current selected points as a spline path."""
+        """Register points as a spline path."""
         if coords is None:
             _coords = self._reserved_layers.work.data
         else:
@@ -295,12 +298,19 @@ class CylindraMainWidget(MagicTemplate):
         if _coords.size == 0:
             raise ValueError("No points are given.")
 
+        if isinstance(config, dict):
+            config = self.default_config.updated(**config).asdict()
+        elif isinstance(config, SplineConfig):
+            config = config.asdict()
+        else:
+            raise TypeError(f"Invalid config type: {type(config)}")
+        return self.add_spline(coords, config)
+
+    @nogui
+    def add_spline(self, coords: np.ndarray, config: dict[str, Any]):
+        """Internal use only."""
         tomo = self.tomogram
-        if config is None:
-            config = self.default_config
-        elif isinstance(config, dict):
-            config = self.default_config.updated(**config)
-        tomo.add_spline(_coords, config=config)
+        tomo.add_spline(coords, config=config)
         spl = tomo.splines[-1]
 
         # draw path
@@ -332,10 +342,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "clear_last.svg")
-    @confirm(
-        text="Spline has properties. Are you sure to delete it?",
-        condition=_confirm_delete,
-    )
+    @confirm(text="Spline has properties. Are you sure to delete it?", condition=_confirm_delete)  # fmt: skip
     @do_not_record(recursive=False)
     def clear_current(self):
         """Clear current selection."""
@@ -2598,6 +2605,7 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     _manual_operations = {
         "open_image",
         "register_path",
+        "add_spline",
         "load_splines",
         "load_molecules",
         "delete_spline",
