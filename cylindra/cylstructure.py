@@ -8,7 +8,6 @@ import polars as pl
 from acryo import Molecules
 
 from cylindra.const import (
-    GlobalVariables as GVar,
     MoleculesHeader as Mole,
     PropertyNames as H,
 )
@@ -140,7 +139,7 @@ def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column of rise angles of each molecule."""
     _spl_len = spl.length()
     subsets = list[Molecules]()
-    _nrise = int(round(spl.props.get_glob(H.start))) * GVar.rise_sign
+    _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
     nth_dtype = mole.features[Mole.nth].dtype
     pf_dtype = mole.features[Mole.pf].dtype
@@ -183,7 +182,7 @@ def calc_lateral_interval(
 ) -> pl.DataFrame:
     _spl_len = spl.length()
     subsets = list[Molecules]()
-    _nrise = int(round(spl.props.get_glob(H.start))) * GVar.rise_sign
+    _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
     nth_dtype = mole.features[Mole.nth].dtype
     pf_dtype = mole.features[Mole.pf].dtype

@@ -4,12 +4,11 @@ from typing import Any
 import numpy as np
 import polars as pl
 
-from .spline import Spline
+from ._spline_base import Spline
 from cylindra.const import (
     nm,
     Ori,
     PropertyNames as H,
-    GlobalVariables as GVar,
 )
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
@@ -116,12 +115,12 @@ class CylSpline(Spline):
             spacing=_get_globalprops(self, kwargs, H.spacing),
             skew_angle=_get_globalprops(self, kwargs, H.skew),
             skew_tilt_angle=_get_globalprops(self, kwargs, H.skew),
-            rise_angle=_get_globalprops(self, kwargs, H.rise) * GVar.rise_sign,
+            rise_angle=_get_globalprops(self, kwargs, H.rise) * self.config.rise_sign,
             radius=_get_globalprops(self, kwargs, H.radius),
             npf=roundint(_get_globalprops(self, kwargs, H.npf)),
             start=_get_globalprops(self, kwargs, H.start),
             allow_duplicate=True,
-            rise_sign=GVar.rise_sign,
+            rise_sign=self.config.rise_sign,
         ).start
 
     def cylinder_model(
@@ -152,7 +151,7 @@ class CylSpline(Spline):
             npf=_get_globalprops(self, kwargs, H.npf),
             start=_get_globalprops(self, kwargs, H.start),
             allow_duplicate=True,
-            rise_sign=GVar.rise_sign,
+            rise_sign=self.config.rise_sign,
         )
 
         factor = cp.spacing / (cp.perimeter / cp.npf)
@@ -161,10 +160,13 @@ class CylSpline(Spline):
         if offsets is None:
             offsets = (0.0, 0.0)
 
-        skew_incr = cp.radius * cp.skew_angle_rad * cp.start / 2 * GVar.rise_sign
+        skew_incr = cp.radius * cp.skew_angle_rad * cp.start / 2 * self.config.rise_sign
         return CylinderModel(
             shape=(ny, cp.npf),
-            tilts=(cp.tan_skew_tilt * factor, cp.tan_rise / factor * GVar.rise_sign),
+            tilts=(
+                cp.tan_skew_tilt * factor,
+                cp.tan_rise / factor * self.config.rise_sign,
+            ),
             intervals=(cp.spacing, (cp.perimeter + skew_incr) / cp.radius / cp.npf),
             radius=cp.radius,
             offsets=offsets,

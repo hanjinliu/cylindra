@@ -17,10 +17,10 @@ import numpy as np
 
 from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
-from cylindra.const import GlobalVariables as GVar
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
+    from cylindra.components import CylSpline
 
 
 class MeasureMode(Enum):
@@ -153,6 +153,7 @@ class SpectraInspector(MagicTemplate):
         self._layer_axial = None
         self._layer_angular = None
         self._image = None
+        self._spline: "CylSpline | None" = None
         self.mode = MeasureMode.none
 
     @magicclass(properties={"min_width": 200})
@@ -217,7 +218,8 @@ class SpectraInspector(MagicTemplate):
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
         parent = self._get_parent()
         tomo = parent.tomogram
-        self.parameters.radius = tomo.splines[idx].radius
+        self._spline = tomo.splines[idx]
+        self.parameters.radius = self._spline.radius
         polar = tomo.straighten_cylindric(idx, binsize=binsize)
         pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
 
@@ -270,7 +272,8 @@ class SpectraInspector(MagicTemplate):
 
         if self.mode == MeasureMode.axial:
             self.parameters.spacing = abs(1.0 / yfreq * scale) * self._get_binsize()
-            self.parameters.rise = np.rad2deg(np.arctan(afreq / yfreq)) * GVar.rise_sign
+            _sign = self._spline.config.rise_sign
+            self.parameters.rise = np.rad2deg(np.arctan(afreq / yfreq)) * _sign
 
             if self._layer_axial in self.canvas.layers:
                 self.canvas.layers.remove(self._layer_axial)

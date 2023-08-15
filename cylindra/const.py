@@ -165,25 +165,25 @@ class EulerAxes(strEnum):
     ZYZ = "ZYZ"
 
 
-class GlobalVariableModel(EventedModel):
-    """Global variables used in this module."""
-
-    npf_min: int = 11
-    npf_max: int = 17
-    spline_degree: int = 3
-    spline_std: nm = 0.1
-    spacing_min: nm = 3.9
-    spacing_max: nm = 4.3
-    skew_min: float = -1.0
-    skew_max: float = 1.0
+class SplineConfigModel(EventedModel):
+    std: nm = 0.1
+    npf_range: tuple[int, int] = tuple(11, 17)
+    spacing_range: tuple[nm, nm] = tuple(3.9, 4.3)
+    skew_range: tuple[float, float] = tuple(-1.0, 1.0)
+    rise_range: tuple[float, float] = tuple(0.0, 45.0)
     rise_sign: Literal[-1, 1] = -1
-    rise_min: float = 0.0
-    rise_max: float = 45.0
     clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
     thickness_inner: nm = 2.0
     thickness_outer: nm = 3.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
+
+
+class GlobalVariableModel(EventedModel):
+    """Global variables used in this module."""
+
+    spline_degree: int = 3
+    spline_config: SplineConfigModel = SplineConfigModel()
     dask_chunk: tuple[int, int, int] = (256, 256, 256)
     point_size: float = 4.2
     use_gpu: bool = True

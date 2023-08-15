@@ -148,8 +148,8 @@ class ImageProcessor(MagicTemplate):
         main._active_widgets.add(prev)
         return None
 
-    def _imread(self, path, chunks=GVar.dask_chunk) -> ip.ImgArray | ip.LazyImgArray:
-        img = ip.lazy.imread(path, chunks=chunks)
+    def _imread(self, path) -> ip.ImgArray | ip.LazyImgArray:
+        img = ip.lazy.imread(path, chunks=GVar.dask_chunk)
         if img.gb < self.max_gb:
             img = img.compute()
         return img

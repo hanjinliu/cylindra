@@ -267,7 +267,7 @@ class PaintDevice:
         cylinders = list[list[NDArray[np.bool_]]]()
         matrices = list[list[NDArray[np.float32]]]()
         for i, spl in enumerate(tomo.splines):
-            depth = spl.props.window_size.get(prop, GVar.fit_depth)
+            depth = spl.props.window_size.get(prop, spl.config.fit_depth)
             lz, ly, lx = (
                 utils.roundint(r / bin_scale * 1.73) * 2 + 1
                 for r in [15, depth / 2, 15]
@@ -285,8 +285,8 @@ class PaintDevice:
             else:
                 raise RuntimeError(f"Radius not found in spline-{i}.")
             for j, rc in enumerate(radii):
-                r0 = max(rc - GVar.thickness_inner, 0.0) / tomo.scale / binsize
-                r1 = (rc + GVar.thickness_outer) / tomo.scale / binsize
+                r0 = max(rc - spl.config.thickness_inner, 0.0) / tomo.scale / binsize
+                r1 = (rc + spl.config.thickness_outer) / tomo.scale / binsize
                 domain = (r0**2 < _sq) & (_sq < r1**2)
                 ry = (
                     min(

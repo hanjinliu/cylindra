@@ -24,18 +24,12 @@ from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
 from acryo import Molecules, SubtomogramLoader
-from acryo.tilt import single_axis, no_wedge, TiltSeriesModel
+from acryo.tilt import single_axis, TiltSeriesModel
 import impy as ip
 
-from cylindra.components.cyl_spline import CylSpline
+from cylindra.components.spline import CylSpline
 from cylindra.components.tomogram import Tomogram
-from cylindra.components._ftprops import (
-    ft_params,
-    polar_ft_params,
-    LatticeParams,
-    get_polar_image,
-    mask_spectra,
-)
+from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
 from cylindra.const import (
     nm,
     PropertyNames as H,
@@ -281,7 +275,7 @@ class CylTomogram(Tomogram):
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """
         coords = np.asarray(coords)
-        spl = CylSpline(degree=GVar.spline_degree).fit(coords, std=GVar.spline_std)
+        spl = CylSpline(degree=GVar.spline_degree).fit(coords)
         interval: nm = 30.0
         length = spl.length()
 
@@ -391,8 +385,8 @@ class CylTomogram(Tomogram):
         spl = self.splines[i].make_anchors(max_interval=max_interval)
         npoints = spl.anchors.size
         interval = spl.length() / (npoints - 1)
-        depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
+        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # (length + width) / sqrt(2)
@@ -423,7 +417,7 @@ class CylTomogram(Tomogram):
                     distance: NDArray[np.float64] = (
                         np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
                     )
-                    distance_cutoff = GVar.fit_width / 2
+                    distance_cutoff = spl.config.fit_width / 2
                     if edge_sigma == 0:
                         mask_yx = (distance > distance_cutoff).astype(np.float32)
                     else:
@@ -465,7 +459,7 @@ class CylTomogram(Tomogram):
             if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
                 xc = int(subtomo_proj.shape.x / 2)
-                w = int(GVar.fit_width / scale / 2)
+                w = int(spl.config.fit_width / scale / 2)
                 subtomo_proj = subtomo_proj[ip.slicer.x[xc - w : xc + w + 1]]
 
             shifts = np.zeros((npoints, 2))  # zx-shift
@@ -490,7 +484,7 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
-        self.splines[i] = spl.fit(coords, std=GVar.spline_std, weight_ramp=(50, 0.5))
+        self.splines[i] = spl.fit(coords, weight_ramp=(50, 0.5))
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -568,8 +562,8 @@ class CylTomogram(Tomogram):
 
         input_img = self._get_multiscale_or_original(binsize)
 
-        depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
+        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
         if binsize > 1:
@@ -640,9 +634,7 @@ class CylTomogram(Tomogram):
                 shifts[_j] = shift @ zxrot
 
         # Update spline parameters
-        self.splines[i] = spl.shift(
-            shifts=shifts * scale, std=GVar.spline_std, weight_ramp=(50, 0.5)
-        )
+        self.splines[i] = spl.shift(shifts=shifts * scale, weight_ramp=(50, 0.5))
         result = FitResult.from_residual(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -693,13 +685,13 @@ class CylTomogram(Tomogram):
 
         input_img = self._get_multiscale_or_original(binsize)
 
-        depth_px = self.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
+        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
         _scale = input_img.scale.x
         min_radius_px = min_radius / _scale
         max_radius_px = width_px / 2
-        thick_inner_px = GVar.thickness_inner / _scale
-        thick_outer_px = GVar.thickness_outer / _scale
+        thick_inner_px = spl.config.thickness_inner / _scale
+        thick_outer_px = spl.config.thickness_outer / _scale
 
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         profs = list[float]()
@@ -749,13 +741,13 @@ class CylTomogram(Tomogram):
         input_img = self._get_multiscale_or_original(binsize)
 
         depth_px = self.nm2pixel(size, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
+        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
         _scale = input_img.scale.x
         min_radius_px = min_radius / _scale
         max_radius_px = width_px / 2
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
-        thick_inner_px = GVar.thickness_inner / _scale
-        thick_outer_px = GVar.thickness_outer / _scale
+        thick_inner_px = spl.config.thickness_inner / _scale
+        thick_outer_px = spl.config.thickness_outer / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         radii = list[float]()
         for anc in spl_trans.anchors:
@@ -819,10 +811,11 @@ class CylTomogram(Tomogram):
         _scale = input_img.scale.x
         tasks = []
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        lazy_ft_params = delayed(ft_params)
+        analyzer = LatticeAnalyzer(spl.config)
+        lazy_ft_params = delayed(analyzer.ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
-            rmin: float = _non_neg(r0 - GVar.thickness_inner) / _scale
-            rmax = (r0 + GVar.thickness_outer) / _scale
+            rmin: float = _non_neg(r0 - spl.config.thickness_inner) / _scale
+            rmax = (r0 + spl.config.thickness_outer) / _scale
             rc = (rmin + rmax) / 2 * _scale
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
             tasks.append(lazy_ft_params(input_img, coords, rc, nsamples=nsamples))
@@ -874,8 +867,8 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size, binsize=binsize)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
-        rmax = (spl.radius + GVar.thickness_outer) / _scale
+        rmin = _non_neg(spl.radius - spl.config.thickness_inner) / _scale
+        rmax = (spl.radius + spl.config.thickness_outer) / _scale
         out = list[ip.ImgArray]()
         if pos is None:
             anchors = spl.anchors
@@ -960,11 +953,12 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self.splines[i]
-        rmin = _non_neg(spl.radius - GVar.thickness_inner)
-        rmax = spl.radius + GVar.thickness_outer
+        rmin = _non_neg(spl.radius - spl.config.thickness_inner)
+        rmax = spl.radius + spl.config.thickness_outer
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
         rc = (rmin + rmax) / 2
-        out = polar_ft_params(img_st, rc, nsamples=nsamples).to_polars()
+        analyzer = LatticeAnalyzer(spl.config)
+        out = analyzer.polar_ft_params(img_st, rc, nsamples=nsamples).to_polars()
         if update:
             spl.globalprops = spl.globalprops.with_columns(out)
         return out
@@ -1027,26 +1021,27 @@ class CylTomogram(Tomogram):
             except ValueError:
                 imgb = self.image
 
-        depth_px = self.nm2pixel(depth, binsize=binsize)
-        width_px = self.nm2pixel(GVar.fit_width, binsize=binsize)
-
         spl = self.splines[i]
-        ori_clockwise = Ori(GVar.clockwise)
+        cfg = spl.config
+        depth_px = self.nm2pixel(depth, binsize=binsize)
+        width_px = self.nm2pixel(cfg.fit_width, binsize=binsize)
+
+        ori_clockwise = Ori(cfg.clockwise)
         ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
         if spl.radius is None:
             r_range = 0.5, width_px / 2
         else:
             r_range = (
                 self.nm2pixel(
-                    _non_neg(spl.radius - GVar.thickness_inner), binsize=binsize
+                    _non_neg(spl.radius - cfg.thickness_inner), binsize=binsize
                 ),
-                self.nm2pixel(spl.radius + GVar.thickness_outer, binsize=binsize),
+                self.nm2pixel(spl.radius + cfg.thickness_outer, binsize=binsize),
             )
         point = 0.5  # the sampling point
         coords = spl.local_cylindrical(r_range, depth_px, point, scale=current_scale)
         polar = get_polar_image(imgb, coords, spl.radius, order=1)
         if mask_freq:
-            polar = mask_spectra(polar)
+            polar = LatticeAnalyzer(cfg).mask_spectra(polar)
         img_flat = polar.proj("y")
 
         if (npf := spl.props.get_glob(H.npf, None)) is None:
@@ -1055,7 +1050,7 @@ class CylTomogram(Tomogram):
             ft = img_flat.fft(shift=False, dims="ra")
             pw = ft.real**2 + ft.imag**2
             img_pw = np.mean(pw, axis=0)
-            npf = np.argmax(img_pw[GVar.npf_min : GVar.npf_max + 1]) + GVar.npf_min
+            npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
 
         pw_peak = img_flat.local_power_spectra(
             key=ip.slicer.a[npf - 1 : npf + 2],
@@ -1138,7 +1133,7 @@ class CylTomogram(Tomogram):
         else:
             if size is None:
                 rz = rx = 1 + 2 * self.nm2pixel(
-                    self.splines[i].radius + GVar.thickness_outer, binsize=binsize
+                    spl.radius + spl.config.thickness_outer, binsize=binsize
                 )
 
             else:
@@ -1226,8 +1221,8 @@ class CylTomogram(Tomogram):
                 input_img = filt_func(input_img)
             _scale = input_img.scale.x
             if radii is None:
-                rmin = _non_neg(spl.radius - GVar.thickness_inner) / _scale
-                rmax = (spl.radius + GVar.thickness_outer) / _scale
+                rmin = _non_neg(spl.radius - spl.config.thickness_inner) / _scale
+                rmax = (spl.radius + spl.config.thickness_outer) / _scale
             else:
                 rmin, rmax = np.asarray(radii) / _scale
 

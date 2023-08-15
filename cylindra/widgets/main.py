@@ -1819,7 +1819,10 @@ class CylindraMainWidget(MagicTemplate):
             spacing = props[H.spacing][0]
             rise = np.deg2rad(props[H.rise][0])
             tan = (
-                np.tan(rise) / spacing * (2 * np.pi * spl.radius / npf) * GVar.rise_sign
+                np.tan(rise)
+                / spacing
+                * (2 * np.pi * spl.radius / npf)
+                * spl.config.rise_sign
             )
         else:
             _, _, nrise = utils.infer_geometry_from_molecules(mole)
@@ -2140,7 +2143,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.rise, H.npf]}] = H.spacing,
         cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Optional[tuple[float, float]] = (GVar.spacing_min, GVar.spacing_max),
+        limits: Optional[tuple[float, float]] = (3.95, 4.28),
     ):  # fmt: skip
         """
         Paint cylinder fragments by its local properties.

@@ -1,8 +1,8 @@
 from typing import Annotated
 from magicclass import magicclass, MagicTemplate, field, vfield, do_not_record
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
-from cylindra.components.cyl_spline import CylSpline
-from cylindra.const import GlobalVariables as GVar, Mode, nm
+from cylindra.components import CylSpline
+from cylindra.const import Mode, nm
 from cylindra.utils import map_coordinates
 import numpy as np
 import impy as ip
@@ -121,8 +121,8 @@ class SplineClipper(MagicTemplate):
         binsize: int = parent._current_binsize
         imgb = parent._reserved_layers.image_data
 
-        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
+        length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         # sample subtomogram at the edge
         mole = spl.anchors_to_molecules([0.0, 1.0])

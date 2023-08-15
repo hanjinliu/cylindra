@@ -5,7 +5,7 @@ from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
 
 from cylindra.utils import map_coordinates
-from cylindra.const import GlobalVariables as GVar, nm
+from cylindra.const import nm
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -199,7 +199,8 @@ class SplineSlicer(MagicTemplate):
         if self.radius is None:
             hwidth = None
         else:
-            hwidth = self.radius + GVar.thickness_outer
+            cfg = self.parent.tomogram.splines[idx].config
+            hwidth = self.radius + cfg.thickness_outer
         try:
             return self.get_cartesian_image(
                 idx, pos, depth=depth, binsize=binsize, half_width=hwidth
@@ -256,7 +257,7 @@ class SplineSlicer(MagicTemplate):
         tomo = self.parent.tomogram
         spl = tomo.splines[spline]
         depth_px = tomo.nm2pixel(depth, binsize=binsize)
-        r = half_width or spl.radius + GVar.thickness_outer
+        r = half_width or spl.radius + spl.config.thickness_outer
         width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
         if r is None:
             raise ValueError("Measure spline radius or manually set it.")
@@ -314,8 +315,8 @@ class SplineSlicer(MagicTemplate):
         r = radius or spl.radius
         if r is None:
             raise ValueError("Radius not available in the input spline.")
-        rmin = tomo.nm2pixel(max(r - GVar.thickness_inner, 0), binsize=binsize)
-        rmax = tomo.nm2pixel((r + GVar.thickness_outer), binsize=binsize)
+        rmin = tomo.nm2pixel(max(r - spl.config.thickness_inner, 0), binsize=binsize)
+        rmax = tomo.nm2pixel((r + spl.config.thickness_outer), binsize=binsize)
 
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3

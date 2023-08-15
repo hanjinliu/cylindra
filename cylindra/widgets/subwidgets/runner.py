@@ -11,7 +11,7 @@ from magicclass.types import Optional
 
 from cylindra.widgets._widget_ext import CheckBoxes
 
-from cylindra.const import GlobalVariables as GVar, nm
+from cylindra.const import nm
 
 
 @magicclass(widget_type="groupbox", name="Fitting parameters", record=False)
@@ -177,7 +177,18 @@ class Runner(MagicTemplate):
         if global_props:
             parent.global_ft_analysis(splines=splines, bin_size=bin_size)
         if local_props and paint:
-            parent.paint_cylinders(limits=(GVar.spacing_min, GVar.spacing_max))
+            cfg = parent.tomogram.splines[splines[0]].config
+            parent.paint_cylinders(limits=cfg.spacing_range)
         if map_monomers:
-            parent.map_monomers(orientation=GVar.clockwise)
+            _plus_idx = []
+            _minus_idx = []
+            for idx in splines:
+                if parent.tomogram.splines[idx].config.clockwise == "PlusToMinus":
+                    _plus_idx.append(idx)
+                else:
+                    _minus_idx.append(idx)
+            if _plus_idx:
+                parent.map_monomers(_plus_idx, orientation="PlusToMinus")
+            if _minus_idx:
+                parent.map_monomers(_minus_idx, orientation="PlusToMinus")
         return None

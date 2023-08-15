@@ -14,7 +14,7 @@ from magicclass.undo import undo_callback
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 from cylindra.utils import roundint, centroid, map_coordinates
-from cylindra.const import nm, GlobalVariables as GVar, Mode
+from cylindra.const import nm, Mode
 
 
 @magicclass
@@ -86,7 +86,6 @@ class SplineFitter(MagicTemplate):
             old_spl.make_anchors(max_interval=max_interval)
             .shift(
                 shifts=shifts * self._get_binsize() * _scale,
-                std=GVar.spline_std,
                 weight_ramp=(50, 0.5),
             )
             .make_anchors(max_interval=max_interval)
@@ -154,7 +153,8 @@ class SplineFitter(MagicTemplate):
             return
         itemv.pos = [x, z]
         itemh.pos = [x, z]
-        r_max: nm = GVar.fit_width / 2
+        spl = tomo.splines[i]
+        r_max: nm = spl.config.fit_width / 2
         nbin = max(roundint(r_max / tomo.scale / binsize / 2), 8)
         prof = self.subtomograms[j].radial_profile(
             center=[z, x], nbin=nbin, r_max=r_max
@@ -162,8 +162,8 @@ class SplineFitter(MagicTemplate):
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax - 5, imax + 5)
         r_peak = (imax_sub + 0.5) / nbin * r_max
-        r_inner = max(r_peak - GVar.thickness_inner, 0) / tomo.scale / binsize
-        r_outer = (r_peak + GVar.thickness_outer) / tomo.scale / binsize
+        r_inner = max(r_peak - spl.config.thickness_inner, 0) / tomo.scale / binsize
+        r_outer = (r_peak + spl.config.thickness_outer) / tomo.scale / binsize
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
         item_circ_inner.xdata = r_inner * np.cos(theta) + x
@@ -209,8 +209,8 @@ class SplineFitter(MagicTemplate):
         self.shifts[i] = np.zeros((npos, 2))
 
         binsize = self._get_binsize()
-        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
+        length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules()
         coords = mole.local_coordinates(

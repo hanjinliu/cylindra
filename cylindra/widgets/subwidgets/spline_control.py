@@ -15,7 +15,7 @@ from magicclass.types import OneOf, Path
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from dask import delayed, array as da
 
-from cylindra.const import GlobalVariables as GVar, PropertyNames as H, Mode
+from cylindra.const import PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 from cylindra.widgets.widget_utils import FileFilter
 
@@ -147,7 +147,7 @@ class SplineControl(MagicTemplate):
         anc = spl.anchors[self.pos]
         highlight.data = spl.map(anc)
         scale = parent._reserved_layers.scale
-        highlight.size = GVar.fit_width / scale * 2
+        highlight.size = tomo.splines[self.num].config.fit_width / scale * 2
 
         return None
 
@@ -206,8 +206,8 @@ class SplineControl(MagicTemplate):
         binsize = parent._current_binsize
         imgb = parent.tomogram.get_multiscale(binsize)
 
-        length_px = tomo.nm2pixel(GVar.fit_depth, binsize=binsize)
-        width_px = tomo.nm2pixel(GVar.fit_width, binsize=binsize)
+        length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules()
         if binsize > 1:
@@ -281,8 +281,8 @@ class SplineControl(MagicTemplate):
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
-        r_inner = max(r0 - GVar.thickness_inner, 0) / tomo.scale / binsize
-        r_outer = (r0 + GVar.thickness_outer) / tomo.scale / binsize
+        r_inner = max(r0 - spl.config.thickness_inner, 0) / tomo.scale / binsize
+        r_outer = (r0 + spl.config.thickness_outer) / tomo.scale / binsize
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
         self.canvas[0].add_curve(
             [xmin, xmin, xmax, xmax, xmin],
