@@ -89,11 +89,12 @@ def test_chunked_straightening():
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200)
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
 
-    from cylindra.components._ftprops import polar_ft_params
+    from cylindra.components._ftprops import LatticeAnalyzer
 
     spl = tomo.splines[0]
-    prop0 = polar_ft_params(st0, spl.radius)
-    prop1 = polar_ft_params(st1, spl.radius)
+    analyzer = LatticeAnalyzer(spl.config)
+    prop0 = analyzer.polar_ft_params(st0, spl.radius)
+    prop1 = analyzer.polar_ft_params(st1, spl.radius)
 
     assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
     assert prop0.skew_angle == pytest.approx(prop1.skew_angle, abs=1e-6)

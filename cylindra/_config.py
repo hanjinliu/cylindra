@@ -14,7 +14,7 @@ SETTINGS_DIR = Path(user_config_dir("settings", "cylindra"))
 WORKFLOWS_DIR = Path(user_config_dir("workflows", "cylindra"))
 STASH_DIR = Path(user_config_dir("stash", "cylindra"))
 TEMPLATE_PATH_HIST = "template_path_hist.txt"
-DEFAULT_TOMOGRAM_CONFIG = "default_tomogram_config"
+DEFAULT_SPLINE_CONFIG = "default_spline_config"
 
 USER_SETTINGS = SETTINGS_DIR / "user-settings.json"
 
@@ -23,14 +23,20 @@ USER_SETTINGS = SETTINGS_DIR / "user-settings.json"
 class AppConfig:
     """Application configuration."""
 
-    default_tomogram_config: str = "eukaryotic_MT"
+    default_spline_config: str = "eukaryotic_MT"
     dask_chunk: tuple[int, int, int] = (256, 256, 256)
     point_size: float = 4.2
     use_gpu: bool = True
 
     @property
-    def spline_config_path(self) -> Path:
-        return VAR_PATH / f"{self.default_tomogram_config}.json"
+    def default_spline_config_path(self) -> Path:
+        return self.spline_config_path(self.default_spline_config)
+
+    def spline_config_path(self, name: str) -> Path:
+        return VAR_PATH / f"{name}.json"
+
+    def list_config_paths(self) -> list[Path]:
+        return list(VAR_PATH.glob("*.json"))
 
 
 _APP_CONFIG = AppConfig()

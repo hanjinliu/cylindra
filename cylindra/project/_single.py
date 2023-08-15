@@ -226,6 +226,7 @@ class CylindraProject(BaseProject):
         filter: bool = True,
         paint: bool = True,
         read_image: bool = True,
+        update_config: bool = True,
     ):
         """Update CylindraMainWidget state based on the project model."""
         from cylindra.components import SplineConfig
@@ -251,11 +252,8 @@ class CylindraProject(BaseProject):
                     gui.sample_subtomograms()
 
             # load tomogram configurations
-            if self.default_spline_config:
-                with gui.macro.blocked():
-                    gui.default_config = SplineConfig.from_file(
-                        self.default_spline_config
-                    )
+            if self.default_spline_config and update_config:
+                gui.default_config = SplineConfig.from_file(self.default_spline_config)
 
             # append macro
             gui.macro.extend(extract(Path(self.macro).read_text()).args)

@@ -164,6 +164,11 @@ class SplineConfig:
             cfg: dict = json.load(f)
         return SplineConfig.from_dict(cfg, unknown=unknown)
 
+    def to_file(self, path: str):
+        with open(path, mode="w") as f:
+            json.dump(self.asdict(), f)
+        return None
+
     def updated(
         self,
         std: nm | None = None,

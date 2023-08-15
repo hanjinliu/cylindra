@@ -203,7 +203,7 @@ class CylindraMainWidget(MagicTemplate):
         self._tilt_range: "tuple[float, float] | None" = None
         self._reserved_layers = ReservedLayers()
         self._default_cfg = SplineConfig.from_file(
-            _config.get_config().spline_config_path
+            _config.get_config().default_spline_config_path
         )
         self._macro_offset: int = 1
         self._macro_image_load_offset: int = 1
@@ -282,7 +282,7 @@ class CylindraMainWidget(MagicTemplate):
     def register_path(
         self,
         coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None,
-        config: Annotated[dict[str, Any], {"bind": _get_add_spline_config}] = {},
+        config: Annotated[dict[str, Any], {"bind": _get_add_spline_config}] = None,
     ):
         """Register current selected points as a spline path."""
         if coords is None:
@@ -294,6 +294,8 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("No points are given.")
 
         tomo = self.tomogram
+        if config is None:
+            config = self.default_config
         tomo.add_spline(_coords, config=config)
         spl = tomo.splines[-1]
 
@@ -435,6 +437,7 @@ class CylindraMainWidget(MagicTemplate):
         filter: Union[ImageFilter, None] = ImageFilter.LoG,
         paint: bool = False,
         read_image: Annotated[bool, {"label": "Read image data"}] = True,
+        update_config: bool = True,
     ):
         """
         Load a project json file.
@@ -447,10 +450,11 @@ class CylindraMainWidget(MagicTemplate):
         {filter}
         paint : bool, default is False
             Whether to paint cylinder properties if available.
-        read_image : bool default is True
+        read_image : bool, default is True
             Whether to read image data from the project directory. If false, a dummy
             image is created and only splines and molecules will be loaded, which is
             useful to decrease loading time, or analyze data in other PC.
+        update_config : bool, default is True
         """
         if isinstance(path, CylindraProject):
             project = path
@@ -460,13 +464,19 @@ class CylindraMainWidget(MagicTemplate):
             project = CylindraProject.from_json(project_path)
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
-            f"filter={filter}, {paint=}, {read_image=})</code>"
+            f"filter={filter}, {paint=}, {read_image=}, {update_config=}</code>"
         )
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
             self._project_dir = project_path.parent
         return thread_worker.callback(
-            project.to_gui(self, filter=filter, paint=paint, read_image=read_image)
+            project.to_gui(
+                self,
+                filter=filter,
+                paint=paint,
+                read_image=read_image,
+                update_config=update_config,
+            )
         )
 
     @File.wraps
