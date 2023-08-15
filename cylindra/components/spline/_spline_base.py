@@ -135,7 +135,9 @@ class Spline(BaseComponent):
         Spline
             Copied object.
         """
-        new = self.__class__(order=self.order, lims=self._lims)
+        new = self.__class__(
+            order=self.order, lims=self._lims, extrapolate=self.extrapolate
+        )
         new._tck = self._tck
         new._u = self._u
         new._anchors = self._anchors
@@ -347,9 +349,12 @@ class Spline(BaseComponent):
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        return self.__class__(order=self.order, lims=(u0, u1))._set_params(
-            self._tck, self._u
-        )
+        return self.__class__(
+            order=self.order,
+            lims=(u0, u1),
+            extrapolate=self.extrapolate,
+            config=self.config,
+        )._set_params(self._tck, self._u)
 
     def restore(self) -> Self:
         """
@@ -361,7 +366,10 @@ class Spline(BaseComponent):
             Copy of the original spline.
         """
         return self.__class__(
-            order=self.order, lims=(0, 1), extrapolate=self.extrapolate
+            order=self.order,
+            lims=(0, 1),
+            extrapolate=self.extrapolate,
+            config=self.config,
         )._set_params(self._tck, self._u)
 
     def resample(self, max_interval: nm = 1.0, std: float | None = 0.0) -> Self:
@@ -428,7 +436,7 @@ class Spline(BaseComponent):
         if self.is_inverted():
             coords = coords[::-1]
         _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
-        new = self.__class__(order=k, extrapolate=self.extrapolate)
+        new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
         return new._set_params(_tck, _u)
 
     def shift(

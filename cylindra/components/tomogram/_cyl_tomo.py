@@ -236,7 +236,9 @@ class CylTomogram(Tomogram):
         n = int(length / interval) + 1
         fit = spl.map(np.linspace(0, 1, n))
         if coords.shape[0] <= spl.order and coords.shape[0] < fit.shape[0]:
-            return self.add_spline(fit)
+            return self.add_spline(
+                fit, order=order, extrapolate=extrapolate, config=config
+            )
 
         self.splines.append(spl)
         return None
