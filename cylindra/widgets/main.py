@@ -1,5 +1,3 @@
-from math import e
-import os
 from typing import Annotated, TYPE_CHECKING, Literal, Union, Any, Sequence
 import warnings
 from weakref import WeakSet
@@ -200,11 +198,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def __init__(self):
         self._tomogram = CylTomogram.dummy(binsize=[1])
-        self._tilt_range: "tuple[float, float] | None" = None
         self._reserved_layers = ReservedLayers()
-        self._default_cfg = SplineConfig.from_file(
-            _config.get_config().default_spline_config_path
-        )
         self._macro_offset: int = 1
         self._macro_image_load_offset: int = 1
         self._need_save: bool = False
@@ -236,12 +230,20 @@ class CylindraMainWidget(MagicTemplate):
                 self.macro[-1]
             ).startswith("ui.open_image(")
 
+        self.default_config = SplineConfig.from_file(
+            _config.get_config().default_spline_config_path
+        )
         return None
 
     @property
     def tomogram(self) -> CylTomogram:
         """The current tomogram instance."""
         return self._tomogram
+
+    @property
+    def splines(self):
+        """The spline list."""
+        return self.tomogram.splines
 
     @property
     def default_config(self) -> SplineConfig:
@@ -296,6 +298,8 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         if config is None:
             config = self.default_config
+        elif isinstance(config, dict):
+            config = self.default_config.updated(**config)
         tomo.add_spline(_coords, config=config)
         spl = tomo.splines[-1]
 
@@ -2284,15 +2288,6 @@ class CylindraMainWidget(MagicTemplate):
         mole = self.get_molecules(name)
         return self.tomogram.get_subtomogram_loader(mole, output_shape, order=order)
 
-    @nogui
-    @do_not_record
-    def get_spline(self, i: "int | None" = None) -> CylSpline:
-        """Get the i-th spline object. Return current one by default."""
-        tomo = self.tomogram
-        if i is None:
-            i = self.SplineControl.num
-        return tomo.splines[i]
-
     def _init_widget_state(self, _=None):
         """Initialize widget state of spline control and local properties for new plot."""
         self.SplineControl.pos = 0
@@ -2374,7 +2369,7 @@ class CylindraMainWidget(MagicTemplate):
         try:
             parts = tomo.source.parts
             if len(parts) > 2:
-                _name = ".../" + Path(os.path.join(*parts[-2:])).as_posix()
+                _name = ".../" + Path(*parts[-2:]).as_posix()
             else:
                 _name = tomo.source.as_posix()
         except Exception:

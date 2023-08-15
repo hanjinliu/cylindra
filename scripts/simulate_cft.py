@@ -46,6 +46,8 @@ class Simulator:
 
 
 class local_expansions(Simulator):
+    """Vertical MT with spacing=4.05, 4.10, 4.15, 4.20 nm."""
+
     def prepare(self):
         self.ui.cylinder_simulator.create_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
@@ -64,6 +66,8 @@ class local_expansions(Simulator):
 
 
 class local_skew(Simulator):
+    """Vertical MT with skew=-0.15, -0.05, 0.05, 0.15 deg."""
+
     def prepare(self):
         self.ui.cylinder_simulator.create_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
@@ -82,59 +86,49 @@ class local_skew(Simulator):
 
 
 class local_orientation(Simulator):
+    """Cureved MT with orientation=60, 40, 20, 0 deg."""
+
     def prepare(self):
         length = 52.0
-        curve_length = 24.0
+        curve_length = 16.0
 
-        def get_vec(l: float, deg: float) -> np.ndarray:
+        def get_vec(l: float, deg: float, dup: int = 1) -> np.ndarray:
             rad = np.deg2rad(deg)
-            return np.array([0, l * np.cos(rad), l * np.sin(rad)])
+            l0 = l / dup
+            return np.array([[0, l0 * np.cos(rad), l0 * np.sin(rad)]] * dup)
 
-        vecs = np.stack(
+        dup0 = 12
+        vecs = np.concatenate(
             [
-                [30, 0, 0],
-                get_vec(length / 2, 60.0),
-                get_vec(length / 2, 60.0),
-                get_vec(curve_length, 50.0),
-                get_vec(length / 2, 40.0),
-                get_vec(length / 2, 40.0),
-                get_vec(curve_length, 30.0),
-                get_vec(length / 2, 20.0),
-                get_vec(length / 2, 20.0),
-                get_vec(curve_length, 10.0),
-                get_vec(length / 2, 0.0),
-                get_vec(length / 2, 0.0),
+                np.array([[30, 20, 0]]),
+                get_vec(length, 60.0, dup=dup0),
+                get_vec(curve_length, 50.0, dup=3),
+                get_vec(length, 40.0, dup=dup0),
+                get_vec(curve_length, 30.0, dup=3),
+                get_vec(length, 20.0, dup=dup0),
+                get_vec(curve_length, 10.0, dup=3),
+                get_vec(length, 0.0, dup=dup0),
             ],
-            axis=1,
+            axis=0,
         )
 
-        coords = np.cumsum(vecs, axis=1)
-        spl = CylSpline().fit(coords, variance=1e-8)
+        coords = np.cumsum(vecs, axis=0)
+        spl = CylSpline().fit(coords, std=1e-8)
         self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 210, 128), scale=self.scale
+            size=(60, 228, 144), scale=self.scale
         )
         self.ui.cylinder_simulator.set_spline(spl)
-        return coords
+        self.ui.cylinder_simulator.update_model(
+            spacing=4.1, skew=0.0, start=3, radius=11.4, npf=13
+        )
+        return coords[dup0 // 2 : -dup0 // 2]
 
     def results(self):
         df = self.ui.tomogram.splines[0].props.loc
         return df[H.spacing].to_list() + df[H.skew].to_list() + df[H.rise].to_list()
 
     def columns(self):
-        return [
-            "spacing0",
-            "spacing1",
-            "spacing2",
-            "spacing3",
-            "skew0",
-            "skew1",
-            "skew2",
-            "skew3",
-            "rise0",
-            "rise1",
-            "rise2",
-            "rise3",
-        ]
+        return [f"{n}{i}" for n in ["spacing", "skew", "rise"] for i in range(4)]
 
 
 def simulate(
@@ -230,11 +224,13 @@ class Args(argparse.ArgumentParser):
 
 if __name__ == "__main__":
     args = Args.from_args()
-
+    nsr = ast.literal_eval(args.nsr)
+    if isinstance(nsr, (int, float)):
+        nsr = [nsr]
     simulate(
         func=args.func,
         n_tilt=args.n_tilt,
-        nsr=ast.literal_eval(args.nsr),
+        nsr=nsr,
         nrepeat=args.nrepeat,
         scale=args.scale,
         binsize=args.binsize,

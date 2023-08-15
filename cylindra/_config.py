@@ -28,24 +28,48 @@ class AppConfig:
     point_size: float = 4.2
     use_gpu: bool = True
 
+    @classmethod
+    def from_user_dir(cls, ignore_error: bool = False) -> AppConfig:
+        with open(USER_SETTINGS) as f:
+            js = json.load(f)
+            if "dask_chunk" in js:
+                js["dask_chunk"] = tuple(js["dask_chunk"])
+                assert len(js["dask_chunk"]) == 3
+        try:
+            self = AppConfig(**js)
+        except Exception as e:
+            if ignore_error:
+                print("Failed to load user settings. Initialize AppConfig.")
+                self = AppConfig()
+            else:
+                raise e
+        return self
+
+    def to_user_dir(self):
+        with open(USER_SETTINGS, mode="w") as f:
+            json.dump(asdict(self), f, indent=4, separators=(", ", ": "))
+        return None
+
     @property
     def default_spline_config_path(self) -> Path:
         return self.spline_config_path(self.default_spline_config)
 
     def spline_config_path(self, name: str) -> Path:
+        """Get the spline config path for the given config name."""
         return VAR_PATH / f"{name}.json"
 
     def list_config_paths(self) -> list[Path]:
+        """List up all the available configs."""
         return list(VAR_PATH.glob("*.json"))
 
 
-_APP_CONFIG = AppConfig()
+_APP_CONFIG: AppConfig | None = None
 
 
 def get_config() -> AppConfig:
     global _APP_CONFIG
     if _APP_CONFIG is None:
-        _APP_CONFIG = AppConfig()
+        _APP_CONFIG = AppConfig.from_user_dir(ignore_error=True)
     return _APP_CONFIG
 
 
@@ -139,10 +163,7 @@ def init_config(force: bool = False):  # pragma: no cover
         try:
             if not SETTINGS_DIR.exists():
                 SETTINGS_DIR.mkdir(parents=True)
-
-            cfg = AppConfig()
-            with open(USER_SETTINGS, mode="w") as f:
-                json.dump(asdict(cfg), f, indent=4, separators=(", ", ": "))
+            AppConfig().to_user_dir()
         except Exception as e:
             print("Failed to initialize settings directory.")
             print(e)
@@ -196,12 +217,14 @@ def set_template_path_hist(paths: list[str]):
 
 
 def get_stash_list() -> list[str]:
+    """Get the list of stashed project names."""
     if STASH_DIR.exists():
         return [path.name for path in STASH_DIR.glob("*")]
     return []
 
 
 def get_stash_dir() -> Path:
+    """Get the stash directory."""
     if not STASH_DIR.exists():
         STASH_DIR.mkdir(parents=True)
     return STASH_DIR

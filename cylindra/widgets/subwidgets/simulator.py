@@ -319,6 +319,7 @@ class CylinderSimulator(MagicTemplate):
         img[:, ::px10nm, ::px10nm] = val
         img[:, 0, :] = img[:, -1, :] = img[:, :, 0] = img[:, :, -1] = val / 2
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
+        tomo.metadata["is_dummy"] = True
         parent._macro_offset = len(parent.macro)
         return parent._send_tomogram_to_viewer.with_args(tomo)
 

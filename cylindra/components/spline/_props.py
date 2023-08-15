@@ -142,11 +142,13 @@ class SplineProps:
         return self
 
     def clear_loc(self) -> Self:
+        """Clear local properties."""
         self._loc = pl.DataFrame([])
         self._window_size.clear()
         return self
 
     def clear_glob(self) -> Self:
+        """Clear global properties."""
         self._glob = pl.DataFrame([])
         return self
 

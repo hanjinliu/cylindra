@@ -39,7 +39,7 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
 
 
 def assert_orientation(ui: CylindraMainWidget, ori: str):
-    assert ui.get_spline().orientation == ori
+    assert ui.splines[ui.SplineControl.num].orientation == ori
     assert ui.GlobalProperties.params.params2.polarity.txt == ori
 
     spec = ui._reserved_layers.prof.features["spline-id"] == ui.SplineControl.num
@@ -200,11 +200,11 @@ def test_reanalysis(ui: CylindraMainWidget):
     assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.tomogram.splines[0].orientation == "none"
     ui.measure_radius()
-    assert ui.get_spline(0).radius is not None
+    assert ui.splines[0].radius is not None
     assert len(ui.macro.undo_stack["undo"]) > 0
     ui.reanalyze_image()
     assert len(ui.macro.undo_stack["undo"]) == 0
-    assert ui.get_spline(0).radius is None
+    assert ui.splines[0].radius is None
 
 
 def test_map_molecules(ui: CylindraMainWidget):
@@ -316,11 +316,11 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert_orientation(ui, "MinusToPlus")
     assert (
         ui.LocalProperties.params.spacing.txt
-        == f" {ui.get_spline().localprops[H.spacing][1]:.2f} nm"
+        == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().props.get_glob(H.spacing):.2f} nm"
+        == f" {ui.splines[ui.SplineControl.num].props.get_glob(H.spacing):.2f} nm"
     )
 
     ui.SplineControl.num = 1
@@ -328,11 +328,11 @@ def test_spline_switch(ui: CylindraMainWidget):
     assert_orientation(ui, "MinusToPlus")
     assert (
         ui.LocalProperties.params.spacing.txt
-        == f" {ui.get_spline().localprops[H.spacing][1]:.2f} nm"
+        == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
     )
     assert (
         ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.get_spline().props.get_glob(H.spacing):.2f} nm"
+        == f" {ui.splines[ui.SplineControl.num].props.get_glob(H.spacing):.2f} nm"
     )
 
     assert_canvas(ui, [False, False, False])
@@ -574,10 +574,10 @@ def test_radius_methods(ui: CylindraMainWidget):
     shifts[:, 0] = np.linspace(-1, 1, mole.count())
     mole_tr = mole.translate_internal(shifts)
 
-    ui.add_molecules(mole_tr, "Corn", source=ui.get_spline(0))
+    ui.add_molecules(mole_tr, "Corn", source=ui.splines[0])
     layer = ui.parent_viewer.layers["Corn"]
     ui.measure_radius_by_molecules([layer], interval=8, depth=12)
-    radii = ui.get_spline(0).localprops[H.radius]
+    radii = ui.splines[0].localprops[H.radius]
     assert all(np.diff(radii) > 0)
 
     spl = ui.tomogram.splines[0]
@@ -1060,15 +1060,15 @@ def test_showing_widgets(ui: CylindraMainWidget):
 
 def test_spline_clipper(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    len_old = ui.get_spline(0).length()
+    len_old = ui.splines[0].length()
     ui.Splines.open_spline_clipper()
     ui.spline_clipper.clip_length = 1
     ui.spline_clipper.clip_here()
-    assert ui.get_spline(0).length() == pytest.approx(len_old - 1, abs=0.01)
+    assert ui.splines[0].length() == pytest.approx(len_old - 1, abs=0.01)
     ui.spline_clipper.the_other_side()
     ui.spline_clipper.clip_length = 1.4
     ui.spline_clipper.clip_here()
-    assert ui.get_spline(0).length() == pytest.approx(len_old - 2.4, abs=0.02)
+    assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
 
 
 def test_spectra_measurer(ui: CylindraMainWidget):
