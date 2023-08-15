@@ -484,7 +484,7 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
-        self.splines[i] = spl.fit(coords, weight_ramp=(50, 0.5))
+        self.splines[i] = spl.fit(coords)
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -634,7 +634,7 @@ class CylTomogram(Tomogram):
                 shifts[_j] = shift @ zxrot
 
         # Update spline parameters
-        self.splines[i] = spl.shift(shifts=shifts * scale, weight_ramp=(50, 0.5))
+        self.splines[i] = spl.shift(shifts=shifts * scale)
         result = FitResult.from_residual(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result

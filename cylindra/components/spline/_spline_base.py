@@ -153,6 +153,14 @@ class Spline(BaseComponent):
         new._extrapolate = ExtrapolationMode(extrapolate)
         return new
 
+    def with_config(self, config: dict[str, Any] | SplineConfig) -> Self:
+        """Return a copy of the spline with a new config."""
+        new = self.copy(copy_config=False)
+        if not isinstance(config, SplineConfig):
+            config = SplineConfig(**config)
+        new._config = config
+        return new
+
     @property
     def knots(self) -> np.ndarray:
         """Spline knots."""
@@ -177,19 +185,6 @@ class Spline(BaseComponent):
     def params(self) -> np.ndarray:
         """Spline parameters."""
         return self._u
-
-    def __eq__(self: Self, other: Self) -> bool:
-        if not isinstance(other, self.__class__):
-            return False
-        t0, c0, k0 = self._tck
-        t1, c1, k1 = other._tck
-        return (
-            _array_equal(t0, t1)
-            and all(_array_equal(x, y) for x, y in zip(c0, c1))
-            and k0 == k1
-            and _array_equal(self._u, other._u)
-            and np.allclose(self._lims, other._lims)
-        )
 
     @classmethod
     def line(cls, start: ArrayLike, end: ArrayLike) -> Self:
@@ -378,7 +373,6 @@ class Spline(BaseComponent):
         self,
         coords: ArrayLike,
         *,
-        weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
         std: float | None = None,
     ) -> Self:
@@ -391,8 +385,6 @@ class Spline(BaseComponent):
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
-        weight : np.ndarray, optional
-            Weight of each coordinate.
         std : float, optional
             Standard deviation allowed for smoothing.
 
@@ -414,7 +406,9 @@ class Spline(BaseComponent):
         s = std**2 * npoints
 
         # weight
-        weight = _normalize_weight(weight, weight_ramp, coords)
+        if weight_ramp is None:
+            weight_ramp = self.config.weight_ramp.astuple()
+        weight = _normalize_weight(weight_ramp, coords)
 
         if self.is_inverted():
             coords = coords[::-1]
@@ -427,7 +421,6 @@ class Spline(BaseComponent):
         positions: Sequence[float] | None = None,
         shifts: NDArray[np.floating] | None = None,
         *,
-        weight: ArrayLike | None = None,
         weight_ramp: tuple[float, float] | None = None,
         std: float | None = None,
     ) -> Self:
@@ -455,7 +448,7 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        return self.fit(coords, std=std, weight=weight, weight_ramp=weight_ramp)
+        return self.fit(coords, std=std, weight_ramp=weight_ramp)
 
     def distances(
         self, positions: Sequence[float] | None = None
@@ -1191,16 +1184,13 @@ def _construct_ramping_weight(
 
 
 def _normalize_weight(
-    weight, weight_ramp: float, coords: np.ndarray
-) -> np.ndarray | None:
-    if weight_ramp is not None:
-        if weight is not None:
-            raise TypeError("Cannot specify both 'weight' and 'weight_ramp'.")
-        _edge_length, _weight_min = weight_ramp
-        length = np.sum(np.sqrt(np.sum(np.diff(coords, axis=0) ** 2, axis=1)))
-        weight = _construct_ramping_weight(
-            _edge_length / length, _weight_min, coords.shape[0]
-        )
+    weight_ramp: tuple[float, float], coords: np.ndarray
+) -> np.ndarray:
+    _edge_length, _weight_min = weight_ramp
+    length = np.sum(np.sqrt(np.sum(np.diff(coords, axis=0) ** 2, axis=1)))
+    weight = _construct_ramping_weight(
+        _edge_length / length, _weight_min, coords.shape[0]
+    )
     return weight
 
 
@@ -1210,7 +1200,3 @@ def _linear_polar_mapping(output_coords, k_angle, k_radius, center):
     cc = ((output_coords[:, 0] / k_radius) * np.cos(angle)) + center[1]
     coords = np.column_stack((cc, rr))
     return coords
-
-
-def _array_equal(a: np.ndarray, b: np.ndarray):
-    return a.shape == b.shape and np.allclose(a, b)

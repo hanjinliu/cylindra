@@ -34,7 +34,18 @@ class Range(Generic[_T]):
         return slice(self.min, self.max + 1)
 
 
-@dataclass
+@dataclass(frozen=True)
+class WeightRamp:
+    """Spline weight ramping parameters."""
+
+    ramp_length: nm = 50.0
+    tip_ratio: float = 0.5
+
+    def astuple(self) -> tuple[_T, _T]:
+        return (self.min, self.max)
+
+
+@dataclass(frozen=True)
 class SplineConfig:
     """Class for spline configuration."""
 
@@ -49,6 +60,7 @@ class SplineConfig:
     thickness_outer: nm = 3.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
+    weight_ramp: WeightRamp = WeightRamp()
 
     def copy(self) -> SplineConfig:
         return SplineConfig(
@@ -63,6 +75,7 @@ class SplineConfig:
             thickness_outer=self.thickness_outer,
             fit_depth=self.fit_depth,
             fit_width=self.fit_width,
+            weight_ramp=self.weight_ramp,
         )
 
     def asdict(self) -> dict[str, Any]:
@@ -78,4 +91,5 @@ class SplineConfig:
             "thickness_outer": self.thickness_outer,
             "fit_depth": self.fit_depth,
             "fit_width": self.fit_width,
+            "weight_ramp": self.weight_ramp.astuple(),
         }

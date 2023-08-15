@@ -86,7 +86,6 @@ class SplineFitter(MagicTemplate):
             old_spl.make_anchors(max_interval=max_interval)
             .shift(
                 shifts=shifts * self._get_binsize() * _scale,
-                weight_ramp=(50, 0.5),
             )
             .make_anchors(max_interval=max_interval)
         )
