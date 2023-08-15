@@ -10,7 +10,7 @@ import polars as pl
 from acryo import Molecules, pipe, alignment
 
 from cylindra.const import MoleculesHeader as Mole, nm
-from .cyl_spline import CylSpline
+from cylindra.components.spline import CylSpline
 
 if TYPE_CHECKING:
     from acryo.loader._base import LoaderBase, TemplateInputType, MaskInputType

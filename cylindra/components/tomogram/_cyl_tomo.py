@@ -3,13 +3,11 @@ import logging
 from typing import (
     Callable,
     Any,
-    Iterator,
     TypeVar,
     overload,
     Protocol,
     TYPE_CHECKING,
     NamedTuple,
-    MutableSequence,
 )
 from collections.abc import Iterable
 from functools import partial, wraps
@@ -28,14 +26,12 @@ from acryo.tilt import single_axis, TiltSeriesModel
 import impy as ip
 
 from cylindra.components.spline import CylSpline
-from cylindra.components.tomogram import Tomogram
 from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
 from cylindra.const import (
     nm,
     PropertyNames as H,
     Ori,
     Mode,
-    GlobalVariables as GVar,
     IDName,
 )
 from cylindra.utils import (
@@ -50,9 +46,13 @@ from cylindra.utils import (
     ceilint,
 )
 
+from ._tomo_base import Tomogram
+from ._spline_list import SplineList
+from ._config import TomogramConfig
+
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
-    from .cylindric import CylinderModel
+    from cylindra.components.cylindric import CylinderModel
 
     Degenerative = Callable[[ArrayLike], Any]
 
@@ -151,74 +151,23 @@ class FitResult(NamedTuple):
         return cls(residual=residual, rmsd=rmsd(residual))
 
 
-class SplineList(MutableSequence[CylSpline]):
-    def __init__(self, iterable: Iterable[CylSpline] = ()) -> None:
-        self._list = list(iterable)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self._list!r})"
-
-    @overload
-    def __getitem__(self, i: int) -> CylSpline:
-        ...
-
-    @overload
-    def __getitem__(self, i: slice) -> list[CylSpline]:
-        ...
-
-    def __getitem__(self, i):
-        if isinstance(i, slice):
-            return list(self._list[i])
-        return self._list[i]
-
-    def __setitem__(self, i: int, spl: CylSpline) -> None:
-        if not isinstance(spl, CylSpline):
-            raise TypeError(f"Cannot add {type(spl)} to SplineList")
-        self._list[i] = spl
-
-    def __delitem__(self, i: int) -> None:
-        del self._list[i]
-
-    def __len__(self) -> int:
-        return len(self._list)
-
-    def insert(self, i: int, spl: CylSpline) -> None:
-        if not isinstance(spl, CylSpline):
-            raise TypeError(f"Cannot add {type(spl)} to SplineList")
-        self._list.insert(i, spl)
-
-    def __iter__(self) -> Iterator[CylSpline]:
-        return iter(self._list)
-
-    def index(self, value: CylSpline, start: int = 0, stop: int = 9999999) -> int:
-        for i, spl in enumerate(self._list):
-            if i < start:
-                continue
-            if spl is value:
-                return i
-            if i >= stop:
-                break
-        raise ValueError(f"{value} is not in list")
-
-    def remove(self, value: CylSpline) -> None:
-        i = self.index(value)
-        del self[i]
-
-    def copy(self) -> SplineList:
-        return SplineList(self._list)
-
-
 class CylTomogram(Tomogram):
     """Tomogram with cylindrical splines."""
 
     def __init__(self):
         super().__init__()
         self._splines = SplineList()
+        self._config = TomogramConfig()
 
     @property
     def splines(self) -> SplineList:
         """List of splines."""
         return self._splines
+
+    @property
+    def config(self) -> TomogramConfig:
+        """Configuration."""
+        return self._config
 
     @classmethod
     def dummy(
@@ -275,13 +224,18 @@ class CylTomogram(Tomogram):
             (N, 3) array of coordinates. A spline curve that fit it well is added.
         """
         coords = np.asarray(coords)
-        spl = CylSpline(degree=GVar.spline_degree).fit(coords)
+        cfg = self.config
+        spl = CylSpline(
+            order=cfg.spline_order,
+            config=cfg.spline_config,
+            extrapolate=cfg.extrapolate,
+        ).fit(coords)
         interval: nm = 30.0
         length = spl.length()
 
         n = int(length / interval) + 1
         fit = spl.map(np.linspace(0, 1, n))
-        if coords.shape[0] <= spl.degree and coords.shape[0] < fit.shape[0]:
+        if coords.shape[0] <= spl.order and coords.shape[0] < fit.shape[0]:
             return self.add_spline(fit)
 
         self.splines.append(spl)

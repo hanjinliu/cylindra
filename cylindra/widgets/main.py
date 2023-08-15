@@ -1125,13 +1125,21 @@ class CylindraMainWidget(MagicTemplate):
         # first check missing_ok=False case
         if not missing_ok:
             for layer in layers:
-                # NOTE: The source spline may not exist in
+                # NOTE: The source spline may not exist in the list
                 if _s := layer.source_spline:
-                    tomo.splines.index(_s)  # the spline list.
+                    tomo.splines.index(_s)  # raise error here if not found
 
         for layer in layers:
             mole = layer.molecules
-            spl = utils.molecules_to_spline(mole)
+            if _s := layer.source_spline:
+                _config = _s.config
+                _order = _s.order
+                _extrapolate = _s.extrapolate
+            else:
+                _config = self.tomogram.config.spline_config
+                _order = self.tomogram.config.spline_order
+                _extrapolate = self.tomogram.config.extrapolate
+            spl = utils.molecules_to_spline(mole, _order, _extrapolate, _config)
             try:
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:

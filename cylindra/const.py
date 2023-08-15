@@ -182,28 +182,11 @@ class SplineConfigModel(EventedModel):
 class GlobalVariableModel(EventedModel):
     """Global variables used in this module."""
 
-    spline_degree: int = 3
-    spline_config: SplineConfigModel = SplineConfigModel()
     dask_chunk: tuple[int, int, int] = (256, 256, 256)
     point_size: float = 4.2
     use_gpu: bool = True
 
     def update(self, values: EventedModel | dict, recurse: bool = True) -> None:
-        # validate values
-        Inf = float("inf")
-        if isinstance(values, dict):
-            if values.get("npf_min", -Inf) >= values.get("npf_max", Inf):
-                raise ValueError("npf_min > npf_max must be satisfied.")
-            if values.get("spacing_min", -Inf) >= values.get("spacing_max", Inf):
-                raise ValueError("spacing_min > spacing_max must be satisfied.")
-            if values.get("skew_min", -Inf) >= values.get("skew_max", Inf):
-                raise ValueError("skew_min > skew_max must be satisfied.")
-            if values.get("rise_min", -Inf) >= values.get("rise_max", Inf):
-                raise ValueError("rise_min > rise_max must be satisfied.")
-            if values.get("rise_sign", 1) not in (-1, 1):
-                raise ValueError("rise_sign must be either -1 or 1.")
-            if values.get("spline_std", 1) < 0:
-                raise ValueError("spline_std must be non-negative.")
         # In psygnal==0.9.0, events are paused (i.e., each signal will be emitted one
         # by one). This is not desirable because min/max values should be updated at
         # the same time. Therefore, we block the events and emit the signal manually.

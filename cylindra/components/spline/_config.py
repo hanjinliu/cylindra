@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, Sequence, TypeVar
 from dataclasses import dataclass
 from cylindra.const import nm
 
@@ -41,11 +41,29 @@ class WeightRamp:
     ramp_length: nm = 50.0
     tip_ratio: float = 0.5
 
-    def astuple(self) -> tuple[_T, _T]:
-        return (self.min, self.max)
+    def __post_init__(self):
+        if self.ramp_length < 0:
+            raise ValueError("ramp_length must be non-negative")
+        if not 0 <= self.tip_ratio <= 1:
+            raise ValueError("tip_ratio must be between 0 and 1")
+
+    def astuple(self) -> tuple[nm, float]:
+        return (self.ramp_length, self.tip_ratio)
 
 
-@dataclass(frozen=True)
+def _norm_range(x: Range[_T] | Sequence[_T] | tuple[_T, _T]) -> Range[_T]:
+    if isinstance(x, Range):
+        return x
+    return Range(*x)
+
+
+def _norm_weight_ramp(x: WeightRamp | Sequence[float] | tuple[nm, float]) -> WeightRamp:
+    if isinstance(x, WeightRamp):
+        return x
+    return WeightRamp(*x)
+
+
+@dataclass
 class SplineConfig:
     """Class for spline configuration."""
 
@@ -61,6 +79,13 @@ class SplineConfig:
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
     weight_ramp: WeightRamp = WeightRamp()
+
+    def __post_init__(self):
+        self.npf_range = _norm_range(self.npf_range)
+        self.spacing_range = _norm_range(self.spacing_range)
+        self.skew_range = _norm_range(self.skew_range)
+        self.rise_range = _norm_range(self.rise_range)
+        self.weight_ramp = _norm_weight_ramp(self.weight_ramp)
 
     def copy(self) -> SplineConfig:
         return SplineConfig(

@@ -53,6 +53,7 @@ class SplineInfo(TypedDict, total=False):
     lims: tuple[float, float]
     localprops_window_size: dict[str, nm]
     extrapolate: str
+    config: dict[str, Any]
 
 
 _TCK = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
@@ -74,13 +75,13 @@ class Spline(BaseComponent):
 
     def __init__(
         self,
-        degree: int = 3,
+        order: int = 3,
         *,
         lims: tuple[float, float] = (0.0, 1.0),
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
         config: dict[str, Any] | SplineConfig = {},
     ):
-        self._tck: _TCK = (None, None, degree)
+        self._tck: _TCK = (None, None, order)
         self._u: NDArray[np.float32] | None = None
         self._anchors = None
         self._extrapolate = ExtrapolationMode(extrapolate)
@@ -134,7 +135,7 @@ class Spline(BaseComponent):
         Spline
             Copied object.
         """
-        new = self.__class__(degree=self.degree, lims=self._lims)
+        new = self.__class__(order=self.order, lims=self._lims)
         new._tck = self._tck
         new._u = self._u
         new._anchors = self._anchors
@@ -172,8 +173,8 @@ class Spline(BaseComponent):
         return self._tck[1]
 
     @property
-    def degree(self) -> int:
-        """Spline degree."""
+    def order(self) -> int:
+        """Spline order."""
         return self._tck[2]
 
     @property
@@ -211,7 +212,7 @@ class Spline(BaseComponent):
         """Translate the spline by given shift vectors."""
         new = self.copy()
         c = [x + s for x, s in zip(self.coeff, shift)]
-        new._tck = (self.knots, c, self.degree)
+        new._tck = (self.knots, c, self.order)
         return new
 
     @property
@@ -275,7 +276,7 @@ class Spline(BaseComponent):
         elif n is not None:
             end = 1
         elif max_interval is not None:
-            n = max(ceilint(length / max_interval), self.degree) + 1
+            n = max(ceilint(length / max_interval), self.order) + 1
             end = 1
         else:
             raise ValueError("Either 'interval' or 'n' must be specified.")
@@ -332,7 +333,7 @@ class Spline(BaseComponent):
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        return self.__class__(degree=self.degree, lims=(u0, u1))._set_params(
+        return self.__class__(order=self.order, lims=(u0, u1))._set_params(
             self._tck, self._u
         )
 
@@ -346,7 +347,7 @@ class Spline(BaseComponent):
             Copy of the original spline.
         """
         return self.__class__(
-            degree=self.degree, lims=(0, 1), extrapolate=self.extrapolate
+            order=self.order, lims=(0, 1), extrapolate=self.extrapolate
         )._set_params(self._tck, self._u)
 
     def resample(self, max_interval: nm = 1.0, std: float | None = 0.0) -> Self:
@@ -397,10 +398,10 @@ class Spline(BaseComponent):
         npoints = coords.shape[0]
         if npoints < 2:
             raise ValueError("Number of input coordinates must be > 1.")
-        if npoints <= self.degree:
+        if npoints <= self.order:
             k = npoints - 1
         else:
-            k = self.degree
+            k = self.order
         if std is None:
             std = self.config.std
         s = std**2 * npoints
@@ -413,7 +414,7 @@ class Spline(BaseComponent):
         if self.is_inverted():
             coords = coords[::-1]
         _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
-        new = self.__class__(degree=k, extrapolate=self.extrapolate)
+        new = self.__class__(order=k, extrapolate=self.extrapolate)
         return new._set_params(_tck, _u)
 
     def shift(
@@ -650,6 +651,7 @@ class Spline(BaseComponent):
             "lims": self._lims,
             "localprops_window_size": dict(self.props.window_size),
             "extrapolate": self._extrapolate.name,
+            "config": self.config.asdict(),
         }
 
     @classmethod
@@ -678,6 +680,8 @@ class Spline(BaseComponent):
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
         self.props._window_size = d.get("localprops_window_size", {})
+        if cfg := d.get("config", None):
+            self._config = SplineConfig(**cfg)
         return self
 
     def affine_matrix(

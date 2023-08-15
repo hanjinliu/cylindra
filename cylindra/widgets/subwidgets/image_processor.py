@@ -4,7 +4,6 @@ from pathlib import Path
 from magicclass import (
     magicclass,
     MagicTemplate,
-    set_options,
     vfield,
     confirm,
     set_design,
