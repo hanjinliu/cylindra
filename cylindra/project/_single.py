@@ -207,7 +207,7 @@ class CylindraProject(BaseProject):
                 df.write_csv(results_dir / path)
 
         with open(results_dir / self.default_spline_config, mode="w") as f:
-            js = gui.tomogram.config.asdict()
+            js = gui.default_config.asdict()
             json.dump(js, f, indent=4, separators=(", ", ": "))
 
         # save macro

@@ -54,7 +54,7 @@ class CylindraToolbar(MagicTemplate):
             """Make a picker with current parameters."""
             from cylindra.widgets import CylindraMainWidget
 
-            cfg = self.find_ancestor(CylindraMainWidget).tomogram.config.spline_config
+            cfg = self.find_ancestor(CylindraMainWidget).default_config
             return AutoCorrelationPicker(self.interval, self.max_angle, self.angle_step, self.max_shifts, cfg)  # fmt: skip
 
     sep1 = field(Separator)

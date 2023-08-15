@@ -21,7 +21,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import Optional, Path, ExprStr
+from magicclass.types import Optional, Path, ExprStr, Bound
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -974,7 +974,7 @@ class SubtomogramAveraging(MagicTemplate):
     def align_all_annealing(
         self,
         layer: MoleculesLayer,
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Bound[params.template_path],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),

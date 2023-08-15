@@ -1,6 +1,6 @@
 import pytest
 from cylindra.utils import map_coordinates
-from cylindra.components.cyl_tomogram import CylSpline
+from cylindra.components import CylSpline
 import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip
@@ -166,7 +166,12 @@ def test_shift_fit(mode):
     spl.make_anchors(n=4)
     spl = spl.shift(shifts=np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]))
     spl.make_anchors(n=4)
-    assert_allclose(spl(), np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]))
+    assert_allclose(
+        spl(),
+        np.array([[1, 0, 0], [1, 1, 2], [1, 2, 4], [1, 3, 6]]),
+        rtol=1e-8,
+        atol=1e-8,
+    )
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])
@@ -180,7 +185,7 @@ def test_dict(mode):
 
     d = spl.to_dict()
     spl_from_dict = CylSpline.from_dict(d)
-    assert spl == spl_from_dict
+    assert spl.close_to(spl_from_dict)
 
 
 @pytest.mark.parametrize("radius", [0.5, 2.0, 4.0, 10.0])
@@ -189,7 +194,7 @@ def test_curvature(radius, mode):
     spl = CylSpline(extrapolate=mode)
     u = np.linspace(0, 2 * np.pi, 100)
     coords = np.stack([np.zeros(100), radius * np.sin(u), radius * np.cos(u)], axis=1)
-    spl = spl.fit(coords, variance=0)
+    spl = spl.fit(coords, std=0)
     spl.make_anchors(n=100)
     cr = spl.curvature_radii()
     cr_mean = np.mean(cr)

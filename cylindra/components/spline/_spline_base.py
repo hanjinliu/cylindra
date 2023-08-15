@@ -313,6 +313,20 @@ class Spline(BaseComponent):
         end = "({:.1f}, {:.1f}, {:.1f})".format(*end)
         return f"Spline[{start}:{end}]"
 
+    def close_to(self: Self, other: Self) -> bool:
+        """True if two objects draws the same curve."""
+        if not isinstance(other, self.__class__):
+            return False
+        t0, c0, k0 = self._tck
+        t1, c1, k1 = other._tck
+        return (
+            np.allclose(t0, t1)
+            and all(np.allclose(x, y) for x, y in zip(c0, c1))
+            and k0 == k1
+            and np.allclose(self._u, other._u)
+            and np.allclose(self._lims, other._lims)
+        )
+
     def clip(self, start: float, stop: float) -> Self:
         """
         Clip spline and generate a new one.
@@ -670,7 +684,7 @@ class Spline(BaseComponent):
             Spline object constructed from the dictionary.
         """
         self = cls(
-            degree=d.get("k", 3),
+            order=d.get("k", 3),
             lims=d.get("lims", (0, 1)),
             extrapolate=d.get("extrapolate", "linear"),
         )

@@ -1153,13 +1153,9 @@ class CylindraMainWidget(MagicTemplate):
             mole = layer.molecules
             if _s := layer.source_spline:
                 _config = _s.config
-                _order = _s.order
-                _extrapolate = _s.extrapolate
             else:
-                _config = self.tomogram.config.spline_config
-                _order = self.tomogram.config.spline_order
-                _extrapolate = self.tomogram.config.spline_extrapolate
-            spl = utils.molecules_to_spline(mole, _order, _extrapolate, _config)
+                _config = self.default_config
+            spl = utils.molecules_to_spline(mole, _config)
             try:
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:
