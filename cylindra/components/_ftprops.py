@@ -68,7 +68,7 @@ class LatticeAnalyzer:
         y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
         tan_skew_min, tan_skew_max, tan_rise_min, tan_rise_max = (
             math.tan(math.radians(s))
-            for s in [self._cfg.skew_range.aslist() + self._cfg.rise_range.aslist()]
+            for s in self._cfg.skew_range.aslist() + self._cfg.rise_range.aslist()
         )
         npf_min_max = np.array(self._cfg.npf_range.aslist())
 

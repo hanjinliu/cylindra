@@ -37,7 +37,7 @@ from magicclass.undo import undo_callback
 from napari.layers import Layer
 
 from cylindra import utils, _config, cylstructure
-from cylindra.components import CylSpline, CylTomogram
+from cylindra.components import CylSpline, CylTomogram, TomogramConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
     GlobalVariables as GVar,
@@ -1136,7 +1136,7 @@ class CylindraMainWidget(MagicTemplate):
             else:
                 _config = self.tomogram.config.spline_config
                 _order = self.tomogram.config.spline_order
-                _extrapolate = self.tomogram.config.extrapolate
+                _extrapolate = self.tomogram.config.spline_extrapolate
             spl = utils.molecules_to_spline(mole, _order, _extrapolate, _config)
             try:
                 idx = tomo.splines.index(layer.source_spline)
@@ -2541,30 +2541,28 @@ class CylindraMainWidget(MagicTemplate):
         self._highlight_spline()
         return None
 
-    def _global_variable_updated(self):
+    def _refer_tomogram_config(self, config: TomogramConfig):
         """Update GUI states that are related to global variables."""
-        get_function_gui(self.global_variables.set_variables).update(GVar.dict())
-
+        spl_cfg = config.spline_config
         fgui = get_function_gui(self.set_spline_props)
-        fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
-        fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
-        fgui.spacing.value = (
-            None  # NOTE: setting to not-a-None value to update the inner widget.
-        )
-        fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
-        fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
+        fgui.spacing.min, fgui.spacing.max = spl_cfg.spacing_range.astuple()
+        None  # NOTE: setting to not-a-None value to update the inner widget.
+        fgui.spacing.value = spl_cfg.spacing_range.center
+        fgui.spacing.value = None
+        fgui.skew.min, fgui.skew.max = spl_cfg.skew_range.astuple()
+        fgui.skew.value = spl_cfg.skew_range.center
         fgui.skew.value = None
-        fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
-        fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
+        fgui.npf.min, fgui.npf.max = spl_cfg.npf_range.astuple()
+        fgui.npf.value = int(spl_cfg.npf_range.center)
         fgui.npf.value = None
 
         fgui = get_function_gui(self.cylinder_simulator.update_model)
-        fgui.spacing.min, fgui.spacing.max = GVar.spacing_min, GVar.spacing_max
-        fgui.spacing.value = (GVar.spacing_min + GVar.spacing_max) / 2
-        fgui.skew.min, fgui.skew.max = GVar.skew_min, GVar.skew_max
-        fgui.skew.value = (GVar.skew_min + GVar.skew_max) / 2
-        fgui.npf.min, fgui.npf.max = GVar.npf_min, GVar.npf_max
-        fgui.npf.value = (GVar.npf_min + GVar.npf_max) // 2
+        fgui.spacing.min, fgui.spacing.max = spl_cfg.spacing_range.astuple()
+        fgui.spacing.value = spl_cfg.spacing_range.center
+        fgui.skew.min, fgui.skew.max = spl_cfg.skew_range.astuple()
+        fgui.skew.value = spl_cfg.skew_range.center
+        fgui.npf.min, fgui.npf.max = spl_cfg.npf_range.astuple()
+        fgui.npf.value = int(spl_cfg.npf_range.center)
 
         self.cylinder_simulator.parameters.update(
             spacing=fgui.spacing.value,
@@ -2573,36 +2571,10 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         fgui = get_function_gui(self.paint_cylinders)
-        fgui.limits.value = (GVar.spacing_min, GVar.spacing_max)
+        fgui.limits.value = spl_cfg.spacing_range.astuple()
 
-        get_function_gui(self.map_monomers)["orientation"].value = GVar.clockwise
-        get_function_gui(self.map_monomers_with_extensions)[
-            "orientation"
-        ].value = GVar.clockwise
-        get_function_gui(self.map_along_pf)["orientation"].value = GVar.clockwise
-        get_function_gui(self.map_centers)["orientation"].value = GVar.clockwise
-
-        try:
-            if self._global_variable_change_may_affect() and self.parent_viewer:
-                msg_color = "yellow" if self.parent_viewer.theme == "dark" else "red"
-                _Logger.print_html(
-                    f'<font color="{msg_color}"><b>'
-                    "WARNING: Global variables changed in the process."
-                    "</b></font>"
-                )
-        except RuntimeError:
-            # Event emission may fail during testing, due to GC.
-            pass
-
-    def _global_variable_change_may_affect(self) -> bool:
-        """Return true if global variable change may affect the analysis."""
-        if self._macro_offset >= len(self.macro):
-            return False
-        _cur_macro = self.macro[-self._macro_offset :]
-        _filt_macro = _filter_macro_for_reanalysis(_cur_macro, mk.symbol(self))
-        if _filt_macro.args[-1].head is mk.Head.comment:
-            return True
-        return False
+        for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
+            get_function_gui(method)["orientation"].value = spl_cfg.clockwise
 
 
 ############################################################################################

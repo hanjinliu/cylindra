@@ -178,7 +178,7 @@ class Runner(MagicTemplate):
             parent.global_ft_analysis(splines=splines, bin_size=bin_size)
         if local_props and paint:
             cfg = parent.tomogram.splines[splines[0]].config
-            parent.paint_cylinders(limits=cfg.spacing_range)
+            parent.paint_cylinders(limits=cfg.spacing_range.astuple())
         if map_monomers:
             _plus_idx = []
             _minus_idx = []

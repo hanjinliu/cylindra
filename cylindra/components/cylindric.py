@@ -5,11 +5,11 @@ from acryo import Molecules
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import polars as pl
-from .spline import Spline
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+    from .spline import Spline
 
 
 class CylindricSlice(NamedTuple):

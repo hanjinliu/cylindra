@@ -52,6 +52,7 @@ from ._config import TomogramConfig
 
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
+    from cylindra.components.spline import SplineConfig
     from cylindra.components.cylindric import CylinderModel
 
     Degenerative = Callable[[ArrayLike], Any]
@@ -214,7 +215,14 @@ class CylTomogram(Tomogram):
         df.write_csv(file_path, **kwargs)
         return None
 
-    def add_spline(self, coords: ArrayLike) -> None:
+    def add_spline(
+        self,
+        coords: ArrayLike,
+        *,
+        order: int | None = None,
+        extrapolate: str | None = None,
+        config: SplineConfig | dict[str, Any] | None = None,
+    ) -> None:
         """
         Add spline path to tomogram.
 
@@ -225,10 +233,13 @@ class CylTomogram(Tomogram):
         """
         coords = np.asarray(coords)
         cfg = self.config
+        order = order if order is not None else cfg.spline_order
+        extrapolate = extrapolate if extrapolate is not None else cfg.spline_extrapolate
+        config = config if config is not None else cfg.spline_config
         spl = CylSpline(
-            order=cfg.spline_order,
-            config=cfg.spline_config,
-            extrapolate=cfg.extrapolate,
+            order=order,
+            config=config,
+            extrapolate=extrapolate,
         ).fit(coords)
         interval: nm = 30.0
         length = spl.length()

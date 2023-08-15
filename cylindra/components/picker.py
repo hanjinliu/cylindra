@@ -81,7 +81,7 @@ class AutoCorrelationPicker(Picker):
         angle_step: float,
         max_angle: float,
         max_shifts: nm,
-        config: SplineConfig = SplineConfig(),
+        config: SplineConfig,
     ):
         self._interval = interval
         self._angle_step = angle_step

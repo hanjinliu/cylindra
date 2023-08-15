@@ -27,6 +27,10 @@ class Range(Generic[_T]):
     def astuple(self) -> tuple[_T, _T]:
         return (self.min, self.max)
 
+    @property
+    def center(self) -> _T:
+        return (self.min + self.max) / 2
+
     def aslist(self) -> list[_T]:
         return [self.min, self.max]
 
