@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal
+from attr import asdict
 
 import polars as pl
 from magicgui.widgets import FunctionGui
@@ -342,7 +343,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 
 
 @setup_function_gui(CylindraMainWidget.map_monomers_with_extensions)
-def _(self: CylindraMainWidget, gui: FunctionGui):
+def _setup_map_monomers_with_extensions(self: CylindraMainWidget, gui: FunctionGui):
     @gui.spline.changed.connect
     def _on_spline_change(spline: int | None):
         if spline is None:

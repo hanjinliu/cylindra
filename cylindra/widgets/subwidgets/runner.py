@@ -52,9 +52,11 @@ class runner_params2:
         Check if paint the tomogram with the local properties.
     """
 
-    interval = vfield(32.0, label="Interval (nm)").with_options(min=1.0, max=200.0)
-    ft_size = vfield(32.0, label="FT window size (nm)").with_options(min=1.0, max=200.0)
-    paint = vfield(True)
+    interval = vfield(32.64, label="Interval (nm)").with_options(min=1.0, max=200.0)
+    ft_size = vfield(32.64, label="FT window size (nm)").with_options(
+        min=1.0, max=200.0
+    )
+    paint = vfield(False)
 
 
 @magicclass(name="_Run cylindrical fitting", record=False)
@@ -137,10 +139,10 @@ class Runner(MagicTemplate):
         edge_sigma: Annotated[nm, {"bind": params1.edge_sigma}] = 2.0,
         n_refine: Annotated[int, {"bind": n_refine}] = 1,
         local_props: Annotated[bool, {"bind": local_props}] = True,
-        interval: Annotated[nm, {"bind": params2.interval}] = 32.0,
-        ft_size: Annotated[nm, {"bind": params2.ft_size}] = 32.0,
+        interval: Annotated[nm, {"bind": params2.interval}] = 32.64,
+        ft_size: Annotated[nm, {"bind": params2.ft_size}] = 32.64,
         global_props: Annotated[bool, {"bind": global_props}] = True,
-        paint: Annotated[bool, {"bind": params2.paint}] = True,
+        paint: Annotated[bool, {"bind": params2.paint}] = False,
         infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
         map_monomers: Annotated[bool, {"bind": map_monomers}] = False,
     ):

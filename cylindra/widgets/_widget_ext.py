@@ -23,7 +23,7 @@ from magicgui.widgets import (
 from magicgui.widgets.bases import CategoricalWidget, ValueWidget
 from magicgui.types import ChoicesType, Undefined
 from magicgui.backends._qtpy import widgets as backend_qtw
-from magicclass.widgets import ScrollableContainer
+from magicclass.widgets import ScrollableContainer, ConsoleTextEdit
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):

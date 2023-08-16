@@ -81,14 +81,14 @@ def angle_corr(
     return angle
 
 
-def molecules_to_spline(mole: Molecules, config) -> CylSpline:
+def molecules_to_spline(mole: Molecules, config, std: float = 0.2) -> CylSpline:
     """Convert well aligned molecule positions into a spline."""
     from cylindra.components import CylSpline
 
     all_coords = _reshaped_positions(mole)
     mean_coords = np.mean(all_coords, axis=1)  # (N, ndim)
     spl = CylSpline(config=config)
-    return spl.fit(mean_coords)
+    return spl.fit(mean_coords, std=std)
 
 
 def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:

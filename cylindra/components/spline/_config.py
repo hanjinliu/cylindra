@@ -29,7 +29,7 @@ class Range(Generic[_T]):
     def astuple(self) -> tuple[_T, _T]:
         return (self.min, self.max)
 
-    def astuple_rounded(self, ndigits: int = 2):
+    def astuple_rounded(self, ndigits: int = 4):
         return (round(self.min, ndigits), round(self.max, ndigits))
 
     @property
@@ -59,8 +59,8 @@ class WeightRamp:
     def astuple(self) -> tuple[nm, float]:
         return (self.ramp_length, self.tip_ratio)
 
-    def astuple_rounded(self):
-        return (round(self.ramp_length, 1), round(self.tip_ratio, 3))
+    def astuple_rounded(self, ndigits: int = 4):
+        return (round(self.ramp_length, ndigits), round(self.tip_ratio, ndigits))
 
 
 def _norm_range(x: Range[_T] | Sequence[_T] | tuple[_T, _T]) -> Range[_T]:
@@ -79,7 +79,6 @@ def _norm_weight_ramp(x: WeightRamp | Sequence[float] | tuple[nm, float]) -> Wei
 class SplineConfig:
     """Class for spline configuration."""
 
-    std: nm = 0.1
     npf_range: Range[int] = Range(11, 17)
     spacing_range: Range[nm] = Range(3.9, 4.3)
     skew_range: Range[float] = Range(-1.0, 1.0)
@@ -92,9 +91,18 @@ class SplineConfig:
     fit_width: nm = 44.0
     weight_ramp: WeightRamp = WeightRamp()
 
+    def _repr_pretty_(self, p, cycle: bool):
+        if cycle:
+            p.text(repr(self))
+        parts = list[str]()
+        for k in self.__dataclass_fields__:
+            v = getattr(self, k)
+            parts.append(f"{k}={v!r}")
+        cont = ",\n\t".join(parts)
+        p.text(f"SplineConfig(\n\t{cont}\n)")
+
     def copy(self) -> SplineConfig:
         return SplineConfig(
-            std=self.std,
             npf_range=self.npf_range.copy(),
             spacing_range=self.spacing_range.copy(),
             skew_range=self.skew_range.copy(),
@@ -110,7 +118,6 @@ class SplineConfig:
 
     def asdict(self) -> dict[str, Any]:
         return {
-            "std": self.std,
             "npf_range": self.npf_range.astuple(),
             "spacing_range": self.spacing_range.astuple_rounded(),
             "skew_range": self.skew_range.astuple_rounded(),
@@ -171,7 +178,6 @@ class SplineConfig:
 
     def updated(
         self,
-        std: nm | None = None,
         npf_range: tuple[int, int] | None = None,
         spacing_range: tuple[nm, nm] | None = None,
         skew_range: tuple[float, float] | None = None,
@@ -196,13 +202,7 @@ class SplineConfig:
             raise ValueError("rise_sign must be -1 or 1")
         if kwargs["clockwise"] not in ["PlusToMinus", "MinusToPlus"]:
             raise ValueError("clockwise must be PlusToMinus or MinusToPlus")
-        for n in [
-            "thickness_inner",
-            "thickness_outer",
-            "fit_depth",
-            "fit_width",
-            "std",
-        ]:
+        for n in ["thickness_inner", "thickness_outer", "fit_depth", "fit_width"]:
             if kwargs[n] < 0:
-                raise ValueError("thickness_inner must be non-negative")
+                raise ValueError(f"{n} must be non-negative")
         return SplineConfig(**kwargs)

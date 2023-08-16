@@ -58,6 +58,7 @@ _PARAMETERS = [
     Parameter(name="target", type="str", desc="Target column name on which calculation will run."),
     Parameter(name="footprint", type="array-like", desc="2D binary array that define the convolution kernel structure."),
     Parameter(name="projective", type="bool", desc="If true, only the vector components parallel to the cylinder surface will be considered."),
+    Parameter(name="std", type="float", desc="S.D. allowed for spline fitting. Larger value will result in smoother spline, i.e. fewer spline knots."),
 ]
 # fmt: on
 

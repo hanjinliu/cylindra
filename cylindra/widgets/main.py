@@ -284,11 +284,9 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("F1")
     def register_path(
         self,
-        coords: Annotated[np.ndarray, {"bind": _get_spline_coordinates}] = None,
-        config: Annotated[
-            Union[dict[str, Any], SplineConfig], {"bind": _get_add_spline_config}
-        ] = {},
-    ):
+        coords: Annotated[Union[np.ndarray, None], {"bind": _get_spline_coordinates}] = None,
+        config: Annotated[Union[dict[str, Any], SplineConfig, None], {"bind": _get_add_spline_config}] = None,
+    ):  # fmt: skip
         """Register points as a spline path."""
         if coords is None:
             _coords = self._reserved_layers.work.data
@@ -298,7 +296,9 @@ class CylindraMainWidget(MagicTemplate):
         if _coords.size == 0:
             raise ValueError("No points are given.")
 
-        if isinstance(config, dict):
+        if config is None:
+            config = self.default_config.asdict()
+        elif isinstance(config, dict):
             config = self.default_config.updated(**config).asdict()
         elif isinstance(config, SplineConfig):
             config = config.asdict()
@@ -447,8 +447,8 @@ class CylindraMainWidget(MagicTemplate):
         path: Path.Read[FileFilter.PROJECT],
         filter: Union[ImageFilter, None] = ImageFilter.LoG,
         paint: bool = False,
-        read_image: Annotated[bool, {"label": "Read image data"}] = True,
-        update_config: bool = True,
+        read_image: Annotated[bool, {"label": "read image data"}] = True,
+        update_config: bool = False,
     ):
         """
         Load a project json file.
@@ -465,7 +465,9 @@ class CylindraMainWidget(MagicTemplate):
             Whether to read image data from the project directory. If false, a dummy
             image is created and only splines and molecules will be loaded, which is
             useful to decrease loading time, or analyze data in other PC.
-        update_config : bool, default is True
+        update_config : bool, default is False
+            Whether to update the default spline configuration with the one described
+            in the project.
         """
         if isinstance(path, CylindraProject):
             project = path
@@ -475,7 +477,7 @@ class CylindraMainWidget(MagicTemplate):
             project = CylindraProject.from_json(project_path)
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
-            f"filter={filter}, {paint=}, {read_image=}, {update_config=}</code>"
+            f"filter={filter!r}, {paint=}, {read_image=}, {update_config=})</code>"
         )
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
@@ -942,6 +944,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        std: Annotated[nm, {"label": "Fitting S.D. (nm)", "step": 0.1}] = 1.0,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
         max_shift: nm = 5.0,
@@ -951,7 +954,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{max_interval}{bin_size}
+        {splines}{max_interval}{bin_size}{std}
         degree_precision : float, default is 0.5
             Precision of xy-tilt degree in angular correlation.
         edge_sigma : bool, default is False
@@ -968,6 +971,7 @@ class CylindraMainWidget(MagicTemplate):
                     i,
                     max_interval=max_interval,
                     binsize=bin_size,
+                    std=std,
                     degree_precision=degree_precision,
                     edge_sigma=edge_sigma,
                     max_shift=max_shift,
@@ -998,7 +1002,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{interval}
         how : str, default is "pack"
             How to add anchors.
-            - "pack": (x---x---x--) Pack anchors from the starting point of splines.
+            - "pack": (x---x---x-) Pack anchors from the starting point of splines.
             - "equal": (x--x--x--x) Equally distribute anchors between the starting point
               and the end point of splines. Actual intervals will be smaller.
         """
@@ -1021,6 +1025,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
+        std: Annotated[nm, {"label": "Fitting S.D. (nm)", "step": 0.1}] = 1.0,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
@@ -1029,7 +1034,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{max_interval}
+        {splines}{max_interval}{std}
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
@@ -1043,6 +1048,7 @@ class CylindraMainWidget(MagicTemplate):
                     i,
                     max_interval=max_interval,
                     corr_allowed=corr_allowed,
+                    std=std,
                     binsize=bin_size,
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
@@ -1118,6 +1124,7 @@ class CylindraMainWidget(MagicTemplate):
     def molecules_to_spline(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
+        std: Annotated[nm, {"label": "Fitting S.D. (nm)", "step": 0.1}] = 0.2,
         delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
         inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
         missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
@@ -1134,7 +1141,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layers}
+        {layers}{std}
         delete_old : bool, default is True
             If True, delete the old spline if the molecules has one. For instance, if
             "Mono-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
@@ -1166,7 +1173,7 @@ class CylindraMainWidget(MagicTemplate):
                 _config = _s.config
             else:
                 _config = self.default_config
-            spl = utils.molecules_to_spline(mole, _config)
+            spl = utils.molecules_to_spline(mole, _config, std=std)
             try:
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:
@@ -1263,7 +1270,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1298,7 +1305,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.0,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.,
     ):  # fmt: skip
         """
         Measure local and global radius for each layer.
@@ -1457,12 +1464,10 @@ class CylindraMainWidget(MagicTemplate):
         Reanalyze the current tomogram.
 
         This method will extract the first manual operations from current session.
-        For better reproducibility, this method will reload the image.
         """
         _ui_sym = mk.symbol(self)
-        macro = _filter_macro_for_reanalysis(
-            self._format_macro()[self._macro_image_load_offset + 1 :], _ui_sym
-        )
+        macro_expr = self._format_macro()[self._macro_image_load_offset + 1 :]
+        macro = _filter_macro_for_reanalysis(macro_expr, _ui_sym)
         self.clear_all()
         macro.eval({_ui_sym: self})
         self.macro.clear_undo_stack()
@@ -2627,14 +2632,13 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
         if first != ui_sym:
             breaked_line = line
             break
-        if ".".join(map(str, attrs)) not in _manual_operations:
+        func_full_name = ".".join(map(str, attrs))
+        if func_full_name not in _manual_operations:
             breaked_line = line
             break
         exprs.append(line)
     if breaked_line is not None:
-        exprs.append(
-            mk.Expr(mk.Head.comment, [str(breaked_line) + " ... breaked here."])
-        )
+        exprs.append(mk.Expr(mk.Head.comment, [str(breaked_line) + " ... break here."]))
 
     return mk.Expr(mk.Head.block, exprs)
 

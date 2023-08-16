@@ -207,6 +207,7 @@ class CylTomogram(Tomogram):
         coords: ArrayLike,
         *,
         order: int = 3,
+        std: nm = 0.1,
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
         config: SplineConfig | dict[str, Any] = {},
     ) -> None:
@@ -229,7 +230,7 @@ class CylTomogram(Tomogram):
             order=order,
             config=config,
             extrapolate=extrapolate,
-        ).fit(coords)
+        ).fit(coords, std=std)
         interval: nm = 30.0
         length = spl.length()
 
@@ -237,7 +238,11 @@ class CylTomogram(Tomogram):
         fit = spl.map(np.linspace(0, 1, n))
         if coords.shape[0] <= spl.order and coords.shape[0] < fit.shape[0]:
             return self.add_spline(
-                fit, order=order, extrapolate=extrapolate, config=config
+                fit,
+                order=order,
+                std=std,
+                extrapolate=extrapolate,
+                config=config,
             )
 
         self.splines.append(spl)
@@ -303,6 +308,7 @@ class CylTomogram(Tomogram):
         max_interval: nm = 30.0,
         degree_precision: float = 0.5,
         binsize: int = 1,
+        std: nm = 1.0,
         edge_sigma: nm = 2.0,
         max_shift: nm = 5.0,
     ) -> FitResult:
@@ -440,7 +446,7 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
-        self.splines[i] = spl.fit(coords)
+        self.splines[i] = spl.fit(coords, std=std)
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -452,6 +458,7 @@ class CylTomogram(Tomogram):
         *,
         max_interval: nm = 30.0,
         binsize: int = 1,
+        std: nm = 1.0,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
         n_rotation: int = 7,
@@ -590,7 +597,7 @@ class CylTomogram(Tomogram):
                 shifts[_j] = shift @ zxrot
 
         # Update spline parameters
-        self.splines[i] = spl.shift(shifts=shifts * scale)
+        self.splines[i] = spl.shift(shifts=shifts * scale, std=std)
         result = FitResult.from_residual(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result

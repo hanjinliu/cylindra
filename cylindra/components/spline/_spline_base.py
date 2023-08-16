@@ -208,7 +208,7 @@ class Spline(BaseComponent):
         """
         spl = cls()
         coords = np.stack([start, end], axis=0)
-        return spl.fit(coords)
+        return spl.fit(coords, std=0.0)
 
     def translate(self, shift: tuple[nm, nm, nm]):
         """Translate the spline by given shift vectors."""
@@ -372,7 +372,7 @@ class Spline(BaseComponent):
             config=self.config,
         )._set_params(self._tck, self._u)
 
-    def resample(self, max_interval: nm = 1.0, std: float | None = 0.0) -> Self:
+    def resample(self, max_interval: nm = 1.0, std: nm = 0.0) -> Self:
         """
         Resample a new spline along the original spline.
 
@@ -397,7 +397,7 @@ class Spline(BaseComponent):
         coords: ArrayLike,
         *,
         weight_ramp: tuple[float, float] | None = None,
-        std: float | None = None,
+        std: nm = 1.0,
     ) -> Self:
         """
         Fit spline model to coordinates.
@@ -408,7 +408,7 @@ class Spline(BaseComponent):
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
-        std : float, optional
+        std : float, default is 1.0
             Standard deviation allowed for smoothing.
 
         Returns
@@ -416,26 +416,24 @@ class Spline(BaseComponent):
         Spline
             New spline fit to given coordinates.
         """
-        coords = np.asarray(coords)
-        npoints = coords.shape[0]
+        crds = np.asarray(coords)
+        npoints = crds.shape[0]
         if npoints < 2:
             raise ValueError("Number of input coordinates must be > 1.")
         if npoints <= self.order:
             k = npoints - 1
         else:
             k = self.order
-        if std is None:
-            std = self.config.std
         s = std**2 * npoints
 
         # weight
         if weight_ramp is None:
             weight_ramp = self.config.weight_ramp.astuple()
-        weight = _normalize_weight(weight_ramp, coords)
+        weight = _normalize_weight(weight_ramp, crds)
 
         if self.is_inverted():
-            coords = coords[::-1]
-        _tck, _u = splprep(coords.T, k=k, w=weight, s=s)
+            crds = crds[::-1]
+        _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
         return new._set_params(_tck, _u)
 
@@ -445,7 +443,7 @@ class Spline(BaseComponent):
         shifts: NDArray[np.floating] | None = None,
         *,
         weight_ramp: tuple[float, float] | None = None,
-        std: float | None = None,
+        std: nm = 1.0,
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -456,7 +454,7 @@ class Spline(BaseComponent):
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
-        std : float, optional
+        std : float, default is 1.0
             Standard deviation allowed for smoothing.
 
         Returns

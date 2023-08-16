@@ -337,11 +337,13 @@ class Splines(ChildWidget):
         def _get_saved_config_files(self, w=None) -> list[str]:
             return [path.stem for path in _config.get_config().list_config_paths()]
 
+        def _get_splines(self, w=None) -> list[tuple[str, int]]:
+            return self._get_main()._get_splines()
+
         @set_design(text="Update default config")
         @bind_key("Ctrl+K, Ctrl+[")
         def update_default_config(
             self,
-            std: Annotated[nm, {"step": 0.1}] = 0.1,
             npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
             spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
             skew_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
@@ -359,8 +361,6 @@ class Splines(ChildWidget):
 
             Parameters
             ----------
-            std : float, default is 0.1
-                Standard deviation allowed for spline fitting.
             npf_range : (int, int), default is (11, 17)
                 Range of protofilament number.
             spacing_range : (float, float), default is (3.9, 4.3)
@@ -384,34 +384,25 @@ class Splines(ChildWidget):
             weight_ramp : (float, float), default is (50.0, 0.5)
                 Weight ramp length and tip ratio.
             """
-            self._get_main().default_config = SplineConfig(
-                std=std,
-                npf_range=npf_range,
-                spacing_range=spacing_range,
-                skew_range=skew_range,
-                rise_range=rise_range,
-                rise_sign=rise_sign,
-                clockwise=clockwise,
-                thickness_inner=thickness_inner,
-                thickness_outer=thickness_outer,
-                fit_depth=fit_depth,
-                fit_width=fit_width,
-                weight_ramp=weight_ramp,
-            )
+            loc = locals()
+            del loc["self"]
+            self._get_main().default_config = SplineConfig(**loc)
             return None
 
-        @set_design(text="Load config")
-        def load_config(
+        sep0 = field(Separator)
+
+        @set_design(text="Load default config")
+        def load_default_config(
             self, name: Annotated[str, {"choices": _get_saved_config_files}]
         ):
-            """Load a saved config file."""
+            """Load a saved config file as the default config."""
             path = _config.get_config().spline_config_path(name)
             self._get_main().default_config = SplineConfig.from_file(path)
             return None
 
-        @set_design(text="Save config")
-        def save_config(self, name: str):
-            """Save current config."""
+        @set_design(text="Save default config")
+        def save_default_config(self, name: str):
+            """Save current default config."""
             path = _config.get_config().spline_config_path(name)
             if path.exists():
                 raise FileExistsError(f"Config file {path} already exists.")
