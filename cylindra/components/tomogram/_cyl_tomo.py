@@ -207,7 +207,7 @@ class CylTomogram(Tomogram):
         coords: ArrayLike,
         *,
         order: int = 3,
-        std: nm = 0.1,
+        err_max: nm = 0.5,
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
         config: SplineConfig | dict[str, Any] = {},
     ) -> None:
@@ -225,22 +225,23 @@ class CylTomogram(Tomogram):
         config : SplineConfig or dict, optional
             Configuration for spline fitting.
         """
-        coords = np.asarray(coords)
+        _coords = np.asarray(coords)
+        ncoords = _coords.shape[0]
         spl = CylSpline(
             order=order,
             config=config,
             extrapolate=extrapolate,
-        ).fit(coords, std=std)
+        ).fit(_coords, err_max=err_max)
         interval: nm = 30.0
         length = spl.length()
 
         n = int(length / interval) + 1
         fit = spl.map(np.linspace(0, 1, n))
-        if coords.shape[0] <= spl.order and coords.shape[0] < fit.shape[0]:
+        if ncoords <= spl.order and ncoords < fit.shape[0]:
             return self.add_spline(
                 fit,
                 order=order,
-                std=std,
+                err_max=err_max,
                 extrapolate=extrapolate,
                 config=config,
             )
@@ -308,7 +309,7 @@ class CylTomogram(Tomogram):
         max_interval: nm = 30.0,
         degree_precision: float = 0.5,
         binsize: int = 1,
-        std: nm = 1.0,
+        err_max: nm = 1.0,
         edge_sigma: nm = 2.0,
         max_shift: nm = 5.0,
     ) -> FitResult:
@@ -344,8 +345,9 @@ class CylTomogram(Tomogram):
             Result of fitting.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.fit, i={i}")
-        spl = self.splines[i].make_anchors(max_interval=max_interval)
-        npoints = spl.anchors.size
+        spl = self.splines[i]
+        anc = self.splines[i].prep_anchor_positions(max_interval=max_interval)
+        npoints = anc.size
         interval = spl.length() / (npoints - 1)
         depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
@@ -353,9 +355,9 @@ class CylTomogram(Tomogram):
         # If subtomogram region is rotated by 45 degree, its XY-width will be
         # (length + width) / sqrt(2)
         if binsize > 1:
-            centers = spl.map() - self.multiscale_translation(binsize)
+            centers = spl.map(anc) - self.multiscale_translation(binsize)
         else:
-            centers = spl.map()
+            centers = spl.map(anc)
         center_px = self.nm2pixel(centers, binsize=binsize)
         size_px = (width_px,) + (roundint((width_px + depth_px) / 1.414),) * 2
         input_img = self._get_multiscale_or_original(binsize)
@@ -374,7 +376,7 @@ class CylTomogram(Tomogram):
                 yc, xc = np.array(subtomograms.sizesof("yx")) / 2 - 0.5
                 yr = yy - yc
                 xr = xx - xc
-                for _j, ds in enumerate(spl(der=1)):
+                for _j, ds in enumerate(spl.map(anc, der=1)):
                     _, vy, vx = ds
                     distance: NDArray[np.float64] = (
                         np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
@@ -389,7 +391,7 @@ class CylTomogram(Tomogram):
                     mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
                     subtomograms[_j] *= mask
 
-            ds = spl.map(der=1)
+            ds = spl.map(anc, der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
             degree_max = 14.0
             nrots = roundint(degree_max / degree_precision) + 1
@@ -433,7 +435,7 @@ class CylTomogram(Tomogram):
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
         # coordinates that will be shifted should be converted to integers.
-        coords_px = self.nm2pixel(spl(), binsize=binsize).astype(np.float32)
+        coords_px = self.nm2pixel(spl.map(anc), binsize=binsize).astype(np.float32)
 
         shifts_3d = np.stack(
             [shifts[:, 0], np.zeros(shifts.shape[0]), shifts[:, 1]], axis=1
@@ -446,7 +448,7 @@ class CylTomogram(Tomogram):
         coords = coords_px * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
-        self.splines[i] = spl.fit(coords, std=std)
+        self.splines[i] = spl.fit(coords, err_max=err_max)
         result = FitResult.from_residual(residual=shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -458,7 +460,7 @@ class CylTomogram(Tomogram):
         *,
         max_interval: nm = 30.0,
         binsize: int = 1,
-        std: nm = 1.0,
+        err_max: nm = 1.0,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
         n_rotation: int = 7,
@@ -597,7 +599,7 @@ class CylTomogram(Tomogram):
                 shifts[_j] = shift @ zxrot
 
         # Update spline parameters
-        self.splines[i] = spl.shift(shifts=shifts * scale, std=std)
+        self.splines[i] = spl.shift(shifts=shifts * scale, err_max=err_max)
         result = FitResult.from_residual(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result

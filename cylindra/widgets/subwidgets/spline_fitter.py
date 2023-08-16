@@ -73,8 +73,8 @@ class SplineFitter(MagicTemplate):
     @set_design(text="Fit")
     def fit(
         self,
-        shifts: Annotated[nm, {"bind": _get_shifts}],
         i: Annotated[int, {"bind": controller.num}],
+        shifts: Annotated[nm, {"bind": _get_shifts}],
         max_interval: Annotated[nm, {"bind": _get_max_interval}] = 50.0,
     ):
         """Fit current spline."""
@@ -86,6 +86,7 @@ class SplineFitter(MagicTemplate):
             old_spl.make_anchors(max_interval=max_interval)
             .shift(
                 shifts=shifts * self._get_binsize() * _scale,
+                err_max=1.0,
             )
             .make_anchors(max_interval=max_interval)
         )

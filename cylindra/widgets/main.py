@@ -304,7 +304,7 @@ class CylindraMainWidget(MagicTemplate):
             config = config.asdict()
         else:
             raise TypeError(f"Invalid config type: {type(config)}")
-        return self.add_spline(coords, config)
+        return self.add_spline(_coords, config)
 
     @nogui
     def add_spline(self, coords: np.ndarray, config: dict[str, Any]):
@@ -943,8 +943,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-        std: Annotated[nm, {"label": "Fitting S.D. (nm)", "step": 0.1}] = 1.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
         max_shift: nm = 5.0,
@@ -954,7 +954,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{max_interval}{bin_size}{std}
+        {splines}{max_interval}{bin_size}{err_max}
         degree_precision : float, default is 0.5
             Precision of xy-tilt degree in angular correlation.
         edge_sigma : bool, default is False
@@ -971,7 +971,7 @@ class CylindraMainWidget(MagicTemplate):
                     i,
                     max_interval=max_interval,
                     binsize=bin_size,
-                    std=std,
+                    err_max=err_max,
                     degree_precision=degree_precision,
                     edge_sigma=edge_sigma,
                     max_shift=max_shift,
@@ -1025,7 +1025,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
-        std: Annotated[nm, {"label": "Fitting S.D. (nm)", "step": 0.1}] = 1.0,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
@@ -1034,7 +1034,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{max_interval}{std}
+        {splines}{max_interval}{err_max}
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
@@ -1048,7 +1048,7 @@ class CylindraMainWidget(MagicTemplate):
                     i,
                     max_interval=max_interval,
                     corr_allowed=corr_allowed,
-                    std=std,
+                    err_max=err_max,
                     binsize=bin_size,
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
@@ -1124,7 +1124,7 @@ class CylindraMainWidget(MagicTemplate):
     def molecules_to_spline(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
-        std: Annotated[nm, {"label": "Fitting S.D. (nm)", "step": 0.1}] = 0.2,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
         delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
         inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
         missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
@@ -1141,7 +1141,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{std}
+        {layers}{err_max}
         delete_old : bool, default is True
             If True, delete the old spline if the molecules has one. For instance, if
             "Mono-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
@@ -1173,7 +1173,7 @@ class CylindraMainWidget(MagicTemplate):
                 _config = _s.config
             else:
                 _config = self.default_config
-            spl = utils.molecules_to_spline(mole, _config, std=std)
+            spl = utils.molecules_to_spline(mole, _config, err_max=err_max)
             try:
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:

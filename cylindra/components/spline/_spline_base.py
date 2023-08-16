@@ -27,36 +27,13 @@ from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
 from ._props import SplineProps
 from ._config import SplineConfig
+from ._types import TCKType, SplineInfo, SplineFitResult
 
 if TYPE_CHECKING:
     from typing_extensions import Self
     from numpy.typing import ArrayLike, NDArray
 
 logger = logging.getLogger("cylindra")
-
-
-class Coords3D(TypedDict):
-    """3D coordinates in list used in json."""
-
-    z: list[float]
-    y: list[float]
-    x: list[float]
-
-
-class SplineInfo(TypedDict, total=False):
-    """Spline parameters used in json."""
-
-    t: list[float]
-    c: Coords3D
-    k: int
-    u: list[float]
-    lims: tuple[float, float]
-    localprops_window_size: dict[str, nm]
-    extrapolate: str
-    config: dict[str, Any]
-
-
-_TCK = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
 
 
 class Spline(BaseComponent):
@@ -81,7 +58,7 @@ class Spline(BaseComponent):
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
         config: dict[str, Any] | SplineConfig = {},
     ):
-        self._tck: _TCK = (None, None, order)
+        self._tck: TCKType = (None, None, order)
         self._u: NDArray[np.float32] | None = None
         self._anchors = None
         self._extrapolate = ExtrapolationMode(extrapolate)
@@ -208,7 +185,7 @@ class Spline(BaseComponent):
         """
         spl = cls()
         coords = np.stack([start, end], axis=0)
-        return spl.fit(coords, std=0.0)
+        return spl.fit(coords, err_max=0.0)
 
     def translate(self, shift: tuple[nm, nm, nm]):
         """Translate the spline by given shift vectors."""
@@ -372,7 +349,7 @@ class Spline(BaseComponent):
             config=self.config,
         )._set_params(self._tck, self._u)
 
-    def resample(self, max_interval: nm = 1.0, std: nm = 0.0) -> Self:
+    def resample(self, max_interval: nm = 1.0, std_max: nm = 0.1) -> Self:
         """
         Resample a new spline along the original spline.
 
@@ -390,14 +367,14 @@ class Spline(BaseComponent):
         """
         l = self.length()
         points = self.map(np.linspace(0, 1, ceilint(l / max_interval)))
-        return self.fit(points, std=std)
+        return self.fit(points, err_max=std_max)
 
     def fit(
         self,
         coords: ArrayLike,
         *,
         weight_ramp: tuple[float, float] | None = None,
-        std: nm = 1.0,
+        err_max: nm = 1.0,
     ) -> Self:
         """
         Fit spline model to coordinates.
@@ -408,8 +385,10 @@ class Spline(BaseComponent):
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
-        std : float, default is 1.0
-            Standard deviation allowed for smoothing.
+        err_max : float, default is 1.0
+            Error allowed for fitting. Several upper limit of residual values will be used and
+            the fit that results in error lower than this value and minimize the maximum
+            curvature will be chosen.
 
         Returns
         -------
@@ -424,7 +403,6 @@ class Spline(BaseComponent):
             k = npoints - 1
         else:
             k = self.order
-        s = std**2 * npoints
 
         # weight
         if weight_ramp is None:
@@ -433,9 +411,37 @@ class Spline(BaseComponent):
 
         if self.is_inverted():
             crds = crds[::-1]
-        _tck, _u = splprep(crds.T, k=k, w=weight, s=s)
+
+        if err_max > 4.0:
+            raise ValueError("std_max must be smaller than 4.0.")
+        if err_max == 0:
+            std_list = [0]
+        else:
+            ntrial = max(int(err_max / 0.02), 2)
+            std_list = np.linspace(0, err_max, ntrial)[1:]
+
+        fit_results = list[SplineFitResult]()
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
-        return new._set_params(_tck, _u)
+        length = np.sum(np.sqrt(np.sum(np.diff(crds, axis=0) ** 2, axis=1)))
+        anc = np.linspace(0, 1, max(int(length / 5), 2))
+        for std in std_list:
+            param = splprep(crds.T, k=k, w=weight, s=std**2 * npoints)
+            new._set_params(*param)
+            _crds_at_u = new.map(param[1])
+            res: NDArray[np.float32] = np.sqrt(
+                np.sum(((_crds_at_u - crds) * weight[:, np.newaxis]) ** 2, axis=1)
+            )
+            max_curvature = new.curvature(anc).max()
+            fit_results.append(
+                SplineFitResult(param, max_curvature, res, res.max() <= err_max)
+            )
+
+        fit_results_filt = list(filter(lambda x: x.success, fit_results))
+        if len(fit_results_filt) == 0:
+            fit_results_filt = fit_results
+
+        reult_opt = min(fit_results_filt, key=lambda x: x.curvature)
+        return new._set_params(*reult_opt.params)
 
     def shift(
         self,
@@ -443,7 +449,7 @@ class Spline(BaseComponent):
         shifts: NDArray[np.floating] | None = None,
         *,
         weight_ramp: tuple[float, float] | None = None,
-        std: nm = 1.0,
+        err_max: nm = 1.0,
     ) -> Self:
         """
         Fit spline model using a list of shifts in XZ-plane.
@@ -454,8 +460,8 @@ class Spline(BaseComponent):
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
-        std : float, default is 1.0
-            Standard deviation allowed for smoothing.
+        err_max : float, default is 1.0
+            Error allowed for fitting. See ``Spline.fit``.
 
         Returns
         -------
@@ -469,7 +475,7 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        return self.fit(coords, std=std, weight_ramp=weight_ramp)
+        return self.fit(coords, err_max=err_max, weight_ramp=weight_ramp)
 
     def distances(
         self, positions: Sequence[float] | None = None
@@ -512,12 +518,14 @@ class Spline(BaseComponent):
         np.ndarray
             Positions or vectors in (3,) or (N, 3) shape.
         """
-        if self._tck[0] is None:
+        if self._u is None:
             raise ValueError("Spline is not fitted yet.")
         if positions is None:
             positions = self.anchors
         u0, u1 = self._lims
         if np.isscalar(positions):
+            if self.order < der:
+                return np.zeros(3, dtype=np.float32)
             u_tr = _linear_conversion(float(positions), u0, u1)
             if 0 <= u_tr <= 1 or self.extrapolate is ExtrapolationMode.default:
                 coord = splev([u_tr], self._tck, der=der)
@@ -545,6 +553,8 @@ class Spline(BaseComponent):
 
         else:
             u_tr = _linear_conversion(np.asarray(positions, dtype=np.float32), u0, u1)
+            if self.order < der:
+                return np.zeros((u_tr.size, 3), dtype=np.float32)
             if self.extrapolate is ExtrapolationMode.default:
                 out = np.stack(splev(u_tr, self._tck, der=der), axis=1).astype(
                     np.float32
@@ -601,6 +611,8 @@ class Spline(BaseComponent):
         Approximate the length of B-spline between [start, stop] by partitioning
         the spline with 'nknots' knots. nknots=256 is large enough for most cases.
         """
+        if self._u is None:
+            raise ValueError("Spline is not fitted yet.")
         u = np.linspace(start, stop, nknots)
         u_tr = _linear_conversion(u, *self._lims)
         dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))

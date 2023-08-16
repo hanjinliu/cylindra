@@ -194,7 +194,7 @@ def test_curvature(radius, mode):
     spl = CylSpline(extrapolate=mode)
     u = np.linspace(0, 2 * np.pi, 100)
     coords = np.stack([np.zeros(100), radius * np.sin(u), radius * np.cos(u)], axis=1)
-    spl = spl.fit(coords, std=0)
+    spl = spl.fit(coords, err_max=0)
     spl.make_anchors(n=100)
     cr = spl.curvature_radii()
     cr_mean = np.mean(cr)
