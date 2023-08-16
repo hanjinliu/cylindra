@@ -64,6 +64,9 @@ class local_expansions(Simulator):
     def results(self):
         return self.ui.tomogram.splines[0].props.loc[H.spacing]
 
+    def columns(self) -> list[str]:
+        return [f"spacing{i}" for i in range(4)]
+
 
 class local_skew(Simulator):
     """Vertical MT with skew=-0.15, -0.05, 0.05, 0.15 deg."""
@@ -83,6 +86,9 @@ class local_skew(Simulator):
 
     def results(self):
         return self.ui.tomogram.splines[0].props.loc[H.skew]
+
+    def columns(self) -> list[str]:
+        return [f"skew{i}" for i in range(4)]
 
 
 class local_orientation(Simulator):

@@ -42,8 +42,8 @@ class ImageProcessor(MagicTemplate):
     suffix = vfield(Optional[str]).with_options(value="-output", text="Do not autofill")
     output_image = vfield(Path).with_options(filter=FileFilter.IMAGE, mode="w")
 
-    _InputPath = Annotated[Path, {"widget_type": "EmptyWidget", "bind": input_image}]
-    _OutputPath = Annotated[Path, {"widget_type": "EmptyWidget", "bind": output_image}]
+    _InputPath = Annotated[Path, {"bind": input_image}]
+    _OutputPath = Annotated[Path, {"bind": output_image}]
 
     @input_image.connect
     @suffix.connect

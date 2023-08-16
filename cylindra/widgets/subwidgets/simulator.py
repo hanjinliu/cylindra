@@ -711,7 +711,7 @@ class CylinderSimulator(MagicTemplate):
         nsr: _NSRatios = [1.5],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 21,
-        shape: Annotated[Any, {"bind": _get_shape, "widget_type": "EmptyWidget"}] = None,
+        shape: Annotated[Any, {"bind": _get_shape}] = None,
         scale: Annotated[nm, {"bind": _get_scale}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
@@ -794,8 +794,8 @@ class CylinderSimulator(MagicTemplate):
     def expand(
         self,
         exp: Annotated[nm, {"min": -1.0, "max": 1.0, "step": 0.01, "label": "expansion (nm)"}],
-        yrange: Annotated[Any, {"bind": Operator.yrange, "widget_type": "EmptyWidget"}],
-        arange: Annotated[Any, {"bind": Operator.arange, "widget_type": "EmptyWidget"}],
+        yrange: Annotated[Any, {"bind": Operator.yrange}],
+        arange: Annotated[Any, {"bind": Operator.arange}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Expand the selected molecules."""
@@ -812,13 +812,14 @@ class CylinderSimulator(MagicTemplate):
     def screw(
         self,
         skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
-        yrange: Annotated[Any, {"bind": Operator.yrange, "widget_type": "EmptyWidget"}],
-        arange: Annotated[Any, {"bind": Operator.arange, "widget_type": "EmptyWidget"}],
+        yrange: Annotated[Any, {"bind": Operator.yrange}],
+        arange: Annotated[Any, {"bind": Operator.arange}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Screw (change the skew angles of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, skew)
-        new_model = self.model.screw(np.deg2rad(skew), sl)
+        # NOTE: skew angle is defined by the twisting of every "dimers".
+        new_model = self.model.screw(np.deg2rad(skew / 2), sl)
         if allev > 0:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model
@@ -830,8 +831,8 @@ class CylinderSimulator(MagicTemplate):
     def dilate(
         self,
         radius: Annotated[nm, {"min": -10.0, "max": 10.0, "step": 0.1, "label": "radius (nm)"}],
-        yrange: Annotated[Any, {"bind": Operator.yrange, "widget_type": "EmptyWidget"}],
-        arange: Annotated[Any, {"bind": Operator.arange, "widget_type": "EmptyWidget"}],
+        yrange: Annotated[Any, {"bind": Operator.yrange}],
+        arange: Annotated[Any, {"bind": Operator.arange}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
         """Dilate (increase the local radius of) the selected molecules."""
