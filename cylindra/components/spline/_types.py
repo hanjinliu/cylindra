@@ -26,10 +26,11 @@ class SplineInfo(TypedDict, total=False):
 
 
 TCKType = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]
+PrepOutput = tuple[TCKType, NDArray[np.float32]]
 
 
 class SplineFitResult(NamedTuple):
-    params: tuple[TCKType, NDArray[np.float32]]
+    params: PrepOutput
     curvature: float
     residuals: NDArray[np.float32]
     success: bool

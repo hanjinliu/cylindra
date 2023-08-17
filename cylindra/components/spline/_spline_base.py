@@ -27,7 +27,7 @@ from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
 from ._props import SplineProps
 from ._config import SplineConfig
-from ._types import TCKType, SplineInfo, SplineFitResult
+from ._types import TCKType, SplineInfo, SplineFitResult, PrepOutput
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -414,27 +414,31 @@ class Spline(BaseComponent):
 
         if err_max > 4.0:
             raise ValueError("std_max must be smaller than 4.0.")
-        if err_max == 0:
-            std_list = [0]
+        if err_max < 1e-3:
+            std_list = [err_max]
         else:
             ntrial = max(int(err_max / 0.02), 2)
             std_list = np.linspace(0, err_max, ntrial)[1:]
 
         fit_results = list[SplineFitResult]()
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
-        length = np.sum(np.sqrt(np.sum(np.diff(crds, axis=0) ** 2, axis=1)))
-        anc = np.linspace(0, 1, max(int(length / 5), 2))
         for std in std_list:
-            param = splprep(crds.T, k=k, w=weight, s=std**2 * npoints)
+            param: PrepOutput = splprep(crds.T, k=k, w=weight, s=std**2 * npoints)
             new._set_params(*param)
             _crds_at_u = new.map(param[1])
             res: NDArray[np.float32] = np.sqrt(
                 np.sum(((_crds_at_u - crds) * weight[:, np.newaxis]) ** 2, axis=1)
             )
-            max_curvature = new.curvature(anc).max()
-            fit_results.append(
-                SplineFitResult(param, max_curvature, res, res.max() <= err_max)
+            _knots = param[0][0][new.order : -new.order]
+            nedge = _knots.size - 1
+            assert nedge > 0
+            nanc = nedge * 20 + 1
+            anc = np.interp(
+                np.linspace(0, 1, nanc), np.linspace(0, 1, nedge + 1), _knots
             )
+            max_curvature = new.curvature(anc).max()
+            success = res.max() <= err_max
+            fit_results.append(SplineFitResult(param, max_curvature, res, success))
 
         fit_results_filt = list(filter(lambda x: x.success, fit_results))
         if len(fit_results_filt) == 0:

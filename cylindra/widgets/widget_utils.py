@@ -54,7 +54,10 @@ class FileFilter(SimpleNamespace):
 class timer:
     def __init__(self, name: str | None = None):
         if name is None:
-            name = inspect.stack()[0].function
+            try:
+                name = inspect.stack()[1].function
+            except Exception:
+                name = "<unknown>"
         self.name = name
         self.start = default_timer()
 

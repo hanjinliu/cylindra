@@ -1025,7 +1025,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
-        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
@@ -1124,7 +1124,7 @@ class CylindraMainWidget(MagicTemplate):
     def molecules_to_spline(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
-        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
         inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
         missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
