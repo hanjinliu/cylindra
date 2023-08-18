@@ -174,7 +174,7 @@ def simulate(
                 ui.open_image(
                     tmpdir / fname, tilt_range=(-60, 60), eager=True, bin_size=binsize
                 )
-                ui.register_path(coords)
+                ui.register_path(coords, err_max=1e-8)
                 ui.measure_radius(splines=[0])
                 ui.tomogram.splines[0].anchors = np.linspace(0, 1, 4)
                 ui.local_ft_analysis(

@@ -264,13 +264,14 @@ class CylindraMainWidget(MagicTemplate):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
-    def _get_spline_coordinates(self, widget=None) -> np.ndarray:
+    def _get_spline_coordinates(self, coords=None) -> np.ndarray:
         """Get coordinates of the manually picked spline."""
-        coords = self._reserved_layers.work.data
-        return np.round(coords, 3)
-
-    def _get_add_spline_config(self, w=None) -> SplineConfig:
-        return self.default_config
+        if coords is None:
+            coords = self._reserved_layers.work.data
+        out = np.round(coords, 3)
+        if out.ndim != 2 or out.shape[1] != 3 or out.dtype.kind not in "iuf":
+            raise ValueError("Input coordinates must be a (N, 3) numeric array.")
+        return out
 
     def _get_available_binsize(self, _=None) -> list[int]:
         out = [x[0] for x in self.tomogram.multiscaled]
@@ -278,24 +279,7 @@ class CylindraMainWidget(MagicTemplate):
             out = [1] + out
         return out
 
-    @toolbar.wraps
-    @set_design(icon=ICON_DIR / "add_spline.svg")
-    @do_not_record(recursive=False)
-    @bind_key("F1")
-    def register_path(
-        self,
-        coords: Annotated[Union[np.ndarray, None], {"bind": _get_spline_coordinates}] = None,
-        config: Annotated[Union[dict[str, Any], SplineConfig, None], {"bind": _get_add_spline_config}] = None,
-    ):  # fmt: skip
-        """Register points as a spline path."""
-        if coords is None:
-            _coords = self._reserved_layers.work.data
-        else:
-            _coords = np.asarray(coords)
-
-        if _coords.size == 0:
-            raise ValueError("No points are given.")
-
+    def _get_default_config(self, config):
         if config is None:
             config = self.default_config.asdict()
         elif isinstance(config, dict):
@@ -304,13 +288,23 @@ class CylindraMainWidget(MagicTemplate):
             config = config.asdict()
         else:
             raise TypeError(f"Invalid config type: {type(config)}")
-        return self.add_spline(_coords, config)
+        return config
 
-    @nogui
-    def add_spline(self, coords: np.ndarray, config: dict[str, Any]):
-        """Internal use only."""
+    @toolbar.wraps
+    @set_design(icon=ICON_DIR / "add_spline.svg")
+    @bind_key("F1")
+    def register_path(
+        self,
+        coords: Annotated[np.ndarray, {"validator": _get_spline_coordinates}] = None,
+        config: Annotated[Union[dict[str, Any], SplineConfig], {"validator": _get_default_config}] = None,
+        err_max: Annotated[nm, {"bind": 0.5}] = 0.5,
+    ):  # fmt: skip
+        """Register points as a spline path."""
+        if coords.size == 0:
+            raise ValueError("No points are given.")
+
         tomo = self.tomogram
-        tomo.add_spline(coords, config=config)
+        tomo.add_spline(coords, config=config, err_max=err_max)
         spl = tomo.splines[-1]
 
         # draw path
@@ -2610,7 +2604,6 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     _manual_operations = {
         "open_image",
         "register_path",
-        "add_spline",
         "load_splines",
         "load_molecules",
         "delete_spline",

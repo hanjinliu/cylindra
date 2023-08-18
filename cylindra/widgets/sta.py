@@ -62,10 +62,16 @@ from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    from dask import array as da
     from napari.layers import Image
     from cylindra.components import CylSpline
     from cylindra.widgets.main import CylindraMainWidget
+
+
+def _get_template_shape(self: "SubtomogramAveraging", size) -> list[str]:
+    if size is None:
+        size = max(self.template.shape)
+    return size
+
 
 # annotated types
 _MoleculeLayers = Annotated[
@@ -87,6 +93,7 @@ _SubVolumeSize = Annotated[
         "text": "Use template shape",
         "options": {"value": 12.0, "max": 100.0},
         "label": "size (nm)",
+        "validator": _get_template_shape,
     },
 ]
 _ImagePaths = Annotated[
