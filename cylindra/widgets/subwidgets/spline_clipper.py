@@ -6,10 +6,11 @@ from cylindra.const import Mode, nm
 from cylindra.utils import map_coordinates
 import numpy as np
 import impy as ip
+from ._child_widget import ChildWidget
 
 
 @magicclass
-class SplineClipper(MagicTemplate):
+class SplineClipper(ChildWidget):
     canvas = field(QtMultiImageCanvas).with_options(nrows=2, ncols=2)
     clip_length = vfield(nm, label="Clip length (nm)", record=False).with_options(
         max=20.0, step=0.1
@@ -55,13 +56,8 @@ class SplineClipper(MagicTemplate):
             self.xz_canvas.add_infline((0, 0), 90, **line_kw),
         )
 
-    def _parent_widget(self):
-        from cylindra.widgets import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
-
     def _get_spline_id(self, *_) -> int:
-        return self._parent_widget().SplineControl.num
+        return self._get_main().SplineControl.num
 
     @property
     def current_clip_length(self) -> tuple[nm, nm]:
@@ -73,7 +69,7 @@ class SplineClipper(MagicTemplate):
 
     @do_not_record
     def load_spline(self, spline: Annotated[int, {"bind": _get_spline_id}]):
-        parent = self._parent_widget()
+        parent = self._get_main()
         spl = parent.tomogram.splines[spline]
         self._spline = self._original_spline = spl
         self._current_lims = spl.lims
@@ -88,7 +84,7 @@ class SplineClipper(MagicTemplate):
 
     @do_not_record(recursive=False)
     def clip_here(self):
-        parent = self._parent_widget()
+        parent = self._get_main()
         try:
             idx = parent.tomogram.splines.index(self._original_spline)
         except ValueError:
@@ -115,7 +111,7 @@ class SplineClipper(MagicTemplate):
     def _update_canvas(self):
         if self._spline is None:
             return None
-        parent = self._parent_widget()
+        parent = self._get_main()
         tomo = parent.tomogram
         spl = self._spline
         binsize: int = parent._current_binsize

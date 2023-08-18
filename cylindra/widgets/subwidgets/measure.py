@@ -17,9 +17,9 @@ import numpy as np
 
 from cylindra.utils import roundint
 from cylindra.widgets.widget_utils import FileFilter
+from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
-    from cylindra.widgets.main import CylindraMainWidget
     from cylindra.components import CylSpline
 
 
@@ -135,7 +135,7 @@ class Parameters(MagicTemplate):
 
 
 @magicclass(layout="horizontal", record=False)
-class SpectraInspector(MagicTemplate):
+class SpectraInspector(ChildWidget):
     """
     Widget to measure the periodicity of a tomographic structure.
 
@@ -190,21 +190,16 @@ class SpectraInspector(MagicTemplate):
             btn_angular.text = "Select ..."
         self._mode = value
 
-    def _get_parent(self) -> "CylindraMainWidget":
-        from cylindra.widgets.main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
-
     def _get_current_index(self, *_) -> int:
-        parent = self._get_parent()
+        parent = self._get_main()
         return parent.SplineControl.num
 
     def _get_binsize(self, *_) -> int:
-        parent = self._get_parent()
+        parent = self._get_main()
         return roundint(parent._reserved_layers.scale / parent.tomogram.scale)
 
     def _get_binsize_choices(self, *_) -> list[int]:
-        parent = self._get_parent()
+        parent = self._get_main()
         return [k for k, _ in parent.tomogram.multiscaled]
 
     @SidePanel.wraps
@@ -216,7 +211,7 @@ class SpectraInspector(MagicTemplate):
     ):
         """Load current spline to the canvas."""
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
-        parent = self._get_parent()
+        parent = self._get_main()
         tomo = parent.tomogram
         self._spline = tomo.splines[idx]
         self.parameters.radius = self._spline.radius
@@ -267,7 +262,7 @@ class SpectraInspector(MagicTemplate):
         afreq = (a0 - acenter) / shape[1]
         yfreq = (y0 - ycenter) / shape[0]
 
-        parent = self._get_parent()
+        parent = self._get_main()
         scale = parent.tomogram.scale
 
         if self.mode == MeasureMode.axial:

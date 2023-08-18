@@ -15,10 +15,11 @@ from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 
 from cylindra.utils import roundint, centroid, map_coordinates
 from cylindra.const import nm, Mode
+from ._child_widget import ChildWidget
 
 
 @magicclass
-class SplineFitter(MagicTemplate):
+class SplineFitter(ChildWidget):
     # Manually fit cylinders with spline curve using longitudinal projections
 
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
@@ -63,7 +64,7 @@ class SplineFitter(MagicTemplate):
         return np.round(self.shifts[i], 3)
 
     def _get_binsize(self) -> int:
-        parent = self._get_parent()
+        parent = self._get_main()
         return roundint(parent._reserved_layers.scale / parent.tomogram.scale)
 
     def _get_max_interval(self, _=None) -> nm:
@@ -79,7 +80,7 @@ class SplineFitter(MagicTemplate):
     ):
         """Fit current spline."""
         shifts = np.asarray(shifts)
-        parent = self._get_parent()
+        parent = self._get_main()
         _scale = parent.tomogram.scale
         old_spl = parent.tomogram.splines[i]
         parent.tomogram.splines[i] = new_spl = (
@@ -100,13 +101,13 @@ class SplineFitter(MagicTemplate):
                 self._cylinder_changed()
             else:
                 del self.canvas.image
-            self._get_parent()._update_splines_in_images()
+            self._get_main()._update_splines_in_images()
 
         @out.with_redo
         def out():
             parent.tomogram.splines[i] = new_spl
             self._cylinder_changed()
-            self._get_parent()._update_splines_in_images()
+            self._get_main()._update_splines_in_images()
 
         return out
 
@@ -131,11 +132,6 @@ class SplineFitter(MagicTemplate):
             x, z = e.pos()
             self._update_cross(x, z)
 
-    def _get_parent(self):
-        from cylindra.widgets.main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
-
     def _update_cross(self, x: float, z: float):
         i = self.controller.num.value
         j = self.controller.pos.value
@@ -147,7 +143,7 @@ class SplineFitter(MagicTemplate):
         item_circ_inner = self.canvas.layers[2]
         item_circ_outer = self.canvas.layers[3]
 
-        tomo = self._get_parent().tomogram
+        tomo = self._get_main().tomogram
         lz, lx = self.subtomograms.sizesof("zx")
         if not (0 <= x < lx and 0 <= z < lz):
             return
@@ -176,7 +172,7 @@ class SplineFitter(MagicTemplate):
 
     def _load_parent_state(self, max_interval: nm):
         self._max_interval = max_interval
-        parent = self._get_parent()
+        parent = self._get_main()
         tomo = parent.tomogram
         for spl in tomo.splines:
             spl.make_anchors(max_interval=self._max_interval)
@@ -193,7 +189,7 @@ class SplineFitter(MagicTemplate):
     def _cylinder_changed(self):
         i: int = self.controller.num.value
         self.controller.pos.value = 0
-        parent = self._get_parent()
+        parent = self._get_main()
         imgb = parent._reserved_layers.image_data
         tomo = parent.tomogram
 

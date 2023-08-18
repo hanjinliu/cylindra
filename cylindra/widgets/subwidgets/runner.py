@@ -4,13 +4,12 @@ from magicclass import (
     do_not_record,
     magicclass,
     vfield,
-    MagicTemplate,
     set_design,
 )
 from magicclass.types import Optional
-
+from magicclass.utils import thread_worker
 from cylindra.widgets._widget_ext import CheckBoxes
-
+from ._child_widget import ChildWidget
 from cylindra.const import nm
 
 
@@ -60,7 +59,7 @@ class runner_params2:
 
 
 @magicclass(name="_Run cylindrical fitting", record=False)
-class Runner(MagicTemplate):
+class Runner(ChildWidget):
     """
     Attributes
     ----------
@@ -78,15 +77,10 @@ class Runner(MagicTemplate):
         Check if infer spline polarity after run.
     """
 
-    def _get_parent(self):
-        from cylindra.widgets.main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget)
-
     def _get_splines(self, _=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         try:
-            tomo = self._get_parent().tomogram
+            tomo = self._get_main().tomogram
         except Exception:
             return []
         if tomo is None:
@@ -95,7 +89,7 @@ class Runner(MagicTemplate):
 
     def _get_available_binsize(self, _=None) -> list[int]:
         try:
-            parent = self._get_parent()
+            parent = self._get_main()
         except Exception:
             return [1]
         out = [x[0] for x in parent.tomogram.multiscaled]
@@ -131,6 +125,10 @@ class Runner(MagicTemplate):
 
     @set_design(text="Fit and Measure")
     @do_not_record(recursive=False)
+    @thread_worker.with_progress(
+        desc="Running fit/measure workflow",
+        total="max_shift>0 + n_refine + local_props + global_props + infer_polarity + map_monomers",
+    )
     def run(
         self,
         splines: Annotated[Sequence[int], {"bind": splines}] = (),
@@ -147,50 +145,57 @@ class Runner(MagicTemplate):
         map_monomers: Annotated[bool, {"bind": map_monomers}] = False,
     ):
         """Run workflow."""
-        parent = self._get_parent()
-        if parent._reserved_layers.work.data.size > 0:
+        main = self._get_main()
+        if main._reserved_layers.work.data.size > 0:
             raise ValueError("The last spline is not registered yet.")
-        if len(parent.tomogram.splines) == 0:
+        if len(main.tomogram.splines) == 0:
             raise ValueError("No spline is added to the viewer canvas.")
         elif len(splines) == 0:
-            splines = list(range(len(parent.tomogram.splines)))
-        parent._runner.close()
+            splines = list(range(len(main.tomogram.splines)))
+        yield thread_worker.callback(main._runner.close)
 
         if max_shift > 0.0:
-            parent.fit_splines(
+            yield from main.fit_splines.arun(
                 splines=splines,
                 bin_size=bin_size,
                 edge_sigma=edge_sigma,
                 max_shift=max_shift,
             )
+            yield
         for _ in range(n_refine):
-            parent.refine_splines(
+            yield from main.refine_splines.arun(
                 splines=splines,
                 max_interval=max(interval, 30),
                 bin_size=bin_size,
             )
-        parent.measure_radius(splines=splines, bin_size=bin_size)
+            yield
+        yield from main.measure_radius.arun(splines=splines, bin_size=bin_size)
+        yield
         if local_props:
-            parent.local_ft_analysis(
+            yield from main.local_ft_analysis.arun(
                 splines=splines, interval=interval, depth=ft_size, bin_size=bin_size
             )
+            yield
         if infer_polarity:
-            parent.auto_align_to_polarity(bin_size=bin_size)
+            yield from main.auto_align_to_polarity.arun(bin_size=bin_size)
+            yield
         if global_props:
-            parent.global_ft_analysis(splines=splines, bin_size=bin_size)
+            yield from main.global_ft_analysis.arun(splines=splines, bin_size=bin_size)
+            yield
         if local_props and paint:
-            cfg = parent.tomogram.splines[splines[0]].config
-            parent.paint_cylinders(limits=cfg.spacing_range.astuple())
+            cfg = main.splines[splines[0]].config
+            yield from main.paint_cylinders.arun(limits=cfg.spacing_range.astuple())
         if map_monomers:
             _plus_idx = list[int]()
             _minus_idx = list[int]()
             for idx in splines:
-                if parent.tomogram.splines[idx].config.clockwise == "PlusToMinus":
+                if main.splines[idx].config.clockwise == "PlusToMinus":
                     _plus_idx.append(idx)
                 else:
                     _minus_idx.append(idx)
             if _plus_idx:
-                parent.map_monomers(_plus_idx, orientation="PlusToMinus")
+                yield from main.map_monomers.arun(_plus_idx, orientation="PlusToMinus")
             if _minus_idx:
-                parent.map_monomers(_minus_idx, orientation="PlusToMinus")
+                yield from main.map_monomers.arun(_minus_idx, orientation="PlusToMinus")
+            yield
         return None

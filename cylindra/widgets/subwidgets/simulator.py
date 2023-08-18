@@ -40,6 +40,7 @@ from cylindra.const import nm, PropertyNames as H
 from cylindra.utils import roundint, ceilint
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra._config import get_config
+from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from magicclass.ext.vispy import layer3d as layers
@@ -105,7 +106,7 @@ class CylinderParameters:
 
 # Main widget class
 @magicclass(widget_type="scrollable", labels=False)
-class CylinderSimulator(MagicTemplate):
+class CylinderSimulator(ChildWidget):
     @magicmenu(name="Create")
     class CreateMenu(MagicTemplate):
         """Receive image or spline data from the viewer"""
@@ -265,11 +266,6 @@ class CylinderSimulator(MagicTemplate):
 
     # the 3D viewer of the cylinder model
     canvas = box.resizable(field(Vispy3DCanvas))
-
-    def _get_main(self):
-        from cylindra.widgets.main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
 
     @property
     def model(self) -> CylinderModel:

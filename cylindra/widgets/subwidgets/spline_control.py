@@ -18,6 +18,7 @@ from dask import delayed, array as da
 from cylindra.const import PropertyNames as H, Mode
 from cylindra.utils import map_coordinates, Projections
 from cylindra.widgets.widget_utils import FileFilter
+from ._child_widget import ChildWidget
 
 _Logger = getLogger("cylindra")
 
@@ -38,7 +39,7 @@ def delayed_map_coordinates(
 
 
 @magicclass(widget_type="groupbox", name="Spline Control", record=False)
-class SplineControl(MagicTemplate):
+class SplineControl(ChildWidget):
     """
     Control and visualization along splines
 
@@ -66,15 +67,10 @@ class SplineControl(MagicTemplate):
 
         self.canvas.enabled = False
 
-    def _get_parent(self):
-        from cylindra.widgets.main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
-
     def _get_splines(self, *_) -> list[int]:
         """Get list of spline objects for categorical widgets."""
         try:
-            tomo = self._get_parent().tomogram
+            tomo = self._get_main().tomogram
         except Exception:
             return []
         if tomo is None:
@@ -128,7 +124,7 @@ class SplineControl(MagicTemplate):
     @footer.highlight_subvolume.connect
     def _highlight(self):
         """Change camera focus to the position of current spline fragment."""
-        parent = self._get_parent()
+        parent = self._get_main()
         if parent.parent_viewer is None:
             return None
         highlight = parent._reserved_layers.highlight
@@ -161,7 +157,7 @@ class SplineControl(MagicTemplate):
         i = self.num
         if i is None:
             return
-        parent = self._get_parent()
+        parent = self._get_main()
         tomo = parent.tomogram
         if i >= len(tomo.splines):
             return
@@ -186,7 +182,7 @@ class SplineControl(MagicTemplate):
 
     def _load_projection(self):
         i = self.num
-        parent = self._get_parent()
+        parent = self._get_main()
         tomo = parent.tomogram
         if i >= len(tomo.splines):
             return
@@ -230,7 +226,7 @@ class SplineControl(MagicTemplate):
 
     @pos.connect
     def _update_canvas(self):
-        parent = self._get_parent()
+        parent = self._get_main()
         tomo = parent.tomogram
         binsize = parent._current_binsize
         i = self.num

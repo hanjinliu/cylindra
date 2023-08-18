@@ -13,6 +13,7 @@ from magicclass import (
 from magicclass.widgets import Separator
 from magicclass.logging import getLogger
 from cylindra.components.picker import AutoCorrelationPicker
+from ._child_widget import ChildWidget
 
 ICON_DIR = Path(__file__).parent.parent / "icons"
 
@@ -29,7 +30,7 @@ class CylindraToolbar(MagicTemplate):
     pick_next = abstractapi()
 
     @magicmenu(icon=ICON_DIR / "adjust_intervals.svg", record=False)
-    class Adjust(MagicTemplate):
+    class Adjust(ChildWidget):
         """
         Adjust auto picker parameters.
 
@@ -52,9 +53,7 @@ class CylindraToolbar(MagicTemplate):
 
         def _get_picker(self) -> AutoCorrelationPicker:
             """Make a picker with current parameters."""
-            from cylindra.widgets import CylindraMainWidget
-
-            cfg = self.find_ancestor(CylindraMainWidget).default_config
+            cfg = self._get_main().default_config
             return AutoCorrelationPicker(self.interval, self.max_angle, self.angle_step, self.max_shifts, cfg)  # fmt: skip
 
     sep1 = field(Separator)

@@ -15,6 +15,7 @@ from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 from cylindra.const import PropertyNames as H
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.widgets.widget_utils import FileFilter
+from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -45,7 +46,7 @@ _PlotInfo = {
 
 
 @magicclass(widget_type="collapsible", name="Local Properties", record=False)
-class LocalPropertiesWidget(MagicTemplate):
+class LocalPropertiesWidget(ChildWidget):
     """
     Local properties.
 
@@ -165,7 +166,7 @@ class LocalPropertiesWidget(MagicTemplate):
         from cylindra.widgets.main import CylindraMainWidget
 
         self._set_properties_to_plot(props)
-        main = self.find_ancestor(CylindraMainWidget)
+        main = self._get_main()
         spl = main.tomogram.splines[main.SplineControl.num]
         self._plot_properties(spl)
         return None

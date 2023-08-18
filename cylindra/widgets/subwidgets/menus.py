@@ -40,19 +40,14 @@ from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.components.spline import SplineConfig
 from cylindra import _config
 
+from ._child_widget import ChildWidget
+
 if TYPE_CHECKING:
     from cylindra.widgets import CylindraMainWidget
     from magicgui.widgets import FunctionGui
     from magicclass._gui._macro import MacroEdit
 
 _Logger = getLogger("cylindra")
-
-
-class ChildWidget(MagicTemplate):
-    def _get_main(self):
-        from cylindra.widgets import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget)
 
 
 @magicmenu
@@ -155,6 +150,7 @@ class File(ChildWidget):
             """
             path = _config.get_stash_dir() / name
             shutil.rmtree(path)
+            self.reset_choices()
             return None
 
         @set_design(text="Clear stashed projects")

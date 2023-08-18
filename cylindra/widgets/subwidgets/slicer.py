@@ -6,6 +6,7 @@ import impy as ip
 
 from cylindra.utils import map_coordinates
 from cylindra.const import nm
+from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -25,7 +26,7 @@ POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
 
 
 @magicclass(record=False)
-class SplineSlicer(MagicTemplate):
+class SplineSlicer(ChildWidget):
     show_what = vfield(label="kind").with_choices([YPROJ, RPROJ, CFT])
 
     @magicclass(layout="horizontal")
@@ -62,12 +63,6 @@ class SplineSlicer(MagicTemplate):
         text="Use spline radius", options={"max": 200.0}
     )
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
-
-    @property
-    def parent(self) -> "CylindraMainWidget":
-        from cylindra.widgets.main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget)
 
     @magicclass(widget_type="frame")
     class controller(MagicTemplate):
@@ -106,12 +101,10 @@ class SplineSlicer(MagicTemplate):
 
     def refresh_widget_state(self):
         """Refresh widget state."""
-        tomo = self.parent.tomogram
+        main = self._get_main()
+        tomo = main.tomogram
         if tomo is None:
             return None
-        self.parent.tomogram.splines
-        parent = self.parent
-        tomo = parent.tomogram
         self._spline_changed(self.controller.spline_id)
         self._update_canvas()
         return None
@@ -121,7 +114,7 @@ class SplineSlicer(MagicTemplate):
     @controller.spline_id.connect
     def _spline_changed(self, idx: int):
         try:
-            spl = self.parent.tomogram.splines[idx]
+            spl = self._get_main().tomogram.splines[idx]
             self.controller.pos.max = max(spl.length(), 0)
         except Exception:
             pass
@@ -199,7 +192,7 @@ class SplineSlicer(MagicTemplate):
         if self.radius is None:
             hwidth = None
         else:
-            cfg = self.parent.tomogram.splines[idx].config
+            cfg = self._get_main().tomogram.splines[idx].config
             hwidth = self.radius + cfg.thickness_outer
         try:
             return self.get_cartesian_image(
@@ -254,7 +247,7 @@ class SplineSlicer(MagicTemplate):
         ip.ImgArray
             Cropped XYZ image.
         """
-        tomo = self.parent.tomogram
+        tomo = self._get_main().tomogram
         spl = tomo.splines[spline]
         depth_px = tomo.nm2pixel(depth, binsize=binsize)
         r = half_width or spl.radius + spl.config.thickness_outer
@@ -308,7 +301,7 @@ class SplineSlicer(MagicTemplate):
         ip.ImgArray
             Cylindric image.
         """
-        tomo = self.parent.tomogram
+        tomo = self._get_main().tomogram
         ylen = tomo.nm2pixel(depth, binsize=binsize)
         spl = tomo.splines[spline]
 

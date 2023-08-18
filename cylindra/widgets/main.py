@@ -116,6 +116,7 @@ _Interval = Annotated[
 
 # stylesheet
 _STYLE = (Path(__file__).parent / "style.qss").read_text()
+_NSPLINES = "len(self.splines) if splines is None else len(splines)"
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):
@@ -297,6 +298,15 @@ class CylindraMainWidget(MagicTemplate):
         if len(splines) == 0:
             raise ValueError("No spline is selected.")
         return splines
+
+    _Splines = Annotated[
+        list[int],
+        {
+            "choices": _get_splines,
+            "widget_type": CheckBoxes,
+            "validator": _get_all_spline_ids,
+        },
+    ]
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
@@ -797,13 +807,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
-    @thread_worker.with_progress(
-        desc="Auto-detecting polarities...",
-        total="len(self.splines) if splines is None else len(splines)",
-    )
+    @thread_worker.with_progress(desc="Auto-detecting polarities...", total=_NSPLINES)
     def auto_align_to_polarity(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         align_to: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -827,11 +834,9 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         for i in splines:
-            tomo.infer_polarity(i=i, binsize=bin_size, depth=depth)
+            tomo.infer_polarity(i=i, binsize=bin_size, depth=depth, update=True)
+            yield
         _new_orientations = [spl.orientation for spl in self.tomogram.splines]
-        for i in range(len(tomo.splines)):
-            spl = tomo.splines[i]
-            spl.orientation = _new_orientations[i]
 
         if align_to is not None:
             return thread_worker.callback(self.align_to_polarity).with_args(align_to)
@@ -944,10 +949,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Fit splines")
-    @thread_worker.with_progress(desc="Spline Fitting", total="len(splines)")
+    @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
     def fit_splines(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
@@ -995,7 +1000,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Add anchors")
     def add_anchors(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
         how: Literal["pack", "equal"] = "pack",
     ):  # fmt: skip
@@ -1024,10 +1029,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Splines.wraps
     @set_design(text="Refine splines")
-    @thread_worker.with_progress(desc="Refining splines", total="len(splines)")
+    @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
     def refine_splines(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
@@ -1206,10 +1211,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Measure radius")
-    @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
+    @thread_worker.with_progress(desc="Measuring Radius", total=_NSPLINES)
     def measure_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
     ):  # fmt: skip
@@ -1233,7 +1238,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Set radius")
     def set_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         radius: ExprStr.In[POLARS_NAMESPACE] = 10.0,
     ):  # fmt: skip
         """
@@ -1266,10 +1271,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Measure local radius")
-    @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
+    @thread_worker.with_progress(desc="Measuring local radii", total=_NSPLINES)
     def measure_local_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1360,10 +1365,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Local FT analysis")
-    @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
+    @thread_worker.with_progress(desc="Local Fourier transform", total=_NSPLINES)
     def local_ft_analysis(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1404,10 +1409,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @Analysis.wraps
     @set_design(text="Global FT analysis")
-    @thread_worker.with_progress(desc="Global Fourier transform", total="len(splines)")
+    @thread_worker.with_progress(desc="Global Fourier transform", total=_NSPLINES)
     def global_ft_analysis(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1475,6 +1480,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Re-analyze project")
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+L")
+    @thread_worker.with_progress(desc="Loading project for re-analysis")
     def load_project_for_reanalysis(self, path: Path.Read[FileFilter.PROJECT]):
         """
         Load a project file to re-analyze the data.
@@ -1484,9 +1490,20 @@ class CylindraMainWidget(MagicTemplate):
         parameter set, or when there were some improvements in cylindra.
         """
         macro = self._get_reanalysis_macro(path)
-        macro.eval({mk.symbol(self): self})
-        self.macro.clear_undo_stack()
-        return None
+        ns = {mk.symbol(self): self}
+        line0 = macro.args[0]
+        others = mk.Expr(mk.Head.block, macro.args[1:])
+        _open_image = line0.args[0].args[1]
+        _open_image_arun = mk.Expr(mk.Head.getattr, [_open_image, "arun"])
+        line0.args[0].args[1] = _open_image_arun
+        yield from line0.eval(ns)
+
+        @thread_worker.callback
+        def out():
+            others.eval(ns)
+            self.macro.clear_undo_stack()
+
+        return out
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods
@@ -1495,9 +1512,10 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.Mapping.wraps
     @set_design(text="Map monomers")
     @bind_key("M")
+    @thread_worker.with_progress(desc="Mapping monomers", total=_NSPLINES)
     def map_monomers(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
     ):  # fmt: skip
@@ -1513,7 +1531,14 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
 
         _Logger.print_html("<code>map_monomers</code>")
-        _added_layers = []
+        _added_layers = list[MoleculesLayer]()
+
+        @thread_worker.callback
+        def _add_molecules(mol: Molecules, name: str, spl: CylSpline):
+            layer = self.add_molecules(mol, name, source=spl)
+            _added_layers.append(layer)
+            _Logger.print(f"{name!r}: n = {len(mol)}")
+
         for i in splines:
             spl = tomo.splines[i]
             mol = tomo.map_monomers(
@@ -1523,10 +1548,7 @@ class CylindraMainWidget(MagicTemplate):
                 radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
             )
 
-            _name = f"Mono-{i}"
-            layer = self.add_molecules(mol, _name, source=spl)
-            _added_layers.append(layer)
-            _Logger.print(f"{_name!r}: n = {len(mol)}")
+            yield _add_molecules.with_args(mol, f"Mono-{i}", spl)
 
         return self._undo_callback_for_layer(_added_layers)
 
@@ -1569,7 +1591,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map centers")
     def map_centers(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
+        splines: _Splines = None,
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
@@ -2616,7 +2638,9 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     }
     exprs = list[mk.Expr]()
     breaked_line: "mk.Expr | None" = None
-    for line in macro_expr.args:
+    if len(macro_expr.args) == 0:
+        raise ValueError("Macro is empty.")
+    for line_id, line in enumerate(macro_expr.args):
         if line.head is not mk.Head.call:
             breaked_line = line
             break
@@ -2629,6 +2653,8 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
             breaked_line = line
             break
         func_full_name = ".".join(map(str, attrs))
+        if line_id == 0 and func_full_name != "open_image":
+            raise ValueError("The first line of macro must be `ui.open_image`.")
         if func_full_name not in _manual_operations:
             breaked_line = line
             break
