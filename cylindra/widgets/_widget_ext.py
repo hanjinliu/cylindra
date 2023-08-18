@@ -600,6 +600,25 @@ class CheckBoxes(CategoricalWidget):
             choices,
             allow_multiple=allow_multiple,
             bind=bind,
-            nullable=nullable,
+            nullable=False,
             **base_widget_kwargs,
         )
+
+    @property
+    def value(self) -> Any:
+        return super().value
+
+    @value.setter
+    def value(self, value) -> None:
+        if value is None:
+            value = ()
+        if isinstance(value, (list, tuple)) and self._allow_multiple:
+            if any(v not in self.choices for v in value):
+                raise ValueError(
+                    f"{value!r} is not a valid choice. must be in {self.choices}"
+                )
+        elif value not in self.choices:
+            raise ValueError(
+                f"{value!r} is not a valid choice. must be in {self.choices}"
+            )
+        return ValueWidget.value.fset(self, value)  # type: ignore

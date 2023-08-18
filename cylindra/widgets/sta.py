@@ -67,7 +67,7 @@ if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
 
 
-def _get_template_shape(self: "SubtomogramAveraging", size) -> list[str]:
+def _get_template_shape(self: "SubtomogramAveraging", size: int) -> list[str]:
     if size is None:
         size = max(self.template.shape)
     return size

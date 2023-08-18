@@ -66,11 +66,7 @@ from cylindra.widgets._widget_ext import (
     CheckBoxes,
     KernelEdit,
 )
-from cylindra.widgets._main_utils import (
-    SplineTracker,
-    normalize_spline_indices,
-    normalize_offsets,
-)
+from cylindra.widgets._main_utils import SplineTracker, normalize_offsets
 from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets import _progress_desc as _pdesc
 
@@ -289,6 +285,18 @@ class CylindraMainWidget(MagicTemplate):
         else:
             raise TypeError(f"Invalid config type: {type(config)}")
         return config
+
+    def _get_all_spline_ids(self, splines: list[int] = None) -> list[int]:
+        nspl = len(self.tomogram.splines)
+        if splines is None:
+            splines = list(range(nspl))
+        else:
+            for i in splines:
+                if i >= nspl:
+                    raise ValueError(f"Spline index {i} is out of range.")
+        if len(splines) == 0:
+            raise ValueError("No spline is selected.")
+        return splines
 
     @toolbar.wraps
     @set_design(icon=ICON_DIR / "add_spline.svg")
@@ -790,10 +798,12 @@ class CylindraMainWidget(MagicTemplate):
     @Splines.Orientation.wraps
     @set_design(text="Auto-align to polarity")
     @thread_worker.with_progress(
-        desc="Auto-detecting polarities...", total="len(self.tomogram.splines)"
+        desc="Auto-detecting polarities...",
+        total="len(self.splines) if splines is None else len(splines)",
     )
     def auto_align_to_polarity(
         self,
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         align_to: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -816,7 +826,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
-        _new_orientations = tomo.infer_polarity(binsize=bin_size, depth=depth)
+        for i in splines:
+            tomo.infer_polarity(i=i, binsize=bin_size, depth=depth)
+        _new_orientations = [spl.orientation for spl in self.tomogram.splines]
         for i in range(len(tomo.splines)):
             spl = tomo.splines[i]
             spl.orientation = _new_orientations[i]
@@ -935,7 +947,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Spline Fitting", total="len(splines)")
     def fit_splines(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
@@ -958,9 +970,8 @@ class CylindraMainWidget(MagicTemplate):
             Maximum shift to be applied to each point of splines.
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
-        with SplineTracker(widget=self, indices=indices) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines) as tracker:
+            for i in splines:
                 tomo.fit(
                     i,
                     max_interval=max_interval,
@@ -984,7 +995,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Add anchors")
     def add_anchors(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
         how: Literal["pack", "equal"] = "pack",
     ):  # fmt: skip
@@ -1001,12 +1012,11 @@ class CylindraMainWidget(MagicTemplate):
               and the end point of splines. Actual intervals will be smaller.
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
-        with SplineTracker(widget=self, indices=indices) as tracker:
+        with SplineTracker(widget=self, indices=splines) as tracker:
             if how == "pack":
-                tomo.make_anchors(indices, interval=interval)
+                tomo.make_anchors(splines, interval=interval)
             elif how == "equal":
-                tomo.make_anchors(indices, max_interval=interval)
+                tomo.make_anchors(splines, max_interval=interval)
             else:
                 raise ValueError(f"Unknown method: {how}")
         self._update_splines_in_images()
@@ -1017,7 +1027,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Refining splines", total="len(splines)")
     def refine_splines(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
@@ -1035,9 +1045,8 @@ class CylindraMainWidget(MagicTemplate):
         {bin_size}
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
-        with SplineTracker(widget=self, indices=indices) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines) as tracker:
+            for i in splines:
                 tomo.refine(
                     i,
                     max_interval=max_interval,
@@ -1200,7 +1209,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring Radius", total="len(splines)")
     def measure_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
     ):  # fmt: skip
@@ -1213,9 +1222,8 @@ class CylindraMainWidget(MagicTemplate):
         min_radius : nm, default is 1.0
             Minimum possible radius in nm.
         """
-        indices = normalize_spline_indices(splines, self.tomogram)
-        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
                 self.tomogram.measure_radius(i, binsize=bin_size, min_radius=min_radius)
                 yield
 
@@ -1225,7 +1233,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Set radius")
     def set_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         radius: ExprStr.In[POLARS_NAMESPACE] = 10.0,
     ):  # fmt: skip
         """
@@ -1247,9 +1255,8 @@ class CylindraMainWidget(MagicTemplate):
                 radius_expr = float(radius_expr)
         else:
             radius_expr = float(radius)
-        indices = normalize_spline_indices(splines, self.tomogram)
-        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
                 spl = self.tomogram.splines[i]
                 if isinstance(radius_expr, pl.Expr):
                     spl.radius = spl.props.glob.select(radius_expr).to_numpy()[0, 0]
@@ -1262,7 +1269,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring local radii", total="len(splines)")
     def measure_local_radius(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1275,18 +1282,17 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{interval}{depth}{bin_size}
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
 
         @thread_worker.callback
         def _on_yield():
             self._update_local_properties_in_widget(replot=True)
 
-        with SplineTracker(widget=self, indices=indices) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines) as tracker:
+            for i in splines:
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_radii(i=i, size=depth, binsize=bin_size)
-                if i == indices[-1]:
+                if i == splines[-1]:
                     yield _on_yield
                 else:
                     yield
@@ -1357,7 +1363,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Local Fourier transform", total="len(splines)")
     def local_ft_analysis(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1374,7 +1380,6 @@ class CylindraMainWidget(MagicTemplate):
             global radius.
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
 
         @thread_worker.callback
         def _local_ft_analysis_on_yield(i: int):
@@ -1382,8 +1387,8 @@ class CylindraMainWidget(MagicTemplate):
             if i == self.SplineControl.num:
                 self.sample_subtomograms()
 
-        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
                 if interval is not None:
                     if radius == "local":
                         raise ValueError(
@@ -1402,7 +1407,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Global Fourier transform", total="len(splines)")
     def global_ft_analysis(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1413,10 +1418,9 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{bin_size}
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
 
-        with SplineTracker(widget=self, indices=indices, sample=True) as tracker:
-            for i in indices:
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.measure_radius(i=i)
@@ -1493,7 +1497,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("M")
     def map_monomers(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
     ):  # fmt: skip
@@ -1507,11 +1511,10 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{orientation}{offsets}
         """
         tomo = self.tomogram
-        indices = normalize_spline_indices(splines, tomo)
 
         _Logger.print_html("<code>map_monomers</code>")
         _added_layers = []
-        for i in indices:
+        for i in splines:
             spl = tomo.splines[i]
             mol = tomo.map_monomers(
                 i=i,
@@ -1566,7 +1569,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map centers")
     def map_centers(
         self,
-        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes}] = (),
+        splines: Annotated[list[int], {"choices": _get_splines, "widget_type": CheckBoxes, "validator": _get_all_spline_ids}] = None,
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip

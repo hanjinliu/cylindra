@@ -957,6 +957,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         depth: nm = 40,
         mask_freq: bool = True,
+        update: bool = True,
     ) -> Ori:
         """
         Infer spline polarities using polar 2D image.
@@ -1034,6 +1035,8 @@ class CylTomogram(Tomogram):
             f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to "
             f"{_ave:.2g} ± {_std:.2g})"
         )
+        if update:
+            spl.orientation = ori
         return ori
 
     @batch_process

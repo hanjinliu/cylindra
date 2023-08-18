@@ -94,15 +94,6 @@ class SplineTracker(ContextManager):
         return undo_op
 
 
-def normalize_spline_indices(indices: Iterable[int], tomo: CylTomogram) -> list[int]:
-    indices = list(indices)
-    if len(indices) == 0:
-        indices = list(range(len(tomo.splines)))
-    if len(indices) == 0:
-        raise ValueError("No splines to operate on.")
-    return indices
-
-
 def normalize_offsets(
     offsets: tuple[float, float] | None, spl: CylSpline
 ) -> tuple[float, float]:
