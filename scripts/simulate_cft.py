@@ -41,6 +41,9 @@ class Simulator:
     def results(self):
         raise NotImplementedError
 
+    def anchors(self) -> np.ndarray:
+        return np.linspace(0, 1, 4)
+
     def columns(self) -> list[str]:
         return ["val0", "val1", "val2", "val3"]
 
@@ -94,7 +97,7 @@ class local_skew(Simulator):
 class local_orientation(Simulator):
     """Cureved MT with orientation=60, 40, 20, 0 deg."""
 
-    def prepare(self):
+    def get_coords(self):
         length = 52.0
         curve_length = 16.0
 
@@ -118,7 +121,10 @@ class local_orientation(Simulator):
             axis=0,
         )
 
-        coords = np.cumsum(vecs, axis=0)
+        return np.cumsum(vecs, axis=0)
+
+    def prepare(self):
+        coords = self.get_coords()
         spl = CylSpline().fit(coords, err_max=1e-8)
         self.ui.cylinder_simulator.create_empty_image(
             size=(60, 228, 144), scale=self.scale
@@ -127,11 +133,17 @@ class local_orientation(Simulator):
         self.ui.cylinder_simulator.update_model(
             spacing=4.1, skew=0.0, start=3, radius=11.4, npf=13
         )
-        return coords[dup0 // 2 : -dup0 // 2]
+        return coords
 
     def results(self):
         df = self.ui.tomogram.splines[0].props.loc
         return df[H.spacing].to_list() + df[H.skew].to_list() + df[H.rise].to_list()
+
+    def anchors(self) -> np.ndarray:
+        coords = self.get_coords()
+        spl = CylSpline().fit(coords, err_max=1e-8)
+        clip = 30 / spl.length()
+        return np.linspace(clip, 1 - clip, 4)
 
     def columns(self):
         return [f"{n}{i}" for n in ["spacing", "skew", "rise"] for i in range(4)]
@@ -140,12 +152,12 @@ class local_orientation(Simulator):
 def simulate(
     func=local_expansions,
     n_tilt: int = 61,
-    nsr: list[float] = [0.7072, 0.8840, 1.061],
+    nsr: list[float] = [0.1, 2.5],
     nrepeat: int = 5,
     scale: float = 0.5,
     binsize: int = 1,
     output: Path | None = None,
-    seed: int = 41298764,
+    seed: int = 12345,
 ):
     if isinstance(func, str):
         func = globals()[func]
@@ -176,7 +188,7 @@ def simulate(
                 )
                 ui.register_path(coords, err_max=1e-8)
                 ui.measure_radius(splines=[0])
-                ui.tomogram.splines[0].anchors = np.linspace(0, 1, 4)
+                ui.tomogram.splines[0].anchors = simulator.anchors()
                 ui.local_ft_analysis(
                     splines=[0], depth=32.64, interval=None, bin_size=binsize
                 )
@@ -216,12 +228,12 @@ class Args(argparse.ArgumentParser):
         super().__init__()
         self.add_argument("--func", type=str, default="local_expansions")
         self.add_argument("--n_tilt", type=int, default=61)
-        self.add_argument("--nsr", type=str, default="[0.7072, 0.8840, 1.061]")
+        self.add_argument("--nsr", type=str, default="[0.1, 2.5]")
         self.add_argument("--nrepeat", type=int, default=5)
         self.add_argument("--scale", type=float, default=0.5)
         self.add_argument("--binsize", type=int, default=1)
         self.add_argument("--output", type=str, default=None)
-        self.add_argument("--seed", type=int, default=41298764)
+        self.add_argument("--seed", type=int, default=12345)
 
     @classmethod
     def from_args(cls) -> Namespace:
@@ -232,7 +244,7 @@ if __name__ == "__main__":
     args = Args.from_args()
     nsr = ast.literal_eval(args.nsr)
     if isinstance(nsr, (int, float)):
-        nsr = [nsr]
+        nsr = [float(nsr)]
     simulate(
         func=args.func,
         n_tilt=args.n_tilt,

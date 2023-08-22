@@ -22,7 +22,7 @@ class PeakDetector:
         self._img = img
         self._nsamples = nsamples
 
-    def dft(self, key, upsample_factor) -> ip.ImgArray:
+    def dft(self, key, upsample_factor: int) -> ip.ImgArray:
         power_spectra = []
         sample_slope = self._img.shape.a / self._nsamples
         for i in range(self._nsamples):
@@ -64,35 +64,36 @@ class PeakDetector:
         PeakInfo
             The peak info object.
         """
-        y0, y1 = range_y
-        a0, a1 = range_a
-        y0i, y1i = floorint(y0), ceilint(y1)
-        a0i, a1i = floorint(a0), ceilint(a1)
-        y1i = max(y1i, y0i + 1)
-        a1i = max(a1i, a0i + 1)
+        y0i, y1i, y_pad0, y_pad1 = _get_boundary(range_y, up_y)
+        a0i, a1i, a_pad0, a_pad1 = _get_boundary(range_a, up_a)
         power = self.dft(
             key=ip.slicer.y[y0i:y1i].a[a0i:a1i],
             upsample_factor=[1, up_y, up_a],
         )
-
-        # these should be >0
-        y_pad0 = ceilint((y0 - y0i) * up_y)
-        y_pad1 = floorint((y1i - y1) * up_y)
-        a_pad0 = ceilint((a0 - a0i) * up_a)
-        a_pad1 = floorint((a1i - a1) * up_a)
-
         ylen, alen = power.shape.y, power.shape.a
+        power_input = power[y_pad0 : ylen - y_pad1, a_pad0 : alen - a_pad1]
         ymax, amax = np.unravel_index(
-            np.argmax(power[y_pad0 : ylen - y_pad1, a_pad0 : alen - a_pad1]),
-            shape=power.shape,
+            np.argmax(power_input),
+            shape=power_input.shape,
         )
-
         return PeakInfo(
             ymax + y0i * up_y + y_pad0,
             amax + a0i * up_a + a_pad0,
             (self._img.shape.y, self._img.shape.a),
             (up_y, up_a),
         )
+
+
+def _get_boundary(rng: tuple[float, float], up_y: int):
+    # 0   y0i  y0      y1  y_pad1
+    # |-----|--|--------|--|----->
+    y0, y1 = rng
+    y0i, y1i = floorint(y0), ceilint(y1)
+    y1i = max(y1i, y0i + 1)
+    # these should be >0
+    y_pad0 = ceilint((y0 - y0i) * up_y)
+    y_pad1 = floorint((y1i - y1) * up_y)
+    return y0i, y1i, y_pad0, y_pad1
 
 
 class PeakInfo:
