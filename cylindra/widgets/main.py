@@ -616,12 +616,6 @@ class CylindraMainWidget(MagicTemplate):
         method: ImageFilter = ImageFilter.LoG,
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
-        # backward compat
-        if isinstance(method, bool):
-            if method:
-                method = ImageFilter.LoG
-            else:
-                return
         method = ImageFilter(method)
         with utils.set_gpu():
             img = self._reserved_layers.image_data
@@ -2418,7 +2412,15 @@ class CylindraMainWidget(MagicTemplate):
         self._init_widget_state()
         self._init_layers()
         self.reset_choices()
-        self.filter_reference_image(method=filt)
+
+        # backward compatibility
+        if isinstance(filt, bool):
+            if filt:
+                filt = ImageFilter.LoG
+            else:
+                filt = None
+        if filt is not None:
+            self.filter_reference_image(method=filt)
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
