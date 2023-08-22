@@ -77,7 +77,7 @@ class ReservedLayers:
 
     def add_spline(self, i: int, spl: CylSpline):
         """Add spline sample data to the layer."""
-        interval = 15
+        interval = 8.0
         length = spl.length()
         n = max(int(length / interval) + 1, 2)
         fit = spl.map(np.linspace(0, 1, n))

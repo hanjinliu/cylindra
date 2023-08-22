@@ -495,7 +495,7 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
             self._project_dir = project_path.parent
         return thread_worker.callback(
-            project.to_gui(
+            project._to_gui(
                 self,
                 filter=filter,
                 paint=paint,
@@ -614,8 +614,14 @@ class CylindraMainWidget(MagicTemplate):
     def filter_reference_image(
         self,
         method: ImageFilter = ImageFilter.LoG,
-    ):
+    ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
+        # backward compat
+        if isinstance(method, bool):
+            if method:
+                method = ImageFilter.LoG
+            else:
+                return
         method = ImageFilter(method)
         with utils.set_gpu():
             img = self._reserved_layers.image_data
@@ -2412,12 +2418,7 @@ class CylindraMainWidget(MagicTemplate):
         self._init_widget_state()
         self._init_layers()
         self.reset_choices()
-
-        if isinstance(filt, bool):
-            # backward compatibility
-            filt = ImageFilter.Lowpass if filt else None
-        if filt is not None:
-            self.filter_reference_image(method=filt)
+        self.filter_reference_image(method=filt)
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)

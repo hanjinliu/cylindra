@@ -220,7 +220,7 @@ class CylindraProject(BaseProject):
         self.to_json(json_path)
         return None
 
-    def to_gui(
+    def _to_gui(
         self,
         gui: "CylindraMainWidget | None" = None,
         filter: bool = True,
