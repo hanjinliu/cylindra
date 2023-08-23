@@ -64,24 +64,40 @@ class PeakDetector:
         PeakInfo
             The peak info object.
         """
-        y0i, y1i, y_pad0, y_pad1 = _get_boundary(range_y, up_y)
-        a0i, a1i, a_pad0, a_pad1 = _get_boundary(range_a, up_a)
-        power = self.dft(
-            key=ip.slicer.y[y0i:y1i].a[a0i:a1i],
-            upsample_factor=[1, up_y, up_a],
-        )
-        ylen, alen = power.shape.y, power.shape.a
-        power_input = power[y_pad0 : ylen - y_pad1, a_pad0 : alen - a_pad1]
-        ymax, amax = np.unravel_index(
-            np.argmax(power_input),
-            shape=power_input.shape,
-        )
+        ps, y0, a0 = self._local_ps_and_offset(range_y, range_a, up_y, up_a)
+        ymax, amax = np.unravel_index(np.argmax(ps), ps.shape)
         return PeakInfo(
-            ymax + y0i * up_y + y_pad0,
-            amax + a0i * up_a + a_pad0,
+            ymax + y0,
+            amax + a0,
             (self._img.shape.y, self._img.shape.a),
             (up_y, up_a),
         )
+
+    def get_local_power_spectrum(
+        self,
+        range_y: tuple[float, float],
+        range_a: tuple[float, float],
+        up_y: int = 1,
+        up_a: int = 1,
+    ) -> ip.ImgArray:
+        return self._local_ps_and_offset(range_y, range_a, up_y, up_a)[0]
+
+    def _local_ps_and_offset(
+        self,
+        range_y: tuple[float, float],
+        range_a: tuple[float, float],
+        up_y: int = 1,
+        up_a: int = 1,
+    ) -> tuple[ip.ImgArray, float, float]:
+        y0i, y1i, y_pad0, y_pad1 = _get_boundary(range_y, up_y)
+        a0i, a1i, a_pad0, a_pad1 = _get_boundary(range_a, up_a)
+        ps0 = self.dft(
+            key=ip.slicer.y[y0i:y1i].a[a0i:a1i],
+            upsample_factor=[1, up_y, up_a],
+        )
+        ylen, alen = ps0.shape.y, ps0.shape.a
+        ps = ps0[y_pad0 : ylen - y_pad1, a_pad0 : alen - a_pad1]
+        return ps, y0i * up_y + y_pad0, a0i * up_a + a_pad0
 
 
 def _get_boundary(rng: tuple[float, float], up_y: int):

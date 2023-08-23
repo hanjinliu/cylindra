@@ -1,18 +1,22 @@
-from typing import TYPE_CHECKING, Callable
-from magicclass import magicclass, field, vfield, MagicTemplate, bind_key, nogui
+from typing import Callable
+from magicclass import (
+    abstractapi,
+    magicclass,
+    field,
+    set_design,
+    vfield,
+    bind_key,
+    nogui,
+)
+from magicclass.logging import getLogger
 from magicclass.types import Optional, OneOf
 from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
 
 from cylindra.utils import map_coordinates
 from cylindra.const import nm
+from cylindra.components._ftprops import LatticeAnalyzer, get_polar_image
 from ._child_widget import ChildWidget
-
-if TYPE_CHECKING:
-    from cylindra.widgets.main import CylindraMainWidget
-    from magicclass.fields import MagicValueField
-
-    _FilterField = MagicValueField[Callable[[ip.ImgArray], ip.ImgArray]]
 
 YPROJ = "Y-projection"
 RPROJ = "R-projection"
@@ -20,9 +24,11 @@ CFT = "CFT"
 
 POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
     ("None", lambda x: x),
-    ("Low-pass (cutoff = 0.1)", lambda x: x.lowpass_filter(0.1)),
     ("Low-pass (cutoff = 0.2)", lambda x: x.lowpass_filter(0.2)),
+    ("Low-pass (cutoff = 0.1)", lambda x: x.lowpass_filter(0.1)),
 ]
+
+_Logger = getLogger("cylindra")
 
 
 @magicclass(record=False)
@@ -30,7 +36,7 @@ class SplineSlicer(ChildWidget):
     show_what = vfield(label="kind").with_choices([YPROJ, RPROJ, CFT])
 
     @magicclass(layout="horizontal")
-    class params(MagicTemplate):
+    class params(ChildWidget):
         """
         Sweeper parameters.
 
@@ -48,24 +54,27 @@ class SplineSlicer(ChildWidget):
             self._old_binsize = 1
 
         def _get_available_binsize(self, widget=None) -> "list[int]":
-            from cylindra.widgets.main import CylindraMainWidget
-
             try:
-                parent = self.find_ancestor(CylindraMainWidget)
-                return parent._get_available_binsize(widget)
+                return self._get_main()._get_available_binsize(widget)
             except Exception:
                 return []
 
         depth = vfield(32.0, label="depth (nm)").with_options(min=1.0, max=200.0)
         binsize = vfield(record=False).with_choices(_get_available_binsize)
 
-    radius = vfield(Optional[nm], label="Radius (nm)").with_options(
-        text="Use spline radius", options={"max": 200.0}
+    @magicclass(layout="horizontal")
+    class Row0(ChildWidget):
+        radius = abstractapi()
+        post_filter = abstractapi()
+
+    radius = Row0.vfield(Optional[nm], label="Radius (nm)").with_options(
+        text="Use spline global radius", options={"max": 200.0}
     )
+    post_filter = Row0.vfield(OneOf[POST_FILTERS], label="Filter")
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     @magicclass(widget_type="frame")
-    class controller(MagicTemplate):
+    class controller(ChildWidget):
         """
         Control spline positions.
 
@@ -78,18 +87,13 @@ class SplineSlicer(ChildWidget):
         """
 
         def _get_spline_id(self, widget=None) -> "list[tuple[str, int]]":
-            from cylindra.widgets.main import CylindraMainWidget
-
             try:
-                parent = self.find_ancestor(CylindraMainWidget)
-                return parent._get_splines(widget)
+                return self._get_main()._get_splines(widget)
             except Exception:
                 return []
 
         spline_id = vfield(label="Spline").with_choices(_get_spline_id)
-        pos = field(nm, label="Position (nm)", widget_type="FloatSlider").with_options(
-            max=0
-        )
+        pos = field(nm, label="Position (nm)", widget_type="FloatSlider").with_options(max=0)  # fmt: skip
 
         @bind_key("Up")
         def _next_pos(self):
@@ -99,6 +103,7 @@ class SplineSlicer(ChildWidget):
         def _prev_pos(self):
             self.pos.value = max(self.pos.value - 1, self.pos.min)
 
+    @set_design(text="Refresh")
     def refresh_widget_state(self):
         """Refresh widget state."""
         main = self._get_main()
@@ -109,7 +114,39 @@ class SplineSlicer(ChildWidget):
         self._update_canvas()
         return None
 
-    post_filter: "_FilterField" = vfield(OneOf[POST_FILTERS], label="Filter")
+    @set_design(text="Measure CFT")
+    def measure_cft_here(self):
+        """Measure CFT parameters at the current position."""
+        idx, pos, depth = self._get_cropping_params()
+        binsize = self.params.binsize
+        radius = self._get_radius()
+        img = self.get_cylindric_image(
+            idx, pos, depth=depth, binsize=binsize, radius=radius, order=3
+        )
+        img = img - float(img.mean())
+        tomo = self._get_main().tomogram
+        spl = tomo.splines[idx]
+        analyzer = LatticeAnalyzer(spl.config)
+        params = analyzer.polar_ft_params(img, radius)
+        spl_info = _col(f"spline ID = {idx}; position = {pos:.2f} nm", color="#003FFF")
+        _Logger.print_html(
+            f"{spl_info}<br>"
+            f"{_col('spacing:')} {params.spacing:.3f} nm<br>"
+            f"{_col('rise angle:')} {params.rise_angle:.3f} °<br>"
+            f"{_col('rise length:')} {params.rise_length:.3f} nm<br>"
+            f"{_col('skew angle:')} {params.skew_angle:.3f} °<br>"
+            f"{_col('skew tilt angle:')} {params.skew_tilt:.3f} °<br>"
+            f"{_col('PF:')} {params.npf}<br>"
+            f"{_col('start:')} {params.start:.3f}"
+        )
+
+    def _get_cropping_params(self) -> tuple[int, nm, nm]:
+        idx = self.controller.spline_id
+        if idx is None:
+            return self._show_overlay_text("No spline exists.")
+        depth = self.params.depth
+        pos = self.controller.pos.value
+        return idx, pos, depth
 
     @controller.spline_id.connect
     def _spline_changed(self, idx: int):
@@ -196,7 +233,12 @@ class SplineSlicer(ChildWidget):
             hwidth = self.radius + cfg.thickness_outer
         try:
             return self.get_cartesian_image(
-                idx, pos, depth=depth, binsize=binsize, half_width=hwidth
+                idx,
+                pos,
+                depth=depth,
+                binsize=binsize,
+                half_width=hwidth,
+                order=1,
             )
         except ValueError as e:
             return e
@@ -208,10 +250,24 @@ class SplineSlicer(ChildWidget):
         binsize = self.params.binsize
         try:
             return self.get_cylindric_image(
-                idx, pos, depth=depth, binsize=binsize, radius=self.radius
+                idx,
+                pos,
+                depth=depth,
+                binsize=binsize,
+                radius=self.radius,
+                order=1,
             )
         except ValueError as e:
             return e
+
+    def _get_radius(self) -> nm:
+        if self.radius is None:
+            idx = self.controller.spline_id
+            if idx is None:
+                raise ValueError("No spline exists.")
+            spl = self._get_main().tomogram.splines[idx]
+            return spl.radius
+        return self.radius
 
     @nogui
     def get_cartesian_image(
@@ -221,6 +277,7 @@ class SplineSlicer(ChildWidget):
         *,
         depth: nm = 32.0,
         binsize: int = 1,
+        order: int = 3,
         half_width: nm = None,
     ) -> ip.ImgArray:
         """
@@ -238,6 +295,8 @@ class SplineSlicer(ChildWidget):
             direction parallel to the spline vector at the given position.
         binsize : int, default is 1
             Image bin size to use.
+        order : int, default is 3
+            Interpolation order.
         half_width : nm, optional
             Half width size of the image. (depth, 2 * half_width, 2 * half_width)
             will be the output image shape.
@@ -263,7 +322,7 @@ class SplineSlicer(ChildWidget):
             scale=tomo.scale * binsize,
         )
         img = tomo._get_multiscale_or_original(binsize)
-        out = map_coordinates(img, coords, order=1)
+        out = map_coordinates(img, coords, order=order)
         out = ip.asarray(out, axes="zyx")
         out.set_scale(img, unit=img.scale_unit)
         return out
@@ -276,6 +335,7 @@ class SplineSlicer(ChildWidget):
         *,
         depth: nm = 32.0,
         binsize: int = 1,
+        order: int = 3,
         radius: nm = None,
     ) -> ip.ImgArray:
         """
@@ -293,6 +353,8 @@ class SplineSlicer(ChildWidget):
             direction parallel to the spline vector at the given position.
         binsize : int, default is 1
             Image bin size to use.
+        order : int, default is 3
+            Interpolation order.
         radius : nm, optional
             Radius peak of the cylinder.
 
@@ -308,8 +370,9 @@ class SplineSlicer(ChildWidget):
         r = radius or spl.radius
         if r is None:
             raise ValueError("Radius not available in the input spline.")
-        rmin = tomo.nm2pixel(max(r - spl.config.thickness_inner, 0), binsize=binsize)
-        rmax = tomo.nm2pixel((r + spl.config.thickness_outer), binsize=binsize)
+        _scale = tomo.scale * binsize
+        rmin = max(r - spl.config.thickness_inner, 0) / _scale
+        rmax = (r + spl.config.thickness_outer) / _scale
 
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3
@@ -320,9 +383,14 @@ class SplineSlicer(ChildWidget):
             scale=tomo.scale * binsize,
         )
         img = tomo._get_multiscale_or_original(binsize)
-        polar = map_coordinates(img, coords, order=1)
-        polar = ip.asarray(polar, axes="rya")  # radius, y, angle
-        polar.set_scale(
-            r=img.scale.x, y=img.scale.x, a=img.scale.x, unit=img.scale_unit
+        return get_polar_image(
+            img, coords, radius=(rmin + rmax) / 2 * _scale, order=order
         )
-        return polar
+
+    @bind_key("Esc")
+    def _close_this_window(self):
+        return self.close()
+
+
+def _col(txt: str, color: str = "#FFFF00") -> str:
+    return f'<b><font color="{color}">{txt}</font></b>'

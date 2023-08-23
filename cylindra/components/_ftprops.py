@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 import impy as ip
 import polars as pl
 from cylindra.const import nm, PropertyNames as H, Mode
-from cylindra.components._peak import PeakDetector
+from cylindra.components._peak import PeakDetector, PeakInfo
 from cylindra.components.spline import SplineConfig
 from cylindra.utils import map_coordinates, ceilint, roundint, floorint
 
@@ -50,10 +50,13 @@ class LatticeAnalyzer:
     ) -> LatticeParams:
         """Detect the peak position and calculate the local lattice parameters."""
         img = img - float(img.mean())  # normalize.
-        up_a = 40
         peak_det = PeakDetector(img, nsamples=nsamples)
-        ya_scale_ratio = img.scale.y / img.scale.a
+        peakh = self.get_peak_h(peak_det, img, radius)
+        peakv = self.get_peak_v(peak_det, img, peakh.a)
 
+        return self.get_lattice_params(img, peakh, peakv, radius)
+
+    def get_peak_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
         # y-axis
         # ^           + <- peakv
         # |
@@ -64,27 +67,39 @@ class LatticeAnalyzer:
 
         # Transformation around `peakh``.
         # This analysis measures skew angle and protofilament number.
+        return peak_det.get_peak(**self._params_h(img, radius))
+
+    def get_ps_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
+        return peak_det.get_local_power_spectrum(**self._params_h(img, radius))
+
+    def _params_h(self, img: ip.ImgArray, radius: nm):
         spacing_arr = np.array(self._cfg.spacing_range.aslist())[np.newaxis]
         y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
-        tan_skew_min, tan_skew_max, tan_rise_min, tan_rise_max = (
-            math.tan(math.radians(s))
-            for s in self._cfg.skew_range.aslist() + self._cfg.rise_range.aslist()
+        tan_skew_min, tan_skew_max = (
+            math.tan(math.radians(s)) for s in self._cfg.skew_range.aslist()
         )
         npf_min_max = np.array(self._cfg.npf_range.aslist())
-
-        peakh = peak_det.get_peak(
+        return dict(
             range_y=(
                 np.min(tan_skew_min * y_factor * npf_min_max),
                 np.max(tan_skew_max * y_factor * npf_min_max),
             ),
             range_a=self.get_arange(img),
             up_y=max(int(21600 / img.shape.y), 1),
-            up_a=up_a,
+            up_a=40,
         )
-        npf_f = peakh.a
-        npf = roundint(npf_f)
 
-        # Transformation around `peakv`.
+    def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
+        return peak_det.get_peak(**self._params_v(img, npf))
+
+    def get_ps_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
+        return peak_det.get_local_power_spectrum(**self._params_v(img, npf))
+
+    def _params_v(self, img: ip.ImgArray, npf: float):
+        tan_rise_min, tan_rise_max = (
+            math.tan(math.radians(s)) for s in self._cfg.rise_range.aslist()
+        )
+        ya_scale_ratio = img.scale.y / img.scale.a
         _y_min = img.shape.y * img.scale.y / self._cfg.spacing_range.max
         _y_max = img.shape.y * img.scale.y / self._cfg.spacing_range.min
         _a_min = _y_max * tan_rise_min * img.shape.a / img.shape.y / ya_scale_ratio
@@ -92,15 +107,22 @@ class LatticeAnalyzer:
         _a_min, _a_max = sorted(
             [_a_min * self._cfg.rise_sign, _a_max * self._cfg.rise_sign]
         )
-        peakv = peak_det.get_peak(
+        return dict(
             range_y=(_y_min, _y_max),
             range_a=(
-                floorint(max(-npf_f / 2, _a_min)),
-                ceilint(min(npf_f / 2, _a_max)) + 1,
+                floorint(max(-npf / 2, _a_min)),
+                ceilint(min(npf / 2, _a_max)) + 1,
             ),
             up_y=max(int(6000 / img.shape.y), 1),
-            up_a=up_a,
+            up_a=40,
         )
+
+    def get_lattice_params(
+        self, img: ip.ImgArray, peakh: PeakInfo, peakv: PeakInfo, radius: nm
+    ):
+        npf_f = peakh.a
+        npf = roundint(npf_f)
+        ya_scale_ratio = img.scale.y / img.scale.a
 
         tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio * self._cfg.rise_sign
         tan_skew_tilt = peakh.yfreq / peakh.afreq / ya_scale_ratio
