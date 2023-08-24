@@ -8,6 +8,5 @@
     "thickness_inner": 2.8,
     "thickness_outer": 2.8,
     "fit_depth": 48.0,
-    "fit_width": 44.0,
-    "weight_ramp": [50.0, 0.5]
+    "fit_width": 44.0
 }

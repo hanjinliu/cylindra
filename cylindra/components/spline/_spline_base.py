@@ -373,7 +373,6 @@ class Spline(BaseComponent):
         self,
         coords: ArrayLike,
         *,
-        weight_ramp: tuple[float, float] | None = None,
         err_max: nm = 1.0,
     ) -> Self:
         """
@@ -404,11 +403,6 @@ class Spline(BaseComponent):
         else:
             k = self.order
 
-        # weight
-        if weight_ramp is None:
-            weight_ramp = self.config.weight_ramp.astuple()
-        weight = _normalize_weight(weight_ramp, crds)
-
         if self.is_inverted():
             crds = crds[::-1]
 
@@ -423,12 +417,10 @@ class Spline(BaseComponent):
         fit_results = list[SplineFitResult]()
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
         for std in std_list:
-            param: PrepOutput = splprep(crds.T, k=k, w=weight, s=std**2 * npoints)
+            param: PrepOutput = splprep(crds.T, k=k, s=std**2 * npoints)
             new._set_params(*param)
             _crds_at_u = new.map(param[1])
-            res: NDArray[np.float32] = np.sqrt(
-                np.sum(((_crds_at_u - crds) * weight[:, np.newaxis]) ** 2, axis=1)
-            )
+            res: NDArray[np.float32] = np.sqrt(np.sum((_crds_at_u - crds) ** 2, axis=1))
             _knots = param[0][0][new.order : -new.order]
             nedge = _knots.size - 1
             assert nedge > 0
@@ -452,7 +444,6 @@ class Spline(BaseComponent):
         positions: Sequence[float] | None = None,
         shifts: NDArray[np.floating] | None = None,
         *,
-        weight_ramp: tuple[float, float] | None = None,
         err_max: nm = 1.0,
     ) -> Self:
         """
@@ -479,7 +470,7 @@ class Spline(BaseComponent):
         # insert 0 in y coordinates.
         shifts = np.stack([shifts[:, 0], np.zeros(len(rot)), shifts[:, 1]], axis=1)
         coords += rot.apply(shifts)
-        return self.fit(coords, err_max=err_max, weight_ramp=weight_ramp)
+        return self.fit(coords, err_max=err_max)
 
     def distances(
         self, positions: Sequence[float] | None = None
@@ -1184,54 +1175,6 @@ def _stack_coords(coords: NDArray[_T]) -> NDArray[_T]:  # V, H, D
         axis=2,
     )  # V, S, H, D
     return stacked
-
-
-def _construct_ramping_weight(
-    norm_length: float, weight_min: float, size: int
-) -> NDArray[np.float64]:
-    """
-    Prepare an weight array with linear ramping flanking regions.
-
-    Parameters
-    ----------
-    norm_length : float
-        Normalized length (total length is 1.0) of the ramping region. The value should be
-        between 0 and 0.5.
-    weight_min : float
-        weight at the edge. The value should be between 0 and 1.
-    size : int
-        Size of the output array.
-    """
-    assert norm_length > 0
-    assert 0 <= weight_min < 1
-    norm_length = min(norm_length, 0.5)
-
-    u = np.linspace(0, 1, size)
-    weight = np.ones(size, dtype=np.float64)
-
-    # update ramping weight on the left side
-    spec_left = u < norm_length
-    weight[spec_left] = (1 - weight_min) / norm_length * (
-        u[spec_left] - norm_length
-    ) + 1
-
-    spec_right = u > 1 - norm_length
-    weight[spec_right] = (
-        -(1 - weight_min) / norm_length * (u[spec_right] - 1 + norm_length) + 1
-    )
-
-    return weight
-
-
-def _normalize_weight(
-    weight_ramp: tuple[float, float], coords: np.ndarray
-) -> np.ndarray:
-    _edge_length, _weight_min = weight_ramp
-    length = np.sum(np.sqrt(np.sum(np.diff(coords, axis=0) ** 2, axis=1)))
-    weight = _construct_ramping_weight(
-        _edge_length / length, _weight_min, coords.shape[0]
-    )
-    return weight
 
 
 def _linear_polar_mapping(output_coords, k_angle, k_radius, center):

@@ -350,7 +350,6 @@ class Splines(ChildWidget):
             thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 3.0,
             fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
             fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
-            weight_ramp: tuple[float, float] = (50.0, 0.5),
         ):  # fmt: skip
             """
             Update the default spline config.
@@ -377,8 +376,6 @@ class Splines(ChildWidget):
                 Depth in nm used during spline fitting.
             fit_width : float, default is 44.0
                 Width in nm used during spline fitting.
-            weight_ramp : (float, float), default is (50.0, 0.5)
-                Weight ramp length and tip ratio.
             """
             loc = locals()
             del loc["self"]

@@ -1469,10 +1469,10 @@ class CylindraMainWidget(MagicTemplate):
         This method will extract the first manual operations from current session.
         """
         _ui_sym = mk.symbol(self)
-        macro_expr = self._format_macro()[self._macro_image_load_offset + 1 :]
+        macro_expr = self._format_macro()[self._macro_image_load_offset :]
         macro = _filter_macro_for_reanalysis(macro_expr, _ui_sym)
         self.clear_all()
-        macro.eval({_ui_sym: self})
+        mk.Expr(mk.Head.block, macro.args[1:]).eval({_ui_sym: self})
         self.macro.clear_undo_stack()
         return None
 

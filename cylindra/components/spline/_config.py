@@ -43,36 +43,10 @@ class Range(Generic[_T]):
         return slice(self.min, self.max + 1)
 
 
-@dataclass(frozen=True)
-class WeightRamp:
-    """Spline weight ramping parameters."""
-
-    ramp_length: nm = 50.0
-    tip_ratio: float = 0.5
-
-    def __post_init__(self):
-        if self.ramp_length < 0:
-            raise ValueError("ramp_length must be non-negative")
-        if not 0 <= self.tip_ratio <= 1:
-            raise ValueError("tip_ratio must be between 0 and 1")
-
-    def astuple(self) -> tuple[nm, float]:
-        return (self.ramp_length, self.tip_ratio)
-
-    def astuple_rounded(self, ndigits: int = 4):
-        return (round(self.ramp_length, ndigits), round(self.tip_ratio, ndigits))
-
-
 def _norm_range(x: Range[_T] | Sequence[_T] | tuple[_T, _T]) -> Range[_T]:
     if isinstance(x, Range):
         return x
     return Range(*x)
-
-
-def _norm_weight_ramp(x: WeightRamp | Sequence[float] | tuple[nm, float]) -> WeightRamp:
-    if isinstance(x, WeightRamp):
-        return x
-    return WeightRamp(*x)
 
 
 @dataclass(frozen=True)
@@ -89,7 +63,6 @@ class SplineConfig:
     thickness_outer: nm = 3.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
-    weight_ramp: WeightRamp = WeightRamp()
 
     def _repr_pretty_(self, p, cycle: bool):
         if cycle:
@@ -113,7 +86,6 @@ class SplineConfig:
             thickness_outer=self.thickness_outer,
             fit_depth=self.fit_depth,
             fit_width=self.fit_width,
-            weight_ramp=self.weight_ramp,
         )
 
     def asdict(self) -> dict[str, Any]:
@@ -128,7 +100,6 @@ class SplineConfig:
             "thickness_outer": self.thickness_outer,
             "fit_depth": self.fit_depth,
             "fit_width": self.fit_width,
-            "weight_ramp": self.weight_ramp.astuple_rounded(),
         }
 
     @classmethod
@@ -188,7 +159,6 @@ class SplineConfig:
         thickness_outer: nm | None = None,
         fit_depth: nm | None = None,
         fit_width: nm | None = None,
-        weight_ramp: tuple[float, float] | None = None,
     ) -> SplineConfig:
         kwargs = locals()
         kwargs.pop("self")
@@ -197,7 +167,6 @@ class SplineConfig:
                 kwargs[k] = getattr(self, k)
         for rng in ["npf_range", "spacing_range", "skew_range", "rise_range"]:
             kwargs[rng] = _norm_range(kwargs[rng])
-        kwargs["weight_ramp"] = _norm_weight_ramp(kwargs["weight_ramp"])
         if kwargs["rise_sign"] not in [-1, 1]:
             raise ValueError("rise_sign must be -1 or 1")
         if kwargs["clockwise"] not in ["PlusToMinus", "MinusToPlus"]:

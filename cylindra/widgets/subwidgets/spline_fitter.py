@@ -47,6 +47,7 @@ class SplineFitter(ChildWidget):
 
         num = field(int, label="Spline No.").with_options(max=0)
         pos = field(int, label="Position").with_options(max=0)
+        err_max = field(0.5, label="Max. error").with_options(step=0.05)
         fit = abstractapi()
 
         @bind_key("Up")
@@ -77,19 +78,17 @@ class SplineFitter(ChildWidget):
         i: Annotated[int, {"bind": controller.num}],
         shifts: Annotated[nm, {"bind": _get_shifts}],
         max_interval: Annotated[nm, {"bind": _get_max_interval}] = 50.0,
+        err_max: Annotated[nm, {"bind": controller.err_max}] = 0.5,
     ):
         """Fit current spline."""
         shifts = np.asarray(shifts)
         parent = self._get_main()
         _scale = parent.tomogram.scale
         old_spl = parent.tomogram.splines[i]
-        parent.tomogram.splines[i] = new_spl = (
-            old_spl.make_anchors(max_interval=max_interval)
-            .shift(
-                shifts=shifts * self._get_binsize() * _scale,
-                err_max=1.0,
-            )
-            .make_anchors(max_interval=max_interval)
+        parent.tomogram.splines[i] = new_spl = old_spl.shift(
+            positions=old_spl.prep_anchor_positions(max_interval=max_interval),
+            shifts=shifts * self._get_binsize() * _scale,
+            err_max=err_max,
         )
         self._cylinder_changed()
         parent._update_splines_in_images()
@@ -174,9 +173,6 @@ class SplineFitter(ChildWidget):
         self._max_interval = max_interval
         parent = self._get_main()
         tomo = parent.tomogram
-        for spl in tomo.splines:
-            spl.make_anchors(max_interval=self._max_interval)
-
         self.shifts = [None] * len(tomo.splines)
         self.controller.num.max = len(tomo.splines) - 1
         self.controller.num.min = 0
@@ -196,9 +192,8 @@ class SplineFitter(ChildWidget):
         if i >= len(tomo.splines):
             return
         spl = tomo.splines[i]
-        if not spl.has_anchors:
-            return
-        npos = spl.anchors.size
+        anc = spl.prep_anchor_positions(max_interval=self._max_interval)
+        npos = anc.size
         if self.shifts is None:
             self.shifts = [None] * len(tomo.splines)
 
@@ -208,7 +203,7 @@ class SplineFitter(ChildWidget):
         length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
         width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
-        mole = spl.anchors_to_molecules()
+        mole = spl.anchors_to_molecules(positions=anc)
         coords = mole.local_coordinates(
             shape=(width_px, length_px, width_px),
             scale=tomo.scale * binsize,
