@@ -78,6 +78,8 @@ def _as_layer_name(
     self: "SubtomogramAveraging", layers: list[MoleculesLayer | str]
 ) -> str:
     out = []
+    if isinstance(layers, (str, MoleculesLayer)):
+        layers = [layers]
     for layer in layers:
         if isinstance(layer, str):
             out.append(layer)
@@ -1692,7 +1694,7 @@ def _assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
 
 
 def _concat_molecules(layers: _MoleculeLayers) -> Molecules:
-    return Molecules.concat([l.molecules for l in layers], concat_features=False)
+    return Molecules.concat([l.molecules for l in layers])
 
 
 def _avg_name(layers: _MoleculeLayers) -> str:
