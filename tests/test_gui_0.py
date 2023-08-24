@@ -489,7 +489,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         mask_params=(1, 1),
         bin_size=bin_size,
     )
-    ui.sta.split_and_average(layer=mono0, size=12.0, bin_size=bin_size)
+    ui.sta.split_and_average(layers=[mono0], size=12.0, bin_size=bin_size)
     ui.sta.align_all(
         layers=[mono0],
         template_path=template_path,

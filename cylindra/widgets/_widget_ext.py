@@ -130,7 +130,7 @@ def _rotation_widgets(max: float = 180.0):
     return _max, _step
 
 
-class RotationEdit(Container[Container[FloatSpinBox]]):
+class RotationsEdit(Container[Container[FloatSpinBox]]):
     """Widget for editing Euler rotation angles for subtomogram averaging."""
 
     def __init__(self, value=Undefined, *, nullable=False, **kwargs):
@@ -182,6 +182,41 @@ class RotationEdit(Container[Container[FloatSpinBox]]):
             self._x_max.value = x_max
             self._x_step.value = x_step
         self.changed.emit(val)
+
+
+class SingleRotationEdit(Container):
+    def __init__(self, value=Undefined, *, nullable=False, **kwargs):
+        self._axis = ComboBox(
+            value="z", choices=["z", "y", "x"], tooltip="Rotation axis", name="axis"
+        )
+        self._degree = FloatSpinBox(
+            value=0.0,
+            min=-180,
+            max=180,
+            step=0.1,
+            tooltip="Rotation angle in degree",
+            name="degree",
+        )
+        super().__init__(
+            widgets=[self._axis, self._degree],
+            labels=False,
+            layout="horizontal",
+            **kwargs,
+        )
+        self.changed.disconnect()
+        self._axis.changed.connect(self._on_value_change)
+        self._degree.changed.connect(self._on_value_change)
+
+    def _on_value_change(self):
+        self.changed.emit(self.value)
+
+    @property
+    def value(self):
+        return self._axis.value, self._degree.value
+
+    @value.setter
+    def value(self, val):
+        self._axis.value, self._degree.value = val
 
 
 class RandomSeedEdit(Container):
@@ -469,6 +504,15 @@ class _ListWidget(QtW.QListWidget):
         size = super().sizeHint()
         size.setHeight(int(size.height() / 2))
         return size
+
+    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+        if (
+            e.key() == Qt.Key.Key_A
+            and e.modifiers() & Qt.KeyboardModifier.ControlModifier
+        ):
+            self.selectAll()
+            return None
+        return super().keyPressEvent(e)
 
 
 class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtocol):

@@ -39,7 +39,7 @@ def calc_interval(
 
 
 def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
-    """Add a column that indicates the elevation angle."""
+    """Calculate the elevation angle of the longitudinal neighbors."""
     _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
@@ -65,7 +65,7 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 
 def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
-    """Add a column that indicates the skew of each molecule to the next one."""
+    """Calculate the skew of each molecule to the next one."""
     _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
@@ -95,7 +95,7 @@ def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 
 def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
-    """Add a column that indicates the skew of each molecule to the next one."""
+    """Calculate the skew of each molecule to the next one."""
     _spl_len = spl.length()
     subsets = list[Molecules]()
     spacing = spl.props.get_glob(H.spacing)
@@ -125,7 +125,7 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 
 def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
-    """Add a column that indicates the radius of each molecule."""
+    """Calculate the radius of each molecule."""
     _u = mole.features[Mole.position] / spl.length()
     _spl_pos = spl.map(_u, der=0)
     _spl_vec = spl.map(_u, der=1)

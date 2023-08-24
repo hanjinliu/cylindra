@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal
-from attr import asdict
 
 import polars as pl
 from magicgui.widgets import FunctionGui
@@ -11,6 +10,7 @@ from magicclass.widgets import ConsoleTextEdit
 from magicclass import setup_function_gui, impl_preview
 
 import numpy as np
+from napari.utils.colormaps import label_colormap
 
 from cylindra.const import PropertyNames as H, PREVIEW_LAYER_NAME
 from cylindra.project import CylindraProject, get_project_json
@@ -18,8 +18,8 @@ from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets._previews import view_tables
-from cylindra.widgets._main_utils import normalize_offsets
-from napari.utils.colormaps import label_colormap
+from cylindra.widgets._main_utils import normalize_offsets, rotvec_from_axis_and_degree
+from cylindra import _config
 
 if TYPE_CHECKING:
     from cylindra._custom_layers import MoleculesLayer
@@ -83,7 +83,6 @@ def _(self: CylindraMainWidget, path: Path):
     w.native.setParent(self.native, w.native.windowFlags())
     w.show()
     self._active_widgets.add(w)
-    return None
 
 
 @impl_preview(CylindraMainWidget.map_along_pf, auto_call=True)
@@ -114,7 +113,6 @@ def _(
     finally:
         if not is_active and layer in viewer.layers:
             viewer.layers.remove(layer)
-    return out
 
 
 @impl_preview(CylindraMainWidget.map_monomers_with_extensions, auto_call=True)
@@ -149,7 +147,6 @@ def _(
     finally:
         if not is_active and layer in viewer.layers:
             viewer.layers.remove(layer)
-    return out
 
 
 @impl_preview(CylindraMainWidget.split_molecules, auto_call=True)
@@ -184,7 +181,46 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, translation, internal: bo
     finally:
         if not is_active and layer in viewer.layers:
             viewer.layers.remove(layer)
-    return out
+
+
+@impl_preview(CylindraMainWidget.rotate_molecules, auto_call=True)
+def _preview_rotate_molecules(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    degrees: list[tuple[Literal["z", "y", "x"], float]],
+):
+    mole = layer.molecules
+    for axis, deg in degrees:
+        mole = mole.rotate_by_rotvec_internal(rotvec_from_axis_and_degree(axis, deg))
+
+    nmol = len(mole)
+    zvec = np.stack([mole.pos, mole.z], axis=1)
+    yvec = np.stack([mole.pos, mole.y], axis=1)
+    xvec = np.stack([mole.pos, mole.x], axis=1)
+
+    vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
+
+    viewer = self.parent_viewer
+    if PREVIEW_LAYER_NAME in viewer.layers:
+        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
+        layer.data = vector_data
+    else:
+        layer = viewer.add_vectors(
+            vector_data,
+            edge_width=0.3,
+            edge_color="direction",
+            edge_color_cycle=["crimson", "cyan", "orange"],
+            features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
+            length=_config.get_config().point_size * 0.8,
+            name=PREVIEW_LAYER_NAME,
+            vector_style="arrow",
+        )
+    is_active = False
+    try:
+        is_active = yield
+    finally:
+        if not is_active and layer in viewer.layers:
+            viewer.layers.remove(layer)
 
 
 @impl_preview(CylindraMainWidget.filter_molecules, auto_call=True)

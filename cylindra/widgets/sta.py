@@ -46,7 +46,7 @@ from cylindra.const import (
 )
 from cylindra.widgets._widget_ext import (
     CheckBoxes,
-    RotationEdit,
+    RotationsEdit,
     RandomSeedEdit,
     MultiFileEdit,
 )
@@ -58,30 +58,48 @@ from cylindra.components.seam_search import (
 )
 
 from .widget_utils import FileFilter, timer, POLARS_NAMESPACE
+from .subwidgets._child_widget import ChildWidget
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from napari.layers import Image
     from cylindra.components import CylSpline
-    from cylindra.widgets.main import CylindraMainWidget
 
 
-def _get_template_shape(self: "SubtomogramAveraging", size: int) -> list[str]:
+def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
+    tmp = self.template
     if size is None:
-        size = max(self.template.shape)
+        size = max(tmp.shape) * tmp.scale.x
     return size
+
+
+def _as_layer_name(
+    self: "SubtomogramAveraging", layers: list[MoleculesLayer | str]
+) -> str:
+    out = []
+    for layer in layers:
+        if isinstance(layer, str):
+            out.append(layer)
+        else:
+            out.append(layer.name)
+    return out
 
 
 # annotated types
 _MoleculeLayers = Annotated[
     list[MoleculesLayer],
-    {"choices": get_monomer_layers, "widget_type": CheckBoxes, "value": ()},
+    {
+        "choices": get_monomer_layers,
+        "widget_type": CheckBoxes,
+        "value": (),
+        "validator": _as_layer_name,
+    },
 ]
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _Rotations = Annotated[
     tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
-    {"widget_type": RotationEdit},
+    {"widget_type": RotationsEdit},
 ]
 _MaxShifts = Annotated[
     tuple[nm, nm, nm],
@@ -187,7 +205,7 @@ class MaskParameters(MagicTemplate):
         Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
     """
 
-    dilate_radius = vfield(0.3, record=False).with_options(max=20, step=0.1)
+    dilate_radius = vfield(0.3, record=False).with_options(min=-20, max=20, step=0.1)
     sigma = vfield(0.8, record=False).with_options(max=20, step=0.1)
 
 
@@ -375,7 +393,7 @@ class StaParameters(MagicTemplate):
 
 @magicclass
 @_shared_doc.update_cls
-class SubtomogramAveraging(MagicTemplate):
+class SubtomogramAveraging(ChildWidget):
     """Widget for subtomogram averaging."""
 
     Subtomogram_analysis = field(SubtomogramAnalysis)
@@ -455,20 +473,15 @@ class SubtomogramAveraging(MagicTemplate):
         Returns proper subtomogram loader, template image and mask image that matche the
         bin size.
         """
-        return self._get_parent().tomogram.get_subtomogram_loader(
+        return self._get_main().tomogram.get_subtomogram_loader(
             molecules,
             binsize=binsize,
             order=order,
             output_shape=shape,
         )
 
-    def _get_parent(self) -> "CylindraMainWidget":
-        from .main import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
-
     def _get_available_binsize(self, _=None) -> list[int]:
-        parent = self._get_parent()
+        parent = self._get_main()
         out = [x[0] for x in parent.tomogram.multiscaled]
         if 1 not in out:
             out = [1] + out
@@ -476,10 +489,10 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average all molecules")
-    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Subtomogram averaging of {!r}"))
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
     def average_all(
         self,
-        layer: MoleculesLayer,
+        layers: _MoleculeLayers,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -489,27 +502,27 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{size}{interpolation}{bin_size}
+        {layers}{size}{interpolation}{bin_size}
         """
         t0 = timer("average_all")
-        layer = _assert_layer(layer, self.parent_viewer)
-        parent = self._get_parent()
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
         tomo = parent.tomogram
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
-            layer.molecules, shape, binsize=bin_size, order=interpolation
+            _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return self._show_rec.with_args(img, f"[AVG]{layer.name}")
+        return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average subset of molecules")
-    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Subtomogram averaging (subset) of {!r}"))  # fmt: skip
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging (subset) of {!r}"))  # fmt: skip
     def average_subset(
         self,
-        layer: MoleculesLayer,
+        layers: _MoleculeLayers,
         size: _SubVolumeSize = None,
         method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
@@ -520,7 +533,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{size}
+        {layers}{size}
         method : str, optional
             How to choose subtomogram subset.
             (1) steps: Each 'steps' subtomograms from the tip of spline.
@@ -532,9 +545,9 @@ class SubtomogramAveraging(MagicTemplate):
         {bin_size}
         """
         t0 = timer("average_subset")
-        layer = _assert_layer(layer, self.parent_viewer)
-        parent = self._get_parent()
-        molecules = layer.molecules
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
+        molecules = _concat_molecules(layers)
         nmole = len(molecules)
         shape = self._get_shape_in_nm(size)
         sl = _get_slice_for_average_subset(method, nmole, number)
@@ -544,14 +557,14 @@ class SubtomogramAveraging(MagicTemplate):
         )
         img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
         t0.toc()
-        return self._show_rec.with_args(img, f"[AVG(n={number})]{layer.name}")
+        return self._show_rec.with_args(img, f"[AVG(n={number})]{_avg_name(layers)}")
 
     @Subtomogram_analysis.wraps
     @set_design(text="Average group-wise")
-    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Grouped subtomogram averaging of {!r}"))  # fmt: skip
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Grouped subtomogram averaging of {!r}"))  # fmt: skip
     def average_groups(
         self,
-        layer: MoleculesLayer,
+        layers: _MoleculeLayers,
         size: _SubVolumeSize = None,
         by: ExprStr.In[POLARS_NAMESPACE] = "pl.col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -566,35 +579,35 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{size}
+        {layers}{size}
         by : str or polars expression
             Expression to group molecules.
         {interpolation}{bin_size}
         """
         t0 = timer("average_groups")
-        layer = _assert_layer(layer, self.parent_viewer)
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
         if isinstance(by, pl.Expr):
             expr = by
         else:
             expr = ExprStr(by, POLARS_NAMESPACE).eval()
-        parent = self._get_parent()
+        parent = self._get_main()
         tomo = parent.tomogram
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
-            layer.molecules, shape, binsize=bin_size, order=interpolation
+            _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
         avgs = np.stack(list(loader.groupby(expr).average().values()), axis=0)
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return self._show_rec.with_args(img, f"[AVG]{layer.name}", store=False)
+        return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}", store=False)
 
     @Subtomogram_analysis.wraps
     @set_design(text="Split molecules and average")
-    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Split-and-averaging of {!r}"))  # fmt: skip
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
     def split_and_average(
         self,
-        layer: MoleculesLayer,
+        layers: _MoleculeLayers,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -605,15 +618,15 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}
+        {layers}
         n_set : int, default is 1
             How many pairs of average will be calculated.
         {size}{interpolation}{bin_size}
         """
         t0 = timer("split_and_average")
-        layer = _assert_layer(layer, self.parent_viewer)
-        parent = self._get_parent()
-        molecules = layer.molecules
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
+        molecules = _concat_molecules(layers)
         shape = self._get_shape_in_nm(size)
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation
@@ -622,7 +635,7 @@ class SubtomogramAveraging(MagicTemplate):
         img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
         img.set_scale(zyx=loader.scale)
         t0.toc()
-        return self._show_rec.with_args(img, f"[Split]{layer.name}")
+        return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}")
 
     @Refinement.wraps
     @set_design(text="Align average to template")
@@ -649,7 +662,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = timer("align_averaged")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_parent()
+        parent = self._get_main()
 
         new_layers = list[MoleculesLayer]()
 
@@ -779,7 +792,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = timer("align_all")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_parent()
+        parent = self._get_main()
 
         combiner = MoleculesCombiner()
 
@@ -824,7 +837,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = timer("align_all_template_free")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_parent()
+        parent = self._get_main()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
         mask = self.params._get_mask(params=mask_params)
@@ -874,7 +887,7 @@ class SubtomogramAveraging(MagicTemplate):
         """
         t0 = timer("align_all_multi_template")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_parent()
+        parent = self._get_main()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
         templates = pipe.from_files(template_paths)
@@ -1100,7 +1113,7 @@ class SubtomogramAveraging(MagicTemplate):
         Landscape
             The landscape instance.
         """
-        parent = self._get_parent()
+        parent = self._get_main()
         layer = _assert_layer(layer, self.parent_viewer)
         return Landscape.from_loader(
             loader=parent.tomogram.get_subtomogram_loader(
@@ -1132,7 +1145,7 @@ class SubtomogramAveraging(MagicTemplate):
     ):
         from dask import delayed, compute
 
-        parent = self._get_parent()
+        parent = self._get_main()
         landscape = self.construct_landscape(
             layer=layer,
             template_path=template_path,
@@ -1180,7 +1193,7 @@ class SubtomogramAveraging(MagicTemplate):
         random_seeds: Iterable[int] = range(5),
         return_all: bool = False,
     ):
-        parent = self._get_parent()
+        parent = self._get_main()
         landscape = self.construct_landscape(
             layer=layer,
             template_path=template_path,
@@ -1265,10 +1278,10 @@ class SubtomogramAveraging(MagicTemplate):
 
     @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
-    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Calculating FSC of {!r}"))
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
-        layer: MoleculesLayer,
+        layers: _MoleculeLayers,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1282,7 +1295,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{mask_params}{size}
+        {layers}{mask_params}{size}
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
@@ -1295,9 +1308,9 @@ class SubtomogramAveraging(MagicTemplate):
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer("calculate_fsc")
-        layer = _assert_layer(layer, self.parent_viewer)
-        parent = self._get_parent()
-        mole = layer.molecules
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
+        mole = _concat_molecules(layers)
 
         loader = parent.tomogram.get_subtomogram_loader(mole, order=interpolation)
         template, mask = loader.normalize_input(
@@ -1326,7 +1339,8 @@ class SubtomogramAveraging(MagicTemplate):
 
         @thread_worker.callback
         def _calculate_fsc_on_return():
-            _Logger.print_html(f"<b>Fourier Shell Correlation of {layer.name!r}</b>")
+            _name = _avg_name(layers)
+            _Logger.print_html(f"<b>Fourier Shell Correlation of {_name!r}</b>")
             with _Logger.set_plt():
                 widget_utils.plot_fsc(
                     freq,
@@ -1342,7 +1356,7 @@ class SubtomogramAveraging(MagicTemplate):
             if img_avg is not None:
                 _rec_layer: "Image" = self._show_rec(
                     img_avg,
-                    name=f"[AVG]{layer.name}",
+                    name=f"[AVG]{_name}",
                 )
                 _rec_layer.metadata["fsc"] = widget_utils.FscResult(
                     freq, fsc_mean, fsc_std, res0143, res0500
@@ -1382,7 +1396,7 @@ class SubtomogramAveraging(MagicTemplate):
 
         t0 = timer("classify_pca")
         layer = _assert_layer(layer, self.parent_viewer)
-        parent = self._get_parent()
+        parent = self._get_main()
 
         loader = self._get_loader(
             binsize=bin_size, molecules=layer.molecules, order=interpolation
@@ -1569,7 +1583,7 @@ class SubtomogramAveraging(MagicTemplate):
     def _seam_search_input(
         self, layer: MoleculesLayer, npf: int, order: int
     ) -> tuple[SubtomogramLoader, int]:
-        parent = self._get_parent()
+        parent = self._get_main()
         mole = layer.molecules
         loader = parent.tomogram.get_subtomogram_loader(mole, order=order)
         if npf is None:
@@ -1600,7 +1614,7 @@ class SubtomogramAveraging(MagicTemplate):
         self, molecules: list[Molecules], old_layers: list[MoleculesLayer]
     ):
         """The return callback function for alignment methods."""
-        parent = self._get_parent()
+        parent = self._get_main()
         new_layers = []
         for mole, layer in zip(molecules, old_layers):
             points = parent.add_molecules(
@@ -1629,7 +1643,7 @@ class SubtomogramAveraging(MagicTemplate):
         # TODO: This method should finally be moved to some utils module since
         # this analysis is independent of annealing. Currently annealing and
         # graph construction cannot be separated.
-        parent = self._get_parent()
+        parent = self._get_main()
         scale = parent.tomogram.scale
         return _annealing.get_annealing_model(layer, (0, 0, 0), scale)
 
@@ -1675,6 +1689,18 @@ def _assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
         return layer
     else:
         raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")
+
+
+def _concat_molecules(layers: _MoleculeLayers) -> Molecules:
+    return Molecules.concat([l.molecules for l in layers], concat_features=False)
+
+
+def _avg_name(layers: _MoleculeLayers) -> str:
+    if len(layers) == 1:
+        name = layers[0].name
+    else:
+        name = f"{len(layers)}-layers"
+    return name
 
 
 def _get_slice_for_average_subset(method: str, nmole: int, number: int):

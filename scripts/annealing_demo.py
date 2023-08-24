@@ -33,7 +33,7 @@ def mesh_annealing_demo(
     **kwargs,
 ):
     assert isinstance(self, SubtomogramAveraging)
-    parent = self._get_parent()
+    parent = self._get_main()
     molecules = layer.molecules
 
     landscape = self.construct_landscape(

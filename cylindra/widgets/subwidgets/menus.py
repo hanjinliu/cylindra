@@ -417,6 +417,7 @@ class MoleculesMenu(ChildWidget):
 
     set_source_spline = abstractapi()
     translate_molecules = abstractapi()
+    rotate_molecules = abstractapi()
 
     @magicmenu(name="Combine")
     class Combine(MagicTemplate):

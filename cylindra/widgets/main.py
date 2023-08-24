@@ -65,8 +65,13 @@ from cylindra.widgets._widget_ext import (
     OffsetEdit,
     CheckBoxes,
     KernelEdit,
+    SingleRotationEdit,
 )
-from cylindra.widgets._main_utils import SplineTracker, normalize_offsets
+from cylindra.widgets._main_utils import (
+    SplineTracker,
+    normalize_offsets,
+    rotvec_from_axis_and_degree,
+)
 from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets import _progress_desc as _pdesc
 
@@ -111,7 +116,11 @@ _OffsetType = Annotated[
 ]
 
 _Interval = Annotated[
-    Optional[nm], {"text": "Use existing anchors", "options": {"min": 1.0, "step": 0.5}}
+    Optional[nm],
+    {
+        "text": "Use existing anchors",
+        "options": {"min": 1.0, "step": 0.5, "value": 32.64},
+    },
 ]
 
 # stylesheet
@@ -1790,6 +1799,46 @@ class CylindraMainWidget(MagicTemplate):
         else:
             source = None
         new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
+        return self._undo_callback_for_layer(new)
+
+    @MoleculesMenu.wraps
+    @set_design(text="Rotate molecules")
+    def rotate_molecules(
+        self,
+        layer: MoleculesLayer,
+        degrees: Annotated[
+            list[tuple[Literal["z", "y", "x"], float]],
+            {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
+        ],
+        inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
+    ):
+        """
+        Rotate molecules without changing their positions.
+
+        Parameters
+        ----------
+        {layer}
+        degrees : list of (str, float)
+            Rotation axes and degrees. For example, ``[("z", 20), ("y", -10)]`` means rotation
+            by 20 degrees around the molecule Z axis and then by -10 degrees around the Y axis.
+        {inherit_source}
+        """
+        mole = layer.molecules
+        if (
+            len(degrees) == 2
+            and isinstance(degrees[0], str)
+            and isinstance(degrees[1], float)
+        ):
+            degrees = [degrees]
+        for axis, deg in degrees:
+            mole = mole.rotate_by_rotvec_internal(
+                rotvec_from_axis_and_degree(axis, deg)
+            )
+        if inherit_source:
+            source = layer.source_component
+        else:
+            source = None
+        new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
         return self._undo_callback_for_layer(new)
 
     @MoleculesMenu.MoleculeFeatures.wraps

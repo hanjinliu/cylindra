@@ -72,6 +72,8 @@ class ManualSeamSearcher(SeamSearcher):
 
 
 class CorrelationSeamSearcher(SeamSearcher):
+    """Seam searcher based on correlation with the template."""
+
     def search(
         self,
         loader: SubtomogramLoader,
@@ -92,7 +94,8 @@ class CorrelationSeamSearcher(SeamSearcher):
         corrs = list[float]()
         for avg in averaged_images:
             avg: ip.ImgArray
-            corr = ip.zncc((avg * mask).lowpass_filter(cutoff=cutoff), masked_template)
+            masked_avg = (avg * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
+            corr = ip.zncc(masked_avg, masked_template)
             corrs.append(corr)
 
         corrs = np.array(corrs)

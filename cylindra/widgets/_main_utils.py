@@ -2,7 +2,8 @@ from __future__ import annotations
 from types import TracebackType
 
 import weakref
-from typing import TYPE_CHECKING, ContextManager, Iterable
+from typing import TYPE_CHECKING, ContextManager, Iterable, Literal
+import numpy as np
 
 from magicclass.undo import undo_callback
 from cylindra.const import PropertyNames as H
@@ -103,3 +104,15 @@ def normalize_offsets(
             spl.props.get_glob(H.offset_angular, 0.0),
         )
     return offsets
+
+
+def rotvec_from_axis_and_degree(axis: Literal["z", "y", "x"], deg: float):
+    if axis == "z":
+        unit_vec = np.array([1, 0, 0], dtype=np.float32)
+    elif axis == "y":
+        unit_vec = np.array([0, 1, 0], dtype=np.float32)
+    elif axis == "x":
+        unit_vec = np.array([0, 0, 1], dtype=np.float32)
+    else:
+        raise ValueError(f"Unknown axis: {axis!r}")
+    return unit_vec * np.deg2rad(deg)

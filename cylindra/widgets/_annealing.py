@@ -104,7 +104,7 @@ def _preview_function(
     distance_range_lat: tuple[nm, nm],
     upsample_factor: int,
 ):
-    parent = widget._get_parent()
+    parent = widget._get_main()
     scale = parent.tomogram.scale
     data_lon, data_lat = get_distances(layer, scale, upsample_factor)
 

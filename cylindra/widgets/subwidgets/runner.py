@@ -186,16 +186,8 @@ class Runner(ChildWidget):
             cfg = main.splines[splines[0]].config
             yield from main.paint_cylinders.arun(limits=cfg.spacing_range.astuple())
         if map_monomers:
-            _plus_idx = list[int]()
-            _minus_idx = list[int]()
-            for idx in splines:
-                if main.splines[idx].config.clockwise == "PlusToMinus":
-                    _plus_idx.append(idx)
-                else:
-                    _minus_idx.append(idx)
-            if _plus_idx:
-                yield from main.map_monomers.arun(_plus_idx, orientation="PlusToMinus")
-            if _minus_idx:
-                yield from main.map_monomers.arun(_minus_idx, orientation="PlusToMinus")
+            yield from main.map_monomers.arun(
+                splines=splines, orientation="MinusToPlus"
+            )
             yield
         return None

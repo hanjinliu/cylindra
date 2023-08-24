@@ -31,7 +31,7 @@ import napari
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
-from cylindra.widgets._widget_ext import RotationEdit
+from cylindra.widgets._widget_ext import RotationsEdit
 from ..widget_utils import FileFilter, timer, POLARS_NAMESPACE
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
@@ -52,7 +52,7 @@ def _classify_pca_fmt():
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _Rotations = Annotated[
     tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
-    {"widget_type": RotationEdit},
+    {"widget_type": RotationsEdit},
 ]
 _MaxShifts = Annotated[
     tuple[nm, nm, nm],
@@ -95,7 +95,7 @@ class MaskParameters(MagicTemplate):
         Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
     """
 
-    dilate_radius = vfield(0.3, record=False).with_options(max=20, step=0.1)
+    dilate_radius = vfield(0.3, record=False).with_options(min=-20, max=20, step=0.1)
     sigma = vfield(0.3, record=False).with_options(max=20, step=0.1)
 
 
