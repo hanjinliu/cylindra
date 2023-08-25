@@ -10,6 +10,7 @@ from magicclass import (
 )
 from magicclass.logging import getLogger
 from magicclass.types import Optional, OneOf
+from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 import impy as ip
 
@@ -68,7 +69,8 @@ class SplineSlicer(ChildWidget):
         post_filter = abstractapi()
 
     radius = Row0.vfield(Optional[nm], label="Radius (nm)").with_options(
-        text="Use spline global radius", options={"max": 200.0}
+        text="Use spline global radius",
+        options={"min": 1.0, "max": 200.0, "step": 0.5, "value": 10.0},
     )
     post_filter = Row0.vfield(OneOf[POST_FILTERS], label="Filter")
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
@@ -156,53 +158,78 @@ class SplineSlicer(ChildWidget):
         except Exception:
             pass
 
-    @show_what.connect
-    @params.depth.connect
-    @params.binsize.connect
-    @radius.connect
-    @controller.spline_id.connect
-    @controller.pos.connect
-    @post_filter.connect
-    def _on_widget_state_changed(self):
+    @show_what.connect_async(timeout=0.1)
+    @params.binsize.connect_async(timeout=0.1)
+    def _on_show_what_changed(self):
         if self.visible:
-            self._update_canvas()
-            self.params._old_binsize = self.params.binsize
+            yield from self._update_canvas.arun(update_clim=True)
         return None
 
-    def _update_canvas(self):
+    @params.depth.connect_async(timeout=0.1)
+    @radius.connect_async(timeout=0.1)
+    @controller.spline_id.connect_async(timeout=0.1)
+    @controller.pos.connect_async(timeout=0.1)
+    @post_filter.connect_async(timeout=0.1)
+    def _on_widget_state_changed(self):
+        if self.visible:
+            yield from self._update_canvas.arun()
+        return None
+
+    @thread_worker(force_async=True)
+    def _update_canvas(self, update_clim: bool = False):
         _type = self.show_what
         idx = self.controller.spline_id
         if idx is None:
-            return self._show_overlay_text("No spline exists.")
+            return self._show_overlay_text_cb("No spline exists.")
         depth = self.params.depth
         pos = self.controller.pos.value
         if _type == RPROJ:
             result = self._current_cylindrical_img(idx, pos, depth)
             if isinstance(result, Exception):
-                return self._show_overlay_text(result)
+                return self._show_overlay_text_cb(result)
+            yield
             img = self.post_filter(result.proj("r")).value
         elif _type == YPROJ:
             result = self._current_cartesian_img(idx, pos, depth).proj("y")
             if isinstance(result, Exception):
-                return self._show_overlay_text(result)
+                return self._show_overlay_text_cb(result)
+            yield
             img = self.post_filter(result[ip.slicer.x[::-1]]).value
         elif _type == CFT:
             result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
             if isinstance(result, Exception):
-                return self._show_overlay_text(result)
+                return self._show_overlay_text_cb(result)
+            yield
             pw = result.power_spectra(zero_norm=True, dims="rya").proj("r")
             pw[:] = pw / pw.max()
             img = pw.value
         else:
             raise RuntimeError
-        self.canvas.image = img
-        self.canvas.text_overlay.visible = False
-        factor = self.params._old_binsize / self.params.binsize
-        if factor != 1:
-            xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
-            ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
-            self.canvas.xlim = xlim
-            self.canvas.ylim = ylim
+
+        yield
+
+        @thread_worker.callback
+        def _update_image():
+            self.canvas.image = img
+            self.canvas.text_overlay.visible = False
+            factor = self.params._old_binsize / self.params.binsize
+            if factor != 1:
+                xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
+                ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
+                self.canvas.xlim = xlim
+                self.canvas.ylim = ylim
+            self.params._old_binsize = self.params.binsize
+
+        yield _update_image
+
+        if update_clim:
+            lims = img.min(), img.max()
+
+            @thread_worker.callback
+            def _update_clim():
+                self.canvas.contrast_limits = lims
+
+            return _update_clim
         return None
 
     def _show_overlay_text(self, txt):
@@ -214,12 +241,9 @@ class SplineSlicer(ChildWidget):
         del self.canvas.image
         return
 
-    @show_what.connect
-    def _update_clims(self):
-        img = self.canvas.image
-        if img is not None:
-            self.canvas.contrast_limits = (img.min(), img.max())
-        return None
+    @thread_worker.callback
+    def _show_overlay_text_cb(self, txt):
+        return self._show_overlay_text(txt)
 
     def _current_cartesian_img(
         self, idx: int, pos: nm, depth: nm

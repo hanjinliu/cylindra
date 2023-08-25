@@ -345,6 +345,7 @@ class CylindraMainWidget(MagicTemplate):
 
     _runner = field(subwidgets.Runner)
     _image_loader = subwidgets.ImageLoader
+    _file_iterator = field(subwidgets.FileIterator)
 
     def _confirm_delete(self):
         i = self.SplineControl.num
@@ -1489,7 +1490,6 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Re-analyze project")
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+L")
-    @thread_worker.with_progress(desc="Loading project for re-analysis")
     def load_project_for_reanalysis(self, path: Path.Read[FileFilter.PROJECT]):
         """
         Load a project file to re-analyze the data.
@@ -1499,20 +1499,9 @@ class CylindraMainWidget(MagicTemplate):
         parameter set, or when there were some improvements in cylindra.
         """
         macro = self._get_reanalysis_macro(path)
-        ns = {mk.symbol(self): self}
-        line0 = macro.args[0]
-        others = mk.Expr(mk.Head.block, macro.args[1:])
-        _open_image = line0.args[0].args[1]
-        _open_image_arun = mk.Expr(mk.Head.getattr, [_open_image, "arun"])
-        line0.args[0].args[1] = _open_image_arun
-        yield from line0.eval(ns)
-
-        @thread_worker.callback
-        def out():
-            others.eval(ns)
-            self.macro.clear_undo_stack()
-
-        return out
+        macro.eval({mk.symbol(self): self})
+        self.macro.clear_undo_stack()
+        return None
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods
