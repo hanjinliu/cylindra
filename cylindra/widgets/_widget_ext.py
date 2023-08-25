@@ -23,7 +23,7 @@ from magicgui.widgets import (
 from magicgui.widgets.bases import CategoricalWidget, ValueWidget
 from magicgui.types import ChoicesType, Undefined
 from magicgui.backends._qtpy import widgets as backend_qtw
-from magicclass.widgets import ScrollableContainer, ConsoleTextEdit
+from magicclass.widgets import ScrollableContainer
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
@@ -206,6 +206,8 @@ class SingleRotationEdit(Container):
         self.changed.disconnect()
         self._axis.changed.connect(self._on_value_change)
         self._degree.changed.connect(self._on_value_change)
+        if value is not Undefined:
+            self.value = value
 
     def _on_value_change(self):
         self.changed.emit(self.value)

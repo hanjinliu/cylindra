@@ -199,12 +199,16 @@ def test_reanalysis(ui: CylindraMainWidget):
     ui.load_project_for_reanalysis(PROJECT_DIR_14PF)
     assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.tomogram.splines[0].orientation == "none"
+    assert len(ui.macro) > 1
+    assert str(ui.macro[1]).startswith("ui.register_path(")
     ui.measure_radius()
     assert ui.splines[0].radius is not None
     assert len(ui.macro.undo_stack["undo"]) > 0
     ui.reanalyze_image()
     assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.splines[0].radius is None
+    assert len(ui.macro) > 1
+    assert str(ui.macro[1]).startswith("ui.register_path(")
 
 
 def test_map_molecules(ui: CylindraMainWidget):
@@ -359,6 +363,13 @@ def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     layer: MoleculesLayer = ui.parent_viewer.layers["Mono-0"]
     tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
+    nlayer = len(ui.parent_viewer.layers)
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer + 1
+    tester.click_preview()
+    assert len(ui.parent_viewer.layers) == nlayer
+
+    tester = mcls_testing.FunctionGuiTester(ui.rotate_molecules)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer + 1
