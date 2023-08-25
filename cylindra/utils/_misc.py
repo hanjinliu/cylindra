@@ -208,3 +208,6 @@ class Projections:
         if self.zx_ave is None and self.npf > 1:
             self.zx_ave = rotational_average(self.zx, fold=self.npf)
         return self
+
+    def __repr__(self) -> str:
+        return f"Projections(shape={self.shape})"

@@ -189,6 +189,7 @@ class Image(ChildWidget):
 
     @do_not_record
     @set_design(text="Open spline slicer")
+    @bind_key("Ctrl+K, /")
     def open_slicer(self):
         """Open spline slicer widget"""
         main = self._get_main()

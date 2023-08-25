@@ -12,6 +12,7 @@ from magicclass import (
 )
 from magicclass.logging import getLogger
 from magicclass.types import OneOf, Path
+from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from dask import delayed, array as da
 
@@ -152,7 +153,7 @@ class SplineControl(ChildWidget):
         """True if the canvas is showing the old data."""
         return self.canvas[0].image is not None
 
-    @num.connect
+    @num.connect_async(timeout=0.1)
     def _num_changed(self):
         i = self.num
         if i is None:
@@ -166,8 +167,13 @@ class SplineControl(ChildWidget):
         if len(spl.localprops) > 0:
             n_anc = len(spl.localprops)
         else:
-            parent.LocalProperties._init_text()
-            parent.LocalProperties._init_plot()
+
+            @thread_worker.callback
+            def _on_yield():
+                parent.LocalProperties._init_text()
+                parent.LocalProperties._init_plot()
+
+            yield _on_yield
             if spl._anchors is not None:
                 n_anc = len(spl._anchors)
             else:
@@ -176,8 +182,9 @@ class SplineControl(ChildWidget):
                 return
 
         self["pos"].max = n_anc - 1
-        self._load_projection()
-        self._update_canvas()
+        yield from self._load_projection()
+        yield  # breakpoint
+        yield from self._update_canvas.arun()
         return None
 
     def _load_projection(self):
@@ -189,7 +196,9 @@ class SplineControl(ChildWidget):
         spl = tomo.splines[i]
 
         # update plots in pyqtgraph, if properties exist
-        parent.LocalProperties._plot_properties(spl)
+        yield thread_worker.callback(parent.LocalProperties._plot_properties).with_args(
+            spl
+        )
 
         # calculate projection
         if (npfs := spl.props.get_loc(H.npf, None)) is not None:
@@ -213,6 +222,7 @@ class SplineControl(ChildWidget):
             shape=loc_shape,
             scale=tomo.scale * binsize,
         )
+        yield
         projections = list[Projections]()
         for crds, npf in zip(coords, npf_list):
             mapped = delayed_map_coordinates(imgb, crds)
@@ -224,7 +234,7 @@ class SplineControl(ChildWidget):
         self._projections = projections
         return None
 
-    @pos.connect
+    @pos.connect_async(timeout=0.1)
     def _update_canvas(self):
         parent = self._get_main()
         tomo = parent.tomogram
@@ -233,29 +243,22 @@ class SplineControl(ChildWidget):
         j = self.pos
         if i >= len(tomo.splines):
             return
+
         if not self._projections or i is None or j is None:
-            for ic in range(3):
-                self.canvas[ic].layers.clear()
-            return
+            return self._clear_all_layers
+
         spl = tomo.splines[i]
         # Set projections
         proj = self._projections[j].compute()
-        for ic in range(3):
-            self.canvas[ic].layers.clear()
-        self.canvas[0].image = proj.yx
-        self.canvas[1].image = proj.zx
-        if proj.zx_ave is not None:
-            self.canvas[2].image = proj.zx_ave
-        else:
-            del self.canvas[2].image
+        yield self._update_projections.with_args(proj)
 
         # Update text overlay
         if spl.has_anchors and j < len(spl.anchors):
             len_nm = f"{spl.length(0, spl.anchors[j]):.2f}"
         else:
             len_nm = "NA"
-        self.canvas[0].text_overlay.text = f"{i}-{j} ({len_nm} nm)"
-        self.canvas[0].text_overlay.color = "lime"
+
+        yield self._update_text_overlay.with_args(f"{i}-{j} ({len_nm} nm)")
 
         if spl.props.has_loc(H.radius):
             radii = spl.props.get_loc(H.radius)
@@ -280,34 +283,56 @@ class SplineControl(ChildWidget):
         r_inner = max(r0 - spl.config.thickness_inner, 0) / tomo.scale / binsize
         r_outer = (r0 + spl.config.thickness_outer) / tomo.scale / binsize
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
-        self.canvas[0].add_curve(
-            [xmin, xmin, xmax, xmax, xmin],
-            [ymin, ymax, ymax, ymin, ymin],
-            color="lime",
-            antialias=True,
+        yield self._clear_all_layers
+        yield self._add_curve.with_args(
+            0, [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin]
         )
 
         # draw two circles in ZX-view
         center = (lx / 2 - 0.5, lz / 2 - 0.5)
-        self.canvas[1].add_curve(
-            *_circle(r_inner, center=center), color="lime", antialias=True
-        )
-        self.canvas[1].add_curve(
-            *_circle(r_outer, center=center), color="lime", antialias=True
-        )
+        yield self._add_curve.with_args(1, *_circle(r_inner, center=center))
+        yield self._add_curve.with_args(1, *_circle(r_outer, center=center))
 
         # draw polarity
         kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
-        if spl.orientation == "PlusToMinus":
-            self.canvas[1].add_text(*center, "+", **kw)
-        elif spl.orientation == "MinusToPlus":
-            self.canvas[1].add_text(*center, "-", **kw)
 
-        # update pyqtgraph
-        if (xs := spl.props.get_loc(H.spl_dist, None)) is not None:
-            parent.LocalProperties._plot_spline_position(xs[j])
+        @thread_worker.callback
+        def _on_return():
+            if spl.orientation == "PlusToMinus":
+                self.canvas[1].add_text(*center, "+", **kw)
+            elif spl.orientation == "MinusToPlus":
+                self.canvas[1].add_text(*center, "-", **kw)
+
+            # update pyqtgraph
+            if (xs := spl.props.get_loc(H.spl_dist, None)) is not None:
+                parent.LocalProperties._plot_spline_position(xs[j])
+            else:
+                parent.LocalProperties._init_plot()
+
+        return _on_return
+
+    @thread_worker.callback
+    def _clear_all_layers(self):
+        for ic in range(3):
+            self.canvas[ic].layers.clear()
+
+    @thread_worker.callback
+    def _update_projections(self, proj: Projections):
+        self.canvas[0].image = proj.yx
+        self.canvas[1].image = proj.zx
+        if proj.zx_ave is not None:
+            self.canvas[2].image = proj.zx_ave
         else:
-            parent.LocalProperties._init_plot()
+            del self.canvas[2].image
+
+    @thread_worker.callback
+    def _update_text_overlay(self, txt: str):
+        self.canvas[0].text_overlay.text = txt
+        self.canvas[0].text_overlay.color = "lime"
+
+    @thread_worker.callback
+    def _add_curve(self, i: int, x, y):
+        self.canvas[i].add_curve(x, y, color="lime", antialias=True)
 
     def _reset_contrast_limits(self):
         for i in range(3):
