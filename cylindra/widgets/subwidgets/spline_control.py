@@ -39,7 +39,9 @@ def delayed_map_coordinates(
     return out
 
 
-@magicclass(widget_type="groupbox", name="Spline Control", record=False)
+@magicclass(
+    widget_type="groupbox", name="Spline Control", error_mode="stderr", record=False
+)
 class SplineControl(ChildWidget):
     """
     Control and visualization along splines
@@ -153,6 +155,24 @@ class SplineControl(ChildWidget):
         """True if the canvas is showing the old data."""
         return self.canvas[0].image is not None
 
+    @num.connect
+    def _update_pos_max(self, i: int | None):
+        if i is None:
+            return
+        tomo = self._get_main().tomogram
+        if i >= len(tomo.splines):
+            return
+        spl = tomo.splines[i]
+
+        if len(spl.localprops) > 0:
+            self["pos"].max = len(spl.localprops) - 1
+        elif spl.has_anchors:
+            self["pos"].max = spl.anchors.size - 1
+        else:
+            self.pos = 0
+            self["pos"].max = 0
+            return
+
     @num.connect_async(timeout=0.1)
     def _num_changed(self):
         i = self.num
@@ -164,9 +184,7 @@ class SplineControl(ChildWidget):
             return
         spl = tomo.splines[i]
 
-        if len(spl.localprops) > 0:
-            n_anc = len(spl.localprops)
-        else:
+        if len(spl.localprops) == 0:
 
             @thread_worker.callback
             def _on_yield():
@@ -174,14 +192,10 @@ class SplineControl(ChildWidget):
                 parent.LocalProperties._init_plot()
 
             yield _on_yield
-            if spl._anchors is not None:
-                n_anc = len(spl._anchors)
-            else:
-                self.pos = 0
-                self["pos"].max = 0
+
+            if not spl.has_anchors:
                 return
 
-        self["pos"].max = n_anc - 1
         yield from self._load_projection()
         yield  # breakpoint
         yield from self._update_canvas.arun()
