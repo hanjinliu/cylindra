@@ -19,6 +19,7 @@ from .menus import (
     Others,
 )
 from .toolbar import CylindraToolbar
+from .file_iter import FileIterator
 
 __all__ = [
     "Volume",
@@ -33,6 +34,7 @@ __all__ = [
     "SplineControl",
     "SplineFitter",
     "File",
+    "FileIterator",
     "Image",
     "Splines",
     "MoleculesMenu",

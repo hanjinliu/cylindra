@@ -59,7 +59,9 @@ class File(ChildWidget):
     @bind_key("Ctrl+K, Ctrl+O")
     def open_image_loader(self):
         """Load an image file and process it before sending it to the viewer."""
-        return self._get_main()._image_loader.show()
+        loader = self._get_main()._image_loader
+        loader.show()
+        return loader
 
     load_project = abstractapi()
     load_splines = abstractapi()
@@ -159,6 +161,12 @@ class File(ChildWidget):
             for name in self._get_stashed_names():
                 self.delete_stash_project(name)
             return None
+
+    @set_design(text="Open file iterator")
+    @do_not_record
+    def open_file_iterator(self):
+        """Open image processor widget."""
+        return self._get_main()._file_iterator.show()
 
     @set_design(text="Process images")
     @do_not_record
