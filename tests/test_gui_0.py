@@ -8,6 +8,7 @@ import impy as ip
 from acryo import Molecules
 import polars as pl
 from magicclass import testing as mcls_testing, get_function_gui
+from magicclass.utils import thread_worker
 
 from cylindra import view_project, _config, cylstructure
 from cylindra.widgets import CylindraMainWidget
@@ -200,7 +201,7 @@ def test_reanalysis(ui: CylindraMainWidget):
     assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.tomogram.splines[0].orientation == "none"
     assert len(ui.macro) > 1
-    assert str(ui.macro[1]).startswith("ui.register_path(")
+    assert str(ui.macro[-1]).startswith("ui.register_path(")
     ui.measure_radius()
     assert ui.splines[0].radius is not None
     assert len(ui.macro.undo_stack["undo"]) > 0
@@ -208,7 +209,7 @@ def test_reanalysis(ui: CylindraMainWidget):
     assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.splines[0].radius is None
     assert len(ui.macro) > 1
-    assert str(ui.macro[1]).startswith("ui.register_path(")
+    assert str(ui.macro[-1]).startswith("ui.register_path(")
 
 
 def test_map_molecules(ui: CylindraMainWidget):
@@ -259,93 +260,94 @@ def test_spline_switch(ui: CylindraMainWidget):
     # check canvas is updated correctly
     ui.add_anchors(interval=15.0)
     assert_canvas(ui, [True, True, True])
-    ui.sample_subtomograms()
-    assert_canvas(ui, [False, False, True])
-    ui.SplineControl.num = 1
-    assert_canvas(ui, [False, False, True])
-    ui.SplineControl.num = 0
-    assert_canvas(ui, [False, False, True])
-    ui.SplineControl.pos = 1
-    assert_canvas(ui, [False, False, True])
-    ui.SplineControl.pos = 0
-    assert_canvas(ui, [False, False, True])
+    with thread_worker.blocking_mode():
+        ui.sample_subtomograms()
+        assert_canvas(ui, [False, False, True])
+        ui.SplineControl.num = 1
+        assert_canvas(ui, [False, False, True])
+        ui.SplineControl.num = 0
+        assert_canvas(ui, [False, False, True])
+        ui.SplineControl.pos = 1
+        assert_canvas(ui, [False, False, True])
+        ui.SplineControl.pos = 0
+        assert_canvas(ui, [False, False, True])
 
-    ui._runner.run(interval=32.64)
+        ui._runner.run(interval=32.64)
 
-    # check results
-    for spl in ui.tomogram.splines:
-        spacing_mean = spl.localprops[H.spacing].mean()
-        spacing_glob = spl.props.get_glob(H.spacing)
-        # GDP-bound microtubule has lattice spacing in this range
-        assert 4.08 < spacing_glob < 4.11
-        assert spacing_glob == pytest.approx(spacing_mean, abs=0.02)
-        assert all(spl.localprops[H.npf] == 13)
-        assert all(spl.localprops[H.rise] > 8.3)
+        # check results
+        for spl in ui.tomogram.splines:
+            spacing_mean = spl.localprops[H.spacing].mean()
+            spacing_glob = spl.props.get_glob(H.spacing)
+            # GDP-bound microtubule has lattice spacing in this range
+            assert 4.08 < spacing_glob < 4.11
+            assert spacing_glob == pytest.approx(spacing_mean, abs=0.02)
+            assert all(spl.localprops[H.npf] == 13)
+            assert all(spl.localprops[H.rise] > 8.3)
 
-    # check canvas again
-    assert_canvas(ui, [False, False, False])
-    ui.SplineControl.num = 1
-    assert_canvas(ui, [False, False, False])
-    ui.SplineControl.num = 0
-    assert_canvas(ui, [False, False, False])
-    ui.SplineControl.pos = 1
-    assert_canvas(ui, [False, False, False])
-    ui.SplineControl.pos = 0
-    assert_canvas(ui, [False, False, False])
+        # check canvas again
+        assert_canvas(ui, [False, False, False])
+        ui.SplineControl.num = 1
+        assert_canvas(ui, [False, False, False])
+        ui.SplineControl.num = 0
+        assert_canvas(ui, [False, False, False])
+        ui.SplineControl.pos = 1
+        assert_canvas(ui, [False, False, False])
+        ui.SplineControl.pos = 0
+        assert_canvas(ui, [False, False, False])
 
-    # check orientations
-    # switch spline 0 and 1 and check if orientation is correctly set
-    ui.SplineControl.num = 0
-    ui.set_spline_props(spline=0, orientation="PlusToMinus")
-    assert_orientation(ui, "PlusToMinus")
-    ui.macro.undo()
-    ui.macro.redo()
-    assert_orientation(ui, "PlusToMinus")
-    ui.SplineControl.num = 1
-    ui.set_spline_props(spline=1, orientation="MinusToPlus")
-    assert_orientation(ui, "MinusToPlus")
-    ui.SplineControl.num = 0
-    assert_orientation(ui, "PlusToMinus")
-    ui.SplineControl.num = 1
-    assert_orientation(ui, "MinusToPlus")
-    assert_canvas(ui, [False, False, False])
+        # check orientations
+        # switch spline 0 and 1 and check if orientation is correctly set
+        ui.SplineControl.num = 0
+        ui.set_spline_props(spline=0, orientation="PlusToMinus")
+        assert_orientation(ui, "PlusToMinus")
+        ui.macro.undo()
+        ui.macro.redo()
+        assert_orientation(ui, "PlusToMinus")
+        ui.SplineControl.num = 1
+        ui.set_spline_props(spline=1, orientation="MinusToPlus")
+        assert_orientation(ui, "MinusToPlus")
+        ui.SplineControl.num = 0
+        assert_orientation(ui, "PlusToMinus")
+        ui.SplineControl.num = 1
+        assert_orientation(ui, "MinusToPlus")
+        assert_canvas(ui, [False, False, False])
 
-    ui.Splines.show_localprops()
+        ui.Splines.show_localprops()
 
-    # Check align polarity.
-    # Only spline 0 will get updated.
-    ui.align_to_polarity(orientation="MinusToPlus")
-    ui.SplineControl.num = 0
-    ui.SplineControl.pos = 1
-    assert_orientation(ui, "MinusToPlus")
-    assert (
-        ui.LocalProperties.params.spacing.txt
-        == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
-    )
-    assert (
-        ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.splines[ui.SplineControl.num].props.get_glob(H.spacing):.2f} nm"
-    )
+        # Check align polarity.
+        # Only spline 0 will get updated.
+        ui.align_to_polarity(orientation="MinusToPlus")
+        ui.SplineControl.num = 0
+        ui.SplineControl.pos = 1
+        assert_orientation(ui, "MinusToPlus")
+        assert (
+            ui.LocalProperties.params.spacing.txt
+            == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
+        )
+        assert (
+            ui.GlobalProperties.params.params1.spacing.txt
+            == f" {ui.splines[ui.SplineControl.num].props.get_glob(H.spacing):.2f} nm"
+        )
 
-    ui.SplineControl.num = 1
-    assert ui.SplineControl.pos == 1
-    assert_orientation(ui, "MinusToPlus")
-    assert (
-        ui.LocalProperties.params.spacing.txt
-        == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
-    )
-    assert (
-        ui.GlobalProperties.params.params1.spacing.txt
-        == f" {ui.splines[ui.SplineControl.num].props.get_glob(H.spacing):.2f} nm"
-    )
+        ui.SplineControl.num = 1
+        assert ui.SplineControl.pos == 1
+        assert_orientation(ui, "MinusToPlus")
+        assert (
+            ui.LocalProperties.params.spacing.txt
+            == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
+        )
+        assert (
+            ui.GlobalProperties.params.params1.spacing.txt
+            == f" {ui.splines[ui.SplineControl.num].props.get_glob(H.spacing):.2f} nm"
+        )
 
-    assert_canvas(ui, [False, False, False])
-    ui.copy_spline(0)
+        assert_canvas(ui, [False, False, False])
+        ui.copy_spline(0)
 
-    ui.clear_all()
+        ui.clear_all()
 
-    assert ui.LocalProperties.params.spacing.txt == " -- nm"
-    assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
+        assert ui.LocalProperties.params.spacing.txt == " -- nm"
+        assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
 
 
 def test_set_molecule_colormap(ui: CylindraMainWidget):
