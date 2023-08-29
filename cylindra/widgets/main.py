@@ -1550,6 +1550,22 @@ class CylindraMainWidget(MagicTemplate):
 
         return self._undo_callback_for_layer(_added_layers)
 
+    def _offsets_validator(
+        self, offsets: _OffsetType, args: dict[str, Any]
+    ) -> tuple[nm, float]:
+        idx = args["spline"]
+        spl = self.tomogram.splines[idx]
+        return normalize_offsets(offsets, spl)
+
+    _NormalizedOffsetType = Annotated[
+        Optional[tuple[nm, float]],
+        {
+            "text": "Infer offsets from spline global properties",
+            "options": {"widget_type": OffsetEdit},
+            "validator": _offsets_validator,
+        },
+    ]
+
     @MoleculesMenu.Mapping.wraps
     @set_design(text="Map monomers with extensions")
     def map_monomers_with_extensions(
@@ -1557,7 +1573,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"choices": _get_splines}],
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
-        offsets: _OffsetType = None,
+        offsets: _NormalizedOffsetType = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1579,7 +1595,7 @@ class CylindraMainWidget(MagicTemplate):
             i=spline,
             coords=coords,
             orientation=orientation,
-            offsets=normalize_offsets(offsets, spl),
+            offsets=offsets,
             radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
         )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
@@ -1621,7 +1637,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"choices": _get_splines}],
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
-        offsets: _OffsetType = None,
+        offsets: _NormalizedOffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
         """
@@ -1670,6 +1686,7 @@ class CylindraMainWidget(MagicTemplate):
     def concatenate_molecules(
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        name: str = "Mono-concat",
     ):  # fmt: skip
         """
         Concatenate selected molecules and create a new ones.
@@ -1681,7 +1698,7 @@ class CylindraMainWidget(MagicTemplate):
         if len(layers) == 0:
             raise ValueError("No layer selected.")
         all_molecules = Molecules.concat([layer.molecules for layer in layers])
-        points = add_molecules(self.parent_viewer, all_molecules, name="Mono-concat")
+        points = add_molecules(self.parent_viewer, all_molecules, name=name)
 
         # logging
         layer_names = list[str]()

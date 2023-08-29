@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING, Any
+import time
 import numpy as np
 import impy as ip
 
@@ -21,6 +23,8 @@ from cylindra.utils import map_coordinates, Projections
 from cylindra.widgets.widget_utils import FileFilter
 from ._child_widget import ChildWidget
 
+if TYPE_CHECKING:
+    from cylindra.components import CylSpline
 _Logger = getLogger("cylindra")
 
 
@@ -183,7 +187,6 @@ class SplineControl(ChildWidget):
         if i >= len(tomo.splines):
             return
         spl = tomo.splines[i]
-
         if len(spl.localprops) == 0:
 
             @thread_worker.callback
@@ -196,23 +199,18 @@ class SplineControl(ChildWidget):
             if not spl.has_anchors:
                 return
 
-        yield from self._load_projection()
+        yield from self._load_projection(spl)
         yield  # breakpoint
         yield from self._update_canvas.arun()
         return None
 
-    def _load_projection(self):
-        i = self.num
+    def _load_projection(self, spl: "CylSpline"):
         parent = self._get_main()
         tomo = parent.tomogram
-        if i >= len(tomo.splines):
-            return
-        spl = tomo.splines[i]
 
         # update plots in pyqtgraph, if properties exist
-        yield thread_worker.callback(parent.LocalProperties._plot_properties).with_args(
-            spl
-        )
+        cb = thread_worker.callback(parent.LocalProperties._plot_properties)
+        yield cb.with_args(spl)
 
         # calculate projection
         if (npfs := spl.props.get_loc(H.npf, None)) is not None:
@@ -255,11 +253,11 @@ class SplineControl(ChildWidget):
         binsize = parent._current_binsize
         i = self.num
         j = self.pos
-        if i >= len(tomo.splines):
-            return
 
         if not self._projections or i is None or j is None:
             return self._clear_all_layers
+        if i >= len(tomo.splines):
+            return
 
         spl = tomo.splines[i]
         # Set projections
@@ -292,26 +290,27 @@ class SplineControl(ChildWidget):
         else:
             ylen = depth0 / 2 / binsize / tomo.scale
 
-        # draw a square in YX-view
-        ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
+        # innter/outer radius of the cylinder
         r_inner = max(r0 - spl.config.thickness_inner, 0) / tomo.scale / binsize
         r_outer = (r0 + spl.config.thickness_outer) / tomo.scale / binsize
+
+        # draw a square in YX-view
+        ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
         xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
-        yield self._clear_all_layers
-        yield self._add_curve.with_args(
-            0, [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin]
-        )
+        xy = [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin]
+        yield self._add_curve.with_args(0, [xy])
 
         # draw two circles in ZX-view
         center = (lx / 2 - 0.5, lz / 2 - 0.5)
-        yield self._add_curve.with_args(1, *_circle(r_inner, center=center))
-        yield self._add_curve.with_args(1, *_circle(r_outer, center=center))
+        yield self._add_curve.with_args(
+            1, [_circle(_r, center=center) for _r in [r_inner, r_outer]]
+        )
 
         # draw polarity
-        kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
 
         @thread_worker.callback
         def _on_return():
+            kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
             if spl.orientation == "PlusToMinus":
                 self.canvas[1].add_text(*center, "+", **kw)
             elif spl.orientation == "MinusToPlus":
@@ -345,8 +344,10 @@ class SplineControl(ChildWidget):
         self.canvas[0].text_overlay.color = "lime"
 
     @thread_worker.callback
-    def _add_curve(self, i: int, x, y):
-        self.canvas[i].add_curve(x, y, color="lime", antialias=True)
+    def _add_curve(self, i: int, data: list[tuple[Any, Any]]):
+        self.canvas[i].layers.clear()
+        for x, y in data:
+            self.canvas[i].add_curve(x, y, color="lime", antialias=True)
 
     def _reset_contrast_limits(self):
         for i in range(3):

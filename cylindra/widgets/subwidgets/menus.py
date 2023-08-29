@@ -27,6 +27,7 @@ from magicclass import (
 from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit, OneLineRunner
 from magicclass.types import Path, Color, Optional
 from magicclass.logging import getLogger
+from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
 
 from cylindra._custom_layers import MoleculesLayer
@@ -99,6 +100,7 @@ class File(ChildWidget):
 
         @set_design(text="Load stashed project")
         @confirm(text="You may have unsaved data. Open a new project?", condition=_need_save)  # fmt: skip
+        @thread_worker.with_progress(text="Loading stashed project...")
         def load_stash_project(
             self,
             name: Annotated[str, {"choices": _get_stashed_names}],
@@ -114,7 +116,7 @@ class File(ChildWidget):
             filter : ImageFilter, default is ImageFilter.DoG
                 Image filter to apply to the loaded images.
             """
-            return self._get_main().load_project(
+            yield from self._get_main().load_project.arun(
                 _config.get_stash_dir() / name, filter=filter
             )
 
