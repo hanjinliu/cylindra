@@ -807,7 +807,7 @@ class CylinderSimulator(ChildWidget):
     @impl_preview(auto_call=True)
     def screw(
         self,
-        skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.05, "label": "skew (deg)"}],
+        skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.01, "label": "skew (deg)"}],
         yrange: Annotated[Any, {"bind": Operator.yrange}],
         arange: Annotated[Any, {"bind": Operator.arange}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
@@ -815,10 +815,7 @@ class CylinderSimulator(ChildWidget):
         """Screw (change the skew angles of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, skew)
         # NOTE: skew angle is defined by the twisting of every "dimers".
-        skew_tilt = np.arctan(
-            np.deg2rad(skew / 2) * self.model.radius / self.model.intervals[0]
-        )
-        new_model = self.model.screw(skew_tilt, sl)
+        new_model = self.model.screw(np.deg2rad(skew / 2), sl)
         if allev > 0:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model
