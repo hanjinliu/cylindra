@@ -499,7 +499,7 @@ class CylindraMainWidget(MagicTemplate):
             project = CylindraProject.from_json(project_path)
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
-            f"filter={filter!r}, {paint=}, {read_image=}, {update_config=})</code>"
+            f"filter={str(filter)!r}, {paint=}, {read_image=}, {update_config=})</code>"
         )
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
@@ -1887,7 +1887,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayer,
         color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
         cmap: ColormapType = DEFAULT_COLORMAP,
-        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "label": "limits (nm)"}] = (4.00, 4.24),
+        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
     ):  # fmt: skip
         """
         Paint molecules by a feature.
@@ -2005,7 +2005,7 @@ class CylindraMainWidget(MagicTemplate):
         else:
             new_feat = feat.with_columns(pl.Series(column_name, pl_expr))
         layer.features = new_feat
-        self.reset_choices()  # choices regarding of features need update
+        self.reset_choices()  # choices regarding to features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @MoleculesMenu.MoleculeFeatures.wraps

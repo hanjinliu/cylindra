@@ -114,12 +114,14 @@ class CylSpline(Spline):
         return self.cylinder_params(**kwargs).start
 
     def cylinder_params(self, **kwargs) -> CylindricParameters:
+        radius = _get_globalprops(self, kwargs, H.radius)
+        radius += (self.config.thickness_outer - self.config.thickness_inner) / 2
         return solve_cylinder(
             spacing=_get_globalprops(self, kwargs, H.spacing),
             skew_angle=_get_globalprops(self, kwargs, H.skew),
-            skew_tilt_angle=_get_globalprops(self, kwargs, H.skew),
+            skew_tilt_angle=_get_globalprops(self, kwargs, H.skew_tilt),
             rise_angle=_get_globalprops(self, kwargs, H.rise),
-            radius=_get_globalprops(self, kwargs, H.radius),
+            radius=radius,
             npf=_get_globalprops(self, kwargs, H.npf),
             start=_get_globalprops(self, kwargs, H.start),
             allow_duplicate=True,

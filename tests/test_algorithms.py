@@ -48,13 +48,22 @@ def test_run_all(coords, npf, rise, skew_range):
     spacing_mean = spl.localprops[H.spacing].mean()
     spacing_glob = spl.props.get_glob(H.spacing)
 
-    # GDP-bound microtubule has pitch length in this range
+    # GDP-bound microtubule has spacing in this range
     assert 4.08 < spacing_glob < 4.11
     assert spacing_glob == pytest.approx(spacing_mean, abs=0.013)
     assert all(spl.localprops[H.npf] == npf)
     assert all(spl.localprops[H.rise] > rise)
     skew_min, skew_max = skew_range
     assert skew_min < spl.props.get_glob(H.skew) < skew_max
+
+    # check cylinder parameters
+    cp = tomo.splines[0].cylinder_params()
+    assert cp.spacing == pytest.approx(spacing_glob, abs=1e-6)
+    assert cp.skew_angle == pytest.approx(spl.props.get_glob(H.skew), abs=1e-6)
+    assert cp.skew_tilt_angle == pytest.approx(
+        spl.props.get_glob(H.skew_tilt), abs=1e-6
+    )
+    assert cp.rise_angle == pytest.approx(spl.props.get_glob(H.rise), abs=1e-6)
 
     tomo.local_radii()
     tomo.local_ft_params(radius="local")

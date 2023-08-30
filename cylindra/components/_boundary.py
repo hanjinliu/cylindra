@@ -44,7 +44,7 @@ class CylindricParameters:
 
     @property
     def tan_skew_tilt(self) -> float:
-        return m.tan(m.radians(self.skew_tilt_angle))
+        return m.tan(self.skew_tilt_angle_rad)
 
     @property
     def tan_rise(self) -> float:
@@ -124,13 +124,13 @@ def solve_cylinder(
         if given(start):
             if _rise_is_known and not allow_duplicate:
                 raise ValueError("Cannot specify both start and rise.")
-            tan_rise = start * spacing / perimeter
+            tan_rise = start * pitch / perimeter
             if given(skew_angle):
-                skew_tilt_angle = _tilt_to_skew(start, tan_rise, skew_angle)
+                skew_tilt_angle = _skew_to_tilt(start, tan_rise, skew_angle)
         elif given(rise_angle):
             start = roundint(perimeter * m.tan(m.radians(rise_angle)) / pitch)
             if given(skew_angle):
-                skew_tilt_angle = _tilt_to_skew(start, tan_rise, skew_angle)
+                skew_tilt_angle = _skew_to_tilt(start, tan_rise, skew_angle)
         elif given(rise_length):
             raise NotImplementedError
         else:
@@ -139,7 +139,7 @@ def solve_cylinder(
     elif given(spacing):
         if given(skew_angle):
             skew_tilt_rad = m.asin(m.radians(skew_angle) * radius / 2 / spacing)
-        skew_tilt_angle = m.radians(skew_tilt_rad)
+        skew_tilt_angle = m.degrees(skew_tilt_rad)
         if given(start):
             if _rise_is_known and not allow_duplicate:
                 raise ValueError("Cannot specify both start and rise.")
@@ -159,11 +159,16 @@ def solve_cylinder(
             start = _rise_to_start(rise_angle, skew_tilt_rad, spacing, perimeter)
         else:
             raise ValueError("Not enough information to solve.")
+        pitch = (
+            spacing
+            * m.cos(m.radians(rise_angle - skew_tilt_angle))
+            / m.cos(m.radians(rise_angle))
+        )
 
-    return CylindricParameters(skew_tilt_angle, rise_angle, spacing, radius, npf)
+    return CylindricParameters(skew_tilt_angle, rise_angle, pitch, radius, npf)
 
 
-def _tilt_to_skew(start: int, tan_rise: float, skew_angle: float) -> float:
+def _skew_to_tilt(start: int, tan_rise: float, skew_angle: float) -> float:
     _s_sk = start * m.radians(skew_angle)
     tan_skew_tilt = _s_sk / tan_rise / (4 * m.pi - _s_sk)
     return m.degrees(m.atan(tan_skew_tilt))

@@ -49,14 +49,10 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
         _u = sub.features[Mole.position] / _spl_len
         _spl_vec = spl.map(_u, der=1)
 
-        _cos = _dot(_interv_vec, _spl_vec) / (
+        _cos: NDArray[np.float32] = _dot(_interv_vec, _spl_vec) / (
             np.linalg.norm(_interv_vec, axis=1) * np.linalg.norm(_spl_vec, axis=1)
         )
-        if not np.all((-1 <= _cos) & (_cos <= 1)):
-            raise ValueError(
-                f"Cosine values must be in range [-1, 1] but got:\n{_cos!r}"
-            )
-        _deg = np.rad2deg(np.arccos(_cos))
+        _deg = np.rad2deg(np.arccos(_cos.clip(-1, 1)))
         _deg[-1] = -np.inf  # fill invalid values with 0
         subsets.append(
             sub.with_features(pl.Series(Mole.elev_angle, _deg).cast(pl.Float32))
@@ -99,6 +95,7 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     _spl_len = spl.length()
     subsets = list[Molecules]()
     spacing = spl.props.get_glob(H.spacing)
+    radius = spl.props.get_glob(H.radius)
     for _, sub in _groupby_with_index(mole, Mole.pf):
         _pos = sub.pos
         _interv_vec = np.diff(_pos, axis=0, append=0)
@@ -109,7 +106,6 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
 
         _mole_to_spl_vec = _spl_pos - _pos
         _interv_proj_norm = _norm(_cancel_component(_interv_vec, _mole_to_spl_vec))
-        _radius = np.linalg.norm(_mole_to_spl_vec, axis=1)
 
         _spl_vec_norm = _norm(_spl_vec)
 
@@ -117,7 +113,7 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
         _inner = _dot(_skew_cross, _mole_to_spl_vec)
         _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
 
-        _skew = np.rad2deg(2 * spacing * _skew_sin / _radius)
+        _skew = np.rad2deg(2 * np.arcsin(spacing * _skew_sin / radius))
         _skew[-1] = -np.inf
         subsets.append(sub.with_features(pl.Series(Mole.skew, _skew).cast(pl.Float32)))
 
@@ -231,6 +227,7 @@ class LatticeParameters(Enum):
     lat_interv = "lat_interv"
 
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
+        """Calculate this lattice parameter for the given molecule."""
         if self is LatticeParameters.interv:
             return calc_interval(mole, spl)
         elif self is LatticeParameters.elev_angle:
