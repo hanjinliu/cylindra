@@ -12,7 +12,7 @@ from cylindra.const import (
 )
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
-from cylindra.components._boundary import solve_cylinder
+from cylindra.components._boundary import solve_cylinder, CylindricParameters
 
 
 class CylSpline(Spline):
@@ -111,17 +111,20 @@ class CylSpline(Spline):
         return original
 
     def nrise(self, **kwargs):
+        return self.cylinder_params(**kwargs).start
+
+    def cylinder_params(self, **kwargs) -> CylindricParameters:
         return solve_cylinder(
             spacing=_get_globalprops(self, kwargs, H.spacing),
             skew_angle=_get_globalprops(self, kwargs, H.skew),
             skew_tilt_angle=_get_globalprops(self, kwargs, H.skew),
-            rise_angle=_get_globalprops(self, kwargs, H.rise) * self.config.rise_sign,
+            rise_angle=_get_globalprops(self, kwargs, H.rise),
             radius=_get_globalprops(self, kwargs, H.radius),
-            npf=roundint(_get_globalprops(self, kwargs, H.npf)),
+            npf=_get_globalprops(self, kwargs, H.npf),
             start=_get_globalprops(self, kwargs, H.start),
             allow_duplicate=True,
             rise_sign=self.config.rise_sign,
-        ).start
+        )
 
     def cylinder_model(
         self,
@@ -142,32 +145,22 @@ class CylSpline(Spline):
             The cylinder model.
         """
         length = self.length()
-        cp = solve_cylinder(
-            spacing=_get_globalprops(self, kwargs, H.spacing),
-            skew_angle=_get_globalprops(self, kwargs, H.skew),
-            skew_tilt_angle=_get_globalprops(self, kwargs, H.skew),
-            rise_angle=_get_globalprops(self, kwargs, H.rise),
-            radius=_get_globalprops(self, kwargs, H.radius),
-            npf=_get_globalprops(self, kwargs, H.npf),
-            start=_get_globalprops(self, kwargs, H.start),
-            allow_duplicate=True,
-            rise_sign=self.config.rise_sign,
-        )
-
-        factor = cp.spacing / (cp.perimeter / cp.npf)
-        ny = roundint(length / cp.spacing) + 1  # number of monomers in y-direction
+        cp = self.cylinder_params(**kwargs)
+        ly = cp.spacing_proj
+        la = cp.lat_spacing_proj
+        factor = ly / la
+        ny = roundint(length / ly) + 1  # number of monomers in y-direction
 
         if offsets is None:
             offsets = (0.0, 0.0)
 
-        skew_incr = cp.radius * cp.skew_angle_rad * cp.start / 2 * self.config.rise_sign
         return CylinderModel(
             shape=(ny, cp.npf),
             tilts=(
                 cp.tan_skew_tilt * factor,
                 cp.tan_rise / factor * self.config.rise_sign,
             ),
-            intervals=(cp.spacing, (cp.perimeter + skew_incr) / cp.radius / cp.npf),
+            intervals=(ly, la / cp.perimeter * 2 * np.pi),
             radius=cp.radius,
             offsets=offsets,
         )

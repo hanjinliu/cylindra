@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from functools import cached_property
+from functools import lru_cache
 from cylindra.utils import ceilint, floorint
 import numpy as np
 import impy as ip
 
 
-def int_translate(img: ip.ImgArray, shift: int, axis="a") -> ip.ImgArray:
+def int_translate(img: ip.ImgArray, shift: int, axis: str = "a") -> ip.ImgArray:
+    """Translate the image by integer pixels in the given axis."""
     if shift == 0:
         return img
     sl = ip.slicer(axis)
@@ -80,6 +81,7 @@ class PeakDetector:
         up_y: int = 1,
         up_a: int = 1,
     ) -> ip.ImgArray:
+        """Get the up-sampled local power spectruc of this peak."""
         return self._local_ps_and_offset(range_y, range_a, up_y, up_a)[0]
 
     def _local_ps_and_offset(
@@ -123,24 +125,30 @@ class PeakInfo:
         self._shape = shape
         self._upsampling = upsampling
 
-    @cached_property
+    @property
     def y(self) -> float:
         """The y peak position in subpixel unit."""
         return self._y_abs / self._upsampling[0]
 
-    @cached_property
+    @property
     def a(self) -> float:
         """The a peak position in subpixel unit."""
         return self._a_abs / self._upsampling[1]
 
-    @cached_property
+    @property
     def yfreq(self) -> float:
         """The y peak frequency."""
         size = self._shape[0] * self._upsampling[0]
-        return np.fft.fftfreq(size)[self._y_abs]
+        return cached_fftfreq(size)[self._y_abs]
 
-    @cached_property
+    @property
     def afreq(self) -> float:
         """The a peak frequency."""
         size = self._shape[1] * self._upsampling[1]
-        return np.fft.fftfreq(size)[self._a_abs]
+        return cached_fftfreq(size)[self._a_abs]
+
+
+@lru_cache(maxsize=10)
+def cached_fftfreq(size: int) -> np.ndarray:
+    """Cached version of np.fft.fftfreq."""
+    return np.fft.fftfreq(size)

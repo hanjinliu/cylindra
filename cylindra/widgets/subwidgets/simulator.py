@@ -104,7 +104,7 @@ class CylinderParameters:
         }
 
 
-# Main widget class
+# Main simulator widget class
 @magicclass(widget_type="scrollable", labels=False)
 class CylinderSimulator(ChildWidget):
     @magicmenu(name="Create")
@@ -815,7 +815,10 @@ class CylinderSimulator(ChildWidget):
         """Screw (change the skew angles of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, skew)
         # NOTE: skew angle is defined by the twisting of every "dimers".
-        new_model = self.model.screw(np.deg2rad(skew / 2), sl)
+        skew_tilt = np.arctan(
+            np.deg2rad(skew / 2) * self.model.radius / self.model.intervals[0]
+        )
+        new_model = self.model.screw(skew_tilt, sl)
         if allev > 0:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model

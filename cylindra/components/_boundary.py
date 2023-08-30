@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import math
-from typing import Any
+import math as m
+from typing import Any, Literal
 from typing_extensions import TypeGuard
 
 from cylindra.utils import roundint
@@ -12,51 +12,76 @@ from cylindra.utils import roundint
 class CylindricParameters:
     skew_tilt_angle: float
     rise_angle: float
-    spacing: float
+    pitch: float
     radius: float
     npf: int
 
     @property
+    def spacing(self) -> float:
+        _r = self.rise_angle_rad
+        _s = self.skew_tilt_angle_rad
+        return self.pitch * m.cos(_r) / m.cos(_r - _s)
+
+    @property
+    def spacing_proj(self) -> float:
+        return self.spacing * m.cos(self.skew_tilt_angle_rad)
+
+    @property
+    def lat_spacing(self) -> float:
+        if self.tan_rise != 0:
+            return self.rise_length / m.sin(self.rise_angle_rad)
+        return self.perimeter / self.npf
+
+    @property
+    def lat_spacing_proj(self) -> float:
+        if self.tan_rise != 0:
+            return self.rise_length / self.tan_rise
+        return self.perimeter / self.npf
+
+    @property
     def perimeter(self) -> float:
-        return 2 * math.pi * self.radius
+        return 2 * m.pi * self.radius
 
     @property
     def tan_skew_tilt(self) -> float:
-        return math.tan(math.radians(self.skew_tilt_angle))
+        return m.tan(m.radians(self.skew_tilt_angle))
 
     @property
     def tan_rise(self) -> float:
-        return math.tan(math.radians(self.rise_angle))
+        return m.tan(self.rise_angle_rad)
 
     @property
     def start(self) -> int:
-        start_f = (
-            self.perimeter
-            / self.spacing
-            / (self.tan_skew_tilt * self.tan_rise + 1)
-            * self.tan_rise
-        )
-        return roundint(start_f)
+        return roundint(self.perimeter * self.tan_rise / self.pitch)
 
     @property
     def skew_angle(self) -> float:
-        return math.degrees(self.skew_angle_rad)
+        return m.degrees(self.skew_angle_rad)
+
+    @property
+    def skew_tilt_angle_rad(self) -> float:
+        return m.radians(self.skew_tilt_angle)
 
     @property
     def skew_angle_rad(self) -> float:
-        return self.tan_skew_tilt * 2 * self.spacing / self.radius
+        # == m.sin(self.skew_tilt_angle_rad) * 2 * self.spacing / self.radius
+        if self.start != 0:
+            tt = self.tan_rise * self.tan_skew_tilt
+            return 4 * m.pi / self.start * tt / (1 + tt)
+        return m.tan(self.skew_tilt_angle_rad) * 2 * self.pitch / self.radius
 
     @property
     def rise_angle_rad(self) -> float:
-        return math.radians(self.rise_angle)
+        return m.radians(self.rise_angle)
 
     @property
     def rise_length(self) -> float:
-        return self.tan_rise * self.perimeter / self.npf
-
-    @property
-    def shear_angle(self) -> float:
-        return math.degrees(90 - self.skew_tilt_angle + self.rise_angle)
+        return (
+            self.perimeter
+            / self.npf
+            * self.tan_rise
+            / (1 + self.tan_rise * self.tan_skew_tilt)
+        )
 
 
 def given(s) -> TypeGuard[Any]:
@@ -64,82 +89,88 @@ def given(s) -> TypeGuard[Any]:
 
 
 def solve_cylinder(
-    spacing=None,
-    skew_tilt_angle=None,
-    skew_angle=None,
-    rise_angle=None,
-    rise_length=None,
-    radius=None,
-    npf=None,
-    start=None,
+    spacing: float | None = None,
+    pitch: float | None = None,
+    skew_tilt_angle: float | None = None,
+    skew_angle: float | None = None,
+    rise_angle: float | None = None,
+    rise_length: float | None = None,
+    radius: float | None = None,
+    npf: int | None = None,
+    start: int | None = None,
     *,
-    allow_duplicate=False,
-    rise_sign=1,
+    allow_duplicate: bool = False,
+    rise_sign: Literal[1, -1] = 1,  # TODO: hard-coded for MTs
 ) -> CylindricParameters:
+    """Normalize the inputs and return the parameters of the cylinder."""
     if given(skew_angle) and given(skew_tilt_angle) and not allow_duplicate:
         raise ValueError("Cannot specify both skew_angle and skew_tilt.")
     if given(rise_angle) and given(rise_length) and not allow_duplicate:
         raise ValueError("Cannot specify both rise_angle and rise_length.")
+    if given(spacing) and given(pitch) and not allow_duplicate:
+        raise ValueError("Cannot specify both spacing and pitch.")
 
     _skew_is_known = given(skew_angle) or given(skew_tilt_angle)
     _rise_is_known = given(rise_angle) or given(rise_length)
-    _start_is_known = given(start)
-    _npf_is_known = given(npf)
-    _spacing_is_known = given(spacing)
-    _radius_is_known = given(radius)
+    _spacing_is_known = given(spacing) or given(pitch)
 
-    if not (_spacing_is_known and _radius_is_known and _npf_is_known):
+    if not all([_skew_is_known, given(radius), given(npf), _spacing_is_known]):
         raise ValueError("spacing, radius and npf must be provided.")
 
-    s0 = sum([int(_skew_is_known), int(_rise_is_known), int(_start_is_known)])
-    if s0 == 3:
-        if allow_duplicate:
-            _rise_is_known = False
-        else:
-            raise ValueError("Nothing to solve.")
-    elif s0 < 2:
-        raise ValueError("Not enough information to solve.")
-
-    perimeter = 2 * math.pi * radius
+    perimeter = 2 * m.pi * radius
     npf = roundint(npf)
 
-    if _skew_is_known and given(skew_angle):
-        skew_tilt_angle = math.degrees(
-            math.atan(math.radians(skew_angle) * radius / 2 / spacing)
-        )
+    if given(pitch):
+        if given(start):
+            if _rise_is_known and not allow_duplicate:
+                raise ValueError("Cannot specify both start and rise.")
+            tan_rise = start * spacing / perimeter
+            if given(skew_angle):
+                skew_tilt_angle = _tilt_to_skew(start, tan_rise, skew_angle)
+        elif given(rise_angle):
+            start = roundint(perimeter * m.tan(m.radians(rise_angle)) / pitch)
+            if given(skew_angle):
+                skew_tilt_angle = _tilt_to_skew(start, tan_rise, skew_angle)
+        elif given(rise_length):
+            raise NotImplementedError
+        else:
+            raise ValueError("Not enough information to solve.")
 
-    if _rise_is_known and given(rise_length):
-        tan_rise = rise_length / (perimeter / npf)
-        rise_angle = math.degrees(math.atan(tan_rise))
-        zero_start = rise_angle == 0
-    else:
-        zero_start = start == 0
-
-    if zero_start and not _skew_is_known:
-        raise ValueError("Cannot solve skew_tilt_angle when start is zero.")
-
-    # now, two of skew_tilt_angle, rise_angle and start are known.
-    if not _skew_is_known:
-        tan_rise = math.tan(math.radians(rise_angle)) * rise_sign
-        tan_skew_tilt = (perimeter / start / spacing * tan_rise - 1) / tan_rise
-        skew_tilt_angle = math.degrees(math.atan(tan_skew_tilt))
-    elif not _rise_is_known:
-        tan_rise = (
-            rise_sign
-            * start
-            * spacing
-            / (
-                perimeter
-                - rise_sign * math.tan(math.radians(skew_tilt_angle)) * start * spacing
-            )
-        )
-        rise_angle = math.degrees(math.atan(tan_rise)) * rise_sign
-    else:
-        tan_skew_tilt = math.tan(math.radians(skew_tilt_angle))
-        tan_rise = math.tan(math.radians(rise_angle)) * rise_sign
-        start_f = perimeter / spacing / (tan_skew_tilt * tan_rise + 1) * tan_rise
-        start = roundint(start_f)
-        tan_rise = start * spacing / (perimeter - tan_skew_tilt * start * spacing)
-        rise_angle = math.degrees(math.atan(tan_rise)) * rise_sign
+    elif given(spacing):
+        if given(skew_angle):
+            skew_tilt_rad = m.asin(m.radians(skew_angle) * radius / 2 / spacing)
+        skew_tilt_angle = m.radians(skew_tilt_rad)
+        if given(start):
+            if _rise_is_known and not allow_duplicate:
+                raise ValueError("Cannot specify both start and rise.")
+            if start == 0:
+                tan_rise = 0
+            else:
+                tan_rise = m.cos(skew_tilt_rad) / (
+                    perimeter / start / spacing - m.sin(skew_tilt_rad)
+                )
+            rise_angle = m.degrees(m.atan(tan_rise))
+        elif given(rise_angle):
+            start = _rise_to_start(rise_angle, skew_tilt_rad, spacing, perimeter)
+        elif given(rise_length):
+            nl = npf * rise_length / perimeter
+            tan_rise = nl / (1 - nl * m.tan(skew_tilt_rad))
+            rise_angle = m.degrees(m.atan(tan_rise))
+            start = _rise_to_start(rise_angle, skew_tilt_rad, spacing, perimeter)
+        else:
+            raise ValueError("Not enough information to solve.")
 
     return CylindricParameters(skew_tilt_angle, rise_angle, spacing, radius, npf)
+
+
+def _tilt_to_skew(start: int, tan_rise: float, skew_angle: float) -> float:
+    _s_sk = start * m.radians(skew_angle)
+    tan_skew_tilt = _s_sk / tan_rise / (4 * m.pi - _s_sk)
+    return m.degrees(m.atan(tan_skew_tilt))
+
+
+def _rise_to_start(rise_angle, skew_tilt_rad, spacing, perimeter):
+    tan_rise = m.tan(m.radians(rise_angle))
+    return roundint(
+        perimeter / spacing / (m.cos(skew_tilt_rad) / tan_rise - m.sin(skew_tilt_rad))
+    )

@@ -8,6 +8,7 @@ import impy as ip
 import polars as pl
 from cylindra.const import nm, PropertyNames as H, Mode
 from cylindra.components._peak import PeakDetector, PeakInfo
+from cylindra.components._boundary import CylindricParameters
 from cylindra.components.spline import SplineConfig
 from cylindra.utils import map_coordinates, ceilint, roundint, floorint
 
@@ -21,7 +22,7 @@ class LatticeParams(NamedTuple):
     skew_tilt: float
     skew_angle: float
     npf: int
-    start: float
+    start: int
 
     def to_polars(self) -> pl.DataFrame:
         """Convert named tuple into a polars DataFrame."""
@@ -37,7 +38,7 @@ class LatticeParams(NamedTuple):
             (H.skew_tilt, pl.Float32),
             (H.skew, pl.Float32),
             (H.npf, pl.UInt8),
-            (H.start, pl.Float32),
+            (H.start, pl.Int8),
         ]
 
 
@@ -129,22 +130,21 @@ class LatticeAnalyzer:
 
         # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
         # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
-        perimeter = 2 * np.pi * radius
-        rise = math.atan(tan_rise)  # f(r)
-        rise_len = tan_rise * perimeter / npf
-        yspace = img.scale.y / peakv.yfreq
-        skew_tilt = math.atan(tan_skew_tilt)  # f(r)
-        skew = tan_skew_tilt * 2 * yspace / radius
-        start = perimeter * tan_rise / (yspace * (1 + tan_rise * tan_skew_tilt))
-
-        return LatticeParams(
-            rise_angle=math.degrees(rise),
-            rise_length=rise_len,
-            spacing=yspace,
-            skew_tilt=math.degrees(skew_tilt),
-            skew_angle=math.degrees(skew),
+        cparams = CylindricParameters(
+            skew_tilt_angle=math.degrees(math.atan(tan_skew_tilt)),  # f(r)
+            rise_angle=math.degrees(math.atan(tan_rise)),  # f(r)
+            pitch=img.scale.y / peakv.yfreq,
+            radius=radius,
             npf=npf,
-            start=start,
+        )
+        return LatticeParams(
+            rise_angle=cparams.rise_angle,
+            rise_length=cparams.rise_length,
+            spacing=cparams.spacing,
+            skew_tilt=cparams.skew_tilt_angle,
+            skew_angle=cparams.skew_angle,
+            npf=cparams.npf,
+            start=cparams.start,
         )
 
     def ft_params(
