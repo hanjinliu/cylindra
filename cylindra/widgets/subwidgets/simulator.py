@@ -797,7 +797,7 @@ class CylinderSimulator(ChildWidget):
         """Expand the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, exp)
         new_model = self.model.expand(exp, sl)
-        if allev > 0:
+        if allev:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model
         return None
@@ -816,7 +816,7 @@ class CylinderSimulator(ChildWidget):
         shift, sl = self.Operator._fill_shift(yrange, arange, skew)
         # NOTE: skew angle is defined by the twisting of every "dimers".
         new_model = self.model.screw(np.deg2rad(skew / 2), sl)
-        if allev > 0:
+        if allev:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model
         return None
@@ -834,7 +834,7 @@ class CylinderSimulator(ChildWidget):
         """Dilate (increase the local radius of) the selected molecules."""
         shift, sl = self.Operator._fill_shift(yrange, arange, radius)
         new_model = self.model.dilate(radius, sl)
-        if allev > 0:
+        if allev:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model
         return None
