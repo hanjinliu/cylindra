@@ -118,8 +118,8 @@ def merge_images(img0: _A, img1: _A) -> _A:
     return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
 
 
-def normalize_image(img: _A, outlier: float = 0.01) -> _A:
-    min, max = np.quantile(img, [outlier, 1 - outlier])
+def normalize_image(img: _A, outlier: float = (0.01, 0.01)) -> _A:
+    min, max = np.quantile(img, [outlier[0], 1 - outlier[1]])
     return (img - min) / (max - min)
 
 
