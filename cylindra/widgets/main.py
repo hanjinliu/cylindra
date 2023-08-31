@@ -1444,7 +1444,7 @@ class CylindraMainWidget(MagicTemplate):
 
         # show all in a table
         df = (
-            self.tomogram.collect_globalprops()
+            self.tomogram.splines.collect_globalprops()
             .drop(IDName.spline)
             .to_pandas()
             .transpose()
@@ -2265,7 +2265,7 @@ class CylindraMainWidget(MagicTemplate):
         {color_by}{cmap}{limits}
         """
         tomo = self.tomogram
-        all_df = tomo.collect_localprops()
+        all_df = tomo.splines.collect_localprops()
         if color_by not in all_df.columns:
             raise ValueError(f"Column {color_by} does not exist.")
 

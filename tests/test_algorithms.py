@@ -23,26 +23,26 @@ def test_run_all(coords, npf, rise, skew_range):
     tomo.fit()
     tomo.refine()
     tomo.make_anchors(n=3)
-    assert tomo.collect_localprops() is None
-    assert tomo.collect_globalprops() is None
+    assert tomo.splines.collect_localprops() is None
+    assert tomo.splines.collect_globalprops() is None
     tomo.measure_radius()
-    assert tomo.collect_localprops() is None
-    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
+    assert tomo.splines.collect_localprops() is None
+    assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
 
     tomo.make_anchors(interval=30)
-    assert tomo.collect_localprops() is None
-    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
-    assert H.spacing not in tomo.collect_globalprops(allow_none=False).columns
+    assert tomo.splines.collect_localprops() is None
+    assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
+    assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
 
     tomo.local_ft_params(i=0)
-    assert tomo.collect_localprops() is not None
-    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
-    assert H.spacing not in tomo.collect_globalprops(allow_none=False).columns
+    assert tomo.splines.collect_localprops() is not None
+    assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
+    assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
 
     tomo.global_ft_params(i=0)
-    assert tomo.collect_localprops() is not None
-    assert H.radius in tomo.collect_globalprops(allow_none=False).columns
-    assert H.spacing in tomo.collect_globalprops(allow_none=False).columns
+    assert tomo.splines.collect_localprops() is not None
+    assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
+    assert H.spacing in tomo.splines.collect_globalprops(allow_none=False).columns
 
     spl = tomo.splines[0]
     spacing_mean = spl.localprops[H.spacing].mean()

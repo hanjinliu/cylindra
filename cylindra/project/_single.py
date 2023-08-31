@@ -84,8 +84,8 @@ class CylindraProject(BaseProject):
 
         _versions = get_versions()
         tomo = gui.tomogram
-        localprops = tomo.collect_localprops()
-        globalprops = tomo.collect_globalprops()
+        localprops = tomo.splines.collect_localprops()
+        globalprops = tomo.splines.collect_globalprops()
 
         if results_dir is None:
             results_dir = json_path.parent / (json_path.stem + "_results")
@@ -174,8 +174,8 @@ class CylindraProject(BaseProject):
         self = cls.from_gui(gui, json_path, results_dir)
 
         tomo = gui.tomogram
-        localprops = tomo.collect_localprops(allow_none=True)
-        globalprops = tomo.collect_globalprops(allow_none=True)
+        localprops = tomo.splines.collect_localprops(allow_none=True)
+        globalprops = tomo.splines.collect_globalprops(allow_none=True)
 
         if results_dir is None:
             results_dir = json_path.parent / (json_path.stem + "_results")

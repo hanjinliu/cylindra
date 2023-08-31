@@ -184,24 +184,6 @@ class CylTomogram(Tomogram):
     def is_dummy(self) -> bool:
         return self.metadata.get("is_dummy", False)
 
-    @property
-    def n_splines(self) -> int:
-        """Number of spline paths."""
-        return len(self.splines)
-
-    def export_localprops(self, file_path: str, **kwargs):
-        """
-        Export local properties as a csv file.
-
-        Parameters
-        ----------
-        file_path : str
-            File path to export.
-        """
-        df = self.collect_localprops()
-        df.write_csv(file_path, **kwargs)
-        return None
-
     def add_spline(
         self,
         coords: ArrayLike,
@@ -1405,89 +1387,6 @@ class CylTomogram(Tomogram):
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
-
-    #####################################################################################
-    #   Utility functions
-    #####################################################################################
-
-    def iter_anchor_coords(self) -> Iterable[NDArray[np.float32]]:
-        """Iterate over anchor coordinates of all splines."""
-        for i in range(len(self.splines)):
-            coords = self.splines[i].map()
-            yield from coords
-
-    def collect_localprops(
-        self, i: int | Iterable[int] = None, allow_none: bool = True
-    ) -> pl.DataFrame | None:
-        """
-        Collect all the local properties into a single polars.DataFrame.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        pl.DataFrame
-            Concatenated data frame.
-        """
-        if i is None:
-            i = range(len(self.splines))
-        elif isinstance(i, int):
-            i = [i]
-        props = list[pl.DataFrame]()
-        for i_ in i:
-            prop = self.splines[i_].localprops
-            if len(prop) == 0:
-                if not allow_none:
-                    raise ValueError(f"Local properties of spline {i_} is missing.")
-                continue
-            props.append(
-                prop.with_columns(
-                    pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
-                    pl.int_range(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
-                )
-            )
-
-        if len(props) == 0:
-            return None
-        how = "diagonal" if allow_none else "vertical"
-        return pl.concat(props, how=how)
-
-    def collect_globalprops(
-        self, i: int | Iterable[int] = None, allow_none: bool = True
-    ) -> pl.DataFrame | None:
-        """
-        Collect all the global properties into a single polars.DataFrame.
-
-        Parameters
-        ----------
-        i : int or iterable of int, optional
-            Spline ID that you want to collect.
-
-        Returns
-        -------
-        pl.DataFrame
-            Concatenated data frame.
-        """
-        if i is None:
-            i = range(len(self.splines))
-        elif isinstance(i, int):
-            i = [i]
-        props = list[pl.DataFrame]()
-        for i_ in i:
-            prop = self.splines[i_].globalprops
-            if len(prop) == 0:
-                if not allow_none:
-                    raise ValueError(f"Global properties of spline {i_} is missing.")
-                continue
-            props.append(prop.with_columns(pl.Series(IDName.spline, [i_])))
-
-        if len(props) == 0:
-            return None
-        how = "diagonal" if allow_none else "vertical"
-        return pl.concat(props, how=how)
 
     def _chunked_straighten(
         self,

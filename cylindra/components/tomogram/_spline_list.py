@@ -1,7 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable, MutableSequence, overload, Iterable, Iterator
+from typing import Any, Callable, MutableSequence, overload, Iterable, Iterator
+import numpy as np
+from numpy.typing import NDArray
+import polars as pl
+
 from cylindra.components.spline import CylSpline
+from cylindra.const import IDName
 
 
 class SplineList(MutableSequence[CylSpline]):
@@ -60,7 +65,108 @@ class SplineList(MutableSequence[CylSpline]):
         del self[i]
 
     def copy(self) -> SplineList:
+        """Copy the spline list."""
         return SplineList(self._list)
 
-    def filter(self, predicate: Callable[[CylSpline], bool]) -> SplineList:
-        return SplineList(filter(predicate, self._list))
+    def count(self) -> int:
+        """Number of splines in the list."""
+        return len(self)
+
+    def filter(self, predicate: pl.Expr) -> SplineList:
+        """Filter the list by its global properties."""
+        fn: Callable[[CylSpline], bool] = lambda spl: spl.props.glob.select(predicate)[
+            0
+        ]
+        return SplineList(filter(fn, self._list))
+
+    def sort(self, by: pl.Expr | str) -> SplineList:
+        """Sort the list by its global properties."""
+        fn: Callable[[CylSpline], Any] = lambda spl: spl.props.glob.select(by)[0]
+        return SplineList(sorted(self._list, key=fn))
+
+    def iter(self) -> Iterator[CylSpline]:
+        """Iterate over splines."""
+        return iter(self)
+
+    def enumerate(self) -> Iterator[tuple[int, CylSpline]]:
+        """Iterate over spline ID and splines."""
+        return enumerate(self)
+
+    def iter_anchor_coords(self) -> Iterable[NDArray[np.float32]]:
+        """Iterate over anchor coordinates of all splines."""
+        for i in range(len(self)):
+            coords = self[i].map()
+            yield from coords
+
+    def collect_localprops(
+        self, i: int | Iterable[int] = None, allow_none: bool = True
+    ) -> pl.DataFrame | None:
+        """
+        Collect all the local properties into a single polars.DataFrame.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to collect.
+
+        Returns
+        -------
+        pl.DataFrame
+            Concatenated data frame.
+        """
+        if i is None:
+            i = range(len(self))
+        elif isinstance(i, int):
+            i = [i]
+        props = list[pl.DataFrame]()
+        for i_ in i:
+            prop = self[i_].props.loc
+            if len(prop) == 0:
+                if not allow_none:
+                    raise ValueError(f"Local properties of spline {i_} is missing.")
+                continue
+            props.append(
+                prop.with_columns(
+                    pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
+                    pl.int_range(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
+                )
+            )
+
+        if len(props) == 0:
+            return None
+        how = "diagonal" if allow_none else "vertical"
+        return pl.concat(props, how=how)
+
+    def collect_globalprops(
+        self, i: int | Iterable[int] = None, allow_none: bool = True
+    ) -> pl.DataFrame | None:
+        """
+        Collect all the global properties into a single polars.DataFrame.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to collect.
+
+        Returns
+        -------
+        pl.DataFrame
+            Concatenated data frame.
+        """
+        if i is None:
+            i = range(len(self))
+        elif isinstance(i, int):
+            i = [i]
+        props = list[pl.DataFrame]()
+        for i_ in i:
+            prop = self[i_].props.glob
+            if len(prop) == 0:
+                if not allow_none:
+                    raise ValueError(f"Global properties of spline {i_} is missing.")
+                continue
+            props.append(prop.with_columns(pl.Series(IDName.spline, [i_])))
+
+        if len(props) == 0:
+            return None
+        how = "diagonal" if allow_none else "vertical"
+        return pl.concat(props, how=how)

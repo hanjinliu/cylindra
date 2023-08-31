@@ -263,7 +263,7 @@ class PaintDevice:
 
     def paint_cylinders(self, tomo: CylTomogram, prop: str):
         lbl = np.zeros(self._shape, dtype=np.uint8)
-        all_df = tomo.collect_localprops()
+        all_df = tomo.splines.collect_localprops()
         if all_df is None:
             raise ValueError("No local property found.")
         bin_scale = self._scale  # scale of binned reference image
@@ -322,7 +322,7 @@ class PaintDevice:
         out = out > 0.3
 
         # paint roughly
-        for i, crd in enumerate(tomo.iter_anchor_coords()):
+        for i, crd in enumerate(tomo.splines.iter_anchor_coords()):
             center = crd / bin_scale
             sl = list[slice]()
             outsl = list[slice]()

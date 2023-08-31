@@ -200,7 +200,7 @@ def simulate(
             print(results.write_csv(separator="\t", float_precision=3))
         else:
             results.write_csv(output)
-        agg_df = results.groupby("nsr").agg(
+        agg_df = results.group_by("nsr").agg(
             [
                 pl.format(
                     "{}±{}", pl.col(x).mean().round(3), pl.col(x).std().round(3)
