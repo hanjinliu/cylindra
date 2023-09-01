@@ -1,5 +1,5 @@
 from typing import Annotated, Literal
-import psutil
+from glob import glob
 from pathlib import Path
 from magicclass import (
     magicclass,
@@ -16,9 +16,21 @@ from cylindra.widgets._previews import view_image
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra._config import get_config
 
+from ._child_widget import ChildWidget
+
+
+def _autofill(input_path, suffix: str) -> Path:
+    input_path = Path(input_path)
+    output_path = input_path.with_stem(input_path.stem + suffix)
+
+    n = 0
+    while output_path.exists():
+        output_path = output_path.with_stem(output_path.stem + f"-{n}")
+    return output_path
+
 
 @magicclass(record=False)
-class ImageProcessor(MagicTemplate):
+class ImageProcessor(ChildWidget):
     """
     Process image files.
 
@@ -41,23 +53,22 @@ class ImageProcessor(MagicTemplate):
     _InputPath = Annotated[Path, {"bind": input_image, "widget_type": "EmptyWidget"}]
     _OutputPath = Annotated[Path, {"bind": output_image, "widget_type": "EmptyWidget"}]
 
+    def __init__(self):
+        self._current_suffix = "-output"
+
     @input_image.connect
     @suffix.connect
     def _autofill_output_path(self):
         if self.suffix is None:
             return
-        input_path = Path(self.input_image)
-        output_path = input_path.with_stem(input_path.stem + self.suffix)
-
-        n = 0
-        while output_path.exists():
-            output_path = output_path.with_stem(output_path.stem + f"-{n}")
-        self.output_image = output_path
+        self.output_image = _autofill(self.input_image, self.suffix)
 
     def _confirm_path(self):
         return self.output_image.exists()
 
-    @dask_thread_worker.with_progress(desc="Converting data type.")
+    @dask_thread_worker.with_progress(
+        desc="Converting data type.", total="self._file_count(input)"
+    )
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def convert_dtype(
@@ -69,10 +80,12 @@ class ImageProcessor(MagicTemplate):
         """Convert data type of the input image."""
         img = self._imread(input)
         out = img.as_img_type(dtype)
-        out.imsave(output)
+        yield from self._imsave(out, output)
         return None
 
-    @dask_thread_worker.with_progress(desc="Inverting image.")
+    @dask_thread_worker.with_progress(
+        desc="Inverting image.", total="self._file_count(input)"
+    )
     @set_design(text="Invert intensity")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def invert(
@@ -82,11 +95,16 @@ class ImageProcessor(MagicTemplate):
     ):
         """Invert intensity of the input image."""
         img = self._imread(input)
-        out = -img
-        out.imsave(output)
+        if isinstance(img, ip.DataList):
+            out = ip.DataList([-each for each in img])
+        else:
+            out = -img
+        yield from self._imsave(out, output)
         return None
 
-    @dask_thread_worker.with_progress(desc="Low-pass filtering.")
+    @dask_thread_worker.with_progress(
+        desc="Low-pass filtering.", total="self._file_count(input)"
+    )
     @set_design(text="Low-pass filter")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def lowpass_filter(
@@ -99,10 +117,10 @@ class ImageProcessor(MagicTemplate):
         """Apply Butterworth's tiled low-pass filter to the input image."""
         img = self._imread(input).as_float()
         out = img.tiled(overlap=32).lowpass_filter(cutoff=cutoff, order=order)
-        out.imsave(output)
+        yield from self._imsave(out, output)
         return None
 
-    @dask_thread_worker.with_progress(desc="Binning.")
+    @dask_thread_worker.with_progress(desc="Binning.", total="self._file_count(input)")
     @set_design(text="Binning")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def binning(
@@ -114,10 +132,12 @@ class ImageProcessor(MagicTemplate):
         """Bin image."""
         img = self._imread(input)
         out = img.binning(bin_size, check_edges=False)
-        out.imsave(output)
+        yield from self._imsave(out, output)
         return None
 
-    @dask_thread_worker.with_progress(desc="Flipping image.")
+    @dask_thread_worker.with_progress(
+        desc="Flipping image.", total="self._file_count(input)"
+    )
     @set_design(text="Flip image")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def flip(
@@ -130,19 +150,51 @@ class ImageProcessor(MagicTemplate):
         img = self._imread(input)
         for a in axes:
             img = img[ip.slicer(a)[::-1]]
-        img.imsave(output)
+        yield from self._imsave(img, output)
         return None
 
     @set_design(text="Preview input image")
     def preview(self, input: _InputPath):
         """Open a preview of the input image."""
-        from cylindra.widgets import CylindraMainWidget
-
+        if "*" in str(input):
+            raise ValueError("Cannot preview multiple images.")
         prev = view_image(input, self)
-        main = self.find_ancestor(CylindraMainWidget)
+        main = self._get_main()
         main._active_widgets.add(prev)
         return None
 
-    def _imread(self, path) -> ip.LazyImgArray:
-        img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
-        return img
+    def _imread(self, path) -> "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]":
+        path = str(path)
+        self._current_suffix = self.suffix
+        if "*" in path:
+            if self.suffix is None:
+                raise ValueError("Cannot read multiple images without `suffix`.")
+            imgs = []
+            for fp in glob(path, recursive=True):
+                imgs.append(ip.lazy.imread(fp, chunks=get_config().dask_chunk))
+            out = ip.DataList(imgs)
+        else:
+            out = ip.lazy.imread(path, chunks=get_config().dask_chunk)
+        return out
+
+    def _file_count(self, path) -> int:
+        path = str(path)
+        if "*" in path:
+            if self.suffix is None:
+                return 0
+            return len(glob(path, recursive=True))
+        else:
+            return 1
+
+    def _imsave(
+        self, img: "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]", path: Path
+    ):
+        if isinstance(img, ip.DataList):
+            for each in img:
+                save_path = _autofill(each.source, self._current_suffix)
+                each.imsave(save_path)
+                yield
+        else:
+            img.imsave(path)
+            yield
+        return None
