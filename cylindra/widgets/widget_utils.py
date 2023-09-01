@@ -184,6 +184,7 @@ def calc_resolution(
 def plot_projections(merge: np.ndarray):
     """Projection of the result of `align_averaged`."""
     _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
+    axes: Sequence[plt.Axes]
     # normalize
     if merge.dtype.kind == "f":
         merge = np.clip(merge, 0, 1)

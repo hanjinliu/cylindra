@@ -685,7 +685,7 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        temp_norm = utils.normalize_image(template, outlier=0.05)
+        temp_norm = utils.normalize_image(template, outlier=[0, 0.05])
 
         _scale = parent.tomogram.scale * bin_size
 
@@ -711,10 +711,6 @@ class SubtomogramAveraging(ChildWidget):
             _mole_trans = mole.linear_transform(
                 result.shift * _scale, rotator
             ).with_features(pl.col(Mole.position) + svec[1])
-
-            # create images for visualization in the logger
-            img_norm = utils.normalize_image(_img_trans)
-            merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
 
             # write offsets to spline globalprops if available
             # TODO: Undo cannot catch this change. Need to fix.
@@ -743,6 +739,9 @@ class SubtomogramAveraging(ChildWidget):
 
             yield _on_yield.with_args(_mole_trans, layer)
 
+            # create images for visualization in the logger. Image is magenta, template is green
+            img_norm = utils.normalize_image(_img_trans)
+            merge = np.stack([img_norm, temp_norm, img_norm], axis=-1)
             with _Logger.set_plt():
                 widget_utils.plot_projections(merge)
 

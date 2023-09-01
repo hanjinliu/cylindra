@@ -20,21 +20,16 @@ def calc_interval(
     mole: Molecules, spl: CylSpline, projective: bool = True
 ) -> pl.Series:
     """Calculate the interval of each molecule to the next one."""
-    _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-        _u = sub.features[Mole.position] / _spl_len
+        surf = CylinderSurface(sub, spl)
+        _interv_vec = np.diff(sub.pos, axis=0, append=0)
         if projective:
-            _spl_vec_norm = _norm(spl.map(_u, der=1))
-            _y_interv = np.abs(_dot(_interv_vec, _spl_vec_norm))
-        else:
-            _y_interv = np.sqrt(np.sum(_interv_vec**2, axis=1))
+            _interv_vec = surf.project_vector(_interv_vec)
+        _y_interv = np.sqrt(np.sum(_interv_vec**2, axis=1))
         _y_interv[-1] = -np.inf  # fill invalid values with 0
-        subsets.append(
-            sub.with_features(pl.Series(Mole.interval, _y_interv).cast(pl.Float32))
-        )
+        new_feat = pl.Series(Mole.interval, _y_interv).cast(pl.Float32)
+        subsets.append(sub.with_features(new_feat))
     return _concat_groups(subsets).features[Mole.interval]
 
 
@@ -62,60 +57,33 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
-    _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_pos = spl.map(_u, der=0)
-        _spl_vec = spl.map(_u, der=1)
-
-        _mole_to_spl_vec = _spl_pos - _pos
-        _interv_proj_norm = _norm(_cancel_component(_interv_vec, _mole_to_spl_vec))
-
-        _spl_vec_norm = _norm(_spl_vec)
-
-        _skew_cross = np.cross(_interv_proj_norm, _spl_vec_norm, axis=1)
-        _inner = _dot(_skew_cross, _mole_to_spl_vec)
-        _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
-
-        _skew = np.rad2deg(np.arcsin(_skew_sin))
+        surf = CylinderSurface(sub, spl)
+        _interv_vec = np.diff(sub.pos, axis=0, append=0)
+        _interv_proj = surf.project_vector(_interv_vec)
+        _skew = surf.long_angle(_interv_proj)
         _skew[-1] = -np.inf
-        subsets.append(
-            sub.with_features(pl.Series(Mole.skew_tilt, _skew).cast(pl.Float32))
-        )
-
+        new_feat = pl.Series(Mole.skew_tilt, _skew, dtype=pl.Float32)
+        subsets.append(sub.with_features(new_feat))
     return _concat_groups(subsets).features[Mole.skew_tilt]
 
 
 def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
-    _spl_len = spl.length()
     subsets = list[Molecules]()
     spacing = spl.props.get_glob(H.spacing)
     radius = spl.props.get_glob(H.radius)
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_pos = spl.map(_u, der=0)
-        _spl_vec = spl.map(_u, der=1)
-
-        _mole_to_spl_vec = _spl_pos - _pos
-        _interv_proj_norm = _norm(_cancel_component(_interv_vec, _mole_to_spl_vec))
-
-        _spl_vec_norm = _norm(_spl_vec)
-
-        _skew_cross = np.cross(_interv_proj_norm, _spl_vec_norm, axis=1)
-        _inner = _dot(_skew_cross, _mole_to_spl_vec)
-        _skew_sin = np.linalg.norm(_skew_cross, axis=1) * np.sign(_inner)
-
-        _skew = np.rad2deg(2 * np.arcsin(spacing * _skew_sin / radius))
+        surf = CylinderSurface(sub, spl)
+        _interv_vec = np.diff(sub.pos, axis=0, append=0)
+        _interv_proj = surf.project_vector(_interv_vec)
+        _skew = np.rad2deg(
+            2 * np.arcsin(spacing * surf.long_sin(_interv_proj) / radius)
+        )
         _skew[-1] = -np.inf
-        subsets.append(sub.with_features(pl.Series(Mole.skew, _skew).cast(pl.Float32)))
+        new_feat = pl.Series(Mole.skew, _skew, dtype=pl.Float32)
+        subsets.append(sub.with_features(new_feat))
 
     return _concat_groups(subsets).features[Mole.skew]
 
@@ -133,7 +101,7 @@ def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column of rise angles of each molecule."""
-    _spl_len = spl.length()
+    # _spl_len = spl.length()
     subsets = list[Molecules]()
     _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
@@ -149,27 +117,15 @@ def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     )
     for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
         sub = sub.sort(Mole.pf)
-        _pos = sub.pos
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_pos = spl.map(_u, der=0)
-        _spl_vec = spl.map(_u, der=1)
-        _spl_vec_norm = _norm(_spl_vec)
-
-        _mole_to_spl_vec = _spl_pos - _pos
-        _interv_vec = np.diff(_pos, axis=0, append=np.nan)
-        _interv_proj_norm = _norm(_cancel_component(_interv_vec, _mole_to_spl_vec))
-        _rise_cross = np.cross(_interv_proj_norm, _spl_vec_norm, axis=1)
-        _inner = _dot(_rise_cross, _mole_to_spl_vec)
-        _rise_sin = np.linalg.norm(_rise_cross, axis=1) * np.sign(_inner)
-        rise_angles = 90 - np.rad2deg(np.arcsin(_rise_sin))
+        surf = CylinderSurface(sub, spl)
+        _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
+        interv_proj = surf.project_vector(_interv_vec)
+        rise_angles = 90 - surf.long_angle(interv_proj)
         if sub.features[Mole.pf][-1] == new_pf_id:
             rise_angles = rise_angles[:-1]
             sub = sub.subset(slice(None, -1))
-        subsets.append(
-            sub.with_features(
-                pl.Series(Mole.rise, rise_angles).fill_nan(-np.inf).cast(pl.Float32)
-            )
-        )
+        new_feat = pl.Series(Mole.rise, rise_angles).fill_nan(-np.inf).cast(pl.Float32)
+        subsets.append(sub.with_features(new_feat))
     return _concat_groups(subsets).features[Mole.rise]
 
 
@@ -215,6 +171,48 @@ def calc_lateral_interval(
             )
         )
     return _concat_groups(subsets).features[Mole.lateral_interval]
+
+
+class CylinderSurface:
+    def __init__(self, mole: Molecules, spl: CylSpline):
+        self._mole = mole
+        self._spl = spl
+        _pos = mole.pos
+        _spl_len = spl.length()
+        _u = mole.features[Mole.position] / _spl_len
+        _spl_pos = spl.map(_u, der=0)
+        _spl_vec = spl.map(_u, der=1)
+
+        _mole_to_spl_vec = _spl_pos - _pos
+        self._surface_norm = _norm(_mole_to_spl_vec)
+        self._spline_vec_norm = _norm(_spl_vec)
+
+    @property
+    def surface_norm(self) -> NDArray[np.float32]:
+        return self._surface_norm
+
+    @property
+    def spline_vec_norm(self) -> NDArray[np.float32]:
+        return self._spline_vec_norm
+
+    def project_vector(self, vec: NDArray[np.float32]) -> NDArray[np.float32]:
+        return _cancel_component(vec, self._surface_norm)
+
+    def div_sign(self, vec: NDArray[np.float32]) -> NDArray[np.float32]:
+        return np.sign(_dot(vec, self.surface_norm))
+
+    def long_sin(self, vec: NDArray[np.float32]) -> NDArray[np.float32]:
+        vec_norm = _norm(vec)
+        _cross = np.cross(vec_norm, self.spline_vec_norm, axis=1)
+        return np.linalg.norm(_cross, axis=1) * self.div_sign(_cross)
+
+    def long_angle(
+        self, vec: NDArray[np.float32], degree: bool = True
+    ) -> NDArray[np.float32]:
+        angs = np.arcsin(self.long_sin(vec))
+        if degree:
+            angs = np.rad2deg(angs)
+        return angs
 
 
 class LatticeParameters(Enum):
