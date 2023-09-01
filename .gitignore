@@ -5,6 +5,7 @@ test_script.py
 tests/**/*.txt
 tests/**/*.json
 tests/**/*.csv
+tests/**/*.pq
 tests/**/script.py
 
 # Byte-compiled / optimized / DLL files

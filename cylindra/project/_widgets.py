@@ -89,7 +89,7 @@ class ComponentsViewer(MagicTemplate):
             self.components._add_layer(layer)
 
         for path in project.molecules:
-            mole = Molecules.from_csv(path)
+            mole = Molecules.from_file(path)
             layer = self.canvas.add_points(mole.pos, face_color="lime", name=path.stem)
             self.components._add_layer(layer)
 

@@ -17,6 +17,7 @@ from typing import (
     overload,
 )
 
+import numpy as np
 import polars as pl
 
 from cylindra.const import (
@@ -168,7 +169,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
             for fp in prj.molecules:
                 fp = Path(fp)
-                mole = Molecules.from_csv(fp)
+                mole = Molecules.from_file(fp)
                 mole.features = mole.features.with_columns(
                     pl.repeat(fp.stem, pl.count()).alias(Mole.id)
                 )
@@ -258,7 +259,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return self._normalize_id(out, id)
 
     def collect_joinedprops(
-        self, allow_none: bool = True, id: _IDTYPE = "int"
+        self,
+        allow_none: bool = True,
+        id: _IDTYPE = "int",
+        spline_details: bool = False,
     ) -> pl.DataFrame:
         """
         Collect all the local and global properties into a single dataframe.
@@ -299,14 +303,33 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             Dataframe with all the properties.
         """
         loc = self.collect_localprops(allow_none=allow_none, id="int")
+        if spline_details:
+            _all_ders = list[np.ndarray]()
+            for _, spl in self.iter_splines():
+                arrs = [spl.map(der=d) for d in range(3)]
+                ders = np.concatenate(arrs, axis=1)
+                _all_ders.append(ders)
+            _all_ders = np.concatenate(_all_ders, axis=0)
+            _col_names = [
+                f"spline_{s}"
+                for s in ["z", "y", "x", "dz", "dy", "dx", "ddz", "ddy", "ddx"]
+            ]
+            loc = loc.with_columns(
+                [
+                    pl.Series(name, _all_ders[:, i], dtype=pl.Float32)
+                    for i, name in enumerate(_col_names)
+                ]
+            )
         glb = self.collect_globalprops(allow_none=allow_none, id="int")
+        if spline_details:
+            lengths = list[float]()
+            for _, spl in self.iter_splines():
+                lengths.append(spl.length())
+            col = pl.Series("spline_length", lengths, dtype=pl.Float32)
+            glb = glb.with_columns(col)
         key = [IDName.spline, Mole.image]
         out = loc.join(glb, on=key, suffix="_glob")
         return self._normalize_id(out, id)
-
-    localprops = collect_localprops  # alias for backward compatibility
-    globalprops = collect_globalprops  # alias for backward compatibility
-    all_props = collect_joinedprops  # alias for backward compatibility
 
     def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
         """Iterate over all the splines in all the projects."""

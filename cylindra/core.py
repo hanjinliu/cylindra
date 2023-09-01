@@ -155,7 +155,6 @@ def read_molecules(
     file: PathLike,
     pos_cols: Sequence[str] = ("z", "y", "x"),
     rot_cols: Sequence[str] = ("zvec", "yvec", "xvec"),
-    **kwargs,
 ) -> Molecules:
     """
     Read a molecules CSV file.
@@ -179,9 +178,7 @@ def read_molecules(
     from acryo import Molecules
 
     path = Path(file)
-    return Molecules.from_csv(
-        path, pos_cols=list(pos_cols), rot_cols=list(rot_cols), **kwargs
-    )
+    return Molecules.from_file(path, pos_cols=list(pos_cols), rot_cols=list(rot_cols))
 
 
 def read_spline(file: PathLike) -> CylSpline:
@@ -264,7 +261,7 @@ def collect_molecules(
             files = glob.glob(str(files))
     molecules = list[Molecules]()
     for i, f in enumerate(files):
-        mole = Molecules.from_csv(f, **kwargs)
+        mole = Molecules.from_file(f, **kwargs)
         molecules.append(
             mole.with_features(pl.repeat(i, len(mole)).alias(file_id_column))
         )

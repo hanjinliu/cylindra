@@ -74,6 +74,7 @@ class CylindraProject(BaseProject):
         gui: "CylindraMainWidget",
         json_path: Path,
         results_dir: Union[Path, None] = None,
+        mole_ext: str = ".csv",
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
         from cylindra.types import MoleculesLayer
@@ -102,17 +103,17 @@ class CylindraProject(BaseProject):
             spline_paths.append(results_dir / f"spline-{i}.json")
 
         # Save path of molecules
-        molecules_paths = list[Path]()
-        molecules_info = list[MoleculesInfo]()
+        mole_paths = list[Path]()
+        mole_infos = list[MoleculesInfo]()
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
-            molecules_paths.append((results_dir / layer.name).with_suffix(".csv"))
+            mole_paths.append((results_dir / layer.name).with_suffix(mole_ext))
             try:
                 _src = gui.tomogram.splines.index(layer.source_component)
             except ValueError:
                 _src = None
-            molecules_info.append(MoleculesInfo(source=_src, visible=layer.visible))
+            mole_infos.append(MoleculesInfo(source=_src, visible=layer.visible))
 
         # Save path of  global variables
         tomo_cfg_path = results_dir / "default_spline_config.json"
@@ -140,8 +141,8 @@ class CylindraProject(BaseProject):
             splines=[as_relative(p) for p in spline_paths],
             localprops=as_relative(localprops_path),
             globalprops=as_relative(globalprops_path),
-            molecules=[as_relative(p) for p in molecules_paths],
-            molecules_info=molecules_info,
+            molecules=[as_relative(p) for p in mole_paths],
+            molecules_info=mole_infos,
             default_spline_config=as_relative(tomo_cfg_path),
             template_image=as_relative(gui.sta.params.template_path.value),
             mask_parameters=gui.sta.params._get_mask_params(),
@@ -156,6 +157,7 @@ class CylindraProject(BaseProject):
         gui: "CylindraMainWidget",
         json_path: Path,
         results_dir: Union[Path, None] = None,
+        mole_ext: str = ".csv",
     ) -> None:
         """
         Serialize the GUI state to a json file.
@@ -171,7 +173,7 @@ class CylindraProject(BaseProject):
         """
         from cylindra.types import MoleculesLayer
 
-        self = cls.from_gui(gui, json_path, results_dir)
+        self = cls.from_gui(gui, json_path, results_dir, mole_ext)
 
         tomo = gui.tomogram
         localprops = tomo.splines.collect_localprops(allow_none=True)
@@ -186,12 +188,11 @@ class CylindraProject(BaseProject):
             None if globalprops is None else results_dir / "globalprops.csv"
         )
 
-        molecule_dataframes: "list[pl.DataFrame]" = []
+        mole_objects: "list[Molecules]" = []
         for layer in gui.parent_viewer.layers:
             if not isinstance(layer, MoleculesLayer):
                 continue
-            mole = layer.molecules
-            molecule_dataframes.append(mole.to_dataframe())
+            mole_objects.append(layer.molecules)
 
         if not results_dir.exists():
             results_dir.mkdir()
@@ -203,9 +204,8 @@ class CylindraProject(BaseProject):
             for spl, path in zip(gui.tomogram.splines, self.splines):
                 spl.to_json(results_dir / path)
         if self.molecules:
-            for df, path in zip(molecule_dataframes, self.molecules):
-                df.write_csv(results_dir / path)
-
+            for mole, path in zip(mole_objects, self.molecules):
+                mole.to_file(results_dir / path)
         with open(results_dir / self.default_spline_config, mode="w") as f:
             js = gui.default_config.asdict()
             json.dump(js, f, indent=4, separators=(", ", ": "))
@@ -319,12 +319,12 @@ class CylindraProject(BaseProject):
         if isinstance(idx, str):
             for path in self.molecules:
                 if Path(path).stem == idx:
-                    return Molecules.from_csv(path)
+                    return Molecules.from_file(path)
             _names = [repr(Path(path).stem) for path in self.molecules]
             raise ValueError(
                 f"Cannot find molecule with name {idx}, available names are: {_names}."
             )
-        return Molecules.from_csv(self.molecules[idx])
+        return Molecules.from_file(self.molecules[idx])
 
     def load_tomogram(self) -> "CylTomogram":
         """Load the tomogram object of the project."""

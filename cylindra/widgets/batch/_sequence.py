@@ -43,7 +43,7 @@ class MoleculeWidget(MagicTemplate):
 
     def _get_molecules(self) -> Molecules:
         fp = Path(self.line.value)
-        mole = Molecules.from_csv(self.line.value)
+        mole = Molecules.from_file(self.line.value)
         return mole.with_features([pl.repeat(fp.stem, pl.count()).alias(Mole.id)])
 
 

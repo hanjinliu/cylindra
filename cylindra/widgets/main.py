@@ -518,26 +518,34 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Save project")
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+S")
-    def save_project(self, save_dir: Path.Save):
+    def save_project(
+        self,
+        save_dir: Path.Save,
+        molecules_ext: Literal[".csv", ".pq"] = ".csv",
+    ):
         """
         Save current project state and the results in a directory.
 
         The json file contains paths of images and results, parameters of splines,
-        scales and version. Local and global properties, molecule coordinates and
-        features will be exported as csv files. If results are saved at the default
-        directory, they will be written as relative paths in the project json file
-        so that moving root directory does not affect loading behavior.
+        scales and version. Local and global properties will be exported as csv files.
+        Molecule coordinates and features will be exported as the `molecules_ext`
+        format. If results are saved at the default directory, they will be
+        written as relative paths in the project json file so that moving root
+        directory does not affect the loading behavior.
 
         Parameters
         ----------
         save_dir : Path
             Path of json file.
+        molecules_ext : str, default is ".csv"
+            Extension of the molecule file. Can be ".csv" or ".pq".
         """
         save_dir = Path(save_dir)
         dir_posix = save_dir.as_posix()
         if save_dir.is_file():
             raise ValueError(f"You must specify a directory, but got {dir_posix}")
-        CylindraProject.save_gui(self, save_dir / "project.json", save_dir)
+        js_path = save_dir / "project.json"
+        CylindraProject.save_gui(self, js_path, save_dir, molecules_ext)
         _Logger.print(f"Project saved: {dir_posix}")
         self._need_save = False
         self._project_dir = save_dir
@@ -554,7 +562,12 @@ class CylindraMainWidget(MagicTemplate):
                 "No project is loaded. You can use `Save project` "
                 "(ui.save_project(...)) to save the current state."
             )
-        return self.save_project(self._project_dir)
+        project = CylindraProject.from_json(get_project_json(self._project_dir))
+        if project.molecules:
+            ext = {Path(path).suffix for path in project.molecules}.pop()
+        else:
+            ext = ".csv"
+        return self.save_project(self._project_dir, ext)
 
     @File.wraps
     @set_design(text="Load splines")
@@ -582,7 +595,7 @@ class CylindraMainWidget(MagicTemplate):
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
         for path in paths:
-            mole = Molecules.from_csv(path)
+            mole = Molecules.from_file(path)
             name = Path(path).stem
             add_molecules(self.parent_viewer, mole, name)
         return None

@@ -69,6 +69,7 @@ class CylindraBatchProject(BaseProject):
         gui: "CylindraBatchWidget",
         json_path: Path,
         results_dir: Union[Path, None] = None,
+        mole_ext: str = ".csv",
     ) -> "CylindraBatchProject":
         from datetime import datetime
 
@@ -96,7 +97,7 @@ class CylindraBatchProject(BaseProject):
             name = info.name
             loaders.append(
                 LoaderInfoModel(
-                    molecule=results_dir / f"Molecules-{name}.csv",
+                    molecule=results_dir / f"Molecules-{name}{mole_ext}",
                     name=name,
                     images=[
                         ImageInfo(
@@ -127,20 +128,21 @@ class CylindraBatchProject(BaseProject):
         gui: "CylindraBatchWidget",
         json_path: Path,
         results_dir: Union[Path, None] = None,
+        mole_ext: str = ".csv",
     ) -> None:
         if results_dir is None:
             results_dir = json_path.parent / (json_path.stem + "_results")
         else:
             results_dir = Path(results_dir)
 
-        self = cls.from_gui(gui, json_path, results_dir)
+        self = cls.from_gui(gui, json_path, results_dir, mole_ext)
 
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)  # create a directory if not exists.
 
         # save molecules
         for lmodel, info in zip(self.loaders, gui._loaders):
-            info.loader.molecules.to_csv(lmodel.molecule)
+            info.loader.molecules.to_file(lmodel.molecule)
 
         fp = results_dir / str(self.macro)
         fp.write_text(as_main_function(gui.macro))
@@ -155,7 +157,7 @@ class CylindraBatchProject(BaseProject):
 
         for lmodel in self.loaders:
             loader = BatchLoader(scale=lmodel.scale)
-            mole_dict = dict(Molecules.from_csv(lmodel.molecule).groupby(Mole.image))
+            mole_dict = dict(Molecules.from_file(lmodel.molecule).groupby(Mole.image))
             for imginfo in lmodel.images:
                 loader.add_tomogram(
                     image=ip.lazy.imread(imginfo.image, chunks=get_config().dask_chunk)

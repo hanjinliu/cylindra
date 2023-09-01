@@ -77,7 +77,7 @@ class CylindraBatchWidget(MagicTemplate):
                 _converter = lambda _: None
             for mole_path in path_info.molecules:
                 mole_path = Path(mole_path)
-                mole = Molecules.from_csv(mole_path)
+                mole = Molecules.from_file(mole_path)
                 spl = _converter(mole_path)
                 features = [pl.repeat(mole_path.stem, pl.count()).alias(Mole.id)]
                 if spl is not None:
