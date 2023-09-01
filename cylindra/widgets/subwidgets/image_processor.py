@@ -24,9 +24,6 @@ class ImageProcessor(MagicTemplate):
 
     Attributes
     ----------
-    max_gb: float
-        Maximum GB to load into memory. If the input image is larger than this value, the image
-        will be processed lazily. Use the half of total memory by default.
     input_image : Path
         Path to the input image file.
     suffix : str, optional
@@ -37,7 +34,6 @@ class ImageProcessor(MagicTemplate):
         Path where output image will be saved..
     """
 
-    max_gb = vfield(psutil.virtual_memory().total * 5e-10, label="Max GB")
     input_image = vfield(Path).with_options(filter=FileFilter.IMAGE)
     suffix = vfield(Optional[str]).with_options(value="-output", text="Do not autofill")
     output_image = vfield(Path).with_options(filter=FileFilter.IMAGE, mode="w")
@@ -147,8 +143,6 @@ class ImageProcessor(MagicTemplate):
         main._active_widgets.add(prev)
         return None
 
-    def _imread(self, path) -> ip.ImgArray | ip.LazyImgArray:
+    def _imread(self, path) -> ip.LazyImgArray:
         img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
-        if img.gb < self.max_gb:
-            img = img.compute()
         return img
