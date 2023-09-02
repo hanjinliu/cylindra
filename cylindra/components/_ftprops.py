@@ -155,9 +155,8 @@ class LatticeAnalyzer:
         nsamples: int = 8,
     ) -> LatticeParams:
         """Calculate the local lattice parameters from a Cartesian input."""
-        return self.polar_ft_params(
-            get_polar_image(img, coords, radius), radius, nsamples
-        )
+        pol = get_polar_image(img, coords, radius)
+        return self.polar_ft_params(pol, radius, nsamples)
 
     def get_yrange(self, img: ip.ImgArray) -> tuple[int, int]:
         """Get the range of y-axis in the polar image."""

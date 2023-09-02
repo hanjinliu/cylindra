@@ -56,7 +56,7 @@ class ImageLoader(MagicTemplate):
 
         scale_label = vfield("scale (nm)", widget_type="Label")
         scale_value = vfield(1.0).with_options(min=1e-3, step=1e-4, max=10.0)
-        read_header = abstractapi()
+        scan_header = abstractapi()
 
     @magicclass(layout="horizontal", labels=False)
     class tilt_range(MagicTemplate):

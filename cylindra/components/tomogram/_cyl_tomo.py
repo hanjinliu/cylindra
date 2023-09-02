@@ -3,6 +3,7 @@ import logging
 from typing import (
     Callable,
     Any,
+    Sequence,
     TypeVar,
     overload,
     Protocol,
@@ -750,9 +751,7 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
         spl = self.splines[i]
-
         radii = _prepare_radii(spl, radius)
-
         ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
@@ -761,7 +760,7 @@ class CylTomogram(Tomogram):
         analyzer = LatticeAnalyzer(spl.config)
         lazy_ft_params = delayed(analyzer.ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
-            rmin: float = _non_neg(r0 - spl.config.thickness_inner) / _scale
+            rmin = _non_neg(r0 - spl.config.thickness_inner) / _scale
             rmax = (r0 + spl.config.thickness_outer) / _scale
             rc = (rmin + rmax) / 2 * _scale
             coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
@@ -1439,7 +1438,7 @@ def dask_angle_corr(
 
 def _prepare_radii(
     spl: CylSpline, radius: nm | Literal["local", "global"]
-) -> NDArray[np.float32]:
+) -> Sequence[float]:
     if isinstance(radius, str):
         if radius == "global":
             if spl.radius is None:

@@ -108,13 +108,8 @@ class SplineSlicer(ChildWidget):
     @set_design(text="Refresh")
     def refresh_widget_state(self):
         """Refresh widget state."""
-        main = self._get_main()
-        tomo = main.tomogram
-        if tomo is None:
-            return None
         self._spline_changed(self.controller.spline_id)
-        self._update_canvas()
-        return None
+        return self._update_canvas()
 
     @set_design(text="Measure CFT")
     def measure_cft_here(self):
@@ -125,11 +120,11 @@ class SplineSlicer(ChildWidget):
         img = self.get_cylindric_image(
             idx, pos, depth=depth, binsize=binsize, radius=radius, order=3
         )
-        img = img - float(img.mean())
         tomo = self._get_main().tomogram
         spl = tomo.splines[idx]
         analyzer = LatticeAnalyzer(spl.config)
-        params = analyzer.polar_ft_params(img, radius)
+        rc = radius + (-spl.config.thickness_inner + spl.config.thickness_outer) / 2
+        params = analyzer.polar_ft_params(img, rc)
         spl_info = _col(f"spline ID = {idx}; position = {pos:.2f} nm", color="#003FFF")
         _Logger.print_html(
             f"{spl_info}<br>"
@@ -139,7 +134,7 @@ class SplineSlicer(ChildWidget):
             f"{_col('skew angle:')} {params.skew_angle:.3f} °<br>"
             f"{_col('skew tilt angle:')} {params.skew_tilt:.3f} °<br>"
             f"{_col('PF:')} {params.npf}<br>"
-            f"{_col('start:')} {params.start:.3f}"
+            f"{_col('start:')} {params.start}"
         )
 
     def _get_cropping_params(self) -> tuple[int, nm, nm]:
@@ -390,26 +385,18 @@ class SplineSlicer(ChildWidget):
         tomo = self._get_main().tomogram
         ylen = tomo.nm2pixel(depth, binsize=binsize)
         spl = tomo.splines[spline]
-
         r = radius or spl.radius
         if r is None:
             raise ValueError("Radius not available in the input spline.")
-        _scale = tomo.scale * binsize
+        img = tomo._get_multiscale_or_original(binsize)
+        _scale = img.scale.x
         rmin = max(r - spl.config.thickness_inner, 0) / _scale
         rmax = (r + spl.config.thickness_outer) / _scale
-
-        coords = spl.translate(
-            [-tomo.multiscale_translation(binsize)] * 3
-        ).local_cylindrical(
-            r_range=(rmin, rmax),
-            n_pixels=ylen,
-            u=pos / spl.length(),
-            scale=tomo.scale * binsize,
-        )
-        img = tomo._get_multiscale_or_original(binsize)
-        return get_polar_image(
-            img, coords, radius=(rmin + rmax) / 2 * _scale, order=order
-        )
+        rc = (rmin + rmax) / 2 * _scale
+        spl_trans = spl.translate([-tomo.multiscale_translation(binsize)] * 3)
+        anc = pos / spl.length()
+        coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
+        return get_polar_image(img, coords, radius=rc, order=order)
 
     @bind_key("Esc")
     def _close_this_window(self):
