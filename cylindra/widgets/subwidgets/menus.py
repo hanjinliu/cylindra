@@ -104,7 +104,7 @@ class File(ChildWidget):
         def load_stash_project(
             self,
             name: Annotated[str, {"choices": _get_stashed_names}],
-            filter: ImageFilter | None = ImageFilter.LoG,
+            filter: ImageFilter | None = ImageFilter.Lowpass,
         ):
             """
             Load a stashed project.
@@ -113,7 +113,7 @@ class File(ChildWidget):
             ----------
             name : str
                 Name of the stashed project.
-            filter : ImageFilter, default is ImageFilter.DoG
+            filter : ImageFilter, default is ImageFilter.Lowpass
                 Image filter to apply to the loaded images.
             """
             yield from self._get_main().load_project.arun(
@@ -125,7 +125,7 @@ class File(ChildWidget):
         def pop_stash_project(
             self,
             name: Annotated[str, {"choices": _get_stashed_names}],
-            filter: ImageFilter | None = ImageFilter.DoG,
+            filter: ImageFilter | None = ImageFilter.Lowpass,
         ):
             """
             Load a stashed project and delete it from the stash list.
@@ -134,7 +134,7 @@ class File(ChildWidget):
             ----------
             name : str
                 Name of the stashed project.
-            filter : ImageFilter, default is ImageFilter.DoG
+            filter : ImageFilter, default is ImageFilter.Lowpass
                 Image filter to apply to the loaded images.
             """
             self.load_stash_project(name, filter=filter)

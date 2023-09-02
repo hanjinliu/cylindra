@@ -180,31 +180,31 @@ class SplineSlicer(ChildWidget):
         _type = self.show_what
         idx = self.controller.spline_id
         if idx is None:
-            return self._show_overlay_text_cb("No spline exists.")
+            return self._show_overlay_text_cb.with_args("No spline exists.")
         depth = self.params.depth
         pos = self.controller.pos.value
         if _type == RPROJ:
             result = self._current_cylindrical_img(idx, pos, depth)
             if isinstance(result, Exception):
-                return self._show_overlay_text_cb(result)
+                return self._show_overlay_text_cb.with_args(result)
             yield
-            img = self.post_filter(result.proj("r")).value
+            img = self.post_filter(result.mean("r")).value
         elif _type == YPROJ:
-            result = self._current_cartesian_img(idx, pos, depth).proj("y")
+            result = self._current_cartesian_img(idx, pos, depth)
             if isinstance(result, Exception):
-                return self._show_overlay_text_cb(result)
+                return self._show_overlay_text_cb.with_args(result)
             yield
-            img = self.post_filter(result[ip.slicer.x[::-1]]).value
+            img = self.post_filter(result.mean("y")[ip.slicer.x[::-1]]).value
         elif _type == CFT:
             result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
             if isinstance(result, Exception):
-                return self._show_overlay_text_cb(result)
+                return self._show_overlay_text_cb.with_args(result)
             yield
-            pw = result.power_spectra(zero_norm=True, dims="rya").proj("r")
+            pw = result.power_spectra(zero_norm=True, dims="rya").mean("r")
             pw[:] = pw / pw.max()
             img = pw.value
         else:
-            raise RuntimeError
+            raise RuntimeError(_type)
 
         yield
 
@@ -264,7 +264,7 @@ class SplineSlicer(ChildWidget):
                 half_width=hwidth,
                 order=1,
             )
-        except ValueError as e:
+        except Exception as e:
             return e
 
     def _current_cylindrical_img(
@@ -281,7 +281,7 @@ class SplineSlicer(ChildWidget):
                 radius=self.radius,
                 order=1,
             )
-        except ValueError as e:
+        except Exception as e:
             return e
 
     def _get_radius(self) -> nm:
@@ -302,7 +302,7 @@ class SplineSlicer(ChildWidget):
         depth: nm = 32.0,
         binsize: int = 1,
         order: int = 3,
-        half_width: nm = None,
+        half_width: nm | None = None,
     ) -> ip.ImgArray:
         """
         Get XYZ-coordinated image along a spline.
@@ -333,10 +333,10 @@ class SplineSlicer(ChildWidget):
         tomo = self._get_main().tomogram
         spl = tomo.splines[spline]
         depth_px = tomo.nm2pixel(depth, binsize=binsize)
+        if half_width is None and spl.radius is None:
+            raise ValueError("Measure spline radius or manually set it.")
         r = half_width or spl.radius + spl.config.thickness_outer
         width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
-        if r is None:
-            raise ValueError("Measure spline radius or manually set it.")
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3
         ).local_cartesian(
@@ -360,7 +360,7 @@ class SplineSlicer(ChildWidget):
         depth: nm = 32.0,
         binsize: int = 1,
         order: int = 3,
-        radius: nm = None,
+        radius: nm | None = None,
     ) -> ip.ImgArray:
         """
         Get RYΘ-coordinated cylindric image.

@@ -414,7 +414,7 @@ class CylindraMainWidget(MagicTemplate):
         scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
         tilt_range: Annotated[Any, {"bind": _image_loader.tilt_range.range}] = None,
         bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
-        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.LoG,
+        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip
         """
@@ -467,7 +467,7 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(
         self,
         path: Path.Read[FileFilter.PROJECT],
-        filter: Union[ImageFilter, None] = ImageFilter.LoG,
+        filter: Union[ImageFilter, None] = ImageFilter.Lowpass,
         paint: bool = False,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
@@ -636,7 +636,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def filter_reference_image(
         self,
-        method: ImageFilter = ImageFilter.LoG,
+        method: ImageFilter = ImageFilter.Lowpass,
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)
@@ -2484,7 +2484,7 @@ class CylindraMainWidget(MagicTemplate):
         # backward compatibility
         if isinstance(filt, bool):
             if filt:
-                filt = ImageFilter.LoG
+                filt = ImageFilter.Lowpass
             else:
                 filt = None
         if filt is not None:
