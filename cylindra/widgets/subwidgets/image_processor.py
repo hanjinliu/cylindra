@@ -157,7 +157,7 @@ class ImageProcessor(ChildWidget):
     def preview(self, input: _InputPath):
         """Open a preview of the input image."""
         if "*" in str(input):
-            raise ValueError("Cannot preview multiple images.")
+            input = glob(str(input), recursive=True)
         prev = view_image(input, self)
         main = self._get_main()
         main._active_widgets.add(prev)
