@@ -246,7 +246,7 @@ class SplineControl(ChildWidget):
         self._projections = projections
         return None
 
-    @pos.connect_async(timeout=0.1)
+    @pos.connect_async(timeout=0.1, abort_limit=0.5)
     def _update_canvas(self):
         parent = self._get_main()
         tomo = parent.tomogram
@@ -284,11 +284,10 @@ class SplineControl(ChildWidget):
         lz, ly, lx = np.array(proj.shape)
 
         depths = list(spl.props.window_size.values())
-        depth0 = depths[0] if len(depths) > 0 else None
-        if depth0 is None:
+        if len(depths) == 0:
             ylen = 25 / binsize / tomo.scale
         else:
-            ylen = depth0 / 2 / binsize / tomo.scale
+            ylen = depths[0] / 2 / binsize / tomo.scale
 
         # innter/outer radius of the cylinder
         r_inner = max(r0 - spl.config.thickness_inner, 0) / tomo.scale / binsize

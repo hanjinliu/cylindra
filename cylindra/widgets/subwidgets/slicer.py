@@ -60,7 +60,7 @@ class SplineSlicer(ChildWidget):
             except Exception:
                 return []
 
-        depth = vfield(32.0, label="depth (nm)").with_options(min=1.0, max=200.0)
+        depth = vfield(32.64, label="depth (nm)").with_options(min=1.0, max=200.0)
         binsize = vfield(record=False).with_choices(_get_available_binsize)
 
     @magicclass(layout="horizontal")
@@ -162,9 +162,9 @@ class SplineSlicer(ChildWidget):
 
     @params.depth.connect_async(timeout=0.1)
     @radius.connect_async(timeout=0.1)
-    @controller.spline_id.connect_async(timeout=0.1)
-    @controller.pos.connect_async(timeout=0.1)
     @post_filter.connect_async(timeout=0.1)
+    @controller.spline_id.connect_async(timeout=0.1)
+    @controller.pos.connect_async(timeout=0.1, abort_limit=0.5)
     def _on_widget_state_changed(self):
         if self.visible:
             yield from self._update_canvas.arun()
@@ -294,7 +294,7 @@ class SplineSlicer(ChildWidget):
         spline: int,
         pos: nm,
         *,
-        depth: nm = 32.0,
+        depth: nm = 32.64,
         binsize: int = 1,
         order: int = 3,
         half_width: nm | None = None,
@@ -309,7 +309,7 @@ class SplineSlicer(ChildWidget):
         pos : nm
             Position of the center of the image. `pos` nm from the spline start
             point will be used.
-        depth : nm, default is 32.0
+        depth : nm, default is 32.64
             Depth of the output image. Depth corresponds to the length of the
             direction parallel to the spline vector at the given position.
         binsize : int, default is 1
@@ -352,7 +352,7 @@ class SplineSlicer(ChildWidget):
         spline: int,
         pos: nm,
         *,
-        depth: nm = 32.0,
+        depth: nm = 32.64,
         binsize: int = 1,
         order: int = 3,
         radius: nm | None = None,
@@ -367,7 +367,7 @@ class SplineSlicer(ChildWidget):
         pos : nm
             Position of the center of the image. `pos` nm from the spline start
             point will be used.
-        depth : nm, default is 32.0
+        depth : nm, default is 32.64
             Depth of the output image. Depth corresponds to the length of the
             direction parallel to the spline vector at the given position.
         binsize : int, default is 1
