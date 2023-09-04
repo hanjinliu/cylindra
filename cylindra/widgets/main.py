@@ -744,7 +744,6 @@ class CylindraMainWidget(MagicTemplate):
     def show_splines(self):
         """Show 3D spline paths of cylinder central axes as a layer."""
         paths = [r.partition(100) for r in self.tomogram.splines]
-
         layer = self.parent_viewer.add_shapes(
             paths,
             shape_type="path",

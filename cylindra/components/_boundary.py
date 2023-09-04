@@ -18,52 +18,63 @@ class CylindricParameters:
 
     @property
     def spacing(self) -> float:
+        """Longitudinal spacing in nm."""
         _r = self.rise_angle_rad
         _s = self.skew_tilt_angle_rad
         return self.pitch * m.cos(_r) / m.cos(_r - _s)
 
     @property
     def spacing_proj(self) -> float:
+        """The y-projection of the spacing."""
         return self.spacing * m.cos(self.skew_tilt_angle_rad)
 
     @property
     def lat_spacing(self) -> float:
+        """Lateral spacing in nm."""
         if self.tan_rise != 0:
             return self.rise_length / m.sin(self.rise_angle_rad)
         return self.perimeter / self.npf
 
     @property
     def lat_spacing_proj(self) -> float:
+        """The θ-projection of the lateral spacing."""
         if self.tan_rise != 0:
             return self.rise_length / self.tan_rise
         return self.perimeter / self.npf
 
     @property
     def perimeter(self) -> float:
+        """Perimeter of the cylinder in nm."""
         return 2 * m.pi * self.radius
 
     @property
     def tan_skew_tilt(self) -> float:
+        """Tangent of the skew tilt angle."""
         return m.tan(self.skew_tilt_angle_rad)
 
     @property
     def tan_rise(self) -> float:
+        """Tangent of the rise angle."""
         return m.tan(self.rise_angle_rad)
 
     @property
     def start(self) -> int:
+        """The start number."""
         return roundint(self.perimeter * self.tan_rise / self.pitch)
 
     @property
     def skew_angle(self) -> float:
+        """Skew angle in degrees."""
         return m.degrees(self.skew_angle_rad)
 
     @property
     def skew_tilt_angle_rad(self) -> float:
+        """Skew tilt angle in radians."""
         return m.radians(self.skew_tilt_angle)
 
     @property
     def skew_angle_rad(self) -> float:
+        """Skew angle in radians."""
         # == m.sin(self.skew_tilt_angle_rad) * 2 * self.spacing / self.radius
         if self.start != 0:
             tt = self.tan_rise * self.tan_skew_tilt
@@ -72,10 +83,12 @@ class CylindricParameters:
 
     @property
     def rise_angle_rad(self) -> float:
+        """Rise angle in radians."""
         return m.radians(self.rise_angle)
 
     @property
     def rise_length(self) -> float:
+        """Rise length in nm."""
         return (
             self.perimeter
             / self.npf

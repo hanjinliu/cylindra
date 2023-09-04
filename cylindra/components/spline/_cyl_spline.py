@@ -34,6 +34,15 @@ class CylSpline(Spline):
         self.props.update_glob([pl.Series(H.radius, [value], dtype=pl.Float32)])
         return None
 
+    def radius_range(self, rc: nm | None = None) -> tuple[nm, nm]:
+        """Return the range of the radius used for the cylindric coordinate."""
+        if rc is None:
+            if self.radius is None:
+                raise ValueError("Radius is not set.")
+            rc = self.radius
+        cfg = self.config
+        return (max(rc - cfg.thickness_inner, 0.0), rc + cfg.thickness_outer)
+
     @property
     def orientation(self) -> Ori:
         """Orientation of the spline."""
@@ -244,6 +253,7 @@ class CylSpline(Spline):
 
 def rise_to_start(rise: float, space: nm, skew: float, perimeter: nm) -> float:
     """Convert rise angle to start number."""
+    # TODO: remove this
     tan_rise = np.tan(rise)
     return perimeter / space / (np.tan(skew) * tan_rise + 1) * tan_rise
 

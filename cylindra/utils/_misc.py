@@ -130,7 +130,7 @@ def map_coordinates(
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
     prefilter: bool | None = None,
-) -> np.ndarray:
+) -> ip.ImgArray:
     """
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
@@ -157,6 +157,7 @@ def map_coordinates(
         mode=mode,
         prefilter=prefilter,
         cval=cval,
+        dims=img.axes,
     )
 
 

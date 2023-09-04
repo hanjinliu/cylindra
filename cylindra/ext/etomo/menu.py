@@ -12,7 +12,7 @@ from cylindra.widgets.widget_utils import add_molecules, FileFilter
 
 @magicmenu
 class PEET(MagicTemplate):
-    """PEET extension."""
+    """File IO for PEET software."""
 
     def read_monomers(
         self,
@@ -42,7 +42,9 @@ class PEET(MagicTemplate):
         if shift_mol:
             mol.translate(shifts * self.scale, copy=False)
 
-        add_molecules(self.parent_viewer, mol, "Molecules from PEET", source=None)
+        return add_molecules(
+            self.parent_viewer, mol, "Molecules from PEET", source=None
+        )
 
     def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
         """
@@ -57,8 +59,7 @@ class PEET(MagicTemplate):
         """
         save_dir = Path(save_dir)
         mol = layer.molecules
-        _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
-        return None
+        return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
     def save_all_monomers(self, save_dir: Path.Dir):
         """
@@ -74,10 +75,7 @@ class PEET(MagicTemplate):
         if len(layers) == 0:
             raise ValueError("No monomer found.")
         mol = Molecules.concat([l.molecules for l in layers])
-        _save_molecules(
-            save_dir=save_dir, mol=mol, scale=self.scale
-        )  # TODO: file name!
-        return None
+        return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
     def shift_monomers(
         self,
@@ -126,6 +124,7 @@ class PEET(MagicTemplate):
             layer.molecules = mol_shifted
         else:
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
+        return None
 
     def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
         try:

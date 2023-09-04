@@ -760,10 +760,10 @@ class CylTomogram(Tomogram):
         analyzer = LatticeAnalyzer(spl.config)
         lazy_ft_params = delayed(analyzer.ft_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
-            rmin = _non_neg(r0 - spl.config.thickness_inner) / _scale
-            rmax = (r0 + spl.config.thickness_outer) / _scale
-            rc = (rmin + rmax) / 2 * _scale
-            coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
+            rmin_nm, rmax_nm = spl.radius_range(r0)
+            r_range = rmin_nm / _scale, rmax_nm / _scale
+            rc = (rmin_nm + rmax_nm) / 2
+            coords = spl_trans.local_cylindrical(r_range, ylen, anc, scale=_scale)
             tasks.append(lazy_ft_params(input_img, coords, rc, nsamples=nsamples))
 
         lprops = pl.DataFrame(
@@ -813,8 +813,8 @@ class CylTomogram(Tomogram):
         ylen = self.nm2pixel(ft_size, binsize=binsize)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin = _non_neg(spl.radius - spl.config.thickness_inner) / _scale
-        rmax = (spl.radius + spl.config.thickness_outer) / _scale
+        rmin_nm, rmax_nm = spl.radius_range()
+        rmin, rmax = rmin_nm / _scale, rmax_nm / _scale
         out = list[ip.ImgArray]()
         if pos is None:
             anchors = spl.anchors
@@ -899,8 +899,7 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self.splines[i]
-        rmin = _non_neg(spl.radius - spl.config.thickness_inner)
-        rmax = spl.radius + spl.config.thickness_outer
+        rmin, rmax = spl.radius_range()
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
@@ -978,12 +977,13 @@ class CylTomogram(Tomogram):
         if spl.radius is None:
             r_range = 0.5, width_px / 2
         else:
-            r_range = (
-                self.nm2pixel(
-                    _non_neg(spl.radius - cfg.thickness_inner), binsize=binsize
-                ),
-                self.nm2pixel(spl.radius + cfg.thickness_outer, binsize=binsize),
-            )
+            r_range = tuple(self.nm2pixel(spl.radius_range(), binsize=binsize))
+            # r_range = (
+            #     self.nm2pixel(
+            #         _non_neg(spl.radius - cfg.thickness_inner), binsize=binsize
+            #     ),
+            #     self.nm2pixel(spl.radius + cfg.thickness_outer, binsize=binsize),
+            # )
         point = 0.5  # the sampling point
         coords = spl.local_cylindrical(r_range, depth_px, point, scale=current_scale)
         polar = get_polar_image(imgb, coords, spl.radius, order=1)
@@ -1170,22 +1170,21 @@ class CylTomogram(Tomogram):
                 input_img = filt_func(input_img)
             _scale = input_img.scale.x
             if radii is None:
-                rmin = _non_neg(spl.radius - spl.config.thickness_inner) / _scale
-                rmax = (spl.radius + spl.config.thickness_outer) / _scale
+                rmin, rmax = spl.radius_range()
             else:
-                rmin, rmax = np.asarray(radii) / _scale
+                rmin, rmax = radii
 
             if rmax <= rmin:
                 raise ValueError("radii[0] < radii[1] must be satisfied.")
             spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
             coords = spl_trans.cylindrical(
-                r_range=(rmin, rmax),
+                r_range=(rmin / _scale, rmax / _scale),
                 s_range=range_,
                 scale=_scale,
             )
 
             with set_gpu():
-                rc = (rmin + rmax) / 2 * _scale
+                rc = (rmin + rmax) / 2
                 transformed = get_polar_image(input_img, coords, radius=rc)
 
         return transformed
@@ -1475,14 +1474,6 @@ def _mask_missing_wedge(
     mask3d = tilt_model.create_mask(Rotation(quat), shape)
     mask = mask3d[:, 0, :]
     return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
-
-
-def _non_neg(rmin: nm, warns: bool = True) -> nm:
-    if rmin < 0:
-        if warns:
-            LOGGER.warning(f"Radius (={rmin} nm) is too small. Set to 0.0 nm.")
-        rmin = 0.0
-    return rmin
 
 
 def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -> float:

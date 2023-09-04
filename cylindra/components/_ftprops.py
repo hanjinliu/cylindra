@@ -6,11 +6,12 @@ import numpy as np
 from numpy.typing import NDArray
 import impy as ip
 import polars as pl
-from cylindra.const import nm, PropertyNames as H, Mode
+from cylindra.const import nm, PropertyNames as H
 from cylindra.components._peak import PeakDetector, PeakInfo
 from cylindra.components._boundary import CylindricParameters
 from cylindra.components.spline import SplineConfig
-from cylindra.utils import map_coordinates, ceilint, roundint, floorint
+from cylindra.utils import ceilint, roundint, floorint
+from cylindra.cyltransform import get_polar_image
 
 
 class LatticeParams(NamedTuple):
@@ -178,16 +179,3 @@ class LatticeAnalyzer:
         mask[ip.slicer.a[slice(*self.get_arange(polar))]] = True
         polar_ft[~mask] = 0.0
         return polar_ft.ifft(shift=False, dims="rya")
-
-
-def get_polar_image(
-    img: ip.ImgArray | ip.LazyImgArray,
-    coords: NDArray[np.float32],
-    radius: nm,
-    order: int = 3,
-):
-    """Convert the input image into a polar image."""
-    polar = map_coordinates(img, coords, order=order, mode=Mode.constant, cval=np.mean)
-    polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
-    a_scale = 2 * np.pi * radius / polar.shape.a
-    return polar.set_scale(r=img.scale.x, y=img.scale.x, a=a_scale, unit=img.scale_unit)

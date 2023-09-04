@@ -6,7 +6,6 @@ from typing import (
     Callable,
     Sequence,
     TypeVar,
-    TypedDict,
     TYPE_CHECKING,
     overload,
 )
@@ -25,6 +24,7 @@ import polars as pl
 from cylindra.utils import ceilint, interval_divmod, roundint
 from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
+from cylindra.cyltransform import polar_coords_2d
 from ._props import SplineProps
 from ._config import SplineConfig
 from ._types import TCKType, SplineInfo, SplineFitResult, PrepOutput
@@ -878,7 +878,7 @@ class Spline(BaseComponent):
         dy = ds_norm * grid
         y_ax_coords = (self.map(u) / scale).reshape(1, -1) + dy.T
         dslist = np.stack([ds] * n_pixels, axis=0)
-        map_ = _polar_coords_2d(*r_range)
+        map_ = polar_coords_2d(*r_range)
         map_slice = _stack_coords(map_)
         out = _rot_with_vector(map_slice, y_ax_coords, dslist)
         return np.moveaxis(out, -1, 0)
@@ -941,7 +941,7 @@ class Spline(BaseComponent):
             (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and
             dimensional axis.
         """
-        return self._get_coords(_polar_coords_2d, r_range, s_range, scale)
+        return self._get_coords(polar_coords_2d, r_range, s_range, scale)
 
     def cartesian_to_world(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
         """
@@ -1133,29 +1133,6 @@ def _rot_with_vector(
 
 
 @lru_cache(maxsize=12)
-def _polar_coords_2d(r_start: float, r_stop: float, center=None) -> NDArray[np.float32]:
-    n_angle = roundint((r_start + r_stop) * np.pi)
-    n_radius = roundint(r_stop - r_start)
-    r_, ang_ = np.indices((n_radius, n_angle))
-    r_ = r_ + (r_start + r_stop - n_radius + 1) / 2
-    # NOTE: r_.mean() is always (r_start + r_stop) / 2
-    output_coords = np.column_stack([r_.ravel(), ang_.ravel()])
-    if center is None:
-        center = [0, 0]
-    coords = _linear_polar_mapping(
-        np.array(output_coords),
-        k_angle=n_angle / 2 / np.pi,
-        k_radius=1,
-        center=center[::-1],
-    ).astype(np.float32)
-    coords = coords.reshape(n_radius, n_angle, 2)  # V, H, 2
-
-    # Here, the first coordinate should be theta=0, and theta moves anti-clockwise
-    coords[:] = np.flip(coords, axis=2)  # flip y, x
-    return coords
-
-
-@lru_cache(maxsize=12)
 def _cartesian_coords_2d(lenv: int, lenh: int):
     v, h = np.indices((lenv, lenh), dtype=np.float32)
     v -= lenv / 2 - 0.5
@@ -1175,11 +1152,3 @@ def _stack_coords(coords: NDArray[_T]) -> NDArray[_T]:  # V, H, D
         axis=2,
     )  # V, S, H, D
     return stacked
-
-
-def _linear_polar_mapping(output_coords, k_angle, k_radius, center):
-    angle = output_coords[:, 1] / k_angle
-    rr = ((output_coords[:, 0] / k_radius) * np.sin(angle)) + center[0]
-    cc = ((output_coords[:, 0] / k_radius) * np.cos(angle)) + center[1]
-    coords = np.column_stack((cc, rr))
-    return coords
