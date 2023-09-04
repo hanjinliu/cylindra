@@ -9,7 +9,7 @@ from magicclass.ext.vispy import Vispy3DCanvas, VispyImageCanvas
 from cylindra.const import PropertyNames as H, nm, Mode
 from cylindra.utils import map_coordinates
 from cylindra.components import CylSpline
-from cylindra.components._ftprops import get_polar_image
+from cylindra.cyltransform import CylindricTransformer
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -32,7 +32,15 @@ class FilamentFilter(ChildWidget):
 
     def _filter_cylindric(self):
         cp = self._spl.cylinder_params()
-        self._img_straight
+        shape = self._img_straight.shape
+        size_y = shape.y * self._img_straight.scale.y
+        size_a = shape.a * self._img_straight.scale.a
+        vy = cp.pitch / size_y
+        vx = cp.pitch / cp.tan_rise / size_y
+        hx = cp.lat_spacing_proj / size_a
+        hy = cp.lat_spacing_proj * cp.tan_skew_tilt / size_a
+        v = np.array([vy, vx])
+        h = np.array([hy, hx])
 
     def _straight_spline(self) -> CylSpline:
         shape = self._img_straight.shape
@@ -50,4 +58,3 @@ class FilamentFilter(ChildWidget):
         rmin, rmax = rmin_nm / scale, rmax_nm / scale
         coords = self._straight_spline().cylindrical((rmin, rmax), scale=scale)
         rc = (rmin_nm + rmax_nm) / 2
-        polar = get_polar_image(self._img_straight, coords, rc)
