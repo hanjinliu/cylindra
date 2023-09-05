@@ -47,16 +47,46 @@ class LatticeAnalyzer:
     def __init__(self, config: SplineConfig):
         self._cfg = config
 
-    def polar_ft_params(
+    @property
+    def config(self) -> SplineConfig:
+        return self._cfg
+
+    def estimate_lattice_params(
+        self,
+        img: ip.ImgArray | ip.LazyImgArray,
+        coords: NDArray[np.float32],
+        radius: nm,
+        nsamples: int = 8,
+    ) -> LatticeParams:
+        """Estimate lattice parameters from a Cartesian input."""
+        pol = get_polar_image(img, coords, radius)
+        return self.estimate_lattice_params_polar(pol, radius, nsamples)
+
+    def estimate_lattice_params_polar(
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8
     ) -> LatticeParams:
-        """Detect the peak position and calculate the local lattice parameters."""
+        """Estimate lattice parameters from a cylindric input."""
+        cparams = self.estimate_params_polar(img, radius, nsamples)
+        return LatticeParams(
+            rise_angle=cparams.rise_angle,
+            rise_length=cparams.rise_length,
+            spacing=cparams.spacing,
+            skew_tilt=cparams.skew_tilt_angle,
+            skew_angle=cparams.skew_angle,
+            npf=cparams.npf,
+            start=cparams.start,
+        )
+
+    def estimate_params_polar(
+        self, img: ip.ImgArray, radius: nm, nsamples: int = 8
+    ) -> CylindricParameters:
+        """Estimate cylindric parameter object from a cylindric input."""
         img = img - float(img.mean())  # normalize.
         peak_det = PeakDetector(img, nsamples=nsamples)
         peakh = self.get_peak_h(peak_det, img, radius)
         peakv = self.get_peak_v(peak_det, img, peakh.a)
 
-        return self.get_lattice_params(img, peakh, peakv, radius)
+        return self.get_params(img, peakh, peakv, radius)
 
     def get_peak_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
         # y-axis
@@ -119,9 +149,13 @@ class LatticeAnalyzer:
             up_a=40,
         )
 
-    def get_lattice_params(
-        self, img: ip.ImgArray, peakh: PeakInfo, peakv: PeakInfo, radius: nm
-    ):
+    def get_params(
+        self,
+        img: ip.ImgArray,
+        peakh: PeakInfo,
+        peakv: PeakInfo,
+        radius: nm,
+    ) -> CylindricParameters:
         npf_f = peakh.a
         npf = roundint(npf_f)
         ya_scale_ratio = img.scale.y / img.scale.a
@@ -131,13 +165,18 @@ class LatticeAnalyzer:
 
         # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
         # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
-        cparams = CylindricParameters(
+        return CylindricParameters(
             skew_tilt_angle=math.degrees(math.atan(tan_skew_tilt)),  # f(r)
             rise_angle=math.degrees(math.atan(tan_rise)),  # f(r)
             pitch=img.scale.y / peakv.yfreq,
             radius=radius,
             npf=npf,
         )
+
+    def get_lattice_params(
+        self, img: ip.ImgArray, peakh: PeakInfo, peakv: PeakInfo, radius: nm
+    ):
+        cparams = self.get_params(img, peakh, peakv, radius)
         return LatticeParams(
             rise_angle=cparams.rise_angle,
             rise_length=cparams.rise_length,
@@ -147,17 +186,6 @@ class LatticeAnalyzer:
             npf=cparams.npf,
             start=cparams.start,
         )
-
-    def ft_params(
-        self,
-        img: ip.ImgArray | ip.LazyImgArray,
-        coords: NDArray[np.float32],
-        radius: nm,
-        nsamples: int = 8,
-    ) -> LatticeParams:
-        """Calculate the local lattice parameters from a Cartesian input."""
-        pol = get_polar_image(img, coords, radius)
-        return self.polar_ft_params(pol, radius, nsamples)
 
     def get_yrange(self, img: ip.ImgArray) -> tuple[int, int]:
         """Get the range of y-axis in the polar image."""

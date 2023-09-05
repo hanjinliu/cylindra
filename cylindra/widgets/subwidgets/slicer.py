@@ -12,15 +12,19 @@ from magicclass.logging import getLogger
 from magicclass.types import Optional, OneOf
 from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
+import numpy as np
+from numpy.typing import NDArray
 import impy as ip
 
 from cylindra.utils import map_coordinates
 from cylindra.const import nm
-from cylindra.components._ftprops import LatticeAnalyzer, get_polar_image
+from cylindra.components._ftprops import LatticeAnalyzer
+from cylindra.cyltransform import get_polar_image
 from ._child_widget import ChildWidget
 
 YPROJ = "Y-projection"
 RPROJ = "R-projection"
+RPROJ_FILT = "Filtered-R-projection"
 CFT = "CFT"
 
 POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
@@ -34,7 +38,10 @@ _Logger = getLogger("cylindra")
 
 @magicclass(record=False)
 class SplineSlicer(ChildWidget):
-    show_what = vfield(label="kind").with_choices([YPROJ, RPROJ, CFT])
+    show_what = vfield(label="kind").with_choices([YPROJ, RPROJ, RPROJ_FILT, CFT])
+
+    def __init__(self):
+        self._current_cparams = None
 
     @magicclass(layout="horizontal")
     class params(ChildWidget):
@@ -97,13 +104,16 @@ class SplineSlicer(ChildWidget):
         spline_id = vfield(label="Spline").with_choices(_get_spline_id)
         pos = field(nm, label="Position (nm)", widget_type="FloatSlider").with_options(max=0)  # fmt: skip
 
-        @bind_key("Up")
-        def _next_pos(self):
-            self.pos.value = min(self.pos.value + 1, self.pos.max)
+    @bind_key("Up")
+    def _next_pos(self):
+        c = self.controller
+        depth = self.params.depth
+        c.pos.value = min(c.pos.value + depth, c.pos.max)
 
-        @bind_key("Down")
-        def _prev_pos(self):
-            self.pos.value = max(self.pos.value - 1, self.pos.min)
+    @bind_key("Down")
+    def _prev_pos(self):
+        c = self.controller
+        c.pos.value = max(c.pos.value - 1, c.pos.min)
 
     @set_design(text="Refresh")
     def refresh_widget_state(self):
@@ -124,7 +134,7 @@ class SplineSlicer(ChildWidget):
         spl = tomo.splines[idx]
         analyzer = LatticeAnalyzer(spl.config)
         rc = radius + (-spl.config.thickness_inner + spl.config.thickness_outer) / 2
-        params = analyzer.polar_ft_params(img, rc)
+        params = analyzer.estimate_lattice_params_polar(img, rc)
         spl_info = _col(f"spline ID = {idx}; position = {pos:.2f} nm", color="#003FFF")
         _Logger.print_html(
             f"{spl_info}<br>"
@@ -152,6 +162,11 @@ class SplineSlicer(ChildWidget):
             self.controller.pos.max = max(spl.length(), 0)
         except Exception:
             pass
+        else:
+            try:
+                self._current_cparams = spl.cylinder_params()
+            except Exception:
+                pass
 
     @show_what.connect_async(timeout=0.1)
     @params.binsize.connect_async(timeout=0.1)
@@ -183,21 +198,41 @@ class SplineSlicer(ChildWidget):
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            img = self.post_filter(result.mean("r")).value
+            img2d = result.proj("r")
+            yield
+            img = self.post_filter(img2d).value
         elif _type == YPROJ:
             result = self._current_cartesian_img(idx, pos, depth)
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            img = self.post_filter(result.mean("y")[ip.slicer.x[::-1]]).value
+            img2d = result.proj("y")[ip.slicer.x[::-1]]
+            yield
+            img = self.post_filter(img2d).value
         elif _type == CFT:
             result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            pw = result.power_spectra(zero_norm=True, dims="rya").mean("r")
+            pw = result.power_spectra(zero_norm=True, dims="rya").proj("r")
+            yield
             pw[:] = pw / pw.max()
             img = pw.value
+        elif _type == RPROJ_FILT:
+            result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
+            if isinstance(result, Exception):
+                return self._show_overlay_text_cb.with_args(result)
+            yield
+            ft = result.fft(shift=False, dims="rya")
+            yield
+            peaks = self._infer_peak_positions(ft)
+            if isinstance(peaks, Exception):
+                return self._show_overlay_text_cb.with_args(peaks)
+            yield
+            mask = _create_mask(ft.shape[1:], peaks)
+            yield
+            ft0 = ft[0] * mask
+            img = ft0.ifft(shift=False, dims=ft0.axes).value
         else:
             raise RuntimeError(_type)
 
@@ -390,18 +425,83 @@ class SplineSlicer(ChildWidget):
             raise ValueError("Radius not available in the input spline.")
         img = tomo._get_multiscale_or_original(binsize)
         _scale = img.scale.x
-        rmin = max(r - spl.config.thickness_inner, 0) / _scale
-        rmax = (r + spl.config.thickness_outer) / _scale
-        rc = (rmin + rmax) / 2 * _scale
+        rmin, rmax = spl.radius_range()
         spl_trans = spl.translate([-tomo.multiscale_translation(binsize)] * 3)
         anc = pos / spl.length()
-        coords = spl_trans.local_cylindrical((rmin, rmax), ylen, anc, scale=_scale)
-        return get_polar_image(img, coords, radius=rc, order=order)
+        coords = spl_trans.local_cylindrical(
+            (rmin / _scale, rmax / _scale), ylen, anc, scale=_scale
+        )
+        return get_polar_image(img, coords, radius=(rmin + rmax) / 2, order=order)
 
     @bind_key("Esc")
     def _close_this_window(self):
         return self.close()
 
+    def _infer_peak_positions(
+        self,
+        img_cyl: ip.ImgArray,
+        vsub: int = 2,
+        hsub: int = 1,
+        max_order: int = 1,
+    ) -> "list[tuple[float, float]] | ValueError":
+        cp = self._current_cparams
+        if cp is None:
+            return ValueError("No spline parameter can be used.")
+        idx = self.controller.spline_id
+        if idx is None:
+            return ValueError("No spline exists.")
+        spl = self._get_main().tomogram.splines[idx]
+        ya_ratio = img_cyl.scale.y / img_cyl.scale.a
+        vy = img_cyl.scale.y / cp.pitch
+        vx = spl.config.rise_sign * vy * cp.tan_rise / ya_ratio
+        hx = img_cyl.scale.a / cp.lat_spacing_proj
+        hy = hx * cp.tan_skew_tilt / ya_ratio
+        v = np.array([vy, vx]) / vsub
+        h = np.array([hy, hx]) / hsub
+        v0, h0 = max_order * vsub, max_order * hsub
+        vmesh, hmesh = np.meshgrid(range(-v0, v0 + 1), range(-h0, h0 + 1))
+        pos_all = vmesh.reshape(-1, 1) * v + hmesh.reshape(-1, 1) * h
+        posv = pos_all[:, 0]
+        posh = pos_all[:, 1]
+        pos_valid = (
+            (-0.5 <= posv)
+            & (posv <= 0.5)
+            & (-0.5 <= posh)
+            & (posh <= 0.5)
+            & (posv**2 + posh**2 > 0)
+        )
+        pos = pos_all[pos_valid]
+        ny = img_cyl.shape.y
+        na = img_cyl.shape.a
+        return [(p[0] * ny, p[1] * na) for p in pos]
+
 
 def _col(txt: str, color: str = "#FFFF00") -> str:
     return f'<b><font color="{color}">{txt}</font></b>'
+
+
+def _create_mask(
+    shape: tuple[int, int],
+    positions: list[tuple[float, float]],
+    sigma: float = 1.0,
+) -> NDArray[np.float32]:
+    placeholder = np.zeros(shape, dtype=np.float32)
+    for each in positions:
+        placeholder += _gaussian_2d(shape, each, sigma=sigma)
+    return placeholder
+
+
+def _gaussian_2d(
+    shape: tuple[int, int],
+    center: tuple[float, float],
+    sigma: float = 1.0,
+) -> NDArray[np.float32]:
+    y, a = np.indices(shape, dtype=np.float32)
+    ny, na = shape
+    yc, ac = center
+    yc = yc + ny // 2
+    ac = ac + na // 2
+    y -= yc
+    a -= ac
+    arr = np.exp(-0.5 * (y**2 + a**2) / sigma**2)
+    return np.fft.ifftshift(arr)

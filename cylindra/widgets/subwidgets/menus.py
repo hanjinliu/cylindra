@@ -344,9 +344,6 @@ class Splines(ChildWidget):
         def _get_saved_config_files(self, w=None) -> list[str]:
             return [path.stem for path in _config.get_config().list_config_paths()]
 
-        def _get_splines(self, w=None) -> list[tuple[str, int]]:
-            return self._get_main()._get_splines()
-
         @set_design(text="Update default config")
         @bind_key("Ctrl+K, Ctrl+[")
         def update_default_config(
@@ -357,8 +354,8 @@ class Splines(ChildWidget):
             rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
             rise_sign: Literal[-1, 1] = -1,
             clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
-            thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.0,
-            thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 3.0,
+            thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
+            thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
             fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
             fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
         ):  # fmt: skip
@@ -390,7 +387,7 @@ class Splines(ChildWidget):
             """
             loc = locals()
             del loc["self"]
-            self._get_main().default_config = SplineConfig(**loc)
+            self._get_main().default_config = SplineConfig().updated(**loc)
             return None
 
         sep0 = field(Separator)

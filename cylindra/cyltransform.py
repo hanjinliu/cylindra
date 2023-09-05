@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
+from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
@@ -11,6 +12,10 @@ class CylindricTransformer:
     def __init__(self, r_range: tuple[nm, nm]):
         self._rmin, self._rmax = r_range
         self._input_shape: tuple[int, int, int] | None = None
+
+    @property
+    def rrange(self) -> tuple[nm, nm]:
+        return self._rmin, self._rmax
 
     @property
     def rcenter(self) -> nm:
@@ -29,11 +34,7 @@ class CylindricTransformer:
         )  # R, A, D(Z, X)
         zeros = np.zeros(coords.shape[:-1], dtype=np.float32)
         coords_3d = np.stack(
-            [
-                coords[..., 0],
-                zeros,
-                coords[..., 1],
-            ],
+            [coords[..., 0], zeros, coords[..., 1]],
             axis=2,
         )  # V, S, H, D
         stacked = np.repeat(coords_3d[:, np.newaxis], ny, axis=1)
@@ -56,13 +57,19 @@ class CylindricTransformer:
         aa[aa < -0.5] += polar.shape.a
         return np.stack([rr, yy, aa], axis=0)
 
-    def inverse_transform(self, img: ip.ImgArray, cval=np.mean) -> ip.ImgArray:
+    def inverse_transform(
+        self,
+        img: ip.ImgArray,
+        shape: tuple[int, int, int] | None = None,
+        cval: float | Callable[[ip.ImgArray], float] = np.min,
+    ) -> ip.ImgArray:
         # img.axes == "rya"
         if img.axes != ["r", "y", "a"]:
             raise ValueError("Input image must have axes 'r', 'y', 'a'.")
-        shape = self._input_shape
         if shape is None:
-            raise RuntimeError("Input shape is not set.")
+            if self._input_shape is None:
+                raise RuntimeError("Input shape is not set.")
+            shape = self._input_shape
         coords = self._get_inv_transform_coords(img, shape)
         apad = 8
         img_input = img.pad(apad, mode="wrap", dims="a")

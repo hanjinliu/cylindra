@@ -171,6 +171,8 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for subtomogram analysis
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
 
+    # filament_transformer = field(subwidgets.FilamentTransformer, name="_Filament Transformer")
+
     @property
     def batch(self) -> "CylindraBatchWidget":
         """Return the batch analyzer."""
@@ -266,8 +268,6 @@ class CylindraMainWidget(MagicTemplate):
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
         tomo = self.tomogram
-        if tomo is None:
-            return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
     def _get_spline_coordinates(self, coords=None) -> np.ndarray:

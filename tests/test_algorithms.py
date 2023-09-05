@@ -102,8 +102,8 @@ def test_chunked_straightening():
 
     spl = tomo.splines[0]
     analyzer = LatticeAnalyzer(spl.config)
-    prop0 = analyzer.polar_ft_params(st0, spl.radius)
-    prop1 = analyzer.polar_ft_params(st1, spl.radius)
+    prop0 = analyzer.estimate_lattice_params_polar(st0, spl.radius)
+    prop1 = analyzer.estimate_lattice_params_polar(st1, spl.radius)
 
     assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
     assert prop0.skew_angle == pytest.approx(prop1.skew_angle, abs=1e-6)

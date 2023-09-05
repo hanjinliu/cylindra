@@ -758,7 +758,7 @@ class CylTomogram(Tomogram):
         tasks = []
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         analyzer = LatticeAnalyzer(spl.config)
-        lazy_ft_params = delayed(analyzer.ft_params)
+        lazy_ft_params = delayed(analyzer.estimate_lattice_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
             rmin_nm, rmax_nm = spl.radius_range(r0)
             r_range = rmin_nm / _scale, rmax_nm / _scale
@@ -903,7 +903,9 @@ class CylTomogram(Tomogram):
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
-        out = analyzer.polar_ft_params(img_st, rc, nsamples=nsamples).to_polars()
+        out = analyzer.estimate_lattice_params_polar(
+            img_st, rc, nsamples=nsamples
+        ).to_polars()
         if update:
             spl.globalprops = spl.globalprops.with_columns(out)
         return out
