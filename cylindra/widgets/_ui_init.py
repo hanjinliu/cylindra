@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
-from magicgui.widgets import FunctionGui
+from magicgui.widgets import FunctionGui, PushButton
 from magicclass.widgets import ConsoleTextEdit
 from magicclass import setup_function_gui, impl_preview
 
@@ -350,6 +350,24 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
             gui.limits[0].value = val
 
     return None
+
+
+@setup_function_gui(CylindraMainWidget.copy_spline_new_config)
+def _(self: CylindraMainWidget, gui: FunctionGui):
+    btn = PushButton(
+        text="Scan spline config",
+        tooltip="Scan current spline config and update the parameters.",
+    )
+
+    @btn.clicked.connect
+    def _scan_config(_=None):
+        idx: int = gui.i.value
+        if idx is None:
+            return
+        spl = self.splines[idx]
+        gui.update(spl.config.asdict())
+
+    gui.insert(-1, btn)
 
 
 @setup_function_gui(CylindraMainWidget.split_molecules)

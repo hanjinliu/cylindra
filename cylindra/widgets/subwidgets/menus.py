@@ -310,6 +310,7 @@ class Splines(ChildWidget):
 
     delete_spline = abstractapi()
     copy_spline = abstractapi()
+    copy_spline_new_config = abstractapi()
     sep1 = field(Separator)
     fit_splines = abstractapi()
 

@@ -970,6 +970,41 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(self.delete_spline).with_args(-1)
 
     @Splines.wraps
+    @set_design(text="Copy spline (new config)")
+    def copy_spline_new_config(
+        self,
+        i: Annotated[int, {"bind": SplineControl.num}],
+        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (
+            11,
+            17,
+        ),
+        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (
+            3.9,
+            4.3,
+        ),
+        skew_range: Annotated[
+            tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}
+        ] = (-1.0, 1.0),
+        rise_range: Annotated[
+            tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}
+        ] = (0.0, 45.0),
+        rise_sign: Literal[-1, 1] = -1,
+        clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
+        thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
+        thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
+        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
+        fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
+    ):
+        """Make a copy of the current spline with a new configuration."""
+        config = locals()
+        del config["i"], config["self"]
+        spl = self.tomogram.splines[i]
+        self.tomogram.splines.append(spl.with_config(config))
+        self.reset_choices()
+        self.SplineControl.num = len(self.tomogram.splines) - 1
+        return undo_callback(self.delete_spline).with_args(-1)
+
+    @Splines.wraps
     @set_design(text="Fit splines")
     @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
     def fit_splines(
