@@ -685,7 +685,7 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        temp_norm = utils.normalize_image(template, outlier=[0, 0.05])
+        temp_norm = utils.normalize_image(template)
 
         _scale = parent.tomogram.scale * bin_size
 

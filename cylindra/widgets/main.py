@@ -49,7 +49,7 @@ from cylindra.const import (
 )
 from cylindra._custom_layers import MoleculesLayer
 from cylindra.types import get_monomer_layers
-from cylindra.project import CylindraProject, get_project_json, extract
+from cylindra.project import CylindraProject, get_project_file, extract
 
 from cylindra.widgets import _shared_doc, subwidgets, widget_utils
 from cylindra.widgets.sta import SubtomogramAveraging
@@ -478,8 +478,8 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         path : path-like or CylindraProject
-            Path to the project json file, or the project directory that contains
-            "project.json", or a CylindraProject object.
+            Path to the project file, or the project directory that contains a project
+            file, or a CylindraProject object.
         {filter}
         paint : bool, default is False
             Whether to paint cylinder properties if available.
@@ -495,7 +495,7 @@ class CylindraMainWidget(MagicTemplate):
             project = path
             project_path = project.project_path
         else:
-            project_path = get_project_json(path)
+            project_path = get_project_file(path)
             project = CylindraProject.from_json(project_path)
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
@@ -562,7 +562,7 @@ class CylindraMainWidget(MagicTemplate):
                 "No project is loaded. You can use `Save project` "
                 "(ui.save_project(...)) to save the current state."
             )
-        project = CylindraProject.from_json(get_project_json(self._project_dir))
+        project = CylindraProject.from_json(get_project_file(self._project_dir))
         if project.molecules:
             ext = {Path(path).suffix for path in project.molecules}.pop()
         else:
@@ -974,27 +974,17 @@ class CylindraMainWidget(MagicTemplate):
     def copy_spline_new_config(
         self,
         i: Annotated[int, {"bind": SplineControl.num}],
-        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (
-            11,
-            17,
-        ),
-        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (
-            3.9,
-            4.3,
-        ),
-        skew_range: Annotated[
-            tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}
-        ] = (-1.0, 1.0),
-        rise_range: Annotated[
-            tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}
-        ] = (0.0, 45.0),
+        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
+        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
+        skew_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+        rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
         fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
-    ):
+    ):  # fmt: skip
         """Make a copy of the current spline with a new configuration."""
         config = locals()
         del config["i"], config["self"]
@@ -1511,7 +1501,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_reanalysis_macro(self, path: Path):
         """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
-        project = CylindraProject.from_json(get_project_json(path))
+        project = CylindraProject.from_json(get_project_file(path))
         macro_path = Path(project.macro)
         macro_expr = extract(macro_path.read_text())
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)

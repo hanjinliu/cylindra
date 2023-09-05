@@ -23,7 +23,7 @@ from acryo import BatchLoader, Molecules, SubtomogramLoader
 import impy as ip
 import polars as pl
 
-from cylindra.project import CylindraProject, get_project_json
+from cylindra.project import CylindraProject, get_project_file
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter
@@ -460,7 +460,7 @@ class ProjectSequenceEdit(MagicTemplate):
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
-            wdt = self.projects._add(get_project_json(path))
+            wdt = self.projects._add(get_project_file(path))
             self.scale.value = wdt.project.scale
         self.reset_choices()
         return None

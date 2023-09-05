@@ -192,10 +192,10 @@ def plot_projections(merge: np.ndarray):
         merge = np.clip(merge, 0, 255)
     else:
         raise RuntimeError("dtype not supported.")
-    axes[0].imshow(np.mean(merge, axis=0))
+    axes[0].imshow(np.max(merge, axis=0))
     axes[0].set_xlabel("X")
     axes[0].set_ylabel("Y")
-    axes[1].imshow(np.mean(merge, axis=1))
+    axes[1].imshow(np.max(merge, axis=1))
     axes[1].set_xlabel("X")
     axes[1].set_ylabel("Z")
     plt.tight_layout()

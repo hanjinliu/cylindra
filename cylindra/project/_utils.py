@@ -35,8 +35,8 @@ def extract(text: str) -> Expr:
     return macro_expr
 
 
-def get_project_json(path: str | Path):
-    """Return the path to the project.json file."""
+def get_project_file(path: str | Path):
+    """Return the path to the project file."""
     path = Path(path)
     if path.is_dir():
         path = path / "project.json"

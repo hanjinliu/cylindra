@@ -44,6 +44,7 @@ class FileIterator(ChildWidget):
         self._files = list(
             Path(p).as_posix() for p in glob(self.pattern, recursive=True)
         )
+        self._files.sort()
         if len(self._files) == 0:
             self.path = "No files found"
         self._update_index(0)

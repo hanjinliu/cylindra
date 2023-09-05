@@ -134,10 +134,10 @@ def instance(create: bool = False) -> CylindraMainWidget | None:
 
 def view_project(project_file: PathLike, run: bool = False):
     """View the Cylindra project file."""
-    from cylindra.project import CylindraProject, get_project_json
+    from cylindra.project import CylindraProject, get_project_file
 
     widget = CylindraProject.from_json(
-        get_project_json(project_file)
+        get_project_file(project_file)
     ).make_project_viewer()
     widget.show(run=run)
     _ACTIVE_WIDGETS.add(widget)
@@ -146,9 +146,9 @@ def view_project(project_file: PathLike, run: bool = False):
 
 def read_project(file: PathLike) -> CylindraProject:
     """Read the Cylindra project file."""
-    from cylindra.project import CylindraProject, get_project_json
+    from cylindra.project import CylindraProject, get_project_file
 
-    return CylindraProject.from_json(get_project_json(file))
+    return CylindraProject.from_json(get_project_file(file))
 
 
 def read_molecules(
@@ -213,15 +213,15 @@ def collect_projects(
     files : path-like or iterable of path-like
         Project file paths or a glob pattern.
     """
-    from cylindra.project import ProjectSequence, get_project_json
+    from cylindra.project import ProjectSequence, get_project_file
 
     if isinstance(files, (str, Path)):
         if "*" in str(files):
             files = glob.glob(str(files))
         else:
-            files = [get_project_json(files)]
+            files = [get_project_file(files)]
     if hasattr(files, "__iter__"):
-        files = [get_project_json(f) for f in files]
+        files = [get_project_file(f) for f in files]
     else:
         raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
     if len(files) == 0:

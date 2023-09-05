@@ -20,7 +20,7 @@ from cylindra.const import (
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import FileFilter, POLARS_NAMESPACE
-from cylindra.project import CylindraProject, CylindraBatchProject, get_project_json
+from cylindra.project import CylindraProject, CylindraBatchProject, get_project_file
 from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit
@@ -142,7 +142,7 @@ class CylindraBatchWidget(MagicTemplate):
             Path to the JSON file.
         """
         self._loaders.clear()
-        return CylindraBatchProject.from_json(get_project_json(path)).to_gui(self)
+        return CylindraBatchProject.from_json(get_project_file(path)).to_gui(self)
 
     @constructor.File.wraps
     @set_design(text="Save as batch analysis project")

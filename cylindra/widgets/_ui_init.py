@@ -13,7 +13,7 @@ import numpy as np
 from napari.utils.colormaps import label_colormap
 
 from cylindra.const import PropertyNames as H, PREVIEW_LAYER_NAME
-from cylindra.project import CylindraProject, get_project_json
+from cylindra.project import CylindraProject, get_project_file
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
@@ -37,7 +37,7 @@ def _(self: CylindraMainWidget, paths: list[str]):
 
 @impl_preview(CylindraMainWidget.load_project)
 def _(self: CylindraMainWidget, path: str):
-    pviewer = CylindraProject.from_json(get_project_json(path)).make_project_viewer()
+    pviewer = CylindraProject.from_json(get_project_file(path)).make_project_viewer()
     pviewer.native.setParent(self.native, pviewer.native.windowFlags())
     self._active_widgets.add(pviewer)
     return pviewer.show()
