@@ -633,11 +633,11 @@ class CylTomogram(Tomogram):
 
         input_img = self._get_multiscale_or_original(binsize)
 
-        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
-        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
+        depth = spl.config.fit_depth
         _scale = input_img.scale.x
         min_radius_px = min_radius / _scale
-        max_radius_px = width_px / 2
+        max_radius = spl.config.fit_width / 2
+        max_radius_px = max_radius / _scale
         thick_inner_px = spl.config.thickness_inner / _scale
         thick_outer_px = spl.config.thickness_outer / _scale
 
@@ -645,7 +645,7 @@ class CylTomogram(Tomogram):
         profs = list[float]()
         for anc in pos:
             coords = spl_trans.local_cylindrical(
-                (min_radius_px, max_radius_px), depth_px, anc, scale=_scale
+                (min_radius, max_radius), depth, anc, scale=_scale
             )
             profs.append(np.mean(map_coordinates(input_img, coords), axis=(1, 2)))
         prof = np.stack(profs, axis=0).mean(axis=0)
@@ -688,11 +688,11 @@ class CylTomogram(Tomogram):
 
         input_img = self._get_multiscale_or_original(binsize)
 
-        depth_px = self.nm2pixel(size, binsize=binsize)
-        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
+        depth = spl.config.fit_depth
         _scale = input_img.scale.x
         min_radius_px = min_radius / _scale
-        max_radius_px = width_px / 2
+        max_radius = spl.config.fit_width / 2
+        max_radius_px = max_radius / _scale
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         thick_inner_px = spl.config.thickness_inner / _scale
         thick_outer_px = spl.config.thickness_outer / _scale
@@ -700,7 +700,7 @@ class CylTomogram(Tomogram):
         radii = list[float]()
         for anc in spl_trans.anchors:
             coords = spl_trans.local_cylindrical(
-                (min_radius_px, max_radius_px), depth_px, anc, scale=_scale
+                (min_radius, max_radius), depth, anc, scale=_scale
             )
             prof = np.mean(map_coordinates(input_img, coords), axis=(1, 2))
             imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
@@ -752,7 +752,6 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
         spl = self.splines[i]
         radii = _prepare_radii(spl, radius)
-        ylen = self.nm2pixel(ft_size)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
         tasks = []
@@ -760,10 +759,11 @@ class CylTomogram(Tomogram):
         analyzer = LatticeAnalyzer(spl.config)
         lazy_ft_params = delayed(analyzer.estimate_lattice_params)
         for anc, r0 in zip(spl_trans.anchors, radii):
-            rmin_nm, rmax_nm = spl.radius_range(r0)
-            r_range = rmin_nm / _scale, rmax_nm / _scale
-            rc = (rmin_nm + rmax_nm) / 2
-            coords = spl_trans.local_cylindrical(r_range, ylen, anc, scale=_scale)
+            rmin, rmax = spl.radius_range(r0)
+            rc = (rmin + rmax) / 2
+            coords = spl_trans.local_cylindrical(
+                (rmin, rmax), ft_size, anc, scale=_scale
+            )
             tasks.append(lazy_ft_params(input_img, coords, rc, nsamples=nsamples))
 
         lprops = pl.DataFrame(
@@ -810,11 +810,10 @@ class CylTomogram(Tomogram):
         if spl.radius is None:
             raise ValueError("Radius has not been determined yet.")
 
-        ylen = self.nm2pixel(ft_size, binsize=binsize)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        rmin_nm, rmax_nm = spl.radius_range()
-        rmin, rmax = rmin_nm / _scale, rmax_nm / _scale
+        rmin, rmax = spl.radius_range()
+        rc = (rmin + rmax) / 2
         out = list[ip.ImgArray]()
         if pos is None:
             anchors = spl.anchors
@@ -824,9 +823,8 @@ class CylTomogram(Tomogram):
         with set_gpu():
             for anc in anchors:
                 coords = spl_trans.local_cylindrical(
-                    (rmin, rmax), ylen, anc, scale=_scale
+                    (rmin, rmax), ft_size, anc, scale=_scale
                 )
-                rc = (rmin + rmax) / 2 * _scale
                 polar = get_polar_image(input_img, coords, rc)
                 polar[:] -= np.mean(polar)
                 out.append(polar.fft(dims="rya"))
@@ -971,23 +969,14 @@ class CylTomogram(Tomogram):
 
         spl = self.splines[i]
         cfg = spl.config
-        depth_px = self.nm2pixel(depth, binsize=binsize)
-        width_px = self.nm2pixel(cfg.fit_width, binsize=binsize)
-
         ori_clockwise = Ori(cfg.clockwise)
         ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
         if spl.radius is None:
-            r_range = 0.5, width_px / 2
+            r_range = 0.5 * current_scale, cfg.fit_width / 2
         else:
-            r_range = tuple(self.nm2pixel(spl.radius_range(), binsize=binsize))
-            # r_range = (
-            #     self.nm2pixel(
-            #         _non_neg(spl.radius - cfg.thickness_inner), binsize=binsize
-            #     ),
-            #     self.nm2pixel(spl.radius + cfg.thickness_outer, binsize=binsize),
-            # )
+            r_range = spl.radius_range()
         point = 0.5  # the sampling point
-        coords = spl.local_cylindrical(r_range, depth_px, point, scale=current_scale)
+        coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
         polar = get_polar_image(imgb, coords, spl.radius, order=1)
         if mask_freq:
             polar = LatticeAnalyzer(cfg).mask_spectra(polar)
@@ -1083,15 +1072,13 @@ class CylTomogram(Tomogram):
 
         else:
             if size is None:
-                rz = rx = 1 + 2 * self.nm2pixel(
-                    spl.radius + spl.config.thickness_outer, binsize=binsize
-                )
+                rz = rx = 2 * (spl.radius + spl.config.thickness_outer)
 
             else:
                 if hasattr(size, "__iter__"):
-                    rz, rx = self.nm2pixel(size, binsize=binsize)
+                    rz, rx = size
                 else:
-                    rz = rx = self.nm2pixel(size, binsize=binsize)
+                    rz = rx = size
 
             input_img = self._get_multiscale_or_original(binsize)
             if filt_func is not None:
@@ -1180,7 +1167,7 @@ class CylTomogram(Tomogram):
                 raise ValueError("radii[0] < radii[1] must be satisfied.")
             spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
             coords = spl_trans.cylindrical(
-                r_range=(rmin / _scale, rmax / _scale),
+                r_range=(rmin, rmax),
                 s_range=range_,
                 scale=_scale,
             )

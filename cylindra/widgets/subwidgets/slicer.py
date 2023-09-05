@@ -362,16 +362,14 @@ class SplineSlicer(ChildWidget):
         """
         tomo = self._get_main().tomogram
         spl = tomo.splines[spline]
-        depth_px = tomo.nm2pixel(depth, binsize=binsize)
         if half_width is None and spl.radius is None:
             raise ValueError("Measure spline radius or manually set it.")
         r = half_width or spl.radius + spl.config.thickness_outer
-        width_px = tomo.nm2pixel(2 * r, binsize=binsize) + 1
         coords = spl.translate(
             [-tomo.multiscale_translation(binsize)] * 3
         ).local_cartesian(
-            shape=(width_px, width_px),
-            n_pixels=depth_px,
+            shape=(2 * r, 2 * r),
+            depth=depth,
             u=pos / spl.length(),
             scale=tomo.scale * binsize,
         )
@@ -418,7 +416,6 @@ class SplineSlicer(ChildWidget):
             Cylindric image.
         """
         tomo = self._get_main().tomogram
-        ylen = tomo.nm2pixel(depth, binsize=binsize)
         spl = tomo.splines[spline]
         r = radius or spl.radius
         if r is None:
@@ -428,9 +425,7 @@ class SplineSlicer(ChildWidget):
         rmin, rmax = spl.radius_range()
         spl_trans = spl.translate([-tomo.multiscale_translation(binsize)] * 3)
         anc = pos / spl.length()
-        coords = spl_trans.local_cylindrical(
-            (rmin / _scale, rmax / _scale), ylen, anc, scale=_scale
-        )
+        coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
         return get_polar_image(img, coords, radius=(rmin + rmax) / 2, order=order)
 
     @bind_key("Esc")

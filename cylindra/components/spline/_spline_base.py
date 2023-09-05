@@ -417,11 +417,11 @@ class Spline(BaseComponent):
         fit_results = list[SplineFitResult]()
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
         for std in std_list:
-            param: PrepOutput = splprep(crds.T, k=k, s=std**2 * npoints)
-            new._set_params(*param)
-            _crds_at_u = new.map(param[1])
+            _tck, _u = splprep(crds.T, k=k, s=std**2 * npoints)
+            new._set_params(_tck, _u)
+            _crds_at_u = new.map(_u)
             res: NDArray[np.float32] = np.sqrt(np.sum((_crds_at_u - crds) ** 2, axis=1))
-            _knots = param[0][0][new.order : -new.order]
+            _knots = _tck[0][new.order : -new.order]
             nedge = _knots.size - 1
             assert nedge > 0
             nanc = nedge * 20 + 1
@@ -430,7 +430,7 @@ class Spline(BaseComponent):
             )
             max_curvature = new.curvature(anc).max()
             success = res.max() <= err_max
-            fit_results.append(SplineFitResult(param, max_curvature, res, success))
+            fit_results.append(SplineFitResult((_tck, _u), max_curvature, res, success))
 
         fit_results_filt = list(filter(lambda x: x.success, fit_results))
         if len(fit_results_filt) == 0:
@@ -812,8 +812,8 @@ class Spline(BaseComponent):
 
     def local_cartesian(
         self,
-        shape: tuple[int, int],
-        n_pixels: int,
+        shape: tuple[nm, nm],
+        depth: nm,
         u: float | Sequence[float] = None,
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
@@ -823,10 +823,10 @@ class Spline(BaseComponent):
 
         Parameters
         ----------
-        shape : tuple of two int
+        shape : (float, float)
             Vertical and horizontal length of Cartesian coordinates. Corresponds to zx axes.
-        n_pixels : int
-            Length of y axis in pixels.
+        depth : float
+            Length of y axis in nm.
         u : float, optional
             Position on the spline at which local Cartesian coordinates will be built.
         scale: nm, default is 1.0
@@ -840,12 +840,15 @@ class Spline(BaseComponent):
         """
 
         mole = self.anchors_to_molecules(u)
-        return mole.local_coordinates(shape=(shape[0], n_pixels, shape[1]), scale=scale)
+        nz = roundint(shape[0] / scale)
+        ny = roundint(depth / scale)
+        nx = roundint(shape[1] / scale)
+        return mole.local_coordinates(shape=(nz, ny, nx), scale=scale)
 
     def local_cylindrical(
         self,
-        r_range: tuple[float, float],
-        n_pixels: int,
+        r_range: tuple[nm, nm],
+        depth: nm,
         u: float | None = None,
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
@@ -856,9 +859,9 @@ class Spline(BaseComponent):
         Parameters
         ----------
         r_range : (float, float)
-            Lower and upper bound of radius in pixels.
-        n_pixels : int
-            Length of y axis in pixels.
+            Lower and upper bound of radius in nm.
+        depth : nm
+            Length of y axis in nm.
         u : float
             Position on the spline at which local cylindrical coordinates will be built.
         scale: nm, default is 1.0
@@ -872,20 +875,22 @@ class Spline(BaseComponent):
         """
         if u is None:
             u = self.anchors
+        rmin, rmax = r_range
         ds = self.map(u, der=1)
         ds_norm: NDArray[np.float32] = ds.reshape(-1, 1) / np.sqrt(sum(ds**2))
-        grid = np.linspace(-n_pixels / 2 + 0.5, n_pixels / 2 - 0.5, n_pixels)
+        depth_px = roundint(depth / scale)
+        grid = np.linspace(-depth_px / 2 + 0.5, depth_px / 2 - 0.5, depth_px)
         dy = ds_norm * grid
         y_ax_coords = (self.map(u) / scale).reshape(1, -1) + dy.T
-        dslist = np.stack([ds] * n_pixels, axis=0)
-        map_ = polar_coords_2d(*r_range)
+        dslist = np.stack([ds] * depth_px, axis=0)
+        map_ = polar_coords_2d(rmin / scale, rmax / scale)
         map_slice = _stack_coords(map_)
         out = _rot_with_vector(map_slice, y_ax_coords, dslist)
         return np.moveaxis(out, -1, 0)
 
     def cartesian(
         self,
-        shape: tuple[int, int],
+        shape: tuple[nm, nm],
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
@@ -896,7 +901,7 @@ class Spline(BaseComponent):
 
         Parameters
         ----------
-        shape : tuple[int, int]
+        shape : (float, float)
             The ZX-shape of output coordinate system. Center of the array will be
             spline curve itself after coodinate transformation.
         s_range : tuple[float, float], default is (0, 1)
@@ -911,11 +916,13 @@ class Spline(BaseComponent):
             (V, S, H, D) shape. Each cooresponds to vertical, longitudinal, horizontal and
             dimensional axis.
         """
-        return self._get_coords(_cartesian_coords_2d, shape, s_range, scale)
+        dz = roundint(shape[0] / scale)
+        dx = roundint(shape[1] / scale)
+        return self._get_coords(_cartesian_coords_2d, (dz, dx), s_range, scale)
 
     def cylindrical(
         self,
-        r_range: tuple[float, float],
+        r_range: tuple[nm, nm],
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
@@ -926,8 +933,8 @@ class Spline(BaseComponent):
 
         Parameters
         ----------
-        r_range : tuple[float, float]
-            Range of radius in pixels. r=0 will be spline curve itself after coodinate
+        r_range : (nm, nm)
+            Range of radius in nm. r=0 will be spline curve itself after coodinate
             transformation.
         s_range : tuple[float, float], default is (0, 1)
             Range of spline. Spline coordinate system will be built between
@@ -941,7 +948,9 @@ class Spline(BaseComponent):
             (V, S, H, D) shape. Each cooresponds to radius, longitudinal, angle and
             dimensional axis.
         """
-        return self._get_coords(polar_coords_2d, r_range, s_range, scale)
+        rmin = r_range[0] / scale
+        rmax = r_range[1] / scale
+        return self._get_coords(polar_coords_2d, (rmin, rmax), s_range, scale)
 
     def cartesian_to_world(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
         """
