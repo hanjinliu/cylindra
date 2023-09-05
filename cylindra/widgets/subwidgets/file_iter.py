@@ -10,6 +10,7 @@ from magicclass import (
     get_function_gui,
 )
 from ._child_widget import ChildWidget
+from cylindra.widgets._previews import view_image
 
 
 @magicclass(name="_File Iterator", record=False)
@@ -105,3 +106,18 @@ class FileIterator(ChildWidget):
         fgui = get_function_gui(self._get_main().load_project_for_reanalysis)
         fgui.path.value = path
         fgui.call_button.changed()
+
+    @set_design(text="Preview all")
+    def preview_all(self):
+        """Preview all the images."""
+        file_paths = self._files
+        for path in file_paths:
+            path = Path(path)
+            if path.is_dir():
+                raise ValueError(f"{path} is a directory.")
+            if not path.exists():
+                raise ValueError(f"{path} does not exist.")
+            if path.suffix not in (".tif", ".tiff", ".mrc", ".rec", ".map", ".st"):
+                raise ValueError(f"Cannot open {path} as an image.")
+
+        return view_image(file_paths, parent=self._get_main())

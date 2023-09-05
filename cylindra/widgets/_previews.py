@@ -39,28 +39,35 @@ class ImagePreview(MagicTemplate):
     def __init__(self):
         self._path_choices: list[str] = []
 
+    def __post_init__(self):
+        self.canvas.text_overlay.color = "lime"
+        self.canvas.text_overlay.visible = True
+
     @magicclass(widget_type="frame", layout="horizontal")
-    class Fft(MagicTemplate):
+    class Filter(MagicTemplate):
         """
-        FFT parameters.
+        Filtering parameters.
 
         Attributes
         ----------
+        bin_size : int
+            Image binning prior to low-pass filtering.
         apply_filter : bool
             Apply low-pass filter to image.
         cutoff : float
-            Cutoff frequency for low-pass filter.
+            Cutoff frequency for low-pass filtering.
         """
 
+        bin_size = vfield(1).with_options(min=1, max=10, step=1)
         apply_filter = vfield(True)
-        cutoff = vfield(0.05).with_options(min=0.05, max=0.85, step=0.05, enabled=False)
+        cutoff = vfield(0.05).with_options(min=0.05, max=0.85, step=0.05)
 
         @apply_filter.connect
         def _toggle(self):
             self["cutoff"].enabled = self.apply_filter
 
     def _lazy_imread(self, path: str):
-        img = ip.lazy.imread(path, chunks=(4, "auto", "auto"))
+        img = ip.lazy.imread(path, chunks=(1, "auto", "auto"))
         if img.ndim != 3:
             raise ValueError("Cannot only preview 3D image.")
         return Path(path).as_posix(), img
@@ -87,28 +94,36 @@ class ImagePreview(MagicTemplate):
     @thread_worker.callback
     def _update_slider(self, img: np.ndarray):
         slmax = img.shape[0] - 1
-        self.sl.value = min(slmax, self.sl.value)
+        self.sl.value = slmax // 2
         self.sl.max = slmax
 
-    @sl.connect_async(timeout=0.1)
-    @Fft.cutoff.connect_async(timeout=0.1)
+    @Filter.cutoff.connect_async(timeout=0.1)
+    @sl.connect_async(timeout=0.1, abort_limit=0.1)
     def _update_canvas(self):
-        img_slice = self.image.value[self.sl.value].compute()
-        if self.Fft.apply_filter:
-            img_slice = img_slice.tiled(chunks=(496, 496)).lowpass_filter(
-                cutoff=self.Fft.cutoff
-            )
-        return self._set_canvas_image.with_args(np.asarray(img_slice))
+        yield self._set_text_overlay.with_args("reading ...")
+        im = self.image.value[self.sl.value]
+        if self.Filter.bin_size > 1:
+            im = im.binning(self.Filter.bin_size, check_edges=False)
+        if self.Filter.apply_filter:
+            img_slice = im.tiled().lowpass_filter(cutoff=self.Filter.cutoff).compute()
+        else:
+            img_slice = im.compute()
+        yield self._set_canvas_image.with_args(np.asarray(img_slice))
+        yield self._set_text_overlay.with_args("")
+
+    @thread_worker.callback
+    def _set_text_overlay(self, txt: str):
+        self.canvas.text_overlay.text = txt
 
     @thread_worker.callback
     def _set_canvas_image(self, img):
         self.canvas.image = img
 
-    @Fft.apply_filter.connect_async(timeout=0.1)
+    @Filter.bin_size.connect_async(timeout=0.1)
+    @Filter.apply_filter.connect_async(timeout=0.1)
     def _update_canvas_and_auto_contrast(self):
         yield from self._update_canvas.arun()
-        min_, max_ = np.percentile(self.canvas.image, [1, 97])
-        self.canvas.contrast_limits = (min_, max_)
+        self.canvas.auto_range()
 
 
 def view_tables(
