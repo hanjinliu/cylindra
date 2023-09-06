@@ -662,7 +662,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        size: nm = 32.0,
+        size: nm = 50.0,
         binsize: int = 1,
         min_radius: nm = 1.0,
     ) -> pl.Series:
@@ -673,7 +673,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        size : nm, default is 32.0
+        size : nm, default is 50.0
             Longitudinal length of subtomograms for calculation.
         binsize : int, default is 1
             Multiscale binsize to be used.
@@ -715,7 +715,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        ft_size: nm = 32.0,
+        ft_size: nm = 50.0,
         binsize: int = 1,
         radius: nm | Literal["local", "global"] = "global",
         nsamples: int = 8,
@@ -731,7 +731,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        ft_size : nm, default is 32.0
+        ft_size : nm, default is 50.0
             Length of subtomogram for calculation of local parameters.
         binsize : int, default is 1
             Multiscale bin size used for calculation.
@@ -783,7 +783,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        ft_size: nm = 32.0,
+        ft_size: nm = 50.0,
         pos: int | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
@@ -794,7 +794,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        ft_size : nm, default is 32.0
+        ft_size : nm, default is 50.0
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
@@ -836,7 +836,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        ft_size: nm = 32.0,
+        ft_size: nm = 50.0,
         pos: int | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
@@ -847,7 +847,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        ft_size : nm, default is 32.0
+        ft_size : nm, default is 50.0
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.

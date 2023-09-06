@@ -119,7 +119,7 @@ _Interval = Annotated[
     Optional[nm],
     {
         "text": "Use existing anchors",
-        "options": {"min": 1.0, "step": 0.5, "value": 32.64},
+        "options": {"min": 1.0, "step": 0.5, "value": 50.0},
     },
 ]
 
@@ -1323,7 +1323,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: _Splines = None,
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1417,7 +1417,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: _Splines = None,
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.64,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
     ):  # fmt: skip

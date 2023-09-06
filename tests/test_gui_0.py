@@ -272,7 +272,7 @@ def test_spline_switch(ui: CylindraMainWidget):
         ui.SplineControl.pos = 0
         assert_canvas(ui, [False, False, True])
 
-        ui._runner.run(interval=32.64)
+        ui._runner.run(interval=32.6)
 
         # check results
         for spl in ui.tomogram.splines:

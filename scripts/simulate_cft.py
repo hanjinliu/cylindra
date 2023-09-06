@@ -190,7 +190,7 @@ def simulate(
                 ui.measure_radius(splines=[0])
                 ui.tomogram.splines[0].anchors = simulator.anchors()
                 ui.local_ft_analysis(
-                    splines=[0], depth=32.64, interval=None, bin_size=binsize
+                    splines=[0], depth=49.0, interval=None, bin_size=binsize
                 )
                 results.append([_nsr, _rep, *simulator.results()])
 

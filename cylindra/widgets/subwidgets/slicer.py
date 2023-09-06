@@ -51,8 +51,8 @@ class SplineSlicer(ChildWidget):
         Attributes
         ----------
         depth : float
-            The depth of the projection along splines. For instance, depth=32.0 means that Y-projection will be calculated
-            using subvolume of size L * 32.0 nm * L.
+            The depth of the projection along splines. For instance, depth=50.0 means that Y-projection will be calculated
+            using subvolume of size L * 50.0 nm * L.
         binsize : int
             The size of the binning. For instance, binsize=2 means that the image will be binned by 2 before projection
             and/or Fourier transformation.
@@ -67,7 +67,7 @@ class SplineSlicer(ChildWidget):
             except Exception:
                 return []
 
-        depth = vfield(32.64, label="depth (nm)").with_options(min=1.0, max=200.0)
+        depth = vfield(50.0, label="depth (nm)").with_options(min=1.0, max=200.0)
         binsize = vfield(record=False).with_choices(_get_available_binsize)
 
     @magicclass(layout="horizontal")
@@ -329,7 +329,7 @@ class SplineSlicer(ChildWidget):
         spline: int,
         pos: nm,
         *,
-        depth: nm = 32.64,
+        depth: nm = 50.0,
         binsize: int = 1,
         order: int = 3,
         half_width: nm | None = None,
@@ -344,7 +344,7 @@ class SplineSlicer(ChildWidget):
         pos : nm
             Position of the center of the image. `pos` nm from the spline start
             point will be used.
-        depth : nm, default is 32.64
+        depth : nm, default is 50.0
             Depth of the output image. Depth corresponds to the length of the
             direction parallel to the spline vector at the given position.
         binsize : int, default is 1
@@ -385,7 +385,7 @@ class SplineSlicer(ChildWidget):
         spline: int,
         pos: nm,
         *,
-        depth: nm = 32.64,
+        depth: nm = 50.0,
         binsize: int = 1,
         order: int = 3,
         radius: nm | None = None,
@@ -400,7 +400,7 @@ class SplineSlicer(ChildWidget):
         pos : nm
             Position of the center of the image. `pos` nm from the spline start
             point will be used.
-        depth : nm, default is 32.64
+        depth : nm, default is 50.0
             Depth of the output image. Depth corresponds to the length of the
             direction parallel to the spline vector at the given position.
         binsize : int, default is 1
