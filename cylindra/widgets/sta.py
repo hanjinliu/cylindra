@@ -846,7 +846,9 @@ class SubtomogramAveraging(ChildWidget):
             shape = None
             raise NotImplementedError("'size' must be given.")
         else:
-            shape = tuple(parent.tomogram.nm2pixel(self._get_shape_in_nm(size)))
+            shape = tuple(
+                parent.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
+            )
 
         aligned_loader = (
             self._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)
@@ -1408,7 +1410,9 @@ class SubtomogramAveraging(ChildWidget):
         )
         out, pca = loader.reshape(
             mask=mask,
-            shape=None if size is None else (parent.tomogram.nm2pixel(size),) * 3,
+            shape=None
+            if size is None
+            else (parent.tomogram.nm2pixel(size, binsize=bin_size),) * 3,
         ).classify(
             mask=mask,
             seed=seed,
@@ -1422,7 +1426,6 @@ class SubtomogramAveraging(ChildWidget):
         avgs = ip.asarray(
             np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
         ).set_scale(zyx=loader.scale, unit="nm")
-
         layer.molecules = out.molecules  # update features
         t0.toc()
 

@@ -558,7 +558,7 @@ def test_classify_pca(ui: CylindraMainWidget):
             ui.sta.classify_pca(
                 layer,
                 mask_params=None,
-                size=6.0,
+                size=12.0,
                 interpolation=1,
                 bin_size=binsize,
             )
