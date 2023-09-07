@@ -504,14 +504,12 @@ class CylindraMainWidget(MagicTemplate):
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
             self._project_dir = project_path.parent
-        return thread_worker.callback(
-            project._to_gui(
-                self,
-                filter=filter,
-                paint=paint,
-                read_image=read_image,
-                update_config=update_config,
-            )
+        yield from project._to_gui(
+            self,
+            filter=filter,
+            paint=paint,
+            read_image=read_image,
+            update_config=update_config,
         )
 
     @File.wraps

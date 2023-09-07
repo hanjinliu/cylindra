@@ -792,54 +792,41 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
     assert layer_src.source_component is new_spl
 
 
-# NOTE: calc_intervals and calc_skews are very likely to contain bugs with different
-# orientation, monomer mapping cases. Check all of the possible inputs just in case.
-
-
-def test_calc_intervals(ui: CylindraMainWidget):
+def test_calc_lattice_structures(ui: CylindraMainWidget):
     exc_group = ExceptionGroup(max_fail=4)
+
     for orientation, path, invert in product(
         ["PlusToMinus", "MinusToPlus"],
         [PROJECT_DIR_13PF, PROJECT_DIR_14PF],
         [True, False],
     ):
-        ui.load_project(path, filter=None, paint=False)
+        ui.load_project(path, filter=None, paint=False, read_image=False)
         spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
-        npf = ui.tomogram.splines[0].props.get_glob(H.npf)
-        if invert:
-            ui.invert_spline(spline=0)
-        ui.map_monomers(splines=[0], orientation=orientation)
-        layer = ui.parent_viewer.layers[-1]
-        assert isinstance(layer, MoleculesLayer)
-        ui.calculate_lattice_structure(layer=layer, props=["interv"])
-        with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
-            interval = layer.features["interval-nm"][:-npf]
-            # individial intervals must be almost equal to the global spacing
-            assert interval.mean() == pytest.approx(spacing, abs=1e-3)
-    exc_group.raise_exceptions()
-
-
-def test_calc_skews(ui: CylindraMainWidget):
-    exc_group = ExceptionGroup(max_fail=4)
-
-    for orientation, path, invert in product(
-        ["PlusToMinus", "MinusToPlus"],
-        [PROJECT_DIR_13PF, PROJECT_DIR_14PF],
-        [True, False],
-    ):
-        ui.load_project(path, filter=None, paint=False)
+        skew_tilt_angle = ui.tomogram.splines[0].props.get_glob(H.skew_tilt)
         skew_angle = ui.tomogram.splines[0].props.get_glob(H.skew)
+        rise_angle = ui.tomogram.splines[0].props.get_glob(H.rise)
         npf = ui.tomogram.splines[0].props.get_glob(H.npf)
         if invert:
             ui.invert_spline(spline=0)
+        del ui.parent_viewer.layers[-2:]
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.parent_viewer.layers[-1]
         assert isinstance(layer, MoleculesLayer)
-        ui.calculate_lattice_structure(layer=layer, props=["skew"])
+        ui.calculate_lattice_structure(
+            layer=layer, props=["interv", "skew_tilt", "skew", "rise"]
+        )
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
-            each_skew = layer.features["skew-deg"][:-npf]
             # individial skews must be almost equal to the global skew angle
-            assert each_skew.mean() == pytest.approx(skew_angle, abs=1e-2)
+            feat = layer.molecules.features
+            assert feat["interval-nm"][:-npf].mean() == pytest.approx(spacing, abs=1e-3)
+            assert feat["skew-tilt-deg"][:-npf].mean() == pytest.approx(
+                skew_tilt_angle, abs=1e-3
+            )
+            assert feat["skew-deg"][:-npf].mean() == pytest.approx(skew_angle, abs=1e-3)
+            r = "rise-angle-deg"
+            feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
+            l_ratio = np.sin(np.pi / npf) * npf / np.pi
+            assert feat_rise.mean() * l_ratio == pytest.approx(rise_angle, abs=1e-2)
     exc_group.raise_exceptions()
 
 

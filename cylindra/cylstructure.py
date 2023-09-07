@@ -22,10 +22,11 @@ def calc_interval(
     """Calculate the interval of each molecule to the next one."""
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(sub, spl)
+        surf = CylinderSurface(spl)
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
         if projective:
-            _interv_vec = surf.project_vector(_interv_vec)
+            _start = _mole_to_coords(sub)
+            _interv_vec = surf.project_vector(_interv_vec, _start)
         _y_interv = np.sqrt(np.sum(_interv_vec**2, axis=1))
         _y_interv[-1] = -np.inf  # fill invalid values with 0
         new_feat = pl.Series(Mole.interval, _y_interv).cast(pl.Float32)
@@ -35,18 +36,12 @@ def calc_interval(
 
 def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the elevation angle of the longitudinal neighbors."""
-    _spl_len = spl.length()
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        _pos = sub.pos
-        _interv_vec = np.diff(_pos, axis=0, append=0)
-
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_vec = spl.map(_u, der=1)
-
-        _cos: NDArray[np.float32] = _dot(_interv_vec, _spl_vec) / (
-            np.linalg.norm(_interv_vec, axis=1) * np.linalg.norm(_spl_vec, axis=1)
-        )
+        surf = CylinderSurface(spl)
+        _spl_vec_norm = surf.spline_vec_norm(sub.features[Mole.position])
+        _interv_vec_norm = _norm(np.diff(sub.pos, axis=0, append=0))
+        _cos: NDArray[np.float32] = _dot(_interv_vec_norm, _spl_vec_norm)
         _deg = np.rad2deg(np.arccos(_cos.clip(-1, 1)))
         _deg[-1] = -np.inf  # fill invalid values with 0
         subsets.append(
@@ -59,10 +54,11 @@ def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(sub, spl)
+        surf = CylinderSurface(spl)
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
-        _interv_proj = surf.project_vector(_interv_vec)
-        _skew = surf.long_angle(_interv_proj)
+        _start = _mole_to_coords(sub)
+        _interv_proj = surf.project_vector(_interv_vec, _start)
+        _skew = surf.long_angle(_interv_proj, _start)
         _skew[-1] = -np.inf
         new_feat = pl.Series(Mole.skew_tilt, _skew, dtype=pl.Float32)
         subsets.append(sub.with_features(new_feat))
@@ -75,11 +71,12 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     spacing = spl.props.get_glob(H.spacing)
     radius = spl.props.get_glob(H.radius)
     for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(sub, spl)
+        surf = CylinderSurface(spl)
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
-        _interv_proj = surf.project_vector(_interv_vec)
+        _start = _mole_to_coords(sub)
+        _interv_proj = surf.project_vector(_interv_vec, _start)
         _skew = np.rad2deg(
-            2 * np.arcsin(spacing * surf.long_sin(_interv_proj) / radius)
+            2 * np.arcsin(spacing * surf.long_sin(_interv_proj, _start) / radius)
         )
         _skew[-1] = -np.inf
         new_feat = pl.Series(Mole.skew, _skew, dtype=pl.Float32)
@@ -101,7 +98,6 @@ def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column of rise angles of each molecule."""
-    # _spl_len = spl.length()
     subsets = list[Molecules]()
     _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
@@ -117,10 +113,11 @@ def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     )
     for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
         sub = sub.sort(Mole.pf)
-        surf = CylinderSurface(sub, spl)
+        surf = CylinderSurface(spl)
         _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
-        interv_proj = surf.project_vector(_interv_vec)
-        rise_angles = 90 - surf.long_angle(interv_proj)
+        _start = _mole_to_coords(sub)
+        interv_proj = surf.project_vector(_interv_vec, _start)
+        rise_angles = 90 - surf.long_angle(interv_proj, _start)
         if sub.features[Mole.pf][-1] == new_pf_id:
             rise_angles = rise_angles[:-1]
             sub = sub.subset(slice(None, -1))
@@ -155,10 +152,9 @@ def calc_lateral_interval(
         _mole_to_spl_vec = _spl_pos - _pos
         _interv_vec = np.diff(_pos, axis=0, append=np.nan)
         if projective:
-            _interv_proj = _cancel_component(_interv_vec, _mole_to_spl_vec)
-            _interv_abs = np.sqrt(_dot(_interv_proj, _interv_proj))
-        else:
-            _interv_abs = np.sqrt(_dot(_interv_vec, _interv_vec))
+            surf = CylinderSurface(spl)
+            _interv_vec = surf.project_vector(_interv_vec, _mole_to_coords(sub))
+        _interv_abs = np.sqrt(_dot(_interv_vec, _interv_vec))
 
         if sub.features[Mole.pf][-1] == new_pf_id:
             _interv_abs = _interv_abs[:-1]
@@ -174,42 +170,87 @@ def calc_lateral_interval(
 
 
 class CylinderSurface:
-    def __init__(self, mole: Molecules, spl: CylSpline):
-        self._mole = mole
+    """Class to define the surface of a spline cylinder."""
+
+    def __init__(self, spl: CylSpline):
         self._spl = spl
-        _pos = mole.pos
-        _spl_len = spl.length()
-        _u = mole.features[Mole.position] / _spl_len
-        _spl_pos = spl.map(_u, der=0)
-        _spl_vec = spl.map(_u, der=1)
+        self._spl_len = spl.length()
 
-        _mole_to_spl_vec = _spl_pos - _pos
-        self._surface_norm = _norm(_mole_to_spl_vec)
-        self._spline_vec_norm = _norm(_spl_vec)
+    def surface_norm(
+        self,
+        coords: NDArray[np.float32],
+    ) -> NDArray[np.float32]:
+        """
+        Get the surface normal vector at the given coordinates.
 
-    @property
-    def surface_norm(self) -> NDArray[np.float32]:
-        return self._surface_norm
+        Parameters
+        ----------
+        coords : (N, 4) array
+            Coordinate of points. The last column is the spline parameter.
+        """
+        coords = np.atleast_2d(coords)
+        assert coords.ndim == 2 and coords.shape[1] == 4
+        zyx = coords[:, :3]
+        u = coords[:, 3]
+        _spl_coords = self._spl.map(u / self._spl_len, der=0)
+        _mole_to_spl_vec = _spl_coords - zyx
+        return _norm(_mole_to_spl_vec)
 
-    @property
-    def spline_vec_norm(self) -> NDArray[np.float32]:
-        return self._spline_vec_norm
+    def spline_vec_norm(self, pos: NDArray[np.float32]) -> NDArray[np.float32]:
+        u = np.asarray(pos) / self._spl_len
+        _spl_vec = self._spl.map(u, der=1)
+        return _norm(_spl_vec)
 
-    def project_vector(self, vec: NDArray[np.float32]) -> NDArray[np.float32]:
-        return _cancel_component(vec, self._surface_norm)
+    def project_vector(
+        self,
+        vec: NDArray[np.float32],  # (N, 3)
+        start: NDArray[np.float32],  # (N, 4)
+    ) -> NDArray[np.float32]:
+        norm = self._get_vector_surface_norm(vec, start)
+        return _cancel_component(vec, norm)
 
-    def div_sign(self, vec: NDArray[np.float32]) -> NDArray[np.float32]:
-        return np.sign(_dot(vec, self.surface_norm))
+    def _get_vector_surface_norm(
+        self,
+        vec: NDArray[np.float32],
+        start: NDArray[np.float32],
+    ) -> NDArray[np.float32]:
+        start = np.atleast_2d(start)
+        start_zyx = start[:, :3]
+        start_pos = start[:, 3]
+        end_zyx = start_zyx + vec
+        dpos = _dot(self.spline_vec_norm(start_pos), vec)
+        end_pos = start_pos + dpos
+        surf_norm_start = self.surface_norm(_concat(start_zyx, start_pos))
+        surf_norm_end = self.surface_norm(_concat(end_zyx, end_pos))
+        return _norm(surf_norm_start + surf_norm_end)
 
-    def long_sin(self, vec: NDArray[np.float32]) -> NDArray[np.float32]:
+    def _parallel_to_norm_sign(
+        self,
+        vec: NDArray[np.float32],
+        start: NDArray[np.float32],
+    ) -> NDArray[np.float32]:
+        return np.sign(_dot(vec, self._get_vector_surface_norm(vec, start)))
+
+    def long_sin(
+        self,
+        vec: NDArray[np.float32],
+        start: NDArray[np.float32],
+    ) -> NDArray[np.float32]:
+        start = np.atleast_2d(start)
         vec_norm = _norm(vec)
-        _cross = np.cross(vec_norm, self.spline_vec_norm, axis=1)
-        return np.linalg.norm(_cross, axis=1) * self.div_sign(_cross)
+        spl_vec_norm = self.spline_vec_norm(start[:, 3])
+        _cross = np.cross(vec_norm, spl_vec_norm, axis=1)
+        return np.linalg.norm(_cross, axis=1) * self._parallel_to_norm_sign(
+            _cross, start
+        )
 
     def long_angle(
-        self, vec: NDArray[np.float32], degree: bool = True
+        self,
+        vec: NDArray[np.float32],
+        start: NDArray[np.float32],
+        degree: bool = True,
     ) -> NDArray[np.float32]:
-        angs = np.arcsin(self.long_sin(vec))
+        angs = np.arcsin(self.long_sin(vec, start))
         if degree:
             angs = np.rad2deg(angs)
         return angs
@@ -258,11 +299,21 @@ def _dot(a: NDArray[np.float32], b: NDArray[np.float32]) -> NDArray[np.float32]:
     return np.sum(a * b, axis=1)
 
 
+def _concat(
+    coords: NDArray[np.float32], pos: NDArray[np.float32]
+) -> NDArray[np.float32]:
+    return np.concatenate([coords, pos.reshape(-1, 1)], axis=1)
+
+
+def _mole_to_coords(mole: Molecules) -> NDArray[np.float32]:
+    """Convert molecules to (N, 4) coordinates."""
+    return _concat(mole.pos, mole.features[Mole.position].to_numpy())
+
+
 def _cancel_component(
     vec: NDArray[np.float32], other: NDArray[np.float32]
 ) -> NDArray[np.float32]:
-    other_norm = _norm(other)
-    to_cancel = _dot(vec, other_norm)[:, np.newaxis] * other_norm
+    to_cancel = _dot(vec, other)[:, np.newaxis] * other
     out = vec - to_cancel
     return out
 

@@ -230,6 +230,7 @@ class CylindraProject(BaseProject):
     ):
         """Update CylindraMainWidget state based on the project model."""
         from cylindra.components import SplineConfig
+        from magicclass.utils import thread_worker
 
         gui = _get_instance(gui)
         if read_image:
@@ -241,17 +242,18 @@ class CylindraProject(BaseProject):
         # load splines
         molecules_list = [self.load_molecules(i) for i in range(self.nmolecules)]
 
-        def _load_project_on_return():
-            gui._send_tomogram_to_viewer(tomogram, filt=filter)
-            # TODO: to use bounding box, dummy image should be in the correct shape
-            # gui._reserved_layers.image.bounding_box.visible = not read_image
+        cb = gui._send_tomogram_to_viewer.with_args(tomogram, filt=filter)
+        yield cb
+        cb.await_call()
+        # TODO: to use bounding box, dummy image should be in the correct shape
+        # gui._reserved_layers.image.bounding_box.visible = not read_image
 
+        @thread_worker.callback
+        def _update_widget():
             if len(tomogram.splines) > 0:
                 gui._update_splines_in_images()
                 with gui.macro.blocked():
                     gui.sample_subtomograms()
-
-            # load tomogram configurations
             if self.default_spline_config and update_config:
                 gui.default_config = SplineConfig.from_file(self.default_spline_config)
 
@@ -264,27 +266,37 @@ class CylindraProject(BaseProject):
             gui.reset_choices()
             gui._need_save = False
 
-            # paint if needed
-            if paint and self.localprops:
-                gui.paint_cylinders()
+        yield _update_widget
+        _update_widget.await_call()
 
-            # load molecules
-            for idx, mole in enumerate(molecules_list):
-                _src = None
-                if self.molecules_info is not None:
-                    _info = self.molecules_info[idx]
-                    if _info.source is not None:
-                        _src = tomogram.splines[_info.source]
-                    visible = _info.visible
-                else:
-                    visible = True
-                name = Path(self.molecules[idx]).stem
+        if paint and self.localprops:
+            yield from gui.paint_cylinders.arun()
+
+        # load molecules
+        for idx, mole in enumerate(molecules_list):
+            _src = None
+            if self.molecules_info is not None:
+                _info = self.molecules_info[idx]
+                if _info.source is not None:
+                    _src = tomogram.splines[_info.source]
+                visible = _info.visible
+            else:
+                visible = True
+            name = Path(self.molecules[idx]).stem
+
+            @thread_worker.callback
+            def _add_molecules():
                 gui.add_molecules(mole, name=name, source=_src, visible=visible)
 
+            yield _add_molecules
+            _add_molecules.await_call()
+
+        @thread_worker.callback
+        def out():
             # update project description widget
             gui.GeneralInfo.project_desc.value = self.project_description
 
-        return _load_project_on_return
+        return out
 
     def load_spline(self, idx: int) -> "CylSpline":
         """Load the spline with the given index."""
