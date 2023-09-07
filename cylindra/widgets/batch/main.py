@@ -1,4 +1,4 @@
-from typing import Annotated, NamedTuple, Union, Any
+from typing import Annotated, Literal, NamedTuple, Union, Any
 import impy as ip
 import polars as pl
 
@@ -142,11 +142,15 @@ class CylindraBatchWidget(MagicTemplate):
             Path to the JSON file.
         """
         self._loaders.clear()
-        return CylindraBatchProject.from_json(get_project_file(path)).to_gui(self)
+        return CylindraBatchProject.from_json(get_project_file(path))._to_gui(self)
 
     @constructor.File.wraps
     @set_design(text="Save as batch analysis project")
-    def save_batch_project(self, save_path: Path.Save):
+    def save_batch_project(
+        self,
+        save_path: Path.Save,
+        molecules_ext: Literal[".csv", ".parquet"] = ".csv",
+    ):
         """
         Save the GUI state to a JSON file.
 
@@ -154,10 +158,12 @@ class CylindraBatchWidget(MagicTemplate):
         ----------
         save_path : path-like
             Path to the JSON file.
+        molecules_ext : str, default is ".csv"
+            Extension of the molecule files.
         """
         save_path = Path(save_path)
         json_path = save_path / "project.json"
-        return CylindraBatchProject.save_gui(self, json_path, save_path)
+        return CylindraBatchProject.save_gui(self, json_path, molecules_ext)
 
 
 class PathInfo(NamedTuple):

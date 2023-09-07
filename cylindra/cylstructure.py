@@ -129,7 +129,6 @@ def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
 def calc_lateral_interval(
     mole: Molecules, spl: CylSpline, projective: bool = True
 ) -> pl.DataFrame:
-    _spl_len = spl.length()
     subsets = list[Molecules]()
     _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
     new_pf_id = mole.features[Mole.pf].max() + 1
@@ -145,12 +144,7 @@ def calc_lateral_interval(
     )
     for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
         sub = sub.sort(Mole.pf)
-        _pos = sub.pos
-        _u = sub.features[Mole.position] / _spl_len
-        _spl_pos = spl.map(_u, der=0)
-
-        _mole_to_spl_vec = _spl_pos - _pos
-        _interv_vec = np.diff(_pos, axis=0, append=np.nan)
+        _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
         if projective:
             surf = CylinderSurface(spl)
             _interv_vec = surf.project_vector(_interv_vec, _mole_to_coords(sub))
@@ -197,6 +191,7 @@ class CylinderSurface:
         return _norm(_mole_to_spl_vec)
 
     def spline_vec_norm(self, pos: NDArray[np.float32]) -> NDArray[np.float32]:
+        """Normalized spline tangent vector for given positions (nm)."""
         u = np.asarray(pos) / self._spl_len
         _spl_vec = self._spl.map(u, der=1)
         return _norm(_spl_vec)
@@ -206,6 +201,7 @@ class CylinderSurface:
         vec: NDArray[np.float32],  # (N, 3)
         start: NDArray[np.float32],  # (N, 4)
     ) -> NDArray[np.float32]:
+        """Project vector(s) to the cylinder surface."""
         norm = self._get_vector_surface_norm(vec, start)
         return _cancel_component(vec, norm)
 

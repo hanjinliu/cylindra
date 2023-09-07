@@ -1,6 +1,7 @@
 from typing import Union, TYPE_CHECKING
 from pathlib import Path
 import json
+import shutil
 from pydantic import BaseModel
 import polars as pl
 import numpy as np
@@ -73,7 +74,6 @@ class CylindraProject(BaseProject):
         cls,
         gui: "CylindraMainWidget",
         json_path: Path,
-        results_dir: Union[Path, None] = None,
         mole_ext: str = ".csv",
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
@@ -88,10 +88,7 @@ class CylindraProject(BaseProject):
         localprops = tomo.splines.collect_localprops()
         globalprops = tomo.splines.collect_globalprops()
 
-        if results_dir is None:
-            results_dir = json_path.parent / (json_path.stem + "_results")
-        else:
-            results_dir = Path(results_dir)
+        results_dir = json_path.parent
         localprops_path = None if localprops is None else results_dir / "localprops.csv"
         globalprops_path = (
             None if globalprops is None else results_dir / "globalprops.csv"
@@ -156,7 +153,6 @@ class CylindraProject(BaseProject):
         cls: "type[CylindraProject]",
         gui: "CylindraMainWidget",
         json_path: Path,
-        results_dir: Union[Path, None] = None,
         mole_ext: str = ".csv",
     ) -> None:
         """
@@ -168,25 +164,16 @@ class CylindraProject(BaseProject):
             The main widget from which project model will be constructed.
         json_path : Path
             The path to the project json file.
-        results_dir : Path, optional
-            The directory to save the results.
         """
         from cylindra.types import MoleculesLayer
 
-        self = cls.from_gui(gui, json_path, results_dir, mole_ext)
+        self = cls.from_gui(gui, json_path, mole_ext)
 
         tomo = gui.tomogram
         localprops = tomo.splines.collect_localprops(allow_none=True)
         globalprops = tomo.splines.collect_globalprops(allow_none=True)
 
-        if results_dir is None:
-            results_dir = json_path.parent / (json_path.stem + "_results")
-        else:
-            results_dir = Path(results_dir)
-        localprops_path = None if localprops is None else results_dir / "localprops.csv"
-        globalprops_path = (
-            None if globalprops is None else results_dir / "globalprops.csv"
-        )
+        results_dir = json_path.parent
 
         mole_objects: "list[Molecules]" = []
         for layer in gui.parent_viewer.layers:
@@ -196,10 +183,10 @@ class CylindraProject(BaseProject):
 
         if not results_dir.exists():
             results_dir.mkdir()
-        if localprops_path:
-            localprops.write_csv(localprops_path)
-        if globalprops_path:
-            globalprops.write_csv(globalprops_path)
+        if localprops is not None:
+            localprops.write_csv(results_dir / "localprops.csv")
+        if globalprops is not None:
+            globalprops.write_csv(results_dir / "globalprops.csv")
         if self.splines:
             for spl, path in zip(gui.tomogram.splines, self.splines):
                 spl.to_json(results_dir / path)
@@ -212,9 +199,8 @@ class CylindraProject(BaseProject):
 
         # save macro
         fp = results_dir / str(self.macro)
-        fp.write_text(
-            as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
-        )
+        expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
+        fp.write_text(expr)
 
         self.project_description = gui.GeneralInfo.project_desc.value
         self.to_json(json_path)

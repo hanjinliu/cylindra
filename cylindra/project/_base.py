@@ -1,5 +1,7 @@
 import json
 from typing import Any, Union
+from typing_extensions import Self
+import io
 from enum import Enum
 from pathlib import Path
 from pydantic import BaseModel
@@ -52,24 +54,32 @@ class BaseProject(BaseModel):
         d.pop("project_path")
         return d
 
-    def to_json(self, path: str) -> None:
+    def to_json(self, path: "str | Path | io.IOBase") -> None:
         """Save project as a json file."""
+        if isinstance(path, io.IOBase):
+            return self._dump(path)
         with open(path, mode="w") as f:
-            json.dump(
-                self.dict(), f, indent=4, separators=(",", ": "), default=json_encoder
-            )
+            self._dump(f)
+        return None
+
+    def _dump(self, f: io.IOBase) -> None:
+        """Dump the project to a file."""
+        json.dump(
+            self.dict(), f, indent=4, separators=(",", ": "), default=json_encoder
+        )
         return None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.project_path!r})"
 
     @classmethod
-    def from_json(cls, path: str):
+    def from_json(cls, path: "str | Path | io.IOBase") -> Self:
         """Construct a project from a json file."""
-        path = str(path)
-
-        with open(path) as f:
-            js: dict = json.load(f)
+        if isinstance(path, io.IOBase):
+            js = json.load(path)
+        else:
+            with open(str(path)) as f:
+                js: dict = json.load(f)
         self = cls(**js, project_path=Path(path))
         self._post_init()
         file_dir = Path(path).parent

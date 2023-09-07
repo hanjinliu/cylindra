@@ -327,6 +327,7 @@ class MultiFileEdit(Container):
             )
             _cnt.margins = (0, 0, 0, 0)
             self._paths.append(_cnt)
+        self._toggle_btn.enabled = len(self._paths) > 0
 
     def _toggle_delete_checkboxes(self):
         visible = not self._del_btn.visible
@@ -335,9 +336,9 @@ class MultiFileEdit(Container):
             if visible:
                 wdt[0].value = False  # uncheck
         if visible:
-            self._toggle_btn.label = "Cancel"
+            self._toggle_btn.text = "Cancel"
         else:
-            self._toggle_btn.label = "Select"
+            self._toggle_btn.text = "Select"
         self._del_btn.visible = visible
 
     def _delete_checked_paths(self):
@@ -362,6 +363,7 @@ class MultiFileEdit(Container):
         # clear paths
         self._paths.clear()
         if val is Undefined:
+            self._toggle_btn.enabled = False
             return
         self._append_paths(val)
 

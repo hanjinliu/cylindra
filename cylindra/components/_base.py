@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import io
 from abc import ABC, abstractmethod, abstractclassmethod
 import json
+from pathlib import Path
 from typing import Any
 from typing_extensions import Self
 
@@ -19,7 +21,7 @@ class BaseComponent(ABC):
         """Convert a component to a dictionary."""
         raise NotImplementedError
 
-    def to_json(self, file_path: str) -> None:
+    def to_json(self, file_path: str | Path | io.IOBase) -> None:
         """
         Save spline model in a json format.
 
@@ -28,15 +30,18 @@ class BaseComponent(ABC):
         file_path : str
             Path to the file.
         """
-        file_path = str(file_path)
-
-        with open(file_path, mode="w") as f:
-            json.dump(self.to_dict(), f, indent=4, separators=(", ", ": "))
-
+        if isinstance(file_path, io.IOBase):
+            return self._dump(file_path)
+        with open(str(file_path), mode="w") as f:
+            self._dump(f)
         return None
 
+    def _dump(self, f: io.IOBase) -> None:
+        """Dump the project to a file."""
+        return json.dump(self.to_dict(), f, indent=4, separators=(",", ": "))
+
     @classmethod
-    def from_json(cls, file_path: str) -> Self:
+    def from_json(cls, file_path: str | Path | io.IOBase) -> Self:
         """
         Construct a spline model from a json file.
 
@@ -50,8 +55,8 @@ class BaseComponent(ABC):
         Spline
             Spline object constructed from the json file.
         """
-        file_path = str(file_path)
-
-        with open(file_path) as f:
+        if isinstance(file_path, io.IOBase):
+            return cls.from_dict(json.load(file_path))
+        with open(str(file_path)) as f:
             js = json.load(f)
         return cls.from_dict(js)

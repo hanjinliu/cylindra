@@ -127,13 +127,9 @@ class CylindraBatchProject(BaseProject):
         cls: "type[CylindraBatchProject]",
         gui: "CylindraBatchWidget",
         json_path: Path,
-        results_dir: Union[Path, None] = None,
         mole_ext: str = ".csv",
     ) -> None:
-        if results_dir is None:
-            results_dir = json_path.parent / (json_path.stem + "_results")
-        else:
-            results_dir = Path(results_dir)
+        results_dir = json_path.parent
 
         self = cls.from_gui(gui, json_path, results_dir, mole_ext)
 
@@ -151,7 +147,7 @@ class CylindraBatchProject(BaseProject):
         self.to_json(json_path)
         return None
 
-    def to_gui(self, gui: "CylindraBatchWidget") -> None:
+    def _to_gui(self, gui: "CylindraBatchWidget") -> None:
         import impy as ip
         from acryo import Molecules, BatchLoader
 

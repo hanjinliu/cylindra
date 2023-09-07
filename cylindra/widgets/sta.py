@@ -1,5 +1,6 @@
 from typing import (
     Any,
+    Callable,
     Iterable,
     Literal,
     Union,
@@ -227,12 +228,17 @@ class SubtomogramAnalysis(MagicTemplate):
     average_groups = abstractapi()
     split_and_average = abstractapi()
     sep0 = field(Separator)
+    calculate_correlation = abstractapi()
     calculate_fsc = abstractapi()
     classify_pca = abstractapi()
     sep1 = field(Separator)
-    seam_search = abstractapi()
-    seam_search_by_fiducials = abstractapi()
-    seam_search_by_feature = abstractapi()
+
+    @magicmenu
+    class SeamSearch(MagicTemplate):
+        seam_search = abstractapi()
+        seam_search_by_fiducials = abstractapi()
+        seam_search_by_feature = abstractapi()
+
     sep2 = field(Separator)
     save_last_average = abstractapi()
 
@@ -398,7 +404,7 @@ class StaParameters(MagicTemplate):
 class SubtomogramAveraging(ChildWidget):
     """Widget for subtomogram averaging."""
 
-    Subtomogram_analysis = field(SubtomogramAnalysis)
+    Subtomogram_analysis = SubtomogramAnalysis
     Refinement = field(Refinement)
     params = StaParameters
 
@@ -793,7 +799,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer("align_all")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_main()
+        main = self._get_main()
 
         combiner = MoleculesCombiner()
 
@@ -808,7 +814,7 @@ class SubtomogramAveraging(ChildWidget):
             rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
+            tilt=single_axis(main.tomogram.tilt_range, axis="y"),
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
@@ -1280,6 +1286,72 @@ class SubtomogramAveraging(ChildWidget):
         return _on_return
 
     @Subtomogram_analysis.wraps
+    @set_design(text="Calculate correlation")
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating correlations of {!r}"))  # fmt: skip
+    def calculate_correlation(
+        self,
+        layers: _MoleculeLayers,
+        template_paths: _ImagePaths,
+        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        metric: Literal["zncc", "ncc"] = "zncc",
+        column_prefix: str = "score",
+    ):
+        """
+        Calculate correlation between template images and the subtomograms.
+
+        This method will load every subtomograms, calculate the correlation between
+        the template images and each subtomogram, and save the correlation values
+        as new columns in the molecules features.
+
+        Parameters
+        ----------
+        {layers}{template_paths}{mask_params}{interpolation}
+        metric : str, default is "zncc"
+            Metric to calculate correlation.
+        column_prefix : str, default is "score"
+            Prefix of the column names of the calculated correlations.
+        """
+        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        main = self._get_main()
+        scale = main.tomogram.scale
+        tmps = []
+        _shapes = set()
+        for path in template_paths:
+            template_image = pipe.from_file(path).provide(scale)
+            tmps.append(template_image)
+            _shapes.add(template_image.shape)
+        if len(_shapes) != 1:
+            raise ValueError(f"Inconsistent shapes: {_shapes}")
+        output_shape = _shapes.pop()
+        mask = self.params._get_mask(mask_params)
+        if isinstance(mask, pipe.ImageConverter):
+            msk = mask.convert(np.stack(tmps, axis=0).sum(axis=0), scale)
+        elif isinstance(mask, pipe.ImageProvider):
+            msk = mask.provide(scale)
+        elif mask is None:
+            msk = 1
+        else:
+            raise RuntimeError("Unreachable")
+        corr_fn = ip.ncc if metric == "ncc" else ip.zncc
+        funcs = []
+        for tmp in tmps:
+            funcs.append(_define_correlation_function(tmp, msk, corr_fn))
+
+        for layer in layers:
+            mole = layer.molecules
+            out = main.tomogram.get_subtomogram_loader(
+                mole,
+                order=interpolation,
+                output_shape=output_shape,
+            ).apply(
+                funcs,
+                schema=[f"{column_prefix}_{i}" for i in range(len(template_paths))],
+            )
+            layer.molecules = layer.molecules.with_features(out.cast(pl.Float32))
+        return None
+
+    @Subtomogram_analysis.wraps
     @set_design(text="Calculate FSC")
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
     def calculate_fsc(
@@ -1312,10 +1384,10 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer("calculate_fsc")
         layers = _assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_main()
+        main = self._get_main()
         mole = _concat_molecules(layers)
 
-        loader = parent.tomogram.get_subtomogram_loader(mole, order=interpolation)
+        loader = main.tomogram.get_subtomogram_loader(mole, order=interpolation)
         template, mask = loader.normalize_input(
             template=self.params._get_template(allow_none=True),
             mask=self.params._get_mask(params=mask_params),
@@ -1323,7 +1395,7 @@ class SubtomogramAveraging(ChildWidget):
         fsc, avg = loader.reshape(
             template=template if size is None else None,
             mask=mask,
-            shape=None if size is None else (parent.tomogram.nm2pixel(size),) * 3,
+            shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
         ).fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
 
         if show_average:
@@ -1350,7 +1422,7 @@ class SubtomogramAveraging(ChildWidget):
                     fsc_mean,
                     fsc_std,
                     [crit_0143, crit_0500],
-                    parent.tomogram.scale,
+                    main.tomogram.scale,
                 )
 
             _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{res0500:.3f} nm</b>")
@@ -1439,7 +1511,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @Subtomogram_analysis.wraps
+    @Subtomogram_analysis.SeamSearch.wraps
     @set_design(text="Seam search")
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
@@ -1509,7 +1581,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _seam_search_on_return
 
-    @Subtomogram_analysis.wraps
+    @Subtomogram_analysis.SeamSearch.wraps
     @set_design(text="Seam search (by fiducials)")
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search (by fiducials) of {!r}"))  # fmt: skip
     def seam_search_by_fiducials(
@@ -1555,7 +1627,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _seam_search_on_return
 
-    @Subtomogram_analysis.wraps
+    @Subtomogram_analysis.SeamSearch.wraps
     @set_design(text="Seam search (by feature)")
     def seam_search_by_feature(
         self,
@@ -1726,11 +1798,24 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
     return sl
 
 
-def _default_align_averaged_shifts(mole: Molecules) -> np.ndarray:
+def _default_align_averaged_shifts(mole: Molecules) -> "NDArray[np.floating]":
     npf = mole.features[Mole.pf].max() + 1
     dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
     dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
     return (dy * 0.6, dy * 0.6, dx * 0.6)
+
+
+def _define_correlation_function(
+    temp: "NDArray[np.float32]",
+    mask: "NDArray[np.float32] | float",
+    func: Callable[[ip.ImgArray, ip.ImgArray], float],
+) -> "Callable[[NDArray[np.float32]], float]":
+    temp = ip.asarray(temp, axes="zyx")
+
+    def _fn(img: "NDArray[np.float32]") -> float:
+        return func(ip.asarray(img * mask, axes="zyx"), temp * mask)
+
+    return _fn
 
 
 def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:

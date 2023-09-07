@@ -518,8 +518,8 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("Ctrl+K, Ctrl+S")
     def save_project(
         self,
-        save_dir: Path.Save,
-        molecules_ext: Literal[".csv", ".pq"] = ".csv",
+        save_path: Path.Save,
+        molecules_ext: Literal[".csv", ".parquet"] = ".csv",
     ):
         """
         Save current project state and the results in a directory.
@@ -536,17 +536,17 @@ class CylindraMainWidget(MagicTemplate):
         save_dir : Path
             Path of json file.
         molecules_ext : str, default is ".csv"
-            Extension of the molecule file. Can be ".csv" or ".pq".
+            Extension of the molecule file. Can be ".csv" or ".parquet".
         """
-        save_dir = Path(save_dir)
-        dir_posix = save_dir.as_posix()
-        if save_dir.is_file():
+        save_path = Path(save_path)
+        dir_posix = save_path.as_posix()
+        if save_path.is_file():
             raise ValueError(f"You must specify a directory, but got {dir_posix}")
-        js_path = save_dir / "project.json"
-        CylindraProject.save_gui(self, js_path, save_dir, molecules_ext)
+        js_path = save_path / "project.json"
+        CylindraProject.save_gui(self, js_path, molecules_ext)
         _Logger.print(f"Project saved: {dir_posix}")
         self._need_save = False
-        self._project_dir = save_dir
+        self._project_dir = save_path
         return None
 
     @File.wraps
