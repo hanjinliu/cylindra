@@ -664,7 +664,6 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
         ui.cylinder_simulator.simulate_tilt_series(
             template_path=TEST_DIR / "beta-tubulin.mrc",
             save_dir=dirpath,
-            nsr=[0.5, 2.0],
             tilt_range=(-60.0, 60.0),
             n_tilt=11,
             interpolation=1,

@@ -125,6 +125,7 @@ class CylinderSimulator(ChildWidget):
         simulate_tomogram = abstractapi()
         simulate_tomogram_and_open = abstractapi()
         simulate_tilt_series = abstractapi()
+        simulate_tomogram_from_tilt_series = abstractapi()
 
     @magicmenu(name="Transform")
     class TransformMenu(MagicTemplate):
@@ -615,7 +616,49 @@ class CylinderSimulator(ChildWidget):
         return None
 
     @SimulateMenu.wraps
-    @dask_thread_worker.with_progress(desc="Simulating tilt series...")
+    @dask_thread_worker.with_progress(desc="Simulating tomogram...")
+    @set_design(text="Simulate tomogram from tilt series")
+    @confirm(
+        text="You have an opened image. Run anyway?",
+        condition="not self._get_main().tomogram.is_dummy",
+    )
+    def simulate_tomogram_from_tilt_series(
+        self,
+        path: Path.Read[FileFilter.IMAGE],
+        nsr: _NSRatio = 1.5,
+        bin_size: Annotated[list[int], {"options": {"min": 1, "max": 32}}] = [1],
+        tilt_range: _TiltRange = (-60.0, 60.0),
+        height: Annotated[nm, {"label": "height (nm)"}] = 50,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
+    ):
+        main = self._get_main()
+        sino = ip.imread(path)
+        scale = sino.scale.x
+        if sino.ndim != 3:
+            raise ValueError("Input image must be a 3D image.")
+        degrees = np.linspace(*tilt_range, sino.shape[0])
+        rng = ip.random.default_rng(seed)
+        imax = sino.max()
+        sino_noise = sino + rng.normal(
+            scale=imax * nsr, size=sino.shape, axes=sino.axes
+        )
+        rec = sino_noise.iradon(
+            degrees,
+            central_axis="y",
+            height=roundint(height / scale),
+            order=interpolation,
+        ).set_scale(zyx=scale, unit="nm")
+        yield _on_iradon_finished.with_args(rec.proj("z"), f"N/S = {nsr:.1f}")
+
+        rec.name = "Simulated tomogram"
+        tomo = CylTomogram.from_image(
+            rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
+        )
+        return main._send_tomogram_to_viewer.with_args(tomo)
+
+    @SimulateMenu.wraps
+    @dask_thread_worker.with_progress(desc="Simulating tomogram...")
     @set_design(text="Simulate tomogram and open")
     @confirm(
         text="You have an opened image. Run anyway?",
@@ -703,14 +746,12 @@ class CylinderSimulator(ChildWidget):
     def simulate_tilt_series(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
-        save_dir: Annotated[Path.Dir, {"label": "Save at"}],
-        nsr: _NSRatios = [1.5],
+        save_path: Annotated[Path.Save, {"label": "Save at"}],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 21,
         shape: Annotated[Any, {"bind": _get_shape}] = None,
         scale: Annotated[nm, {"bind": _get_scale}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
         """
         Simulate tilt series using the current model and save the images.
@@ -719,65 +760,25 @@ class CylinderSimulator(ChildWidget):
         ----------
         template_path : Path
             Path to the image used for the template.
-        save_dir : Path
-            Path to the directory where the images will be saved. If None, the images
-            will be added to the viewer.
-        nsr : list of float
-            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
-            value of the true monomer density and N is the standard deviation of
-            the Gaussian noise.
+        save_path : Path
+            Path of the file where the tilt series will be saved.
         tilt_range : tuple of float
             Minimum and maximum tilt angles in degree.
         n_tilt : int
             Number of tilt angles between minimum and maximum angles.
         interpolation : int
             Interpolation method used during the simulation.
-        seed : int, optional
-            Random seed used for the Gaussian noise.
         """
         if scale is None:
             scale = self._get_scale()
         if shape is None:
             shape = self._get_shape()
-        parent = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         sino, mole = self._prep_radon(
             template_path, degrees, scale, shape, interpolation
         )
-        # add noise and save image
-        if not save_dir.exists():
-            save_dir.mkdir()
-            _Logger.print(f"Directory created at {save_dir}.")
-
-        nsr_info = {i: val for i, val in enumerate(nsr)}
-        js = {
-            "tilt_degree_min": tilt_range[0],
-            "tilt_degree_max": tilt_range[1],
-            "n_tilt": len(degrees),
-            "interpolation": interpolation,
-            "random_seed": seed,
-            "tomogram_shape": shape,
-            "central_axis": "y",  # NOTE: may change in the future
-            "ns_ratio": nsr_info,
-        }
-        with open(save_dir / SIMULATION_INFO_FILE_NAME, "w") as f:
-            json.dump(js, f, indent=4, separators=(", ", ": "))
-        self._spline.to_json(save_dir / "spline.json")
-        mole.to_csv(save_dir / "molecules.csv")
-        macro_str = str(parent._format_macro(parent.macro[parent._macro_offset :]))
-        fp = save_dir / "script.py"
-        fp.write_text(macro_str)
-
-        rng = ip.random.default_rng(seed)
-        for i, nsr_val in enumerate(nsr):
-            imax = sino.max()
-            sino_noise = sino + rng.normal(
-                scale=imax * nsr_val, size=sino.shape, axes=sino.axes
-            )
-            file_name = save_dir / f"tilt_series-{i}.mrc"
-            sino_noise.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(file_name)
-            _Logger.print(f"Tilt series saved at {file_name}.")
-
+        sino.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(save_path)
+        _Logger.print(f"Tilt series saved at {save_path}.")
         return None
 
     # TODO: should be like

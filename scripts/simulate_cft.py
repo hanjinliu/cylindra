@@ -5,6 +5,7 @@ import ast
 from typing import NamedTuple
 from pathlib import Path
 import tempfile
+from tqdm import tqdm, trange
 
 import numpy as np
 from cylindra import start
@@ -170,21 +171,23 @@ def simulate(
     simulator = func(ui, scale)  # simulate cylinder
     coords = simulator.prepare()
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        ui.cylinder_simulator.simulate_tomogram(
+        tmpfile = Path(tmpdir) / "image.mrc"
+        ui.cylinder_simulator.simulate_tilt_series(
             template_path=TEMPLATE_PATH,
-            save_dir=tmpdir,
-            nsr=list(nsr) * nrepeat,
+            save_path=tmpfile,
             n_tilt=n_tilt,
             scale=scale,
-            seed=seed,
         )
         results = list[CftResult]()
-        for _rep in range(nrepeat):
-            for _idx, _nsr in enumerate(nsr):
-                fname = f"image-{len(nsr) * _rep + _idx}.mrc"
-                ui.open_image(
-                    tmpdir / fname, tilt_range=(-60, 60), eager=True, bin_size=binsize
+        for _rep in trange(nrepeat):
+            for _idx, _nsr in enumerate(tqdm(nsr)):
+                ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
+                    path=tmpfile,
+                    nsr=_nsr,
+                    bin_size=binsize,
+                    tilt_range=(-60, 60),
+                    height=60.0,
+                    seed=seed + _rep * len(nsr) + _idx,
                 )
                 ui.register_path(coords, err_max=1e-8)
                 ui.measure_radius(splines=[0])
@@ -210,6 +213,7 @@ def simulate(
         )
         print(agg_df)
     t0.toc(log=False)
+    ui.parent_viewer.close()
 
 
 class Namespace(argparse.Namespace):
@@ -240,6 +244,16 @@ class Args(argparse.ArgumentParser):
         return cls().parse_args()
 
 
+# fmt: off
+"""
+- simple test
+python ./scripts/simulate_cft.py --func local_expansions --nsr "[0.1, 2.5]" --n_tilt 21
+- full test
+python ./scripts/simulate_cft.py --func local_expansions --nsr "[0.1, 2.0, 2.5, 3.0]" --n_tilt 61 --nrepeat 20 --scale 0.25 --binsize 2 --output <path>
+python ./scripts/simulate_cft.py --func local_skew --nsr "[0.1, 2.0, 2.5, 3.0]" --n_tilt 61 --nrepeat 20 --scale 0.25 --binsize 2 --output <path>
+python ./scripts/simulate_cft.py --func local_orientation --nsr "[0.1, 2.0, 2.5, 3.0]" --n_tilt 61 --nrepeat 20 --scale 0.25 --binsize 2 --output <path>
+"""
+# fmt: on
 if __name__ == "__main__":
     args = Args.from_args()
     nsr = ast.literal_eval(args.nsr)
