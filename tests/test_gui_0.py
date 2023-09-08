@@ -800,7 +800,7 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
     ):
         ui.load_project(path, filter=None, paint=False, read_image=False)
         spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
-        skew_tilt_angle = ui.tomogram.splines[0].props.get_glob(H.skew_tilt)
+        skew_tilt = ui.tomogram.splines[0].props.get_glob(H.skew_tilt)
         skew_angle = ui.tomogram.splines[0].props.get_glob(H.skew)
         rise_angle = ui.tomogram.splines[0].props.get_glob(H.rise)
         npf = ui.tomogram.splines[0].props.get_glob(H.npf)
@@ -811,18 +811,18 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         layer = ui.parent_viewer.layers[-1]
         assert isinstance(layer, MoleculesLayer)
         ui.calculate_lattice_structure(layer, ["interv", "skew_tilt", "skew", "rise"])
+        ay_ratio = np.sin(np.pi / npf) * npf / np.pi
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
             # individial skews must be almost equal to the global skew angle
             feat = layer.molecules.features
             assert feat["interval-nm"][:-npf].mean() == pytest.approx(spacing, abs=1e-3)
-            assert feat["skew-tilt-deg"][:-npf].mean() == pytest.approx(
-                skew_tilt_angle, abs=1e-3
+            assert feat["skew-tilt-deg"][:-npf].mean() / ay_ratio == pytest.approx(
+                skew_tilt, abs=1e-2
             )
             assert feat["skew-deg"][:-npf].mean() == pytest.approx(skew_angle, abs=1e-3)
             r = "rise-angle-deg"
             feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
-            l_ratio = np.sin(np.pi / npf) * npf / np.pi
-            assert feat_rise.mean() * l_ratio == pytest.approx(rise_angle, abs=1e-2)
+            assert feat_rise.mean() * ay_ratio == pytest.approx(rise_angle, abs=1e-2)
     exc_group.raise_exceptions()
 
 
