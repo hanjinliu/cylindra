@@ -133,6 +133,18 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             raise TypeError(f"Expected CylindraProject, got {type(value)}.")
         return self._projects.insert(index, value)
 
+    def __add__(self, other: ProjectSequence) -> ProjectSequence:
+        """Concatenate two ProjectSequence objects."""
+        if not isinstance(other, ProjectSequence):
+            raise TypeError(f"Expected ProjectSequence, got {type(other)}.")
+        new = ProjectSequence(check_scale=True)
+        new._projects = self._projects + other._projects
+        if len(self) > 0:
+            new._scale_validator.value = self._scale_validator.value
+        if len(other) > 0:
+            new._scale_validator.value = other._scale_validator.value
+        return new
+
     @classmethod
     def from_paths(
         cls,

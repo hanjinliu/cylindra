@@ -196,8 +196,8 @@ class SplineControl(ChildWidget):
 
             yield _on_yield
 
-            if not spl.has_anchors:
-                return
+        if not spl.has_anchors:
+            return
 
         yield from self._load_projection(spl)
         yield  # breakpoint

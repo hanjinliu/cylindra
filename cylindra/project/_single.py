@@ -85,14 +85,12 @@ class CylindraProject(BaseProject):
 
         _versions = get_versions()
         tomo = gui.tomogram
-        localprops = tomo.splines.collect_localprops()
-        globalprops = tomo.splines.collect_globalprops()
+        has_loc = any(len(spl.props.loc) > 0 for spl in tomo.splines)
+        has_glob = any(len(spl.props.glob) > 0 for spl in tomo.splines)
 
         results_dir = json_path.parent
-        localprops_path = None if localprops is None else results_dir / "localprops.csv"
-        globalprops_path = (
-            None if globalprops is None else results_dir / "globalprops.csv"
-        )
+        localprops_path = None if has_loc is None else results_dir / "localprops.csv"
+        globalprops_path = None if has_glob is None else results_dir / "globalprops.csv"
 
         # Save path of splines
         spline_paths = list[Path]()

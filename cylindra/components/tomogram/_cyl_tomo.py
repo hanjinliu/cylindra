@@ -28,7 +28,7 @@ import impy as ip
 
 from cylindra.components.spline import CylSpline
 from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
-from cylindra.const import nm, PropertyNames as H, Ori, Mode, IDName, ExtrapolationMode
+from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
 from cylindra.utils import (
     crop_tomogram,
     centroid,
@@ -769,9 +769,6 @@ class CylTomogram(Tomogram):
         lprops = pl.DataFrame(
             da.compute(*tasks),
             schema=LatticeParams.polars_schema(),
-        ).with_columns(
-            pl.Series(H.spl_pos, spl.anchors, dtype=pl.Float32),
-            pl.Series(H.spl_dist, spl.distances(), dtype=pl.Float32),
         )
         if update:
             spl.props.update_loc(lprops, ft_size)

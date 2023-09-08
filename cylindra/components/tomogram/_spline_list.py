@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 import polars as pl
 
 from cylindra.components.spline import CylSpline
-from cylindra.const import IDName
+from cylindra.const import IDName, PropertyNames as H
 
 
 class SplineList(MutableSequence[CylSpline]):
@@ -120,7 +120,8 @@ class SplineList(MutableSequence[CylSpline]):
             i = [i]
         props = list[pl.DataFrame]()
         for i_ in i:
-            prop = self[i_].props.loc
+            spl = self[i_]
+            prop = spl.props.loc
             if len(prop) == 0:
                 if not allow_none:
                     raise ValueError(f"Local properties of spline {i_} is missing.")
@@ -129,6 +130,8 @@ class SplineList(MutableSequence[CylSpline]):
                 prop.with_columns(
                     pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
                     pl.int_range(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
+                    pl.Series(H.spl_pos, spl.anchors, dtype=pl.Float32),
+                    pl.Series(H.spl_dist, spl.distances(), dtype=pl.Float32),
                 )
             )
 
