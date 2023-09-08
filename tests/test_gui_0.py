@@ -659,17 +659,16 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
         25, (40, 42, 42), scale=0.5, yxrotation=10
     )
     with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        assert len(list(dirpath.glob("*"))) == 0
+        fp = Path(dirpath) / "test.mrc"
+        assert not fp.exists()
         ui.cylinder_simulator.simulate_tilt_series(
             template_path=TEST_DIR / "beta-tubulin.mrc",
-            save_dir=dirpath,
+            save_path=fp,
             tilt_range=(-60.0, 60.0),
             n_tilt=11,
             interpolation=1,
-            seed=0,
         )
-        assert len(list(dirpath.glob("*.mrc"))) == 2
+        assert fp.exists()
     ui.cylinder_simulator.close()
 
 
@@ -811,9 +810,7 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.parent_viewer.layers[-1]
         assert isinstance(layer, MoleculesLayer)
-        ui.calculate_lattice_structure(
-            layer=layer, props=["interv", "skew_tilt", "skew", "rise"]
-        )
+        ui.calculate_lattice_structure(layer, ["interv", "skew_tilt", "skew", "rise"])
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
             # individial skews must be almost equal to the global skew angle
             feat = layer.molecules.features

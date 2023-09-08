@@ -533,7 +533,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        save_dir : Path
+        save_path : Path
             Path of json file.
         molecules_ext : str, default is ".csv"
             Extension of the molecule file. Can be ".csv" or ".parquet".

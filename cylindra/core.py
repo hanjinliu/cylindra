@@ -223,10 +223,11 @@ def collect_projects(
     elif hasattr(files, "__iter__"):
         _files = []
         for f in files:
+            f = str(f)
             if "*" not in f:
                 _files.append(get_project_file(f))
             else:
-                _files.extend([get_project_file(_f) for _f in glob.glob(str(f))])
+                _files.extend([get_project_file(_f) for _f in glob.glob(f)])
     else:
         raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
     if len(_files) == 0:

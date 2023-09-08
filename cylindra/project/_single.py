@@ -85,12 +85,12 @@ class CylindraProject(BaseProject):
 
         _versions = get_versions()
         tomo = gui.tomogram
-        has_loc = any(len(spl.props.loc) > 0 for spl in tomo.splines)
-        has_glob = any(len(spl.props.glob) > 0 for spl in tomo.splines)
+        no_loc = all(len(spl.props.loc) == 0 for spl in tomo.splines)
+        no_glob = all(len(spl.props.glob) == 0 for spl in tomo.splines)
 
         results_dir = json_path.parent
-        localprops_path = None if has_loc is None else results_dir / "localprops.csv"
-        globalprops_path = None if has_glob is None else results_dir / "globalprops.csv"
+        localprops_path = None if no_loc else results_dir / "localprops.csv"
+        globalprops_path = None if not no_glob else results_dir / "globalprops.csv"
 
         # Save path of splines
         spline_paths = list[Path]()
@@ -298,8 +298,11 @@ class CylindraProject(BaseProject):
         else:
             _glob = pl.DataFrame([])
 
-        if all((c in _loc.columns) for c in [H.spl_dist, H.spl_pos]):
+        if H.spl_dist in _loc.columns:
+            _loc = _loc.drop(H.spl_dist)
+        if H.spl_pos in _loc.columns:
             spl._anchors = np.asarray(_loc[H.spl_pos])
+            _loc = _loc.drop(H.spl_pos)
         for c in [IDName.spline, IDName.pos]:
             if c in _loc.columns:
                 _loc = _loc.drop(c)

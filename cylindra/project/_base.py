@@ -111,5 +111,7 @@ def resolve_path(
     if path_joined.exists():
         return path_joined
     if default is _void:
-        raise ValueError(f"Path {path} could not be resolved under root path {root}.")
+        raise ValueError(
+            f"Path {path} was resolved to be {path_joined} but does not exist."
+        )
     return default

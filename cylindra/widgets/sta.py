@@ -69,8 +69,8 @@ if TYPE_CHECKING:
 
 
 def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
-    tmp = self.template
     if size is None:
+        tmp = self.template
         size = max(tmp.shape) * tmp.scale.x
     return size
 
