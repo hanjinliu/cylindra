@@ -121,8 +121,9 @@ class LocalPropertiesWidget(ChildWidget):
         self._props_to_plot = props.copy()
 
     def _plot_properties(self, spl: "CylSpline"):
-        if (x := spl.props.get_loc(H.spl_dist, None)) is None:
+        if not spl.has_anchors:
             return None
+        x = spl.anchors * spl.length()
         if x[0] > x[-1]:
             x = x[::-1]
 

@@ -305,8 +305,6 @@ class SplineControl(ChildWidget):
             1, [_circle(_r, center=center) for _r in [r_inner, r_outer]]
         )
 
-        # draw polarity
-
         @thread_worker.callback
         def _on_return():
             kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
@@ -316,7 +314,8 @@ class SplineControl(ChildWidget):
                 self.canvas[1].add_text(*center, "-", **kw)
 
             # update pyqtgraph
-            if (xs := spl.props.get_loc(H.spl_dist, None)) is not None:
+            if spl.has_anchors:
+                xs = spl.anchors * spl.length()
                 parent.LocalProperties._plot_spline_position(xs[j])
             else:
                 parent.LocalProperties._init_plot()
