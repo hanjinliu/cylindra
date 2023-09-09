@@ -1,14 +1,12 @@
-from __future__ import annotations
-
-import argparse
-import ast
-from typing import NamedTuple
+from typing import Literal, NamedTuple, Annotated
 from pathlib import Path
 import tempfile
 from tqdm import tqdm, trange
 
-import numpy as np
 from cylindra import start
+from magicgui import magicgui
+from magicclass.types import Optional
+import numpy as np
 from cylindra.components import CylSpline
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import timer
@@ -49,7 +47,7 @@ class Simulator:
         return ["val0", "val1", "val2", "val3"]
 
 
-class local_expansions(Simulator):
+class local_expansion(Simulator):
     """Vertical MT with spacing=4.05, 4.10, 4.15, 4.20 nm."""
 
     def prepare(self):
@@ -150,15 +148,18 @@ class local_orientation(Simulator):
         return [f"{n}{i}" for n in ["spacing", "skew", "rise"] for i in range(4)]
 
 
+@magicgui
 def simulate(
-    func=local_expansions,
-    n_tilt: int = 61,
+    func: Literal[
+        "local_expansion", "local_skew", "local_orientation"
+    ] = "local_expansion",
+    n_tilt: Annotated[int, {"min": 1}] = 61,
     nsr: list[float] = [0.1, 2.5],
     nrepeat: int = 5,
     scale: float = 0.5,
-    binsize: int = 1,
-    output: Path | None = None,
-    seed: int = 12345,
+    binsize: Annotated[int, {"min": 1}] = 1,
+    output: Optional[Path] = None,
+    seed: Annotated[int, {"max": 1e8}] = 12345,
 ):
     if isinstance(func, str):
         func = globals()[func]
@@ -168,7 +169,7 @@ def simulate(
 
     ui = start()
     t0 = timer(name=func.__name__)
-    simulator = func(ui, scale)  # simulate cylinder
+    simulator: Simulator = func(ui, scale)  # simulate cylinder
     coords = simulator.prepare()
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpfile = Path(tmpdir) / "image.mrc"
@@ -216,56 +217,6 @@ def simulate(
     ui.parent_viewer.close()
 
 
-class Namespace(argparse.Namespace):
-    func: str
-    n_tilt: int
-    nsr: list[float]
-    nrepeat: int
-    scale: float
-    binsize: int
-    output: str | None
-    seed: int
-
-
-class Args(argparse.ArgumentParser):
-    def __init__(self):
-        super().__init__()
-        self.add_argument("--func", type=str, default="local_expansions")
-        self.add_argument("--n_tilt", type=int, default=61)
-        self.add_argument("--nsr", type=str, default="[0.1, 2.5]")
-        self.add_argument("--nrepeat", type=int, default=5)
-        self.add_argument("--scale", type=float, default=0.5)
-        self.add_argument("--binsize", type=int, default=1)
-        self.add_argument("--output", type=str, default=None)
-        self.add_argument("--seed", type=int, default=12345)
-
-    @classmethod
-    def from_args(cls) -> Namespace:
-        return cls().parse_args()
-
-
-# fmt: off
-"""
-- simple test
-python ./scripts/simulate_cft.py --func local_expansions --nsr "[0.1, 2.5]" --n_tilt 21
-- full test
-python ./scripts/simulate_cft.py --func local_expansions --nsr "[0.1, 2.0, 2.5, 3.0]" --n_tilt 61 --nrepeat 20 --scale 0.25 --binsize 2 --output <path>
-python ./scripts/simulate_cft.py --func local_skew --nsr "[0.1, 2.0, 2.5, 3.0]" --n_tilt 61 --nrepeat 20 --scale 0.25 --binsize 2 --output <path>
-python ./scripts/simulate_cft.py --func local_orientation --nsr "[0.1, 2.0, 2.5, 3.0]" --n_tilt 61 --nrepeat 20 --scale 0.25 --binsize 2 --output <path>
-"""
-# fmt: on
 if __name__ == "__main__":
-    args = Args.from_args()
-    nsr = ast.literal_eval(args.nsr)
-    if isinstance(nsr, (int, float)):
-        nsr = [float(nsr)]
-    simulate(
-        func=args.func,
-        n_tilt=args.n_tilt,
-        nsr=nsr,
-        nrepeat=args.nrepeat,
-        scale=args.scale,
-        binsize=args.binsize,
-        output=args.output,
-        seed=args.seed,
-    )
+    print(" --- starting simulation --- ")
+    simulate.show(run=True)

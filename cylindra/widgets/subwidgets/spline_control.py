@@ -281,8 +281,7 @@ class SplineControl(ChildWidget):
             r0 = spl.props.get_glob(H.radius)
         else:
             return None
-        lz, ly, lx = np.array(proj.shape)
-
+        lz, ly, lx = proj.shape
         depths = list(spl.props.window_size.values())
         if len(depths) == 0:
             ylen = 25 / binsize / tomo.scale
@@ -290,38 +289,43 @@ class SplineControl(ChildWidget):
             ylen = depths[0] / 2 / binsize / tomo.scale
 
         # innter/outer radius of the cylinder
-        r_inner = max(r0 - spl.config.thickness_inner, 0) / tomo.scale / binsize
-        r_outer = (r0 + spl.config.thickness_outer) / tomo.scale / binsize
+        rrange = spl.radius_range(r0)
+        rmin = rrange[0] / tomo.scale / binsize
+        rmax = rrange[1] / tomo.scale / binsize
 
         # draw a square in YX-view
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
-        xmin, xmax = -r_outer + lx / 2 - 1, r_outer + lx / 2
+        xmin, xmax = -rmax + lx / 2 - 1, rmax + lx / 2
         xy = [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin]
         yield self._add_curve.with_args(0, [xy])
 
         # draw two circles in ZX-view
         center = (lx / 2 - 0.5, lz / 2 - 0.5)
         yield self._add_curve.with_args(
-            1, [_circle(_r, center=center) for _r in [r_inner, r_outer]]
+            1, [_circle(_r, center=center) for _r in [rmin, rmax]]
         )
 
-        # draw polarity
-
         @thread_worker.callback
-        def _on_return():
+        def _set_texts():
             kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
             if spl.orientation == "PlusToMinus":
                 self.canvas[1].add_text(*center, "+", **kw)
             elif spl.orientation == "MinusToPlus":
                 self.canvas[1].add_text(*center, "-", **kw)
 
+        yield _set_texts
+
+        @thread_worker.callback
+        def _set_local_props():
             # update pyqtgraph
-            if (xs := spl.props.get_loc(H.spl_dist, None)) is not None:
+            if spl.has_anchors:
+                xs = spl.anchors * spl.length()
                 parent.LocalProperties._plot_spline_position(xs[j])
             else:
                 parent.LocalProperties._init_plot()
 
-        return _on_return
+        yield _set_local_props
+        return None
 
     @thread_worker.callback
     def _clear_all_layers(self):
