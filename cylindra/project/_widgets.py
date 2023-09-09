@@ -39,14 +39,14 @@ class TextInfo(MagicTemplate):
         self.project_text.read_only = True
         self.project_text.syntax_highlight("json", theme=theme)
 
-        if path := project.default_spline_config:
-            with open(path) as f:
+        if project.default_spline_config_path.exists():
+            with open(project.default_spline_config_path) as f:
                 self.Right.config.value = f.read()
         self.Right.config.read_only = True
         self.Right.config.syntax_highlight("json", theme=theme)
 
-        if path := project.macro:
-            with open(path) as f:
+        if project.macro_path.exists():
+            with open(project.macro_path) as f:
                 self.Right.macro_script.value = f.read()
         self.Right.macro_script.read_only = True
         self.Right.macro_script.syntax_highlight("python", theme=theme)
@@ -74,23 +74,18 @@ class ComponentsViewer(MagicTemplate):
             self.append(cont)
 
     def _from_project(self, project: "CylindraProject"):
-        from cylindra.components import CylSpline
-        from acryo import Molecules
-
         self.canvas.layers.clear()
         self.components.clear()
 
-        for path in project.splines:
-            spl = CylSpline.from_json(path)
+        for i, spl in enumerate(project.iter_load_splines()):
             coords = spl.partition(100)
             layer = self.canvas.add_curve(
-                coords, color="crimson", width=5.0, name=path.stem
+                coords, color="crimson", width=5.0, name=f"spline-{i}"
             )
             self.components._add_layer(layer)
 
-        for path in project.molecules:
-            mole = Molecules.from_file(path)
-            layer = self.canvas.add_points(mole.pos, face_color="lime", name=path.stem)
+        for stem, mole in project.iter_load_molecules():
+            layer = self.canvas.add_points(mole.pos, face_color="lime", name=stem)
             self.components._add_layer(layer)
 
         # draw edge
@@ -113,12 +108,12 @@ class Properties(MagicTemplate):
     table_global = field(widget_type=DataFrameView)
 
     def _from_project(self, project: "CylindraProject"):
-        if path := project.localprops:
-            df = pl.read_csv(path)
+        if project.localprops_path.exists():
+            df = pl.read_csv(project.localprops_path)
             self.table_local.value = df
 
-        if path := project.globalprops:
-            df = pl.read_csv(path)
+        if project.globalprops_path.exists():
+            df = pl.read_csv(project.globalprops_path)
             self.table_global.value = df
 
 

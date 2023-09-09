@@ -262,4 +262,4 @@ def _fmt_prop(spl: "CylSpline", name: str) -> str:
     value = spl.props.get_glob(name, None)
     if value is None:
         return " -- "
-    return f" {value:.2f}"
+    return f"{value:.2f}"

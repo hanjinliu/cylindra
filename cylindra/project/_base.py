@@ -80,7 +80,7 @@ class BaseProject(BaseModel):
         if isinstance(path, io.IOBase):
             js = json.load(path)
         else:
-            with open(str(path)) as f:
+            with open(str(path).strip("'").strip('"')) as f:
                 js: dict = json.load(f)
         self = cls(**js, project_path=Path(path))
         self._post_init()

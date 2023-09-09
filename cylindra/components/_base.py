@@ -32,7 +32,7 @@ class BaseComponent(ABC):
         """
         if isinstance(file_path, io.IOBase):
             return self._dump(file_path)
-        with open(str(file_path), mode="w") as f:
+        with open(str(file_path).strip("'").strip('"'), mode="w") as f:
             self._dump(f)
         return None
 
@@ -57,6 +57,6 @@ class BaseComponent(ABC):
         """
         if isinstance(file_path, io.IOBase):
             return cls.from_dict(json.load(file_path))
-        with open(str(file_path)) as f:
+        with open(str(file_path).strip("'").strip('"')) as f:
             js = json.load(f)
         return cls.from_dict(js)

@@ -179,10 +179,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
-            for info in prj.molecules_info:
-                mole = prj.load_molecules(info.name)
+            for stem, mole in prj.iter_load_molecules():
                 mole.features = mole.features.with_columns(
-                    pl.repeat(info.stem, pl.count()).alias(Mole.id)
+                    pl.repeat(stem, pl.count()).alias(Mole.id)
                 )
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col

@@ -180,11 +180,11 @@ class Project(MagicTemplate):
         self.Header.path.tooltip = path
 
         # load splines
-        for spline_path in project.splines:
+        for spline_path in project.iter_spline_paths():
             self.splines._add_path(spline_path)
 
         # load molecules
-        for mole_path in project.molecules:
+        for mole_path in project.iter_molecule_paths():
             self.molecules._add_path(mole_path)
 
         return self
@@ -210,10 +210,10 @@ class Project(MagicTemplate):
 
     def _get_localprops(self) -> pl.DataFrame:
         project = CylindraProject.from_json(self.path)
-        if project.localprops is None:
+        if not project.localprops_path.exists():
             raise ValueError("No localprops file found.")
 
-        df = pl.read_csv(project.localprops)
+        df = pl.read_csv(project.localprops_path)
         return df
 
 

@@ -268,14 +268,14 @@ class CylindraProject(BaseProject):
         from cylindra.components import CylSpline
 
         spl = CylSpline.from_json(self.spline_path(idx))
-        if self.localprops is not None:
+        if self.localprops_path.exists():
             _loc = pl.read_csv(self.localprops_path).filter(
                 pl.col(IDName.spline) == idx
             )
             _loc = _drop_null_columns(_loc)
         else:
             _loc = pl.DataFrame([])
-        if self.globalprops is not None:
+        if self.globalprops_path.exists():
             _glob = pl.read_csv(self.globalprops_path)[idx]
             _glob = _drop_null_columns(_glob)
         else:
@@ -294,6 +294,10 @@ class CylindraProject(BaseProject):
 
         return spl
 
+    def iter_spline_paths(self) -> "Iterable[Path]":
+        """Iterate over the paths of splines."""
+        yield from self.project_dir.glob("spline-*.json")
+
     def iter_load_splines(self) -> "Iterable[CylSpline]":
         """Load all splines iteratively."""
         from cylindra.components import CylSpline
@@ -306,7 +310,7 @@ class CylindraProject(BaseProject):
             _globalprops = pl.read_csv(self.globalprops_path)
         else:
             _globalprops = None
-        for spl_path in self.project_dir.glob("spline-*.json"):
+        for spl_path in self.iter_spline_paths():
             spl = CylSpline.from_json(spl_path)
             idx = int(spl_path.stem.split("-")[1])
             if _localprops is not None:
@@ -332,14 +336,19 @@ class CylindraProject(BaseProject):
             spl.props.glob = cast_dataframe(_glob)
             yield spl
 
+    def iter_molecule_paths(self) -> "Iterable[Path]":
+        """Iterate over the paths of molecules."""
+        for info in self.molecules_info:
+            yield self.molecules_path(info.name)
+
     def load_molecules(self, name: str) -> "Molecules":
-        """Load the molecules with the given index or name."""
+        """Load the molecules with the given name."""
         from acryo import Molecules
 
         mole_path = self.molecules_path(name)
         return Molecules.from_file(mole_path)
 
-    def iter_load_molecules(self) -> "Iterable[Molecules]":
+    def iter_load_molecules(self) -> "Iterable[tuple[str, Molecules]]":
         """Load all molecules iteratively."""
         for info in self.molecules_info:
             path = self.molecules_path(info.name)
@@ -348,7 +357,7 @@ class CylindraProject(BaseProject):
                     f"Cannot find molecule file {path}. Probably it was moved?"
                 )
                 continue
-            yield self.load_molecules(info.name)
+            yield info.stem, self.load_molecules(info.name)
 
     def load_tomogram(self) -> "CylTomogram":
         """Load the tomogram object of the project."""
