@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 from magicclass import (
     abstractapi,
     magicclass,
@@ -12,7 +12,7 @@ from magicclass import (
 )
 from magicclass.types import Path
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
-from cylindra.const import PropertyNames as H
+from cylindra.const import PropertyNames as H, Ori
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.widgets.widget_utils import FileFilter
 from ._child_widget import ChildWidget
@@ -97,7 +97,7 @@ class LocalPropertiesWidget(ChildWidget):
         self.params.rise.txt = f" {spl.props.get_loc(H.rise)[i]:.2f}°"
         npf = int(spl.props.get_loc(H.npf)[i])
         start = spl.props.get_loc(H.start)[i]
-        self.params.structure.txt = f" {npf}_{start:.1f}"
+        self.params.structure.txt = f" {npf}_{start}"
         return None
 
     def _init_plot(self):
@@ -241,15 +241,25 @@ class GlobalPropertiesWidget(MagicTemplate):
         return None
 
     def _set_text(self, spl: "CylSpline"):
-        self.params.params1.spacing.txt = f" {spl.props.get_glob(H.spacing):.2f} nm"
-        self.params.params1.skew.txt = f" {spl.props.get_glob(H.skew):.2f}°"
-        self.params.params1.rise.txt = f" {spl.props.get_glob(H.rise):.2f}°"
-        npf = int(spl.props.get_glob(H.npf))
-        start = spl.props.get_glob(H.start)
-        self.params.params1.structure.txt = f" {npf}_{start:.1f}"
-        if spl.radius is not None:
-            self.params.params2.radius.txt = f" {spl.radius:.2f} nm"
+        self.params.params1.spacing.txt = f" {_fmt_prop(spl, H.spacing)} nm"
+        self.params.params1.skew.txt = f" {_fmt_prop(spl, H.skew)}°"
+        self.params.params1.rise.txt = f" {_fmt_prop(spl, H.rise)}°"
+        npf = spl.props.get_glob(H.npf, None)
+        start = spl.props.get_glob(H.start, None)
+        if npf is None or start is None:
+            self.params.params1.structure.txt = f" -- "
         else:
-            self.params.params2.radius.txt = " -- nm"
-        self.params.params2.polarity.txt = spl.orientation
+            self.params.params1.structure.txt = f" {npf}_{start}"
+        self.params.params2.radius.txt = f" {_fmt_prop(spl, H.radius)} nm"
+        if spl.orientation is Ori.none:
+            self.params.params2.polarity.txt = " -- "
+        else:
+            self.params.params2.polarity.txt = spl.orientation
         return None
+
+
+def _fmt_prop(spl: "CylSpline", name: str) -> str:
+    value = spl.props.get_glob(name, None)
+    if value is None:
+        return " -- "
+    return f" {value:.2f}"

@@ -2529,13 +2529,6 @@ class CylindraMainWidget(MagicTemplate):
             self.macro.append_with_undo(mk.Expr("del", [expr]), undo)
         return
 
-    def _on_layer_removed(self, event: "Event"):
-        idx: int = event.index
-        layer: Layer = event.value
-        if self._reserved_layers.contains(layer):
-            self.parent_viewer.layers.insert(idx, layer)
-            warnings.warn(f"Cannot remove layer {layer.name!r}", UserWarning)
-
     def _on_molecules_layer_renamed(self, event: "Event"):
         """When layer name is renamed, record `ui.parent_viewer["old"].name = "new"`"""
         layer: MoleculesLayer = event.source
@@ -2561,7 +2554,6 @@ class CylindraMainWidget(MagicTemplate):
     def _disconnect_layerlist_events(self):
         viewer = self.parent_viewer
         viewer.layers.events.removing.disconnect(self._on_layer_removing)
-        viewer.layers.events.removed.disconnect(self._on_layer_removed)
         viewer.layers.events.inserted.disconnect(self._on_layer_inserted)
 
     def _init_layers(self):
@@ -2588,7 +2580,6 @@ class CylindraMainWidget(MagicTemplate):
 
         # Connect layer events.
         viewer.layers.events.removing.connect(self._on_layer_removing)
-        viewer.layers.events.removed.connect(self._on_layer_removed)
         viewer.layers.events.inserted.connect(self._on_layer_inserted)
         return None
 
@@ -2613,12 +2604,7 @@ class CylindraMainWidget(MagicTemplate):
         i = self.SplineControl.num
         if i is None:
             return
-        spl = self.tomogram.splines[i]
-        headers = [H.spacing, H.skew, H.npf, H.start, H.radius, H.orientation]
-        if spl.props.has_glob(headers):
-            self.GlobalProperties._set_text(spl)
-        else:
-            self.GlobalProperties._init_text()
+        self.GlobalProperties._set_text(self.splines[i])
 
     @SplineControl.num.connect
     @SplineControl.pos.connect
