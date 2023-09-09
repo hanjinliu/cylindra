@@ -212,16 +212,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             path = prj.localprops
-            if path is None and not allow_none:
-                raise ValueError(
-                    f"Localprops not found in project at {prj.project_path}."
-                )
-            else:
-                df = pl.read_csv(path)
-                columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
-                if IDName.spline in df.columns:
-                    columns.append(pl.col(IDName.spline).cast(pl.UInt16))
-                dataframes.append(df.with_columns(columns))
+            if path is None:
+                if not allow_none:
+                    raise ValueError(
+                        f"Localprops not found in project at {prj.project_path}."
+                    )
+            df = pl.read_csv(path)
+            columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
+            if IDName.spline in df.columns:
+                columns.append(pl.col(IDName.spline).cast(pl.UInt16))
+            dataframes.append(df.with_columns(columns))
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         return self._normalize_id(out, id)
 
@@ -255,10 +255,12 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             path = prj.globalprops
-            if path is None and not allow_none:
-                raise ValueError(
-                    f"Globalprops not found in project at {prj.project_path}."
-                )
+            if path is None:
+                if not allow_none:
+                    raise ValueError(
+                        f"Globalprops not found in project at {prj.project_path}."
+                    )
+                continue
             imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
             df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
