@@ -42,10 +42,12 @@ class BaseProject(BaseModel):
     datetime: str
     version: str
     dependency_versions: dict[str, str]
-    macro: PathLike
     project_path: Union[Path, None] = None
 
     def _post_init(self):
+        pass
+
+    def resolve_path(self, file_dir: PathLike):
         pass
 
     def dict(self, **kwargs) -> dict[str, Any]:
@@ -85,11 +87,6 @@ class BaseProject(BaseModel):
         file_dir = Path(path).parent
         self.resolve_path(file_dir)
         return self
-
-    def resolve_path(self, file_dir: PathLike) -> None:
-        """Resolve paths."""
-        self.macro = Path(self.macro).resolve(file_dir)
-        return None
 
 
 _void = object()

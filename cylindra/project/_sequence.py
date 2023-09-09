@@ -174,16 +174,15 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def sta_loader(self) -> BatchLoader:
         """Construct a STA loader from all the projects."""
         import impy as ip
-        from acryo import BatchLoader, Molecules
+        from acryo import BatchLoader
 
         col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
-            for fp in prj.molecules:
-                fp = Path(fp)
-                mole = Molecules.from_file(fp)
+            for info in prj.molecules_info:
+                mole = prj.load_molecules(info.name)
                 mole.features = mole.features.with_columns(
-                    pl.repeat(fp.stem, pl.count()).alias(Mole.id)
+                    pl.repeat(info.stem, pl.count()).alias(Mole.id)
                 )
                 col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
@@ -211,7 +210,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
-            path = prj.localprops
+            path = prj.localprops_path
             if path is None:
                 if not allow_none:
                     raise ValueError(
@@ -254,7 +253,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
-            path = prj.globalprops
+            path = prj.globalprops_path
             if path is None:
                 if not allow_none:
                     raise ValueError(
@@ -348,8 +347,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
         """Iterate over all the splines in all the projects."""
         for i_prj, prj in enumerate(self._projects):
-            for i_spl in range(prj.nsplines):
-                spl = prj.load_spline(i_spl)
+            for i_spl, spl in enumerate(prj.iter_load_splines()):
                 yield (i_prj, i_spl), spl
 
     def iter_molecules(
@@ -370,14 +368,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         if isinstance(spline_props, str):
             spline_props = [spline_props]
         for i_prj, prj in enumerate(self._projects):
-            for i_mole in range(prj.nmolecules):
-                name = prj.molecules[i_mole].stem
-                mole = prj.load_molecules(i_mole)
-                if (
-                    spline_props
-                    and prj.molecules_info is not None
-                    and (src := prj.molecules_info[i_mole].source) is not None
-                ):
+            for info in prj.molecules_info:
+                mole = prj.load_molecules(info.name)
+                if spline_props and (src := info.source) is not None:
                     spl = prj.load_spline(src)
                     features = list[pl.Expr]()
                     for propname in spline_props:
@@ -389,7 +382,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                             pl.repeat(prop, pl.count()).alias(propname_glob)
                         )
                     mole = mole.with_features(features)
-                yield (i_prj, name), mole
+                yield (i_prj, info.stem), mole
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """

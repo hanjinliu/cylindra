@@ -561,8 +561,8 @@ class CylindraMainWidget(MagicTemplate):
                 "(ui.save_project(...)) to save the current state."
             )
         project = CylindraProject.from_json(get_project_file(self._project_dir))
-        if project.molecules:
-            ext = {Path(path).suffix for path in project.molecules}.pop()
+        if project.molecules_info:
+            ext = Path(project.molecules_info[0].name).suffix
         else:
             ext = ".csv"
         return self.save_project(self._project_dir, ext)
@@ -1500,7 +1500,7 @@ class CylindraMainWidget(MagicTemplate):
         """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_json(get_project_file(path))
-        macro_path = Path(project.macro)
+        macro_path = project.macro_path
         macro_expr = extract(macro_path.read_text())
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)
 
