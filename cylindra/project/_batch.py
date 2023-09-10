@@ -9,7 +9,7 @@ from cylindra.const import (
     MoleculesHeader as Mole,
     nm,
 )
-from cylindra.project._base import BaseProject, PathLike, resolve_path
+from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
 from cylindra.project._utils import as_main_function
 from cylindra._config import get_config
 
@@ -41,7 +41,7 @@ class LoaderInfoModel(BaseModel):
 
 
 class CylindraBatchProject(BaseProject):
-    """A project of cylindra."""
+    """A project of cylindra batch processing."""
 
     datetime: str
     version: str
@@ -49,9 +49,13 @@ class CylindraBatchProject(BaseProject):
     loaders: list[LoaderInfoModel]
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, tuple[float, float], PathLike]
-    tilt_range: Union[tuple[float, float], None]
-    macro: PathLike
+    missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Union[Path, None] = None
+
+    def _post_init(self):
+        if hasattr(self, "tilt_range"):
+            self.missing_wedge = MissingWedge.parse(self.tilt_range)
+            del self.tilt_range
 
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
@@ -60,37 +64,37 @@ class CylindraBatchProject(BaseProject):
         self.template_image = resolve_path(self.template_image, file_dir)
         if isinstance(self.mask_parameters, (Path, str)):
             self.mask_parameters = resolve_path(self.mask_parameters, file_dir)
-        self.macro = resolve_path(self.macro, file_dir)
         return self
+
+    @property
+    def project_dir(self) -> Path:
+        if self.project_path is None:
+            raise ValueError("Project path is not set.")
+        return self.project_path.parent
+
+    @property
+    def macro_path(self) -> Path:
+        return self.project_dir / "script.py"
 
     @classmethod
     def from_gui(
         cls,
         gui: "CylindraBatchWidget",
         json_path: Path,
-        results_dir: Union[Path, None] = None,
         mole_ext: str = ".csv",
     ) -> "CylindraBatchProject":
         from datetime import datetime
 
         _versions = get_versions()
-
-        # Save path of macro
-        root = json_path.parent
+        results_dir = json_path.parent
 
         def as_relative(p: Path):
             assert isinstance(p, Path)
             try:
-                out = p.relative_to(root)
+                out = p.relative_to(results_dir)
             except Exception:
                 out = p
             return out
-
-        if results_dir is None:
-            results_dir = json_path.parent / (json_path.stem + "_results")
-        else:
-            results_dir = Path(results_dir)
-        macro_path = results_dir / "script.py"
 
         loaders = list[LoaderInfoModel]()
         for info in gui._loaders:
@@ -118,8 +122,8 @@ class CylindraBatchProject(BaseProject):
             loaders=loaders,
             template_image=gui.sta.params.template_path,
             mask_parameters=gui.sta.params._get_mask_params(),
-            tilt_range=gui.sta.params.tilt_range,
-            macro=as_relative(macro_path),
+            missing_wedge=MissingWedge.parse(gui.sta.params.tilt_range),
+            project_path=json_path,
         )
 
     @classmethod
@@ -129,9 +133,10 @@ class CylindraBatchProject(BaseProject):
         json_path: Path,
         mole_ext: str = ".csv",
     ) -> None:
+        """Save the GUI state to a project directory."""
         results_dir = json_path.parent
 
-        self = cls.from_gui(gui, json_path, results_dir, mole_ext)
+        self = cls.from_gui(gui, json_path, mole_ext)
 
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)  # create a directory if not exists.
@@ -140,8 +145,7 @@ class CylindraBatchProject(BaseProject):
         for lmodel, info in zip(self.loaders, gui._loaders):
             info.loader.molecules.to_file(lmodel.molecule)
 
-        fp = results_dir / str(self.macro)
-        fp.write_text(as_main_function(gui.macro))
+        self.macro_path.write_text(as_main_function(gui.macro))
 
         # save objects
         self.to_json(json_path)
@@ -166,7 +170,7 @@ class CylindraBatchProject(BaseProject):
             gui._add_loader(loader, lmodel.name, image_paths)
 
         # append macro
-        with open(self.macro) as f:
+        with open(self.macro_path) as f:
             txt = f.read()
 
         macro = mk.parse(txt)
@@ -177,7 +181,3 @@ class CylindraBatchProject(BaseProject):
         gui.sta.params._set_mask_params(self.mask_parameters)
         gui.reset_choices()
         return None
-
-    @property
-    def result_dir(self) -> Path:
-        return Path(self.macro).parent

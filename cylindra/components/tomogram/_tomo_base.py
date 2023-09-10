@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
+from acryo.tilt import single_axis, TiltSeriesModel, SingleAxis, NoWedge
 
 from cylindra.const import nm
 from cylindra._config import get_config
@@ -32,7 +33,7 @@ class Tomogram:
         self._metadata: dict[str, Any] = {}
         self._image: ip.ImgArray | ip.LazyImgArray | None = None
         self._multiscaled = []
-        self._tilt_range = None
+        self._tilt_model: TiltSeriesModel = single_axis(None)
         self._scale = 1.0
 
     def __hash__(self) -> int:
@@ -76,9 +77,18 @@ class Tomogram:
         return Path(source)
 
     @property
+    def tilt_model(self):
+        """Tilt model of the tomogram."""
+        return self._tilt_model
+
+    @property
     def tilt_range(self) -> tuple[float, float] | None:
         """Tilt range in degree."""
-        return self._tilt_range
+        if isinstance(self._tilt_model, SingleAxis):
+            return self._tilt_model.tilt_range
+        elif isinstance(self._tilt_model, NoWedge):
+            return None
+        raise ValueError("Tilt model is not correctly set.")
 
     @classmethod
     def from_image(
@@ -86,7 +96,7 @@ class Tomogram:
         img: ip.ImgArray | ip.LazyImgArray,
         *,
         scale: float | None = None,
-        tilt_range: tuple[float, float] | None = None,
+        tilt: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
     ):
         """
@@ -98,8 +108,8 @@ class Tomogram:
             Input image.
         scale : float, optional
             Pixel size in nm. If not given, will try to read from image header.
-        tilt_range : tuple of float, optional
-            Tilt range in degree.
+        tilt : tuple of float, optional
+            Tilt model.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
 
@@ -125,7 +135,9 @@ class Tomogram:
         if source := img.source:
             self._metadata["source"] = source.resolve()
         self._metadata["scale"] = scale
-        self._tilt_range = tilt_range
+        if not isinstance(tilt, TiltSeriesModel):
+            tilt = single_axis(tilt)
+        self._tilt_model = tilt
 
         if isinstance(binsize, int):
             binsize = [binsize]
@@ -139,7 +151,7 @@ class Tomogram:
         path: str | Path,
         *,
         scale: float = None,
-        tilt_range: tuple[float, float] | None = None,
+        tilt: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
         eager: bool = False,
     ) -> Self:
@@ -152,8 +164,8 @@ class Tomogram:
             Path to the image file.
         scale : float, optional
             Pixel size in nm. If not given, will try to read from image header.
-        tilt_range : tuple of float, optional
-            Tilt range in degree.
+        tilt : tuple of float, optional
+            Tilt model.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
         eager : bool, default is False
@@ -165,12 +177,11 @@ class Tomogram:
         Tomogram
             Tomogram object with the image that has just been read and multi-scales.
         """
-        img = ip.lazy.imread(
-            path, chunks=get_config().dask_chunk, name="tomogram"
-        ).as_float()
+        chunks = get_config().dask_chunk
+        img = ip.lazy.imread(path, chunks=chunks, name="tomogram")
         if eager:
             img = img.compute()
-        return cls.from_image(img, scale=scale, tilt_range=tilt_range, binsize=binsize)
+        return cls.from_image(img.as_float(), scale=scale, tilt=tilt, binsize=binsize)
 
     @property
     def image(self) -> ip.ImgArray | ip.LazyImgArray:
@@ -231,7 +242,7 @@ class Tomogram:
             pix = int(pix)
         return pix
 
-    def add_multiscale(self, binsize: int) -> ip.ImgArray:
+    def add_multiscale(self, binsize: int, compute: bool = True) -> ip.ImgArray:
         """Add new multiscaled image of given binsize."""
         # iterate from the larger bin size
         for _b, _img in reversed(self._multiscaled):
@@ -246,7 +257,9 @@ class Tomogram:
                 imgb = _img.binning(binsize // _b, check_edges=False)
                 break
         else:
-            imgb = self.image.binning(binsize, check_edges=False).compute()
+            imgb = self.image.binning(binsize, check_edges=False)
+            if isinstance(imgb, ip.LazyImgArray) and compute:
+                imgb = imgb.compute()
         self._multiscaled.append((binsize, imgb))
         self._multiscaled.sort(key=lambda x: x[0])
         return imgb

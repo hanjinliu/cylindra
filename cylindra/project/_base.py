@@ -112,3 +112,30 @@ def resolve_path(
             f"Path {path} was resolved to be {path_joined} but does not exist."
         )
     return default
+
+
+class MissingWedge(BaseModel):
+    """The missing wedge model."""
+
+    params: dict[str, Any]
+    kind: str = "y"
+
+    @classmethod
+    def parse(self, obj):
+        if isinstance(obj, MissingWedge):
+            return MissingWedge(**obj.dict())
+        elif isinstance(obj, dict):
+            return MissingWedge(**obj)
+        elif isinstance(obj, (tuple, list)) and len(obj) == 2:
+            return MissingWedge(params={"min": obj[0], "max": obj[1]})
+        elif obj is None:
+            return MissingWedge(params={}, kind="none")
+        raise TypeError(f"Cannot parse {obj!r} as a MissingWedge.")
+
+    def as_param(self):
+        """As the input parameter for tomogram creation."""
+        if self.kind == "y":
+            return (self.params["min"], self.params["max"])
+        elif self.kind == "none":
+            return None
+        raise NotImplementedError("Only y-axis rotation is supported now.")

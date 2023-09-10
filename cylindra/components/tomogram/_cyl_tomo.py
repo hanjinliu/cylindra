@@ -23,7 +23,7 @@ from scipy.spatial.transform import Rotation
 from dask import array as da, delayed
 
 from acryo import Molecules, SubtomogramLoader
-from acryo.tilt import single_axis, TiltSeriesModel
+from acryo.tilt import TiltSeriesModel
 import impy as ip
 
 from cylindra.components.spline import CylSpline
@@ -163,7 +163,7 @@ class CylTomogram(Tomogram):
         cls,
         *,
         scale: float = 1.0,
-        tilt_range: tuple[float, float] | None = None,
+        tilt: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
         source: str | None = None,
         shape: tuple[int, int, int] = (24, 24, 24),
@@ -175,7 +175,7 @@ class CylTomogram(Tomogram):
         tomo = cls.from_image(
             dummy,
             scale=scale,
-            tilt_range=tilt_range,
+            tilt=tilt,
             binsize=binsize,
         )
         tomo.metadata["is_dummy"] = True
@@ -566,14 +566,13 @@ class CylTomogram(Tomogram):
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
-            tilt_model = single_axis(self.tilt_range, axis="y")
 
             # Align skew-corrected images to the template
             shifts = np.zeros((npoints, 2))
             quat = mole.quaternion()
             for _j in range(npoints):
                 img = inputs[_j]
-                tmp = _mask_missing_wedge(template, tilt_model, quat[_j])
+                tmp = _mask_missing_wedge(template, self.tilt_model, quat[_j])
                 shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
 
                 rad = np.deg2rad(skew_angles[_j])

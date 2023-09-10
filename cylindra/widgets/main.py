@@ -446,7 +446,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = CylTomogram.imread(
             path=path,
             scale=scale,
-            tilt_range=tilt_range,
+            tilt=tilt_range,
             binsize=bin_size,
             eager=eager,
         )

@@ -1,14 +1,13 @@
 from typing import Iterable, Union, TYPE_CHECKING
 from pathlib import Path
 import json
-import shutil
 import warnings
 from pydantic import BaseModel
 import polars as pl
 import numpy as np
 
 from cylindra.const import IDName, PropertyNames as H, get_versions, cast_dataframe
-from cylindra.project._base import BaseProject, PathLike, resolve_path
+from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
 from cylindra.project._utils import extract, as_main_function
 
 if TYPE_CHECKING:
@@ -45,9 +44,14 @@ class CylindraProject(BaseProject):
     molecules_info: list[MoleculesInfo]
     template_image: Union[PathLike, None]
     mask_parameters: Union[None, tuple[float, float], PathLike]
-    tilt_range: Union[tuple[float, float], None]
+    missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Union[Path, None] = None
     project_description: str = ""
+
+    def _post_init(self):
+        if hasattr(self, "tilt_range"):
+            self.missing_wedge = MissingWedge.parse(self.tilt_range)
+            del self.tilt_range
 
     @property
     def localprops_path(self) -> Path:
@@ -66,9 +70,11 @@ class CylindraProject(BaseProject):
         return self.project_dir / "script.py"
 
     def molecules_path(self, name: str) -> Path:
+        """Get the path of the molecule file of give name (needs extention)."""
         return self.project_dir / name
 
     def spline_path(self, idx: int) -> Path:
+        """Get the path of the idx-th spline json file."""
         return self.project_dir / f"spline-{idx}.json"
 
     def resolve_path(self, file_dir: PathLike):
@@ -132,7 +138,7 @@ class CylindraProject(BaseProject):
             molecules_info=mole_infos,
             template_image=as_relative(gui.sta.params.template_path.value),
             mask_parameters=gui.sta.params._get_mask_params(),
-            tilt_range=tomo.tilt_range,
+            missing_wedge=MissingWedge.parse(tomo.tilt_range),
             project_path=json_path,
         )
 
@@ -366,7 +372,7 @@ class CylindraProject(BaseProject):
         tomo = CylTomogram.imread(
             path=self.image,
             scale=self.scale,
-            tilt_range=self.tilt_range,
+            tilt=self.missing_wedge.as_param(),
             binsize=self.multiscales,
         )
         tomo.splines.extend(self.iter_load_splines())
@@ -378,7 +384,7 @@ class CylindraProject(BaseProject):
 
         tomo = CylTomogram.dummy(
             scale=self.scale,
-            tilt_range=self.tilt_range,
+            tilt=self.missing_wedge.as_param(),
             binsize=self.multiscales,
             source=self.image,
         )

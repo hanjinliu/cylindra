@@ -14,7 +14,7 @@ from magicclass import (
 from magicclass.widgets import ConsoleTextEdit
 from magicclass.types import Optional, Path
 import impy as ip
-
+from acryo.tilt import NoWedge, SingleAxis
 from cylindra.widgets.widget_utils import FileFilter
 from cylindra.widgets._previews import view_image
 
@@ -119,11 +119,13 @@ class GeneralInfo(MagicTemplate):
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
-        if tomo.tilt_range is not None:
+        if isinstance(tomo.tilt_model, NoWedge):
+            tilt_range = "No missing wedge"
+        elif isinstance(tomo.tilt_model, SingleAxis):
             deg0, deg1 = tomo.tilt_range
             tilt_range = f"{deg0:.1f}° — {deg1:.1f}°"
         else:
-            tilt_range = "No missing wedge"
+            tilt_range = repr(tomo.tilt_model)
         value = (
             f"File: {source}\n"
             f"Scale: {scale:.4f} nm/pixel\n"

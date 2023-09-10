@@ -22,14 +22,13 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import Optional, Path, ExprStr, Bound
+from magicclass.types import Optional, Path, ExprStr
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
 from magicclass.ext.dask import dask_thread_worker as dask_worker
 
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
-from acryo.tilt import single_axis
 
 import numpy as np
 import impy as ip
@@ -814,7 +813,7 @@ class SubtomogramAveraging(ChildWidget):
             rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt=single_axis(main.tomogram.tilt_range, axis="y"),
+            tilt=main.tomogram.tilt_model,
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
@@ -865,7 +864,7 @@ class SubtomogramAveraging(ChildWidget):
                 rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
-                tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
+                tilt=parent.tomogram.tilt_model,
             )
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
@@ -912,7 +911,7 @@ class SubtomogramAveraging(ChildWidget):
             rotations=rotations,
             cutoff=cutoff,
             alignment_model=_get_alignment(method),
-            tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
+            tilt=parent.tomogram.tilt_model,
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
@@ -1135,7 +1134,7 @@ class SubtomogramAveraging(ChildWidget):
             alignment_model=alignment.ZNCCAlignment.with_params(
                 rotations=rotations,
                 cutoff=cutoff,
-                tilt=single_axis(parent.tomogram.tilt_range, axis="y"),
+                tilt=parent.tomogram.tilt_model,
             ),
         )
 

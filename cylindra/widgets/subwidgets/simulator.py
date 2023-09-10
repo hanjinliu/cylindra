@@ -653,7 +653,7 @@ class CylinderSimulator(ChildWidget):
 
         rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(
-            rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
+            rec, scale=scale, tilt=tilt_range, binsize=bin_size
         )
         return main._send_tomogram_to_viewer.with_args(tomo)
 
@@ -730,7 +730,7 @@ class CylinderSimulator(ChildWidget):
 
         rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(
-            rec, scale=scale, tilt_range=tilt_range, binsize=bin_size
+            rec, scale=scale, tilt=tilt_range, binsize=bin_size
         )
 
         @thread_worker.callback
