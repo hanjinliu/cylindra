@@ -98,6 +98,7 @@ class Tomogram:
         scale: float | None = None,
         tilt: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
+        compute: bool = True,
     ):
         """
         Construct a Tomogram object from a image array.
@@ -112,6 +113,8 @@ class Tomogram:
             Tilt model.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
+        compute : bool, default is True
+            Whether to compute the binned images.
 
         Returns
         -------
@@ -142,7 +145,7 @@ class Tomogram:
         if isinstance(binsize, int):
             binsize = [binsize]
         for b in sorted(binsize):
-            self.add_multiscale(b)
+            self.add_multiscale(b, compute=compute)
         return self
 
     @classmethod
@@ -154,6 +157,7 @@ class Tomogram:
         tilt: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
         eager: bool = False,
+        compute: bool = True,
     ) -> Self:
         """
         Read a image as a dask array.
@@ -181,7 +185,13 @@ class Tomogram:
         img = ip.lazy.imread(path, chunks=chunks, name="tomogram")
         if eager:
             img = img.compute()
-        return cls.from_image(img.as_float(), scale=scale, tilt=tilt, binsize=binsize)
+        return cls.from_image(
+            img.as_float(),
+            scale=scale,
+            tilt=tilt,
+            binsize=binsize,
+            compute=compute,
+        )
 
     @property
     def image(self) -> ip.ImgArray | ip.LazyImgArray:

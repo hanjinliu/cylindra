@@ -484,9 +484,9 @@ class CylindraMainWidget(MagicTemplate):
         paint : bool, default is False
             Whether to paint cylinder properties if available.
         read_image : bool, default is True
-            Whether to read image data from the project directory. If false, a dummy
-            image is created and only splines and molecules will be loaded, which is
-            useful to decrease loading time, or analyze data in other PC.
+            Whether to read image data from the project directory. If false, image data
+            will be memory-mapped and will not be shown in the viewer. Unchecking this
+            is useful to decrease loading time.
         update_config : bool, default is False
             Whether to update the default spline configuration with the one described
             in the project.
@@ -2462,6 +2462,11 @@ class CylindraMainWidget(MagicTemplate):
         bin_size = max(x[0] for x in tomo.multiscaled)
         self._current_binsize = bin_size
         imgb = tomo.get_multiscale(bin_size)
+        _is_lazy = isinstance(imgb, ip.LazyImgArray)
+        if _is_lazy:
+            imgb = ip.zeros(imgb.shape, dtype=np.int8, like=imgb)
+            imgb[0, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
+            imgb[1, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
         tr = tomo.multiscale_translation(bin_size)
         # update image layer
         if self._reserved_layers.image not in viewer.layers:
@@ -2490,7 +2495,7 @@ class CylindraMainWidget(MagicTemplate):
         try:
             parts = tomo.source.parts
             if len(parts) > 2:
-                _name = ".../" + Path(*parts[-2:]).as_posix()
+                _name = "…/" + Path(*parts[-2:]).as_posix()
             else:
                 _name = tomo.source.as_posix()
         except Exception:
@@ -2509,7 +2514,7 @@ class CylindraMainWidget(MagicTemplate):
                 filt = ImageFilter.Lowpass
             else:
                 filt = None
-        if filt is not None:
+        if filt is not None and not _is_lazy:
             self.filter_reference_image(method=filt)
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False

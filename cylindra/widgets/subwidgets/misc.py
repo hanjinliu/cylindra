@@ -122,7 +122,7 @@ class GeneralInfo(MagicTemplate):
         if isinstance(tomo.tilt_model, NoWedge):
             tilt_range = "No missing wedge"
         elif isinstance(tomo.tilt_model, SingleAxis):
-            deg0, deg1 = tomo.tilt_range
+            deg0, deg1 = tomo.tilt_model.tilt_range
             tilt_range = f"{deg0:.1f}° — {deg1:.1f}°"
         else:
             tilt_range = repr(tomo.tilt_model)

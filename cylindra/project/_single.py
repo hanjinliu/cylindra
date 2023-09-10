@@ -206,17 +206,13 @@ class CylindraProject(BaseProject):
         from magicclass.utils import thread_worker
 
         gui = _get_instance(gui)
-        if read_image:
-            tomogram = self.load_tomogram()
-        else:
-            tomogram = self.load_dummy_tomogram()
+        tomogram = self.load_tomogram(compute=read_image)
         gui._macro_offset = len(gui.macro)
 
         cb = gui._send_tomogram_to_viewer.with_args(tomogram, filt=filter)
         yield cb
         cb.await_call()
-        # TODO: to use bounding box, dummy image should be in the correct shape
-        # gui._reserved_layers.image.bounding_box.visible = not read_image
+        gui._reserved_layers.image.bounding_box.visible = not read_image
 
         @thread_worker.callback
         def _update_widget():
@@ -365,7 +361,7 @@ class CylindraProject(BaseProject):
                 continue
             yield info.stem, self.load_molecules(info.name)
 
-    def load_tomogram(self) -> "CylTomogram":
+    def load_tomogram(self, compute: bool = True) -> "CylTomogram":
         """Load the tomogram object of the project."""
         from cylindra.components import CylTomogram
 
@@ -374,19 +370,7 @@ class CylindraProject(BaseProject):
             scale=self.scale,
             tilt=self.missing_wedge.as_param(),
             binsize=self.multiscales,
-        )
-        tomo.splines.extend(self.iter_load_splines())
-        return tomo
-
-    def load_dummy_tomogram(self) -> "CylTomogram":
-        """Load a tomogram object without actually reading the image file."""
-        from cylindra.components import CylTomogram
-
-        tomo = CylTomogram.dummy(
-            scale=self.scale,
-            tilt=self.missing_wedge.as_param(),
-            binsize=self.multiscales,
-            source=self.image,
+            compute=compute,
         )
         tomo.splines.extend(self.iter_load_splines())
         return tomo
