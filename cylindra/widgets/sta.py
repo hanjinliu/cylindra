@@ -36,7 +36,7 @@ import polars as pl
 import napari
 
 from cylindra import utils, _config, cylstructure
-from cylindra.types import MoleculesLayer, get_monomer_layers
+from cylindra.types import MoleculesLayer
 from cylindra.const import (
     ALN_SUFFIX,
     MoleculesHeader as Mole,
@@ -45,7 +45,6 @@ from cylindra.const import (
     Ori,
 )
 from cylindra.widgets._widget_ext import (
-    CheckBoxes,
     RotationsEdit,
     RandomSeedEdit,
     MultiFileEdit,
@@ -57,6 +56,12 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
 )
 
+from ._annotated import (
+    MoleculesLayerType,
+    MoleculesLayersType,
+    assert_layer,
+    assert_list_of_layers,
+)
 from .widget_utils import FileFilter, timer, POLARS_NAMESPACE
 from .subwidgets._child_widget import ChildWidget
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
@@ -74,30 +79,7 @@ def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
     return size
 
 
-def _as_layer_name(
-    self: "SubtomogramAveraging", layers: list[MoleculesLayer | str]
-) -> str:
-    out = []
-    if isinstance(layers, (str, MoleculesLayer)):
-        layers = [layers]
-    for layer in layers:
-        if isinstance(layer, str):
-            out.append(layer)
-        else:
-            out.append(layer.name)
-    return out
-
-
 # annotated types
-_MoleculeLayers = Annotated[
-    list[MoleculesLayer],
-    {
-        "choices": get_monomer_layers,
-        "widget_type": CheckBoxes,
-        "value": (),
-        "validator": _as_layer_name,
-    },
-]
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _Rotations = Annotated[
     tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
@@ -499,7 +481,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
     def average_all(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -512,7 +494,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{size}{interpolation}{bin_size}
         """
         t0 = timer("average_all")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         tomo = parent.tomogram
         shape = self._get_shape_in_nm(size)
@@ -529,7 +511,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging (subset) of {!r}"))  # fmt: skip
     def average_subset(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
@@ -552,7 +534,7 @@ class SubtomogramAveraging(ChildWidget):
         {bin_size}
         """
         t0 = timer("average_subset")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         molecules = _concat_molecules(layers)
         nmole = len(molecules)
@@ -571,7 +553,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Grouped subtomogram averaging of {!r}"))  # fmt: skip
     def average_groups(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         by: ExprStr.In[POLARS_NAMESPACE] = "pl.col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -592,7 +574,7 @@ class SubtomogramAveraging(ChildWidget):
         {interpolation}{bin_size}
         """
         t0 = timer("average_groups")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         if isinstance(by, pl.Expr):
             expr = by
         else:
@@ -614,7 +596,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
     def split_and_average(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -631,7 +613,7 @@ class SubtomogramAveraging(ChildWidget):
         {size}{interpolation}{bin_size}
         """
         t0 = timer("split_and_average")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         molecules = _concat_molecules(layers)
         shape = self._get_shape_in_nm(size)
@@ -649,7 +631,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
@@ -668,7 +650,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
         """
         t0 = timer("align_averaged")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
 
         new_layers = list[MoleculesLayer]()
@@ -779,7 +761,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Alignment of {}"))
     def align_all(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -797,7 +779,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
 
         combiner = MoleculesCombiner()
@@ -824,7 +806,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.align_template_free_fmt)
     def align_all_template_free(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -842,7 +824,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_template_free")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
@@ -876,7 +858,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Multi-template alignment of {}"))  # fmt: skip
     def align_all_multi_template(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         template_paths: _ImagePaths,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
@@ -894,7 +876,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
         t0 = timer("align_all_multi_template")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
@@ -922,7 +904,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
@@ -961,7 +943,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi_multi_template(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         template_paths: _ImagePaths,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
@@ -1001,7 +983,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
@@ -1043,7 +1025,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing_multi_template(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         template_paths: _ImagePaths,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
@@ -1122,7 +1104,7 @@ class SubtomogramAveraging(ChildWidget):
             The landscape instance.
         """
         parent = self._get_main()
-        layer = _assert_layer(layer, self.parent_viewer)
+        layer = assert_layer(layer, self.parent_viewer)
         return Landscape.from_loader(
             loader=parent.tomogram.get_subtomogram_loader(
                 layer.molecules, order=interpolation
@@ -1154,6 +1136,7 @@ class SubtomogramAveraging(ChildWidget):
         from dask import delayed, compute
 
         parent = self._get_main()
+        layer = assert_layer(layer, self.parent_viewer)
         landscape = self.construct_landscape(
             layer=layer,
             template_path=template_path,
@@ -1289,7 +1272,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating correlations of {!r}"))  # fmt: skip
     def calculate_correlation(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         template_paths: _ImagePaths,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1311,7 +1294,7 @@ class SubtomogramAveraging(ChildWidget):
         column_prefix : str, default is "score"
             Prefix of the column names of the calculated correlations.
         """
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
         scale = main.tomogram.scale
         tmps = []
@@ -1355,7 +1338,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
-        layers: _MoleculeLayers,
+        layers: MoleculesLayersType,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1382,7 +1365,7 @@ class SubtomogramAveraging(ChildWidget):
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer("calculate_fsc")
-        layers = _assert_list_of_layers(layers, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
         mole = _concat_molecules(layers)
 
@@ -1443,7 +1426,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(descs=_pdesc.classify_pca_fmt)
     def classify_pca(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
@@ -1469,7 +1452,7 @@ class SubtomogramAveraging(ChildWidget):
         from cylindra.widgets.subwidgets import PcaViewer
 
         t0 = timer("classify_pca")
-        layer = _assert_layer(layer, self.parent_viewer)
+        layer = assert_layer(layer, self.parent_viewer)
         parent = self._get_main()
 
         loader = self._get_loader(
@@ -1515,7 +1498,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1540,7 +1523,7 @@ class SubtomogramAveraging(ChildWidget):
         {cutoff}
         """
         t0 = timer("seam_search")
-        layer = _assert_layer(layer, self.parent_viewer)
+        layer = assert_layer(layer, self.parent_viewer)
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         template, mask = loader.normalize_input(
             template=self.params._get_template(path=template_path),
@@ -1585,14 +1568,14 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search (by fiducials) of {!r}"))  # fmt: skip
     def seam_search_by_fiducials(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
     ):  # fmt: skip
         t0 = timer("seam_search_by_fiducials")
-        layer = _assert_layer(layer, self.parent_viewer)
+        layer = assert_layer(layer, self.parent_viewer)
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         seam_searcher = FiducialSeamSearcher(npf)
         _, weight = loader.normalize_input(
@@ -1630,7 +1613,7 @@ class SubtomogramAveraging(ChildWidget):
     @set_design(text="Seam search (by feature)")
     def seam_search_by_feature(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         by: Annotated[str, {"choices": _choice_getter("seam_search_by_feature")}],
     ):
         """
@@ -1642,7 +1625,7 @@ class SubtomogramAveraging(ChildWidget):
         by : str
             Name of the feature that will be used for seam search.
         """
-        layer = _assert_layer(layer, self.parent_viewer)
+        layer = assert_layer(layer, self.parent_viewer)
         feat = layer.features
         if by not in feat.columns:
             raise ValueError(f"Column {by} does not exist.")
@@ -1739,38 +1722,11 @@ def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     return name + f"-{ALN_SUFFIX}{num}"
 
 
-def _assert_list_of_layers(
-    layers: Any, viewer: "napari.Viewer"
-) -> list[MoleculesLayer]:
-    if len(layers) == 0:
-        raise ValueError("No layer selected.")
-    if isinstance(layers, (MoleculesLayer, str)):
-        layers = [layers]
-    layer_normed: list[MoleculesLayer] = []
-    for layer in layers:
-        if isinstance(layer, str):
-            layer_normed.append(viewer.layers[layer])
-        elif isinstance(layer, MoleculesLayer):
-            layer_normed.append(layer)
-        else:
-            raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")
-    return layer_normed
-
-
-def _assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
-    if isinstance(layer, str):
-        return viewer.layers[layer]
-    elif isinstance(layer, MoleculesLayer):
-        return layer
-    else:
-        raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")
-
-
-def _concat_molecules(layers: _MoleculeLayers) -> Molecules:
+def _concat_molecules(layers: MoleculesLayersType) -> Molecules:
     return Molecules.concat([l.molecules for l in layers])
 
 
-def _avg_name(layers: _MoleculeLayers) -> str:
+def _avg_name(layers: MoleculesLayersType) -> str:
     if len(layers) == 1:
         name = layers[0].name
     else:

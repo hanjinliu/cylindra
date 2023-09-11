@@ -48,7 +48,6 @@ from cylindra.const import (
     ImageFilter,
 )
 from cylindra._custom_layers import MoleculesLayer
-from cylindra.types import get_monomer_layers
 from cylindra.project import CylindraProject, get_project_file, extract
 
 from cylindra.widgets import _shared_doc, subwidgets, widget_utils
@@ -66,6 +65,12 @@ from cylindra.widgets._widget_ext import (
     CheckBoxes,
     KernelEdit,
     SingleRotationEdit,
+)
+from cylindra.widgets._annotated import (
+    MoleculesLayerType,
+    MoleculesLayersType,
+    assert_layer,
+    assert_list_of_layers,
 )
 from cylindra.widgets._main_utils import (
     SplineTracker,
@@ -615,7 +620,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     @set_design(text="Save molecules")
     def save_molecules(
-        self, layer: MoleculesLayer, save_path: Path.Save[FileFilter.CSV]
+        self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.CSV]
     ):
         """
         Save monomer coordinates, orientation and features as a csv file.
@@ -626,7 +631,7 @@ class CylindraMainWidget(MagicTemplate):
         save_path : Path
             Where to save the molecules.
         """
-        return layer.molecules.to_csv(save_path)
+        return assert_layer(layer).molecules.to_csv(save_path)
 
     @ImageMenu.wraps
     @set_design(text="Filter reference image")
@@ -1176,7 +1181,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Molecules to spline")
     def molecules_to_spline(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
+        layers: MoleculesLayersType = (),
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
         inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
@@ -1210,8 +1215,7 @@ class CylindraMainWidget(MagicTemplate):
             "Mono-1", then the source of "Mono-1" will be updated to "Spline-1" as well.
         """
         tomo = self.tomogram
-        if len(layers) == 0:
-            raise ValueError("No layers are selected.")
+        layers = assert_list_of_layers(layers, self.parent_viewer)
 
         # first check missing_ok=False case
         if not missing_ok:
@@ -1356,7 +1360,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Measure radius by molecules")
     def measure_radius_by_molecules(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
+        layers: MoleculesLayersType = (),
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
@@ -1372,8 +1376,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layers}{interval}{depth}{update_glob}
         """
-        if isinstance(layers, MoleculesLayer):
-            layers = [layers]  # allow single layer input.
+        layers = assert_list_of_layers(layers, self.parent_viewer)
 
         # check duplicated spline sources
         _splines = list[CylSpline]()
@@ -1701,7 +1704,9 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.wraps
     @set_design(text="Set source spline")
     def set_source_spline(
-        self, layer: MoleculesLayer, spline: Annotated[int, {"choices": _get_splines}]
+        self,
+        layer: MoleculesLayerType,
+        spline: Annotated[int, {"choices": _get_splines}],
     ):
         """
         Set source spline for a molecules layer.
@@ -1710,6 +1715,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}{spline}
         """
+        layer = assert_layer(layer, self.parent_viewer)
         old_spl = layer.source_component
         layer.source_component = self.tomogram.splines[spline]
 
@@ -1723,7 +1729,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Concatenate molecules")
     def concatenate_molecules(
         self,
-        layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}],
+        layers: MoleculesLayersType,
         name: str = "Mono-concat",
     ):  # fmt: skip
         """
@@ -1733,8 +1739,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layers}
         """
-        if len(layers) == 0:
-            raise ValueError("No layer selected.")
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         all_molecules = Molecules.concat([layer.molecules for layer in layers])
         points = add_molecules(self.parent_viewer, all_molecules, name=name)
 
@@ -1752,7 +1757,10 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.Combine.wraps
     @set_design(text="Merge molecule info")
     def merge_molecule_info(
-        self, pos: MoleculesLayer, rotation: MoleculesLayer, features: MoleculesLayer
+        self,
+        pos: MoleculesLayerType,
+        rotation: MoleculesLayerType,
+        features: MoleculesLayerType,
     ):
         """
         Merge molecule info from different molecules.
@@ -1766,6 +1774,9 @@ class CylindraMainWidget(MagicTemplate):
         features : MoleculesLayer
             Molecules whose features are used.
         """
+        pos = assert_layer(pos, self.parent_viewer)
+        rotation = assert_layer(rotation, self.parent_viewer)
+        features = assert_layer(features, self.parent_viewer)
         _pos = pos.molecules
         _rot = rotation.molecules
         _feat = features.molecules
@@ -1779,7 +1790,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Split molecules by feature")
     def split_molecules(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         by: Annotated[str, {"choices": _choice_getter("split_molecules")}],
     ):
         """
@@ -1791,6 +1802,7 @@ class CylindraMainWidget(MagicTemplate):
         by : str
             Name of the feature to split by.
         """
+        layer = assert_layer(layer, self.parent_viewer)
         n_unique = layer.molecules.features[by].n_unique()
         if n_unique > 48:
             raise ValueError(f"Too many groups ({n_unique}).")
@@ -1806,7 +1818,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Translate molecules")
     def translate_molecules(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
         internal: bool = True,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
@@ -1826,6 +1838,7 @@ class CylindraMainWidget(MagicTemplate):
             with different rotations are translated differently.
         {inherit_source}
         """
+        layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
         if internal:
             out = mole.translate_internal(translation)
@@ -1849,7 +1862,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Rotate molecules")
     def rotate_molecules(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         degrees: Annotated[
             list[tuple[Literal["z", "y", "x"], float]],
             {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
@@ -1867,6 +1880,7 @@ class CylindraMainWidget(MagicTemplate):
             by 20 degrees around the molecule Z axis and then by -10 degrees around the Y axis.
         {inherit_source}
         """
+        layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
         if (
             len(degrees) == 2
@@ -1889,7 +1903,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Filter molecules")
     def filter_molecules(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         predicate: ExprStr.In[POLARS_NAMESPACE],
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):
@@ -1903,6 +1917,7 @@ class CylindraMainWidget(MagicTemplate):
             A polars-style filter predicate, such as `pl.col("pf-id") == 3`
         {inherit_source}
         """
+        layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
         if isinstance(predicate, pl.Expr):
             expr = predicate
@@ -1922,7 +1937,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("Ctrl+K, C")
     def paint_molecules(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
@@ -1934,8 +1949,9 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layer}{color_by}{cmap}{limits}
         """
-        layer.set_colormap(color_by, limits, cmap)
+        layer = assert_layer(layer, self.parent_viewer)
         info = layer.colormap_info
+        layer.set_colormap(color_by, limits, cmap)
         return undo_callback(layer.set_colormap).with_args(
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )
@@ -1944,7 +1960,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Plot molecule feature in 2D")
     def plot_molecule_feature(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         backend: Literal["inline", "qt"] = "inline",
     ):
         """
@@ -1962,6 +1978,7 @@ class CylindraMainWidget(MagicTemplate):
         from matplotlib.patches import Circle
         from matplotlib.axes import Axes
 
+        layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
         nth = mole.features[Mole.nth].to_numpy()
         pf = mole.features[Mole.pf].to_numpy()
@@ -2010,7 +2027,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         column_name: str,
         expression: ExprStr.In[POLARS_NAMESPACE],
     ):
@@ -2034,6 +2051,7 @@ class CylindraMainWidget(MagicTemplate):
         expression : pl.Expr or str
             polars expression to calculate the new column.
         """
+        layer = assert_layer(layer, self.parent_viewer)
         feat = layer.molecules.features
         if column_name in feat.columns:
             raise ValueError(f"Column {column_name} already exists.")
@@ -2049,7 +2067,10 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Interpolate spline properties")
     def interpolate_spline_properties(
-        self, layer: MoleculesLayer, interpolation: int = 3, suffix: str = "_spl"
+        self,
+        layer: MoleculesLayerType,
+        interpolation: int = 3,
+        suffix: str = "_spl",
     ):
         """
         Add new features by interpolating spline local properties.
@@ -2072,6 +2093,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         from scipy.interpolate import interp1d
 
+        layer = assert_layer(layer, self.parent_viewer)
         if interpolation == 0:
             kind = "nearest"
         elif interpolation == 1:
@@ -2099,7 +2121,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Calculate lattice structure")
     def calculate_lattice_structure(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("interv",),
     ):  # fmt: skip
         """
@@ -2111,6 +2133,7 @@ class CylindraMainWidget(MagicTemplate):
         props : list of str, optional
             Properties to calculate.
         """
+        layer = assert_layer(layer, self.parent_viewer)
         spl = _assert_source_spline_exists(layer)
         mole = layer.molecules
         feat = mole.features
@@ -2126,7 +2149,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Convolve feature")
     def convolve_feature(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("convolve_feature", dtype_kind="uifb")}],
         method: Literal["mean", "max", "min", "median"],
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
@@ -2148,6 +2171,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         from cylindra import cylfilters
 
+        layer = assert_layer(layer, self.parent_viewer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.run_filter(
@@ -2166,7 +2190,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Binarize feature by thresholding")
     def binarize_feature(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("binarize_feature", dtype_kind="uif")}],
         threshold: Annotated[float, {"widget_type": "FloatSlider"}] = 0.0,
         larger_true: bool = True,
@@ -2184,6 +2208,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         from cylindra import cylfilters
 
+        layer = assert_layer(layer, self.parent_viewer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         ser = cylfilters.binarize(layer.molecules.features, threshold, target)
         if not larger_true:
@@ -2200,7 +2225,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Label feature clusters")
     def label_feature_clusters(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("label_feature_clusters", dtype_kind="b")}],
     ):  # fmt: skip
         """
@@ -2216,6 +2241,7 @@ class CylindraMainWidget(MagicTemplate):
         from cylindra import cylfilters
         from napari.utils.colormaps import label_colormap
 
+        layer = assert_layer(layer, self.parent_viewer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.label(layer.molecules.features, target, nrise).cast(pl.UInt32)
@@ -2231,7 +2257,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Analyze region properties")
     def regionprops_features(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="uif")}],
         label: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="ui")}],
         properties: Annotated[list[str], {"choices": REGIONPROPS_CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
@@ -2254,6 +2280,7 @@ class CylindraMainWidget(MagicTemplate):
         from cylindra._cylindra_ext import RegionProfiler
         from magicclass.ext.polars import DataFrameView
 
+        layer = assert_layer(layer, self.parent_viewer)
         feat = layer.molecules.features
         nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
         pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
