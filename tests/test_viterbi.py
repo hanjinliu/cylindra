@@ -22,11 +22,11 @@ def _get_grid(scale: float):
 
 
 @pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
-@pytest.mark.parametrize("skew_max", [None, 3.14 / 2])
-def test_viterbi_1d(scale, skew_max):
+@pytest.mark.parametrize("angle_max", [None, 3.14 / 2])
+def test_viterbi_1d(scale, angle_max):
     grid = _get_grid(scale)
 
-    states, z = grid.viterbi(0.0, 10000.0 * scale, skew_max=skew_max)
+    states, z = grid.viterbi(0.0, 10000.0 * scale, angle_max=angle_max)
     assert_equal(
         states,
         np.array(
@@ -48,10 +48,10 @@ def test_viterbi_1d(scale, skew_max):
 
 
 @pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
-@pytest.mark.parametrize("skew_max", [None, 3.14 / 2])
-def test_viterbi_1d_lower_bound(scale, skew_max):
+@pytest.mark.parametrize("angle_max", [None, 3.14 / 2])
+def test_viterbi_1d_lower_bound(scale, angle_max):
     grid = _get_grid(scale)
-    states, z = grid.viterbi(2 * np.sqrt(3) * scale, 10000 * scale, skew_max=skew_max)
+    states, z = grid.viterbi(2 * np.sqrt(3) * scale, 10000 * scale, angle_max=angle_max)
     assert_equal(
         states,
         np.array(
@@ -73,10 +73,10 @@ def test_viterbi_1d_lower_bound(scale, skew_max):
 
 
 @pytest.mark.parametrize("scale", [1e-4, 0.01, 1.0, 100.0, 1e4])
-@pytest.mark.parametrize("skew_max", [None, 3.14 / 2])
-def test_viterbi_1d_upper_bound(scale, skew_max):
+@pytest.mark.parametrize("angle_max", [None, 3.14 / 2])
+def test_viterbi_1d_upper_bound(scale, angle_max):
     grid = _get_grid(scale)
-    states, z = grid.viterbi(0.0, 7 * np.sqrt(3) * scale, skew_max=skew_max)
+    states, z = grid.viterbi(0.0, 7 * np.sqrt(3) * scale, angle_max=angle_max)
     assert_equal(
         states,
         np.array(
@@ -98,8 +98,8 @@ def test_viterbi_1d_upper_bound(scale, skew_max):
 
 
 @pytest.mark.parametrize("seed", [1, 12, 1234, 12345, 9999])
-@pytest.mark.parametrize("skew_max", [None, 1.57, 1.047])  # None, pi/2, pi/3
-def test_viterbi_1d_distance(seed: int, skew_max):
+@pytest.mark.parametrize("angle_max", [None, 1.57, 1.047])  # None, pi/2, pi/3
+def test_viterbi_1d_distance(seed: int, angle_max):
     n = 4
     dist_min, dist_max = 2 * np.sqrt(3), 7 * np.sqrt(3)
     rng = np.random.default_rng(seed)
@@ -111,7 +111,7 @@ def test_viterbi_1d_distance(seed: int, skew_max):
     origin = np.array([[i * 5, i * 5, i * 5] for i in range(n)], dtype=np.float32)
 
     grid = ViterbiGrid(score, origin, zvec, yvec, xvec)
-    states, z = grid.viterbi(dist_min, dist_max, skew_max=skew_max)
+    states, z = grid.viterbi(dist_min, dist_max, angle_max=angle_max)
     assert_array_less(-1, states, "states < -1 not satisfied")
     dist = []
     for i in range(n - 1):

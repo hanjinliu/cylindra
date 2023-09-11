@@ -15,7 +15,7 @@ class ViterbiGrid:
         self,
         dist_min: float,
         dist_max: float,
-        skew_max: float | None = None,
+        angle_max: float | None = None,
         /,
     ) -> tuple[NDArray[np.int32], float]: ...
     def world_pos(self, n: int, z: int, y: int, x: int, /) -> NDArray[np.float64]: ...

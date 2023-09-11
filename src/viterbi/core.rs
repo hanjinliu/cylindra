@@ -113,17 +113,17 @@ impl ViterbiGrid {
         Ok(out.into_pyarray(py).into())
     }
 
-    #[pyo3(signature = (dist_min, dist_max, skew_max = None))]
+    #[pyo3(signature = (dist_min, dist_max, angle_max = None))]
     pub fn viterbi<'py>(
         &self,
         py: Python<'py>,
         dist_min: f32,
         dist_max: f32,
-        skew_max: Option<f32>,
+        angle_max: Option<f32>,
     ) -> PyResult<(Py<PyArray2<isize>>, f32)> {
         let (states, score) = py.allow_threads(
             move || {
-                match skew_max {
+                match angle_max {
                     Some(s) => self.viterbi_with_angle(dist_min, dist_max, s),
                     None => self.viterbi_simple(dist_min, dist_max)
                 }
@@ -233,7 +233,7 @@ impl ViterbiGrid {
         Ok((state_sequence, max_score))
     }
 
-    fn viterbi_with_angle(&self, dist_min: f32, dist_max: f32, skew_max: f32) -> PyResult<(Array2<isize>, f32)> {
+    fn viterbi_with_angle(&self, dist_min: f32, dist_max: f32, angle_max: f32) -> PyResult<(Array2<isize>, f32)> {
         if dist_min >= dist_max {
             return value_error!(
                 format!(
@@ -241,22 +241,22 @@ impl ViterbiGrid {
                     dist_min, dist_max,
                 )
             );
-        } else if skew_max <= 0.0 || std::f32::consts::FRAC_PI_2 < skew_max {
+        } else if angle_max <= 0.0 || std::f32::consts::FRAC_PI_2 < angle_max {
             return value_error!(
                 format!(
-                    "skew_max must be between 0 and pi/2, but got skew_max={}",
-                    skew_max,
+                    "angle_max must be between 0 and pi/2, but got angle_max={}",
+                    angle_max,
                 )
             );
         }
         let dist_min2 = dist_min.powi(2);
         let dist_max2 = dist_max.powi(2);
-        let cos_skew_max = skew_max.cos();
+        let cos_angle_max = angle_max.cos();
 
         let mut viterbi_lattice = Array::zeros((self.nmole, self.nz, self.ny, self.nx));
         viterbi_lattice.slice_mut(s![0, .., .., ..]).assign(&self.score.slice(s![0, .., .., ..]));
         let mut state_sequence = Array::zeros((self.nmole, 3));
-        let constraint = AngleConstraint::new(self.nz, self.ny, self.nx, dist_min2, dist_max2, cos_skew_max);
+        let constraint = AngleConstraint::new(self.nz, self.ny, self.nx, dist_min2, dist_max2, cos_angle_max);
 
         for t in 1..self.nmole {
             let coord_prev = &self.coords[t - 1];
