@@ -1323,13 +1323,14 @@ class CylindraMainWidget(MagicTemplate):
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
         """
         Measure radius for each local region along splines.
 
         Parameters
         ----------
-        {splines}{interval}{depth}{bin_size}
+        {splines}{interval}{depth}{bin_size}{update_glob}
         """
         tomo = self.tomogram
 
@@ -1341,7 +1342,9 @@ class CylindraMainWidget(MagicTemplate):
             for i in splines:
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
-                tomo.local_radii(i=i, size=depth, binsize=bin_size)
+                tomo.local_radii(
+                    i=i, size=depth, binsize=bin_size, update_glob=update_glob
+                )
                 if i == splines[-1]:
                     yield _on_yield
                 else:
@@ -1355,7 +1358,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layers: Annotated[list[MoleculesLayer], {"choices": get_monomer_layers, "widget_type": CheckBoxes}] = (),
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 32.,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
+        update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
         """
         Measure local and global radius for each layer.
@@ -1366,7 +1370,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layers}{interval}{depth}
+        {layers}{interval}{depth}{update_glob}
         """
         if isinstance(layers, MoleculesLayer):
             layers = [layers]  # allow single layer input.
@@ -1400,11 +1404,10 @@ class CylindraMainWidget(MagicTemplate):
                     radii.append(df.filter(pred)[Mole.radius].mean())
                 radii = pl.Series(H.radius, radii, dtype=pl.Float32)
                 if radii.is_nan().any():
-                    _Logger.print_html(
-                        f"<b>Local radii of spline-{i} contains NaN.</b>"
-                    )
+                    _Logger.print_html(f"<b>Spline-{i} contains NaN radius.</b>")
                 spl.props.update_loc([radii], depth)
-                spl.radius = df[Mole.radius].mean()
+                if update_glob:
+                    spl.radius = df[Mole.radius].mean()
         self._update_local_properties_in_widget(replot=True)
         return tracker.as_undo_callback()
 

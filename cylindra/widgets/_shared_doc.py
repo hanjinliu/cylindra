@@ -59,6 +59,7 @@ _PARAMETERS = [
     Parameter(name="footprint", type="array-like", desc="2D binary array that define the convolution kernel structure."),
     Parameter(name="projective", type="bool", desc="If true, only the vector components parallel to the cylinder surface will be considered."),
     Parameter(name="err_max", type="float", desc="S.D. allowed for spline fitting. Larger value will result in smoother spline, i.e. fewer spline knots."),
+    Parameter(name="update_glob", type="bool", desc="If true, also update the global property to the mean of local properties."),
 ]
 # fmt: on
 

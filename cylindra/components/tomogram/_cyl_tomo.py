@@ -664,6 +664,8 @@ class CylTomogram(Tomogram):
         size: nm = 50.0,
         binsize: int = 1,
         min_radius: nm = 1.0,
+        update: bool = True,
+        update_glob: bool = True,
     ) -> pl.Series:
         """
         Measure the local radii along the splines.
@@ -706,7 +708,10 @@ class CylTomogram(Tomogram):
             radii.append((imax_sub + offset_px) * _scale)
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
-        spl.props.update_loc([out], size)
+        if update:
+            spl.props.update_loc([out], size)
+        if update_glob:
+            spl.props.update_glob([pl.Series(H.radius, [out.mean()])])
         return out
 
     @batch_process
