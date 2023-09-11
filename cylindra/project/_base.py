@@ -5,6 +5,7 @@ import io
 from enum import Enum
 from pathlib import Path
 from pydantic import BaseModel
+from cylindra.project._utils import get_project_file
 
 
 def json_encoder(obj):
@@ -75,16 +76,14 @@ class BaseProject(BaseModel):
         return f"{type(self).__name__}({self.project_path!r})"
 
     @classmethod
-    def from_json(cls, path: "str | Path | io.IOBase") -> Self:
+    def from_json(cls, path: "str | Path") -> Self:
         """Construct a project from a json file."""
-        if isinstance(path, io.IOBase):
-            js = json.load(path)
-        else:
-            with open(str(path).strip("'").strip('"')) as f:
-                js: dict = json.load(f)
-        self = cls(**js, project_path=Path(path))
+        path = get_project_file(path)
+        with open(str(path).strip("'").strip('"')) as f:
+            js: dict = json.load(f)
+        self = cls(**js, project_path=path)
         self._post_init()
-        file_dir = Path(path).parent
+        file_dir = path.parent
         self.resolve_path(file_dir)
         return self
 
