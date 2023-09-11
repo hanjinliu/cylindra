@@ -264,7 +264,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             dataframes.append(df)
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         if suffix:
-            need_rename = [H.spacing, H.skew, H.npf, H.rise, H.radius]
+            need_rename = [H.spacing, H.dimer_twist, H.npf, H.rise, H.radius]
             out = out.rename(
                 {col: col + suffix for col in need_rename if col in out.columns}
             )

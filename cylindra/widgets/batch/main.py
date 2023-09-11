@@ -26,7 +26,15 @@ from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit
 from ._loaderlist import LoaderList, LoaderInfo
 
-_SPLINE_FEATURES = [H.spacing, H.skew, H.npf, H.start, H.rise, H.radius, H.orientation]
+_SPLINE_FEATURES = [
+    H.spacing,
+    H.dimer_twist,
+    H.npf,
+    H.start,
+    H.rise,
+    H.radius,
+    H.orientation,
+]
 
 
 @magicclass(

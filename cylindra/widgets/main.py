@@ -1645,7 +1645,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):  # fmt: skip
         """
-        Map molecules along splines. Each molecule is rotated by skew angle.
+        Map molecules along splines. Each molecule is rotated by skewing.
 
         Parameters
         ----------
@@ -2288,7 +2288,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Paint cylinders")
     def paint_cylinders(
         self,
-        color_by: Annotated[str, {"choices": [H.spacing, H.skew, H.rise, H.npf]}] = H.spacing,
+        color_by: Annotated[str, {"choices": [H.spacing, H.dimer_twist, H.rise, H.npf]}] = H.spacing,
         cmap: ColormapType = DEFAULT_COLORMAP,
         limits: Optional[tuple[float, float]] = (3.95, 4.28),
     ):  # fmt: skip
@@ -2313,15 +2313,15 @@ class CylindraMainWidget(MagicTemplate):
         # Labels layer properties
         _id = "ID"
         _str = "structure"
-        columns = [_id, H.rise, H.spacing, H.skew, _str]
+        columns = [_id, H.rise, H.spacing, H.dimer_twist, _str]
         df = (
-            all_df.select([IDName.spline, IDName.pos, H.rise, H.spacing, H.skew, H.npf, H.start])
+            all_df.select([IDName.spline, IDName.pos, H.rise, H.spacing, H.dimer_twist, H.npf, H.start])
             .with_columns(
                 pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
                 pl.format("{}_{}", pl.col(H.npf), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.rise),
                 pl.col(H.spacing),
-                pl.col(H.skew),
+                pl.col(H.dimer_twist),
             )
         )  # fmt: skip
         back = pl.DataFrame([pl.Series(_id, [None], dtype=pl.Utf8)])
@@ -2620,7 +2620,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.props.has_loc([H.spacing, H.skew, H.npf, H.start]):
+        if spl.props.has_loc([H.spacing, H.dimer_twist, H.npf, H.start]):
             self.LocalProperties._set_text(spl, j)
         else:
             self.LocalProperties._init_plot()
@@ -2686,14 +2686,14 @@ class CylindraMainWidget(MagicTemplate):
         fgui = get_function_gui(self.cylinder_simulator.update_model)
         fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
-        fgui.skew.min, fgui.skew.max = cfg.skew_range.astuple()
-        fgui.skew.value = cfg.skew_range.center
+        fgui.dimer_twist.min, fgui.dimer_twist.max = cfg.skew_range.astuple()
+        fgui.dimer_twist.value = cfg.skew_range.center
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
 
         self.cylinder_simulator.parameters.update(
             spacing=fgui.spacing.value,
-            skew=fgui.skew.value,
+            dimer_twist=fgui.dimer_twist.value,
             npf=fgui.npf.value,
         )
 

@@ -79,7 +79,7 @@ class CylinderParameters:
     """Parameters for cylinder model."""
 
     spacing: nm = 1.0
-    skew: float = 0.0
+    dimer_twist: float = 0.0
     start: int = 0
     npf: int = 1
     radius: nm = 10.0
@@ -96,7 +96,7 @@ class CylinderParameters:
         """Return parameters as a dictionary."""
         return {
             "spacing": self.spacing,
-            "skew": self.skew,
+            "dimer_twist": self.dimer_twist,
             "start": self.start,
             "npf": self.npf,
             "radius": self.radius,
@@ -133,7 +133,7 @@ class CylinderSimulator(ChildWidget):
 
         update_model = abstractapi()
         expand = abstractapi()
-        screw = abstractapi()
+        twist = abstractapi()
         dilate = abstractapi()
 
     def __post_init__(self) -> None:
@@ -369,12 +369,12 @@ class CylinderSimulator(ChildWidget):
         tomo = self._get_main().tomogram
         spl = tomo.splines[idx]
 
-        if not spl.props.has_glob([H.spacing, H.skew, H.start, H.npf, H.radius]):
+        if not spl.props.has_glob([H.spacing, H.dimer_twist, H.start, H.npf, H.radius]):
             raise ValueError("Global property is not calculated yet.")
 
         self.parameters.update(
             interval=spl.props.get_glob(H.spacing),
-            skew=spl.props.get_glob(H.skew),
+            dimer_twist=spl.props.get_glob(H.dimer_twist),
             start=spl.props.get_glob(H.start),
             npf=spl.props.get_glob(H.npf),
             radius=spl.props.get_glob(H.radius),
@@ -435,7 +435,7 @@ class CylinderSimulator(ChildWidget):
     def update_model(
         self,
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
-        skew: Annotated[float, {"min": -45.0, "max": 45.0, "label": "skew (deg)"}] = 0.0,
+        dimer_twist: Annotated[float, {"min": -45.0, "max": 45.0, "label": "dimer twist (deg)"}] = 0.0,
         start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 1,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
@@ -451,7 +451,7 @@ class CylinderSimulator(ChildWidget):
         ----------
         spacing : nm
             Axial spacing between molecules.
-        skew : float
+        dimer_twist : float
             Skew angle.
         start : int
             The start number.
@@ -464,7 +464,7 @@ class CylinderSimulator(ChildWidget):
         """
         self.parameters.update(
             spacing=spacing,
-            skew=skew,
+            dimer_twist=dimer_twist,
             start=start,
             npf=npf,
             radius=radius,
@@ -473,7 +473,7 @@ class CylinderSimulator(ChildWidget):
         # NOTE: these parameters are hard-coded for microtubule for now.
         kwargs = {
             H.spacing: spacing,
-            H.skew: skew,
+            H.dimer_twist: dimer_twist,
             H.start: start,
             H.npf: npf,
         }
@@ -806,17 +806,16 @@ class CylinderSimulator(ChildWidget):
     @TransformMenu.wraps
     @set_design(text="Screw")
     @impl_preview(auto_call=True)
-    def screw(
+    def twist(
         self,
-        skew: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.01, "label": "skew (deg)"}],
+        dimer_twist: Annotated[float, {"min": -45.0, "max": 45.0, "step": 0.01, "label": "dimer twist (deg)"}],
         yrange: Annotated[Any, {"bind": Operator.yrange}],
         arange: Annotated[Any, {"bind": Operator.arange}],
         allev: Annotated[bool, {"bind": Operator.allev}] = True,
     ):  # fmt: skip
-        """Screw (change the skew angles of) the selected molecules."""
-        shift, sl = self.Operator._fill_shift(yrange, arange, skew)
-        # NOTE: skew angle is defined by the twisting of every "dimers".
-        new_model = self.model.screw(np.deg2rad(skew / 2), sl)
+        """Twist the selected molecules."""
+        shift, sl = self.Operator._fill_shift(yrange, arange, dimer_twist)
+        new_model = self.model.twist(np.deg2rad(dimer_twist / 2), sl)
         if allev:
             new_model = new_model.alleviate(shift != 0)
         self.model = new_model
@@ -841,7 +840,7 @@ class CylinderSimulator(ChildWidget):
         return None
 
     @expand.during_preview
-    @screw.during_preview
+    @twist.during_preview
     @dilate.during_preview
     def _prev_context(self):
         """Temporarily update the layers."""

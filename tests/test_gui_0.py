@@ -608,14 +608,16 @@ def test_simulator(ui: CylindraMainWidget):
     ui.cylinder_simulator.set_current_spline(idx=0)
     ui.cylinder_simulator.update_model(
         spacing=4.1,
-        skew=-0.30,
+        dimer_twist=-0.30,
         start=3,
         npf=14,
         radius=9.14,
         offsets=(0.0, 0.18),
     )
     ui.cylinder_simulator.expand(exp=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
-    ui.cylinder_simulator.screw(skew=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
+    ui.cylinder_simulator.twist(
+        dimer_twist=0.3, yrange=(11, 15), arange=(0, 14), allev=True
+    )
     ui.cylinder_simulator.dilate(
         radius=-0.5, yrange=(11, 15), arange=(0, 14), allev=True
     )
@@ -628,7 +630,7 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.cylinder_simulator.create_straight_line(25, (40, 42, 42), scale=0.5)
     ui.cylinder_simulator.update_model(
         spacing=4.06,
-        skew=-0.31,
+        dimer_twist=-0.31,
         start=3,
         npf=14,
         radius=9.14,
@@ -800,8 +802,8 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
     ):
         ui.load_project(path, filter=None, paint=False, read_image=False)
         spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
-        skew_tilt = ui.tomogram.splines[0].props.get_glob(H.skew_tilt)
-        skew_angle = ui.tomogram.splines[0].props.get_glob(H.skew)
+        skew = ui.tomogram.splines[0].props.get_glob(H.skew)
+        dimer_twist = ui.tomogram.splines[0].props.get_glob(H.dimer_twist)
         rise_angle = ui.tomogram.splines[0].props.get_glob(H.rise)
         npf = ui.tomogram.splines[0].props.get_glob(H.npf)
         if invert:
@@ -810,16 +812,18 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.parent_viewer.layers[-1]
         assert isinstance(layer, MoleculesLayer)
-        ui.calculate_lattice_structure(layer, ["interv", "skew_tilt", "skew", "rise"])
+        ui.calculate_lattice_structure(layer, ["interv", "skew", "dimer_twist", "rise"])
         ay_ratio = np.sin(np.pi / npf) * npf / np.pi
         with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
-            # individial skews must be almost equal to the global skew angle
+            # individial parameters must be almost equal to the global ones
             feat = layer.molecules.features
             assert feat["interval-nm"][:-npf].mean() == pytest.approx(spacing, abs=1e-3)
-            assert feat["skew-tilt-deg"][:-npf].mean() / ay_ratio == pytest.approx(
-                skew_tilt, abs=1e-2
+            assert feat["skew-deg"][:-npf].mean() / ay_ratio == pytest.approx(
+                skew, abs=1e-2
             )
-            assert feat["skew-deg"][:-npf].mean() == pytest.approx(skew_angle, abs=1e-3)
+            assert feat["dimer-twist-deg"][:-npf].mean() == pytest.approx(
+                dimer_twist, abs=1e-3
+            )
             r = "rise-angle-deg"
             feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
             assert feat_rise.mean() * ay_ratio == pytest.approx(rise_angle, abs=1e-2)

@@ -453,7 +453,7 @@ class CylTomogram(Tomogram):
 
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of XZ cross section of cylinder is rotated with the
-        skew angle, thus is much more precise than the coarse fitting.
+        twist angles, thus is much more precise than the coarse fitting.
 
         Parameters
         ----------
@@ -483,7 +483,7 @@ class CylTomogram(Tomogram):
             spl.make_anchors(n=3)
             self.measure_radius(i=i, binsize=binsize)
 
-        _required = [H.spacing, H.skew, H.npf]
+        _required = [H.spacing, H.dimer_twist, H.npf]
         if not spl.props.has_glob(_required):
             self.global_ft_params(i=i, binsize=binsize, nsamples=1)
 
@@ -495,30 +495,30 @@ class CylTomogram(Tomogram):
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
         interv = spl.props.get_glob(H.spacing) * 2
-        skew = spl.props.get_glob(H.skew)
+        dimer_twist = spl.props.get_glob(H.dimer_twist)
         npf = roundint(spl.props.get_glob(H.npf))
 
         LOGGER.info(
-            f" >> Parameters: spacing = {interv/2:.2f} nm, skew = {skew:.3f} deg, PF = {npf}"
+            f" >> Parameters: spacing = {interv/2:.2f} nm, dimer_twist = {dimer_twist:.3f} deg, PF = {npf}"
         )
 
-        # complement skewing
-        skew_angles = np.arange(npoints) * interval / interv * skew
+        # complement twisting
+        twists = np.arange(npoints) * interval / interv * dimer_twist
         pf_ang = 360 / npf
-        skew_angles %= pf_ang
-        skew_angles[skew_angles > pf_ang / 2] -= pf_ang
+        twists %= pf_ang
+        twists[twists > pf_ang / 2] -= pf_ang
 
         input_img = self._get_multiscale_or_original(binsize)
 
         depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
         width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
 
-        mole = spl.anchors_to_molecules(rotation=-np.deg2rad(skew_angles))
+        mole = spl.anchors_to_molecules(rotation=-np.deg2rad(twists))
         if binsize > 1:
             mole = mole.translate(-self.multiscale_translation(binsize))
         scale = input_img.scale.x
 
-        # Load subtomograms rotated by skew angles. All the subtomograms should look similar.
+        # Load subtomograms rotated by twisting. All the subtomograms should look similar.
         arr = input_img.value
         loader = SubtomogramLoader(
             arr,
@@ -536,7 +536,7 @@ class CylTomogram(Tomogram):
         with set_gpu():
             inputs = subtomograms.proj("y")[ip.slicer.x[::-1]]
 
-            # Coarsely align skew-corrected images
+            # Coarsely align twist-corrected images
             imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
             max_shift_px = max_shift / scale
 
@@ -567,7 +567,7 @@ class CylTomogram(Tomogram):
             )
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
 
-            # Align skew-corrected images to the template
+            # Align twist-corrected images to the template
             shifts = np.zeros((npoints, 2))
             quat = mole.quaternion()
             for _j in range(npoints):
@@ -575,7 +575,7 @@ class CylTomogram(Tomogram):
                 tmp = _mask_missing_wedge(template, self.tilt_model, quat[_j])
                 shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
 
-                rad = np.deg2rad(skew_angles[_j])
+                rad = np.deg2rad(twists[_j])
                 cos, sin = np.cos(rad), np.sin(rad)
                 zxrot = np.array([[cos, sin], [-sin, cos]], dtype=np.float32)
                 shifts[_j] = shift @ zxrot
@@ -1198,11 +1198,11 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        if spl.props.has_glob([H.spacing, H.skew]):
+        if spl.props.has_glob([H.spacing, H.dimer_twist]):
             self.global_ft_params(i=i)
 
         interv = spl.props.get_glob(H.spacing) * 2
-        skew = spl.props.get_glob(H.skew)
+        twist = spl.props.get_glob(H.dimer_twist)
 
         # Set interval to the dimer length by default.
         if interval is None:
@@ -1213,9 +1213,9 @@ class CylTomogram(Tomogram):
         length = spl_length
 
         npoints = length / interval + 1
-        skew_angles = np.arange(npoints) * interval / interv * skew
+        twists = np.arange(npoints) * interval / interv * twist
         u = np.arange(npoints) * interval / length
-        mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(skew_angles))
+        mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(twists))
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
@@ -1242,7 +1242,7 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
-        _required = [H.spacing, H.skew, H.rise, H.npf]
+        _required = [H.spacing, H.dimer_twist, H.rise, H.npf]
         _missing = [k for k in _required if k not in kwargs]
         if not spl.props.has_glob(_missing):
             gprops = self.global_ft_params(i=i, update=False)
@@ -1351,15 +1351,15 @@ class CylTomogram(Tomogram):
             Object that represents protofilament positions and angles.
         """
         spl = self.splines[i]
-        if not spl.props.has_glob([H.spacing, H.skew]):
+        if not spl.props.has_glob([H.spacing, H.dimer_twist]):
             self.global_ft_params(i=i, nsamples=1)
         interv = spl.props.get_glob(H.spacing) * 2
-        skew = spl.props.get_glob(H.skew)
+        twist = spl.props.get_glob(H.dimer_twist)
 
         if interval is None:
             interval = interv
         ny = roundint(spl.length() / interval)
-        skew_rad = np.deg2rad(skew) * interval / interv
+        skew_rad = np.deg2rad(twist) * interval / interv
 
         yoffset, aoffset = offsets
         rcoords = np.full(ny, spl.radius)

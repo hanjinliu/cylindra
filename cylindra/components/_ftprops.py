@@ -20,8 +20,8 @@ class LatticeParams(NamedTuple):
     rise_angle: float
     rise_length: nm
     spacing: nm
-    skew_tilt: float
-    skew_angle: float
+    skew: float
+    dimer_twist: float
     npf: int
     start: int
 
@@ -36,8 +36,8 @@ class LatticeParams(NamedTuple):
             (H.rise, pl.Float32),
             (H.rise_length, pl.Float32),
             (H.spacing, pl.Float32),
-            (H.skew_tilt, pl.Float32),
             (H.skew, pl.Float32),
+            (H.dimer_twist, pl.Float32),
             (H.npf, pl.UInt8),
             (H.start, pl.Int8),
         ]
@@ -71,8 +71,8 @@ class LatticeAnalyzer:
             rise_angle=cparams.rise_angle,
             rise_length=cparams.rise_length,
             spacing=cparams.spacing,
-            skew_tilt=cparams.skew_tilt_angle,
-            skew_angle=cparams.skew_angle,
+            skew=cparams.skew,
+            dimer_twist=cparams.dimer_twist,
             npf=cparams.npf,
             start=cparams.start,
         )
@@ -161,12 +161,12 @@ class LatticeAnalyzer:
         ya_scale_ratio = img.scale.y / img.scale.a
 
         tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio * self._cfg.rise_sign
-        tan_skew_tilt = peakh.yfreq / peakh.afreq / ya_scale_ratio
+        tan_skew = peakh.yfreq / peakh.afreq / ya_scale_ratio
 
         # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
         # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
         return CylindricParameters(
-            skew_tilt_angle=math.degrees(math.atan(tan_skew_tilt)),  # f(r)
+            skew=math.degrees(math.atan(tan_skew)),  # f(r)
             rise_angle=math.degrees(math.atan(tan_rise)),  # f(r)
             pitch=img.scale.y / peakv.yfreq,
             radius=radius,
@@ -181,8 +181,8 @@ class LatticeAnalyzer:
             rise_angle=cparams.rise_angle,
             rise_length=cparams.rise_length,
             spacing=cparams.spacing,
-            skew_tilt=cparams.skew_tilt_angle,
-            skew_angle=cparams.skew_angle,
+            skew=cparams.skew,
+            dimer_twist=cparams.dimer_twist,
             npf=cparams.npf,
             start=cparams.start,
         )

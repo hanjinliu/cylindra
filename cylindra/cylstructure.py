@@ -50,7 +50,7 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     return _concat_groups(subsets).features[Mole.elev_angle]
 
 
-def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
+def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
@@ -58,15 +58,15 @@ def calc_skew_tilt(mole: Molecules, spl: CylSpline) -> pl.Series:
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
         _start = _mole_to_coords(sub)
         _interv_proj = surf.project_vector(_interv_vec, _start)
-        _skew = surf.long_angle(_interv_proj, _start)
-        _skew[-1] = -np.inf
-        new_feat = pl.Series(Mole.skew_tilt, _skew, dtype=pl.Float32)
+        _ang = surf.long_angle(_interv_proj, _start)
+        _ang[-1] = -np.inf
+        new_feat = pl.Series(Mole.skew, _ang, dtype=pl.Float32)
         subsets.append(sub.with_features(new_feat))
-    return _concat_groups(subsets).features[Mole.skew_tilt]
+    return _concat_groups(subsets).features[Mole.skew]
 
 
-def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
-    """Calculate the skew of each molecule to the next one."""
+def calc_dimer_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
+    """Calculate the dimer twist of each molecule to the next one."""
     subsets = list[Molecules]()
     spacing = spl.props.get_glob(H.spacing)
     radius = spl.props.get_glob(H.radius)
@@ -75,14 +75,14 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
         _start = _mole_to_coords(sub)
         _interv_proj = surf.project_vector(_interv_vec, _start)
-        _skew = np.rad2deg(
+        _twist = np.rad2deg(
             2 * np.arcsin(spacing * surf.long_sin(_interv_proj, _start) / radius)
         )
-        _skew[-1] = -np.inf
-        new_feat = pl.Series(Mole.skew, _skew, dtype=pl.Float32)
+        _twist[-1] = -np.inf
+        new_feat = pl.Series(Mole.dimer_twist, _twist, dtype=pl.Float32)
         subsets.append(sub.with_features(new_feat))
 
-    return _concat_groups(subsets).features[Mole.skew]
+    return _concat_groups(subsets).features[Mole.dimer_twist]
 
 
 def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -255,8 +255,8 @@ class CylinderSurface:
 class LatticeParameters(Enum):
     interv: LatticeParameters = "interv"
     elev_angle = "elev_angle"
+    dimer_twist = "dimer_twist"
     skew = "skew"
-    skew_tilt = "skew_tilt"
     radius = "radius"
     rise = "rise"
     lat_interv = "lat_interv"
@@ -267,10 +267,10 @@ class LatticeParameters(Enum):
             return calc_interval(mole, spl)
         elif self is LatticeParameters.elev_angle:
             return calc_elevation_angle(mole, spl)
+        elif self is LatticeParameters.dimer_twist:
+            return calc_dimer_twist(mole, spl)
         elif self is LatticeParameters.skew:
             return calc_skew(mole, spl)
-        elif self is LatticeParameters.skew_tilt:
-            return calc_skew_tilt(mole, spl)
         elif self is LatticeParameters.radius:
             return calc_radius(mole, spl)
         elif self is LatticeParameters.rise:

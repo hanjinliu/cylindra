@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class MeasureMode(Enum):
     none = "none"
     axial = "spacing/rise"
-    angular = "skew/npf"
+    angular = "twist/npf"
 
 
 @magicclass(widget_type="groupbox", record=False)
@@ -40,7 +40,7 @@ class Parameters(MagicTemplate):
         Lattice spacing.
     rise : str
         Rise angle (degree).
-    skew : str
+    dimer_twist : str
         Skew angle (degree).
     npf : str
         Number of protofilaments.
@@ -49,14 +49,14 @@ class Parameters(MagicTemplate):
     radius = vfield("").with_options(enabled=False)
     spacing = vfield("").with_options(enabled=False)
     rise = vfield("").with_options(enabled=False)
-    skew = vfield("").with_options(enabled=False)
+    dimer_twist = vfield("").with_options(enabled=False)
     npf = vfield("").with_options(enabled=False)
 
     def __init__(self):
         self._radius = None
         self._spacing = None
         self._rise = None
-        self._skew = None
+        self._dimer_twist = None
         self._npf = None
 
     @set_design(text="Export as CSV ...")
@@ -68,7 +68,7 @@ class Parameters(MagicTemplate):
                 "radius": [self.radius],
                 "spacing": [self.spacing],
                 "rise": [self.rise],
-                "skew": [self.skew],
+                "dimer_twist": [self.dimer_twist],
                 "npf": [self.npf],
             }
         ).write_csv(path)
@@ -109,13 +109,13 @@ class Parameters(MagicTemplate):
         else:
             return f"{value:.2f}°"
 
-    @skew.post_get_hook
-    def _get_skew(self, value):
-        return self._skew
+    @dimer_twist.post_get_hook
+    def _get_dimer_twist(self, value):
+        return self._dimer_twist
 
-    @skew.pre_set_hook
-    def _set_skew(self, value):
-        self._skew = value
+    @dimer_twist.pre_set_hook
+    def _set_dimer_twist(self, value):
+        self._dimer_twist = value
         if value is None:
             return "--°"
         else:
@@ -278,7 +278,7 @@ class SpectraInspector(ChildWidget):
 
         elif self.mode == MeasureMode.angular:
             _p = self.parameters
-            self.parameters.skew = np.rad2deg(
+            self.parameters.dimer_twist = np.rad2deg(
                 np.arctan(yfreq / afreq * 2 * _p.spacing / _p.radius)
             )
             self.parameters.npf = int(round(abs(a0 - acenter)))

@@ -291,7 +291,7 @@ class CylinderModel:
         """
         return self._in_plane_displace(by, sl, axis=1)
 
-    def screw(self, by: float, sl: _Slicer) -> Self:
+    def twist(self, by: float, sl: _Slicer) -> Self:
         """
         Locally add uniform displacement to the skew (a-axis) direction.
 

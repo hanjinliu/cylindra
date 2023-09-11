@@ -10,8 +10,8 @@ coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
 params = [(coords_13pf, 13, 8.3, (-0.1, 0.1)), (coords_14pf, 14, 7.5, (-0.5, -0.25))]
 
 
-@pytest.mark.parametrize(["coords", "npf", "rise", "skew_range"], params)
-def test_run_all(coords, npf, rise, skew_range):
+@pytest.mark.parametrize(["coords", "npf", "rise", "twist_range"], params)
+def test_run_all(coords, npf, rise, twist_range):
     path = TEST_DIR / f"{npf}pf_MT.tif"
     tomo = CylTomogram.imread(path)
     repr(tomo)
@@ -53,16 +53,14 @@ def test_run_all(coords, npf, rise, skew_range):
     assert spacing_glob == pytest.approx(spacing_mean, abs=0.013)
     assert all(spl.localprops[H.npf] == npf)
     assert all(spl.localprops[H.rise] > rise)
-    skew_min, skew_max = skew_range
-    assert skew_min < spl.props.get_glob(H.skew) < skew_max
+    tw_min, tw_max = twist_range
+    assert tw_min < spl.props.get_glob(H.dimer_twist) < tw_max
 
     # check cylinder parameters
     cp = tomo.splines[0].cylinder_params()
     assert cp.spacing == pytest.approx(spacing_glob, abs=1e-6)
-    assert cp.skew_angle == pytest.approx(spl.props.get_glob(H.skew), abs=1e-6)
-    assert cp.skew_tilt_angle == pytest.approx(
-        spl.props.get_glob(H.skew_tilt), abs=1e-6
-    )
+    assert cp.dimer_twist == pytest.approx(spl.props.get_glob(H.dimer_twist), abs=1e-6)
+    assert cp.skew == pytest.approx(spl.props.get_glob(H.skew), abs=1e-6)
     assert cp.rise_angle == pytest.approx(spl.props.get_glob(H.rise), abs=1e-6)
 
     tomo.local_radii()
@@ -106,7 +104,7 @@ def test_chunked_straightening():
     prop1 = analyzer.estimate_lattice_params_polar(st1, spl.radius)
 
     assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
-    assert prop0.skew_angle == pytest.approx(prop1.skew_angle, abs=1e-6)
+    assert prop0.dimer_twist == pytest.approx(prop1.dimer_twist, abs=1e-6)
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])

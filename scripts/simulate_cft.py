@@ -55,7 +55,7 @@ class local_expansion(Simulator):
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
         self.ui.cylinder_simulator.update_model(
-            spacing=4.12, skew=0.08, start=3, radius=11.4, npf=13
+            spacing=4.12, dimer_twist=0.08, start=3, radius=11.4, npf=13
         )
         for exp, yrange in zip([-0.07, -0.02, 0.03, 0.08], POSITIONS):
             self.ui.cylinder_simulator.expand(
@@ -71,26 +71,26 @@ class local_expansion(Simulator):
 
 
 class local_skew(Simulator):
-    """Vertical MT with skew=-0.15, -0.05, 0.05, 0.15 deg."""
+    """Vertical MT with dimer_twist=-0.15, -0.05, 0.05, 0.15 deg."""
 
     def prepare(self):
         self.ui.cylinder_simulator.create_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
         self.ui.cylinder_simulator.update_model(
-            spacing=4.1, skew=0.0, start=3, radius=11.4, npf=13
+            spacing=4.1, dimer_twist=0.0, start=3, radius=11.4, npf=13
         )
         for sk, yrange in zip([-0.15, -0.05, 0.05, 0.15], POSITIONS):
-            self.ui.cylinder_simulator.screw(
-                skew=sk, yrange=yrange, arange=(0, 13), allev=False
+            self.ui.cylinder_simulator.twist(
+                dimer_twist=sk, yrange=yrange, arange=(0, 13), allev=False
             )
         return np.array([[30, 30, 30], [30, 210, 30]])
 
     def results(self):
-        return self.ui.tomogram.splines[0].props.loc[H.skew]
+        return self.ui.tomogram.splines[0].props.loc[H.dimer_twist]
 
     def columns(self) -> list[str]:
-        return [f"skew{i}" for i in range(4)]
+        return [f"dimer_twist{i}" for i in range(4)]
 
 
 class local_orientation(Simulator):
@@ -130,13 +130,15 @@ class local_orientation(Simulator):
         )
         self.ui.cylinder_simulator.set_spline(spl)
         self.ui.cylinder_simulator.update_model(
-            spacing=4.1, skew=0.0, start=3, radius=11.4, npf=13
+            spacing=4.1, dimer_twist=0.0, start=3, radius=11.4, npf=13
         )
         return coords
 
     def results(self):
         df = self.ui.tomogram.splines[0].props.loc
-        return df[H.spacing].to_list() + df[H.skew].to_list() + df[H.rise].to_list()
+        return (
+            df[H.spacing].to_list() + df[H.dimer_twist].to_list() + df[H.rise].to_list()
+        )
 
     def anchors(self) -> np.ndarray:
         coords = self.get_coords()
@@ -145,7 +147,7 @@ class local_orientation(Simulator):
         return np.linspace(clip, 1 - clip, 4)
 
     def columns(self):
-        return [f"{n}{i}" for n in ["spacing", "skew", "rise"] for i in range(4)]
+        return [f"{n}{i}" for n in ["spacing", "dimer_twist", "rise"] for i in range(4)]
 
 
 @magicgui

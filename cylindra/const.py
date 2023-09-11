@@ -78,8 +78,8 @@ class PropertyNames(SimpleNamespace):
     rise = "rise_angle"
     rise_length = "rise_length"
     spacing = "spacing"
+    dimer_twist = "dimer_twist"
     skew = "skew_angle"
-    skew_tilt = "skew_tilt_angle"
     npf = "npf"
     radius = "radius"
     orientation = "orientation"  # global only
@@ -116,8 +116,8 @@ class MoleculesHeader(SimpleNamespace):
     score = "score"  # alignment score
     interval = "interval-nm"  # interval between two molecules
     lateral_interval = "lateral-interval-nm"  # lateral interval between two molecules
-    skew = "skew-deg"  # skew angle between two molecules
-    skew_tilt = "skew-tilt-deg"  # skew tilt angle between two molecules
+    dimer_twist = "dimer-twist-deg"  # dimer twist between two dimers
+    skew = "skew-deg"  # skew tilt angle between two molecules
     rise = "rise-angle-deg"  # rise angle between two molecules
     radius = "radius-nm"  # distance between the molecule and the spline
     lateral_angle = "lateral-angle-deg"  # lateral angle between molecules

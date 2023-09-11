@@ -14,7 +14,7 @@ class LocalPropsViewer(MagicTemplate):
         return [(f"{k[0]}, spline={k[1]}", k) for k in self._groups.keys()]
 
     def _get_columns(self, w=None) -> list[str]:
-        return [H.spacing, H.skew, H.npf, H.rise]
+        return [H.spacing, H.dimer_twist, H.npf, H.rise]
 
     data_index = field(str, label="Data").with_choices(_get_data_index)
     column = vfield(str, label="Column name").with_choices(_get_columns)

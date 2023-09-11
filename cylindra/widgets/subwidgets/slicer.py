@@ -141,8 +141,8 @@ class SplineSlicer(ChildWidget):
             f"{_col('spacing:')} {params.spacing:.3f} nm<br>"
             f"{_col('rise angle:')} {params.rise_angle:.3f} °<br>"
             f"{_col('rise length:')} {params.rise_length:.3f} nm<br>"
-            f"{_col('skew angle:')} {params.skew_angle:.3f} °<br>"
-            f"{_col('skew tilt angle:')} {params.skew_tilt:.3f} °<br>"
+            f"{_col('skew angle:')} {params.dimer_twist:.3f} °<br>"
+            f"{_col('skew tilt angle:')} {params.skew:.3f} °<br>"
             f"{_col('PF:')} {params.npf}<br>"
             f"{_col('start:')} {params.start}"
         )
@@ -450,7 +450,7 @@ class SplineSlicer(ChildWidget):
         vy = img_cyl.scale.y / cp.pitch
         vx = spl.config.rise_sign * vy * cp.tan_rise / ya_ratio
         hx = img_cyl.scale.a / cp.lat_spacing_proj
-        hy = hx * cp.tan_skew_tilt / ya_ratio
+        hy = hx * cp.tan_skew / ya_ratio
         v = np.array([vy, vx]) / vsub
         h = np.array([hy, hx]) / hsub
         v0, h0 = max_order * vsub, max_order * hsub
