@@ -153,13 +153,13 @@ class CylindraProject(BaseProject):
                 if not isinstance(layer, MoleculesLayer):
                     continue
                 layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
+            js = gui.default_config.asdict()
             with open(results_dir / "default_spline_config.json", mode="w") as f:
-                js = gui.default_config.asdict()
                 json.dump(js, f, indent=4, separators=(", ", ": "))
 
             # save macro
             expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
-            (results_dir / "script.py").write_text(expr)
+            results_dir.joinpath("script.py").write_text(expr)
 
             self.project_description = gui.GeneralInfo.project_desc.value
             self.to_json(results_dir / "project.json")
@@ -180,8 +180,8 @@ class CylindraProject(BaseProject):
         gui = _get_instance(gui)
         with self.open_project() as project_dir:
             tomogram = self.load_tomogram(project_dir, compute=read_image)
-            macro_expr = extract((project_dir / "script.py").read_text()).args
-            need_paint = paint and (project_dir / "localprops.csv").exists()
+            macro_expr = extract(project_dir.joinpath("script.py").read_text()).args
+            need_paint = paint and project_dir.joinpath("localprops.csv").exists()
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
                 default_config = SplineConfig.from_file(cfg_path)

@@ -74,18 +74,17 @@ class CylindraBatchProject(BaseProject):
     def from_gui(
         cls,
         gui: "CylindraBatchWidget",
-        json_path: Path,
+        project_dir: Path,
         mole_ext: str = ".csv",
     ) -> "CylindraBatchProject":
         from datetime import datetime
 
         _versions = get_versions()
-        results_dir = json_path.parent
 
         def as_relative(p: Path):
             assert isinstance(p, Path)
             try:
-                out = p.relative_to(results_dir)
+                out = p.relative_to(project_dir)
             except Exception:
                 out = p
             return out
@@ -95,7 +94,7 @@ class CylindraBatchProject(BaseProject):
             name = info.name
             loaders.append(
                 LoaderInfoModel(
-                    molecule=results_dir / f"Molecules-{name}{mole_ext}",
+                    molecule=project_dir / f"Molecules-{name}{mole_ext}",
                     name=name,
                     images=[
                         ImageInfo(
@@ -117,32 +116,30 @@ class CylindraBatchProject(BaseProject):
             template_image=gui.sta.params.template_path,
             mask_parameters=gui.sta.params._get_mask_params(),
             missing_wedge=MissingWedge.parse(gui.sta.params.tilt_range),
-            project_path=json_path.parent,
+            project_path=project_dir,
         )
 
     @classmethod
     def save_gui(
         cls: "type[CylindraBatchProject]",
         gui: "CylindraBatchWidget",
-        json_path: Path,
+        project_dir: Path,
         mole_ext: str = ".csv",
     ) -> None:
         """Save the GUI state to a project directory."""
-        results_dir = json_path.parent
+        self = cls.from_gui(gui, project_dir, mole_ext)
 
-        self = cls.from_gui(gui, json_path, mole_ext)
-
-        if not os.path.exists(results_dir):
-            os.mkdir(results_dir)  # create a directory if not exists.
+        if not os.path.exists(project_dir):
+            os.mkdir(project_dir)  # create a directory if not exists.
 
         # save molecules
         for lmodel, info in zip(self.loaders, gui._loaders):
             info.loader.molecules.to_file(lmodel.molecule)
 
-        self.macro_path.write_text(as_main_function(gui.macro))
+        self.project_path.joinpath("script.py").write_text(as_main_function(gui.macro))
 
         # save objects
-        self.to_json(json_path)
+        self.to_json(project_dir / "project.json")
         return None
 
     def _to_gui(self, gui: "CylindraBatchWidget") -> None:
@@ -163,10 +160,7 @@ class CylindraBatchProject(BaseProject):
             image_paths = {imginfo.id: imginfo.image for imginfo in lmodel.images}
             gui._add_loader(loader, lmodel.name, image_paths)
 
-        # append macro
-        with open(self.macro_path) as f:
-            txt = f.read()
-
+        txt = self.project_path.joinpath("script.py").read_text()
         macro = mk.parse(txt)
         gui.macro.extend(macro.args)
 
