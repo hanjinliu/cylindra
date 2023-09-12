@@ -1560,6 +1560,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
+        extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1590,6 +1591,7 @@ class CylindraMainWidget(MagicTemplate):
                 orientation=orientation,
                 offsets=normalize_offsets(offsets, spl),
                 radius=normalize_radius(radius, spl),
+                extensions=extensions,
             )
 
             yield _add_molecules.with_args(mol, f"Mono-{i}", spl)

@@ -1262,6 +1262,7 @@ class CylTomogram(Tomogram):
         *,
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
+        extensions: tuple[int, int] = (0, 0),
         **kwargs,
     ) -> Molecules:
         """
@@ -1282,7 +1283,12 @@ class CylTomogram(Tomogram):
             Object that represents monomer positions and angles.
         """
         model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
-        yy, aa = np.indices(model.shape, dtype=np.int32)
+        ny, na = model.shape
+        ext0, ext1 = extensions
+        if ny + ext0 + ext1 < 0:
+            raise ValueError("The number of monomers is negative.")
+        yy, aa = np.indices((ny + ext0 + ext1, na), dtype=np.int32)
+        yy -= ext0
         coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
         mole = model.locate_molecules(spl, coords)
