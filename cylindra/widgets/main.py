@@ -1269,9 +1269,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{bin_size}
-        min_radius : nm, default is 1.0
-            Minimum possible radius in nm.
+        {splines}{bin_size}{min_radius}
         """
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
@@ -1324,6 +1322,7 @@ class CylindraMainWidget(MagicTemplate):
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
         """
@@ -1331,7 +1330,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{interval}{depth}{bin_size}{update_glob}
+        {splines}{interval}{depth}{bin_size}{min_radius}{update_glob}
         """
         tomo = self.tomogram
 
@@ -1344,7 +1343,11 @@ class CylindraMainWidget(MagicTemplate):
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_radii(
-                    i=i, size=depth, binsize=bin_size, update_glob=update_glob
+                    i=i,
+                    depth=depth,
+                    binsize=bin_size,
+                    min_radius=min_radius,
+                    update_glob=update_glob,
                 )
                 if i == splines[-1]:
                     yield _on_yield

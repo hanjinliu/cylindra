@@ -661,7 +661,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        size: nm = 50.0,
+        depth: nm = 50.0,
         binsize: int = 1,
         min_radius: nm = 1.0,
         update: bool = True,
@@ -709,7 +709,7 @@ class CylTomogram(Tomogram):
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
         if update:
-            spl.props.update_loc([out], size)
+            spl.props.update_loc([out], depth)
         if update_glob:
             spl.props.update_glob([pl.Series(H.radius, [out.mean()])])
         return out
