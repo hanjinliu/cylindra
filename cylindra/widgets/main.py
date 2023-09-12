@@ -75,6 +75,7 @@ from cylindra.widgets._annotated import (
 from cylindra.widgets._main_utils import (
     SplineTracker,
     normalize_offsets,
+    normalize_radius,
     rotvec_from_axis_and_degree,
 )
 from cylindra.widgets._reserved_layers import ReservedLayers
@@ -1558,6 +1559,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: _Splines = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
+        radius: Optional[nm] = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1567,6 +1569,8 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{orientation}{offsets}
+        radius : nm, optional
+            Radius of the cylinder to position monomers.
         """
         tomo = self.tomogram
 
@@ -1585,7 +1589,7 @@ class CylindraMainWidget(MagicTemplate):
                 i=i,
                 orientation=orientation,
                 offsets=normalize_offsets(offsets, spl),
-                radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
+                radius=normalize_radius(radius, spl),
             )
 
             yield _add_molecules.with_args(mol, f"Mono-{i}", spl)
@@ -1616,6 +1620,7 @@ class CylindraMainWidget(MagicTemplate):
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _NormalizedOffsetType = None,
+        radius: Optional[nm] = None,
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1638,7 +1643,7 @@ class CylindraMainWidget(MagicTemplate):
             coords=coords,
             orientation=orientation,
             offsets=offsets,
-            radius=spl.radius + spl.props.get_glob(H.offset_radial, 0.0),
+            radius=normalize_radius(radius, spl),
         )
         layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
         return self._undo_callback_for_layer(layer)
@@ -2025,6 +2030,10 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(lambda: _Logger.print("Undoing plotting does nothing"))
 
     @MoleculesMenu.MoleculeFeatures.wraps
+    @confirm(
+        text="Column already exists. Overwrite?",
+        condition="column_name in layer.molecules.features.columns",
+    )
     @set_design(text="Calculate molecule features")
     def calculate_molecule_features(
         self,
@@ -2054,8 +2063,6 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         feat = layer.molecules.features
-        if column_name in feat.columns:
-            raise ValueError(f"Column {column_name} already exists.")
         pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
         if isinstance(pl_expr, pl.Expr):
             new_feat = feat.with_columns(pl_expr.alias(column_name))

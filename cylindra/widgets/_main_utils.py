@@ -103,7 +103,17 @@ def normalize_offsets(
             spl.props.get_glob(H.offset_axial, 0.0),
             spl.props.get_glob(H.offset_angular, 0.0),
         )
+    elif len(offsets) != 2:
+        raise ValueError(f"offsets must be a tuple of length 2, got {offsets!r}")
     return offsets
+
+
+def normalize_radius(radius: float | None, spl: CylSpline) -> float:
+    if radius is None:
+        _r = spl.props.get_glob(H.offset_radial, 0.0) + spl.radius
+    else:
+        _r = radius
+    return _r
 
 
 def rotvec_from_axis_and_degree(axis: Literal["z", "y", "x"], deg: float):
