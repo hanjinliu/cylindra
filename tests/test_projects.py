@@ -5,8 +5,8 @@ from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF
 def test_io():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
     assert len(seq) == 2
-    assert seq[0].project_path == PROJECT_DIR_13PF / "project.json"
-    assert seq[1].project_path == PROJECT_DIR_14PF / "project.json"
+    assert seq[0].project_path == PROJECT_DIR_13PF
+    assert seq[1].project_path == PROJECT_DIR_14PF
 
 
 def test_concat():

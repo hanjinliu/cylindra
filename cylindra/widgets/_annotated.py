@@ -26,9 +26,7 @@ def _as_layer_names(self: Any, layers: list[MoleculesLayer | str]) -> str:
 
 MoleculesLayerType = Annotated[
     MoleculesLayer,
-    {
-        "validator": _as_layer_name,
-    },
+    {"validator": _as_layer_name},
 ]
 
 MoleculesLayersType = Annotated[

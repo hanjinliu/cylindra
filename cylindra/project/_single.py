@@ -1,4 +1,6 @@
-from typing import Iterable, Union, TYPE_CHECKING
+from contextlib import contextmanager
+import tempfile
+from typing import Generator, Iterable, Union, TYPE_CHECKING
 from pathlib import Path
 import json
 import warnings
@@ -53,30 +55,6 @@ class CylindraProject(BaseProject):
             self.missing_wedge = MissingWedge.parse(self.tilt_range)
             del self.tilt_range
 
-    @property
-    def localprops_path(self) -> Path:
-        return self.project_dir / "localprops.csv"
-
-    @property
-    def globalprops_path(self) -> Path:
-        return self.project_dir / "globalprops.csv"
-
-    @property
-    def default_spline_config_path(self) -> Path:
-        return self.project_dir / "default_spline_config.json"
-
-    @property
-    def macro_path(self) -> Path:
-        return self.project_dir / "script.py"
-
-    def molecules_path(self, name: str) -> Path:
-        """Get the path of the molecule file of give name (needs extention)."""
-        return self.project_dir / name
-
-    def spline_path(self, idx: int) -> Path:
-        """Get the path of the idx-th spline json file."""
-        return self.project_dir / f"spline-{idx}.json"
-
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
         file_dir = Path(file_dir)
@@ -90,20 +68,17 @@ class CylindraProject(BaseProject):
     def from_gui(
         cls,
         gui: "CylindraMainWidget",
-        json_path: Path,
+        project_dir: Path,
         mole_ext: str = ".csv",
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
         from cylindra.types import MoleculesLayer
         from datetime import datetime
 
-        if json_path.suffix == "":
-            json_path = json_path.with_suffix(".json")
-
         _versions = get_versions()
         tomo = gui.tomogram
 
-        results_dir = json_path.parent
+        results_dir = project_dir
 
         # Save path of molecules
         mole_infos = list[MoleculesInfo]()
@@ -139,14 +114,14 @@ class CylindraProject(BaseProject):
             template_image=as_relative(gui.sta.params.template_path.value),
             mask_parameters=gui.sta.params._get_mask_params(),
             missing_wedge=MissingWedge.parse(tomo.tilt_range),
-            project_path=json_path,
+            project_path=project_dir,
         )
 
     @classmethod
     def save_gui(
         cls: "type[CylindraProject]",
         gui: "CylindraMainWidget",
-        json_path: Path,
+        project_dir: Path,
         mole_ext: str = ".csv",
     ) -> None:
         """
@@ -156,41 +131,38 @@ class CylindraProject(BaseProject):
         ----------
         gui : CylindraMainWidget
             The main widget from which project model will be constructed.
-        json_path : Path
+        project_dir : Path
             The path to the project json file.
         """
         from cylindra.types import MoleculesLayer
 
-        self = cls.from_gui(gui, json_path, mole_ext)
+        self = cls.from_gui(gui, project_dir, mole_ext)
 
         tomo = gui.tomogram
         localprops = tomo.splines.collect_localprops(allow_none=True)
         globalprops = tomo.splines.collect_globalprops(allow_none=True)
 
-        results_dir = json_path.parent
+        with _prep_save_dir(project_dir) as results_dir:
+            if localprops is not None:
+                localprops.write_csv(results_dir / "localprops.csv")
+            if globalprops is not None:
+                globalprops.write_csv(results_dir / "globalprops.csv")
+            for i, spl in enumerate(gui.tomogram.splines):
+                spl.to_json(results_dir / f"spline-{i}.json")
+            for layer in gui.parent_viewer.layers:
+                if not isinstance(layer, MoleculesLayer):
+                    continue
+                layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
+            with open(results_dir / "default_spline_config.json", mode="w") as f:
+                js = gui.default_config.asdict()
+                json.dump(js, f, indent=4, separators=(", ", ": "))
 
-        if not results_dir.exists():
-            results_dir.mkdir()
-        if localprops is not None:
-            localprops.write_csv(results_dir / "localprops.csv")
-        if globalprops is not None:
-            globalprops.write_csv(results_dir / "globalprops.csv")
-        for i, spl in enumerate(gui.tomogram.splines):
-            spl.to_json(results_dir / f"spline-{i}.json")
-        for layer in gui.parent_viewer.layers:
-            if not isinstance(layer, MoleculesLayer):
-                continue
-            layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
-        with open(results_dir / "default_spline_config.json", mode="w") as f:
-            js = gui.default_config.asdict()
-            json.dump(js, f, indent=4, separators=(", ", ": "))
+            # save macro
+            expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
+            (results_dir / "script.py").write_text(expr)
 
-        # save macro
-        expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
-        (results_dir / "script.py").write_text(expr)
-
-        self.project_description = gui.GeneralInfo.project_desc.value
-        self.to_json(json_path)
+            self.project_description = gui.GeneralInfo.project_desc.value
+            self.to_json(results_dir / "project.json")
         return None
 
     def _to_gui(
@@ -206,27 +178,33 @@ class CylindraProject(BaseProject):
         from magicclass.utils import thread_worker
 
         gui = _get_instance(gui)
-        tomogram = self.load_tomogram(compute=read_image)
-        gui._macro_offset = len(gui.macro)
+        with self.open_project() as project_dir:
+            tomogram = self.load_tomogram(project_dir, compute=read_image)
+            macro_expr = extract((project_dir / "script.py").read_text()).args
+            need_paint = paint and (project_dir / "localprops.csv").exists()
+            cfg_path = project_dir / "default_spline_config.json"
+            if cfg_path.exists() and update_config:
+                default_config = SplineConfig.from_file(cfg_path)
+            else:
+                default_config = None
+            mole_list = list(self.iter_load_molecules(project_dir))
 
         cb = gui._send_tomogram_to_viewer.with_args(tomogram, filt=filter)
         yield cb
         cb.await_call()
-        gui._reserved_layers.image.bounding_box.visible = not read_image
+        gui._macro_offset = len(gui.macro)
 
         @thread_worker.callback
         def _update_widget():
+            gui._reserved_layers.image.bounding_box.visible = not read_image
             if len(tomogram.splines) > 0:
                 gui._update_splines_in_images()
                 with gui.macro.blocked():
                     gui.sample_subtomograms()
-            if self.default_spline_config_path.exists() and update_config:
-                gui.default_config = SplineConfig.from_file(
-                    self.default_spline_config_path
-                )
+            if default_config is not None:
+                gui.default_config = default_config
 
-            # append macro
-            gui.macro.extend(extract(self.macro_path.read_text()).args)
+            gui.macro.extend(macro_expr)
 
             # load subtomogram analyzer state
             gui.sta.params.template_path.value = self.template_image or ""
@@ -237,19 +215,12 @@ class CylindraProject(BaseProject):
         yield _update_widget
         _update_widget.await_call()
 
-        if paint and self.localprops_path.exists():
+        if need_paint:
             yield from gui.paint_cylinders.arun()
 
         # load molecules
         _add_mole = thread_worker.callback(gui.add_molecules)
-        for info in self.molecules_info:
-            path = self.molecules_path(info.name)
-            if not path.exists():
-                warnings.warn(
-                    f"Cannot find molecule file {path}. Probably it was moved?"
-                )
-                continue
-            mole = self.load_molecules(info.name)
+        for info, mole in mole_list:
             if info.source is not None:
                 src = tomogram.splines[info.source]
             else:
@@ -265,20 +236,20 @@ class CylindraProject(BaseProject):
 
         return out
 
-    def load_spline(self, idx: int) -> "CylSpline":
+    def load_spline(self, dir: Path, idx: int) -> "CylSpline":
         """Load the spline with the given index."""
         from cylindra.components import CylSpline
 
-        spl = CylSpline.from_json(self.spline_path(idx))
-        if self.localprops_path.exists():
-            _loc = pl.read_csv(self.localprops_path).filter(
-                pl.col(IDName.spline) == idx
-            )
+        spl = CylSpline.from_json(dir / f"spline-{idx}.json")
+        localprops_path = dir / "localprops.csv"
+        globalprops_path = dir / "globalprops.csv"
+        if localprops_path.exists():
+            _loc = pl.read_csv(localprops_path).filter(pl.col(IDName.spline) == idx)
             _loc = _drop_null_columns(_loc)
         else:
             _loc = pl.DataFrame([])
-        if self.globalprops_path.exists():
-            _glob = pl.read_csv(self.globalprops_path)[idx]
+        if globalprops_path.exists():
+            _glob = pl.read_csv(globalprops_path)[idx]
             _glob = _drop_null_columns(_glob)
         else:
             _glob = pl.DataFrame([])
@@ -296,33 +267,43 @@ class CylindraProject(BaseProject):
 
         return spl
 
-    def iter_spline_paths(self) -> "Iterable[Path]":
+    def iter_spline_paths(self, dir: Path | None = None) -> "Iterable[Path]":
         """Iterate over the paths of splines."""
-        yield from self.project_dir.glob("spline-*.json")
+        if dir is None:
+            with self.open_project() as dir:
+                yield from dir.glob("spline-*.json")
+        else:
+            yield from dir.glob("spline-*.json")
 
-    def iter_load_splines(self) -> "Iterable[CylSpline]":
+    def iter_load_splines(self, dir: Path) -> "Iterable[CylSpline]":
         """Load all splines iteratively."""
         from cylindra.components import CylSpline
 
-        if self.localprops_path.exists():
-            _localprops = pl.read_csv(self.localprops_path)
+        localprops_path = dir / "localprops.csv"
+        globalprops_path = dir / "globalprops.csv"
+        if localprops_path.exists():
+            _localprops = pl.read_csv(localprops_path)
         else:
             _localprops = None
-        if self.globalprops_path.exists():
-            _globalprops = pl.read_csv(self.globalprops_path)
+        if globalprops_path.exists():
+            _globalprops = pl.read_csv(globalprops_path)
         else:
             _globalprops = None
-        for spl_path in self.iter_spline_paths():
+        for spl_path in self.iter_spline_paths(dir):
             spl = CylSpline.from_json(spl_path)
             idx = int(spl_path.stem.split("-")[1])
             if _localprops is not None:
                 _loc = _localprops.filter(pl.col(IDName.spline) == idx)
                 _loc = _drop_null_columns(_loc)
+                if len(_loc) == 0:
+                    _loc = pl.DataFrame([])
             else:
                 _loc = pl.DataFrame([])
             if _globalprops is not None:
-                _glob = _globalprops[idx]
+                _glob = _globalprops.filter(pl.col(IDName.spline) == idx)
                 _glob = _drop_null_columns(_glob)
+                if len(_glob) == 0:
+                    _glob = pl.DataFrame([])
             else:
                 _glob = pl.DataFrame([])
 
@@ -338,30 +319,38 @@ class CylindraProject(BaseProject):
             spl.props.glob = cast_dataframe(_glob)
             yield spl
 
-    def iter_molecule_paths(self) -> "Iterable[Path]":
+    def iter_molecule_paths(self, dir: Path | None = None) -> "Iterable[Path]":
         """Iterate over the paths of molecules."""
-        for info in self.molecules_info:
-            yield self.molecules_path(info.name)
+        if dir is None:
+            with self.open_project() as dir:
+                for info in self.molecules_info:
+                    yield dir / info.name
+        else:
+            for info in self.molecules_info:
+                yield dir / info.name
 
-    def load_molecules(self, name: str) -> "Molecules":
-        """Load the molecules with the given name."""
+        if dir is None:
+            dir = self.project_path
+        for info in self.molecules_info:
+            yield dir / info.name
+
+    def iter_load_molecules(
+        self, dir: Path
+    ) -> "Iterable[tuple[MoleculesInfo, Molecules]]":
+        """Load all molecules iteratively."""
         from acryo import Molecules
 
-        mole_path = self.molecules_path(name)
-        return Molecules.from_file(mole_path)
-
-    def iter_load_molecules(self) -> "Iterable[tuple[str, Molecules]]":
-        """Load all molecules iteratively."""
         for info in self.molecules_info:
-            path = self.molecules_path(info.name)
+            path = dir / info.name
             if not path.exists():
                 warnings.warn(
                     f"Cannot find molecule file {path}. Probably it was moved?"
                 )
                 continue
-            yield info.stem, self.load_molecules(info.name)
+            mole = Molecules.from_file(path)
+            yield info, mole
 
-    def load_tomogram(self, compute: bool = True) -> "CylTomogram":
+    def load_tomogram(self, dir: Path, compute: bool = True) -> "CylTomogram":
         """Load the tomogram object of the project."""
         from cylindra.components import CylTomogram
 
@@ -372,7 +361,7 @@ class CylindraProject(BaseProject):
             binsize=self.multiscales,
             compute=compute,
         )
-        tomo.splines.extend(self.iter_load_splines())
+        tomo.splines.extend(self.iter_load_splines(dir))
         return tomo
 
     def make_project_viewer(self):
@@ -391,12 +380,26 @@ class CylindraProject(BaseProject):
         mviewer._from_project(self)
         return mviewer
 
-    @property
-    def project_dir(self) -> Path:
-        """The directory of the project."""
+    @contextmanager
+    def open_project(self) -> Generator[Path, None, None]:
         if self.project_path is None:
             raise ValueError("Project path is not set.")
-        return self.project_path.parent
+        ext = self.project_path.suffix
+        if ext == "":
+            yield self.project_path
+
+        elif ext in (".tar",):
+            import tarfile
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with tarfile.open(self.project_path) as tar:
+                    tar.extractall(tmpdir)
+                yield Path(tmpdir)
+
+        else:
+            raise ValueError(f"Unsupported extension {ext}.")
+
+        return None
 
 
 def _get_instance(gui: "CylindraMainWidget | None" = None):
@@ -419,3 +422,26 @@ def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:
     if to_drop:
         return df.drop(to_drop)
     return df
+
+
+@contextmanager
+def _prep_save_dir(project_path: Path) -> Generator[Path, None, None]:
+    ext = project_path.suffix
+    if ext == "":
+        if not project_path.exists():
+            project_path.mkdir()
+        yield project_path
+
+    elif ext in (".tar",):
+        import tarfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+            with tarfile.open(project_path, mode="w") as tar:
+                for file in Path(tmpdir).glob("*"):
+                    tar.add(file, arcname=file.name)
+
+    else:
+        raise ValueError(f"Unsupported extension {ext}.")
+
+    return None

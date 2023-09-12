@@ -123,7 +123,10 @@ class CylSpline(Spline):
         return self.cylinder_params(**kwargs).start
 
     def cylinder_params(self, **kwargs) -> CylindricParameters:
+        """Get the cylinder parameters of the spline."""
         radius = _get_globalprops(self, kwargs, H.radius)
+        if radius is None:
+            raise ValueError("Radius is not set.")
         radius += (self.config.thickness_outer - self.config.thickness_inner) / 2
         return solve_cylinder(
             spacing=_get_globalprops(self, kwargs, H.spacing),

@@ -67,14 +67,8 @@ class CylindraBatchProject(BaseProject):
         return self
 
     @property
-    def project_dir(self) -> Path:
-        if self.project_path is None:
-            raise ValueError("Project path is not set.")
-        return self.project_path.parent
-
-    @property
     def macro_path(self) -> Path:
-        return self.project_dir / "script.py"
+        return self.project_path / "script.py"
 
     @classmethod
     def from_gui(
@@ -123,7 +117,7 @@ class CylindraBatchProject(BaseProject):
             template_image=gui.sta.params.template_path,
             mask_parameters=gui.sta.params._get_mask_params(),
             missing_wedge=MissingWedge.parse(gui.sta.params.tilt_range),
-            project_path=json_path,
+            project_path=json_path.parent,
         )
 
     @classmethod

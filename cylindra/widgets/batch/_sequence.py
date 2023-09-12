@@ -41,20 +41,15 @@ class MoleculeWidget(MagicTemplate):
     check = vfield(True).with_options(text="")
     line = field("").with_options(enabled=False)
 
-    def _get_molecules(self) -> Molecules:
-        fp = Path(self.line.value)
-        mole = Molecules.from_file(self.line.value)
-        return mole.with_features([pl.repeat(fp.stem, pl.count()).alias(Mole.id)])
-
 
 @magicclass(widget_type="collapsible", record=False, name="Molecules")
 class MoleculeList(MagicTemplate):
     def __iter__(self) -> Iterator[MoleculeWidget]:
         return super().__iter__()
 
-    def _add_path(self, path: Path):
+    def _add_path(self, path: str):
         wdt = MoleculeWidget()
-        wdt.line.value = str(path)
+        wdt.line.value = path
         wdt["check"].text = ""
         self.append(wdt)
 
@@ -167,6 +162,9 @@ class Project(MagicTemplate):
     class Components(MagicTemplate):
         """List of components (molecules and/or splines)."""
 
+        splines = abstractapi()
+        molecules = abstractapi()
+
     splines = Components.field(SplineList)
     molecules = Components.field(MoleculeList)
 
@@ -174,26 +172,31 @@ class Project(MagicTemplate):
     def _from_path(cls, path: Path):
         """Create a Project widget from a project path."""
         path = str(path)
-        project = CylindraProject.from_json(path)
+        project = CylindraProject.from_file(path)
         self = cls(project)
         self.Header.path.value = path
         self.Header.path.tooltip = path
 
         # load splines
         for spline_path in project.iter_spline_paths():
-            self.splines._add_path(spline_path)
+            self.splines._add_path(spline_path.name)
 
         # load molecules
-        for mole_path in project.iter_molecule_paths():
-            self.molecules._add_path(mole_path)
+        for info in project.molecules_info:
+            self.molecules._add_path(info.name)
 
         return self
 
     @nogui
     @do_not_record
     def get_loader(self, order: int = 3) -> SubtomogramLoader:
-        project = CylindraProject.from_json(self.path)
-        molecules = [mole._get_molecules() for mole in self.molecules if mole.check]
+        project = CylindraProject.from_file(self.path)
+        with project.open_project() as dir:
+            molecules = [
+                Molecules.from_file(dir / mole.line.value)
+                for mole in self.molecules
+                if mole.check
+            ]
         return SubtomogramLoader(
             ip.lazy.imread(project.image, chunks=get_config().dask_chunk).value,
             molecules=Molecules.concat(molecules),
@@ -201,19 +204,21 @@ class Project(MagicTemplate):
             scale=project.scale,
         )
 
-    def _get_loader_paths(self) -> tuple[Path, list[Path], Path]:
-        project = CylindraProject.from_json(self.path)
+    def _get_loader_paths(self) -> tuple[Path, list[str], Path]:
+        project = CylindraProject.from_file(self.path)
         img_path = Path(project.image)
         prj_path = Path(self.path)
-        mole_paths = [Path(mole.line.value) for mole in self.molecules if mole.check]
+        mole_paths = [mole.line.value for mole in self.molecules if mole.check]
         return img_path, mole_paths, prj_path
 
     def _get_localprops(self) -> pl.DataFrame:
-        project = CylindraProject.from_json(self.path)
-        if not project.localprops_path.exists():
-            raise ValueError("No localprops file found.")
+        project = CylindraProject.from_file(self.path)
+        with project.open_project() as dir:
+            localprops_path = dir / "localprops.csv"
+            if not localprops_path.exists():
+                raise ValueError("No localprops file found.")
 
-        df = pl.read_csv(project.localprops_path)
+            df = pl.read_csv(localprops_path)
         return df
 
 
@@ -335,15 +340,13 @@ class ProjectSequenceEdit(MagicTemplate):
             batch_loader = batch_loader.replace(output_shape=output_shape)
         return batch_loader
 
-    def _get_loader_paths(self, _=None) -> list[tuple[Path, list[Path]]]:
+    def _get_loader_paths(self, _=None) -> list[tuple[Path, list[Path], Path]]:
         return [prj._get_loader_paths() for prj in self.projects]
 
     def _get_localprops(self) -> pl.DataFrame:
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(iter(self.projects)):
             df = prj._get_localprops()
-            prj.path
-
             dataframes.append(
                 df.with_columns(
                     pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)
@@ -362,9 +365,13 @@ class ProjectSequenceEdit(MagicTemplate):
         comp_viewer = ComponentsViewer()
 
         self.changed.connect(lambda: cbox.reset_choices())
-        cbox.changed.connect(
-            lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
-        )
+
+        @cbox.changed.connect
+        def _view_project(path: str):
+            prj = CylindraProject.from_file(path)
+            with prj.open_project() as dir:
+                comp_viewer._from_project(prj, dir)
+
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)
         CylindraMainWidget._active_widgets.add(cont)

@@ -500,15 +500,15 @@ class CylindraMainWidget(MagicTemplate):
             project = path
             project_path = project.project_path
         else:
-            project_path = get_project_file(path)
-            project = CylindraProject.from_json(project_path)
+            project = CylindraProject.from_file(path)
+            project_path = project.project_path
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
             f"filter={str(filter)!r}, {paint=}, {read_image=}, {update_config=})</code>"
         )
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
-            self._project_dir = project_path.parent
+            self._project_dir = project_path
         yield from project._to_gui(
             self,
             filter=filter,
@@ -545,10 +545,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         save_path = Path(save_path)
         dir_posix = save_path.as_posix()
-        if save_path.is_file():
-            raise ValueError(f"You must specify a directory, but got {dir_posix}")
-        js_path = save_path / "project.json"
-        CylindraProject.save_gui(self, js_path, molecules_ext)
+        CylindraProject.save_gui(self, save_path, molecules_ext)
         _Logger.print(f"Project saved: {dir_posix}")
         self._need_save = False
         self._project_dir = save_path
@@ -565,7 +562,7 @@ class CylindraMainWidget(MagicTemplate):
                 "No project is loaded. You can use `Save project` "
                 "(ui.save_project(...)) to save the current state."
             )
-        project = CylindraProject.from_json(get_project_file(self._project_dir))
+        project = CylindraProject.from_file(self._project_dir)
         if project.molecules_info:
             ext = Path(project.molecules_info[0].name).suffix
         else:
@@ -620,7 +617,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     @set_design(text="Save molecules")
     def save_molecules(
-        self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.CSV]
+        self, layer: MoleculesLayer, save_path: Path.Save[FileFilter.CSV]
     ):
         """
         Save monomer coordinates, orientation and features as a csv file.
@@ -631,7 +628,7 @@ class CylindraMainWidget(MagicTemplate):
         save_path : Path
             Where to save the molecules.
         """
-        return assert_layer(layer).molecules.to_csv(save_path)
+        return assert_layer(layer, self.parent_viewer).molecules.to_csv(save_path)
 
     @ImageMenu.wraps
     @set_design(text="Filter reference image")
@@ -1506,8 +1503,9 @@ class CylindraMainWidget(MagicTemplate):
         """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_json(get_project_file(path))
-        macro_path = project.macro_path
-        macro_expr = extract(macro_path.read_text())
+        with project.open_project() as dir:
+            macro_path = dir / "script.py"
+            macro_expr = extract(macro_path.read_text())
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)
 
     @Analysis.wraps
@@ -1950,8 +1948,8 @@ class CylindraMainWidget(MagicTemplate):
         {layer}{color_by}{cmap}{limits}
         """
         layer = assert_layer(layer, self.parent_viewer)
-        info = layer.colormap_info
         layer.set_colormap(color_by, limits, cmap)
+        info = layer.colormap_info
         return undo_callback(layer.set_colormap).with_args(
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )

@@ -179,11 +179,12 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         col = BatchLoader(scale=self._scale_validator.value)
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
-            for stem, mole in prj.iter_load_molecules():
-                mole.features = mole.features.with_columns(
-                    pl.repeat(stem, pl.count()).alias(Mole.id)
-                )
-                col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
+            with prj.open_project() as dir:
+                for info, mole in prj.iter_load_molecules(dir):
+                    mole.features = mole.features.with_columns(
+                        pl.repeat(info.stem, pl.count()).alias(Mole.id)
+                    )
+                    col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
 
     def collect_localprops(
@@ -209,13 +210,14 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
-            path = prj.localprops_path
-            if path is None:
-                if not allow_none:
-                    raise ValueError(
-                        f"Localprops not found in project at {prj.project_path}."
-                    )
-            df = pl.read_csv(path)
+            with prj.open_project() as dir:
+                path = dir / "localprops.csv"
+                if path is None:
+                    if not allow_none:
+                        raise ValueError(
+                            f"Localprops not found in project at {prj.project_path}."
+                        )
+                df = pl.read_csv(path)
             columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
             if IDName.spline in df.columns:
                 columns.append(pl.col(IDName.spline).cast(pl.UInt16))
@@ -252,15 +254,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
-            path = prj.globalprops_path
-            if path is None:
-                if not allow_none:
-                    raise ValueError(
-                        f"Globalprops not found in project at {prj.project_path}."
-                    )
-                continue
-            imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
-            df = pl.read_csv(path).with_columns(imagespec)
+            with prj.open_project() as dir:
+                path = dir / "globalprops.csv"
+                if path is None:
+                    if not allow_none:
+                        raise ValueError(
+                            f"Globalprops not found in project at {prj.project_path}."
+                        )
+                    continue
+                imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
+                df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         if suffix:
@@ -346,8 +349,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
         """Iterate over all the splines in all the projects."""
         for i_prj, prj in enumerate(self._projects):
-            for i_spl, spl in enumerate(prj.iter_load_splines()):
-                yield (i_prj, i_spl), spl
+            with prj.open_project() as dir:
+                for i_spl, spl in enumerate(prj.iter_load_splines(dir)):
+                    yield (i_prj, i_spl), spl
 
     def iter_molecules(
         self,
@@ -367,21 +371,21 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         if isinstance(spline_props, str):
             spline_props = [spline_props]
         for i_prj, prj in enumerate(self._projects):
-            for info in prj.molecules_info:
-                mole = prj.load_molecules(info.name)
-                if spline_props and (src := info.source) is not None:
-                    spl = prj.load_spline(src)
-                    features = list[pl.Expr]()
-                    for propname in spline_props:
-                        prop = spl.props.get_glob(propname, None)
-                        if prop is None:
-                            continue
-                        propname_glob = propname + suffix
-                        features.append(
-                            pl.repeat(prop, pl.count()).alias(propname_glob)
-                        )
-                    mole = mole.with_features(features)
-                yield (i_prj, info.stem), mole
+            with prj.open_project() as dir:
+                for info, mole in prj.iter_load_molecules(dir):
+                    if spline_props and (src := info.source) is not None:
+                        spl = prj.load_spline(dir, src)
+                        features = list[pl.Expr]()
+                        for propname in spline_props:
+                            prop = spl.props.get_glob(propname, None)
+                            if prop is None:
+                                continue
+                            propname_glob = propname + suffix
+                            features.append(
+                                pl.repeat(prop, pl.count()).alias(propname_glob)
+                            )
+                        mole = mole.with_features(features)
+                    yield (i_prj, info.stem), mole
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """

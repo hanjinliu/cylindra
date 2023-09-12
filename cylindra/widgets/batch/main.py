@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, NamedTuple, Union, Any
+from typing import Annotated, Literal, NamedTuple, Union, Any, TYPE_CHECKING
 import impy as ip
 import polars as pl
 
@@ -25,6 +25,9 @@ from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit
 from ._loaderlist import LoaderList, LoaderInfo
+
+if TYPE_CHECKING:
+    from cylindra.components import CylSpline
 
 _SPLINE_FEATURES = [
     H.spacing,
@@ -79,27 +82,27 @@ class CylindraBatchWidget(MagicTemplate):
             path_info = PathInfo(*_path_info)
             img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
             image_paths[img_id] = Path(path_info.image)
-            if path_info.project is not None:
-                _converter = _molecule_to_spline_converter(path_info.project)
-            else:
-                _converter = lambda _: None
-            for mole_path in path_info.molecules:
-                mole_path = Path(mole_path)
-                mole = Molecules.from_file(mole_path)
-                spl = _converter(mole_path)
-                features = [pl.repeat(mole_path.stem, pl.count()).alias(Mole.id)]
-                if spl is not None:
-                    for propname in _SPLINE_FEATURES:
-                        prop = spl.props.get_glob(propname, None)
-                        if prop is None:
-                            continue
-                        propname_glob = propname + "_glob"
-                        features.append(
-                            pl.repeat(prop, pl.count()).alias(propname_glob)
-                        )
-                        to_drop.add(propname_glob)
-                mole = mole.with_features(features)
-                loader.add_tomogram(img.value, mole, img_id)
+            prj = CylindraProject.from_file(path_info.project)
+            with prj.open_project() as dir:
+                for mole_path in path_info.molecules:
+                    mole_abs_path = dir / mole_path
+                    mole = Molecules.from_file(mole_abs_path)
+                    spl = _find_source(prj, dir, mole_path)
+                    features = [
+                        pl.repeat(mole_abs_path.stem, pl.count()).alias(Mole.id)
+                    ]
+                    if spl is not None:
+                        for propname in _SPLINE_FEATURES:
+                            prop = spl.props.get_glob(propname, None)
+                            if prop is None:
+                                continue
+                            propname_glob = propname + "_glob"
+                            features.append(
+                                pl.repeat(prop, pl.count()).alias(propname_glob)
+                            )
+                            to_drop.add(propname_glob)
+                    mole = mole.with_features(features)
+                    loader.add_tomogram(img.value, mole, img_id)
 
         if predicate is not None:
             if isinstance(predicate, str):
@@ -176,12 +179,12 @@ class CylindraBatchWidget(MagicTemplate):
 
 class PathInfo(NamedTuple):
     image: Path
-    molecules: list[Path]
-    project: Path | None = None
+    molecules: list[str]
+    project: Path
 
 
 def _molecule_to_spline_converter(path: Path):
-    prj = CylindraProject.from_json(path)
+    prj = CylindraProject.from_file(path)
     molecule_paths = [Path(_p) for _p in prj.molecules]
 
     def _converter(fp: Path):
@@ -197,3 +200,16 @@ def _molecule_to_spline_converter(path: Path):
         return prj.load_spline(source)
 
     return _converter
+
+
+def _find_source(prj: CylindraProject, dir: Path, mole_path: str) -> "CylSpline | None":
+    try:
+        idx = prj.molecules_info.index(mole_path)
+    except ValueError:
+        return None
+    else:
+        source = prj.molecules_info[idx].source
+        if source is None:
+            return None
+        return prj.load_spline(dir, source)
+    return None

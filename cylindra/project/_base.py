@@ -76,15 +76,53 @@ class BaseProject(BaseModel):
         return f"{type(self).__name__}({self.project_path!r})"
 
     @classmethod
+    def from_file(cls, path: "str | Path") -> Self:
+        """Construct a project from a file."""
+        path = Path(path)
+        if path.is_dir():
+            return cls.from_json(get_project_file(path))
+        elif path.suffix == ".json":
+            return cls.from_json(path)
+        elif path.suffix == ".tar":
+            return cls.from_tar(path)
+        elif path.suffix == ".zip":
+            return cls.from_zip(path)
+        raise ValueError(f"Cannot construct a project from {path!r}.")
+
+    @classmethod
     def from_json(cls, path: "str | Path") -> Self:
         """Construct a project from a json file."""
         path = get_project_file(path)
         with open(str(path).strip("'").strip('"')) as f:
             js: dict = json.load(f)
+        self = cls(**js, project_path=path.parent)
+        self._post_init()
+        self.resolve_path(path.parent)
+        return self
+
+    @classmethod
+    def from_tar(cls, path: "str | Path") -> Self:
+        """Construct a project from a tar file."""
+        import tarfile
+
+        with tarfile.open(path) as tar:
+            f = tar.extractfile("project.json")
+            js = json.load(f)
         self = cls(**js, project_path=path)
         self._post_init()
-        file_dir = path.parent
-        self.resolve_path(file_dir)
+        self.resolve_path(path.parent)
+        return self
+
+    @classmethod
+    def from_zip(cls, path: "str | Path") -> Self:
+        """Construct a project from a zip file."""
+        import zipfile, tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(path) as zip:
+                zip.extractall(tmpdir)
+            self = cls.from_json(get_project_file(tmpdir))
+        self.project_path = path
         return self
 
 

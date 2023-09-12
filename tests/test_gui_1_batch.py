@@ -11,10 +11,8 @@ def _load(ui: CylindraMainWidget):
         paths=[
             (
                 TEST_DIR / "13pf_MT.tif",
-                [
-                    PROJECT_DIR_13PF / "Mono-0.csv",
-                    PROJECT_DIR_13PF / "Mono-1.csv",
-                ],
+                ["Mono-0.csv", "Mono-1.csv"],
+                PROJECT_DIR_13PF,
             )
         ],
         predicate="pl.col('nth') < 3",

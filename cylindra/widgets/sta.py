@@ -1185,6 +1185,7 @@ class SubtomogramAveraging(ChildWidget):
         return_all: bool = False,
     ):
         parent = self._get_main()
+        layer = assert_layer(layer, self.parent_viewer)
         landscape = self.construct_landscape(
             layer=layer,
             template_path=template_path,
