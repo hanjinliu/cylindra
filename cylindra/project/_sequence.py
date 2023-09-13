@@ -189,7 +189,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return col
 
     def collect_localprops(
-        self, allow_none: bool = True, id: _IDTYPE = "int"
+        self,
+        allow_none: bool = True,
+        id: _IDTYPE = "int",
+        spline_details: bool = False,
     ) -> pl.DataFrame:
         """
         Collect all localprops into a single dataframe.
@@ -203,27 +206,73 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             How to describe the source tomogram. If "int", each tomogram will
             be labeled with ascending integers. If "path", each tomogram will
             be labeled with the name of the project directory.
+        spline_details : bool, default is False
+            If True, spline coordinates, its derivatives and the curvature
+            will also be collected as well. This will take more memory and time.
 
         Returns
         -------
         pl.DataFrame
             Dataframe with all the properties.
         """
-        dataframes = list[pl.DataFrame]()
+        dfs_prj = list[pl.DataFrame]()  # localprops of each project
         for idx, prj in enumerate(self._projects):
             with prj.open_project() as dir:
-                path = prj.localprops_path(dir)
-                if path is None:
+                if not prj.localprops_path(dir).exists():
                     if not allow_none:
                         raise ValueError(
                             f"Localprops not found in project at {prj.project_path}."
                         )
-                df = pl.read_csv(path)
-            columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
-            if IDName.spline in df.columns:
-                columns.append(pl.col(IDName.spline).cast(pl.UInt16))
-            dataframes.append(df.with_columns(columns))
-        out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
+                    continue
+                dfs_spl = list[pl.DataFrame]()
+                for spl in prj.iter_load_splines(dir, drop_columns=False):
+                    _df_spl = spl.props.loc
+                    if spline_details:
+                        if not spl.has_anchors:
+                            raise ValueError(
+                                f"Cannot collect spline details because spline {spl!r} does "
+                                "not have anchors."
+                            )
+                        _crds = [spl.map(der=der) for der in [0, 1, 2]]
+                        _cv = spl.curvature()
+                        _df_spl = _df_spl.with_columns(
+                            pl.Series(_crds[0][:, 0], dtype=pl.Float32).alias(
+                                "spline_z"
+                            ),
+                            pl.Series(_crds[0][:, 1], dtype=pl.Float32).alias(
+                                "spline_y"
+                            ),
+                            pl.Series(_crds[0][:, 2], dtype=pl.Float32).alias(
+                                "spline_x"
+                            ),
+                            pl.Series(_crds[1][:, 0], dtype=pl.Float32).alias(
+                                "spline_dz"
+                            ),
+                            pl.Series(_crds[1][:, 1], dtype=pl.Float32).alias(
+                                "spline_dy"
+                            ),
+                            pl.Series(_crds[1][:, 2], dtype=pl.Float32).alias(
+                                "spline_dx"
+                            ),
+                            pl.Series(_crds[2][:, 0], dtype=pl.Float32).alias(
+                                "spline_ddz"
+                            ),
+                            pl.Series(_crds[2][:, 1], dtype=pl.Float32).alias(
+                                "spline_ddy"
+                            ),
+                            pl.Series(_crds[2][:, 2], dtype=pl.Float32).alias(
+                                "spline_ddx"
+                            ),
+                            pl.Series(_cv, dtype=pl.Float32).alias("spline_curvature"),
+                        )
+                    dfs_spl.append(_df_spl)
+                _df_prj = pl.concat(dfs_spl, how="diagonal")
+                columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
+                if IDName.spline in _df_prj.columns:
+                    columns.append(pl.col(IDName.spline).cast(pl.UInt16))
+
+            dfs_prj.append(_df_prj.with_columns(columns))
+        out = cast_dataframe(pl.concat(dfs_prj, how="diagonal"))
         return self._normalize_id(out, id)
 
     def collect_globalprops(
@@ -318,24 +367,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         pl.DataFrame
             Dataframe with all the properties.
         """
-        loc = self.collect_localprops(allow_none=allow_none, id="int")
-        if spline_details:
-            _all_ders = list[np.ndarray]()
-            for _, spl in self.iter_splines():
-                arrs = [spl.map(der=d) for d in range(3)]
-                ders = np.concatenate(arrs, axis=1)
-                _all_ders.append(ders)
-            _all_ders = np.concatenate(_all_ders, axis=0)
-            _col_names = [
-                f"spline_{s}"
-                for s in ["z", "y", "x", "dz", "dy", "dx", "ddz", "ddy", "ddx"]
-            ]
-            loc = loc.with_columns(
-                [
-                    pl.Series(name, _all_ders[:, i], dtype=pl.Float32)
-                    for i, name in enumerate(_col_names)
-                ]
-            )
+        loc = self.collect_localprops(
+            allow_none=allow_none, id="int", spline_details=spline_details
+        )
         glb = self.collect_globalprops(allow_none=allow_none, id="int")
         if spline_details:
             lengths = list[float]()

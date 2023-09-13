@@ -178,7 +178,7 @@ class Project(MagicTemplate):
         self.Header.path.tooltip = path
 
         # load splines
-        for spline_path in project.iter_spline_paths():
+        for _, spline_path in project.iter_spline_paths():
             self.splines._add_path(spline_path.name)
 
         # load molecules

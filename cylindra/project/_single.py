@@ -267,16 +267,26 @@ class CylindraProject(BaseProject):
 
         return spl
 
-    def iter_spline_paths(self, dir: Path | None = None) -> "Iterable[Path]":
-        """Iterate over the paths of splines."""
+    def iter_spline_paths(
+        self, dir: Path | None = None
+    ) -> "Iterable[tuple[int, Path]]":
+        """Iterate over the paths of splines and their indices."""
         if dir is None:
             with self.open_project() as dir:
-                yield from dir.glob("spline-*.json")
+                paths = list(dir.glob("spline-*.json"))
         else:
-            yield from dir.glob("spline-*.json")
+            paths = list(dir.glob("spline-*.json"))
+        # sort by index
+        idx_paths = [(int(p.stem.split("-")[1]), p) for p in paths]
+        idx_paths.sort(key=lambda x: x[0])
+        yield from idx_paths
 
-    def iter_load_splines(self, dir: Path) -> "Iterable[CylSpline]":
-        """Load all splines iteratively."""
+    def iter_load_splines(
+        self,
+        dir: Path,
+        drop_columns: bool = False,
+    ) -> "Iterable[CylSpline]":
+        """Load all splines including its properties iteratively."""
         from cylindra.components import CylSpline
 
         localprops_path = self.localprops_path(dir)
@@ -289,9 +299,8 @@ class CylindraProject(BaseProject):
             _globalprops = pl.read_csv(globalprops_path)
         else:
             _globalprops = None
-        for spl_path in self.iter_spline_paths(dir):
+        for idx, spl_path in self.iter_spline_paths(dir):
             spl = CylSpline.from_json(spl_path)
-            idx = int(spl_path.stem.split("-")[1])
             if _localprops is not None:
                 _loc = _localprops.filter(pl.col(IDName.spline) == idx)
                 _loc = _drop_null_columns(_loc)
@@ -307,13 +316,14 @@ class CylindraProject(BaseProject):
             else:
                 _glob = pl.DataFrame([])
 
-            if H.spl_dist in _loc.columns:
+            if H.spl_dist in _loc.columns and drop_columns:
                 _loc = _loc.drop(H.spl_dist)
             if H.spl_pos in _loc.columns:
                 spl._anchors = np.asarray(_loc[H.spl_pos])
-                _loc = _loc.drop(H.spl_pos)
+                if drop_columns:
+                    _loc = _loc.drop(H.spl_pos)
             for c in [IDName.spline, IDName.pos]:
-                if c in _loc.columns:
+                if c in _loc.columns and drop_columns:
                     _loc = _loc.drop(c)
             spl.props.loc = cast_dataframe(_loc)
             spl.props.glob = cast_dataframe(_glob)
