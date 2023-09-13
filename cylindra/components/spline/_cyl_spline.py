@@ -182,31 +182,15 @@ class CylSpline(Spline):
     def update_props(
         self,
         *,
-        spacing: nm | None = None,
-        skew: float | None = None,
-        rise: float | None = None,
         npf: int | None = None,
-        radius: nm | None = None,
         orientation: Ori | str | None = None,
     ):
+        """Update the npf or orientation parameters in place."""
         loc = list[pl.Expr]()
         glob = list[pl.Series]()
-        if spacing is not None:
-            loc.append(pl.repeat(spacing, pl.count()).cast(pl.Float32).alias(H.spacing))
-            glob.append(pl.Series([spacing]).cast(pl.Float32).alias(H.spacing))
-        if skew is not None:
-            loc.append(
-                pl.repeat(skew, pl.count()).cast(pl.Float32).alias(H.dimer_twist)
-            )
-            glob.append(pl.Series([skew]).cast(pl.Float32).alias(H.dimer_twist))
-        if rise is not None:
-            loc.append(pl.repeat(rise, pl.count()).cast(pl.Float32).alias(H.rise))
-            glob.append(pl.Series([rise]).cast(pl.Float32).alias(H.rise))
         if npf is not None:
             loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.npf))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.npf))
-        if radius is not None:
-            glob.append(pl.Series([radius]).cast(pl.Float32).alias(H.radius))
         if orientation is not None:
             glob.append(
                 pl.Series([str(orientation)]).cast(pl.Utf8).alias(H.orientation)
@@ -214,32 +198,6 @@ class CylSpline(Spline):
 
         ldf = self.localprops.with_columns(loc)
         gdf = self.globalprops.with_columns(glob)
-
-        # update H.start
-        if rise is not None:
-            r = radius if radius is not None else self.radius
-            if r is not None and self.props.has_loc([H.rise, H.spacing, H.dimer_twist]):
-                _start_loc = rise_to_start(
-                    rise=np.deg2rad(ldf[H.rise].to_numpy()),
-                    space=ldf[H.spacing].to_numpy(),
-                    twist=np.deg2rad(ldf[H.dimer_twist].to_numpy()),
-                    perimeter=2 * r * np.pi,
-                )
-                ldf = ldf.with_columns(
-                    pl.Series(_start_loc).cast(pl.Float32).alias(H.start)
-                )
-            if r is not None and self.props.has_glob(
-                [H.rise, H.spacing, H.dimer_twist]
-            ):
-                _start_glob = rise_to_start(
-                    rise=np.deg2rad(gdf[H.rise].to_numpy()),
-                    space=gdf[H.spacing].to_numpy(),
-                    twist=np.deg2rad(gdf[H.dimer_twist].to_numpy()),
-                    perimeter=2 * r * np.pi,
-                )
-                gdf = gdf.with_columns(
-                    pl.Series(_start_glob).cast(pl.Float32).alias(H.start)
-                )
 
         self.props.loc = ldf
         self.props.glob = gdf
@@ -256,13 +214,6 @@ class CylSpline(Spline):
             if orientation is not self.orientation:
                 return True
         return False
-
-
-def rise_to_start(rise: float, space: nm, twist: float, perimeter: nm) -> float:
-    """Convert rise angle to start number."""
-    # TODO: remove this
-    tan_rise = np.tan(rise)
-    return perimeter / space / (np.tan(twist) * tan_rise + 1) * tan_rise
 
 
 def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):

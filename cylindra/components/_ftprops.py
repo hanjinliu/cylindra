@@ -108,7 +108,7 @@ class LatticeAnalyzer:
         spacing_arr = np.array(self._cfg.spacing_range.aslist())[np.newaxis]
         y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
         tan_skew_min, tan_skew_max = (
-            math.tan(math.radians(s)) for s in self._cfg.skew_range.aslist()
+            math.tan(math.radians(s)) for s in self._cfg.dimer_twist_range.aslist()
         )
         npf_min_max = np.array(self._cfg.npf_range.aslist())
         return dict(

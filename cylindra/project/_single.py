@@ -144,9 +144,9 @@ class CylindraProject(BaseProject):
 
         with _prep_save_dir(project_dir) as results_dir:
             if localprops is not None:
-                localprops.write_csv(results_dir / "localprops.csv")
+                localprops.write_csv(self.localprops_path(results_dir))
             if globalprops is not None:
-                globalprops.write_csv(results_dir / "globalprops.csv")
+                globalprops.write_csv(self.globalprops_path(results_dir))
             for i, spl in enumerate(gui.tomogram.splines):
                 spl.to_json(results_dir / f"spline-{i}.json")
             for layer in gui.parent_viewer.layers:
@@ -154,15 +154,15 @@ class CylindraProject(BaseProject):
                     continue
                 layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
             js = gui.default_config.asdict()
-            with open(results_dir / "default_spline_config.json", mode="w") as f:
+            with open(self.default_spline_config_path(results_dir), mode="w") as f:
                 json.dump(js, f, indent=4, separators=(", ", ": "))
 
             # save macro
             expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
-            results_dir.joinpath("script.py").write_text(expr)
+            self.script_py_path(results_dir).write_text(expr)
 
             self.project_description = gui.GeneralInfo.project_desc.value
-            self.to_json(results_dir / "project.json")
+            self.to_json(self.project_json_path(results_dir))
         return None
 
     def _to_gui(
@@ -180,8 +180,8 @@ class CylindraProject(BaseProject):
         gui = _get_instance(gui)
         with self.open_project() as project_dir:
             tomogram = self.load_tomogram(project_dir, compute=read_image)
-            macro_expr = extract(project_dir.joinpath("script.py").read_text()).args
-            need_paint = paint and project_dir.joinpath("localprops.csv").exists()
+            macro_expr = extract(self.script_py_path(project_dir).read_text()).args
+            need_paint = paint and self.localprops_path(project_dir).exists()
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
                 default_config = SplineConfig.from_file(cfg_path)
@@ -241,8 +241,8 @@ class CylindraProject(BaseProject):
         from cylindra.components import CylSpline
 
         spl = CylSpline.from_json(dir / f"spline-{idx}.json")
-        localprops_path = dir / "localprops.csv"
-        globalprops_path = dir / "globalprops.csv"
+        localprops_path = self.localprops_path(dir)
+        globalprops_path = self.globalprops_path(dir)
         if localprops_path.exists():
             _loc = pl.read_csv(localprops_path).filter(pl.col(IDName.spline) == idx)
             _loc = _drop_null_columns(_loc)
@@ -267,20 +267,30 @@ class CylindraProject(BaseProject):
 
         return spl
 
-    def iter_spline_paths(self, dir: Path | None = None) -> "Iterable[Path]":
-        """Iterate over the paths of splines."""
+    def iter_spline_paths(
+        self, dir: Path | None = None
+    ) -> "Iterable[tuple[int, Path]]":
+        """Iterate over the paths of splines and their indices."""
         if dir is None:
             with self.open_project() as dir:
-                yield from dir.glob("spline-*.json")
+                paths = list(dir.glob("spline-*.json"))
         else:
-            yield from dir.glob("spline-*.json")
+            paths = list(dir.glob("spline-*.json"))
+        # sort by index
+        idx_paths = [(int(p.stem.split("-")[1]), p) for p in paths]
+        idx_paths.sort(key=lambda x: x[0])
+        yield from idx_paths
 
-    def iter_load_splines(self, dir: Path) -> "Iterable[CylSpline]":
-        """Load all splines iteratively."""
+    def iter_load_splines(
+        self,
+        dir: Path,
+        drop_columns: bool = False,
+    ) -> "Iterable[CylSpline]":
+        """Load all splines including its properties iteratively."""
         from cylindra.components import CylSpline
 
-        localprops_path = dir / "localprops.csv"
-        globalprops_path = dir / "globalprops.csv"
+        localprops_path = self.localprops_path(dir)
+        globalprops_path = self.globalprops_path(dir)
         if localprops_path.exists():
             _localprops = pl.read_csv(localprops_path)
         else:
@@ -289,9 +299,8 @@ class CylindraProject(BaseProject):
             _globalprops = pl.read_csv(globalprops_path)
         else:
             _globalprops = None
-        for spl_path in self.iter_spline_paths(dir):
+        for idx, spl_path in self.iter_spline_paths(dir):
             spl = CylSpline.from_json(spl_path)
-            idx = int(spl_path.stem.split("-")[1])
             if _localprops is not None:
                 _loc = _localprops.filter(pl.col(IDName.spline) == idx)
                 _loc = _drop_null_columns(_loc)
@@ -307,13 +316,14 @@ class CylindraProject(BaseProject):
             else:
                 _glob = pl.DataFrame([])
 
-            if H.spl_dist in _loc.columns:
+            if H.spl_dist in _loc.columns and drop_columns:
                 _loc = _loc.drop(H.spl_dist)
             if H.spl_pos in _loc.columns:
                 spl._anchors = np.asarray(_loc[H.spl_pos])
-                _loc = _loc.drop(H.spl_pos)
+                if drop_columns:
+                    _loc = _loc.drop(H.spl_pos)
             for c in [IDName.spline, IDName.pos]:
-                if c in _loc.columns:
+                if c in _loc.columns and drop_columns:
                     _loc = _loc.drop(c)
             spl.props.loc = cast_dataframe(_loc)
             spl.props.glob = cast_dataframe(_glob)
@@ -400,6 +410,26 @@ class CylindraProject(BaseProject):
             raise ValueError(f"Unsupported extension {ext}.")
 
         return None
+
+    def localprops_path(self, dir: Path) -> Path:
+        """Path to the spline local properties file."""
+        return dir / "localprops.csv"
+
+    def globalprops_path(self, dir: Path) -> Path:
+        """Path to the spline global properties file."""
+        return dir / "globalprops.csv"
+
+    def default_spline_config_path(self, dir: Path) -> Path:
+        """Path to the default spline config file."""
+        return dir / "default_spline_config.json"
+
+    def script_py_path(self, dir: Path) -> Path:
+        """Path to the script.py file."""
+        return dir / "script.py"
+
+    def project_json_path(self, dir: Path) -> Path:
+        """Path to the project.json file."""
+        return dir / "project.json"
 
 
 def _get_instance(gui: "CylindraMainWidget | None" = None):

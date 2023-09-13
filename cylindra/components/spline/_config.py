@@ -55,7 +55,7 @@ class SplineConfig:
 
     npf_range: Range[int] = Range(11, 17)
     spacing_range: Range[nm] = Range(3.9, 4.3)
-    skew_range: Range[float] = Range(-1.0, 1.0)
+    dimer_twist_range: Range[float] = Range(-1.0, 1.0)
     rise_range: Range[float] = Range(0.0, 45.0)
     rise_sign: Literal[-1, 1] = -1
     clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus"
@@ -78,7 +78,7 @@ class SplineConfig:
         return SplineConfig(
             npf_range=self.npf_range.copy(),
             spacing_range=self.spacing_range.copy(),
-            skew_range=self.skew_range.copy(),
+            dimer_twist_range=self.dimer_twist_range.copy(),
             rise_range=self.rise_range.copy(),
             rise_sign=self.rise_sign,
             clockwise=self.clockwise,
@@ -92,7 +92,7 @@ class SplineConfig:
         return {
             "npf_range": self.npf_range.astuple(),
             "spacing_range": self.spacing_range.astuple_rounded(),
-            "skew_range": self.skew_range.astuple_rounded(),
+            "dimer_twist_range": self.dimer_twist_range.astuple_rounded(),
             "rise_range": self.rise_range.astuple_rounded(),
             "rise_sign": self.rise_sign,
             "clockwise": self.clockwise,
@@ -151,7 +151,7 @@ class SplineConfig:
         self,
         npf_range: tuple[int, int] | None = None,
         spacing_range: tuple[nm, nm] | None = None,
-        skew_range: tuple[float, float] | None = None,
+        dimer_twist_range: tuple[float, float] | None = None,
         rise_range: tuple[float, float] | None = None,
         rise_sign: Literal[-1, 1] | None = None,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] | None = None,
@@ -159,13 +159,16 @@ class SplineConfig:
         thickness_outer: nm | None = None,
         fit_depth: nm | None = None,
         fit_width: nm | None = None,
+        skew_range: tuple[float, float] | None = None,  # deprecated
     ) -> SplineConfig:
         kwargs = locals()
         kwargs.pop("self")
+        if "skew_range" in kwargs:
+            kwargs["dimer_twist_range"] = kwargs.pop("skew_range")
         for k, v in kwargs.items():
             if v is None:
                 kwargs[k] = getattr(self, k)
-        for rng in ["npf_range", "spacing_range", "skew_range", "rise_range"]:
+        for rng in ["npf_range", "spacing_range", "dimer_twist_range", "rise_range"]:
             kwargs[rng] = _norm_range(kwargs[rng])
         if kwargs["rise_sign"] not in [-1, 1]:
             raise ValueError("rise_sign must be -1 or 1")

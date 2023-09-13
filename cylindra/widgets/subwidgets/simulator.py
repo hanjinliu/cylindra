@@ -154,6 +154,11 @@ class CylinderSimulator(ChildWidget):
         """Parameters for cylinder model."""
         return self._parameters
 
+    @property
+    def spline(self) -> CylSpline:
+        """Current spline."""
+        return self._spline
+
     def _set_model(self, model: CylinderModel, spl: CylSpline):
         self._model = model
         self._spline = spl

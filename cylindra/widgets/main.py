@@ -338,16 +338,18 @@ class CylindraMainWidget(MagicTemplate):
 
         tomo = self.tomogram
         tomo.add_spline(coords, config=config, err_max=err_max)
-        spl = tomo.splines[-1]
+        self._add_spline_instance(tomo.splines[-1])
+        return undo_callback(self.delete_spline).with_args(-1)
 
+    def _add_spline_instance(self, spl: "CylSpline"):
         # draw path
+        tomo = self.tomogram
         self._add_spline_to_images(spl, len(tomo.splines) - 1)
         self._reserved_layers.work.data = []
         self._reserved_layers.prof.selected_data = set()
         self.reset_choices()
         self.SplineControl.num = len(tomo.splines) - 1
-
-        return undo_callback(self.delete_spline).with_args(-1)
+        return None
 
     _runner = field(subwidgets.Runner)
     _image_loader = subwidgets.ImageLoader
@@ -977,7 +979,7 @@ class CylindraMainWidget(MagicTemplate):
         i: Annotated[int, {"bind": SplineControl.num}],
         npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
         spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
-        skew_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+        dimer_twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
         rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
@@ -1123,11 +1125,7 @@ class CylindraMainWidget(MagicTemplate):
     def set_spline_props(
         self,
         spline: Annotated[int, {"bind": SplineControl.num}],
-        spacing: Annotated[Optional[nm], {"label": "spacing (nm)", "text": "Do not update"}] = None,
-        skew: Annotated[Optional[float], {"label": "skew angle (deg)", "text": "Do not update"}] = None,
-        rise: Annotated[Optional[nm], {"label": "rise angle (deg)", "text": "Do not update"}] = None,
         npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
-        radius: Annotated[Optional[nm], {"label": "radius (nm)", "text": "Do not update"}] = None,
         orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
     ):  # fmt: skip
         """
@@ -1139,31 +1137,13 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        spline : int
-            The index of spline to update.
-        spacing : nm, optional
-            If given, update the monomer spacing.
-        skew : float, optional
-            If given, update the skew angle.
-        rise : float, optional
-            If given, update the rise ange.
         npf : int , optional
-            If given, update the number of protofilaments.
-        radius : nm, optional
-            If given, update the radius of the cylinder.
         orientation : str, optional
             If given, update the spline orientation.
         """
         spl = self.tomogram.splines[spline]
         old_spl = spl.copy()
-        spl.update_props(
-            spacing=spacing,
-            skew=skew,
-            rise=rise,
-            npf=npf,
-            radius=radius,
-            orientation=orientation,
-        )
+        spl.update_props(npf=npf, orientation=orientation)
         self.sample_subtomograms()
         self._update_splines_in_images()
 
@@ -1427,7 +1407,12 @@ class CylindraMainWidget(MagicTemplate):
         radius: Literal["local", "global"] = "global",
     ):  # fmt: skip
         """
-        Determine cylindrical structural parameters by local Fourier transformation.
+        Determine local lattice parameters by local cylindric Fourier transformation.
+
+        This method will sample subtomograms at given intervals and calculate the power
+        spectra in a cylindrical coordinate. The peak position of the power spectra will
+        used to determine the lattice parameters. Note that if the interval differs from
+        the current spline anchors, the old local properties will be dropped.
 
         Parameters
         ----------
@@ -2712,13 +2697,6 @@ class CylindraMainWidget(MagicTemplate):
     def _refer_spline_config(self, cfg: SplineConfig):
         """Update GUI states that are related to global variables."""
         fgui = get_function_gui(self.set_spline_props)
-        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
-        None  # NOTE: setting to not-a-None value to update the inner widget.
-        fgui.spacing.value = cfg.spacing_range.center
-        fgui.spacing.value = None
-        fgui.skew.min, fgui.skew.max = cfg.skew_range.astuple()
-        fgui.skew.value = cfg.skew_range.center
-        fgui.skew.value = None
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
@@ -2726,8 +2704,8 @@ class CylindraMainWidget(MagicTemplate):
         fgui = get_function_gui(self.cylinder_simulator.update_model)
         fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
-        fgui.dimer_twist.min, fgui.dimer_twist.max = cfg.skew_range.astuple()
-        fgui.dimer_twist.value = cfg.skew_range.center
+        fgui.dimer_twist.min, fgui.dimer_twist.max = cfg.dimer_twist_range.astuple()
+        fgui.dimer_twist.value = cfg.dimer_twist_range.center
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
 

@@ -233,9 +233,7 @@ def test_extrapolate_map(mode):
 def test_update_props():
     spl = CylSpline()
     spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
-    spl.update_props(
-        spacing=4.1, skew=0.1, rise=9.6, npf=13, radius=9.4, orientation="PlusToMinus"
-    )
+    spl.update_props(npf=13, orientation="PlusToMinus")
 
 
 def test_resample():
