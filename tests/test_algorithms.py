@@ -39,6 +39,11 @@ def test_run_all(coords, npf, rise, twist_range):
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
     assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
 
+    tomo.make_anchors(interval=30)
+    assert tomo.splines.collect_localprops() is not None
+    assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
+    assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
+
     tomo.global_ft_params(i=0)
     assert tomo.splines.collect_localprops() is not None
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns

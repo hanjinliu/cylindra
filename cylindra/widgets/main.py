@@ -1405,7 +1405,12 @@ class CylindraMainWidget(MagicTemplate):
         radius: Literal["local", "global"] = "global",
     ):  # fmt: skip
         """
-        Determine cylindrical structural parameters by local Fourier transformation.
+        Determine local lattice parameters by local cylindric Fourier transformation.
+
+        This method will sample subtomograms at given intervals and calculate the power
+        spectra in a cylindrical coordinate. The peak position of the power spectra will
+        used to determine the lattice parameters. Note that if the interval differs from
+        the current spline anchors, the old local properties will be dropped.
 
         Parameters
         ----------

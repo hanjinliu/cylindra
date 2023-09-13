@@ -217,8 +217,14 @@ class Spline(BaseComponent):
                 f"curve does not fit well."
             )
             warnings.warn(msg, UserWarning)
+        _old = self._anchors
+        if (
+            _old is None
+            or _anc.size != _old.size
+            or not np.allclose(_anc, _old, rtol=1e-4, atol=1e-4)
+        ):
+            self.props.clear_loc()
         self._anchors = _anc
-        self.props.clear_loc()
         return None
 
     @anchors.deleter

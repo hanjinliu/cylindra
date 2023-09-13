@@ -185,6 +185,7 @@ class CylSpline(Spline):
         npf: int | None = None,
         orientation: Ori | str | None = None,
     ):
+        """Update the npf or orientation parameters in place."""
         loc = list[pl.Expr]()
         glob = list[pl.Series]()
         if npf is not None:
