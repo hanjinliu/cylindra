@@ -1,11 +1,14 @@
-from typing import Literal, NamedTuple, Annotated
+from enum import Enum
+from typing import Annotated
 from pathlib import Path
 import tempfile
 from tqdm import tqdm, trange
 
 from cylindra import start
 from magicgui import magicgui
+from magicgui.widgets import PushButton
 from magicclass.types import Optional
+from magicclass.ext.polars import DataFrameView
 import numpy as np
 from cylindra.components import CylSpline
 from cylindra.widgets import CylindraMainWidget
@@ -15,15 +18,6 @@ from cylindra.const import PropertyNames as H
 import polars as pl
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "tests" / "beta-tubulin.mrc"
-
-
-class CftResult(NamedTuple):
-    nsr: float
-    rep: int
-    val0: float
-    val1: float
-    val2: float
-    val3: float
 
 
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
@@ -150,11 +144,61 @@ class local_orientation(Simulator):
         return [f"{n}{i}" for n in ["spacing", "dimer_twist", "rise"] for i in range(4)]
 
 
+class local_curvature(Simulator):
+    def get_coords(self):
+        # curvature is ~< 0.01
+        return np.array(
+            [[30, 13.4, 16.8], [30, 88.1, 23.6], [30, 148, 48.2], [30, 176.8, 86.8]],
+            dtype=np.float32,
+        )
+
+    def prepare(self) -> np.ndarray:
+        coords = self.get_coords()
+        spl = CylSpline().fit(coords)
+        self.ui.cylinder_simulator.create_empty_image(
+            size=(60, 200, 100), scale=self.scale
+        )
+        self.ui.cylinder_simulator.set_spline(spl)
+        self.ui.cylinder_simulator.update_model(
+            spacing=4.1, dimer_twist=0.0, start=3, radius=11.4, npf=13
+        )
+        return coords
+
+    def results(self):
+        spl = self.ui.tomogram.splines[0]
+        df = spl.props.loc
+        cv = spl.curvature()
+        return (
+            df[H.spacing].to_list()
+            + df[H.dimer_twist].to_list()
+            + df[H.rise].to_list()
+            + cv.tolist()
+        )
+
+    def anchors(self) -> np.ndarray:
+        coords = self.get_coords()
+        spl = CylSpline().fit(coords)
+        clip = 30 / spl.length()
+        return np.linspace(clip, 1 - clip, 16)
+
+    def columns(self):
+        return [
+            f"{n}{i}"
+            for n in ["spacing", "dimer_twist", "rise", "curvature"]
+            for i in range(16)
+        ]
+
+
+class Funcs(Enum):
+    local_expansion = local_expansion
+    local_skew = local_skew
+    local_orientation = local_orientation
+    local_curvature = local_curvature
+
+
 @magicgui
 def simulate(
-    func: Literal[
-        "local_expansion", "local_skew", "local_orientation"
-    ] = "local_expansion",
+    function: Funcs = Funcs.local_expansion,
     n_tilt: Annotated[int, {"min": 1}] = 61,
     nsr: list[float] = [0.1, 2.5],
     nrepeat: int = 5,
@@ -163,8 +207,7 @@ def simulate(
     output: Optional[Path] = None,
     seed: Annotated[int, {"max": 1e8}] = 12345,
 ):
-    if isinstance(func, str):
-        func = globals()[func]
+    func: type[Simulator] = Funcs(function).value
     if output is not None:
         output = Path(output)
         assert output.parent.exists()
@@ -173,6 +216,7 @@ def simulate(
     t0 = timer(name=func.__name__)
     simulator: Simulator = func(ui, scale)  # simulate cylinder
     coords = simulator.prepare()
+    results = []
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpfile = Path(tmpdir) / "image.mrc"
         ui.cylinder_simulator.simulate_tilt_series(
@@ -181,7 +225,6 @@ def simulate(
             n_tilt=n_tilt,
             scale=scale,
         )
-        results = list[CftResult]()
         for _rep in trange(nrepeat):
             for _idx, _nsr in enumerate(tqdm(nsr)):
                 ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
@@ -203,7 +246,9 @@ def simulate(
         columns = ["nsr", "rep"] + simulator.columns()
         results = pl.DataFrame(results, schema=columns).sort(by="nsr")
         if output is None:
-            print(results.write_csv(separator="\t", float_precision=3))
+            view = DataFrameView()
+            view.value = results
+            view.show()
         else:
             results.write_csv(output)
         agg_df = results.group_by("nsr").agg(
@@ -218,6 +263,23 @@ def simulate(
     t0.toc(log=False)
     ui.parent_viewer.close()
 
+
+def preview(
+    function: Funcs = Funcs.local_expansion,
+    scale: float = 0.5,
+):
+    func: type[Simulator] = Funcs(function).value
+    ui = start()
+    simulator: Simulator = func(ui, scale)
+    simulator.prepare()
+    spl = ui.cylinder_simulator.spline
+    ui.tomogram.splines.append(spl)
+    ui._add_spline_instance(spl)
+
+
+btn = PushButton(text="Preview")
+btn.clicked.connect(lambda: preview(simulate.function.value, simulate.scale.value))
+simulate.append(btn)
 
 if __name__ == "__main__":
     print(" --- starting simulation --- ")

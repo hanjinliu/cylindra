@@ -338,16 +338,18 @@ class CylindraMainWidget(MagicTemplate):
 
         tomo = self.tomogram
         tomo.add_spline(coords, config=config, err_max=err_max)
-        spl = tomo.splines[-1]
+        self._add_spline_instance(tomo.splines[-1])
+        return undo_callback(self.delete_spline).with_args(-1)
 
+    def _add_spline_instance(self, spl: "CylSpline"):
         # draw path
+        tomo = self.tomogram
         self._add_spline_to_images(spl, len(tomo.splines) - 1)
         self._reserved_layers.work.data = []
         self._reserved_layers.prof.selected_data = set()
         self.reset_choices()
         self.SplineControl.num = len(tomo.splines) - 1
-
-        return undo_callback(self.delete_spline).with_args(-1)
+        return None
 
     _runner = field(subwidgets.Runner)
     _image_loader = subwidgets.ImageLoader
