@@ -26,10 +26,9 @@ class TextInfo(MagicTemplate):
         from cylindra.widgets.widget_utils import get_code_theme
 
         theme = get_code_theme(self)
-
-        if path := project.project_path:
-            with open(path / "project.json") as f:
-                self.project_text.value = f.read()
+        path = dir / "project.json"
+        if path.exists():
+            self.project_text.value = path.read_text()
         else:
             # NOTE: paths are alreadly resolved in project.json() so this might be
             # different from the original json file.
@@ -39,7 +38,7 @@ class TextInfo(MagicTemplate):
 
         self.project_text.read_only = True
         self.project_text.syntax_highlight("json", theme=theme)
-        cfg_path = dir / "default_spline_config.json"
+        cfg_path = project.default_spline_config_path(dir)
         if cfg_path.exists():
             self.Right.config.value = cfg_path.read_text()
         self.Right.config.read_only = True
@@ -108,15 +107,19 @@ class Properties(MagicTemplate):
     table_global = field(widget_type=DataFrameView)
 
     def _from_project(self, project: "CylindraProject", dir: Path):
-        localprops_path = dir / "local_properties.csv"
-        globalprops_path = dir / "global_properties.csv"
+        localprops_path = project.localprops_path(dir)
+        globalprops_path = project.globalprops_path(dir)
         if localprops_path.exists():
             df = pl.read_csv(localprops_path)
             self.table_local.value = df
+        else:
+            self.table_local.value = pl.DataFrame([["Not found"]])
 
         if globalprops_path.exists():
             df = pl.read_csv(globalprops_path)
             self.table_global.value = df
+        else:
+            self.table_global.value = pl.DataFrame([["Not found"]])
 
 
 @magicclass(widget_type="tabbed", name="Project Viewer", record=False)

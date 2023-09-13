@@ -144,9 +144,9 @@ class CylindraProject(BaseProject):
 
         with _prep_save_dir(project_dir) as results_dir:
             if localprops is not None:
-                localprops.write_csv(results_dir / "localprops.csv")
+                localprops.write_csv(self.localprops_path(results_dir))
             if globalprops is not None:
-                globalprops.write_csv(results_dir / "globalprops.csv")
+                globalprops.write_csv(self.globalprops_path(results_dir))
             for i, spl in enumerate(gui.tomogram.splines):
                 spl.to_json(results_dir / f"spline-{i}.json")
             for layer in gui.parent_viewer.layers:
@@ -154,15 +154,15 @@ class CylindraProject(BaseProject):
                     continue
                 layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
             js = gui.default_config.asdict()
-            with open(results_dir / "default_spline_config.json", mode="w") as f:
+            with open(self.default_spline_config_path(results_dir), mode="w") as f:
                 json.dump(js, f, indent=4, separators=(", ", ": "))
 
             # save macro
             expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
-            results_dir.joinpath("script.py").write_text(expr)
+            self.script_py_path(results_dir).write_text(expr)
 
             self.project_description = gui.GeneralInfo.project_desc.value
-            self.to_json(results_dir / "project.json")
+            self.to_json(self.project_json_path(results_dir))
         return None
 
     def _to_gui(
@@ -180,8 +180,8 @@ class CylindraProject(BaseProject):
         gui = _get_instance(gui)
         with self.open_project() as project_dir:
             tomogram = self.load_tomogram(project_dir, compute=read_image)
-            macro_expr = extract(project_dir.joinpath("script.py").read_text()).args
-            need_paint = paint and project_dir.joinpath("localprops.csv").exists()
+            macro_expr = extract(self.script_py_path(project_dir).read_text()).args
+            need_paint = paint and self.localprops_path(project_dir).exists()
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
                 default_config = SplineConfig.from_file(cfg_path)
@@ -241,8 +241,8 @@ class CylindraProject(BaseProject):
         from cylindra.components import CylSpline
 
         spl = CylSpline.from_json(dir / f"spline-{idx}.json")
-        localprops_path = dir / "localprops.csv"
-        globalprops_path = dir / "globalprops.csv"
+        localprops_path = self.localprops_path(dir)
+        globalprops_path = self.globalprops_path(dir)
         if localprops_path.exists():
             _loc = pl.read_csv(localprops_path).filter(pl.col(IDName.spline) == idx)
             _loc = _drop_null_columns(_loc)
@@ -279,8 +279,8 @@ class CylindraProject(BaseProject):
         """Load all splines iteratively."""
         from cylindra.components import CylSpline
 
-        localprops_path = dir / "localprops.csv"
-        globalprops_path = dir / "globalprops.csv"
+        localprops_path = self.localprops_path(dir)
+        globalprops_path = self.globalprops_path(dir)
         if localprops_path.exists():
             _localprops = pl.read_csv(localprops_path)
         else:
@@ -400,6 +400,26 @@ class CylindraProject(BaseProject):
             raise ValueError(f"Unsupported extension {ext}.")
 
         return None
+
+    def localprops_path(self, dir: Path) -> Path:
+        """Path to the spline local properties file."""
+        return dir / "localprops.csv"
+
+    def globalprops_path(self, dir: Path) -> Path:
+        """Path to the spline global properties file."""
+        return dir / "globalprops.csv"
+
+    def default_spline_config_path(self, dir: Path) -> Path:
+        """Path to the default spline config file."""
+        return dir / "default_spline_config.json"
+
+    def script_py_path(self, dir: Path) -> Path:
+        """Path to the script.py file."""
+        return dir / "script.py"
+
+    def project_json_path(self, dir: Path) -> Path:
+        """Path to the project.json file."""
+        return dir / "project.json"
 
 
 def _get_instance(gui: "CylindraMainWidget | None" = None):

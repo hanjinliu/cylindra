@@ -19,6 +19,7 @@ from typing import (
 
 import numpy as np
 import polars as pl
+from cylindra import project
 
 from cylindra.const import (
     MoleculesHeader as Mole,
@@ -211,7 +212,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             with prj.open_project() as dir:
-                path = dir / "localprops.csv"
+                path = prj.localprops_path(dir)
                 if path is None:
                     if not allow_none:
                         raise ValueError(
@@ -255,7 +256,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             with prj.open_project() as dir:
-                path = dir / "globalprops.csv"
+                path = prj.globalprops_path(dir)
                 if path is None:
                     if not allow_none:
                         raise ValueError(

@@ -1,7 +1,7 @@
 {
     "npf_range": [11, 17],
     "spacing_range": [3.9, 4.3],
-    "skew_range": [-1.0, 1.0],
+    "dimer_twist_range": [-1.0, 1.0],
     "rise_range": [5.0, 13.0],
     "rise_sign": -1,
     "clockwise": "MinusToPlus",
