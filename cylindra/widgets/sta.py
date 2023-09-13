@@ -404,14 +404,20 @@ class SubtomogramAveraging(ChildWidget):
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
-        self._show_rec(self.template, name="Template image", store=False)
+        template = self.template
+        if template is None:
+            raise ValueError("No template to show.")
+        self._show_rec(template, name="Template image", store=False)
 
     @Buttons.wraps
     @set_design(text="Show mask")
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        self._show_rec(self.mask, name="Mask image", store=False)
+        mask = self.mask
+        if mask is None:
+            raise ValueError("No mask to show.")
+        self._show_rec(mask, name="Mask image", store=False)
 
     @property
     def template(self) -> "ip.ImgArray | None":

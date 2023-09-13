@@ -181,25 +181,6 @@ class PathInfo(NamedTuple):
     project: Path
 
 
-def _molecule_to_spline_converter(path: Path):
-    prj = CylindraProject.from_file(path)
-    molecule_paths = [Path(_p) for _p in prj.molecules]
-
-    def _converter(fp: Path):
-        try:
-            idx = molecule_paths.index(fp)
-        except ValueError:
-            return None
-        if prj.molecules_info is None:
-            return None
-        source = prj.molecules_info[idx].source
-        if source is None:
-            return None
-        return prj.load_spline(source)
-
-    return _converter
-
-
 def _find_source(prj: CylindraProject, dir: Path, mole_path: str) -> "CylSpline | None":
     try:
         idx = prj.molecules_info.index(mole_path)
