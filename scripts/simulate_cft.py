@@ -49,7 +49,7 @@ class local_expansion(Simulator):
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
         self.ui.cylinder_simulator.update_model(
-            spacing=4.12, dimer_twist=0.08, start=3, radius=11.4, npf=13
+            spacing=4.12, dimer_twist=0.08, start=3, radius=11.2, npf=13
         )
         for exp, yrange in zip([-0.07, -0.02, 0.03, 0.08], POSITIONS):
             self.ui.cylinder_simulator.expand(
@@ -72,7 +72,7 @@ class local_skew(Simulator):
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
         self.ui.cylinder_simulator.update_model(
-            spacing=4.1, dimer_twist=0.0, start=3, radius=11.4, npf=13
+            spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
         )
         for sk, yrange in zip([-0.15, -0.05, 0.05, 0.15], POSITIONS):
             self.ui.cylinder_simulator.twist(
@@ -124,7 +124,7 @@ class local_orientation(Simulator):
         )
         self.ui.cylinder_simulator.set_spline(spl)
         self.ui.cylinder_simulator.update_model(
-            spacing=4.1, dimer_twist=0.0, start=3, radius=11.4, npf=13
+            spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
         )
         return coords
 
@@ -156,11 +156,11 @@ class local_curvature(Simulator):
         coords = self.get_coords()
         spl = CylSpline().fit(coords)
         self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 200, 100), scale=self.scale
+            size=(60, 200, 60), scale=self.scale
         )
         self.ui.cylinder_simulator.set_spline(spl)
         self.ui.cylinder_simulator.update_model(
-            spacing=4.1, dimer_twist=0.0, start=3, radius=11.4, npf=13
+            spacing=4.1, dimer_twist=0.00, start=3, radius=11.2, npf=13
         )
         return coords
 
