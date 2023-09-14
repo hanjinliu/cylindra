@@ -390,7 +390,7 @@ class ProjectSequenceEdit(MagicTemplate):
 
         self.changed.connect(lambda: cbox.reset_choices())
         cbox.changed.connect(
-            lambda path: comp_viewer._from_project(CylindraProject.from_json(path))
+            lambda path: comp_viewer._from_project(CylindraProject.from_file(path))
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)

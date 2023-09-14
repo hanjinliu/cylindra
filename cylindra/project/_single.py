@@ -284,7 +284,7 @@ class CylindraProject(BaseProject):
     def iter_load_splines(
         self,
         dir: Path,
-        drop_columns: bool = False,
+        drop_columns: bool = True,
     ) -> "Iterable[CylSpline]":
         """Load all splines including its properties iteratively."""
         from cylindra.components import CylSpline

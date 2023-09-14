@@ -167,7 +167,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
     def add(self, path: str | Path) -> Self:
         """Add a project from a path."""
-        prj = CylindraProject.from_json(path)
+        prj = CylindraProject.from_file(path)
         self._scale_validator.value = prj.scale
         self._projects.append(prj)
         return self
@@ -236,34 +236,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         _crds = [spl.map(der=der) for der in [0, 1, 2]]
                         _cv = spl.curvature()
                         _df_spl = _df_spl.with_columns(
-                            pl.Series(_crds[0][:, 0], dtype=pl.Float32).alias(
-                                "spline_z"
-                            ),
-                            pl.Series(_crds[0][:, 1], dtype=pl.Float32).alias(
-                                "spline_y"
-                            ),
-                            pl.Series(_crds[0][:, 2], dtype=pl.Float32).alias(
-                                "spline_x"
-                            ),
-                            pl.Series(_crds[1][:, 0], dtype=pl.Float32).alias(
-                                "spline_dz"
-                            ),
-                            pl.Series(_crds[1][:, 1], dtype=pl.Float32).alias(
-                                "spline_dy"
-                            ),
-                            pl.Series(_crds[1][:, 2], dtype=pl.Float32).alias(
-                                "spline_dx"
-                            ),
-                            pl.Series(_crds[2][:, 0], dtype=pl.Float32).alias(
-                                "spline_ddz"
-                            ),
-                            pl.Series(_crds[2][:, 1], dtype=pl.Float32).alias(
-                                "spline_ddy"
-                            ),
-                            pl.Series(_crds[2][:, 2], dtype=pl.Float32).alias(
-                                "spline_ddx"
-                            ),
-                            pl.Series(_cv, dtype=pl.Float32).alias("spline_curvature"),
+                            pl.Series("spline_z", _crds[0][:, 0], dtype=pl.Float32),
+                            pl.Series("spline_y", _crds[0][:, 1], dtype=pl.Float32),
+                            pl.Series("spline_x", _crds[0][:, 2], dtype=pl.Float32),
+                            pl.Series("spline_dz", _crds[1][:, 0], dtype=pl.Float32),
+                            pl.Series("spline_dy", _crds[1][:, 1], dtype=pl.Float32),
+                            pl.Series("spline_dx", _crds[1][:, 2], dtype=pl.Float32),
+                            pl.Series("spline_ddz", _crds[2][:, 0], dtype=pl.Float32),
+                            pl.Series("spline_ddy", _crds[2][:, 1], dtype=pl.Float32),
+                            pl.Series("spline_ddx", _crds[2][:, 2], dtype=pl.Float32),
+                            pl.Series("spline_curvature", _cv, dtype=pl.Float32),
                         )
                     dfs_spl.append(_df_spl)
                 _df_prj = pl.concat(dfs_spl, how="diagonal")

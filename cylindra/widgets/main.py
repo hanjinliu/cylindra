@@ -1491,7 +1491,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_reanalysis_macro(self, path: Path):
         """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
-        project = CylindraProject.from_json(get_project_file(path))
+        project = CylindraProject.from_file(path)
         with project.open_project() as dir:
             macro_path = dir / "script.py"
             macro_expr = extract(macro_path.read_text())

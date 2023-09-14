@@ -153,7 +153,7 @@ class CylindraBatchWidget(MagicTemplate):
             Path to the JSON file.
         """
         self._loaders.clear()
-        return CylindraBatchProject.from_json(get_project_file(path))._to_gui(self)
+        return CylindraBatchProject.from_file(path)._to_gui(self)
 
     @constructor.File.wraps
     @set_design(text="Save as batch analysis project")

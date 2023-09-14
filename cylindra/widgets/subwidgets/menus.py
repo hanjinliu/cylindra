@@ -180,7 +180,7 @@ class File(ChildWidget):
     @do_not_record
     def view_project(self, path: Path.Read[FileFilter.JSON]):
         main = self._get_main()
-        pviewer = CylindraProject.from_json(path).make_project_viewer()
+        pviewer = CylindraProject.from_file(path).make_project_viewer()
         pviewer.native.setParent(main.native, pviewer.native.windowFlags())
         main._active_widgets.add(pviewer)
         return pviewer.show()
