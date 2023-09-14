@@ -110,6 +110,8 @@ def normalize_offsets(
 
 def normalize_radius(radius: float | None, spl: CylSpline) -> float:
     if radius is None:
+        if spl.radius is None:
+            raise ValueError("radius must be specified")
         _r = spl.props.get_glob(H.offset_radial, 0.0) + spl.radius
     else:
         _r = radius

@@ -12,7 +12,7 @@ from cylindra.const import (
 )
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
-from cylindra.components._boundary import solve_cylinder, CylindricParameters
+from cylindra.components._boundary import CylindricParameters
 
 
 class CylSpline(Spline):
@@ -128,7 +128,7 @@ class CylSpline(Spline):
         if radius is None:
             raise ValueError("Radius is not set.")
         radius += (self.config.thickness_outer - self.config.thickness_inner) / 2
-        return solve_cylinder(
+        return CylindricParameters.solve(
             spacing=_get_globalprops(self, kwargs, H.spacing),
             dimer_twist=_get_globalprops(self, kwargs, H.dimer_twist),
             skew=_get_globalprops(self, kwargs, H.skew),

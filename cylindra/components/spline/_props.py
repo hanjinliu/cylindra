@@ -115,7 +115,12 @@ class SplineProps:
             self._window_size.update({c: ws for c in df.columns})
         return self
 
-    def update_glob(self, props: _DataFrameLike) -> Self:
+    def update_glob(self, props: _DataFrameLike | None = None, **kwargs) -> Self:
+        """Update the global properties."""
+        if kwargs:
+            if props is not None:
+                raise ValueError("Cannot specify both props and kwargs.")
+            props = kwargs
         if not isinstance(props, pl.DataFrame):
             df = pl.DataFrame(props)
         else:

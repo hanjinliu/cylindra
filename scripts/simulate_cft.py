@@ -147,9 +147,9 @@ class local_orientation(Simulator):
 
 class local_curvature(Simulator):
     def get_coords(self):
-        # curvature is ~< 0.01
+        # curvature is 5e-4 ~ 3e-3 = 3% expansion of the outer PF
         return np.array(
-            [[30, 13.4, 16.8], [30, 88.1, 23.6], [30, 148, 48.2], [30, 176.8, 86.8]],
+            [[30, 13.4, 16.3], [30, 52.8, 17.2], [30, 85.2, 19.3], [30, 188.7, 41.9]],
             dtype=np.float32,
         )
 
@@ -157,7 +157,7 @@ class local_curvature(Simulator):
         coords = self.get_coords()
         spl = CylSpline().fit(coords, err_max=1e-8)
         self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 200, 80), scale=self.scale
+            size=(60, 200, 60), scale=self.scale
         )
         self.ui.cylinder_simulator.set_spline(spl)
         self.ui.cylinder_simulator.update_model(

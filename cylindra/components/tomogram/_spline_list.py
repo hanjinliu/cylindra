@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 import polars as pl
 
 from cylindra.components.spline import CylSpline
-from cylindra.const import IDName, PropertyNames as H
+from cylindra.const import PropertyNames as H
 
 
 class SplineList(MutableSequence[CylSpline]):

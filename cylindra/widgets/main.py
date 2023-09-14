@@ -39,7 +39,6 @@ from cylindra import utils, _config, cylstructure
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
-    IDName,
     PropertyNames as H,
     MoleculesHeader as Mole,
     Ori,
@@ -2709,7 +2708,7 @@ class CylindraMainWidget(MagicTemplate):
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
 
-        self.cylinder_simulator.parameters.update(
+        self.cylinder_simulator.spline.props.update_glob(
             spacing=fgui.spacing.value,
             dimer_twist=fgui.dimer_twist.value,
             npf=fgui.npf.value,

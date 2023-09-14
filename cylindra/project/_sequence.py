@@ -17,13 +17,10 @@ from typing import (
     overload,
 )
 
-import numpy as np
 import polars as pl
-from cylindra import project
 
 from cylindra.const import (
     MoleculesHeader as Mole,
-    IDName,
     PropertyNames as H,
     cast_dataframe,
 )

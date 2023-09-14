@@ -3,7 +3,7 @@ from __future__ import annotations
 import polars as pl
 from magicclass import MagicTemplate, magicclass, field, vfield
 from magicclass.ext.pyqtgraph import QtPlotCanvas
-from cylindra.const import PropertyNames as H, MoleculesHeader as Mole, IDName
+from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 
 
 @magicclass

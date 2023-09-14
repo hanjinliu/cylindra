@@ -34,6 +34,7 @@ from cylindra.components import (
     CylTomogram,
     CylinderModel,
     CylSpline,
+    CylindricParameters,
     indexer as Idx,
 )
 from cylindra.const import nm, PropertyNames as H
@@ -75,35 +76,6 @@ def _simulate_tomogram_iter(nsr):
         yield f"({i + 1}/{n + 1}) Back-projection of {i}-th image"
 
 
-class CylinderParameters:
-    """Parameters for cylinder model."""
-
-    spacing: nm = 1.0
-    dimer_twist: float = 0.0
-    start: int = 0
-    npf: int = 1
-    radius: nm = 10.0
-    offsets: "tuple[nm, float]" = (0.0, 0.0)
-
-    def update(self, other: dict[str, Any] = {}, **kwargs) -> None:
-        """Update parameters"""
-        kwargs = dict(**other, **kwargs)
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-        return None
-
-    def asdict(self) -> dict[str, Any]:
-        """Return parameters as a dictionary."""
-        return {
-            "spacing": self.spacing,
-            "dimer_twist": self.dimer_twist,
-            "start": self.start,
-            "npf": self.npf,
-            "radius": self.radius,
-            "offsets": self.offsets,
-        }
-
-
 # Main simulator widget class
 @magicclass(widget_type="scrollable", labels=False)
 class CylinderSimulator(ChildWidget):
@@ -138,8 +110,14 @@ class CylinderSimulator(ChildWidget):
 
     def __post_init__(self) -> None:
         self._model: "CylinderModel | None" = None
-        self._parameters = CylinderParameters()
-        self._spline: "CylSpline | None" = None
+        self._default_params = CylindricParameters.solve(
+            spacing=4,
+            dimer_twist=0,
+            start=0,
+            npf=2,
+            radius=10,
+        )
+        self._spline = CylSpline.line([0, 0, 0], [0, 50, 0])
         self._spline_arrow: "layers.Arrows3D | None" = None
         self._points: "layers.Points3D | None" = None
         self._selections: "layers.Points3D | None" = None
@@ -148,11 +126,7 @@ class CylinderSimulator(ChildWidget):
         self._simulate_scale = 0.0
         self._molecules: "Molecules | None" = None
         self.canvas.min_height = 300
-
-    @property
-    def parameters(self) -> CylinderParameters:
-        """Parameters for cylinder model."""
-        return self._parameters
+        self.set_spline(self._spline)
 
     @property
     def spline(self) -> CylSpline:
@@ -338,7 +312,7 @@ class CylinderSimulator(ChildWidget):
         if not self.Operator.show_selection:
             return None
         points = self._points.data
-        npf = self.parameters.npf
+        npf = self.spline.props.get_glob(H.npf)
         ysl = slice(*yrange)
         asl = slice(*arange)
         try:
@@ -357,32 +331,32 @@ class CylinderSimulator(ChildWidget):
         self.canvas.layers.clear()
         self._points = None
         self._spline_arrow = None
-        with self.macro.blocked():
-            self.update_model(**self.parameters.asdict())
+        self._spline.props.update_glob(
+            spacing=self._default_params.spacing,
+            dimer_twist=self._default_params.dimer_twist,
+            start=self._default_params.start,
+            npf=self._default_params.npf,
+            radius=self._default_params.radius,
+        )
         return None
 
     @CreateMenu.wraps
     @set_design(text="Set current spline")
     def set_current_spline(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Use the current parameters and the spline to construct a model and molecules."""
-        return self.set_spline(self._get_main().tomogram.splines[idx])
+        return self.set_spline(self._get_main().tomogram.splines[idx].copy())
 
     @CreateMenu.wraps
     @set_design(text="Load spline parameters")
     def load_spline_parameters(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Copy the spline parameters in the viewer."""
-        tomo = self._get_main().tomogram
-        spl = tomo.splines[idx]
-
-        if not spl.props.has_glob([H.spacing, H.dimer_twist, H.start, H.npf, H.radius]):
-            raise ValueError("Global property is not calculated yet.")
-
-        self.parameters.update(
-            interval=spl.props.get_glob(H.spacing),
-            dimer_twist=spl.props.get_glob(H.dimer_twist),
-            start=spl.props.get_glob(H.start),
-            npf=spl.props.get_glob(H.npf),
-            radius=spl.props.get_glob(H.radius),
+        cp = self._get_main().tomogram.splines[idx].cylinder_params()
+        self.spline.props.update_glob(
+            spacing=cp.spacing,
+            dimer_twist=cp.dimer_twist,
+            start=cp.start,
+            npf=cp.npf,
+            radius=cp.radius,
         )
         return None
 
@@ -467,22 +441,17 @@ class CylinderSimulator(ChildWidget):
         offsets : tuple of float
             Offset of the starting molecule.
         """
-        self.parameters.update(
-            spacing=spacing,
-            dimer_twist=dimer_twist,
-            start=start,
-            npf=npf,
-            radius=radius,
-            offsets=offsets,
-        )
         # NOTE: these parameters are hard-coded for microtubule for now.
-        kwargs = {
-            H.spacing: spacing,
-            H.dimer_twist: dimer_twist,
-            H.start: start,
-            H.npf: npf,
-        }
-        model = self._spline.cylinder_model(offsets=offsets, radius=radius, **kwargs)
+        self._spline.props.update_glob(
+            {
+                H.spacing: spacing,
+                H.dimer_twist: dimer_twist,
+                H.start: start,
+                H.npf: npf,
+                H.radius: radius,
+            }
+        )
+        model = self._spline.cylinder_model(offsets=offsets, radius=radius)
         self.model = model
 
         op = self.Operator

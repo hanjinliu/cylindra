@@ -9,7 +9,6 @@ import polars as pl
 import numpy as np
 
 from cylindra.const import (
-    IDName,
     PropertyNames as H,
     get_versions,
     cast_dataframe,
@@ -205,6 +204,8 @@ class CylindraProject(BaseProject):
             gui._reserved_layers.image.bounding_box.visible = not read_image
             if len(tomogram.splines) > 0:
                 gui._update_splines_in_images()
+                with gui.macro.blocked():
+                    gui.sample_subtomograms()
             if default_config is not None:
                 gui.default_config = default_config
 
