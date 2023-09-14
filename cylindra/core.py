@@ -134,11 +134,9 @@ def instance(create: bool = False) -> CylindraMainWidget | None:
 
 def view_project(project_file: PathLike, run: bool = False):
     """View the Cylindra project file."""
-    from cylindra.project import CylindraProject, get_project_file
+    from cylindra.project import CylindraProject
 
-    widget = CylindraProject.from_json(
-        get_project_file(project_file)
-    ).make_project_viewer()
+    widget = CylindraProject.from_file(project_file).make_project_viewer()
     widget.show(run=run)
     _ACTIVE_WIDGETS.add(widget)
     return widget
@@ -146,9 +144,9 @@ def view_project(project_file: PathLike, run: bool = False):
 
 def read_project(file: PathLike) -> CylindraProject:
     """Read the Cylindra project file."""
-    from cylindra.project import CylindraProject, get_project_file
+    from cylindra.project import CylindraProject
 
-    return CylindraProject.from_json(get_project_file(file))
+    return CylindraProject.from_file(file)
 
 
 def read_molecules(
