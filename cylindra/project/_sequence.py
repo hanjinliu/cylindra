@@ -250,8 +250,8 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     dfs_spl.append(_df_spl)
                 _df_prj = pl.concat(dfs_spl, how="diagonal")
                 columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
-                if IDName.spline in _df_prj.columns:
-                    columns.append(pl.col(IDName.spline).cast(pl.UInt16))
+                if H.spline_id in _df_prj.columns:
+                    columns.append(pl.col(H.spline_id).cast(pl.UInt16))
 
             dfs_prj.append(_df_prj.with_columns(columns))
         out = cast_dataframe(pl.concat(dfs_prj, how="diagonal"))
@@ -359,7 +359,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 lengths.append(spl.length())
             col = pl.Series("spline_length", lengths, dtype=pl.Float32)
             glb = glb.with_columns(col)
-        key = [IDName.spline, Mole.image]
+        key = [H.spline_id, Mole.image]
         out = loc.join(glb, on=key, suffix="_glob")
         return self._normalize_id(out, id)
 
@@ -425,9 +425,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             df = pl.DataFrame(
                 [
                     pl.repeat(i, nanc, eager=True, dtype=pl.UInt16).alias(Mole.image),
-                    pl.repeat(j, nanc, eager=True, dtype=pl.UInt16).alias(
-                        IDName.spline
-                    ),
+                    pl.repeat(j, nanc, eager=True, dtype=pl.UInt16).alias(H.spline_id),
                 ]
             )
             for der in ders:

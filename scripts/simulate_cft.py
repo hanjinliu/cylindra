@@ -10,6 +10,7 @@ from magicgui.widgets import PushButton
 from magicclass.types import Optional
 from magicclass.ext.polars import DataFrameView
 import numpy as np
+from numpy.typing import NDArray
 from cylindra.components import CylSpline
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import timer
@@ -28,13 +29,13 @@ class Simulator:
         self.ui = ui
         self.scale = scale
 
-    def prepare(self) -> np.ndarray:
+    def prepare(self) -> NDArray[np.float32]:
         raise NotImplementedError
 
     def results(self):
         raise NotImplementedError
 
-    def anchors(self) -> np.ndarray:
+    def anchors(self) -> NDArray[np.float32]:
         return np.linspace(0, 1, 4)
 
     def columns(self) -> list[str]:
@@ -152,11 +153,11 @@ class local_curvature(Simulator):
             dtype=np.float32,
         )
 
-    def prepare(self) -> np.ndarray:
+    def prepare(self) -> NDArray[np.float32]:
         coords = self.get_coords()
-        spl = CylSpline().fit(coords)
+        spl = CylSpline().fit(coords, err_max=1e-8)
         self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 200, 60), scale=self.scale
+            size=(60, 200, 80), scale=self.scale
         )
         self.ui.cylinder_simulator.set_spline(spl)
         self.ui.cylinder_simulator.update_model(
@@ -175,7 +176,7 @@ class local_curvature(Simulator):
             + cv.tolist()
         )
 
-    def anchors(self) -> np.ndarray:
+    def anchors(self) -> NDArray[np.float32]:
         coords = self.get_coords()
         spl = CylSpline().fit(coords)
         clip = 30 / spl.length()

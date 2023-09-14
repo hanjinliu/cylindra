@@ -25,7 +25,7 @@ class LocalPropsViewer(MagicTemplate):
     def _set_localprops(self, df: pl.DataFrame, path_map: dict[int, str]) -> None:
         groups = {}
         for (image_id, spline_id), df_sub in df.group_by(
-            by=[Mole.image, IDName.spline], maintain_order=True
+            by=[Mole.image, H.spline_id], maintain_order=True
         ):
             path = path_map[image_id]
             groups[path, spline_id] = df_sub

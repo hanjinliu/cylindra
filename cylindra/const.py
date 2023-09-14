@@ -73,6 +73,8 @@ class ExtrapolationMode(strEnum):
 class PropertyNames(SimpleNamespace):
     """Header names for result table of local properties."""
 
+    spline_id = "spline-id"
+    pos_id = "pos-id"
     spl_dist = "spl_dist"
     spl_pos = "spl_pos"
     rise = "rise_angle"
@@ -87,13 +89,6 @@ class PropertyNames(SimpleNamespace):
     offset_axial = "offset_axial"  # global only
     offset_angular = "offset_angular"  # global only
     start = "start"
-
-
-class IDName(SimpleNamespace):
-    """ID names used in local properties."""
-
-    spline = "spline-id"
-    pos = "pos-id"
 
 
 class Mode(SimpleNamespace):
@@ -202,7 +197,7 @@ class ImageFilter(strEnum):
 _POLARS_DTYPES = {
     PropertyNames.npf: pl.UInt8,
     PropertyNames.orientation: pl.Utf8,
-    IDName.spline: pl.UInt16,
+    PropertyNames.spline_id: pl.UInt16,
     MoleculesHeader.image: pl.UInt16,
 }
 

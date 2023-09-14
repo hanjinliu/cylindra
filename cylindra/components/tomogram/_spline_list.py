@@ -128,8 +128,8 @@ class SplineList(MutableSequence[CylSpline]):
                 continue
             props.append(
                 prop.with_columns(
-                    pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(IDName.spline),
-                    pl.int_range(0, pl.count()).cast(pl.UInt16).alias(IDName.pos),
+                    pl.repeat(i_, pl.count()).cast(pl.UInt16).alias(H.spline_id),
+                    pl.int_range(0, pl.count()).cast(pl.UInt16).alias(H.pos_id),
                     pl.Series(H.spl_pos, spl.anchors, dtype=pl.Float32),
                     pl.Series(H.spl_dist, spl.distances(), dtype=pl.Float32),
                 )
@@ -167,7 +167,7 @@ class SplineList(MutableSequence[CylSpline]):
                 if not allow_none:
                     raise ValueError(f"Global properties of spline {i_} is missing.")
                 continue
-            props.append(prop.with_columns(pl.Series(IDName.spline, [i_])))
+            props.append(prop.with_columns(pl.Series(H.spline_id, [i_])))
 
         if len(props) == 0:
             return None

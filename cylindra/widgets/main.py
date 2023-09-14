@@ -1472,7 +1472,7 @@ class CylindraMainWidget(MagicTemplate):
         # show all in a table
         df = (
             self.tomogram.splines.collect_globalprops()
-            .drop(IDName.spline)
+            .drop(H.spline_id)
             .to_pandas()
             .transpose()
         )
@@ -2340,9 +2340,9 @@ class CylindraMainWidget(MagicTemplate):
         _str = "structure"
         columns = [_id, H.rise, H.spacing, H.dimer_twist, _str]
         df = (
-            all_df.select([IDName.spline, IDName.pos, H.rise, H.spacing, H.dimer_twist, H.npf, H.start])
+            all_df.select([H.spline_id, H.pos_id, H.rise, H.spacing, H.dimer_twist, H.npf, H.start])
             .with_columns(
-                pl.format("{}-{}", pl.col(IDName.spline), pl.col(IDName.pos)).alias(_id),
+                pl.format("{}-{}", pl.col(H.spline_id), pl.col(H.pos_id)).alias(_id),
                 pl.format("{}_{}", pl.col(H.npf), pl.col(H.start).round(1)).alias(_str),
                 pl.col(H.rise),
                 pl.col(H.spacing),

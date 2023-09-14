@@ -8,7 +8,13 @@ from pydantic import BaseModel
 import polars as pl
 import numpy as np
 
-from cylindra.const import IDName, PropertyNames as H, get_versions, cast_dataframe
+from cylindra.const import (
+    IDName,
+    PropertyNames as H,
+    get_versions,
+    cast_dataframe,
+    ImageFilter,
+)
 from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
 from cylindra.project._utils import extract, as_main_function
 
@@ -168,7 +174,7 @@ class CylindraProject(BaseProject):
     def _to_gui(
         self,
         gui: "CylindraMainWidget | None" = None,
-        filter: bool = True,
+        filter: "ImageFilter | None" = True,
         paint: bool = True,
         read_image: bool = True,
         update_config: bool = True,
@@ -199,8 +205,6 @@ class CylindraProject(BaseProject):
             gui._reserved_layers.image.bounding_box.visible = not read_image
             if len(tomogram.splines) > 0:
                 gui._update_splines_in_images()
-                with gui.macro.blocked():
-                    gui.sample_subtomograms()
             if default_config is not None:
                 gui.default_config = default_config
 
@@ -244,7 +248,7 @@ class CylindraProject(BaseProject):
         localprops_path = self.localprops_path(dir)
         globalprops_path = self.globalprops_path(dir)
         if localprops_path.exists():
-            _loc = pl.read_csv(localprops_path).filter(pl.col(IDName.spline) == idx)
+            _loc = pl.read_csv(localprops_path).filter(pl.col(H.spline_id) == idx)
             _loc = _drop_null_columns(_loc)
         else:
             _loc = pl.DataFrame([])
@@ -259,7 +263,7 @@ class CylindraProject(BaseProject):
         if H.spl_pos in _loc.columns:
             spl._anchors = np.asarray(_loc[H.spl_pos])
             _loc = _loc.drop(H.spl_pos)
-        for c in [IDName.spline, IDName.pos]:
+        for c in [H.spline_id, H.pos_id]:
             if c in _loc.columns:
                 _loc = _loc.drop(c)
         spl.props.loc = cast_dataframe(_loc)
@@ -302,14 +306,14 @@ class CylindraProject(BaseProject):
         for idx, spl_path in self.iter_spline_paths(dir):
             spl = CylSpline.from_json(spl_path)
             if _localprops is not None:
-                _loc = _localprops.filter(pl.col(IDName.spline) == idx)
+                _loc = _localprops.filter(pl.col(H.spline_id) == idx)
                 _loc = _drop_null_columns(_loc)
                 if len(_loc) == 0:
                     _loc = pl.DataFrame([])
             else:
                 _loc = pl.DataFrame([])
             if _globalprops is not None:
-                _glob = _globalprops.filter(pl.col(IDName.spline) == idx)
+                _glob = _globalprops.filter(pl.col(H.spline_id) == idx)
                 _glob = _drop_null_columns(_glob)
                 if len(_glob) == 0:
                     _glob = pl.DataFrame([])
@@ -322,7 +326,7 @@ class CylindraProject(BaseProject):
                 spl._anchors = np.asarray(_loc[H.spl_pos])
                 if drop_columns:
                     _loc = _loc.drop(H.spl_pos)
-            for c in [IDName.spline, IDName.pos]:
+            for c in [H.spline_id, H.pos_id]:
                 if c in _loc.columns and drop_columns:
                     _loc = _loc.drop(c)
             spl.props.loc = cast_dataframe(_loc)
