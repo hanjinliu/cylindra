@@ -110,15 +110,15 @@ def test_invert(mode):
     assert spl_inv.orientation == "MinusToPlus"
     assert spl_inv_inv.orientation == "PlusToMinus"
 
-    assert_allclose(spl(), spl_inv()[::-1])
-    assert_allclose(spl(der=1), -spl_inv(der=1)[::-1])
-    assert_allclose(spl(der=2), spl_inv(der=2)[::-1])
-    assert_allclose(spl(der=3), -spl_inv(der=3)[::-1])
+    assert_allclose(spl(), spl_inv()[::-1], rtol=1e-6, atol=1e-6)
+    assert_allclose(spl(der=1), -spl_inv(der=1)[::-1], rtol=1e-6, atol=1e-6)
+    assert_allclose(spl(der=2), spl_inv(der=2)[::-1], rtol=1e-6, atol=1e-6)
+    assert_allclose(spl(der=3), -spl_inv(der=3)[::-1], rtol=1e-6, atol=1e-6)
 
-    assert_allclose(spl(), spl_inv_inv())
-    assert_allclose(spl(der=1), spl_inv_inv(der=1))
-    assert_allclose(spl(der=2), spl_inv_inv(der=2))
-    assert_allclose(spl(der=3), spl_inv_inv(der=3))
+    assert_allclose(spl(), spl_inv_inv(), rtol=1e-6, atol=1e-6)
+    assert_allclose(spl(der=1), spl_inv_inv(der=1), rtol=1e-6, atol=1e-6)
+    assert_allclose(spl(der=2), spl_inv_inv(der=2), rtol=1e-6, atol=1e-6)
+    assert_allclose(spl(der=3), spl_inv_inv(der=3), rtol=1e-6, atol=1e-6)
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])

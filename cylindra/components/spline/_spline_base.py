@@ -256,16 +256,16 @@ class Spline(BaseComponent):
         length = self.length()
         if interval is not None:
             stop, n_segs = interval_divmod(length, interval)
-            end = stop / length
             n = n_segs + 1
         elif n is not None:
-            end = 1
+            stop = length
         elif max_interval is not None:
             n = max(ceilint(length / max_interval), self.order) + 1
-            end = 1
+            stop = length
         else:
             raise ValueError("Either 'interval' or 'n' must be specified.")
-        return np.linspace(0, end, n)
+        y = np.linspace(0, stop, n)
+        return self.y_to_position(y)
 
     def make_anchors(
         self,
