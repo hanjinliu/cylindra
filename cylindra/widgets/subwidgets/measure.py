@@ -16,7 +16,7 @@ from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 import numpy as np
 
 from cylindra.utils import roundint
-from cylindra.widgets.widget_utils import FileFilter
+from cylindra.const import FileFilter
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:

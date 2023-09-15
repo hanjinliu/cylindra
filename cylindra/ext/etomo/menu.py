@@ -7,7 +7,8 @@ from magicclass.types import Path
 from acryo import Molecules
 
 from cylindra.types import get_monomer_layers, MoleculesLayer
-from cylindra.widgets.widget_utils import add_molecules, FileFilter
+from cylindra.const import FileFilter
+from cylindra.widgets.widget_utils import add_molecules
 
 
 @magicmenu

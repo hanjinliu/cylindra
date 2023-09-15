@@ -7,10 +7,7 @@ from numpy.typing import NDArray
 import polars as pl
 from acryo import Molecules
 
-from cylindra.const import (
-    MoleculesHeader as Mole,
-    PropertyNames as H,
-)
+from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -75,9 +72,8 @@ def calc_dimer_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
         _start = _mole_to_coords(sub)
         _interv_proj = surf.project_vector(_interv_vec, _start)
-        _twist = np.rad2deg(
-            2 * np.arcsin(spacing * surf.long_sin(_interv_proj, _start) / radius)
-        )
+        _twist_sin = _arcsin(spacing * surf.long_sin(_interv_proj, _start) / radius)
+        _twist = np.rad2deg(2 * _arcsin(_twist_sin))
         _twist[-1] = -np.inf
         new_feat = pl.Series(Mole.dimer_twist, _twist, dtype=pl.Float32)
         subsets.append(sub.with_features(new_feat))
@@ -232,6 +228,7 @@ class CylinderSurface:
         vec: NDArray[np.float32],
         start: NDArray[np.float32],
     ) -> NDArray[np.float32]:
+        """Sine of the longitudinal angle between the vector and the spline."""
         start = np.atleast_2d(start)
         vec_norm = _norm(vec)
         spl_vec_norm = self.spline_vec_norm(start[:, 3])
@@ -246,10 +243,15 @@ class CylinderSurface:
         start: NDArray[np.float32],
         degree: bool = True,
     ) -> NDArray[np.float32]:
-        angs = np.arcsin(self.long_sin(vec, start))
+        angs = _arcsin(self.long_sin(vec, start))
         if degree:
             angs = np.rad2deg(angs)
         return angs
+
+
+def _arcsin(x: NDArray[np.float32]) -> NDArray[np.float32]:
+    """arcsin with clipping."""
+    return np.arcsin(x.clip(-1, 1))
 
 
 class LatticeParameters(Enum):

@@ -34,9 +34,9 @@ from cylindra._custom_layers import MoleculesLayer
 from cylindra.utils import roundint
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
-from cylindra.const import nm, get_versions, ImageFilter
+from cylindra.const import nm, get_versions, ImageFilter, FileFilter
 from cylindra.project import CylindraProject, extract
-from cylindra.widgets.widget_utils import FileFilter, get_code_theme
+from cylindra.widgets.widget_utils import get_code_theme
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.components.spline import SplineConfig
 from cylindra import _config

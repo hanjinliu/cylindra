@@ -1,12 +1,15 @@
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, Annotated
 import numpy as np
 import polars as pl
 import impy as ip
-from magicclass import magicclass, field, MagicTemplate
+from magicclass import abstractapi, magicclass, field, MagicTemplate, magicmenu
 from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label
+from magicclass.types import Path
+from magicclass.utils import thread_worker
 from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.ext.polars import DataFrameView
+
+from cylindra.const import ImageFilter
 
 if TYPE_CHECKING:
     from ._single import CylindraProject
@@ -124,12 +127,59 @@ class Properties(MagicTemplate):
 
 @magicclass(widget_type="tabbed", name="Project Viewer", record=False)
 class ProjectViewer(MagicTemplate):
+    @magicmenu
+    class Menu(MagicTemplate):
+        load_this_project = abstractapi()
+        close_window = abstractapi()
+
+    def __init__(self):
+        self._project_path: Path | None = None
+
     info_viewer = field(TextInfo, name="Text files")
     component_viewer = field(ComponentsViewer, name="Components")
     properties = field(Properties, name="Properties")
 
     def _from_project(self, project: "CylindraProject"):
+        self._project_path = project.project_path
         with project.open_project() as dir:
             self.info_viewer._from_project(project, dir)
             self.component_viewer._from_project(project, dir)
             self.properties._from_project(project, dir)
+
+    def _get_project_path(self, *_):
+        if self._project_path is None:
+            raise ValueError("Project path is not known.")
+        return self._project_path
+
+    @Menu.wraps
+    @thread_worker
+    def load_this_project(
+        self,
+        path: Annotated[str, {"bind": _get_project_path}],
+        filter: Union[ImageFilter, None] = ImageFilter.Lowpass,
+        paint: bool = False,
+        read_image: Annotated[bool, {"label": "read image data"}] = True,
+        update_config: bool = False,
+    ):
+        from cylindra import instance
+
+        ui = None
+
+        @thread_worker.callback
+        def _launch_ui():
+            nonlocal ui
+            ui = instance(create=True)
+            self.native.setParent(ui.native, self.native.windowFlags())
+
+        yield _launch_ui
+        _launch_ui.await_call()
+
+        if ui is None:
+            raise RuntimeError("Main window is not running.")
+        yield from ui.load_project.arun(path, filter, paint, read_image, update_config)
+        return thread_worker.callback(self.close)
+
+    @Menu.wraps
+    def close_window(self):
+        """Close this preview."""
+        return self.close()

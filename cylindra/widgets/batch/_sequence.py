@@ -24,9 +24,8 @@ import impy as ip
 import polars as pl
 
 from cylindra.project import CylindraProject, get_project_file
-from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import MoleculesHeader as Mole, FileFilter
 from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.widget_utils import FileFilter
 from cylindra._config import get_config
 from ._localprops import LocalPropsViewer
 

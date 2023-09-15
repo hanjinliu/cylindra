@@ -12,9 +12,8 @@ from magicclass import (
 )
 from magicclass.types import Path
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
-from cylindra.const import PropertyNames as H, Ori
+from cylindra.const import PropertyNames as H, Ori, FileFilter
 from cylindra.widgets._widget_ext import CheckBoxes
-from cylindra.widgets.widget_utils import FileFilter
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:

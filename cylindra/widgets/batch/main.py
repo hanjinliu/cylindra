@@ -17,10 +17,11 @@ from magicclass.types import Path
 from cylindra.const import (
     MoleculesHeader as Mole,
     PropertyNames as H,
+    FileFilter,
 )
 from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.widget_utils import FileFilter, POLARS_NAMESPACE
-from cylindra.project import CylindraProject, CylindraBatchProject, get_project_file
+from cylindra.widgets.widget_utils import POLARS_NAMESPACE
+from cylindra.project import CylindraProject, CylindraBatchProject
 from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
 from ._sequence import ProjectSequenceEdit

@@ -18,9 +18,8 @@ from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from dask import delayed, array as da
 
-from cylindra.const import PropertyNames as H, Mode
+from cylindra.const import PropertyNames as H, Mode, FileFilter
 from cylindra.utils import map_coordinates, Projections
-from cylindra.widgets.widget_utils import FileFilter
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:

@@ -3,7 +3,6 @@ from glob import glob
 from pathlib import Path
 from magicclass import (
     magicclass,
-    MagicTemplate,
     vfield,
     confirm,
     set_design,
@@ -11,7 +10,7 @@ from magicclass import (
 from magicclass.types import Optional
 from magicclass.ext.dask import dask_thread_worker
 import impy as ip
-from cylindra.widgets.widget_utils import FileFilter
+from cylindra.const import FileFilter
 from cylindra.widgets._previews import view_image
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra._config import get_config

@@ -28,11 +28,11 @@ import impy as ip
 import polars as pl
 import napari
 
-from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
+from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole, FileFilter
 from cylindra.utils import roundint
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
 from cylindra.widgets._widget_ext import RotationsEdit
-from ..widget_utils import FileFilter, timer, POLARS_NAMESPACE
+from ..widget_utils import timer, POLARS_NAMESPACE
 from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
 
 from .menus import BatchLoaderMenu, BatchSubtomogramAnalysis, BatchRefinement

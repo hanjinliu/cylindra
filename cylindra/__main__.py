@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import argparse
+from typing import Any
 
 
 class Namespace(argparse.Namespace):
+    arg: Any | None
     project: str
     view: str
-    globals: str
     init_config: bool
     debug: bool
 
@@ -16,7 +19,6 @@ class Args(argparse.ArgumentParser):
         super().__init__(description="Command line interface of cylindra.")
         self.add_argument("--project", type=str, default="None")
         self.add_argument("--view", type=str, default="None")
-        self.add_argument("--globals", type=str, default="None")
         self.add_argument("--debug", action="store_true")
         self.add_argument("--init-config", action="store_true")
         self.add_argument(
@@ -28,7 +30,15 @@ class Args(argparse.ArgumentParser):
 
     @classmethod
     def from_args(cls) -> Namespace:
-        return cls().parse_args()
+        ns, argv = cls().parse_known_args()
+        nargv = len(argv)
+        if nargv == 0:
+            ns.arg = None
+        elif nargv == 1:
+            ns.arg = argv[0]
+        else:
+            raise ValueError(f"too many arguments: {argv}")
+        return ns
 
 
 def main(viewer=None):  # "viewer" is used for testing only
@@ -38,7 +48,6 @@ def main(viewer=None):  # "viewer" is used for testing only
 
     project_file = None if args.project == "None" else args.project
     view_file = None if args.view == "None" else args.view
-    globals_file = None if args.globals == "None" else args.globals
 
     if args.init_config:
         from cylindra._config import init_config
@@ -56,7 +65,6 @@ def main(viewer=None):  # "viewer" is used for testing only
 
     ui = start(
         project_file=project_file,
-        globals_file=globals_file,
         viewer=viewer,
         log_level=log_level,
     )

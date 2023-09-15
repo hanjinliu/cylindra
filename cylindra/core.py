@@ -3,7 +3,7 @@ from __future__ import annotations
 import glob
 from pathlib import Path
 from weakref import WeakSet
-from typing import TYPE_CHECKING, Iterable, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Literal, Sequence, Union, overload
 from contextlib import suppress
 
 if TYPE_CHECKING:
@@ -22,7 +22,6 @@ _ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
 
 def start(
     project_file: str | None = None,
-    globals_file: str | None = None,
     viewer: napari.Viewer | None = None,
     *,
     log_level: int | str = "INFO",
@@ -83,8 +82,6 @@ def start(
 
     if project_file is not None:
         ui.load_project(project_file)
-    if globals_file is not None:
-        ui.Others.GlobalVariables.load_variables(globals_file)
     _CURRENT_INSTANCE = ui
 
     with suppress(Exception):
@@ -122,6 +119,16 @@ def start(
 
     ui.show()
     return ui
+
+
+@overload
+def instance(create: Literal[False] = False) -> CylindraMainWidget | None:
+    ...
+
+
+@overload
+def instance(create: Literal[True]) -> CylindraMainWidget:
+    ...
 
 
 def instance(create: bool = False) -> CylindraMainWidget | None:

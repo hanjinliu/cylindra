@@ -45,15 +45,15 @@ from cylindra.const import (
     nm,
     SplineColor,
     ImageFilter,
+    FileFilter,
 )
 from cylindra._custom_layers import MoleculesLayer
-from cylindra.project import CylindraProject, get_project_file, extract
+from cylindra.project import CylindraProject, extract
 
 from cylindra.widgets import _shared_doc, subwidgets, widget_utils
 from cylindra.widgets.sta import SubtomogramAveraging
 
 from cylindra.widgets.widget_utils import (
-    FileFilter,
     add_molecules,
     change_viewer_focus,
     POLARS_NAMESPACE,

@@ -43,6 +43,7 @@ from cylindra.const import (
     nm,
     PropertyNames as H,
     Ori,
+    FileFilter,
 )
 from cylindra.widgets._widget_ext import (
     RotationsEdit,
@@ -62,7 +63,7 @@ from ._annotated import (
     assert_layer,
     assert_list_of_layers,
 )
-from .widget_utils import FileFilter, timer, POLARS_NAMESPACE
+from .widget_utils import timer, POLARS_NAMESPACE
 from .subwidgets._child_widget import ChildWidget
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 

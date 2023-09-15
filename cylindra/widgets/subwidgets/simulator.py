@@ -37,9 +37,8 @@ from cylindra.components import (
     CylindricParameters,
     indexer as Idx,
 )
-from cylindra.const import nm, PropertyNames as H
+from cylindra.const import nm, PropertyNames as H, FileFilter
 from cylindra.utils import roundint, ceilint
-from cylindra.widgets.widget_utils import FileFilter
 from cylindra._config import get_config
 from ._child_widget import ChildWidget
 
