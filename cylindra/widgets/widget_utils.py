@@ -341,5 +341,9 @@ def get_code_theme(self: MagicTemplate) -> str:
     try:
         theme = get_theme(self.parent_viewer.theme, as_dict=True)["syntax_style"]
     except Exception:
-        theme = "native"
+        bg_color = self.native.palette().color(self.native.backgroundRole())
+        if bg_color.lightness() > 128:
+            theme = "default"
+        else:
+            theme = "native"
     return theme

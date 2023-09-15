@@ -54,7 +54,8 @@ def main(viewer=None):  # "viewer" is used for testing only
     if args.arg is not None:
         from cylindra import view_project
 
-        return view_project(args.arg, run=block)
+        view_project(args.arg, run=block)
+        return None
 
     log_level = "DEBUG" if args.debug else "INFO"
 
@@ -66,7 +67,8 @@ def main(viewer=None):  # "viewer" is used for testing only
         log_level=log_level,
     )
 
-    return ui.parent_viewer.show(block=block)
+    ui.parent_viewer.show(block=block)
+    return None
 
 
 if __name__ == "__main__":

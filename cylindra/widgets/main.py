@@ -984,7 +984,7 @@ class CylindraMainWidget(MagicTemplate):
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
-        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
+        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 49.0,
         fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
     ):  # fmt: skip
         """Make a copy of the current spline with a new configuration."""
