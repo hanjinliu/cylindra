@@ -146,10 +146,19 @@ class local_orientation(Simulator):
 
 
 class local_curvature(Simulator):
+    N_ANCHORS = 24
+
     def get_coords(self):
         # curvature is 5e-4 ~ 3e-3 = 3% expansion of the outer PF
         return np.array(
-            [[30, 13.4, 16.3], [30, 52.8, 17.2], [30, 85.2, 19.3], [30, 188.7, 41.9]],
+            [
+                [30, 10, 16],
+                [30, 30, 16.1],
+                [30, 50, 16.3],
+                [30, 90, 17.2],
+                [30, 122, 19.6],
+                [30, 225, 47],
+            ],
             dtype=np.float32,
         )
 
@@ -157,7 +166,7 @@ class local_curvature(Simulator):
         coords = self.get_coords()
         spl = CylSpline().fit(coords, err_max=1e-8)
         self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 200, 60), scale=self.scale
+            size=(60, 230, 60), scale=self.scale
         )
         self.ui.cylinder_simulator.set_spline(spl)
         self.ui.cylinder_simulator.update_model(
@@ -168,25 +177,30 @@ class local_curvature(Simulator):
     def results(self):
         spl = self.ui.tomogram.splines[0]
         df = spl.props.loc
-        cv = spl.curvature()
+        # average curvatures
+        length = spl.length()
+        curvatures: list[float] = []
+        for anc in self.anchors():
+            u = np.linspace(anc - 24.5 / length, anc - 24.5 / length, 100)
+            curvatures.append(spl.curvature(u).mean())
         return (
             df[H.spacing].to_list()
             + df[H.dimer_twist].to_list()
             + df[H.rise].to_list()
-            + cv.tolist()
+            + curvatures
         )
 
     def anchors(self) -> NDArray[np.float32]:
         coords = self.get_coords()
         spl = CylSpline().fit(coords)
         clip = 30 / spl.length()
-        return np.linspace(clip, 1 - clip, 16)
+        return np.linspace(clip, 1 - clip, self.N_ANCHORS)
 
     def columns(self):
         return [
             f"{n}{i}"
             for n in ["spacing", "dimer_twist", "rise", "curvature"]
-            for i in range(16)
+            for i in range(self.N_ANCHORS)
         ]
 
 

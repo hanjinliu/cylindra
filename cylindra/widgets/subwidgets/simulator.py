@@ -450,7 +450,7 @@ class CylinderSimulator(ChildWidget):
                 H.radius: radius,
             }
         )
-        model = self._spline.cylinder_model(offsets=offsets, radius=radius)
+        model = self._spline.cylinder_model(offsets=offsets)
         self.model = model
 
         op = self.Operator

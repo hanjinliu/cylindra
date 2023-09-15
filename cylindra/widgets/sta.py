@@ -1791,7 +1791,7 @@ def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecu
     """
     new_pos = new.pos
     old_pos = old.pos
-    _u = old.features[Mole.position] / spl.length()
+    _u = spl.y_to_position(old.features[Mole.position])
     vec = spl.map(_u, der=1)
     vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
     dy = np.sum((new_pos - old_pos) * vec_norm, axis=1)

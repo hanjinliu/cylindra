@@ -83,7 +83,7 @@ def calc_dimer_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the radius of each molecule."""
-    _u = mole.features[Mole.position] / spl.length()
+    _u = spl.y_to_position(mole.features[Mole.position])
     _spl_pos = spl.map(_u, der=0)
     _spl_vec = spl.map(_u, der=1)
     _spl_vec_norm = _norm(_spl_vec)

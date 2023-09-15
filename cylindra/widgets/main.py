@@ -2102,7 +2102,7 @@ class CylindraMainWidget(MagicTemplate):
         anc = spl.anchors
         interp = interp1d(anc, spl.props.loc.to_numpy(), kind=kind, axis=0)
         pos_nm = feat[Mole.position].to_numpy()
-        values = interp((pos_nm / spl.length()).clip(anc.min(), anc.max()))
+        values = interp(spl.y_to_position(pos_nm).clip(anc.min(), anc.max()))
         layer.molecules = layer.molecules.with_features(
             [
                 pl.Series(f"{c}{suffix}", values[:, i])

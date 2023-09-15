@@ -1246,14 +1246,7 @@ class CylTomogram(Tomogram):
         CylinderModel
             The cylinder model.
         """
-        spl = self.splines[i]
-        _required = [H.spacing, H.dimer_twist, H.rise, H.npf]
-        _missing = [k for k in _required if k not in kwargs]
-        if not spl.props.has_glob(_missing):
-            gprops = self.global_ft_params(i=i, update=False)
-            for k in _missing:
-                kwargs.setdefault(k, gprops[k][0])
-        return spl.cylinder_model(offsets=offsets, **kwargs)
+        return self.splines[i].cylinder_model(offsets=offsets, **kwargs)
 
     @batch_process
     def map_monomers(

@@ -13,7 +13,7 @@ import warnings
 import logging
 
 import numpy as np
-from scipy.interpolate import splprep, splev
+from scipy.interpolate import splprep, splev, splrep
 from scipy.spatial.transform import Rotation
 
 from acryo import Molecules
@@ -27,7 +27,7 @@ from cylindra.components._base import BaseComponent
 from cylindra.cyltransform import polar_coords_2d
 from ._props import SplineProps
 from ._config import SplineConfig
-from ._types import TCKType, SplineInfo, SplineFitResult, PrepOutput
+from ._types import TCKType, SplineInfo, SplineFitResult
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -479,7 +479,9 @@ class Spline(BaseComponent):
         return self.fit(coords, err_max=err_max)
 
     def distances(
-        self, positions: Sequence[float] | None = None
+        self,
+        positions: Sequence[float] | None = None,
+        nknots: int = 512,
     ) -> NDArray[np.float32]:
         """
         Get the distances from u=0.
@@ -495,9 +497,18 @@ class Spline(BaseComponent):
             Distances for each ``u``.
         """
         if positions is None:
-            positions = self.anchors
-        length = self.length()
-        return length * np.asarray(positions, dtype=np.float32)
+            _u = self.anchors
+        else:
+            _u = np.asarray(positions, dtype=np.float32)
+            if _u.ndim != 1:
+                raise ValueError("Positions must be 1D array.")
+        u = np.linspace(0, 1, nknots)
+        u_tr = _linear_conversion(u, *self._lims)
+        dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))
+        dist = np.concatenate([[0], np.sqrt(dx**2 + dy**2 + dz**2)]).cumsum()
+        tck = splrep(u, dist, k=1)
+        out = splev(_u, tck)
+        return out
 
     def map(
         self,
@@ -519,8 +530,7 @@ class Spline(BaseComponent):
         np.ndarray
             Positions or vectors in (3,) or (N, 3) shape.
         """
-        if self._u is None:
-            raise ValueError("Spline is not fitted yet.")
+        _assert_fitted(self)
         if positions is None:
             positions = self.anchors
         u0, u1 = self._lims
@@ -612,8 +622,7 @@ class Spline(BaseComponent):
         Approximate the length of B-spline between [start, stop] by partitioning
         the spline with 'nknots' knots. nknots=256 is large enough for most cases.
         """
-        if self._u is None:
-            raise ValueError("Spline is not fitted yet.")
+        _assert_fitted(self)
         u = np.linspace(start, stop, nknots)
         u_tr = _linear_conversion(u, *self._lims)
         dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))
@@ -958,7 +967,33 @@ class Spline(BaseComponent):
         rmax = r_range[1] / scale
         return self._get_coords(polar_coords_2d, (rmin, rmax), s_range, scale)
 
-    def cartesian_to_world(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
+    def y_to_position(
+        self, y: NDArray[np.float32], nknots: int = 512
+    ) -> NDArray[np.float32]:
+        """
+        Convert y-coordinate to spline position parameter.
+
+        Parameters
+        ----------
+        y : array-like
+            Y coordinates.
+        nknots : int, optional
+            Number of knots. Increasing the number of knots will increase the accuracy.
+        """
+        # almost equal to y / self.length()
+        u = np.linspace(0, 1, nknots)
+        u_tr = _linear_conversion(u, *self._lims)
+        dz, dy, dx = map(np.diff, splev(u_tr, self._tck, der=0))
+        dist = np.concatenate([[0], np.sqrt(dx**2 + dy**2 + dz**2)]).cumsum()
+        tck = splrep(dist, u, k=1)
+        out = splev(y, tck)
+        return out
+
+    def cartesian_to_world(
+        self,
+        coords: NDArray[np.float32],
+        nknots: int = 512,
+    ) -> NDArray[np.float32]:
         """
         Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
 
@@ -973,11 +1008,11 @@ class Spline(BaseComponent):
             World coordinates.
         """
         ncoords = coords.shape[0]
-        _rs = coords[:, 0]
-        _us = coords[:, 1] / self.length()
-        _as = coords[:, 2]
+        _zs = coords[:, 0]
+        _us = self.y_to_position(coords[:, 1], nknots=nknots)
+        _xs = coords[:, 2]
         _zeros = np.zeros(ncoords, dtype=np.float32)
-        coords_ext = np.stack([_rs, _zeros, _as], axis=1)
+        coords_ext = np.stack([_zs, _zeros, _xs], axis=1)
         rot = self.get_rotator(_us)
         out = rot.apply(coords_ext) + self.map(_us)
 
@@ -1062,7 +1097,7 @@ class Spline(BaseComponent):
         world_coords = self.cylindrical_to_world(coords)
 
         # world coordinates of the projection point of coords onto the spline
-        u = coords[:, 1] / self.length()
+        u = self.y_to_position(coords[:, 1])
         ycoords = self.map(u)
         zvec = world_coords - ycoords
         yvec = self.map(u, der=1)
@@ -1135,6 +1170,11 @@ def _linear_conversion(u: NDArray[_T], start: float, stop: float) -> NDArray[_T]
 
 def _linear_conversion(u, start, stop):
     return (1 - u) * start + u * stop
+
+
+def _assert_fitted(spl: Spline):
+    if spl._u is None:
+        raise ValueError("Spline is not fitted yet.")
 
 
 def _rot_with_vector(
