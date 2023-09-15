@@ -7,7 +7,6 @@ from typing import Any
 class Namespace(argparse.Namespace):
     arg: Any | None
     project: str
-    view: str
     init_config: bool
     debug: bool
 
@@ -18,7 +17,6 @@ class Args(argparse.ArgumentParser):
 
         super().__init__(description="Command line interface of cylindra.")
         self.add_argument("--project", type=str, default="None")
-        self.add_argument("--view", type=str, default="None")
         self.add_argument("--debug", action="store_true")
         self.add_argument("--init-config", action="store_true")
         self.add_argument(
@@ -47,17 +45,16 @@ def main(viewer=None):  # "viewer" is used for testing only
     block = viewer is None
 
     project_file = None if args.project == "None" else args.project
-    view_file = None if args.view == "None" else args.view
 
     if args.init_config:
         from cylindra._config import init_config
 
         return init_config(force=True)
 
-    if view_file:
+    if args.arg is not None:
         from cylindra import view_project
 
-        return view_project(view_file, run=block)
+        return view_project(args.arg, run=block)
 
     log_level = "DEBUG" if args.debug else "INFO"
 

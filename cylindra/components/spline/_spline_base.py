@@ -1150,22 +1150,19 @@ class Spline(BaseComponent):
         s2 = (s1 - s0) * stop_length / length + s0
         if n_pixels < 2:
             raise ValueError("Too short. Change 's_range'.")
-        u = np.linspace(s0, s2, n_pixels)
+        d0, d2 = self.distances([s0, s2])
+        u = self.y_to_position(np.linspace(d0, d2, n_pixels))
         y = self.map(u) / scale  # world coordinates of y-axis in spline coords system
         return u, y
 
 
+# fmt: off
 _T = TypeVar("_T", bound=np.generic)
-
-
 @overload
-def _linear_conversion(u: float, start: float, stop: float) -> float:
-    ...
-
-
+def _linear_conversion(u: float, start: float, stop: float) -> float: ...
 @overload
-def _linear_conversion(u: NDArray[_T], start: float, stop: float) -> NDArray[_T]:
-    ...
+def _linear_conversion(u: NDArray[_T], start: float, stop: float) -> NDArray[_T]: ...
+# fmt: on
 
 
 def _linear_conversion(u, start, stop):
