@@ -108,7 +108,6 @@ class CylinderSimulator(ChildWidget):
         dilate = abstractapi()
 
     def __post_init__(self) -> None:
-        self._model: "CylinderModel | None" = None
         self._default_params = CylindricParameters.solve(
             spacing=4,
             dimer_twist=0,
@@ -126,6 +125,7 @@ class CylinderSimulator(ChildWidget):
         self._molecules: "Molecules | None" = None
         self.canvas.min_height = 300
         self.set_spline(self._spline)
+        self._model = self._spline.cylinder_model()
 
     @property
     def spline(self) -> CylSpline:

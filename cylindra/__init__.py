@@ -30,7 +30,6 @@ from cylindra.core import (
     read_molecules,
     read_spline,
     collect_projects,
-    collect_molecules,
 )
 
 
@@ -62,5 +61,4 @@ __all__ = [
     "read_molecules",
     "read_spline",
     "collect_projects",
-    "collect_molecules",
 ]

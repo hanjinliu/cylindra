@@ -1,5 +1,5 @@
-from cylindra import read_molecules, read_spline, read_project, collect_molecules
-from ._const import PROJECT_DIR_13PF, TEST_DIR
+from cylindra import read_molecules, read_spline, read_project
+from ._const import PROJECT_DIR_13PF
 
 
 def test_read_molecules():
@@ -12,7 +12,3 @@ def test_read_spline():
 
 def test_read_project():
     read_project(PROJECT_DIR_13PF)
-
-
-def test_concatenate_molecules():
-    collect_molecules(TEST_DIR / "test*" / "Mono-*.csv")

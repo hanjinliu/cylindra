@@ -360,6 +360,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         out = loc.join(glb, on=key, suffix="_glob")
         return self._normalize_id(out, id)
 
+    def collect_molecules(self) -> Molecules:
+        """Collect all the molecules in this project sequence."""
+        return self.sta_loader().molecules
+
     def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
         """Iterate over all the splines in all the projects."""
         for i_prj, prj in enumerate(self._projects):
