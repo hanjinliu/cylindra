@@ -163,8 +163,9 @@ class SplineConfig:
     ) -> SplineConfig:
         kwargs = locals()
         kwargs.pop("self")
-        if "skew_range" in kwargs:
-            kwargs["dimer_twist_range"] = kwargs.pop("skew_range")
+        skew_range = kwargs.pop("skew_range")
+        if skew_range is not None:
+            kwargs["dimer_twist_range"] = skew_range
         for k, v in kwargs.items():
             if v is None:
                 kwargs[k] = getattr(self, k)
