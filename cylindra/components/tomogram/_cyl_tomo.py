@@ -295,6 +295,7 @@ class CylTomogram(Tomogram):
         err_max: nm = 1.0,
         edge_sigma: nm = 2.0,
         max_shift: nm = 5.0,
+        n_rotations: int = 5,
     ) -> FitResult:
         """
         Roughly fit splines to cylindrical structures.
@@ -321,6 +322,8 @@ class CylTomogram(Tomogram):
         max_shift: nm, default is 5.0
             Maximum shift from the true center of the cylinder. This parameter is used in phase
             cross correlation.
+        n_rotations : int, default is 5
+            Number of rotations to be tested during finding the cylinder center.
 
         Returns
         -------
@@ -348,32 +351,11 @@ class CylTomogram(Tomogram):
         subtomograms: ip.ImgArray = np.stack(
             [crop_tomogram(input_img, c, size_px) for c in center_px], axis="p"
         )
-
         subtomograms[:] -= subtomograms.mean()
         scale = self.scale * binsize
 
         with set_gpu():
-            if edge_sigma is not None:
-                # mask XY-region outside the cylinders with sigmoid function.
-                yy, xx = np.indices(subtomograms.sizesof("yx"))
-                yc, xc = np.array(subtomograms.sizesof("yx")) / 2 - 0.5
-                yr = yy - yc
-                xr = xx - xc
-                for _j, ds in enumerate(spl.map(anc, der=1)):
-                    _, vy, vx = ds
-                    distance: NDArray[np.float64] = (
-                        np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
-                    )
-                    distance_cutoff = spl.config.fit_width / 2
-                    if edge_sigma == 0:
-                        mask_yx = (distance > distance_cutoff).astype(np.float32)
-                    else:
-                        mask_yx = 1 / (
-                            1 + np.exp((distance - distance_cutoff) / edge_sigma)
-                        )
-                    mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
-                    subtomograms[_j] *= mask
-
+            subtomograms = _soft_mask_edges(subtomograms, spl, anc, scale, edge_sigma)
             ds = spl.map(anc, der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
             degree_max = 14.0
@@ -394,7 +376,7 @@ class CylTomogram(Tomogram):
                 )
                 refined_tilt_deg = np.rad2deg(refined_tilt_rad)
 
-            # Rotate subtomograms
+            # Rotate subtomograms in YX plane
             for _j, img in enumerate(subtomograms):
                 img: ip.ImgArray
                 angle = refined_tilt_deg[_j]
@@ -409,26 +391,20 @@ class CylTomogram(Tomogram):
                 w = int(spl.config.fit_width / scale / 2)
                 subtomo_proj = subtomo_proj[ip.slicer.x[xc - w : xc + w + 1]]
 
-            shifts = np.zeros((npoints, 2))  # zx-shift
+            shifts = np.zeros((npoints, 2), dtype=np.float32)  # zx-shift
             max_shift_px = max_shift / scale * 2
+            pf_ang = 360 / spl.config.npf_range.center
+            degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
             for _j in range(npoints):
                 img = subtomo_proj[_j]
-                shifts[_j] = mirror_zncc(img, max_shifts=max_shift_px) / 2
+                shifts[_j] = rotated_auto_zncc(img, degrees, max_shifts=max_shift_px)
 
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
         # coordinates that will be shifted should be converted to integers.
         coords_px = self.nm2pixel(spl.map(anc), binsize=binsize).astype(np.float32)
-
-        shifts_3d = np.stack(
-            [shifts[:, 0], np.zeros(shifts.shape[0]), shifts[:, 1]], axis=1
-        )
-        rotvec = np.zeros(shifts_3d.shape, dtype=np.float32)
-        rotvec[:, 0] = -refined_tilt_rad
-        rot = Rotation.from_rotvec(rotvec)
-        coords_px += rot.apply(shifts_3d)
-
-        coords = coords_px * scale + self.multiscale_translation(binsize)
+        coords_px_new = _shift_coords(coords_px, shifts, refined_tilt_rad)
+        coords = coords_px_new * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
         self.splines[i] = spl.fit(coords, err_max=err_max)
@@ -446,7 +422,7 @@ class CylTomogram(Tomogram):
         err_max: nm = 1.0,
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
-        n_rotation: int = 7,
+        n_rotations: int = 3,
     ) -> FitResult:
         """
         Spline refinement using global lattice structural parameters.
@@ -469,7 +445,7 @@ class CylTomogram(Tomogram):
         max_shift: nm, default is 2.0
             Maximum shift from the true center of the cylinder. This parameter is used in
             phase cross correlation.
-        n_rotation : int, default is 7
+        n_rotations : int, default is 3
             Number of rotations to be tested during finding the cylinder center.
 
         Returns
@@ -498,40 +474,18 @@ class CylTomogram(Tomogram):
         dimer_twist = spl.props.get_glob(H.dimer_twist)
         npf = roundint(spl.props.get_glob(H.npf))
 
-        LOGGER.info(
-            f" >> Parameters: spacing = {interv/2:.2f} nm, dimer_twist = {dimer_twist:.3f} deg, PF = {npf}"
-        )
+        LOGGER.info(f" >> Parameters: spacing = {interv/2:.2f} nm, dimer_twist = {dimer_twist:.3f} deg, PF = {npf}")  # fmt: skip
 
         # complement twisting
         twists = np.arange(npoints) * interval / interv * dimer_twist
         pf_ang = 360 / npf
         twists %= pf_ang
         twists[twists > pf_ang / 2] -= pf_ang
-
-        input_img = self._get_multiscale_or_original(binsize)
-
-        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
-        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
-
-        mole = spl.anchors_to_molecules(rotation=-np.deg2rad(twists))
-        if binsize > 1:
-            mole = mole.translate(-self.multiscale_translation(binsize))
-        scale = input_img.scale.x
-
-        # Load subtomograms rotated by twisting. All the subtomograms should look similar.
-        arr = input_img.value
-        loader = SubtomogramLoader(
-            arr,
-            mole,
-            order=1,
-            scale=scale,
-            output_shape=(width_px, depth_px, width_px),
-            corner_safe=True,
-        )
+        scale = self.scale * binsize
+        loader = _prep_loader_for_refine(self, spl, binsize, twists)
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
-        bg = subtomograms.mean()
-        subtomograms[:] -= bg  # normalize
-        subtomograms.set_scale(input_img)
+        subtomograms[:] -= subtomograms.mean()  # normalize
+        subtomograms.set_scale(zyx=scale)
 
         with set_gpu():
             inputs = subtomograms.proj("y")[ip.slicer.x[::-1]]
@@ -547,21 +501,11 @@ class CylTomogram(Tomogram):
                     translation=shift, mode=Mode.constant, cval=0
                 )
 
-            if corr_allowed < 1:
-                # remove low correlation image from calculation of template image.
-                corrs = np.asarray(
-                    ip.zncc(imgs_aligned, imgs_aligned[ip.slicer.z[::-1].x[::-1]])
-                )
-                threshold = np.quantile(corrs, 1 - corr_allowed)
-                indices: np.ndarray = np.where(corrs >= threshold)[0]
-                imgs_aligned = imgs_aligned[indices.tolist()]
-                LOGGER.info(
-                    f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}"
-                )
+            imgs_aligned = _filter_by_corr(imgs_aligned, corr_allowed)
 
             # Make template using coarse aligned images.
             imgcory = imgs_aligned.proj("p")
-            degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotation) + 180
+            degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
             shift = rotated_auto_zncc(
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
@@ -569,7 +513,7 @@ class CylTomogram(Tomogram):
 
             # Align twist-corrected images to the template
             shifts = np.zeros((npoints, 2))
-            quat = mole.quaternion()
+            quat = loader.molecules.quaternion()
             for _j in range(npoints):
                 img = inputs[_j]
                 tmp = _mask_missing_wedge(template, self.tilt_model, quat[_j])
@@ -1004,10 +948,7 @@ class CylTomogram(Tomogram):
         _val = pw_peak[r_argmax]
         pw_non_peak = np.delete(pw_peak, r_argmax)
         _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
-        LOGGER.info(
-            f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to "
-            f"{_ave:.2g} ± {_std:.2g})"
-        )
+        LOGGER.info(f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
         if update:
             spl.orientation = ori
         return ori
@@ -1450,6 +1391,90 @@ def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
     phase = np.exp(1j * input)
     out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
     return np.angle(out)
+
+
+def _soft_mask_edges(
+    subtomograms: ip.ImgArray,
+    spl: CylSpline,
+    anc: NDArray[np.float32],
+    scale: float,
+    edge_sigma: float | None,
+) -> ip.ImgArray:
+    if edge_sigma is None:
+        return subtomograms
+    # mask XY-region outside the cylinders with sigmoid function.
+    yy, xx = np.indices(subtomograms.sizesof("yx"))
+    yc, xc = np.array(subtomograms.sizesof("yx")) / 2 - 0.5
+    yr = yy - yc
+    xr = xx - xc
+    for _j, ds in enumerate(spl.map(anc, der=1)):
+        _, vy, vx = ds
+        distance: NDArray[np.float64] = (
+            np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
+        )
+        distance_cutoff = spl.config.fit_width / 2
+        if edge_sigma == 0:
+            mask_yx = (distance > distance_cutoff).astype(np.float32)
+        else:
+            mask_yx = 1 / (1 + np.exp((distance - distance_cutoff) / edge_sigma))
+        mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
+        subtomograms[_j] *= mask
+    return subtomograms
+
+
+def _shift_coords(
+    coords_px: NDArray[np.float32],
+    shifts: NDArray[np.float32],
+    refined_tilt_rad: NDArray[np.float32],
+) -> NDArray[np.float32]:
+    shifts_3d = np.stack(
+        [shifts[:, 0], np.zeros(shifts.shape[0]), shifts[:, 1]], axis=1
+    )
+    rotvec = np.zeros(shifts_3d.shape, dtype=np.float32)
+    rotvec[:, 0] = -refined_tilt_rad
+    rot = Rotation.from_rotvec(rotvec)
+    return coords_px + rot.apply(shifts_3d)
+
+
+def _prep_loader_for_refine(
+    self: CylTomogram,
+    spl: CylSpline,
+    binsize: int,
+    twists: NDArray[np.float32],
+) -> SubtomogramLoader:
+    input_img = self._get_multiscale_or_original(binsize)
+
+    depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
+    width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
+
+    mole = spl.anchors_to_molecules(rotation=-np.deg2rad(twists))
+    if binsize > 1:
+        mole = mole.translate(-self.multiscale_translation(binsize))
+    scale = input_img.scale.x
+
+    # Load subtomograms rotated by twisting. All the subtomograms should look similar.
+    arr = input_img.value
+    loader = SubtomogramLoader(
+        arr,
+        mole,
+        order=1,
+        scale=scale,
+        output_shape=(width_px, depth_px, width_px),
+        corner_safe=True,
+    )
+    return loader
+
+
+def _filter_by_corr(imgs_aligned: ip.ImgArray, corr_allowed: float) -> ip.ImgArray:
+    if corr_allowed >= 1:
+        return imgs_aligned
+    sl = ip.slicer.z[::-1].x[::-1]
+    corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned[sl]))
+    threshold = np.quantile(corrs, 1 - corr_allowed)
+    indices: np.ndarray = np.where(corrs >= threshold)[0]
+    imgs_aligned = imgs_aligned[indices.tolist()]
+    LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
+    return imgs_aligned
 
 
 def _mask_missing_wedge(
