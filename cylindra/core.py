@@ -218,24 +218,26 @@ def collect_projects(
     files : path-like or iterable of path-like
         Project file paths or glob pattern(s).
     """
-    from cylindra.project import ProjectSequence, get_project_file
+    from cylindra.project import ProjectSequence
 
     if isinstance(files, (str, Path)):
         if "*" in str(files):
             _files = glob.glob(str(files))
         else:
-            _files = [get_project_file(files)]
+            if not Path(files).exists():
+                raise FileNotFoundError(f"File not found: {files}")
+            _files = [files]
     elif hasattr(files, "__iter__"):
         _files = []
         for f in files:
             f = str(f)
             if "*" not in f:
-                _files.append(get_project_file(f))
+                _files.append(f)
             else:
-                _files.extend([get_project_file(_f) for _f in glob.glob(f)])
+                _files.extend([_f for _f in glob.glob(f)])
     else:
         raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
     if len(_files) == 0:
-        raise ValueError(f"No project files found. Please check the input paths.")
+        raise FileNotFoundError(f"No project files found from the input {files!r}.")
     seq = ProjectSequence.from_paths(_files, skip_exc=skip_exc)
     return seq

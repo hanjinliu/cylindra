@@ -2,7 +2,14 @@ from typing import TYPE_CHECKING, Union, Annotated
 import numpy as np
 import polars as pl
 import impy as ip
-from magicclass import abstractapi, magicclass, field, MagicTemplate, magicmenu
+from magicclass import (
+    abstractapi,
+    magicclass,
+    field,
+    MagicTemplate,
+    magicmenu,
+    set_design,
+)
 from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label
 from magicclass.types import Path
 from magicclass.utils import thread_worker
@@ -130,29 +137,31 @@ class ProjectViewer(MagicTemplate):
     @magicmenu
     class Menu(MagicTemplate):
         load_this_project = abstractapi()
+        preview_image = abstractapi()
         close_window = abstractapi()
 
     def __init__(self):
-        self._project_path: Path | None = None
+        self._project: CylindraProject | None = None
 
     info_viewer = field(TextInfo, name="Text files")
     component_viewer = field(ComponentsViewer, name="Components")
     properties = field(Properties, name="Properties")
 
     def _from_project(self, project: "CylindraProject"):
-        self._project_path = project.project_path
+        self._project = project
         with project.open_project() as dir:
             self.info_viewer._from_project(project, dir)
             self.component_viewer._from_project(project, dir)
             self.properties._from_project(project, dir)
 
     def _get_project_path(self, *_):
-        if self._project_path is None:
+        if self._project is None:
             raise ValueError("Project path is not known.")
-        return self._project_path
+        return self._project.project_path
 
     @Menu.wraps
     @thread_worker
+    @set_design(text="Load this project")
     def load_this_project(
         self,
         path: Annotated[str, {"bind": _get_project_path}],
@@ -161,6 +170,7 @@ class ProjectViewer(MagicTemplate):
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
     ):
+        """Load current project in main window."""
         from cylindra import instance
 
         ui = None
@@ -180,6 +190,15 @@ class ProjectViewer(MagicTemplate):
         return thread_worker.callback(self.close)
 
     @Menu.wraps
+    @set_design(text="Preview image")
+    def preview_image(self):
+        """Preview the tomogram image."""
+        from cylindra.widgets._previews import view_image
+
+        return view_image(self._project.image, parent=self)
+
+    @Menu.wraps
+    @set_design(text="Close")
     def close_window(self):
         """Close this preview."""
         return self.close()

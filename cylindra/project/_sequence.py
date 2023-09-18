@@ -296,7 +296,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             dataframes.append(df)
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         if suffix:
-            need_rename = [H.spacing, H.dimer_twist, H.npf, H.rise, H.radius]
+            need_rename = [
+                H.spacing,
+                H.dimer_twist,
+                H.npf,
+                H.rise,
+                H.skew,
+                H.rise_length,
+                H.radius,
+                H.start,
+            ]
             out = out.rename(
                 {col: col + suffix for col in need_rename if col in out.columns}
             )
@@ -349,7 +358,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         loc = self.collect_localprops(
             allow_none=allow_none, id="int", spline_details=spline_details
         )
-        glb = self.collect_globalprops(allow_none=allow_none, id="int")
+        glb = self.collect_globalprops(allow_none=allow_none, id="int", suffix="_glob")
         if spline_details:
             lengths = list[float]()
             for _, spl in self.iter_splines():
