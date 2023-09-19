@@ -8,7 +8,6 @@ from typing import (
     overload,
     Protocol,
     TYPE_CHECKING,
-    NamedTuple,
 )
 from collections.abc import Iterable
 from functools import partial, wraps
@@ -53,12 +52,6 @@ if TYPE_CHECKING:
 
 
 LOGGER = logging.getLogger("cylindra")
-
-
-def rmsd(shifts: ArrayLike) -> float:
-    """Root mean square deviation."""
-    shifts = np.atleast_2d(shifts)
-    return np.sqrt(np.sum(shifts**2) / shifts.shape[0])
 
 
 _P = ParamSpec("_P")
@@ -137,13 +130,23 @@ def batch_process(
     return _func
 
 
-class FitResult(NamedTuple):
-    residual: NDArray[np.float64]
-    rmsd: float
+class FitResult:
+    def __init__(self, residual: NDArray[np.float64]):
+        self.residual = residual
 
-    @classmethod
-    def from_residual(cls, residual: ArrayLike) -> FitResult:
-        return cls(residual=residual, rmsd=rmsd(residual))
+    def __repr__(self) -> str:
+        cname = self.__class__.__name__
+        return f"{cname}(rmsd={self.rmsd:.3f} nm, max={self.max:.3f} nm)"
+
+    @property
+    def rmsd(self) -> float:
+        """Root mean square deviation."""
+        return np.sqrt(np.sum(self.residual**2) / self.residual.shape[0])
+
+    @property
+    def max(self) -> float:
+        """Maximum deviation."""
+        return np.abs(self.residual).max()
 
 
 class CylTomogram(Tomogram):
@@ -405,7 +408,7 @@ class CylTomogram(Tomogram):
 
         # Update spline parameters
         self.splines[i] = spl.fit(coords, err_max=err_max)
-        result = FitResult.from_residual(residual=shifts * scale)
+        result = FitResult(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
 
@@ -452,34 +455,38 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.refine, i={i}")
         spl = self.splines[i]
-        if spl.radius is None:
-            spl.make_anchors(n=3)
-            self.measure_radius(i=i, binsize=binsize)
-
         _required = [H.spacing, H.dimer_twist, H.npf]
         if not spl.props.has_glob(_required):
-            self.global_ft_params(i=i, binsize=binsize, nsamples=1)
-
-        spl.make_anchors(max_interval=max_interval)
-        npoints = spl.anchors.size
-        interval = spl.length() / (npoints - 1)
+            if (radius := spl.radius) is None:
+                radius = self.measure_radius(
+                    i=i,
+                    binsize=binsize,
+                    positions="auto",
+                    update=False,
+                )
+            with spl.props.temp_glob(radius=radius):
+                gprops = self.global_ft_params(
+                    i=i, binsize=binsize, nsamples=1, update=False
+                )
+        else:
+            gprops = spl.props.glob.select(_required)
+        gdict = {k: float(gprops[k][0]) for k in _required}
+        ancs = spl.prep_anchor_positions(max_interval=max_interval)
 
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        interv = spl.props.get_glob(H.spacing) * 2
-        dimer_twist = spl.props.get_glob(H.dimer_twist)
-        npf = roundint(spl.props.get_glob(H.npf))
+        dimer_space = gdict[H.spacing] * 2
+        dimer_twist = gdict[H.dimer_twist]
+        npf = roundint(gdict[H.npf])
 
-        LOGGER.info(f" >> Parameters: spacing = {interv/2:.2f} nm, dimer_twist = {dimer_twist:.3f} deg, PF = {npf}")  # fmt: skip
+        LOGGER.info(f" >> Parameters: spacing = {dimer_space/2:.2f} nm, dimer_twist = {dimer_twist:.3f} deg, PF = {npf}")  # fmt: skip
 
         # complement twisting
-        twists = np.arange(npoints) * interval / interv * dimer_twist
         pf_ang = 360 / npf
-        twists %= pf_ang
-        twists[twists > pf_ang / 2] -= pf_ang
+        twists = _get_twists(spl.length(), ancs.size, dimer_space, dimer_twist, npf)
         scale = self.scale * binsize
-        loader = _prep_loader_for_refine(self, spl, binsize, twists)
+        loader = _prep_loader_for_refine(self, spl, ancs, binsize, twists)
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(zyx=scale)
@@ -490,20 +497,17 @@ class CylTomogram(Tomogram):
             inputs = subtomograms.proj("y")[ip.slicer.x[::-1]]
 
             # Align twist-corrected images
-            shifts = _multi_rotated_auto_zncc(inputs, degrees, max_shift_px)
-            imgs_aligned: ip.ImgArray = np.stack(
-                [
-                    inputs[_j].affine(
-                        translation=shifts[_j], mode=Mode.constant, cval=0
-                    )
-                    for _j in range(npoints)
-                ],
-                axis="p",
+            shifts_loc = _multi_rotated_auto_zncc(inputs, degrees, max_shift_px)
+            tasks = [
+                _delayed_translate(inputs[_j], shifts_loc[_j])
+                for _j in range(ancs.size)
+            ]
+            imgs_aligned = _filter_by_corr(
+                np.stack(da.compute(*tasks), axis="p"),
+                corr_allowed,
             )
 
-            imgs_aligned = _filter_by_corr(imgs_aligned, corr_allowed)
-
-            # Make template using coarse aligned images.
+            # Make 2D template using coarse aligned images.
             imgcory = imgs_aligned.proj("p")
             shift = rotated_auto_zncc(
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
@@ -511,21 +515,21 @@ class CylTomogram(Tomogram):
             template = imgcory.affine(translation=shift, mode=Mode.constant, cval=0.0)
 
             # Align twist-corrected images to the template
-            shifts = np.zeros((npoints, 2))
             quat = loader.molecules.quaternion()
-            for _j in range(npoints):
-                img = inputs[_j]
-                tmp = _mask_missing_wedge(template, self.tilt_model, quat[_j])
-                shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shift_px)
-
-                rad = np.deg2rad(twists[_j])
-                cos, sin = np.cos(rad), np.sin(rad)
-                zxrot = np.array([[cos, sin], [-sin, cos]], dtype=np.float32)
-                shifts[_j] = shift @ zxrot
+            tasks = [
+                _delayed_zncc_maximum(
+                    inputs[_j],
+                    _mask_missing_wedge(template, self.tilt_model, quat[_j]),
+                    max_shift_px,
+                    twists[_j],
+                )
+                for _j in range(ancs.size)
+            ]
+            shifts = np.stack(da.compute(*tasks), axis=0)
 
         # Update spline parameters
-        self.splines[i] = spl.shift(shifts=shifts * scale, err_max=err_max)
-        result = FitResult.from_residual(shifts * scale)
+        self.splines[i] = spl.shift(ancs, shifts=shifts * scale, err_max=err_max)
+        result = FitResult(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
 
@@ -835,10 +839,10 @@ class CylTomogram(Tomogram):
         binsize : int, default is 1
             Multiscale bin size used for calculation.
         nsamples : int, default is 8
-            Number of cylindrical coordinate samplings for Fourier transformation. Multiple
-            samplings are needed because up-sampled discrete Fourier transformation does not
-            return exactly the same power spectra with shifted inputs, unlike FFT. Larger
-            ``nsamples`` reduces the error but is slower.
+            Number of cylindrical coordinate samplings for Fourier transformation.
+            Multiple samplings are needed because up-sampled discrete Fourier
+            transformation does not return exactly the same power spectra with shifted
+            inputs, unlike FFT. Larger ``nsamples`` reduces the error but is slower.
 
         Returns
         -------
@@ -1355,6 +1359,7 @@ def _shift_coords(
 def _prep_loader_for_refine(
     self: CylTomogram,
     spl: CylSpline,
+    ancs: NDArray[np.float32],
     binsize: int,
     twists: NDArray[np.float32],
 ) -> SubtomogramLoader:
@@ -1363,7 +1368,7 @@ def _prep_loader_for_refine(
     depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
     width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
 
-    mole = spl.anchors_to_molecules(rotation=-np.deg2rad(twists))
+    mole = spl.anchors_to_molecules(ancs, rotation=-np.deg2rad(twists))
     if binsize > 1:
         mole = mole.translate(-self.multiscale_translation(binsize))
     scale = input_img.scale.x
@@ -1379,6 +1384,40 @@ def _prep_loader_for_refine(
         corner_safe=True,
     )
     return loader
+
+
+def _get_twists(
+    length: float,
+    nancs: int,
+    dimer_space: float,
+    dimer_twist: float,
+    npf: int,
+):
+    twist_interv = length / (nancs - 1)
+    twists = np.arange(nancs) * twist_interv / dimer_space * dimer_twist
+    pf_ang = 360 / npf
+    twists %= pf_ang
+    twists[twists > pf_ang / 2] -= pf_ang
+    return twists
+
+
+@delayed
+def _delayed_translate(img: ip.ImgArray, shift) -> ip.ImgArray:
+    return img.affine(translation=shift, mode=Mode.constant, cval=0)
+
+
+@delayed
+def _delayed_zncc_maximum(
+    img: ip.ImgArray,
+    tmp: ip.ImgArray,
+    max_shifts: int,
+    twist: float,
+):
+    shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shifts)
+    rad = np.deg2rad(twist)
+    cos, sin = np.cos(rad), np.sin(rad)
+    zxrot = np.array([[cos, sin], [-sin, cos]], dtype=np.float32)
+    return shift @ zxrot
 
 
 def _filter_by_corr(imgs_aligned: ip.ImgArray, corr_allowed: float) -> ip.ImgArray:

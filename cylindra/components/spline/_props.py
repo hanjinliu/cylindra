@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping, Sequence, Union
@@ -120,7 +121,7 @@ class SplineProps:
         if kwargs:
             if props is not None:
                 raise ValueError("Cannot specify both props and kwargs.")
-            props = kwargs
+            props = pl.DataFrame(kwargs)
         if not isinstance(props, pl.DataFrame):
             df = pl.DataFrame(props)
         else:
@@ -129,6 +130,20 @@ class SplineProps:
             raise ValueError("Global properties must be a single row.")
         self._glob = self._glob.with_columns(df)
         return self
+
+    @contextmanager
+    def temp_glob(self, props: _DataFrameLike | None = None, **kwargs) -> Self:
+        """Temporarily update the global properties."""
+        if kwargs:
+            if props is not None:
+                raise ValueError("Cannot specify both props and kwargs.")
+            props = pl.DataFrame(kwargs)
+        old_df = self._glob
+        self._glob = old_df.with_columns(props)
+        try:
+            yield
+        finally:
+            self._glob = old_df
 
     def drop_loc(self, keys: str | Iterable[str]) -> Self:
         """Drop local properties."""
