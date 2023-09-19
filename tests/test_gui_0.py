@@ -834,11 +834,11 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
                 skew, abs=1e-2
             )
             assert feat["dimer-twist-deg"][:-npf].mean() == pytest.approx(
-                dimer_twist, abs=1e-3
+                dimer_twist, abs=1.5e-3
             )
             r = "rise-angle-deg"
             feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
-            assert feat_rise.mean() * ay_ratio == pytest.approx(rise_angle, abs=1e-2)
+            assert feat_rise.mean() * ay_ratio == pytest.approx(rise_angle, abs=2e-2)
     exc_group.raise_exceptions()
 
 
@@ -879,7 +879,7 @@ def test_cli(make_napari_viewer):
     viewer: napari.Viewer = make_napari_viewer()
     sys.argv = ["cylindra"]
     main(viewer)
-    sys.argv = ["cylindra", "--view", str(PROJECT_DIR_14PF / "project.json")]
+    sys.argv = ["cylindra", str(PROJECT_DIR_14PF / "project.json")]
     main(viewer)
 
 

@@ -164,7 +164,6 @@ class CylinderSurface:
 
     def __init__(self, spl: CylSpline):
         self._spl = spl
-        self._spl_len = spl.length()
 
     def surface_norm(
         self,
@@ -181,14 +180,14 @@ class CylinderSurface:
         coords = np.atleast_2d(coords)
         assert coords.ndim == 2 and coords.shape[1] == 4
         zyx = coords[:, :3]
-        u = coords[:, 3]
-        _spl_coords = self._spl.map(u / self._spl_len, der=0)
+        u = self._spl.y_to_position(coords[:, 3])
+        _spl_coords = self._spl.map(u, der=0)
         _mole_to_spl_vec = _spl_coords - zyx
         return _norm(_mole_to_spl_vec)
 
     def spline_vec_norm(self, pos: NDArray[np.float32]) -> NDArray[np.float32]:
         """Normalized spline tangent vector for given positions (nm)."""
-        u = np.asarray(pos) / self._spl_len
+        u = self._spl.y_to_position(pos)
         _spl_vec = self._spl.map(u, der=1)
         return _norm(_spl_vec)
 
@@ -243,6 +242,7 @@ class CylinderSurface:
         start: NDArray[np.float32],
         degree: bool = True,
     ) -> NDArray[np.float32]:
+        """Longitudinal angle between the vector and the spline."""
         angs = _arcsin(self.long_sin(vec, start))
         if degree:
             angs = np.rad2deg(angs)

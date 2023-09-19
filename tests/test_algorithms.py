@@ -55,7 +55,7 @@ def test_run_all(coords, npf, rise, twist_range):
 
     # GDP-bound microtubule has spacing in this range
     assert 4.08 < spacing_glob < 4.11
-    assert spacing_glob == pytest.approx(spacing_mean, abs=0.013)
+    assert spacing_glob == pytest.approx(spacing_mean, abs=5e-3)
     assert all(spl.localprops[H.npf] == npf)
     assert all(spl.localprops[H.rise] > rise)
     tw_min, tw_max = twist_range
