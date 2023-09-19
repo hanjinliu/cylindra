@@ -391,13 +391,10 @@ class CylTomogram(Tomogram):
                 w = int(spl.config.fit_width / scale / 2)
                 subtomo_proj = subtomo_proj[ip.slicer.x[xc - w : xc + w + 1]]
 
-            shifts = np.zeros((npoints, 2), dtype=np.float32)  # zx-shift
             max_shift_px = max_shift / scale * 2
             pf_ang = 360 / spl.config.npf_range.center
             degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
-            for _j in range(npoints):
-                img = subtomo_proj[_j]
-                shifts[_j] = rotated_auto_zncc(img, degrees, max_shifts=max_shift_px)
+            shifts = _multi_rotated_auto_zncc(subtomo_proj, degrees, max_shift_px)
 
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
@@ -1509,3 +1506,15 @@ def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -
 def _get_radius_offset(min_radius_px, max_radius_px) -> nm:
     n_radius = roundint(max_radius_px - min_radius_px)
     return (min_radius_px + max_radius_px - n_radius + 1) / 2
+
+
+@delayed
+def _lazy_rotated_auto_zncc(img, degrees, max_shifts):
+    return rotated_auto_zncc(img, degrees, max_shifts=max_shifts)
+
+
+def _multi_rotated_auto_zncc(
+    imgs: ip.ImgArray, degrees: NDArray[np.float32], max_shift_px: int
+) -> NDArray[np.float32]:
+    tasks = [_lazy_rotated_auto_zncc(subimg, degrees, max_shift_px) for subimg in imgs]
+    return np.stack(da.compute(*tasks), axis=0)
