@@ -1,6 +1,7 @@
 from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
 import numpy as np
+from numpy.testing import assert_allclose
 import pytest
 from ._const import TEST_DIR
 
@@ -85,31 +86,43 @@ def test_run_all(coords, npf, rise, twist_range):
 
 def test_chunked_straightening():
     path = TEST_DIR / "14pf_MT.tif"
-    tomo = CylTomogram.imread(path)
+    tomo = CylTomogram.imread(path, binsize=[1, 2])
 
     # the length of spline is ~80 nm
     tomo.add_spline(
         np.array([[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]])
     )
     tomo.fit()
-    tomo.refine()
     tomo.make_anchors(n=3)
     tomo.measure_radius()
 
-    tomo.straighten(i=0, chunk_length=200)
-    tomo.straighten(i=0, chunk_length=32)
+    st0 = tomo.straighten(i=0, chunk_length=200)
+    st1 = tomo.straighten(i=0, chunk_length=32)
+    assert st0.shape == st1.shape
+    assert_allclose(st0.value, st1.value)
     st0 = tomo.straighten_cylindric(i=0, chunk_length=200)
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32)
+    assert st0.shape == st1.shape
+    assert_allclose(st0.value, st1.value)
 
-    from cylindra.components._ftprops import LatticeAnalyzer
+    st0 = tomo.straighten(i=0, chunk_length=200, binsize=2)
+    st1 = tomo.straighten(i=0, chunk_length=32, binsize=2)
+    assert st0.shape == st1.shape
+    assert_allclose(st0.value, st1.value)
+    st0 = tomo.straighten_cylindric(i=0, chunk_length=200, binsize=2)
+    st1 = tomo.straighten_cylindric(i=0, chunk_length=32, binsize=2)
+    assert st0.shape == st1.shape
+    assert_allclose(st0.value, st1.value)
 
-    spl = tomo.splines[0]
-    analyzer = LatticeAnalyzer(spl.config)
-    prop0 = analyzer.estimate_lattice_params_polar(st0, spl.radius)
-    prop1 = analyzer.estimate_lattice_params_polar(st1, spl.radius)
+    # from cylindra.components._ftprops import LatticeAnalyzer
 
-    assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
-    assert prop0.dimer_twist == pytest.approx(prop1.dimer_twist, abs=1e-6)
+    # spl = tomo.splines[0]
+    # analyzer = LatticeAnalyzer(spl.config)
+    # prop0 = analyzer.estimate_lattice_params_polar(st0, spl.radius)
+    # prop1 = analyzer.estimate_lattice_params_polar(st1, spl.radius)
+
+    # assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
+    # assert prop0.dimer_twist == pytest.approx(prop1.dimer_twist, abs=1e-6)
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])

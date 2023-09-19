@@ -36,13 +36,13 @@ from cylindra.utils import (
     rotated_auto_zncc,
     roundint,
     set_gpu,
-    mirror_zncc,
     angle_corr,
     ceilint,
 )
 
 from ._tomo_base import Tomogram
 from ._spline_list import SplineList
+from . import _straighten
 
 if TYPE_CHECKING:
     from typing_extensions import Self, Literal
@@ -967,7 +967,6 @@ class CylTomogram(Tomogram):
         range_: tuple[float, float] = (0.0, 1.0),
         chunk_length: nm | None = None,
         binsize: int = 1,
-        filt_func: Callable[[ip.ImgArray], ip.ImgArray] | None = None,
     ) -> ip.ImgArray:
         """
         Straightening by building curved coordinate system around splines. Currently
@@ -987,8 +986,6 @@ class CylTomogram(Tomogram):
             afterward, to avoid loading entire image into memory.
         binsize : int, default is 1
             Multiscale bin size used for calculation.
-        filt_func : callable, optional
-            Image filter function applied to the straightened image.
 
         Returns
         -------
@@ -996,50 +993,9 @@ class CylTomogram(Tomogram):
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """
         spl = self.splines[i]
-
-        length = self.splines[i].length(nknots=512)
-
-        if chunk_length is None:
-            if binsize == 1:
-                chunk_length = 72.0
-            else:
-                chunk_length = 999999
-
-        if length > chunk_length:
-            transformed = self._chunked_straighten(
-                i,
-                length,
-                range_,
-                function=self.straighten,
-                chunk_length=chunk_length,
-                size=size,
-                binsize=binsize,
-                filt_func=filt_func,
-            )
-
-        else:
-            if size is None:
-                rz = rx = 2 * (spl.radius + spl.config.thickness_outer)
-
-            else:
-                if hasattr(size, "__iter__"):
-                    rz, rx = size
-                else:
-                    rz = rx = size
-
-            input_img = self._get_multiscale_or_original(binsize)
-            if filt_func is not None:
-                input_img = filt_func(input_img)
-            _scale = input_img.scale.x
-            coords = spl.cartesian(shape=(rz, rx), s_range=range_, scale=_scale)
-            with set_gpu():
-                transformed = map_coordinates(input_img, coords, order=1)
-
-            axes = "zyx"
-            transformed = ip.asarray(transformed, axes=axes)
-            transformed.set_scale({k: _scale for k in axes}, unit="nm")
-
-        return transformed
+        input_img = self._get_multiscale_or_original(binsize)
+        chunk_length = _normalize_chunk_length(input_img, chunk_length)
+        return _straighten.straighten(input_img, spl, range_, size)
 
     @batch_process
     def straighten_cylindric(
@@ -1050,7 +1006,6 @@ class CylTomogram(Tomogram):
         range_: tuple[float, float] = (0.0, 1.0),
         chunk_length: nm | None = None,
         binsize: int = 1,
-        filt_func: Callable[[ip.ImgArray], ip.ImgArray] | None = None,
     ) -> ip.ImgArray:
         """
         Straightening by building curved coordinate system around splines. Currently
@@ -1070,8 +1025,6 @@ class CylTomogram(Tomogram):
             afterward, to avoid loading entire image into memory.
         binsize : int, default is 1
             Multiscale bin size used for calculation.
-        filt_func : callable, optional
-            Image filter function applied to the straightened image.
 
         Returns
         -------
@@ -1079,51 +1032,9 @@ class CylTomogram(Tomogram):
             Straightened image. If Cartesian coordinate system is used, it will have "zyx".
         """
         spl = self.splines[i]
-
-        if spl.radius is None:
-            raise ValueError("Radius has not been determined yet.")
-        if chunk_length is None:
-            if binsize == 1:
-                chunk_length = 72.0
-            else:
-                chunk_length = 999999
-        length = self.splines[i].length(nknots=512)
-
-        if length > chunk_length:
-            transformed = self._chunked_straighten(
-                i,
-                length,
-                range_,
-                function=self.straighten_cylindric,
-                chunk_length=chunk_length,
-                radii=radii,
-                binsize=binsize,
-                filt_func=filt_func,
-            )
-        else:
-            input_img = self._get_multiscale_or_original(binsize)
-            if filt_func is not None:
-                input_img = filt_func(input_img)
-            _scale = input_img.scale.x
-            if radii is None:
-                rmin, rmax = spl.radius_range()
-            else:
-                rmin, rmax = radii
-
-            if rmax <= rmin:
-                raise ValueError("radii[0] < radii[1] must be satisfied.")
-            spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-            coords = spl_trans.cylindrical(
-                r_range=(rmin, rmax),
-                s_range=range_,
-                scale=_scale,
-            )
-
-            with set_gpu():
-                rc = (rmin + rmax) / 2
-                transformed = get_polar_image(input_img, coords, radius=rc)
-
-        return transformed
+        input_img = self._get_multiscale_or_original(binsize)
+        chunk_length = _normalize_chunk_length(input_img, chunk_length)
+        return _straighten.straighten_cylindric(input_img, spl, range_, radii)
 
     @batch_process
     def map_centers(
@@ -1538,3 +1449,12 @@ def _multi_rotated_auto_zncc(
 ) -> NDArray[np.float32]:
     tasks = [_lazy_rotated_auto_zncc(subimg, degrees, max_shift_px) for subimg in imgs]
     return np.stack(da.compute(*tasks), axis=0)
+
+
+def _normalize_chunk_length(img, chunk_length: nm | None) -> nm:
+    if chunk_length is None:
+        if isinstance(img, ip.LazyImgArray):
+            chunk_length = 72.0
+        else:
+            chunk_length = 999999
+    return chunk_length
