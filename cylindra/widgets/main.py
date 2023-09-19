@@ -129,7 +129,12 @@ _Interval = Annotated[
 ]
 
 # stylesheet
-_STYLE = (Path(__file__).parent / "style.qss").read_text()
+_WIDGETS_PATH = Path(__file__).parent
+_STYLE = (
+    _WIDGETS_PATH.joinpath("style.qss")
+    .read_text()
+    .replace("%QSS_PATH%", _WIDGETS_PATH.as_posix())
+)
 _NSPLINES = "len(self.splines) if splines is None else len(splines)"
 
 

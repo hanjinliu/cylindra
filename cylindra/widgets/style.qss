@@ -9,7 +9,7 @@ QCommandList {
 }
 
 QSizeGrip {
-    image: url(./cylindra/widgets/icons/grip.svg);
+    image: url(%QSS_PATH%/icons/grip.svg);
     width: 10px;
     height: 10px;
 }
