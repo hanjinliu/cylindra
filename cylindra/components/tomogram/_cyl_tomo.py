@@ -484,25 +484,27 @@ class CylTomogram(Tomogram):
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(zyx=scale)
 
+        degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
+        max_shift_px = max_shift / scale
         with set_gpu():
             inputs = subtomograms.proj("y")[ip.slicer.x[::-1]]
 
-            # Coarsely align twist-corrected images
-            imgs_aligned = ip.empty(inputs.shape, dtype=np.float32, axes=inputs.axes)
-            max_shift_px = max_shift / scale
-
-            for _j in range(npoints):
-                img = inputs[_j]
-                shift = mirror_zncc(img, max_shifts=max_shift_px * 2) / 2
-                imgs_aligned.value[_j] = img.affine(
-                    translation=shift, mode=Mode.constant, cval=0
-                )
+            # Align twist-corrected images
+            shifts = _multi_rotated_auto_zncc(inputs, degrees, max_shift_px)
+            imgs_aligned: ip.ImgArray = np.stack(
+                [
+                    inputs[_j].affine(
+                        translation=shifts[_j], mode=Mode.constant, cval=0
+                    )
+                    for _j in range(npoints)
+                ],
+                axis="p",
+            )
 
             imgs_aligned = _filter_by_corr(imgs_aligned, corr_allowed)
 
             # Make template using coarse aligned images.
             imgcory = imgs_aligned.proj("p")
-            degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
             shift = rotated_auto_zncc(
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
