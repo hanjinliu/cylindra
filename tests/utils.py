@@ -70,6 +70,5 @@ class ExceptionGroup:
     def raise_exceptions(self) -> None:
         if self._list:
             lines = "\n\t".join(f"({desc!r}) {exc}" for exc, desc in self._list)
-            raise RuntimeError(f"{self.nfail} test failed:\n\t{lines}") from self._list[
-                -1
-            ][0]
+            ori_exc = self._list[-1][0]
+            raise RuntimeError(f"{self.nfail} test failed:\n\t{lines}") from ori_exc

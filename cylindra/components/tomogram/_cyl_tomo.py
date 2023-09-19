@@ -584,12 +584,14 @@ class CylTomogram(Tomogram):
         thick_outer_px = spl.config.thickness_outer / _scale
 
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        profs = list[float]()
+        _delayed_radial_prof = delayed(_get_radial_prof)
+        tasks = []
         for anc in pos:
-            coords = spl_trans.local_cylindrical(
-                (min_radius, max_radius), depth, anc, scale=_scale
+            task = _delayed_radial_prof(
+                input_img, spl_trans, anc, (min_radius, max_radius), depth
             )
-            profs.append(np.mean(map_coordinates(input_img, coords), axis=(1, 2)))
+            tasks.append(task)
+        profs: list[NDArray[np.float32]] = da.compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
         imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
@@ -641,12 +643,16 @@ class CylTomogram(Tomogram):
         thick_inner_px = spl.config.thickness_inner / _scale
         thick_outer_px = spl.config.thickness_outer / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        radii = list[float]()
+        _delayed_radial_prof = delayed(_get_radial_prof)
+        tasks = []
         for anc in spl_trans.anchors:
-            coords = spl_trans.local_cylindrical(
-                (min_radius, max_radius), depth, anc, scale=_scale
+            task = _delayed_radial_prof(
+                input_img, spl_trans, anc, (min_radius, max_radius), depth
             )
-            prof = np.mean(map_coordinates(input_img, coords), axis=(1, 2))
+            tasks.append(task)
+        profs: list[NDArray[np.float32]] = da.compute(*tasks)
+        radii = list[float]()
+        for prof in profs:
             imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
             radii.append((imax_sub + offset_px) * _scale)
 
@@ -1487,6 +1493,18 @@ def _mask_missing_wedge(
     mask3d = tilt_model.create_mask(Rotation(quat), shape)
     mask = mask3d[:, 0, :]
     return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
+
+
+def _get_radial_prof(
+    input_img: ip.ImgArray,
+    spl: CylSpline,
+    anc: float,
+    r_range: tuple[nm, nm],
+    depth: nm,
+) -> NDArray[np.float32]:
+    coords = spl.local_cylindrical(r_range, depth, anc, scale=input_img.scale.x)
+    prof = np.mean(map_coordinates(input_img, coords), axis=(1, 2))
+    return prof
 
 
 def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -> float:
