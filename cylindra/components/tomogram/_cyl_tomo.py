@@ -30,7 +30,6 @@ from cylindra.components.spline import CylSpline
 from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
 from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
 from cylindra.utils import (
-    crop_tomogram,
     crop_tomograms,
     centroid,
     map_coordinates_task,

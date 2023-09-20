@@ -7,6 +7,7 @@ tests/**/*.json
 tests/**/*.csv
 tests/**/*.pq
 tests/**/*.tar
+tests/**/*.zip
 tests/**/script.py
 
 # Byte-compiled / optimized / DLL files

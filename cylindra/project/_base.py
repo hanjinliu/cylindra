@@ -121,7 +121,8 @@ class BaseProject(BaseModel):
         with tempfile.TemporaryDirectory() as tmpdir:
             with zipfile.ZipFile(path) as zip:
                 zip.extractall(tmpdir)
-            self = cls.from_json(tmpdir)
+            self = cls.from_json(Path(tmpdir) / "project.json")
+            self.project_path = path
         return self
 
 

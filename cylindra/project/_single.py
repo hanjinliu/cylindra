@@ -397,6 +397,7 @@ class CylindraProject(BaseProject):
 
     @contextmanager
     def open_project(self) -> Generator[Path, None, None]:
+        """Open the project within this context."""
         if self.project_path is None:
             raise ValueError("Project path is not set.")
         ext = self.project_path.suffix
@@ -409,6 +410,14 @@ class CylindraProject(BaseProject):
             with tempfile.TemporaryDirectory() as tmpdir:
                 with tarfile.open(self.project_path) as tar:
                     tar.extractall(tmpdir)
+                yield Path(tmpdir)
+
+        elif ext in (".zip",):
+            import zipfile
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with zipfile.ZipFile(self.project_path) as zip:
+                    zip.extractall(tmpdir)
                 yield Path(tmpdir)
 
         else:
@@ -475,6 +484,15 @@ def _prep_save_dir(project_path: Path) -> Generator[Path, None, None]:
             with tarfile.open(project_path, mode="w") as tar:
                 for file in Path(tmpdir).glob("*"):
                     tar.add(file, arcname=file.name)
+
+    elif ext in (".zip",):
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+            with zipfile.ZipFile(project_path, mode="w") as zip:
+                for file in Path(tmpdir).glob("*"):
+                    zip.write(file, arcname=file.name)
 
     else:
         raise ValueError(f"Unsupported extension {ext}.")
