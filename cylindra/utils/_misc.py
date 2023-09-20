@@ -5,6 +5,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import impy as ip
+from dask import array as da
 from cylindra._dask import delayed, Delayed, compute
 from typing import Sequence, TypeVar, Callable
 from cylindra.const import Mode
@@ -81,6 +82,8 @@ def crop_tomograms(
     shape: tuple[int, int, int],
 ) -> ip.ImgArray:
     regs = []
+    is_lazy = isinstance(img, ip.LazyImgArray)
+    pad_fn = da.pad if is_lazy else np.pad
     for z, y, x in positions:
         rz, ry, rx = ((s - 1) / 2 for s in shape)
         sizez, sizey, sizex = img.sizesof("zyx")
@@ -88,11 +91,11 @@ def crop_tomograms(
         sl_z, pad_z = make_slice_and_pad(roundint(z - rz), roundint(z + rz + 1), sizez)
         sl_y, pad_y = make_slice_and_pad(roundint(y - ry), roundint(y + ry + 1), sizey)
         sl_x, pad_x = make_slice_and_pad(roundint(x - rx), roundint(x + rx + 1), sizex)
-        reg = img[sl_z, sl_y, sl_x]
+        reg = img.value[sl_z, sl_y, sl_x]
         pads = [pad_z, pad_y, pad_x]
         if np.any(np.array(pads) > 0):
-            reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
-        regs.append(reg.value)
+            reg = pad_fn(reg, pads, mode="constant", constant_values=reg.mean())
+        regs.append(reg)
     if isinstance(img, ip.ImgArray):
         return ip.asarray(np.stack(regs, axis=0), axes="pzyx")
     else:

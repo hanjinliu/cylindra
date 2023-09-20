@@ -82,5 +82,7 @@ def _chunk_coords(
     # NOTE: the first axis is the dimension axis
     axis_len = coords.shape[axis + 1]
     s0 = ceilint(axis_len / nchunks)
+    if nchunks == 1:
+        return [coords]
     indices = np.linspace(s0, axis_len, nchunks, dtype=np.int32, endpoint=False)
     return np.split(coords, indices, axis=axis + 1)
